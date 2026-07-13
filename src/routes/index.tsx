@@ -148,6 +148,22 @@ function UpcomingWidget() {
         new Date(b.due_at as string).getTime(),
     );
 
+  // Group by course
+  type Item = (typeof upcoming)[number];
+  const groups = new Map<
+    number,
+    { name: string; code: string; items: Item[] }
+  >();
+  upcoming.forEach((a) => {
+    const g = groups.get(a.course_id) ?? {
+      name: a.course_name,
+      code: a.course_code ?? "",
+      items: [],
+    };
+    g.items.push(a);
+    groups.set(a.course_id, g);
+  });
+
   return (
     <GlassCard
       title="Upcoming Assignments"
@@ -175,25 +191,38 @@ function UpcomingWidget() {
       {data && upcoming.length === 0 && (
         <EmptyState message="Nothing due this week." />
       )}
-      {upcoming.length > 0 && (
-        <ul className="space-y-2">
-          {upcoming.map((a) => (
-            <li
-              key={a.id}
-              className="glass-inset glass-hover flex items-start justify-between gap-3 p-3"
-            >
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium">{a.name}</p>
-                <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                  {a.course_name}
-                </p>
+      {groups.size > 0 && (
+        <div className="space-y-5">
+          {Array.from(groups.entries()).map(([id, g]) => (
+            <div key={id}>
+              <div className="mb-2 flex items-baseline gap-2 px-1">
+                <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-foreground/80">
+                  {g.code || g.name}
+                </h3>
+                {g.code && (
+                  <span className="truncate text-xs text-muted-foreground">
+                    {g.name}
+                  </span>
+                )}
               </div>
-              <span className="whitespace-nowrap text-xs font-medium tabular-nums text-muted-foreground">
-                {formatDue(a.due_at)}
-              </span>
-            </li>
+              <ul className="space-y-2">
+                {g.items.map((a) => (
+                  <li
+                    key={a.id}
+                    className="glass-inset glass-hover flex items-start justify-between gap-3 p-3"
+                  >
+                    <p className="min-w-0 truncate text-sm font-medium">
+                      {a.name}
+                    </p>
+                    <span className="whitespace-nowrap text-xs font-medium tabular-nums text-muted-foreground">
+                      {formatDue(a.due_at)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
     </GlassCard>
   );
@@ -202,7 +231,23 @@ function UpcomingWidget() {
 function AnnouncementsWidget() {
   const { data, isLoading, isError, error } = useQuery(announcementsQO);
 
-  const items = (data ?? []).slice(0, 5);
+  const items = (data ?? []).slice(0, 12);
+
+  // Group by course
+  type Item = (typeof items)[number];
+  const groups = new Map<
+    number,
+    { name: string; code: string; items: Item[] }
+  >();
+  items.forEach((a) => {
+    const g = groups.get(a.course_id) ?? {
+      name: a.course_name,
+      code: a.course_code ?? "",
+      items: [],
+    };
+    g.items.push(a);
+    groups.set(a.course_id, g);
+  });
 
   return (
     <GlassCard
@@ -231,22 +276,40 @@ function AnnouncementsWidget() {
       {data && items.length === 0 && (
         <EmptyState message="No recent announcements." />
       )}
-      {items.length > 0 && (
-        <ul className="space-y-2">
-          {items.map((a) => (
-            <li key={a.id} className="glass-inset glass-hover p-4">
-              <div className="flex items-baseline justify-between gap-3">
-                <p className="truncate text-sm font-semibold">{a.title}</p>
-                <span className="whitespace-nowrap text-xs text-muted-foreground">
-                  {new Date(a.posted_at).toLocaleDateString()}
-                </span>
+      {groups.size > 0 && (
+        <div className="space-y-5">
+          {Array.from(groups.entries()).map(([id, g]) => (
+            <div key={id}>
+              <div className="mb-2 flex items-baseline gap-2 px-1">
+                <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-foreground/80">
+                  {g.code || g.name}
+                </h3>
+                {g.code && (
+                  <span className="truncate text-xs text-muted-foreground">
+                    {g.name}
+                  </span>
+                )}
               </div>
-              <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                {stripHtml(a.message)}
-              </p>
-            </li>
+              <ul className="space-y-2">
+                {g.items.map((a) => (
+                  <li key={a.id} className="glass-inset glass-hover p-4">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <p className="truncate text-sm font-semibold">
+                        {a.title}
+                      </p>
+                      <span className="whitespace-nowrap text-xs text-muted-foreground">
+                        {new Date(a.posted_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                      {stripHtml(a.message)}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
     </GlassCard>
   );

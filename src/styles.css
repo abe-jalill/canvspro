@@ -5,8 +5,8 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Liquid Glass — Apple-inspired monochrome design system.
- * All tokens are grayscale. Emphasis via weight, opacity, and blur.
+ * Liquid Glass — Apple-inspired deep navy design system.
+ * Rich navy background with translucent lighter-navy glass panels.
  */
 
 @theme inline {
@@ -42,126 +42,128 @@
   --color-glass-border: var(--glass-border);
   --color-glass-strong: var(--glass-strong);
 
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "SF Pro Text",
-    "Segoe UI", sans-serif;
-  --font-display: "Inter", ui-sans-serif, system-ui, -apple-system,
-    "SF Pro Display", sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter",
+    "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter",
+    "Segoe UI", ui-sans-serif, system-ui, sans-serif;
 
-  --shadow-glass: 0 1px 0 0 oklch(1 0 0 / 0.6) inset,
-    0 8px 24px -8px oklch(0 0 0 / 0.15), 0 2px 6px -2px oklch(0 0 0 / 0.08);
-  --shadow-glass-lg: 0 1px 0 0 oklch(1 0 0 / 0.7) inset,
-    0 20px 60px -20px oklch(0 0 0 / 0.25), 0 8px 20px -8px oklch(0 0 0 / 0.12);
+  --shadow-glass: 0 1px 0 0 rgb(255 255 255 / 0.08) inset,
+    0 8px 24px -8px rgb(0 0 0 / 0.45),
+    0 2px 8px -2px rgb(0 0 0 / 0.3);
+  --shadow-glass-lg: 0 1px 0 0 rgb(255 255 255 / 0.1) inset,
+    0 24px 60px -20px rgb(0 0 0 / 0.55),
+    0 10px 24px -8px rgb(0 0 0 / 0.35);
+  --shadow-glass-hover: 0 1px 0 0 rgb(255 255 255 / 0.14) inset,
+    0 30px 80px -20px rgb(80 130 220 / 0.35),
+    0 12px 32px -6px rgb(30 60 140 / 0.4);
 }
 
 :root {
-  --radius: 1.25rem; /* ~20px, continuous corner */
+  --radius: 1.25rem;
 
-  --background: oklch(0.985 0 0);
-  --foreground: oklch(0.15 0 0);
+  /* Deep navy base */
+  --background: 216 55% 8%;          /* ~#0A1128-ish navy */
+  --foreground: 210 30% 96%;         /* near-white with slight blue */
 
-  --card: oklch(1 0 0 / 0.55);
-  --card-foreground: oklch(0.15 0 0);
+  --card: 216 45% 15% / 0.55;
+  --card-foreground: 210 30% 96%;
 
-  --popover: oklch(0.99 0 0 / 0.9);
-  --popover-foreground: oklch(0.15 0 0);
+  --popover: 216 45% 12% / 0.92;
+  --popover-foreground: 210 30% 96%;
 
-  --primary: oklch(0.18 0 0);
-  --primary-foreground: oklch(0.985 0 0);
+  --primary: 210 30% 97%;
+  --primary-foreground: 216 55% 10%;
 
-  --secondary: oklch(0.95 0 0 / 0.7);
-  --secondary-foreground: oklch(0.18 0 0);
+  --secondary: 216 40% 20% / 0.6;
+  --secondary-foreground: 210 30% 96%;
 
-  --muted: oklch(0.95 0 0 / 0.5);
-  --muted-foreground: oklch(0.45 0 0);
+  --muted: 216 30% 22% / 0.5;
+  --muted-foreground: 214 25% 72%;   /* soft light-blue-gray */
 
-  --accent: oklch(0.92 0 0 / 0.6);
-  --accent-foreground: oklch(0.18 0 0);
+  --accent: 216 45% 24% / 0.6;
+  --accent-foreground: 210 30% 96%;
 
-  --destructive: oklch(0.35 0 0);
-  --destructive-foreground: oklch(0.985 0 0);
+  --destructive: 0 70% 60%;
+  --destructive-foreground: 210 30% 98%;
 
-  --border: oklch(0.15 0 0 / 0.08);
-  --input: oklch(0.15 0 0 / 0.1);
-  --ring: oklch(0.15 0 0 / 0.25);
+  --border: 210 40% 90% / 0.1;
+  --input: 210 40% 90% / 0.12;
+  --ring: 210 60% 75% / 0.4;
 
-  /* Glass tokens */
-  --glass: oklch(1 0 0 / 0.55);
-  --glass-strong: oklch(1 0 0 / 0.75);
-  --glass-border: oklch(1 0 0 / 0.5);
+  /* Glass tokens — lighter translucent navy */
+  --glass: 214 45% 22% / 0.55;
+  --glass-strong: 214 48% 26% / 0.7;
+  --glass-border: 210 55% 90% / 0.12;
 
-  --sidebar: oklch(1 0 0 / 0.45);
-  --sidebar-foreground: oklch(0.2 0 0);
-  --sidebar-primary: oklch(0.18 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.15 0 0 / 0.06);
-  --sidebar-accent-foreground: oklch(0.15 0 0);
-  --sidebar-border: oklch(1 0 0 / 0.5);
-  --sidebar-ring: oklch(0.15 0 0 / 0.2);
+  --sidebar: 214 45% 18% / 0.55;
+  --sidebar-foreground: 210 30% 94%;
+  --sidebar-primary: 210 30% 97%;
+  --sidebar-primary-foreground: 216 55% 10%;
+  --sidebar-accent: 210 60% 90% / 0.08;
+  --sidebar-accent-foreground: 210 30% 97%;
+  --sidebar-border: 210 55% 90% / 0.12;
+  --sidebar-ring: 210 60% 75% / 0.35;
 }
 
-.dark {
-  --background: oklch(0.14 0 0);
-  --foreground: oklch(0.97 0 0);
-  --card: oklch(0.22 0 0 / 0.5);
-  --card-foreground: oklch(0.97 0 0);
-  --popover: oklch(0.2 0 0 / 0.9);
-  --popover-foreground: oklch(0.97 0 0);
-  --primary: oklch(0.97 0 0);
-  --primary-foreground: oklch(0.14 0 0);
-  --secondary: oklch(0.3 0 0 / 0.6);
-  --secondary-foreground: oklch(0.97 0 0);
-  --muted: oklch(0.3 0 0 / 0.5);
-  --muted-foreground: oklch(0.7 0 0);
-  --accent: oklch(0.32 0 0 / 0.6);
-  --accent-foreground: oklch(0.97 0 0);
-  --destructive: oklch(0.7 0 0);
-  --destructive-foreground: oklch(0.14 0 0);
-  --border: oklch(1 0 0 / 0.1);
-  --input: oklch(1 0 0 / 0.14);
-  --ring: oklch(1 0 0 / 0.3);
-  --glass: oklch(0.25 0 0 / 0.5);
-  --glass-strong: oklch(0.28 0 0 / 0.7);
-  --glass-border: oklch(1 0 0 / 0.12);
-  --sidebar: oklch(0.2 0 0 / 0.5);
-  --sidebar-foreground: oklch(0.95 0 0);
-  --sidebar-primary: oklch(0.97 0 0);
-  --sidebar-primary-foreground: oklch(0.14 0 0);
-  --sidebar-accent: oklch(1 0 0 / 0.08);
-  --sidebar-accent-foreground: oklch(0.97 0 0);
-  --sidebar-border: oklch(1 0 0 / 0.1);
-  --sidebar-ring: oklch(1 0 0 / 0.25);
+/* Rewrap tokens to use hsl() wrappers so utility classes resolve correctly */
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-glass: hsl(var(--glass));
+  --color-glass-border: hsl(var(--glass-border));
+  --color-glass-strong: hsl(var(--glass-strong));
 }
 
 @layer base {
   * {
-    border-color: var(--color-border);
+    border-color: hsl(var(--border));
   }
 
   html,
   body {
-    background-color: var(--color-background);
-    color: var(--color-foreground);
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
-    letter-spacing: -0.01em;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -0.011em;
+    font-feature-settings: "ss01", "cv11";
   }
 
   body {
     min-height: 100vh;
+    background-color: hsl(216 55% 7%);
     background-image:
       radial-gradient(
         60rem 40rem at 15% 10%,
-        oklch(0.85 0 0 / 0.5),
+        hsl(220 70% 30% / 0.55),
         transparent 70%
       ),
       radial-gradient(
-        50rem 40rem at 90% 20%,
-        oklch(0.78 0 0 / 0.45),
+        55rem 45rem at 90% 15%,
+        hsl(230 65% 25% / 0.5),
         transparent 70%
       ),
       radial-gradient(
-        70rem 50rem at 50% 100%,
-        oklch(0.7 0 0 / 0.4),
+        75rem 55rem at 50% 110%,
+        hsl(210 70% 22% / 0.55),
         transparent 70%
       );
     background-attachment: fixed;
@@ -172,50 +174,62 @@
   h3,
   h4 {
     font-family: var(--font-display);
-    letter-spacing: -0.025em;
+    letter-spacing: -0.022em;
+    font-weight: 600;
+  }
+
+  h1 {
+    letter-spacing: -0.03em;
+    font-weight: 700;
   }
 }
 
 /* Frosted glass surfaces */
 @utility glass-panel {
-  background: var(--glass);
-  backdrop-filter: blur(24px) saturate(160%);
-  border: 1px solid var(--glass-border);
+  background: hsl(var(--glass));
+  backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid hsl(var(--glass-border));
   box-shadow: var(--shadow-glass);
   border-radius: var(--radius-2xl);
 }
 
 @utility glass-panel-strong {
-  background: var(--glass-strong);
-  backdrop-filter: blur(28px) saturate(180%);
-  border: 1px solid var(--glass-border);
+  background: hsl(var(--glass-strong));
+  backdrop-filter: blur(32px) saturate(200%);
+  border: 1px solid hsl(var(--glass-border));
   box-shadow: var(--shadow-glass-lg);
   border-radius: var(--radius-2xl);
 }
 
 @utility glass-inset {
-  background: color-mix(in oklab, var(--foreground) 4%, transparent);
-  border: 1px solid color-mix(in oklab, var(--foreground) 6%, transparent);
+  background: hsl(210 60% 90% / 0.045);
+  border: 1px solid hsl(210 60% 90% / 0.08);
   border-radius: var(--radius-lg);
 }
 
+/* Apple-style "inhale" hover: scale up + soft glow bloom */
 @utility glass-hover {
   transition:
-    background-color 300ms cubic-bezier(0.22, 1, 0.36, 1),
-    transform 300ms cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 300ms cubic-bezier(0.22, 1, 0.36, 1);
+    transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform, box-shadow;
 
   &:hover {
-    background-color: color-mix(in oklab, var(--foreground) 5%, transparent);
+    transform: scale(1.035);
+    background-color: hsl(214 55% 32% / 0.55);
+    border-color: hsl(210 60% 90% / 0.2);
+    box-shadow: var(--shadow-glass-hover);
   }
 }
 
 @utility skeleton-shimmer {
   background: linear-gradient(
     90deg,
-    color-mix(in oklab, var(--foreground) 6%, transparent) 0%,
-    color-mix(in oklab, var(--foreground) 10%, transparent) 50%,
-    color-mix(in oklab, var(--foreground) 6%, transparent) 100%
+    hsl(210 60% 90% / 0.05) 0%,
+    hsl(210 60% 90% / 0.12) 50%,
+    hsl(210 60% 90% / 0.05) 100%
   );
   background-size: 200% 100%;
   animation: shimmer 1.6s ease-in-out infinite;

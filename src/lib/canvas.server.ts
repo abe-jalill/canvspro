@@ -2,6 +2,9 @@
 
 const API_VERSION = "/api/v1";
 
+// Courses to always exclude from every widget, page, and derived API call.
+const EXCLUDED_COURSE_IDS = new Set<number>([11452, 3465, 6219]);
+
 function base() {
   const domain = process.env.CANVAS_DOMAIN;
   const token = process.env.CANVAS_TOKEN;
@@ -75,10 +78,12 @@ export interface CanvasCalendarEvent {
   type?: string;
   html_url?: string;
   context_name?: string;
+  context_code?: string;
   location_name?: string | null;
 }
 
 function isActive(c: CanvasCourse) {
+  if (EXCLUDED_COURSE_IDS.has(c.id)) return false;
   if (c.access_restricted_by_date) return false;
   if (c.workflow_state && c.workflow_state !== "available") return false;
   return true;
@@ -100,25 +105,30 @@ export async function fetchAssignmentsForCourse(
 }
 
 export async function fetchAllAssignments(): Promise<
-  Array<CanvasAssignment & { course_name: string }>
+  Array<CanvasAssignment & { course_name: string; course_code: string }>
 > {
   const courses = await fetchActiveCourses();
   const results = await Promise.all(
     courses.map(async (c) => {
       try {
         const assignments = await fetchAssignmentsForCourse(c.id);
-        return assignments.map((a) => ({ ...a, course_name: c.name }));
+        return assignments.map((a) => ({
+          ...a,
+          course_name: c.name,
+          course_code: c.course_code,
+        }));
       } catch {
         return [];
       }
     }),
   );
-  return results.flat();
+  // Belt-and-suspenders: also filter by course_id in case anything slipped through.
+  return results.flat().filter((a) => !EXCLUDED_COURSE_IDS.has(a.course_id));
 }
 
 export async function fetchAnnouncements(
   days = 30,
-): Promise<CanvasAnnouncement[]> {
+): Promise<Array<CanvasAnnouncement & { course_id: number; course_name: string; course_code: string }>> {
   const courses = await fetchActiveCourses();
   if (courses.length === 0) return [];
   const params = new URLSearchParams();
@@ -127,7 +137,22 @@ export async function fetchAnnouncements(
   start.setDate(start.getDate() - days);
   params.set("start_date", start.toISOString());
   params.set("per_page", "50");
-  return canvasFetch<CanvasAnnouncement[]>(`/announcements?${params.toString()}`);
+  const raw = await canvasFetch<CanvasAnnouncement[]>(
+    `/announcements?${params.toString()}`,
+  );
+  const courseById = new Map(courses.map((c) => [c.id, c]));
+  return raw
+    .map((a) => {
+      const id = Number(a.context_code.replace("course_", ""));
+      const course = courseById.get(id);
+      return {
+        ...a,
+        course_id: id,
+        course_name: course?.name ?? "Unknown course",
+        course_code: course?.course_code ?? "",
+      };
+    })
+    .filter((a) => !EXCLUDED_COURSE_IDS.has(a.course_id));
 }
 
 export async function fetchCalendarEvents(
@@ -148,11 +173,15 @@ export async function fetchCalendarEvents(
   const events = await canvasFetch<CanvasCalendarEvent[]>(
     `/calendar_events?${params.toString()}`,
   );
-  // Also fetch assignment-type calendar events
   const assignmentParams = new URLSearchParams(params);
   assignmentParams.set("type", "assignment");
   const assignmentEvents = await canvasFetch<CanvasCalendarEvent[]>(
     `/calendar_events?${assignmentParams.toString()}`,
   );
-  return [...events, ...assignmentEvents];
+  const all = [...events, ...assignmentEvents];
+  return all.filter((e) => {
+    if (!e.context_code) return true;
+    const id = Number(e.context_code.replace("course_", ""));
+    return !Number.isFinite(id) || !EXCLUDED_COURSE_IDS.has(id);
+  });
 }
