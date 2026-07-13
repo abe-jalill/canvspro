@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, queryOptions } from "@tanstack/react-query";
 import { getCalendarEventsFn, getAllAssignmentsFn } from "@/lib/canvas.functions";
 import { GlassCard, Skeleton, ErrorState, EmptyState } from "@/components/glass-card";
+import { displayCourseName } from "@/lib/course-display";
 
 const eventsQO = queryOptions({
   queryKey: ["canvas", "calendar"],
@@ -44,7 +45,7 @@ function SchedulePage() {
       key: `e-${e.id}`,
       title: e.title,
       when: new Date(e.start_at),
-      context: e.context_name ?? e.location_name ?? undefined,
+      context: displayCourseName(e.context_name, undefined) || e.location_name || undefined,
       kind: "event",
     });
   });
@@ -58,7 +59,7 @@ function SchedulePage() {
       key: `a-${a.id}`,
       title: a.name,
       when,
-      context: a.course_name,
+      context: displayCourseName(a.course_name, a.course_code),
       kind: "assignment",
     });
   });
