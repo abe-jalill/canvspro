@@ -40,11 +40,12 @@ function GradesPage() {
   const loading = courses.isLoading || assignments.isLoading;
   const error = courses.error || assignments.error;
 
-  const byCourse = new Map<number, typeof assignments.data>();
+  type AssignmentItem = NonNullable<typeof assignments.data>[number];
+  const byCourse = new Map<number, AssignmentItem[]>();
   (assignments.data ?? []).forEach((a) => {
     const arr = byCourse.get(a.course_id) ?? [];
-    (arr as unknown as typeof assignments.data)!.push(a);
-    byCourse.set(a.course_id, arr as unknown as typeof assignments.data);
+    arr.push(a);
+    byCourse.set(a.course_id, arr);
   });
 
   return (
