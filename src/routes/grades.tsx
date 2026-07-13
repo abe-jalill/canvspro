@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, queryOptions } from "@tanstack/react-query";
 import { getCoursesFn, getAllAssignmentsFn } from "@/lib/canvas.functions";
 import { GlassCard, Skeleton, ErrorState, EmptyState } from "@/components/glass-card";
+import { displayCourseName, displayCourseCode } from "@/lib/course-display";
 
 const coursesQO = queryOptions({
   queryKey: ["canvas", "courses"],
@@ -86,8 +87,12 @@ function GradesPage() {
         return (
           <GlassCard
             key={c.id}
-            title={c.name}
-            subtitle={c.course_code}
+            title={displayCourseName(c.name, c.course_code)}
+            subtitle={
+              displayCourseCode(c.name, c.course_code) === displayCourseName(c.name, c.course_code)
+                ? c.course_code
+                : c.name
+            }
             action={
               <span className="text-lg font-semibold tabular-nums">
                 {fmt(c.current_score)}
