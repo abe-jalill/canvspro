@@ -6,6 +6,13 @@ import {
   getAnnouncementsFn,
 } from "@/lib/canvas.functions";
 import { GlassCard, Skeleton, ErrorState, EmptyState } from "@/components/glass-card";
+import { displayCourseName, displayCourseCode } from "@/lib/course-display";
+import {
+  useLocalSet,
+  DISMISSED_ANNOUNCEMENTS_KEY,
+  COMPLETED_ASSIGNMENTS_KEY,
+} from "@/lib/local-state";
+import { Check, X } from "lucide-react";
 
 const coursesQO = queryOptions({
   queryKey: ["canvas", "courses"],
@@ -115,7 +122,9 @@ function CoursesWidget() {
               className="glass-inset glass-hover flex items-center justify-between p-3"
             >
               <div className="min-w-0 pr-3">
-                <p className="truncate text-sm font-medium">{c.name}</p>
+                <p className="truncate text-sm font-medium">
+                  {displayCourseName(c.name, c.course_code)}
+                </p>
                 <p className="mt-0.5 truncate text-xs text-muted-foreground">
                   {c.course_code}
                 </p>
@@ -133,6 +142,7 @@ function CoursesWidget() {
 
 function UpcomingWidget() {
   const { data, isLoading, isError, error } = useQuery(assignmentsQO);
+  const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
 
   const upcoming = (data ?? [])
     .filter((a) => {
@@ -142,11 +152,15 @@ function UpcomingWidget() {
       const week = now + 7 * 24 * 60 * 60 * 1000;
       return due >= now && due <= week;
     })
-    .sort(
-      (a, b) =>
+    .sort((a, b) => {
+      const ac = completed.has(a.id) ? 1 : 0;
+      const bc = completed.has(b.id) ? 1 : 0;
+      if (ac !== bc) return ac - bc;
+      return (
         new Date(a.due_at as string).getTime() -
-        new Date(b.due_at as string).getTime(),
-    );
+        new Date(b.due_at as string).getTime()
+      );
+    });
 
   // Group by course
   type Item = (typeof upcoming)[number];
@@ -197,28 +211,46 @@ function UpcomingWidget() {
             <div key={id}>
               <div className="mb-2 flex items-baseline gap-2 px-1">
                 <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-foreground/80">
-                  {g.code || g.name}
+                  {displayCourseName(g.name, g.code)}
                 </h3>
-                {g.code && (
-                  <span className="truncate text-xs text-muted-foreground">
-                    {g.name}
-                  </span>
-                )}
+                <span className="truncate text-xs text-muted-foreground">
+                  {displayCourseCode(g.name, g.code) === displayCourseName(g.name, g.code)
+                    ? g.code
+                    : g.name}
+                </span>
               </div>
               <ul className="space-y-2">
-                {g.items.map((a) => (
-                  <li
-                    key={a.id}
-                    className="glass-inset glass-hover flex items-start justify-between gap-3 p-3"
-                  >
-                    <p className="min-w-0 truncate text-sm font-medium">
-                      {a.name}
-                    </p>
-                    <span className="whitespace-nowrap text-xs font-medium tabular-nums text-muted-foreground">
-                      {formatDue(a.due_at)}
-                    </span>
-                  </li>
-                ))}
+                {g.items.map((a) => {
+                  const done = completed.has(a.id);
+                  return (
+                    <li
+                      key={a.id}
+                      className={cnDone(
+                        "glass-inset glass-hover flex items-center justify-between gap-3 p-3",
+                        done,
+                      )}
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                        <CompleteButton
+                          done={done}
+                          onClick={() => completed.toggle(a.id)}
+                          label={a.name}
+                        />
+                        <p
+                          className={
+                            "min-w-0 truncate text-sm font-medium " +
+                            (done ? "text-muted-foreground line-through" : "")
+                          }
+                        >
+                          {a.name}
+                        </p>
+                      </div>
+                      <span className="whitespace-nowrap text-xs font-medium tabular-nums text-muted-foreground">
+                        {formatDue(a.due_at)}
+                      </span>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           ))}
@@ -230,8 +262,9 @@ function UpcomingWidget() {
 
 function AnnouncementsWidget() {
   const { data, isLoading, isError, error } = useQuery(announcementsQO);
+  const dismissed = useLocalSet(DISMISSED_ANNOUNCEMENTS_KEY);
 
-  const items = (data ?? []).slice(0, 12);
+  const items = (data ?? []).filter((a) => !dismissed.has(a.id)).slice(0, 12);
 
   // Group by course
   type Item = (typeof items)[number];
@@ -274,7 +307,7 @@ function AnnouncementsWidget() {
       )}
       {isError && <ErrorState message={(error as Error).message} />}
       {data && items.length === 0 && (
-        <EmptyState message="No recent announcements." />
+        <EmptyState message="No announcements to show." />
       )}
       {groups.size > 0 && (
         <div className="space-y-5">
@@ -282,13 +315,13 @@ function AnnouncementsWidget() {
             <div key={id}>
               <div className="mb-2 flex items-baseline gap-2 px-1">
                 <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-foreground/80">
-                  {g.code || g.name}
+                  {displayCourseName(g.name, g.code)}
                 </h3>
-                {g.code && (
-                  <span className="truncate text-xs text-muted-foreground">
-                    {g.name}
-                  </span>
-                )}
+                <span className="truncate text-xs text-muted-foreground">
+                  {displayCourseCode(g.name, g.code) === displayCourseName(g.name, g.code)
+                    ? g.code
+                    : g.name}
+                </span>
               </div>
               <ul className="space-y-2">
                 {g.items.map((a) => (
@@ -297,9 +330,15 @@ function AnnouncementsWidget() {
                       <p className="truncate text-sm font-semibold">
                         {a.title}
                       </p>
-                      <span className="whitespace-nowrap text-xs text-muted-foreground">
-                        {new Date(a.posted_at).toLocaleDateString()}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="whitespace-nowrap text-xs text-muted-foreground">
+                          {new Date(a.posted_at).toLocaleDateString()}
+                        </span>
+                        <DismissButton
+                          onClick={() => dismissed.add(a.id)}
+                          label={a.title}
+                        />
+                      </div>
                     </div>
                     <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
                       {stripHtml(a.message)}
@@ -312,5 +351,53 @@ function AnnouncementsWidget() {
         </div>
       )}
     </GlassCard>
+  );
+}
+
+function cnDone(base: string, done: boolean) {
+  return done ? base + " opacity-60" : base;
+}
+
+function CompleteButton({
+  done,
+  onClick,
+  label,
+}: {
+  done: boolean;
+  onClick: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label={done ? `Mark ${label} incomplete` : `Mark ${label} complete`}
+      aria-pressed={done}
+      className={
+        "flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors " +
+        (done
+          ? "border-foreground/60 bg-foreground/80 text-background"
+          : "border-foreground/30 bg-transparent text-transparent hover:border-foreground/60 hover:text-foreground/60")
+      }
+    >
+      <Check className="h-3.5 w-3.5" strokeWidth={3} />
+    </button>
+  );
+}
+
+function DismissButton({
+  onClick,
+  label,
+}: {
+  onClick: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label={`Dismiss ${label}`}
+      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-foreground/20 text-muted-foreground transition-colors hover:border-foreground/50 hover:text-foreground"
+    >
+      <X className="h-3.5 w-3.5" />
+    </button>
   );
 }

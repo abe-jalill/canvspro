@@ -4,6 +4,9 @@ import { useState } from "react";
 import { getAllAssignmentsFn } from "@/lib/canvas.functions";
 import { GlassCard, Skeleton, ErrorState, EmptyState } from "@/components/glass-card";
 import { cn } from "@/lib/utils";
+import { displayCourseName } from "@/lib/course-display";
+import { useLocalSet, COMPLETED_ASSIGNMENTS_KEY } from "@/lib/local-state";
+import { Check } from "lucide-react";
 
 const assignmentsQO = queryOptions({
   queryKey: ["canvas", "assignments"],
@@ -24,7 +27,7 @@ export const Route = createFileRoute("/assignments")({
   component: AssignmentsPage,
 });
 
-type Filter = "all" | "upcoming" | "missing" | "submitted";
+type Filter = "all" | "upcoming" | "missing" | "submitted" | "completed";
 
 function statusLabel(a: {
   due_at: string | null;
@@ -46,21 +49,28 @@ function statusLabel(a: {
 function AssignmentsPage() {
   const { data, isLoading, isError, error } = useQuery(assignmentsQO);
   const [filter, setFilter] = useState<Filter>("all");
+  const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
 
   const filtered = (data ?? [])
     .filter((a) => {
       const status = statusLabel(a);
+      const done = completed.has(a.id);
+      if (filter === "completed") return done;
       if (filter === "upcoming") {
+        if (done) return false;
         if (!a.due_at) return false;
         return new Date(a.due_at).getTime() >= Date.now();
       }
       if (filter === "missing")
-        return status === "Missing" || status === "Overdue";
+        return !done && (status === "Missing" || status === "Overdue");
       if (filter === "submitted")
         return status.startsWith("Submitted") || status === "Graded";
       return true;
     })
     .sort((a, b) => {
+      const ac = completed.has(a.id) ? 1 : 0;
+      const bc = completed.has(b.id) ? 1 : 0;
+      if (ac !== bc) return ac - bc;
       if (!a.due_at) return 1;
       if (!b.due_at) return -1;
       return new Date(a.due_at).getTime() - new Date(b.due_at).getTime();
@@ -71,6 +81,7 @@ function AssignmentsPage() {
     { id: "upcoming", label: "Upcoming" },
     { id: "missing", label: "Missing" },
     { id: "submitted", label: "Submitted" },
+    { id: "completed", label: "Completed" },
   ];
 
   return (
@@ -115,32 +126,64 @@ function AssignmentsPage() {
         )}
         {filtered.length > 0 && (
           <ul className="divide-y divide-foreground/10">
-            {filtered.map((a) => (
-              <li
-                key={a.id}
-                className="flex items-start justify-between gap-4 py-3"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{a.name}</p>
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                    {a.course_name}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs font-medium tabular-nums text-muted-foreground">
-                    {a.due_at
-                      ? new Date(a.due_at).toLocaleDateString(undefined, {
-                          month: "short",
-                          day: "numeric",
-                        })
-                      : "No due date"}
-                  </p>
-                  <p className="mt-0.5 text-[10px] uppercase tracking-widest text-muted-foreground">
-                    {statusLabel(a)}
-                  </p>
-                </div>
-              </li>
-            ))}
+            {filtered.map((a) => {
+              const done = completed.has(a.id);
+              return (
+                <li
+                  key={a.id}
+                  className={cn(
+                    "flex items-start justify-between gap-4 py-3 transition-opacity",
+                    done && "opacity-60",
+                  )}
+                >
+                  <div className="flex min-w-0 items-start gap-3">
+                    <button
+                      onClick={() => completed.toggle(a.id)}
+                      aria-label={
+                        done
+                          ? `Mark ${a.name} incomplete`
+                          : `Mark ${a.name} complete`
+                      }
+                      aria-pressed={done}
+                      className={cn(
+                        "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors",
+                        done
+                          ? "border-foreground/60 bg-foreground/80 text-background"
+                          : "border-foreground/30 text-transparent hover:border-foreground/60 hover:text-foreground/60",
+                      )}
+                    >
+                      <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                    </button>
+                    <div className="min-w-0">
+                      <p
+                        className={cn(
+                          "truncate text-sm font-medium",
+                          done && "line-through",
+                        )}
+                      >
+                        {a.name}
+                      </p>
+                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                        {displayCourseName(a.course_name, a.course_code)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs font-medium tabular-nums text-muted-foreground">
+                      {a.due_at
+                        ? new Date(a.due_at).toLocaleDateString(undefined, {
+                            month: "short",
+                            day: "numeric",
+                          })
+                        : "No due date"}
+                    </p>
+                    <p className="mt-0.5 text-[10px] uppercase tracking-widest text-muted-foreground">
+                      {done ? "Completed" : statusLabel(a)}
+                    </p>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </GlassCard>
