@@ -45,7 +45,9 @@ function SchedulePage() {
       key: `e-${e.id}`,
       title: e.title,
       when: new Date(e.start_at),
-      context: displayCourseName(e.context_name, undefined) || e.location_name || undefined,
+      context: e.context_name
+        ? displayCourseName(e.context_name, undefined)
+        : e.location_name ?? undefined,
       kind: "event",
     });
   });
