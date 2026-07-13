@@ -62,20 +62,24 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Canvas Student Dashboard" },
+      { title: "Dashboard — Canvas Student" },
       {
         name: "description",
         content:
-          "A private, Apple-inspired dashboard for your Canvas courses, grades, assignments, and announcements.",
+          "Your classes, grades, upcoming assignments, and announcements.",
       },
-      { property: "og:title", content: "Canvas Student Dashboard" },
+      { property: "og:title", content: "Dashboard — Canvas Student" },
       {
         property: "og:description",
         content:
-          "Your Canvas schedule, grades, assignments, and announcements in one calm glass interface.",
+          "Your classes, grades, upcoming assignments, and announcements.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "Dashboard — Canvas Student" },
+      { name: "twitter:description", content: "Your classes, grades, upcoming assignments, and announcements." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/bdf1beaf-d775-40f3-b194-aafd54341d35/id-preview-4231fc3a--affbea3f-cfe8-4941-aebb-24d8872c528c.lovable.app-1783984199763.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/bdf1beaf-d775-40f3-b194-aafd54341d35/id-preview-4231fc3a--affbea3f-cfe8-4941-aebb-24d8872c528c.lovable.app-1783984199763.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
