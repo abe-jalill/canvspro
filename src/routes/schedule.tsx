@@ -1,0 +1,153 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useQuery, queryOptions } from "@tanstack/react-query";
+import { getCalendarEventsFn, getAllAssignmentsFn } from "@/lib/canvas.functions";
+import { GlassCard, Skeleton, ErrorState, EmptyState } from "@/components/glass-card";
+
+const eventsQO = queryOptions({
+  queryKey: ["canvas", "calendar"],
+  queryFn: () => getCalendarEventsFn(),
+  staleTime: 5 * 60_000,
+});
+
+const assignmentsQO = queryOptions({
+  queryKey: ["canvas", "assignments"],
+  queryFn: () => getAllAssignmentsFn(),
+  staleTime: 5 * 60_000,
+});
+
+export const Route = createFileRoute("/schedule")({
+  head: () => ({
+    meta: [
+      { title: "Schedule — Canvas Student" },
+      { name: "description", content: "Your upcoming Canvas classes and events." },
+    ],
+  }),
+  component: SchedulePage,
+});
+
+interface AgendaItem {
+  key: string;
+  title: string;
+  when: Date;
+  context?: string;
+  kind: "event" | "assignment";
+}
+
+function SchedulePage() {
+  const events = useQuery(eventsQO);
+  const assignments = useQuery(assignmentsQO);
+
+  const items: AgendaItem[] = [];
+  (events.data ?? []).forEach((e) => {
+    if (!e.start_at) return;
+    items.push({
+      key: `e-${e.id}`,
+      title: e.title,
+      when: new Date(e.start_at),
+      context: e.context_name ?? e.location_name ?? undefined,
+      kind: "event",
+    });
+  });
+  (assignments.data ?? []).forEach((a) => {
+    if (!a.due_at) return;
+    const when = new Date(a.due_at);
+    const now = Date.now();
+    const twoWeeks = now + 14 * 24 * 60 * 60 * 1000;
+    if (when.getTime() < now || when.getTime() > twoWeeks) return;
+    items.push({
+      key: `a-${a.id}`,
+      title: a.name,
+      when,
+      context: a.course_name,
+      kind: "assignment",
+    });
+  });
+
+  items.sort((a, b) => a.when.getTime() - b.when.getTime());
+
+  const grouped = new Map<string, AgendaItem[]>();
+  items.forEach((i) => {
+    const day = i.when.toDateString();
+    const arr = grouped.get(day) ?? [];
+    arr.push(i);
+    grouped.set(day, arr);
+  });
+
+  const loading = events.isLoading || assignments.isLoading;
+  const error = events.error || assignments.error;
+
+  return (
+    <div className="space-y-6">
+      <header className="px-1 pt-2">
+        <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+          Next 14 days
+        </p>
+        <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">
+          Schedule
+        </h1>
+      </header>
+
+      <GlassCard>
+        {loading && (
+          <div className="space-y-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-14" />
+            ))}
+          </div>
+        )}
+        {error && <ErrorState message={(error as Error).message} />}
+        {!loading && !error && grouped.size === 0 && (
+          <EmptyState message="Nothing scheduled in the next two weeks." />
+        )}
+        {!loading && !error && grouped.size > 0 && (
+          <div className="space-y-6">
+            {Array.from(grouped.entries()).map(([day, dayItems]) => (
+              <div key={day}>
+                <div className="mb-2 flex items-baseline justify-between border-b border-foreground/10 pb-2">
+                  <h3 className="text-sm font-semibold tracking-tight">
+                    {new Date(day).toLocaleDateString(undefined, {
+                      weekday: "long",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                  </h3>
+                  <span className="text-xs text-muted-foreground">
+                    {dayItems.length} {dayItems.length === 1 ? "item" : "items"}
+                  </span>
+                </div>
+                <ul className="space-y-2">
+                  {dayItems.map((it) => (
+                    <li
+                      key={it.key}
+                      className="glass-inset glass-hover flex items-start justify-between gap-3 p-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{it.title}</p>
+                        {it.context && (
+                          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                            {it.context}
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-medium tabular-nums">
+                          {it.when.toLocaleTimeString(undefined, {
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })}
+                        </p>
+                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                          {it.kind === "event" ? "Event" : "Due"}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        )}
+      </GlassCard>
+    </div>
+  );
+}
