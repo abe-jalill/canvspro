@@ -180,16 +180,13 @@ async function handleCalendar(daysAhead = 14) {
   params.set("per_page", "100");
   params.set("type", "event");
 
+  // Only fetch real calendar events here. Assignment due dates are merged
+  // client-side from the assignments endpoint, so fetching type=assignment
+  // would duplicate every assignment on the schedule page.
   const events = await canvasFetch<CanvasCalendarEvent[]>(
     `/calendar_events?${params.toString()}`,
   );
-  const assignmentParams = new URLSearchParams(params);
-  assignmentParams.set("type", "assignment");
-  const assignmentEvents = await canvasFetch<CanvasCalendarEvent[]>(
-    `/calendar_events?${assignmentParams.toString()}`,
-  );
-  const all = [...events, ...assignmentEvents];
-  return all.filter((e) => {
+  return events.filter((e) => {
     if (!e.context_code) return true;
     const id = Number(e.context_code.replace("course_", ""));
     return !Number.isFinite(id) || !EXCLUDED_COURSE_IDS.has(id);
