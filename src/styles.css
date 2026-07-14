@@ -105,6 +105,48 @@
   --sidebar-ring: 210 60% 75% / 0.35;
 }
 
+/* Light mode — same layout, white/light-gray surfaces, dark navy text.
+   Only colors change; radii, blur, shadows, hover animations all inherit. */
+.light {
+  --background: 210 40% 97%;         /* near-white with a hint of blue */
+  --foreground: 216 55% 12%;         /* deep navy text */
+
+  --card: 210 40% 100% / 0.7;
+  --card-foreground: 216 55% 12%;
+
+  --popover: 210 40% 100% / 0.95;
+  --popover-foreground: 216 55% 12%;
+
+  --primary: 216 55% 12%;
+  --primary-foreground: 210 40% 98%;
+
+  --secondary: 214 30% 92% / 0.75;
+  --secondary-foreground: 216 55% 12%;
+
+  --muted: 214 25% 90% / 0.6;
+  --muted-foreground: 216 20% 40%;
+
+  --accent: 214 35% 88% / 0.7;
+  --accent-foreground: 216 55% 12%;
+
+  --border: 216 30% 20% / 0.1;
+  --input: 216 30% 20% / 0.1;
+  --ring: 216 55% 30% / 0.35;
+
+  --glass: 210 40% 100% / 0.65;
+  --glass-strong: 210 40% 100% / 0.8;
+  --glass-border: 216 30% 20% / 0.1;
+
+  --sidebar: 210 40% 100% / 0.65;
+  --sidebar-foreground: 216 55% 12%;
+  --sidebar-primary: 216 55% 12%;
+  --sidebar-primary-foreground: 210 40% 98%;
+  --sidebar-accent: 216 30% 20% / 0.06;
+  --sidebar-accent-foreground: 216 55% 12%;
+  --sidebar-border: 216 30% 20% / 0.1;
+  --sidebar-ring: 216 55% 30% / 0.3;
+}
+
 /* Rewrap tokens to use hsl() wrappers so utility classes resolve correctly */
 @theme inline {
   --color-background: hsl(var(--background));
