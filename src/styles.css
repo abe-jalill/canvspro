@@ -320,3 +320,23 @@
     background-position: -200% 0;
   }
 }
+
+/* Scoped prose styles for syllabus modal content (Canvas HTML). */
+.syllabus-body :is(h1, h2, h3, h4) {
+  font-weight: 600;
+  margin: 1.25em 0 0.5em;
+}
+.syllabus-body h1 { font-size: 1.125rem; }
+.syllabus-body h2 { font-size: 1rem; }
+.syllabus-body p { margin: 0.5em 0; }
+.syllabus-body ul, .syllabus-body ol { margin: 0.5em 0 0.5em 1.25em; }
+.syllabus-body ul { list-style: disc; }
+.syllabus-body ol { list-style: decimal; }
+.syllabus-body a { color: hsl(var(--foreground)); text-decoration: underline; }
+.syllabus-body table { border-collapse: collapse; margin: 0.75em 0; }
+.syllabus-body th, .syllabus-body td {
+  border: 1px solid hsl(var(--glass-border));
+  padding: 0.35em 0.6em;
+}
+.syllabus-body img { max-width: 100%; height: auto; border-radius: 0.5rem; }
+
