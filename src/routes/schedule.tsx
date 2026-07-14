@@ -1,8 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, queryOptions } from "@tanstack/react-query";
-import { getCalendarEventsFn, getAllAssignmentsFn } from "@/lib/canvas.functions";
-import { GlassCard, Skeleton, ErrorState, EmptyState } from "@/components/glass-card";
+import { useState } from "react";
+import {
+  getCalendarEventsFn,
+  getAllAssignmentsFn,
+} from "@/lib/canvas.functions";
+import {
+  GlassCard,
+  Skeleton,
+  ErrorState,
+  EmptyState,
+} from "@/components/glass-card";
 import { displayCourseName } from "@/lib/course-display";
+import { Segmented } from "@/components/segmented";
 
 const eventsQO = queryOptions({
   queryKey: ["canvas", "calendar"],
@@ -20,7 +30,10 @@ export const Route = createFileRoute("/schedule")({
   head: () => ({
     meta: [
       { title: "Schedule — Canvas Student" },
-      { name: "description", content: "Your upcoming Canvas classes and events." },
+      {
+        name: "description",
+        content: "Your upcoming Canvas classes and events.",
+      },
     ],
   }),
   component: SchedulePage,
@@ -34,13 +47,24 @@ interface AgendaItem {
   kind: "event" | "assignment";
 }
 
+type Range = "week" | "semester";
+
 function SchedulePage() {
   const events = useQuery(eventsQO);
   const assignments = useQuery(assignmentsQO);
+  const [range, setRange] = useState<Range>("week");
+
+  const now = Date.now();
+  const rangeEnd =
+    range === "week"
+      ? now + 7 * 24 * 60 * 60 * 1000
+      : Number.POSITIVE_INFINITY;
 
   const items: AgendaItem[] = [];
   (events.data ?? []).forEach((e) => {
     if (!e.start_at) return;
+    const when = new Date(e.start_at).getTime();
+    if (when < now || when > rangeEnd) return;
     items.push({
       key: `e-${e.id}`,
       title: e.title,
@@ -53,14 +77,12 @@ function SchedulePage() {
   });
   (assignments.data ?? []).forEach((a) => {
     if (!a.due_at) return;
-    const when = new Date(a.due_at);
-    const now = Date.now();
-    const twoWeeks = now + 14 * 24 * 60 * 60 * 1000;
-    if (when.getTime() < now || when.getTime() > twoWeeks) return;
+    const when = new Date(a.due_at).getTime();
+    if (when < now || when > rangeEnd) return;
     items.push({
       key: `a-${a.id}`,
       title: a.name,
-      when,
+      when: new Date(a.due_at),
       context: displayCourseName(a.course_name, a.course_code),
       kind: "assignment",
     });
@@ -81,13 +103,23 @@ function SchedulePage() {
 
   return (
     <div className="space-y-6">
-      <header className="px-1 pt-2">
-        <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-          Next 14 days
-        </p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">
-          Schedule
-        </h1>
+      <header className="flex flex-wrap items-end justify-between gap-4 px-1 pt-2">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            {range === "week" ? "Next 7 days" : "Full semester"}
+          </p>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">
+            Schedule
+          </h1>
+        </div>
+        <Segmented<Range>
+          value={range}
+          onChange={setRange}
+          options={[
+            { id: "week", label: "This Week" },
+            { id: "semester", label: "Full Semester" },
+          ]}
+        />
       </header>
 
       <GlassCard>
@@ -100,7 +132,13 @@ function SchedulePage() {
         )}
         {error && <ErrorState message={(error as Error).message} />}
         {!loading && !error && grouped.size === 0 && (
-          <EmptyState message="Nothing scheduled in the next two weeks." />
+          <EmptyState
+            message={
+              range === "week"
+                ? "Nothing scheduled in the next 7 days."
+                : "Nothing scheduled for the semester."
+            }
+          />
         )}
         {!loading && !error && grouped.size > 0 && (
           <div className="space-y-6">
@@ -115,7 +153,8 @@ function SchedulePage() {
                     })}
                   </h3>
                   <span className="text-xs text-muted-foreground">
-                    {dayItems.length} {dayItems.length === 1 ? "item" : "items"}
+                    {dayItems.length}{" "}
+                    {dayItems.length === 1 ? "item" : "items"}
                   </span>
                 </div>
                 <ul className="space-y-2">
@@ -125,7 +164,9 @@ function SchedulePage() {
                       className="glass-inset glass-hover flex items-start justify-between gap-3 p-3"
                     >
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">{it.title}</p>
+                        <p className="truncate text-sm font-medium">
+                          {it.title}
+                        </p>
                         {it.context && (
                           <p className="mt-0.5 truncate text-xs text-muted-foreground">
                             {it.context}
