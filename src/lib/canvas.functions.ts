@@ -24,6 +24,7 @@ export interface CourseSummary {
   current_score: number | null;
   current_grade: string | null;
   final_score: number | null;
+  syllabus_body: string | null;
 }
 
 export interface AssignmentItem {
