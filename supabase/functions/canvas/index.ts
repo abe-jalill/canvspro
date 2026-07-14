@@ -18,6 +18,7 @@ interface CanvasCourse {
   course_code: string;
   workflow_state?: string;
   access_restricted_by_date?: boolean;
+  syllabus_body?: string | null;
   enrollments?: Array<{
     type: string;
     computed_current_score?: number | null;
