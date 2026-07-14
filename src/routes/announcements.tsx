@@ -1,7 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, queryOptions } from "@tanstack/react-query";
-import { getAnnouncementsFn } from "@/lib/canvas.functions";
-import { GlassCard, Skeleton, ErrorState, EmptyState } from "@/components/glass-card";
+import {
+  getAnnouncementsFn,
+  getCoursesFn,
+  type AnnouncementItem,
+} from "@/lib/canvas.functions";
+import {
+  GlassCard,
+  Skeleton,
+  ErrorState,
+  EmptyState,
+} from "@/components/glass-card";
 import { displayCourseName, displayCourseCode } from "@/lib/course-display";
 import { useLocalSet, DISMISSED_ANNOUNCEMENTS_KEY } from "@/lib/local-state";
 import { X, RotateCcw } from "lucide-react";
@@ -9,6 +18,12 @@ import { X, RotateCcw } from "lucide-react";
 const announcementsQO = queryOptions({
   queryKey: ["canvas", "announcements"],
   queryFn: () => getAnnouncementsFn(),
+  staleTime: 5 * 60_000,
+});
+
+const coursesQO = queryOptions({
+  queryKey: ["canvas", "courses"],
+  queryFn: () => getCoursesFn(),
   staleTime: 5 * 60_000,
 });
 
@@ -31,23 +46,41 @@ function stripHtml(html: string) {
 
 function AnnouncementsPage() {
   const { data, isLoading, isError, error } = useQuery(announcementsQO);
+  const courses = useQuery(coursesQO);
   const dismissed = useLocalSet(DISMISSED_ANNOUNCEMENTS_KEY);
 
-  const items = (data ?? []).filter((a) => !dismissed.has(a.id));
-  type Item = (typeof items)[number];
-  const groups = new Map<
-    number,
-    { name: string; code: string; items: Item[] }
-  >();
-  items.forEach((a) => {
-    const g = groups.get(a.course_id) ?? {
+  const visible = (data ?? []).filter((a) => !dismissed.has(a.id));
+
+  type Group = {
+    id: number;
+    name: string;
+    code: string;
+    items: AnnouncementItem[];
+  };
+  const groupMap = new Map<number, Group>();
+  (courses.data ?? []).forEach((c) => {
+    groupMap.set(c.id, {
+      id: c.id,
+      name: c.name,
+      code: c.course_code ?? "",
+      items: [],
+    });
+  });
+  visible.forEach((a) => {
+    const g = groupMap.get(a.course_id) ?? {
+      id: a.course_id,
       name: a.course_name,
       code: a.course_code ?? "",
       items: [],
     };
     g.items.push(a);
-    groups.set(a.course_id, g);
+    groupMap.set(a.course_id, g);
   });
+  const groups = Array.from(groupMap.values()).sort((a, b) =>
+    displayCourseName(a.name, a.code).localeCompare(
+      displayCourseName(b.name, b.code),
+    ),
+  );
 
   return (
     <div className="space-y-6">
@@ -87,15 +120,15 @@ function AnnouncementsPage() {
           <ErrorState message={(error as Error).message} />
         </GlassCard>
       )}
-      {!isLoading && !isError && items.length === 0 && (
+      {!isLoading && !isError && groups.length === 0 && (
         <GlassCard>
-          <EmptyState message="No announcements to show." />
+          <EmptyState message="No active courses." />
         </GlassCard>
       )}
 
-      {Array.from(groups.entries()).map(([id, g]) => (
+      {groups.map((g) => (
         <GlassCard
-          key={id}
+          key={g.id}
           title={displayCourseName(g.name, g.code)}
           subtitle={
             displayCourseCode(g.name, g.code) === displayCourseName(g.name, g.code)
@@ -103,36 +136,42 @@ function AnnouncementsPage() {
               : g.name
           }
         >
-          <div className="space-y-3">
-            {g.items.map((a) => (
-              <div key={a.id} className="glass-inset glass-hover p-4">
-                <div className="flex items-baseline justify-between gap-3">
-                  <h3 className="text-sm font-semibold tracking-tight">
-                    {a.title}
-                  </h3>
-                  <div className="flex items-center gap-2">
-                    <span className="whitespace-nowrap text-xs text-muted-foreground">
-                      {new Date(a.posted_at).toLocaleDateString(undefined, {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })}
-                    </span>
-                    <button
-                      onClick={() => dismissed.add(a.id)}
-                      aria-label={`Dismiss ${a.title}`}
-                      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-foreground/20 text-muted-foreground transition-colors hover:border-foreground/50 hover:text-foreground"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
+          {g.items.length === 0 ? (
+            <p className="px-2 py-4 text-center text-sm text-muted-foreground/80">
+              No new announcements
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {g.items.map((a) => (
+                <div key={a.id} className="glass-inset glass-hover p-4">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <h3 className="text-sm font-semibold tracking-tight">
+                      {a.title}
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <span className="whitespace-nowrap text-xs text-muted-foreground">
+                        {new Date(a.posted_at).toLocaleDateString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </span>
+                      <button
+                        onClick={() => dismissed.add(a.id)}
+                        aria-label={`Dismiss ${a.title}`}
+                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-foreground/20 text-muted-foreground transition-colors hover:border-foreground/50 hover:text-foreground"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </div>
+                  <p className="mt-2 line-clamp-6 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
+                    {stripHtml(a.message)}
+                  </p>
                 </div>
-                <p className="mt-2 line-clamp-6 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
-                  {stripHtml(a.message)}
-                </p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </GlassCard>
       ))}
     </div>
