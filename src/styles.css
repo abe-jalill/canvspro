@@ -269,6 +269,11 @@
   border-radius: var(--radius-lg);
 }
 
+.light .glass-inset {
+  background: hsl(216 30% 20% / 0.04);
+  border-color: hsl(216 30% 20% / 0.08);
+}
+
 /* Apple-style "inhale" hover: scale up + soft glow bloom */
 @utility glass-hover {
   transition:
@@ -284,6 +289,15 @@
     border-color: hsl(210 60% 90% / 0.2);
     box-shadow: var(--shadow-glass-hover);
   }
+}
+
+.light .glass-hover:hover {
+  background-color: hsl(210 40% 100% / 0.85);
+  border-color: hsl(216 30% 20% / 0.18);
+  box-shadow:
+    0 1px 0 0 rgb(255 255 255 / 0.8) inset,
+    0 24px 60px -20px rgb(30 60 140 / 0.2),
+    0 10px 24px -8px rgb(30 60 140 / 0.15);
 }
 
 @utility skeleton-shimmer {
