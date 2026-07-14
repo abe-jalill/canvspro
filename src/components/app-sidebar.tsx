@@ -1,5 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
+import { Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/lib/theme";
 
 const items = [
   { title: "Dashboard", to: "/" as const },
@@ -8,6 +10,34 @@ const items = [
   { title: "Assignments", to: "/assignments" as const },
   { title: "Announcements", to: "/announcements" as const },
 ];
+
+function ThemeToggle({ compact = false }: { compact?: boolean }) {
+  const { theme, toggle } = useTheme();
+  const isDark = theme === "dark";
+  return (
+    <button
+      onClick={toggle}
+      aria-label={`Switch to ${isDark ? "light" : "dark"} mode`}
+      aria-pressed={!isDark}
+      className={cn(
+        "glass-hover glass-inset flex items-center justify-center rounded-xl transition-colors",
+        compact ? "h-8 w-8" : "h-9 w-full",
+      )}
+      title={isDark ? "Light mode" : "Dark mode"}
+    >
+      {isDark ? (
+        <Sun className="h-4 w-4" />
+      ) : (
+        <Moon className="h-4 w-4" />
+      )}
+      {!compact && (
+        <span className="ml-2 text-xs font-medium">
+          {isDark ? "Light mode" : "Dark mode"}
+        </span>
+      )}
+    </button>
+  );
+}
 
 export function AppSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -45,6 +75,9 @@ export function AppSidebar() {
             );
           })}
         </nav>
+        <div className="mt-auto pt-4">
+          <ThemeToggle />
+        </div>
       </div>
     </aside>
   );
@@ -53,7 +86,7 @@ export function AppSidebar() {
 export function MobileNav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   return (
-    <div className="glass-panel-strong sticky top-2 z-30 mx-2 mt-2 flex gap-1 overflow-x-auto p-2 md:hidden">
+    <div className="glass-panel-strong sticky top-2 z-30 mx-2 mt-2 flex items-center gap-1 overflow-x-auto p-2 md:hidden">
       {items.map((item) => {
         const active =
           item.to === "/"
@@ -74,6 +107,9 @@ export function MobileNav() {
           </Link>
         );
       })}
+      <div className="ml-auto shrink-0">
+        <ThemeToggle compact />
+      </div>
     </div>
   );
 }
