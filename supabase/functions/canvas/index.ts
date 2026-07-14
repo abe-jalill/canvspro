@@ -18,6 +18,7 @@ interface CanvasCourse {
   course_code: string;
   workflow_state?: string;
   access_restricted_by_date?: boolean;
+  syllabus_body?: string | null;
   enrollments?: Array<{
     type: string;
     computed_current_score?: number | null;
@@ -98,7 +99,7 @@ function isActive(c: CanvasCourse) {
 
 async function fetchActiveCourses(): Promise<CanvasCourse[]> {
   const courses = await canvasFetch<CanvasCourse[]>(
-    "/courses?enrollment_state=active&include[]=total_scores&per_page=100",
+    "/courses?enrollment_state=active&include[]=total_scores&include[]=syllabus_body&per_page=100",
   );
   return courses.filter(isActive);
 }
@@ -108,6 +109,7 @@ async function handleCourses() {
   return courses.map((c) => {
     const enr =
       c.enrollments?.find((e) => e.type === "student") ?? c.enrollments?.[0];
+    const syllabus = (c.syllabus_body ?? "").trim();
     return {
       id: c.id,
       name: c.name,
@@ -115,6 +117,7 @@ async function handleCourses() {
       current_score: enr?.computed_current_score ?? null,
       current_grade: enr?.computed_current_grade ?? null,
       final_score: enr?.computed_final_score ?? null,
+      syllabus_body: syllabus.length > 0 ? c.syllabus_body : null,
     };
   });
 }
