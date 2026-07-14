@@ -1,8 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, queryOptions } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
 import { getCoursesFn, getAllAssignmentsFn } from "@/lib/canvas.functions";
-import { GlassCard, Skeleton, ErrorState, EmptyState } from "@/components/glass-card";
+import {
+  GlassCard,
+  Skeleton,
+  ErrorState,
+  EmptyState,
+} from "@/components/glass-card";
 import { displayCourseName, displayCourseCode } from "@/lib/course-display";
+import { Search, ArrowUp, ArrowDown } from "lucide-react";
+import { useLocalNumberMap, LAST_SEEN_GRADES_KEY } from "@/lib/local-value";
 
 const coursesQO = queryOptions({
   queryKey: ["canvas", "courses"],
@@ -37,9 +45,38 @@ function fmt(n: number | null | undefined) {
 function GradesPage() {
   const courses = useQuery(coursesQO);
   const assignments = useQuery(assignmentsQO);
+  const [search, setSearch] = useState("");
+  const lastSeen = useLocalNumberMap(LAST_SEEN_GRADES_KEY);
 
   const loading = courses.isLoading || assignments.isLoading;
   const error = courses.error || assignments.error;
+
+  // Compute trend for each course based on stored last-seen grade, then update.
+  const trends = useMemo(() => {
+    const map = new Map<number, "up" | "down" | null>();
+    (courses.data ?? []).forEach((c) => {
+      if (c.current_score == null) {
+        map.set(c.id, null);
+        return;
+      }
+      const prev = lastSeen.get(c.id);
+      if (prev == null) map.set(c.id, null);
+      else if (c.current_score > prev + 0.05) map.set(c.id, "up");
+      else if (c.current_score < prev - 0.05) map.set(c.id, "down");
+      else map.set(c.id, null);
+    });
+    return map;
+  }, [courses.data, lastSeen]);
+
+  // After render, persist current scores as the new baseline.
+  useEffect(() => {
+    (courses.data ?? []).forEach((c) => {
+      if (c.current_score != null && lastSeen.get(c.id) !== c.current_score) {
+        lastSeen.set(c.id, c.current_score);
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [courses.data]);
 
   type AssignmentItem = NonNullable<typeof assignments.data>[number];
   const byCourse = new Map<number, AssignmentItem[]>();
@@ -47,6 +84,16 @@ function GradesPage() {
     const arr = byCourse.get(a.course_id) ?? [];
     arr.push(a);
     byCourse.set(a.course_id, arr);
+  });
+
+  const q = search.trim().toLowerCase();
+  const filteredCourses = (courses.data ?? []).filter((c) => {
+    if (!q) return true;
+    const displayName = displayCourseName(c.name, c.course_code).toLowerCase();
+    if (displayName.includes(q) || c.name.toLowerCase().includes(q)) return true;
+    // Match if any of this course's assignments matches search
+    const items = byCourse.get(c.id) ?? [];
+    return items.some((a) => a.name.toLowerCase().includes(q));
   });
 
   return (
@@ -59,6 +106,18 @@ function GradesPage() {
           Grades
         </h1>
       </header>
+
+      <div className="glass-panel-strong flex items-center gap-2 px-4 py-2">
+        <Search className="h-4 w-4 text-muted-foreground" />
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search courses or assignments…"
+          className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+          aria-label="Search grades"
+        />
+      </div>
 
       {loading && (
         <GlassCard>
@@ -79,11 +138,20 @@ function GradesPage() {
           <EmptyState message="No active courses." />
         </GlassCard>
       )}
+      {!loading && !error && (courses.data?.length ?? 0) > 0 &&
+        filteredCourses.length === 0 && (
+          <GlassCard>
+            <EmptyState message="No matching assignments found." />
+          </GlassCard>
+        )}
 
-      {!loading && !error && (courses.data ?? []).map((c) => {
-        const items = (byCourse.get(c.id) ?? []).filter(
+      {!loading && !error && filteredCourses.map((c) => {
+        const trend = trends.get(c.id);
+        let items = (byCourse.get(c.id) ?? []).filter(
           (a) => a.submission?.score != null || a.submission?.grade,
         );
+        if (q) items = items.filter((a) => a.name.toLowerCase().includes(q));
+
         return (
           <GlassCard
             key={c.id}
@@ -94,7 +162,16 @@ function GradesPage() {
                 : c.name
             }
             action={
-              <span className="text-lg font-semibold tabular-nums">
+              <span className="flex items-center gap-1.5 text-lg font-semibold tabular-nums">
+                {trend === "up" && (
+                  <ArrowUp className="h-4 w-4 text-white" aria-label="Grade up" />
+                )}
+                {trend === "down" && (
+                  <ArrowDown
+                    className="h-4 w-4 text-white/60"
+                    aria-label="Grade down"
+                  />
+                )}
                 {fmt(c.current_score)}
                 {c.current_grade ? (
                   <span className="ml-2 text-sm font-medium text-muted-foreground">
