@@ -13,6 +13,7 @@ import {
 } from "@/components/glass-card";
 import { displayCourseName } from "@/lib/course-display";
 import { Segmented } from "@/components/segmented";
+import { WorkloadHeatmap } from "@/components/workload-heatmap";
 
 const eventsQO = queryOptions({
   queryKey: ["canvas", "calendar"],
@@ -121,6 +122,10 @@ function SchedulePage() {
           ]}
         />
       </header>
+
+      <GlassCard>
+        <WorkloadHeatmap assignments={assignments.data ?? []} />
+      </GlassCard>
 
       <GlassCard>
         {loading && (

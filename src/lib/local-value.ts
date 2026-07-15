@@ -34,7 +34,89 @@ export function useLocalNumberMap(key: string) {
     [key],
   );
 
-  return { get, set, ready: true };
+  const setAll = useCallback(
+    (values: Record<string, number>) => {
+      setMap(() => {
+        try {
+          window.localStorage.setItem(key, JSON.stringify(values));
+        } catch {
+          // ignore
+        }
+        return values;
+      });
+    },
+    [key],
+  );
+
+  return { get, set, setAll, ready: true };
+}
+
+// Persisted Map<string, string> — used to snapshot prior countdown urgency, etc.
+export function useLocalStringMap(key: string) {
+  const [map, setMap] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (raw) setMap(JSON.parse(raw) as Record<string, string>);
+    } catch {
+      // ignore
+    }
+  }, [key]);
+
+  const get = useCallback(
+    (id: string | number): string | undefined => map[String(id)],
+    [map],
+  );
+
+  const setAll = useCallback(
+    (values: Record<string, string>) => {
+      setMap(() => {
+        try {
+          window.localStorage.setItem(key, JSON.stringify(values));
+        } catch {
+          // ignore
+        }
+        return values;
+      });
+    },
+    [key],
+  );
+
+  return { get, setAll };
+}
+
+// Persisted single number (e.g., last-visit epoch ms).
+export function useLocalNumber(key: string, fallback = 0) {
+  const [value, setValue] = useState<number>(fallback);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (raw) setValue(Number(raw) || fallback);
+    } catch {
+      // ignore
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+
+  const write = useCallback(
+    (v: number) => {
+      setValue(v);
+      try {
+        window.localStorage.setItem(key, String(v));
+      } catch {
+        // ignore
+      }
+    },
+    [key],
+  );
+
+  return { value, set: write };
 }
 
 export const LAST_SEEN_GRADES_KEY = "canvas:last-seen-grades";
+export const LAST_VISIT_KEY = "canvas:last-visit";
+export const LAST_COUNTDOWN_KEY = "canvas:last-countdown";
