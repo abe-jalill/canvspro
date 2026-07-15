@@ -29,6 +29,7 @@ import {
 } from "@/lib/countdown";
 import { buildIcs, downloadIcs, safeFilename } from "@/lib/ics";
 import { SyllabusModal } from "@/components/syllabus-modal";
+import { DigestCard } from "@/components/digest-card";
 
 const coursesQO = queryOptions({
   queryKey: ["canvas", "courses"],
@@ -86,6 +87,8 @@ function Dashboard() {
         </h1>
       </header>
 
+      <DigestBridge />
+
       <div className="grid gap-6 md:grid-cols-3">
         <div className="md:col-span-1">
           <CoursesWidget />
@@ -97,6 +100,20 @@ function Dashboard() {
 
       <AnnouncementsWidget />
     </div>
+  );
+}
+
+function DigestBridge() {
+  const courses = useQuery(coursesQO);
+  const assignments = useQuery(assignmentsQO);
+  const announcements = useQuery(announcementsQO);
+  if (!courses.data || !assignments.data || !announcements.data) return null;
+  return (
+    <DigestCard
+      courses={courses.data}
+      assignments={assignments.data}
+      announcements={announcements.data}
+    />
   );
 }
 

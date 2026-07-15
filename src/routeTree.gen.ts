@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ScheduleRouteImport } from './routes/schedule'
 import { Route as GradesRouteImport } from './routes/grades'
+import { Route as FocusRouteImport } from './routes/focus'
 import { Route as AssignmentsRouteImport } from './routes/assignments'
 import { Route as AnnouncementsRouteImport } from './routes/announcements'
 import { Route as IndexRouteImport } from './routes/index'
@@ -23,6 +24,11 @@ const ScheduleRoute = ScheduleRouteImport.update({
 const GradesRoute = GradesRouteImport.update({
   id: '/grades',
   path: '/grades',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FocusRoute = FocusRouteImport.update({
+  id: '/focus',
+  path: '/focus',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AssignmentsRoute = AssignmentsRouteImport.update({
@@ -45,6 +51,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/announcements': typeof AnnouncementsRoute
   '/assignments': typeof AssignmentsRoute
+  '/focus': typeof FocusRoute
   '/grades': typeof GradesRoute
   '/schedule': typeof ScheduleRoute
 }
@@ -52,6 +59,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/announcements': typeof AnnouncementsRoute
   '/assignments': typeof AssignmentsRoute
+  '/focus': typeof FocusRoute
   '/grades': typeof GradesRoute
   '/schedule': typeof ScheduleRoute
 }
@@ -60,19 +68,33 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/announcements': typeof AnnouncementsRoute
   '/assignments': typeof AssignmentsRoute
+  '/focus': typeof FocusRoute
   '/grades': typeof GradesRoute
   '/schedule': typeof ScheduleRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/announcements' | '/assignments' | '/grades' | '/schedule'
+  fullPaths:
+    | '/'
+    | '/announcements'
+    | '/assignments'
+    | '/focus'
+    | '/grades'
+    | '/schedule'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/announcements' | '/assignments' | '/grades' | '/schedule'
+  to:
+    | '/'
+    | '/announcements'
+    | '/assignments'
+    | '/focus'
+    | '/grades'
+    | '/schedule'
   id:
     | '__root__'
     | '/'
     | '/announcements'
     | '/assignments'
+    | '/focus'
     | '/grades'
     | '/schedule'
   fileRoutesById: FileRoutesById
@@ -81,6 +103,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AnnouncementsRoute: typeof AnnouncementsRoute
   AssignmentsRoute: typeof AssignmentsRoute
+  FocusRoute: typeof FocusRoute
   GradesRoute: typeof GradesRoute
   ScheduleRoute: typeof ScheduleRoute
 }
@@ -99,6 +122,13 @@ declare module '@tanstack/react-router' {
       path: '/grades'
       fullPath: '/grades'
       preLoaderRoute: typeof GradesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/focus': {
+      id: '/focus'
+      path: '/focus'
+      fullPath: '/focus'
+      preLoaderRoute: typeof FocusRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/assignments': {
@@ -129,6 +159,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AnnouncementsRoute: AnnouncementsRoute,
   AssignmentsRoute: AssignmentsRoute,
+  FocusRoute: FocusRoute,
   GradesRoute: GradesRoute,
   ScheduleRoute: ScheduleRoute,
 }
