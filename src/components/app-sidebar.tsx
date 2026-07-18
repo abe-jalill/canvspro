@@ -134,7 +134,8 @@ export function MobileNav() {
           </Link>
         );
       })}
-      <div className="ml-auto shrink-0">
+      <div className="ml-auto flex shrink-0 gap-1">
+        <ReminderToggle compact />
         <ThemeToggle compact />
       </div>
     </div>
