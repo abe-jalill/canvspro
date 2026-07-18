@@ -101,7 +101,8 @@ export function AppSidebar() {
             );
           })}
         </nav>
-        <div className="mt-auto pt-4">
+        <div className="mt-auto space-y-2 pt-4">
+          <ReminderToggle />
           <ThemeToggle />
         </div>
       </div>
