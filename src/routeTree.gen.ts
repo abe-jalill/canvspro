@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as ScheduleRouteImport } from './routes/schedule'
 import { Route as GradesRouteImport } from './routes/grades'
 import { Route as FocusRouteImport } from './routes/focus'
+import { Route as ClassScheduleRouteImport } from './routes/class-schedule'
 import { Route as AssignmentsRouteImport } from './routes/assignments'
 import { Route as AnnouncementsRouteImport } from './routes/announcements'
 import { Route as IndexRouteImport } from './routes/index'
@@ -29,6 +30,11 @@ const GradesRoute = GradesRouteImport.update({
 const FocusRoute = FocusRouteImport.update({
   id: '/focus',
   path: '/focus',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ClassScheduleRoute = ClassScheduleRouteImport.update({
+  id: '/class-schedule',
+  path: '/class-schedule',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AssignmentsRoute = AssignmentsRouteImport.update({
@@ -51,6 +57,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/announcements': typeof AnnouncementsRoute
   '/assignments': typeof AssignmentsRoute
+  '/class-schedule': typeof ClassScheduleRoute
   '/focus': typeof FocusRoute
   '/grades': typeof GradesRoute
   '/schedule': typeof ScheduleRoute
@@ -59,6 +66,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/announcements': typeof AnnouncementsRoute
   '/assignments': typeof AssignmentsRoute
+  '/class-schedule': typeof ClassScheduleRoute
   '/focus': typeof FocusRoute
   '/grades': typeof GradesRoute
   '/schedule': typeof ScheduleRoute
@@ -68,6 +76,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/announcements': typeof AnnouncementsRoute
   '/assignments': typeof AssignmentsRoute
+  '/class-schedule': typeof ClassScheduleRoute
   '/focus': typeof FocusRoute
   '/grades': typeof GradesRoute
   '/schedule': typeof ScheduleRoute
@@ -78,6 +87,7 @@ export interface FileRouteTypes {
     | '/'
     | '/announcements'
     | '/assignments'
+    | '/class-schedule'
     | '/focus'
     | '/grades'
     | '/schedule'
@@ -86,6 +96,7 @@ export interface FileRouteTypes {
     | '/'
     | '/announcements'
     | '/assignments'
+    | '/class-schedule'
     | '/focus'
     | '/grades'
     | '/schedule'
@@ -94,6 +105,7 @@ export interface FileRouteTypes {
     | '/'
     | '/announcements'
     | '/assignments'
+    | '/class-schedule'
     | '/focus'
     | '/grades'
     | '/schedule'
@@ -103,6 +115,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AnnouncementsRoute: typeof AnnouncementsRoute
   AssignmentsRoute: typeof AssignmentsRoute
+  ClassScheduleRoute: typeof ClassScheduleRoute
   FocusRoute: typeof FocusRoute
   GradesRoute: typeof GradesRoute
   ScheduleRoute: typeof ScheduleRoute
@@ -129,6 +142,13 @@ declare module '@tanstack/react-router' {
       path: '/focus'
       fullPath: '/focus'
       preLoaderRoute: typeof FocusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/class-schedule': {
+      id: '/class-schedule'
+      path: '/class-schedule'
+      fullPath: '/class-schedule'
+      preLoaderRoute: typeof ClassScheduleRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/assignments': {
@@ -159,6 +179,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AnnouncementsRoute: AnnouncementsRoute,
   AssignmentsRoute: AssignmentsRoute,
+  ClassScheduleRoute: ClassScheduleRoute,
   FocusRoute: FocusRoute,
   GradesRoute: GradesRoute,
   ScheduleRoute: ScheduleRoute,

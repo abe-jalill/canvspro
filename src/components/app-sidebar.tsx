@@ -1,16 +1,41 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Moon, Sun } from "lucide-react";
+import { Bell, BellOff, Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/lib/theme";
+import { useReminders } from "@/hooks/use-hourly-reminder";
 
 const items = [
   { title: "Dashboard", to: "/" as const },
   { title: "Focus", to: "/focus" as const },
   { title: "Schedule", to: "/schedule" as const },
+  { title: "Class Schedule", to: "/class-schedule" as const },
   { title: "Grades", to: "/grades" as const },
   { title: "Assignments", to: "/assignments" as const },
   { title: "Announcements", to: "/announcements" as const },
 ];
+
+function ReminderToggle({ compact = false }: { compact?: boolean }) {
+  const { enabled, toggle } = useReminders();
+  return (
+    <button
+      onClick={toggle}
+      aria-label={enabled ? "Disable hourly reminders" : "Enable hourly reminders"}
+      aria-pressed={enabled}
+      className={cn(
+        "glass-hover glass-inset flex items-center justify-center rounded-xl transition-colors",
+        compact ? "h-8 w-8" : "h-9 w-full",
+      )}
+      title={enabled ? "Reminders on (9 AM – 9 PM)" : "Reminders off"}
+    >
+      {enabled ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
+      {!compact && (
+        <span className="ml-2 text-xs font-medium">
+          {enabled ? "Reminders on" : "Reminders off"}
+        </span>
+      )}
+    </button>
+  );
+}
 
 function ThemeToggle({ compact = false }: { compact?: boolean }) {
   const { theme, toggle } = useTheme();
