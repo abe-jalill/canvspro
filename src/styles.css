@@ -240,10 +240,10 @@
   }
 }
 
-/* Frosted glass surfaces */
+/* Frosted glass surfaces (blur kept light for smooth scrolling) */
 @utility glass-panel {
   background: hsl(var(--glass));
-  backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(10px);
   border: 1px solid hsl(var(--glass-border));
   box-shadow: var(--shadow-glass);
   border-radius: var(--radius-2xl);
@@ -251,15 +251,15 @@
 
 @utility glass-panel-strong {
   background: hsl(var(--glass-strong));
-  backdrop-filter: blur(32px) saturate(200%);
+  backdrop-filter: blur(12px);
   border: 1px solid hsl(var(--glass-border));
   box-shadow: var(--shadow-glass-lg);
   border-radius: var(--radius-2xl);
 }
 
 @utility glass-inset {
-  background: hsl(210 60% 90% / 0.045);
-  border: 1px solid hsl(210 60% 90% / 0.08);
+  background: hsl(0 0% 100% / 0.045);
+  border: 1px solid hsl(0 0% 100% / 0.08);
   border-radius: var(--radius-lg);
 }
 
