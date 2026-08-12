@@ -74,7 +74,27 @@ function creds() {
   return { domain, token };
 }
 
+// Short-lived in-memory cache so repeated page views don't re-hit Canvas.
+const CACHE_TTL_MS = 5 * 60_000;
+const cache = new Map<string, { at: number; value: unknown }>();
+const inflight = new Map<string, Promise<unknown>>();
+
 async function canvasFetch<T>(path: string): Promise<T> {
+  const hit = cache.get(path);
+  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.value as T;
+  const pending = inflight.get(path);
+  if (pending) return (await pending) as T;
+  const p = canvasFetchRaw<T>(path)
+    .then((v) => {
+      cache.set(path, { at: Date.now(), value: v });
+      return v;
+    })
+    .finally(() => inflight.delete(path));
+  inflight.set(path, p as Promise<unknown>);
+  return p;
+}
+
+async function canvasFetchRaw<T>(path: string): Promise<T> {
   const { domain, token } = creds();
   const url = `https://${domain}${API_VERSION}${path}`;
   const res = await fetch(url, {
