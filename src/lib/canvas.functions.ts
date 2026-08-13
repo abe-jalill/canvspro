@@ -1,18 +1,29 @@
 // Client-side wrappers that call the `canvas` Edge Function.
-// The Canvas token lives only in the Edge Function (as CANVAS_TOKEN); the
-// browser never sees it.
+// The Canvas key is stored per-user in `user_settings`; the Edge Function
+// reads it server-side, so the browser never needs to hold it.
 import { supabase } from "@/integrations/supabase/client";
+import { fetchCanvasKey } from "@/lib/user-settings";
 
 async function invokeCanvas<T>(
   resource: "courses" | "assignments" | "announcements" | "calendar",
   extra?: Record<string, unknown>,
 ): Promise<T> {
+  // No key saved yet → render blank states instead of erroring.
+  const key = await fetchCanvasKey();
+  if (!key) return [] as unknown as T;
+
   const { data, error } = await supabase.functions.invoke("canvas", {
     body: { resource, ...(extra ?? {}) },
   });
-  if (error) throw new Error(error.message);
+  if (error) {
+    const message = error.message ?? "Request failed";
+    if (/428|NO_CANVAS_KEY/.test(message)) return [] as unknown as T;
+    throw new Error(message);
+  }
   if (data && typeof data === "object" && "error" in data && (data as { error?: string }).error) {
-    throw new Error((data as { error: string }).error);
+    const message = (data as { error: string }).error;
+    if (message === "NO_CANVAS_KEY") return [] as unknown as T;
+    throw new Error(message);
   }
   return data as T;
 }
