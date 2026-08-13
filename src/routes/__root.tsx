@@ -62,13 +62,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Dashboard — Canvas Student" },
+      { title: "Dashboard — Canvas Pro" },
       {
         name: "description",
         content:
           "Your classes, grades, upcoming assignments, and announcements.",
       },
-      { property: "og:title", content: "Dashboard — Canvas Student" },
+      { property: "og:title", content: "Dashboard — Canvas Pro" },
       {
         property: "og:description",
         content:
@@ -76,7 +76,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Dashboard — Canvas Student" },
+      { name: "twitter:title", content: "Dashboard — Canvas Pro" },
       { name: "twitter:description", content: "Your classes, grades, upcoming assignments, and announcements." },
       { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/bdf1beaf-d775-40f3-b194-aafd54341d35/id-preview-4231fc3a--affbea3f-cfe8-4941-aebb-24d8872c528c.lovable.app-1783984199763.png" },
       { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/bdf1beaf-d775-40f3-b194-aafd54341d35/id-preview-4231fc3a--affbea3f-cfe8-4941-aebb-24d8872c528c.lovable.app-1783984199763.png" },

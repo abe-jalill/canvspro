@@ -9,180 +9,183 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as ScheduleRouteImport } from './routes/schedule'
-import { Route as GradesRouteImport } from './routes/grades'
-import { Route as FocusRouteImport } from './routes/focus'
-import { Route as ClassScheduleRouteImport } from './routes/class-schedule'
-import { Route as AssignmentsRouteImport } from './routes/assignments'
-import { Route as AnnouncementsRouteImport } from './routes/announcements'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedScheduleRouteImport } from './routes/_authenticated/schedule'
+import { Route as AuthenticatedGradesRouteImport } from './routes/_authenticated/grades'
+import { Route as AuthenticatedFocusRouteImport } from './routes/_authenticated/focus'
+import { Route as AuthenticatedClassScheduleRouteImport } from './routes/_authenticated/class-schedule'
+import { Route as AuthenticatedAssignmentsRouteImport } from './routes/_authenticated/assignments'
+import { Route as AuthenticatedAnnouncementsRouteImport } from './routes/_authenticated/announcements'
 
-const ScheduleRoute = ScheduleRouteImport.update({
-  id: '/schedule',
-  path: '/schedule',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const GradesRoute = GradesRouteImport.update({
-  id: '/grades',
-  path: '/grades',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const FocusRoute = FocusRouteImport.update({
-  id: '/focus',
-  path: '/focus',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ClassScheduleRoute = ClassScheduleRouteImport.update({
-  id: '/class-schedule',
-  path: '/class-schedule',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AssignmentsRoute = AssignmentsRouteImport.update({
-  id: '/assignments',
-  path: '/assignments',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AnnouncementsRoute = AnnouncementsRouteImport.update({
-  id: '/announcements',
-  path: '/announcements',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
+const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
+  id: '/_authenticated/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedScheduleRoute = AuthenticatedScheduleRouteImport.update({
+  id: '/_authenticated/schedule',
+  path: '/schedule',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedGradesRoute = AuthenticatedGradesRouteImport.update({
+  id: '/_authenticated/grades',
+  path: '/grades',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedFocusRoute = AuthenticatedFocusRouteImport.update({
+  id: '/_authenticated/focus',
+  path: '/focus',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedClassScheduleRoute =
+  AuthenticatedClassScheduleRouteImport.update({
+    id: '/_authenticated/class-schedule',
+    path: '/class-schedule',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AuthenticatedAssignmentsRoute =
+  AuthenticatedAssignmentsRouteImport.update({
+    id: '/_authenticated/assignments',
+    path: '/assignments',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AuthenticatedAnnouncementsRoute =
+  AuthenticatedAnnouncementsRouteImport.update({
+    id: '/_authenticated/announcements',
+    path: '/announcements',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/announcements': typeof AnnouncementsRoute
-  '/assignments': typeof AssignmentsRoute
-  '/class-schedule': typeof ClassScheduleRoute
-  '/focus': typeof FocusRoute
-  '/grades': typeof GradesRoute
-  '/schedule': typeof ScheduleRoute
+  '/announcements': typeof AuthenticatedAnnouncementsRoute
+  '/assignments': typeof AuthenticatedAssignmentsRoute
+  '/class-schedule': typeof AuthenticatedClassScheduleRoute
+  '/focus': typeof AuthenticatedFocusRoute
+  '/grades': typeof AuthenticatedGradesRoute
+  '/schedule': typeof AuthenticatedScheduleRoute
+  '/': typeof AuthenticatedIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/announcements': typeof AnnouncementsRoute
-  '/assignments': typeof AssignmentsRoute
-  '/class-schedule': typeof ClassScheduleRoute
-  '/focus': typeof FocusRoute
-  '/grades': typeof GradesRoute
-  '/schedule': typeof ScheduleRoute
+  '/announcements': typeof AuthenticatedAnnouncementsRoute
+  '/assignments': typeof AuthenticatedAssignmentsRoute
+  '/class-schedule': typeof AuthenticatedClassScheduleRoute
+  '/focus': typeof AuthenticatedFocusRoute
+  '/grades': typeof AuthenticatedGradesRoute
+  '/schedule': typeof AuthenticatedScheduleRoute
+  '/': typeof AuthenticatedIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/announcements': typeof AnnouncementsRoute
-  '/assignments': typeof AssignmentsRoute
-  '/class-schedule': typeof ClassScheduleRoute
-  '/focus': typeof FocusRoute
-  '/grades': typeof GradesRoute
-  '/schedule': typeof ScheduleRoute
+  '/_authenticated/announcements': typeof AuthenticatedAnnouncementsRoute
+  '/_authenticated/assignments': typeof AuthenticatedAssignmentsRoute
+  '/_authenticated/class-schedule': typeof AuthenticatedClassScheduleRoute
+  '/_authenticated/focus': typeof AuthenticatedFocusRoute
+  '/_authenticated/grades': typeof AuthenticatedGradesRoute
+  '/_authenticated/schedule': typeof AuthenticatedScheduleRoute
+  '/_authenticated/': typeof AuthenticatedIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | '/'
     | '/announcements'
     | '/assignments'
     | '/class-schedule'
     | '/focus'
     | '/grades'
     | '/schedule'
+    | '/'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/'
     | '/announcements'
     | '/assignments'
     | '/class-schedule'
     | '/focus'
     | '/grades'
     | '/schedule'
+    | '/'
   id:
     | '__root__'
-    | '/'
-    | '/announcements'
-    | '/assignments'
-    | '/class-schedule'
-    | '/focus'
-    | '/grades'
-    | '/schedule'
+    | '/_authenticated/announcements'
+    | '/_authenticated/assignments'
+    | '/_authenticated/class-schedule'
+    | '/_authenticated/focus'
+    | '/_authenticated/grades'
+    | '/_authenticated/schedule'
+    | '/_authenticated/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  AnnouncementsRoute: typeof AnnouncementsRoute
-  AssignmentsRoute: typeof AssignmentsRoute
-  ClassScheduleRoute: typeof ClassScheduleRoute
-  FocusRoute: typeof FocusRoute
-  GradesRoute: typeof GradesRoute
-  ScheduleRoute: typeof ScheduleRoute
+  AuthenticatedAnnouncementsRoute: typeof AuthenticatedAnnouncementsRoute
+  AuthenticatedAssignmentsRoute: typeof AuthenticatedAssignmentsRoute
+  AuthenticatedClassScheduleRoute: typeof AuthenticatedClassScheduleRoute
+  AuthenticatedFocusRoute: typeof AuthenticatedFocusRoute
+  AuthenticatedGradesRoute: typeof AuthenticatedGradesRoute
+  AuthenticatedScheduleRoute: typeof AuthenticatedScheduleRoute
+  AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/schedule': {
-      id: '/schedule'
-      path: '/schedule'
-      fullPath: '/schedule'
-      preLoaderRoute: typeof ScheduleRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/grades': {
-      id: '/grades'
-      path: '/grades'
-      fullPath: '/grades'
-      preLoaderRoute: typeof GradesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/focus': {
-      id: '/focus'
-      path: '/focus'
-      fullPath: '/focus'
-      preLoaderRoute: typeof FocusRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/class-schedule': {
-      id: '/class-schedule'
-      path: '/class-schedule'
-      fullPath: '/class-schedule'
-      preLoaderRoute: typeof ClassScheduleRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/assignments': {
-      id: '/assignments'
-      path: '/assignments'
-      fullPath: '/assignments'
-      preLoaderRoute: typeof AssignmentsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/announcements': {
-      id: '/announcements'
-      path: '/announcements'
-      fullPath: '/announcements'
-      preLoaderRoute: typeof AnnouncementsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/': {
-      id: '/'
+    '/_authenticated/': {
+      id: '/_authenticated/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+      preLoaderRoute: typeof AuthenticatedIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/schedule': {
+      id: '/_authenticated/schedule'
+      path: '/schedule'
+      fullPath: '/schedule'
+      preLoaderRoute: typeof AuthenticatedScheduleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/grades': {
+      id: '/_authenticated/grades'
+      path: '/grades'
+      fullPath: '/grades'
+      preLoaderRoute: typeof AuthenticatedGradesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/focus': {
+      id: '/_authenticated/focus'
+      path: '/focus'
+      fullPath: '/focus'
+      preLoaderRoute: typeof AuthenticatedFocusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/class-schedule': {
+      id: '/_authenticated/class-schedule'
+      path: '/class-schedule'
+      fullPath: '/class-schedule'
+      preLoaderRoute: typeof AuthenticatedClassScheduleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/assignments': {
+      id: '/_authenticated/assignments'
+      path: '/assignments'
+      fullPath: '/assignments'
+      preLoaderRoute: typeof AuthenticatedAssignmentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/announcements': {
+      id: '/_authenticated/announcements'
+      path: '/announcements'
+      fullPath: '/announcements'
+      preLoaderRoute: typeof AuthenticatedAnnouncementsRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  AnnouncementsRoute: AnnouncementsRoute,
-  AssignmentsRoute: AssignmentsRoute,
-  ClassScheduleRoute: ClassScheduleRoute,
-  FocusRoute: FocusRoute,
-  GradesRoute: GradesRoute,
-  ScheduleRoute: ScheduleRoute,
+  AuthenticatedAnnouncementsRoute: AuthenticatedAnnouncementsRoute,
+  AuthenticatedAssignmentsRoute: AuthenticatedAssignmentsRoute,
+  AuthenticatedClassScheduleRoute: AuthenticatedClassScheduleRoute,
+  AuthenticatedFocusRoute: AuthenticatedFocusRoute,
+  AuthenticatedGradesRoute: AuthenticatedGradesRoute,
+  AuthenticatedScheduleRoute: AuthenticatedScheduleRoute,
+  AuthenticatedIndexRoute: AuthenticatedIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

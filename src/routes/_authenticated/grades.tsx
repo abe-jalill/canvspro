@@ -24,10 +24,10 @@ const assignmentsQO = queryOptions({
   staleTime: 5 * 60_000,
 });
 
-export const Route = createFileRoute("/grades")({
+export const Route = createFileRoute("/_authenticated/grades")({
   head: () => ({
     meta: [
-      { title: "Grades — Canvas Student" },
+      { title: "Grades — Canvas Pro" },
       {
         name: "description",
         content: "Per-course grade breakdown across your Canvas assignments.",

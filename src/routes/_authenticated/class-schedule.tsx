@@ -8,7 +8,7 @@ import {
   type ClassDay,
 } from "@/lib/class-schedule";
 
-export const Route = createFileRoute("/class-schedule")({
+export const Route = createFileRoute("/_authenticated/class-schedule")({
   head: () => ({
     meta: [
       { title: "Class Schedule — Fall 2026" },

@@ -52,7 +52,7 @@ const announcementsQO = queryOptions({
 export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
     meta: [
-      { title: "Dashboard — Canvas Student" },
+      { title: "Dashboard — Canvas Pro" },
       {
         name: "description",
         content:
