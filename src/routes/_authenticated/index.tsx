@@ -49,10 +49,10 @@ const announcementsQO = queryOptions({
   staleTime: 5 * 60_000,
 });
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
     meta: [
-      { title: "Dashboard — Canvas Student" },
+      { title: "Dashboard — Canvas Pro" },
       {
         name: "description",
         content:

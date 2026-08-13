@@ -38,10 +38,10 @@ const coursesQO = queryOptions({
   staleTime: 5 * 60_000,
 });
 
-export const Route = createFileRoute("/focus")({
+export const Route = createFileRoute("/_authenticated/focus")({
   head: () => ({
     meta: [
-      { title: "Focus — Canvas Student" },
+      { title: "Focus — Canvas Pro" },
       {
         name: "description",
         content: "Everything due in the next 48 hours, grouped by class.",

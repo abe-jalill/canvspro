@@ -27,10 +27,10 @@ const assignmentsQO = queryOptions({
   staleTime: 5 * 60_000,
 });
 
-export const Route = createFileRoute("/schedule")({
+export const Route = createFileRoute("/_authenticated/schedule")({
   head: () => ({
     meta: [
-      { title: "Schedule — Canvas Student" },
+      { title: "Schedule — Canvas Pro" },
       {
         name: "description",
         content: "Your upcoming Canvas classes and events.",

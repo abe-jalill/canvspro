@@ -27,10 +27,10 @@ const coursesQO = queryOptions({
   staleTime: 5 * 60_000,
 });
 
-export const Route = createFileRoute("/announcements")({
+export const Route = createFileRoute("/_authenticated/announcements")({
   head: () => ({
     meta: [
-      { title: "Announcements — Canvas Student" },
+      { title: "Announcements — Canvas Pro" },
       {
         name: "description",
         content: "All recent announcements from your Canvas courses.",

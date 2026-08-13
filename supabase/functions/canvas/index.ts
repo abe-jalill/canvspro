@@ -1,6 +1,6 @@
-// Edge Function: proxies Canvas LMS REST API calls using the CANVAS_TOKEN
-// and CANVAS_DOMAIN secrets. The frontend calls this function instead of
-// hitting Canvas directly, so the token never reaches the browser.
+// Edge Function: proxies Canvas LMS REST API calls using the caller's own
+// Canvas API key, stored per-user in the `user_settings` table. The key never
+// reaches the browser: the function reads it with the caller's JWT.
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -65,13 +65,9 @@ interface CanvasCalendarEvent {
   location_name?: string | null;
 }
 
-function creds() {
-  const domain = Deno.env.get("CANVAS_DOMAIN");
-  const token = Deno.env.get("CANVAS_TOKEN");
-  if (!domain || !token) {
-    throw new Error("Canvas credentials are not configured on the server.");
-  }
-  return { domain, token };
+interface Creds {
+  domain: string;
+  token: string;
 }
 
 // Short-lived in-memory cache so repeated page views don't re-hit Canvas.
@@ -79,27 +75,31 @@ const CACHE_TTL_MS = 5 * 60_000;
 const cache = new Map<string, { at: number; value: unknown }>();
 const inflight = new Map<string, Promise<unknown>>();
 
-async function canvasFetch<T>(path: string): Promise<T> {
-  const hit = cache.get(path);
+function cacheKey(creds: Creds, path: string) {
+  return `${creds.domain}|${creds.token.slice(-10)}|${path}`;
+}
+
+async function canvasFetch<T>(creds: Creds, path: string): Promise<T> {
+  const key = cacheKey(creds, path);
+  const hit = cache.get(key);
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.value as T;
-  const pending = inflight.get(path);
+  const pending = inflight.get(key);
   if (pending) return (await pending) as T;
-  const p = canvasFetchRaw<T>(path)
+  const p = canvasFetchRaw<T>(creds, path)
     .then((v) => {
-      cache.set(path, { at: Date.now(), value: v });
+      cache.set(key, { at: Date.now(), value: v });
       return v;
     })
-    .finally(() => inflight.delete(path));
-  inflight.set(path, p as Promise<unknown>);
+    .finally(() => inflight.delete(key));
+  inflight.set(key, p as Promise<unknown>);
   return p;
 }
 
-async function canvasFetchRaw<T>(path: string): Promise<T> {
-  const { domain, token } = creds();
-  const url = `https://${domain}${API_VERSION}${path}`;
+async function canvasFetchRaw<T>(creds: Creds, path: string): Promise<T> {
+  const url = `https://${creds.domain}${API_VERSION}${path}`;
   const res = await fetch(url, {
     headers: {
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${creds.token}`,
       Accept: "application/json",
     },
   });
@@ -110,6 +110,31 @@ async function canvasFetchRaw<T>(path: string): Promise<T> {
   return (await res.json()) as T;
 }
 
+// Reads the caller's Canvas API key from `user_settings` using their JWT,
+// so RLS guarantees a user can only ever use their own key.
+async function credsForRequest(req: Request): Promise<Creds> {
+  const domain = Deno.env.get("CANVAS_DOMAIN");
+  if (!domain) throw new Error("Canvas domain is not configured.");
+
+  const authHeader = req.headers.get("Authorization") ?? "";
+  if (!authHeader) throw new Error("NOT_AUTHENTICATED");
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const apiKey =
+    Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ??
+    Deno.env.get("SUPABASE_ANON_KEY")!;
+
+  const res = await fetch(
+    `${supabaseUrl}/rest/v1/user_settings?select=canvas_api_key&limit=1`,
+    { headers: { apikey: apiKey, Authorization: authHeader } },
+  );
+  if (!res.ok) throw new Error("NOT_AUTHENTICATED");
+  const rows = (await res.json()) as Array<{ canvas_api_key: string | null }>;
+  const token = rows?.[0]?.canvas_api_key?.trim();
+  if (!token) throw new Error("NO_CANVAS_KEY");
+  return { domain, token };
+}
+
 function isActive(c: CanvasCourse) {
   if (EXCLUDED_COURSE_IDS.has(c.id)) return false;
   if (c.access_restricted_by_date) return false;
@@ -117,15 +142,16 @@ function isActive(c: CanvasCourse) {
   return true;
 }
 
-async function fetchActiveCourses(): Promise<CanvasCourse[]> {
+async function fetchActiveCourses(creds: Creds): Promise<CanvasCourse[]> {
   const courses = await canvasFetch<CanvasCourse[]>(
+    creds,
     "/courses?enrollment_state=active&include[]=total_scores&include[]=syllabus_body&per_page=100",
   );
   return courses.filter(isActive);
 }
 
-async function handleCourses() {
-  const courses = await fetchActiveCourses();
+async function handleCourses(creds: Creds) {
+  const courses = await fetchActiveCourses(creds);
   return courses.map((c) => {
     const enr =
       c.enrollments?.find((e) => e.type === "student") ?? c.enrollments?.[0];
@@ -142,12 +168,13 @@ async function handleCourses() {
   });
 }
 
-async function handleAssignments() {
-  const courses = await fetchActiveCourses();
+async function handleAssignments(creds: Creds) {
+  const courses = await fetchActiveCourses(creds);
   const results = await Promise.all(
     courses.map(async (c) => {
       try {
         const assignments = await canvasFetch<CanvasAssignment[]>(
+          creds,
           `/courses/${c.id}/assignments?include[]=submission&per_page=100&order_by=due_at`,
         );
         return assignments.map((a) => ({
@@ -163,8 +190,8 @@ async function handleAssignments() {
   return results.flat().filter((a) => !EXCLUDED_COURSE_IDS.has(a.course_id));
 }
 
-async function handleAnnouncements(days = 30) {
-  const courses = await fetchActiveCourses();
+async function handleAnnouncements(creds: Creds, days = 30) {
+  const courses = await fetchActiveCourses(creds);
   if (courses.length === 0) return [];
   const params = new URLSearchParams();
   courses.forEach((c) => params.append("context_codes[]", `course_${c.id}`));
@@ -173,6 +200,7 @@ async function handleAnnouncements(days = 30) {
   params.set("start_date", start.toISOString());
   params.set("per_page", "50");
   const raw = await canvasFetch<CanvasAnnouncement[]>(
+    creds,
     `/announcements?${params.toString()}`,
   );
   const courseById = new Map(courses.map((c) => [c.id, c]));
@@ -190,8 +218,8 @@ async function handleAnnouncements(days = 30) {
     .filter((a) => !EXCLUDED_COURSE_IDS.has(a.course_id));
 }
 
-async function handleCalendar(daysAhead = 14) {
-  const courses = await fetchActiveCourses();
+async function handleCalendar(creds: Creds, daysAhead = 14) {
+  const courses = await fetchActiveCourses(creds);
   if (courses.length === 0) return [];
   const start = new Date();
   const end = new Date();
@@ -207,6 +235,7 @@ async function handleCalendar(daysAhead = 14) {
   // client-side from the assignments endpoint, so fetching type=assignment
   // would duplicate every assignment on the schedule page.
   const events = await canvasFetch<CanvasCalendarEvent[]>(
+    creds,
     `/calendar_events?${params.toString()}`,
   );
   return events.filter((e) => {
@@ -236,19 +265,21 @@ Deno.serve(async (req) => {
       if (d) days = Number(d);
     }
 
+    const creds = await credsForRequest(req);
+
     let data: unknown;
     switch (resource) {
       case "courses":
-        data = await handleCourses();
+        data = await handleCourses(creds);
         break;
       case "assignments":
-        data = await handleAssignments();
+        data = await handleAssignments(creds);
         break;
       case "announcements":
-        data = await handleAnnouncements(days ?? 30);
+        data = await handleAnnouncements(creds, days ?? 30);
         break;
       case "calendar":
-        data = await handleCalendar(days ?? 14);
+        data = await handleCalendar(creds, days ?? 14);
         break;
       default:
         return new Response(
@@ -265,9 +296,11 @@ Deno.serve(async (req) => {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error("[canvas]", message);
+    const status =
+      message === "NOT_AUTHENTICATED" ? 401 : message === "NO_CANVAS_KEY" ? 428 : 500;
+    if (status === 500) console.error("[canvas]", message);
     return new Response(JSON.stringify({ error: message }), {
-      status: 500,
+      status,
       headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
     });
   }

@@ -10,7 +10,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { AppSidebar, MobileNav } from "../components/app-sidebar";
+import { supabase } from "@/integrations/supabase/client";
 
 function NotFoundComponent() {
   return (
@@ -62,13 +62,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Dashboard — Canvas Student" },
+      { title: "Dashboard — Canvas Pro" },
       {
         name: "description",
         content:
           "Your classes, grades, upcoming assignments, and announcements.",
       },
-      { property: "og:title", content: "Dashboard — Canvas Student" },
+      { property: "og:title", content: "Dashboard — Canvas Pro" },
       {
         property: "og:description",
         content:
@@ -76,7 +76,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Dashboard — Canvas Student" },
+      { name: "twitter:title", content: "Dashboard — Canvas Pro" },
       { name: "twitter:description", content: "Your classes, grades, upcoming assignments, and announcements." },
       { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/bdf1beaf-d775-40f3-b194-aafd54341d35/id-preview-4231fc3a--affbea3f-cfe8-4941-aebb-24d8872c528c.lovable.app-1783984199763.png" },
       { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/bdf1beaf-d775-40f3-b194-aafd54341d35/id-preview-4231fc3a--affbea3f-cfe8-4941-aebb-24d8872c528c.lovable.app-1783984199763.png" },
@@ -110,18 +110,21 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const router = useRouter();
+
+  useEffect(() => {
+    const { data } = supabase.auth.onAuthStateChange((event) => {
+      if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED")
+        return;
+      router.invalidate();
+      if (event !== "SIGNED_OUT") queryClient.invalidateQueries();
+    });
+    return () => data.subscription.unsubscribe();
+  }, [router, queryClient]);
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="min-h-screen w-full">
-        <AppSidebar />
-        <MobileNav />
-        <main className="md:pl-64 md:pr-4 md:py-4">
-          <div className="mx-auto max-w-6xl p-4 md:p-6">
-            <Outlet />
-          </div>
-        </main>
-      </div>
+      <Outlet />
     </QueryClientProvider>
   );
 }
