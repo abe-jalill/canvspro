@@ -31,9 +31,6 @@ function SettingsPage() {
   const [value, setValue] = useState("");
   const [status, setStatus] = useState<string | null>(null);
 
-  useEffect(() => {
-    setValue(savedKey ?? "");
-  }, [savedKey]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
