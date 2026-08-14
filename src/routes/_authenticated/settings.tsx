@@ -3,6 +3,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { GlassCard } from "@/components/glass-card";
 import { useCanvasKey, useSaveCanvasKey } from "@/lib/user-settings";
 import { ClassNamesSection } from "@/components/class-names-editor";
+import { NotificationSettings } from "@/components/notification-settings";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
@@ -107,6 +108,13 @@ function SettingsPage() {
             </p>
           )}
         </form>
+      </GlassCard>
+
+      <GlassCard
+        title="Notifications"
+        subtitle="Choose which alerts you want and when."
+      >
+        <NotificationSettings />
       </GlassCard>
 
       <GlassCard
