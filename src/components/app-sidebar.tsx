@@ -113,7 +113,7 @@ export function AppSidebar() {
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
             Canvas
           </p>
-          <h1 className="mt-1 text-lg font-semibold tracking-tight">Pro</h1>
+          <p className="mt-1 text-lg font-semibold tracking-tight">Pro</p>
         </div>
         <nav className="flex flex-col gap-1">
           {items.map((item) => (

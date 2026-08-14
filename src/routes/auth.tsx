@@ -56,8 +56,8 @@ function LoginPage() {
 
   return (
     <AuthShell
-      title="Welcome back"
-      subtitle="Sign in to Canvas Pro"
+      title="Sign in to Canvas Pro"
+      subtitle="Access your classes, grades, and assignments"
       footer={
         <p className="text-center text-sm text-muted-foreground">
           Don't have an account?{" "}
