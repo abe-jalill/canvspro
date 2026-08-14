@@ -51,18 +51,24 @@ export const Route = createFileRoute("/_authenticated/focus")({
   component: FocusPage,
 });
 
-type Window = "24" | "48";
+type Window = "1" | "2" | "3" | "7";
+
+const WINDOW_LABELS: Record<Window, string> = {
+  "1": "1 day",
+  "2": "2 days",
+  "3": "3 days",
+  "7": "1 week",
+};
 
 function FocusPage() {
   const assignments = useQuery(assignmentsQO);
   const courses = useQuery(coursesQO);
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
   const dismissed = useLocalSet(DISMISSED_ANNOUNCEMENTS_KEY);
-  const [win, setWin] = useState<Window>("48");
+  const [win, setWin] = useState<Window>("7");
 
   const now = Date.now();
-  const horizon =
-    now + (win === "24" ? 24 : 48) * 60 * 60 * 1000;
+  const horizon = now + Number(win) * 24 * 60 * 60 * 1000;
 
   const inWindow = (assignments.data ?? []).filter((a) => {
     if (!a.due_at) return false;
@@ -119,15 +125,17 @@ function FocusPage() {
             Focus
           </p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">
-            Next {win} hours
+            Due within {WINDOW_LABELS[win]}
           </h1>
         </div>
         <Segmented<Window>
           value={win}
           onChange={setWin}
           options={[
-            { id: "24", label: "Next 24h" },
-            { id: "48", label: "Next 48h" },
+            { id: "7", label: "1 week" },
+            { id: "3", label: "3 days" },
+            { id: "2", label: "2 days" },
+            { id: "1", label: "1 day" },
           ]}
         />
       </header>
@@ -151,7 +159,7 @@ function FocusPage() {
               <Check className="h-6 w-6" />
             </div>
             <p className="text-lg font-semibold tracking-tight">
-              You're clear for the next {win} hours.
+              You're clear for the next {WINDOW_LABELS[win]}.
             </p>
             <p className="text-sm text-muted-foreground">
               Nothing due. Breathe.

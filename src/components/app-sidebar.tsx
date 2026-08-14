@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 const items = [
   { title: "Dashboard", to: "/" as const },
   { title: "Focus", to: "/focus" as const },
-  { title: "Schedule", to: "/schedule" as const },
+  { title: "Calendar", to: "/schedule" as const },
   { title: "Class Schedule", to: "/class-schedule" as const },
   { title: "Grades", to: "/grades" as const },
   { title: "Assignments", to: "/assignments" as const },
