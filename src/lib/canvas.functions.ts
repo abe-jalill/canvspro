@@ -16,10 +16,26 @@ async function invokeCanvas<T>(
     body: { resource, ...(extra ?? {}) },
   });
   if (error) {
-    const message = error.message ?? "Request failed";
+    // supabase-js hides the real reason behind "non-2xx status code";
+    // read the response body for the actual server message.
+    let message = error.message ?? "Request failed";
+    const res = (error as { context?: Response }).context;
+    if (res && typeof res.text === "function") {
+      const body = await res.text().catch(() => "");
+      if (body) {
+        try {
+          const parsed = JSON.parse(body) as { error?: string };
+          if (parsed.error) message = parsed.error;
+        } catch {
+          message = body.slice(0, 300);
+        }
+      }
+      if (res.status === 428) return [] as unknown as T;
+    }
     if (/428|NO_CANVAS_KEY/.test(message)) return [] as unknown as T;
     throw new Error(message);
   }
+
   if (data && typeof data === "object" && "error" in data && (data as { error?: string }).error) {
     const message = (data as { error: string }).error;
     if (message === "NO_CANVAS_KEY") return [] as unknown as T;
