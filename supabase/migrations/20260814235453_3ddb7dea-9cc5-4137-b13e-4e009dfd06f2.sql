@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.has_canvas_key() FROM anon;
