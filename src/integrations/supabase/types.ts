@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      class_nicknames: {
+        Row: {
+          canvas_course_id: number
+          created_at: string
+          custom_name: string
+          id: string
+          raw_code: string | null
+          raw_name: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          canvas_course_id: number
+          created_at?: string
+          custom_name: string
+          id?: string
+          raw_code?: string | null
+          raw_name?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          canvas_course_id?: number
+          created_at?: string
+          custom_name?: string
+          id?: string
+          raw_code?: string | null
+          raw_name?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_settings: {
         Row: {
           canvas_api_key: string | null

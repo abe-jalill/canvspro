@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
 import { GlassCard } from "@/components/glass-card";
 import { useCanvasKey, useSaveCanvasKey } from "@/lib/user-settings";
+import { ClassNamesSection } from "@/components/class-names-editor";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
@@ -106,6 +107,13 @@ function SettingsPage() {
             </p>
           )}
         </form>
+      </GlassCard>
+
+      <GlassCard
+        title="Class names"
+        subtitle="Rename your Canvas courses to something friendlier."
+      >
+        <ClassNamesSection />
       </GlassCard>
     </div>
   );
