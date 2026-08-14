@@ -74,11 +74,14 @@ export function useNotifications() {
     const sync = () => setList(read());
     window.addEventListener(EVENT, sync);
     window.addEventListener("storage", sync);
+    const unsub = subscribeToUserScope(sync);
     return () => {
       window.removeEventListener(EVENT, sync);
       window.removeEventListener("storage", sync);
+      unsub();
     };
   }, []);
+
 
   const markRead = useCallback((id: string) => {
     const next = read().map((n) => (n.id === id ? { ...n, read: true } : n));
