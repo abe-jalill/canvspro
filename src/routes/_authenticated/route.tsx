@@ -22,7 +22,9 @@ function AuthenticatedLayout() {
       <main className="md:pl-64 md:pr-4 md:py-4">
         <div className="mx-auto w-full max-w-6xl px-4 py-4 md:p-6">
           <CanvasKeyBanner />
-          <Outlet />
+          <ClassNamesGate>
+            <Outlet />
+          </ClassNamesGate>
         </div>
       </main>
     </div>
