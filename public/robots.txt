@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://canvaspremium.lovable.app/sitemap.xml
