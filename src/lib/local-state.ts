@@ -24,8 +24,10 @@ function write(key: string, set: Set<string>) {
 }
 
 /** Persisted Set<string> in localStorage. SSR-safe: starts empty, hydrates in effect. */
-export function useLocalSet(key: string) {
+export function useLocalSet(baseKey: string) {
+  const key = useScopedKey(baseKey);
   const [set, setSet] = useState<Set<string>>(() => new Set());
+
 
   useEffect(() => {
     setSet(read(key));
