@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
+import { useScopedKey } from "@/lib/user-scope";
+
 
 function read(key: string): Set<string> {
   if (typeof window === "undefined") return new Set();
