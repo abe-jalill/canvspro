@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { AppSidebar, MobileNav } from "@/components/app-sidebar";
 import { CanvasKeyBanner } from "@/components/canvas-key-banner";
+import { CanvasKeyGate } from "@/components/canvas-key-gate";
 import { ClassNamesGate } from "@/components/class-names-editor";
 import { NotificationCenter } from "@/components/notification-center";
 import { useNotificationEngine } from "@/hooks/use-notification-engine";
@@ -28,9 +29,11 @@ function AuthenticatedLayout() {
             <NotificationCenter />
           </div>
           <CanvasKeyBanner />
-          <ClassNamesGate>
-            <Outlet />
-          </ClassNamesGate>
+          <CanvasKeyGate>
+            <ClassNamesGate>
+              <Outlet />
+            </ClassNamesGate>
+          </CanvasKeyGate>
         </div>
       </main>
     </div>
