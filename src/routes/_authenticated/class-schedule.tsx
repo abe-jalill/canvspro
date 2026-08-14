@@ -1,4 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+
+// The static weekly schedule below is personal data belonging to this account.
+const OWNER_USER_ID = "0a0857b8-3e9a-466e-8b40-9cd32d338850";
 import {
   CLASS_SCHEDULE,
   DAY_LABELS,
