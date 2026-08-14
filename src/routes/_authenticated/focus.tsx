@@ -125,15 +125,17 @@ function FocusPage() {
             Focus
           </p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">
-            Next {win} hours
+            Due within {WINDOW_LABELS[win]}
           </h1>
         </div>
         <Segmented<Window>
           value={win}
           onChange={setWin}
           options={[
-            { id: "24", label: "Next 24h" },
-            { id: "48", label: "Next 48h" },
+            { id: "7", label: "1 week" },
+            { id: "3", label: "3 days" },
+            { id: "2", label: "2 days" },
+            { id: "1", label: "1 day" },
           ]}
         />
       </header>
