@@ -3,24 +3,22 @@ import { supabase } from "@/integrations/supabase/client";
 
 export const canvasKeyQueryKey = ["user-settings", "canvas-key"] as const;
 
-export async function fetchCanvasKey(): Promise<string | null> {
+/**
+ * The Canvas token is write-only from the browser: we only ever ask the
+ * backend whether one is saved, never for the value itself.
+ */
+export async function fetchHasCanvasKey(): Promise<boolean> {
   const { data: userData } = await supabase.auth.getUser();
-  const user = userData.user;
-  if (!user) return null;
-  const { data, error } = await supabase
-    .from("user_settings")
-    .select("canvas_api_key")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  if (!userData.user) return false;
+  const { data, error } = await supabase.rpc("has_canvas_key");
   if (error) throw new Error(error.message);
-  const key = data?.canvas_api_key?.trim();
-  return key ? key : null;
+  return data === true;
 }
 
 export function useCanvasKey() {
   return useQuery({
     queryKey: canvasKeyQueryKey,
-    queryFn: fetchCanvasKey,
+    queryFn: fetchHasCanvasKey,
     staleTime: 60_000,
   });
 }

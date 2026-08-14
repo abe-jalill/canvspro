@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { scopedKey, subscribeToUserScope } from "@/lib/user-scope";
 
 export type NotificationKind = "due" | "grade" | "announcement" | "system";
 
@@ -11,14 +12,18 @@ export interface AppNotification {
   read: boolean;
 }
 
-const KEY = "canvas:notifications";
+const BASE_KEY = "canvas:notifications";
 const EVENT = "canvas:notifications-changed";
 const MAX = 60;
+
+function storageKey() {
+  return scopedKey(BASE_KEY);
+}
 
 function read(): AppNotification[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = window.localStorage.getItem(KEY);
+    const raw = window.localStorage.getItem(storageKey());
     if (!raw) return [];
     const arr = JSON.parse(raw) as AppNotification[];
     return Array.isArray(arr) ? arr : [];
@@ -30,12 +35,13 @@ function read(): AppNotification[] {
 function write(list: AppNotification[]) {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(KEY, JSON.stringify(list.slice(0, MAX)));
+    window.localStorage.setItem(storageKey(), JSON.stringify(list.slice(0, MAX)));
   } catch {
     // ignore
   }
   window.dispatchEvent(new CustomEvent(EVENT));
 }
+
 
 /** Adds a notification if its id has not been seen before. Returns true when added. */
 export function pushNotification(n: Omit<AppNotification, "ts" | "read"> & { ts?: number }): boolean {
@@ -68,11 +74,14 @@ export function useNotifications() {
     const sync = () => setList(read());
     window.addEventListener(EVENT, sync);
     window.addEventListener("storage", sync);
+    const unsub = subscribeToUserScope(sync);
     return () => {
       window.removeEventListener(EVENT, sync);
       window.removeEventListener("storage", sync);
+      unsub();
     };
   }, []);
+
 
   const markRead = useCallback((id: string) => {
     const next = read().map((n) => (n.id === id ? { ...n, read: true } : n));

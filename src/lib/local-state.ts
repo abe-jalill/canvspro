@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
+import { useScopedKey } from "@/lib/user-scope";
+
 
 function read(key: string): Set<string> {
   if (typeof window === "undefined") return new Set();
@@ -22,8 +24,10 @@ function write(key: string, set: Set<string>) {
 }
 
 /** Persisted Set<string> in localStorage. SSR-safe: starts empty, hydrates in effect. */
-export function useLocalSet(key: string) {
+export function useLocalSet(baseKey: string) {
+  const key = useScopedKey(baseKey);
   const [set, setSet] = useState<Set<string>>(() => new Set());
+
 
   useEffect(() => {
     setSet(read(key));

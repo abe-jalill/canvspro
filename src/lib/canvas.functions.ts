@@ -2,15 +2,16 @@
 // The Canvas key is stored per-user in `user_settings`; the Edge Function
 // reads it server-side, so the browser never needs to hold it.
 import { supabase } from "@/integrations/supabase/client";
-import { fetchCanvasKey } from "@/lib/user-settings";
+import { fetchHasCanvasKey } from "@/lib/user-settings";
 
 async function invokeCanvas<T>(
   resource: "courses" | "assignments" | "announcements" | "calendar",
   extra?: Record<string, unknown>,
 ): Promise<T> {
   // No key saved yet → render blank states instead of erroring.
-  const key = await fetchCanvasKey();
-  if (!key) return [] as unknown as T;
+  const hasKey = await fetchHasCanvasKey();
+  if (!hasKey) return [] as unknown as T;
+
 
   const { data, error } = await supabase.functions.invoke("canvas", {
     body: { resource, ...(extra ?? {}) },
