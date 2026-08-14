@@ -55,8 +55,10 @@ export function useLocalNumberMap(baseKey: string) {
 }
 
 // Persisted Map<string, string> — used to snapshot prior countdown urgency, etc.
-export function useLocalStringMap(key: string) {
+export function useLocalStringMap(baseKey: string) {
+  const key = useScopedKey(baseKey);
   const [map, setMap] = useState<Record<string, string>>({});
+
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -91,8 +93,10 @@ export function useLocalStringMap(key: string) {
 }
 
 // Persisted single number (e.g., last-visit epoch ms).
-export function useLocalNumber(key: string, fallback = 0) {
+export function useLocalNumber(baseKey: string, fallback = 0) {
+  const key = useScopedKey(baseKey);
   const [value, setValue] = useState<number>(fallback);
+
 
   useEffect(() => {
     if (typeof window === "undefined") return;
