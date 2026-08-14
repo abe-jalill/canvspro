@@ -15,7 +15,7 @@ import {
   EmptyState,
 } from "@/components/glass-card";
 import { cn } from "@/lib/utils";
-import { displayCourseName, displayCourseCode } from "@/lib/course-display";
+import { displayCourseName } from "@/lib/course-display";
 import {
   useLocalSet,
   DISMISSED_ANNOUNCEMENTS_KEY,
@@ -149,9 +149,6 @@ function CoursesWidget() {
                   <p className="truncate text-sm font-medium">
                     {displayCourseName(c.name, c.course_code)}
                   </p>
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                    {c.course_code}
-                  </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   {c.syllabus_body && (
@@ -281,11 +278,6 @@ function UpcomingWidget() {
                 <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-foreground/80">
                   {displayCourseName(g.name, g.code)}
                 </h3>
-                <span className="truncate text-xs text-muted-foreground">
-                  {displayCourseCode(g.name, g.code) === displayCourseName(g.name, g.code)
-                    ? g.code
-                    : g.name}
-                </span>
               </div>
               {g.items.length === 0 ? (
                 <p className="px-2 py-3 text-center text-xs text-muted-foreground/80">
@@ -422,11 +414,6 @@ function AnnouncementsWidget() {
                 <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-foreground/80">
                   {displayCourseName(g.name, g.code)}
                 </h3>
-                <span className="truncate text-xs text-muted-foreground">
-                  {displayCourseCode(g.name, g.code) === displayCourseName(g.name, g.code)
-                    ? g.code
-                    : g.name}
-                </span>
               </div>
               {g.items.length === 0 ? (
                 <p className="px-2 py-3 text-center text-xs text-muted-foreground/80">

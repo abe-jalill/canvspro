@@ -8,7 +8,7 @@ import {
   ErrorState,
   EmptyState,
 } from "@/components/glass-card";
-import { displayCourseName, displayCourseCode } from "@/lib/course-display";
+import { displayCourseName } from "@/lib/course-display";
 import { Search, ArrowUp, ArrowDown } from "lucide-react";
 import { useLocalNumberMap, LAST_SEEN_GRADES_KEY } from "@/lib/local-value";
 
@@ -156,11 +156,6 @@ function GradesPage() {
           <GlassCard
             key={c.id}
             title={displayCourseName(c.name, c.course_code)}
-            subtitle={
-              displayCourseCode(c.name, c.course_code) === displayCourseName(c.name, c.course_code)
-                ? c.course_code
-                : c.name
-            }
             action={
               <span className="flex items-center gap-1.5 text-lg font-semibold tabular-nums">
                 {trend === "up" && (

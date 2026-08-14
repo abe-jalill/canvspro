@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { useTheme } from "@/lib/theme";
 import { useReminders } from "@/hooks/use-hourly-reminder";
 import { supabase } from "@/integrations/supabase/client";
+import { NotificationCenter } from "@/components/notification-center";
 
 const items = [
   { title: "Dashboard", to: "/" as const },
@@ -164,7 +165,10 @@ export function MobileNav() {
         <p className="truncate text-center text-sm font-semibold tracking-tight">
           {current}
         </p>
-        <ThemeToggle compact />
+        <div className="flex items-center gap-2">
+          <NotificationCenter />
+          <ThemeToggle compact />
+        </div>
       </div>
 
       {open && (

@@ -11,7 +11,7 @@ import {
   ErrorState,
   EmptyState,
 } from "@/components/glass-card";
-import { displayCourseName, displayCourseCode } from "@/lib/course-display";
+import { displayCourseName } from "@/lib/course-display";
 import { useLocalSet, DISMISSED_ANNOUNCEMENTS_KEY } from "@/lib/local-state";
 import { X, RotateCcw } from "lucide-react";
 
@@ -130,11 +130,6 @@ function AnnouncementsPage() {
         <GlassCard
           key={g.id}
           title={displayCourseName(g.name, g.code)}
-          subtitle={
-            displayCourseCode(g.name, g.code) === displayCourseName(g.name, g.code)
-              ? g.code
-              : g.name
-          }
         >
           {g.items.length === 0 ? (
             <p className="px-2 py-4 text-center text-sm text-muted-foreground/80">
