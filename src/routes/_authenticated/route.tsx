@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { AppSidebar, MobileNav } from "@/components/app-sidebar";
 import { CanvasKeyBanner } from "@/components/canvas-key-banner";
+import { ClassNamesGate } from "@/components/class-names-editor";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
