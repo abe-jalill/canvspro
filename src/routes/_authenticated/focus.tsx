@@ -51,7 +51,14 @@ export const Route = createFileRoute("/_authenticated/focus")({
   component: FocusPage,
 });
 
-type Window = "24" | "48";
+type Window = "1" | "2" | "3" | "7";
+
+const WINDOW_LABELS: Record<Window, string> = {
+  "1": "1 day",
+  "2": "2 days",
+  "3": "3 days",
+  "7": "1 week",
+};
 
 function FocusPage() {
   const assignments = useQuery(assignmentsQO);
