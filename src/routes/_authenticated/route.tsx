@@ -29,9 +29,11 @@ function AuthenticatedLayout() {
             <NotificationCenter />
           </div>
           <CanvasKeyBanner />
-          <ClassNamesGate>
-            <Outlet />
-          </ClassNamesGate>
+          <CanvasKeyGate>
+            <ClassNamesGate>
+              <Outlet />
+            </ClassNamesGate>
+          </CanvasKeyGate>
         </div>
       </main>
     </div>
