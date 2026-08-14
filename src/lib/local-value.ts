@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
+import { useScopedKey } from "@/lib/user-scope";
 
 // Persisted Map<string, number> — useful for tracking last-seen numeric grades.
-export function useLocalNumberMap(key: string) {
+export function useLocalNumberMap(baseKey: string) {
+  const key = useScopedKey(baseKey);
   const [map, setMap] = useState<Record<string, number>>({});
+
 
   useEffect(() => {
     if (typeof window === "undefined") return;
