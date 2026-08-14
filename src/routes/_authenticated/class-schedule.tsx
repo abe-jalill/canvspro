@@ -16,11 +16,12 @@ import {
 export const Route = createFileRoute("/_authenticated/class-schedule")({
   head: () => ({
     meta: [
-      { title: "Class Schedule — Fall 2026" },
-      {
-        name: "description",
-        content: "Weekly class meeting times for the Fall 2026 semester.",
-      },
+      { title: "Class Schedule — Canvas Pro" },
+      { name: "description", content: "Your weekly recurring class meeting times and locations for the Fall 2026 semester." },
+      { property: "og:title", content: "Class Schedule — Canvas Pro" },
+      { property: "og:description", content: "Your weekly recurring class meeting times and locations for the Fall 2026 semester." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: ClassSchedulePage,

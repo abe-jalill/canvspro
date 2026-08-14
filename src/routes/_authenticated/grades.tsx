@@ -28,10 +28,11 @@ export const Route = createFileRoute("/_authenticated/grades")({
   head: () => ({
     meta: [
       { title: "Grades — Canvas Pro" },
-      {
-        name: "description",
-        content: "Per-course grade breakdown across your Canvas assignments.",
-      },
+      { name: "description", content: "Per-course grade breakdown across your Canvas assignments, with trends over time." },
+      { property: "og:title", content: "Grades — Canvas Pro" },
+      { property: "og:description", content: "Per-course grade breakdown across your Canvas assignments, with trends over time." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: GradesPage,

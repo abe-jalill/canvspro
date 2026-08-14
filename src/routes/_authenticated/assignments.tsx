@@ -39,10 +39,11 @@ export const Route = createFileRoute("/_authenticated/assignments")({
   head: () => ({
     meta: [
       { title: "Assignments — Canvas Pro" },
-      {
-        name: "description",
-        content: "All assignments across your Canvas courses with status.",
-      },
+      { name: "description", content: "Browse every Canvas assignment with due dates, submission status, and completion tracking." },
+      { property: "og:title", content: "Assignments — Canvas Pro" },
+      { property: "og:description", content: "Browse every Canvas assignment with due dates, submission status, and completion tracking." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: AssignmentsPage,
