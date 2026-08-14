@@ -65,11 +65,10 @@ function FocusPage() {
   const courses = useQuery(coursesQO);
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
   const dismissed = useLocalSet(DISMISSED_ANNOUNCEMENTS_KEY);
-  const [win, setWin] = useState<Window>("48");
+  const [win, setWin] = useState<Window>("7");
 
   const now = Date.now();
-  const horizon =
-    now + (win === "24" ? 24 : 48) * 60 * 60 * 1000;
+  const horizon = now + Number(win) * 24 * 60 * 60 * 1000;
 
   const inWindow = (assignments.data ?? []).filter((a) => {
     if (!a.due_at) return false;
