@@ -92,6 +92,9 @@ function LoginPage() {
           {busy ? "Signing in…" : "Sign in"}
         </button>
       </form>
+      <div className="mt-5">
+        <SocialAuthButtons />
+      </div>
     </AuthShell>
   );
 }
