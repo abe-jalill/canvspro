@@ -1,0 +1,155 @@
+import { useEffect } from "react";
+import { useQuery, queryOptions } from "@tanstack/react-query";
+import {
+  getAllAssignmentsFn,
+  getAnnouncementsFn,
+  type AssignmentItem,
+  type AnnouncementItem,
+} from "@/lib/canvas.functions";
+import { displayCourseName } from "@/lib/course-display";
+import { notify } from "@/lib/notifications";
+import { DUE_WINDOWS, readPrefs } from "@/lib/notification-prefs";
+import { COMPLETED_ASSIGNMENTS_KEY } from "@/lib/local-state";
+
+const SEEN_GRADES_KEY = "canvas:seen-graded";
+const SEEN_ANNOUNCEMENTS_KEY = "canvas:seen-announcements";
+
+function readSet(key: string): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return new Set();
+    return new Set(JSON.parse(raw) as string[]);
+  } catch {
+    return new Set();
+  }
+}
+
+function writeSet(key: string, set: Set<string>) {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(Array.from(set)));
+  } catch {
+    // ignore
+  }
+}
+
+const assignmentsQO = queryOptions({
+  queryKey: ["canvas", "assignments"],
+  queryFn: () => getAllAssignmentsFn(),
+  staleTime: 5 * 60_000,
+});
+
+const announcementsQO = queryOptions({
+  queryKey: ["canvas", "announcements"],
+  queryFn: () => getAnnouncementsFn(),
+  staleTime: 5 * 60_000,
+});
+
+function runDueChecks(assignments: AssignmentItem[]) {
+  const prefs = readPrefs();
+  if (!prefs.enabled) return;
+  const completed = readSet(COMPLETED_ASSIGNMENTS_KEY);
+  const now = Date.now();
+
+  for (const a of assignments) {
+    if (!a.due_at) continue;
+    if (completed.has(String(a.id))) continue;
+    if (a.submission?.submitted_at) continue;
+    const due = new Date(a.due_at).getTime();
+    if (due <= now) continue;
+    const hoursLeft = (due - now) / 3_600_000;
+
+    for (const w of DUE_WINDOWS) {
+      if (!prefs[w.key]) continue;
+      if (hoursLeft > w.hours) continue;
+      // only fire the tightest matching window that is enabled
+      const tighter = DUE_WINDOWS.filter(
+        (x) => prefs[x.key] && x.hours < w.hours && hoursLeft <= x.hours,
+      );
+      if (tighter.length > 0) continue;
+      notify({
+        id: `due:${a.id}:${w.key}`,
+        kind: "due",
+        title: `Due ${w.label.replace(" before", "")} or less: ${a.name}`,
+        body: `${displayCourseName(a.course_name, a.course_code)} · due ${new Date(
+          a.due_at,
+        ).toLocaleString()}`,
+      });
+    }
+  }
+}
+
+function runGradeChecks(assignments: AssignmentItem[]) {
+  const prefs = readPrefs();
+  const seen = readSet(SEEN_GRADES_KEY);
+  const first = seen.size === 0;
+  let changed = false;
+
+  for (const a of assignments) {
+    const score = a.submission?.score;
+    if (score == null) continue;
+    const key = `${a.id}:${score}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    changed = true;
+    if (first) continue; // baseline pass: don't spam existing grades
+    if (!prefs.enabled || !prefs.grades) continue;
+    const total = a.points_possible;
+    if (!total) continue;
+    const pct = Math.round((score / total) * 100);
+    if (pct <= 80) continue;
+    notify({
+      id: `grade:${key}`,
+      kind: "grade",
+      title: `Good job! You scored ${pct}% on ${a.name}!`,
+      body: displayCourseName(a.course_name, a.course_code),
+    });
+  }
+
+  if (changed) writeSet(SEEN_GRADES_KEY, seen);
+}
+
+function runAnnouncementChecks(items: AnnouncementItem[]) {
+  const prefs = readPrefs();
+  const seen = readSet(SEEN_ANNOUNCEMENTS_KEY);
+  const first = seen.size === 0;
+  let changed = false;
+
+  for (const a of items) {
+    const key = String(a.id);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    changed = true;
+    if (first) continue;
+    if (!prefs.enabled || !prefs.announcements) continue;
+    notify({
+      id: `announcement:${key}`,
+      kind: "announcement",
+      title: a.title,
+      body: `New announcement in ${displayCourseName(a.course_name, a.course_code)}`,
+    });
+  }
+
+  if (changed) writeSet(SEEN_ANNOUNCEMENTS_KEY, seen);
+}
+
+/** Watches Canvas data and turns it into in-app + browser notifications. */
+export function useNotificationEngine() {
+  const assignments = useQuery(assignmentsQO);
+  const announcements = useQuery(announcementsQO);
+
+  useEffect(() => {
+    if (!assignments.data) return;
+    runGradeChecks(assignments.data);
+    runDueChecks(assignments.data);
+    const id = setInterval(() => {
+      if (assignments.data) runDueChecks(assignments.data);
+    }, 15 * 60_000);
+    return () => clearInterval(id);
+  }, [assignments.data]);
+
+  useEffect(() => {
+    if (!announcements.data) return;
+    runAnnouncementChecks(announcements.data);
+  }, [announcements.data]);
+}
