@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { GlassCard } from "@/components/glass-card";
 import { useCanvasKey, useSaveCanvasKey } from "@/lib/user-settings";
 import { ClassNamesSection } from "@/components/class-names-editor";
@@ -73,7 +73,14 @@ function SettingsPage() {
               type="password"
               value={value}
               onChange={(e) => setValue(e.target.value)}
-              placeholder={isLoading ? "Loading…" : "Paste your Canvas access token"}
+              placeholder={
+                isLoading
+                  ? "Loading…"
+                  : savedKey
+                    ? "A key is saved — paste a new one to replace it"
+                    : "Paste your Canvas access token"
+              }
+
               autoComplete="off"
               className="glass-inset min-h-12 w-full rounded-xl bg-transparent px-4 text-base text-foreground outline-none placeholder:text-muted-foreground/60 focus:ring-1 focus:ring-foreground/20"
             />
