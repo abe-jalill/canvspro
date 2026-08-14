@@ -30,10 +30,15 @@ const assignmentsQO = queryOptions({
 export const Route = createFileRoute("/_authenticated/schedule")({
   head: () => ({
     meta: [
-      { title: "Schedule — Canvas Pro" },
+      { title: "Calendar — Canvas Pro" },
       {
         name: "description",
-        content: "Your upcoming Canvas classes and events.",
+        content: "Your upcoming Canvas due dates and events.",
+      },
+      { property: "og:title", content: "Calendar — Canvas Pro" },
+      {
+        property: "og:description",
+        content: "Your upcoming Canvas due dates and events.",
       },
     ],
   }),
@@ -110,7 +115,7 @@ function SchedulePage() {
             {range === "week" ? "Next 7 days" : "Full semester"}
           </p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">
-            Schedule
+            Calendar
           </h1>
         </div>
         <Segmented<Range>
