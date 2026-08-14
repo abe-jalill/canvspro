@@ -159,7 +159,7 @@ function FocusPage() {
               <Check className="h-6 w-6" />
             </div>
             <p className="text-lg font-semibold tracking-tight">
-              You're clear for the next {win} hours.
+              You're clear for the next {WINDOW_LABELS[win]}.
             </p>
             <p className="text-sm text-muted-foreground">
               Nothing due. Breathe.
