@@ -6,16 +6,23 @@ import { CanvasKeyGate } from "@/components/canvas-key-gate";
 import { ClassNamesGate } from "@/components/class-names-editor";
 import { NotificationCenter } from "@/components/notification-center";
 import { useNotificationEngine } from "@/hooks/use-notification-engine";
+import { setUserScope } from "@/lib/user-scope";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async () => {
     const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) throw redirect({ to: "/auth" });
+    if (error || !data.user) {
+      setUserScope(null);
+      throw redirect({ to: "/auth" });
+    }
+    // Scope all browser-stored state to this account.
+    setUserScope(data.user.id);
     return { user: data.user };
   },
   component: AuthenticatedLayout,
 });
+
 
 function AuthenticatedLayout() {
   useNotificationEngine();

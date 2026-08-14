@@ -112,14 +112,18 @@ function RootComponent() {
   const router = useRouter();
 
   useEffect(() => {
-    const { data } = supabase.auth.onAuthStateChange((event) => {
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
       if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED")
         return;
+      // Namespace browser storage per account so nothing carries over.
+      setUserScope(event === "SIGNED_OUT" ? null : (session?.user?.id ?? null));
       router.invalidate();
       if (event !== "SIGNED_OUT") queryClient.invalidateQueries();
+      else queryClient.clear();
     });
     return () => data.subscription.unsubscribe();
   }, [router, queryClient]);
+
 
   return (
     <QueryClientProvider client={queryClient}>
