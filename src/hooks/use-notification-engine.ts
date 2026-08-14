@@ -10,14 +10,15 @@ import { displayCourseName } from "@/lib/course-display";
 import { notify } from "@/lib/notifications";
 import { DUE_WINDOWS, readPrefs } from "@/lib/notification-prefs";
 import { COMPLETED_ASSIGNMENTS_KEY } from "@/lib/local-state";
+import { scopedKey } from "@/lib/user-scope";
 
 const SEEN_GRADES_KEY = "canvas:seen-graded";
 const SEEN_ANNOUNCEMENTS_KEY = "canvas:seen-announcements";
 
-function readSet(key: string): Set<string> {
+function readSet(baseKey: string): Set<string> {
   if (typeof window === "undefined") return new Set();
   try {
-    const raw = window.localStorage.getItem(key);
+    const raw = window.localStorage.getItem(scopedKey(baseKey));
     if (!raw) return new Set();
     return new Set(JSON.parse(raw) as string[]);
   } catch {
@@ -25,13 +26,14 @@ function readSet(key: string): Set<string> {
   }
 }
 
-function writeSet(key: string, set: Set<string>) {
+function writeSet(baseKey: string, set: Set<string>) {
   try {
-    window.localStorage.setItem(key, JSON.stringify(Array.from(set)));
+    window.localStorage.setItem(scopedKey(baseKey), JSON.stringify(Array.from(set)));
   } catch {
     // ignore
   }
 }
+
 
 const assignmentsQO = queryOptions({
   queryKey: ["canvas", "assignments"],

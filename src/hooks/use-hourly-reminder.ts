@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { scopedKey } from "@/lib/user-scope";
 
 const STORAGE_KEY = "reminders.enabled";
 const LAST_HOUR_KEY = "reminders.lastHour";
@@ -8,13 +9,14 @@ const END_HOUR = 21;
 
 function readEnabled(): boolean {
   if (typeof window === "undefined") return false;
-  return window.localStorage.getItem(STORAGE_KEY) === "1";
+  return window.localStorage.getItem(scopedKey(STORAGE_KEY)) === "1";
 }
 
 function writeEnabled(v: boolean) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, v ? "1" : "0");
+  window.localStorage.setItem(scopedKey(STORAGE_KEY), v ? "1" : "0");
 }
+
 
 function currentHourKey(now = new Date()): string {
   return `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}-${now.getHours()}`;
