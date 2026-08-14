@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
+import { scopedKey, subscribeToUserScope } from "@/lib/user-scope";
+
 
 export interface NotificationPrefs {
   enabled: boolean;
