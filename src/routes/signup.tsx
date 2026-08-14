@@ -96,6 +96,9 @@ function SignupPage() {
           {busy ? "Creating account…" : "Create account"}
         </button>
       </form>
+      <div className="mt-5">
+        <SocialAuthButtons />
+      </div>
     </AuthShell>
   );
 }
