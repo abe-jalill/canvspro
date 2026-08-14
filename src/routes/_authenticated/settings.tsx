@@ -108,6 +108,13 @@ function SettingsPage() {
           )}
         </form>
       </GlassCard>
+
+      <GlassCard
+        title="Class names"
+        subtitle="Rename your Canvas courses to something friendlier."
+      >
+        <ClassNamesSection />
+      </GlassCard>
     </div>
   );
 }
