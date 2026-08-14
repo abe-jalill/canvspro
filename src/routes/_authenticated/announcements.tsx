@@ -31,10 +31,11 @@ export const Route = createFileRoute("/_authenticated/announcements")({
   head: () => ({
     meta: [
       { title: "Announcements — Canvas Pro" },
-      {
-        name: "description",
-        content: "All recent announcements from your Canvas courses.",
-      },
+      { name: "description", content: "Recent announcements from all of your Canvas courses, grouped by class." },
+      { property: "og:title", content: "Announcements — Canvas Pro" },
+      { property: "og:description", content: "Recent announcements from all of your Canvas courses, grouped by class." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: AnnouncementsPage,

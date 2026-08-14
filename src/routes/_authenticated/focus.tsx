@@ -42,10 +42,11 @@ export const Route = createFileRoute("/_authenticated/focus")({
   head: () => ({
     meta: [
       { title: "Focus — Canvas Pro" },
-      {
-        name: "description",
-        content: "Everything due in the next 48 hours, grouped by class.",
-      },
+      { name: "description", content: "Everything due within the next day, two days, three days, or week, grouped by class." },
+      { property: "og:title", content: "Focus — Canvas Pro" },
+      { property: "og:description", content: "Everything due within the next day, two days, three days, or week, grouped by class." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: FocusPage,

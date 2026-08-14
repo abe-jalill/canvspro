@@ -53,11 +53,11 @@ export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
     meta: [
       { title: "Dashboard — Canvas Pro" },
-      {
-        name: "description",
-        content:
-          "Your classes, grades, upcoming assignments, and announcements.",
-      },
+      { name: "description", content: "See today's classes, latest grades, upcoming assignments, and new announcements at a glance." },
+      { property: "og:title", content: "Dashboard — Canvas Pro" },
+      { property: "og:description", content: "See today's classes, latest grades, upcoming assignments, and new announcements at a glance." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: Dashboard,
