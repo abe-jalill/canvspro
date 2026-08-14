@@ -32,8 +32,9 @@ function fireNotification() {
   if (!("Notification" in window)) return;
   if (Notification.permission !== "granted") return;
   const key = currentHourKey();
-  if (window.localStorage.getItem(LAST_HOUR_KEY) === key) return;
-  window.localStorage.setItem(LAST_HOUR_KEY, key);
+  if (window.localStorage.getItem(scopedKey(LAST_HOUR_KEY)) === key) return;
+  window.localStorage.setItem(scopedKey(LAST_HOUR_KEY), key);
+
   try {
     new Notification("Assignment check-in", {
       body: "Time to check your assignments.",
