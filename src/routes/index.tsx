@@ -7,6 +7,9 @@ import {
   LayoutGrid,
   ListChecks,
   Timer,
+  Calculator,
+  BarChart3,
+  Sparkles,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -82,8 +85,23 @@ const FEATURES = [
   },
   {
     icon: Bell,
-    title: "Reminders that matter",
-    body: "Hourly nudges between 9 AM and 9 PM, plus alerts for new grades and announcements.",
+    title: "Notifications you control",
+    body: "Choose what you get notified about — new grades, announcements, or due dates — and pick when, from one day to one week ahead.",
+  },
+  {
+    icon: Calculator,
+    title: "Grade calculator",
+    body: "Weighted categories, running totals, and a final-exam target score so you know exactly what you need.",
+  },
+  {
+    icon: BarChart3,
+    title: "Workload heatmap",
+    body: "See your busy days at a glance and spot the weeks that need a head start.",
+  },
+  {
+    icon: Sparkles,
+    title: "And many more",
+    body: "Announcements in one place, class nicknames, syllabus quick-view, grade trend arrows, .ICS export, dark/light mode, and a mobile-first layout.",
   },
 ];
 
