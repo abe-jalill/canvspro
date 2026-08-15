@@ -11,6 +11,9 @@ export type SubscriptionRow = {
 
 export const subscriptionQueryKey = ["subscription"] as const;
 
+/** Accounts that always have full Pro access, no payment required. */
+const COMP_EMAILS = ["ajalil@ltu.edu"];
+
 function isActive(sub: SubscriptionRow | null): boolean {
   if (!sub) return false;
   const end = sub.current_period_end ? new Date(sub.current_period_end) : null;
@@ -26,6 +29,15 @@ export function useSubscription() {
     queryFn: async (): Promise<SubscriptionRow | null> => {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) return null;
+      const email = userData.user.email?.toLowerCase() ?? "";
+      if (COMP_EMAILS.includes(email)) {
+        return {
+          status: "active",
+          price_id: "comped",
+          current_period_end: null,
+          cancel_at_period_end: false,
+        };
+      }
       const { data, error } = await supabase
         .from("subscriptions")
         .select("status, price_id, current_period_end, cancel_at_period_end")
