@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery, queryOptions } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, type ReactElement } from "react";
 import {
   getCoursesFn,
   getAllAssignmentsFn,
@@ -684,7 +684,7 @@ export interface WidgetMeta {
   label: string;
   wide?: boolean;
   pro?: boolean;
-  render: () => JSX.Element;
+  render: () => ReactElement;
 }
 
 export const WIDGETS: Record<WidgetId, WidgetMeta> = {
