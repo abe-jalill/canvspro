@@ -93,84 +93,87 @@ export function WorkloadHeatmap({ assignments, weeks = 4 }: Props) {
         ))}
       </div>
       <div className="space-y-1.5">
-        {weekRows.map((row, wi) => (
-          <div key={wi} className="grid grid-cols-7 gap-1.5">
-            {row.map((cell) => {
-              const isToday = sameDay(cell.date, today);
-              const intensity = cell.items.length / maxCount; // 0..1
-              const bg =
-                cell.items.length === 0
-                  ? "rgb(255 255 255 / 0.03)"
-                  : `rgb(255 255 255 / ${(0.08 + intensity * 0.35).toFixed(3)})`;
-              const isOpen = open === cell.key;
-              return (
-                <div key={cell.key} className="relative">
-                  <button
-                    onClick={() =>
-                      setOpen((prev) => (prev === cell.key ? null : cell.key))
-                    }
-                    className={cn(
-                      "glass-hover flex aspect-square w-full flex-col items-center justify-center rounded-xl border p-1 text-xs transition-all",
-                      isToday
-                        ? "border-white/60 ring-1 ring-white/40"
-                        : "border-glass-border",
-                    )}
-                    style={{ background: bg }}
-                    aria-label={`${cell.date.toLocaleDateString(undefined, {
-                      weekday: "long",
+        {weekRows.map((row, wi) => {
+          const openCell = row.find((c) => c.key === open && c.items.length > 0);
+          return (
+            <div key={wi}>
+              <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
+                {row.map((cell) => {
+                  const isToday = sameDay(cell.date, today);
+                  const intensity = cell.items.length / maxCount; // 0..1
+                  const bg =
+                    cell.items.length === 0
+                      ? "rgb(255 255 255 / 0.03)"
+                      : `rgb(255 255 255 / ${(0.08 + intensity * 0.35).toFixed(3)})`;
+                  return (
+                    <button
+                      key={cell.key}
+                      onClick={() =>
+                        setOpen((prev) => (prev === cell.key ? null : cell.key))
+                      }
+                      className={cn(
+                        "glass-hover flex aspect-square w-full min-w-0 flex-col items-center justify-center rounded-xl border p-0.5 text-xs transition-all sm:p-1",
+                        isToday
+                          ? "border-white/60 ring-1 ring-white/40"
+                          : "border-glass-border",
+                        open === cell.key && "ring-1 ring-white/50",
+                      )}
+                      style={{ background: bg }}
+                      aria-label={`${cell.date.toLocaleDateString(undefined, {
+                        weekday: "long",
+                        month: "short",
+                        day: "numeric",
+                      })}: ${cell.items.length} due, ${Math.round(cell.points)} points`}
+                    >
+                      <span
+                        className={cn(
+                          "text-[10px] font-medium tabular-nums",
+                          isToday ? "text-foreground" : "text-muted-foreground",
+                        )}
+                      >
+                        {cell.date.getDate()}
+                      </span>
+                      <span className="mt-0.5 text-[11px] font-semibold tabular-nums">
+                        {cell.items.length > 0 ? cell.items.length : ""}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              {openCell && (
+                <div className="glass-panel-strong mt-2 w-full p-3 text-left">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                    {openCell.date.toLocaleDateString(undefined, {
+                      weekday: "short",
                       month: "short",
                       day: "numeric",
-                    })}: ${cell.items.length} due, ${Math.round(cell.points)} points`}
-                  >
-                    <span
-                      className={cn(
-                        "text-[10px] font-medium tabular-nums",
-                        isToday ? "text-foreground" : "text-muted-foreground",
-                      )}
-                    >
-                      {cell.date.getDate()}
-                    </span>
-                    <span className="mt-0.5 text-[11px] font-semibold tabular-nums">
-                      {cell.items.length > 0 ? cell.items.length : ""}
-                    </span>
-                  </button>
-                  {isOpen && cell.items.length > 0 && (
-                    <div className="glass-panel-strong absolute left-1/2 top-full z-20 mt-2 w-64 -translate-x-1/2 p-3 text-left">
-                      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                        {cell.date.toLocaleDateString(undefined, {
-                          weekday: "short",
-                          month: "short",
-                          day: "numeric",
-                        })}
-                      </p>
-                      <ul className="space-y-1.5">
-                        {cell.items.map((a) => (
-                          <li
-                            key={a.id}
-                            className="flex items-baseline justify-between gap-2"
-                          >
-                            <div className="min-w-0">
-                              <p className="truncate text-xs font-medium">
-                                {a.name}
-                              </p>
-                              <p className="truncate text-[10px] text-muted-foreground">
-                                {displayCourseName(a.course_name, a.course_code)}
-                              </p>
-                            </div>
-                            <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
-                              {a.points_possible ?? 0} pt
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+                    })}
+                  </p>
+                  <ul className="space-y-1.5">
+                    {openCell.items.map((a) => (
+                      <li
+                        key={a.id}
+                        className="flex items-baseline justify-between gap-2"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-xs font-medium">{a.name}</p>
+                          <p className="truncate text-[10px] text-muted-foreground">
+                            {displayCourseName(a.course_name, a.course_code)}
+                          </p>
+                        </div>
+                        <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
+                          {a.points_possible ?? 0} pt
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-              );
-            })}
-          </div>
-        ))}
+              )}
+            </div>
+          );
+        })}
       </div>
+
     </div>
   );
 }
