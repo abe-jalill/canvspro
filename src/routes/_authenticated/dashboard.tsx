@@ -37,30 +37,31 @@ function Dashboard() {
   const visible = layout.order.filter((id) => !layout.isHidden(id));
 
   return (
-    <div className="space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-3 px-1 pt-2">
-        <div>
+    <div className="w-full min-w-0 space-y-6">
+      <header className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 px-1 pt-2">
+        <div className="min-w-0">
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
             Overview
           </p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">
+          <h1 className="mt-1 truncate text-2xl font-semibold tracking-tight sm:text-3xl md:text-4xl">
             Dashboard
           </h1>
         </div>
         <button
           onClick={() => setCustomizing((v) => !v)}
           aria-pressed={customizing}
-          className="glass-inset glass-hover inline-flex min-h-10 items-center gap-2 rounded-xl px-3 text-sm font-medium"
+          className="glass-inset glass-hover inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-3 text-sm font-medium"
         >
           <SlidersHorizontal className="h-4 w-4" />
           {customizing ? "Done" : "Customize"}
         </button>
       </header>
 
+
       {customizing && (
-        <section className="glass-panel-strong p-5">
-          <div className="flex items-center justify-between gap-3">
-            <div>
+        <section className="glass-panel-strong min-w-0 overflow-hidden p-4 sm:p-5">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+            <div className="min-w-0">
               <h2 className="text-sm font-semibold tracking-tight">Widgets</h2>
               <p className="mt-1 text-xs text-muted-foreground">
                 Show, hide, and reorder. Saved to this browser for your account.
@@ -68,7 +69,7 @@ function Dashboard() {
             </div>
             <button
               onClick={layout.reset}
-              className="glass-hover inline-flex min-h-9 items-center gap-1.5 rounded-xl px-3 text-xs font-medium text-muted-foreground"
+              className="glass-hover inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-xl px-3 text-xs font-medium text-muted-foreground"
             >
               <RotateCcw className="h-3.5 w-3.5" />
               Reset
@@ -90,42 +91,46 @@ function Dashboard() {
                   }}
                   onDragEnd={() => setDragId(null)}
                   className={cn(
-                    "glass-inset flex items-center gap-2 p-3",
+                    "glass-inset grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 p-3",
                     hidden && "opacity-55",
                     dragId === id && "ring-1 ring-foreground/30",
                   )}
                 >
-                  <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-muted-foreground" />
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                    {meta.label}
-                    {meta.pro && !isPro && (
-                      <span className="ml-2 text-[10px] uppercase tracking-wide text-muted-foreground">
-                        Pro
-                      </span>
-                    )}
+                  <span className="flex min-w-0 items-center gap-2">
+                    <GripVertical className="hidden h-4 w-4 shrink-0 cursor-grab text-muted-foreground sm:block" />
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                      {meta.label}
+                      {meta.pro && !isPro && (
+                        <span className="ml-2 text-[10px] uppercase tracking-wide text-muted-foreground">
+                          Pro
+                        </span>
+                      )}
+                    </span>
                   </span>
-                  <button
-                    onClick={() => layout.move(id, -1)}
-                    aria-label={`Move ${meta.label} up`}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-foreground/15 text-muted-foreground transition-colors hover:text-foreground"
-                  >
-                    <ChevronUp className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => layout.move(id, 1)}
-                    aria-label={`Move ${meta.label} down`}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-foreground/15 text-muted-foreground transition-colors hover:text-foreground"
-                  >
-                    <ChevronDown className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => layout.toggle(id)}
-                    aria-label={hidden ? `Show ${meta.label}` : `Hide ${meta.label}`}
-                    aria-pressed={!hidden}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-foreground/15 text-muted-foreground transition-colors hover:text-foreground"
-                  >
-                    {hidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
+                  <span className="flex shrink-0 items-center gap-1.5">
+                    <button
+                      onClick={() => layout.move(id, -1)}
+                      aria-label={`Move ${meta.label} up`}
+                      className="flex h-9 w-9 items-center justify-center rounded-lg border border-foreground/15 text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      <ChevronUp className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => layout.move(id, 1)}
+                      aria-label={`Move ${meta.label} down`}
+                      className="flex h-9 w-9 items-center justify-center rounded-lg border border-foreground/15 text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      <ChevronDown className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => layout.toggle(id)}
+                      aria-label={hidden ? `Show ${meta.label}` : `Hide ${meta.label}`}
+                      aria-pressed={!hidden}
+                      className="flex h-9 w-9 items-center justify-center rounded-lg border border-foreground/15 text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      {hidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </span>
                 </li>
               );
             })}
@@ -133,11 +138,11 @@ function Dashboard() {
         </section>
       )}
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid min-w-0 gap-4 md:grid-cols-2 md:gap-6">
         {visible.map((id) => {
           const meta = WIDGETS[id];
           return (
-            <div key={id} className={cn(meta.wide && "md:col-span-2")}>
+            <div key={id} className={cn("min-w-0", meta.wide && "md:col-span-2")}>
               {meta.pro && !isPro ? (
                 <LockedWidget title={meta.label} feature={meta.label} />
               ) : (
@@ -147,6 +152,7 @@ function Dashboard() {
           );
         })}
       </div>
+
     </div>
   );
 }
