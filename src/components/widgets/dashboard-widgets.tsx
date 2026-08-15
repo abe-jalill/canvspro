@@ -260,12 +260,12 @@ function UpcomingWidget() {
                       <li
                         key={a.id}
                         className={cn(
-                          "glass-inset glass-hover flex items-center justify-between gap-3 p-3",
+                          "glass-inset glass-hover flex items-center justify-between gap-2 p-3",
                           cd && urgencyAccentClass(cd.urgency),
                           done && "opacity-60",
                         )}
                       >
-                        <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
                           <CompleteButton
                             done={done}
                             onClick={() => completed.toggle(a.id)}
@@ -273,7 +273,7 @@ function UpcomingWidget() {
                           />
                           <p
                             className={cn(
-                              "min-w-0 truncate text-sm font-medium",
+                              "min-w-0 flex-1 truncate text-sm font-medium",
                               done && "text-muted-foreground line-through",
                             )}
                           >
@@ -284,7 +284,7 @@ function UpcomingWidget() {
                           <div className="text-right">
                             <p
                               className={cn(
-                                "whitespace-nowrap text-sm tabular-nums",
+                                "whitespace-nowrap text-xs tabular-nums sm:text-sm",
                                 cd
                                   ? urgencyTextClass(cd.urgency)
                                   : "text-muted-foreground",
@@ -293,7 +293,7 @@ function UpcomingWidget() {
                               {cd ? cd.label : "—"}
                             </p>
                             {cd && (
-                              <p className="mt-0.5 whitespace-nowrap text-[10px] tabular-nums text-muted-foreground/80">
+                              <p className="mt-0.5 hidden whitespace-nowrap text-[10px] tabular-nums text-muted-foreground/80 sm:block">
                                 {cd.fullDate}
                               </p>
                             )}
@@ -301,6 +301,7 @@ function UpcomingWidget() {
                           <IcsButton assignment={a} />
                         </div>
                       </li>
+
                     );
                   })}
                 </ul>
