@@ -1,12 +1,14 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Bell, BellOff, LogOut, Menu, Moon, Sun, X } from "lucide-react";
+import { Bell, BellOff, Lock, LogOut, Menu, Moon, Sun, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/lib/theme";
 import { useReminders } from "@/hooks/use-hourly-reminder";
 import { supabase } from "@/integrations/supabase/client";
 import { NotificationCenter } from "@/components/notification-center";
+import { useSubscription } from "@/lib/subscription";
+import { isFreePath } from "@/components/pro-gate";
 
 const items = [
   { title: "Dashboard", to: "/" as const },
@@ -106,6 +108,7 @@ function SignOutButton({ compact = false }: { compact?: boolean }) {
 
 export function AppSidebar() {
   const pathname = useActivePath();
+  const { isActive: isPro } = useSubscription();
 
   return (
     <aside className="fixed left-4 top-4 bottom-4 z-30 hidden w-56 flex-col md:flex">
@@ -128,12 +131,17 @@ export function AppSidebar() {
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
-              {item.title}
+              <span className="flex items-center justify-between gap-2">
+                {item.title}
+                {!isPro && !isFreePath(item.to) && (
+                  <Lock className="h-3.5 w-3.5 opacity-60" />
+                )}
+              </span>
             </Link>
           ))}
         </nav>
         <div className="mt-auto space-y-2 pt-4">
-          <ReminderToggle />
+          {isPro && <ReminderToggle />}
           <ThemeToggle />
           <SignOutButton />
         </div>
@@ -144,6 +152,7 @@ export function AppSidebar() {
 
 export function MobileNav() {
   const pathname = useActivePath();
+  const { isActive: isPro } = useSubscription();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -167,7 +176,7 @@ export function MobileNav() {
           {current}
         </p>
         <div className="flex items-center gap-2">
-          <NotificationCenter />
+          {isPro && <NotificationCenter />}
           <ThemeToggle compact />
         </div>
       </div>
@@ -186,11 +195,16 @@ export function MobileNav() {
                   : "text-muted-foreground",
               )}
             >
-              {item.title}
+              <span className="flex w-full items-center justify-between gap-2">
+                {item.title}
+                {!isPro && !isFreePath(item.to) && (
+                  <Lock className="h-3.5 w-3.5 opacity-60" />
+                )}
+              </span>
             </Link>
           ))}
           <div className="mt-1 grid grid-cols-2 gap-2">
-            <ReminderToggle />
+            {isPro && <ReminderToggle />}
             <SignOutButton />
           </div>
         </div>

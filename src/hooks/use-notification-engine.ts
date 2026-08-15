@@ -136,22 +136,22 @@ function runAnnouncementChecks(items: AnnouncementItem[]) {
 }
 
 /** Watches Canvas data and turns it into in-app + browser notifications. */
-export function useNotificationEngine() {
-  const assignments = useQuery(assignmentsQO);
-  const announcements = useQuery(announcementsQO);
+export function useNotificationEngine(enabled = true) {
+  const assignments = useQuery({ ...assignmentsQO, enabled });
+  const announcements = useQuery({ ...announcementsQO, enabled });
 
   useEffect(() => {
-    if (!assignments.data) return;
+    if (!enabled || !assignments.data) return;
     runGradeChecks(assignments.data);
     runDueChecks(assignments.data);
     const id = setInterval(() => {
       if (assignments.data) runDueChecks(assignments.data);
     }, 15 * 60_000);
     return () => clearInterval(id);
-  }, [assignments.data]);
+  }, [assignments.data, enabled]);
 
   useEffect(() => {
-    if (!announcements.data) return;
+    if (!enabled || !announcements.data) return;
     runAnnouncementChecks(announcements.data);
-  }, [announcements.data]);
+  }, [announcements.data, enabled]);
 }
