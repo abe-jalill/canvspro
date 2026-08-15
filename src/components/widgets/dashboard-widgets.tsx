@@ -1,6 +1,6 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { useQuery, queryOptions } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, type ReactElement } from "react";
 import {
   getCoursesFn,
   getAllAssignmentsFn,
@@ -15,6 +15,7 @@ import {
   EmptyState,
 } from "@/components/glass-card";
 import { cn } from "@/lib/utils";
+import type { WidgetId } from "@/lib/dashboard-layout";
 import { displayCourseName } from "@/lib/course-display";
 import {
   useLocalSet,
@@ -30,6 +31,9 @@ import {
 import { buildIcs, downloadIcs, safeFilename } from "@/lib/ics";
 import { SyllabusModal } from "@/components/syllabus-modal";
 import { DigestCard } from "@/components/digest-card";
+import { WorkloadHeatmap } from "@/components/workload-heatmap";
+import { getCalendarEventsFn } from "@/lib/canvas.functions";
+import { Lock } from "lucide-react";
 
 const coursesQO = queryOptions({
   queryKey: ["canvas", "courses"],
@@ -43,24 +47,16 @@ const assignmentsQO = queryOptions({
   staleTime: 5 * 60_000,
 });
 
+const eventsQO = queryOptions({
+  queryKey: ["canvas", "calendar"],
+  queryFn: () => getCalendarEventsFn(),
+  staleTime: 5 * 60_000,
+});
+
 const announcementsQO = queryOptions({
   queryKey: ["canvas", "announcements"],
   queryFn: () => getAnnouncementsFn(),
   staleTime: 5 * 60_000,
-});
-
-export const Route = createFileRoute("/_authenticated/")({
-  head: () => ({
-    meta: [
-      { title: "Dashboard — Canvas Pro" },
-      { name: "description", content: "See today's classes, latest grades, upcoming assignments, and new announcements at a glance." },
-      { property: "og:title", content: "Dashboard — Canvas Pro" },
-      { property: "og:description", content: "See today's classes, latest grades, upcoming assignments, and new announcements at a glance." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
-  }),
-  component: Dashboard,
 });
 
 function formatScore(score: number | null, grade: string | null) {
@@ -75,35 +71,7 @@ function stripHtml(html: string) {
   return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 
-function Dashboard() {
-  return (
-    <div className="space-y-6">
-      <header className="px-1 pt-2">
-        <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-          Overview
-        </p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">
-          Dashboard
-        </h1>
-      </header>
-
-      <DigestBridge />
-
-      <div className="grid gap-6 md:grid-cols-3">
-        <div className="md:col-span-1">
-          <CoursesWidget />
-        </div>
-        <div className="md:col-span-2">
-          <UpcomingWidget />
-        </div>
-      </div>
-
-      <AnnouncementsWidget />
-    </div>
-  );
-}
-
-function DigestBridge() {
+function DigestWidget() {
   const courses = useQuery(coursesQO);
   const assignments = useQuery(assignmentsQO);
   const announcements = useQuery(announcementsQO);
@@ -522,3 +490,209 @@ function IcsButton({ assignment }: { assignment: AssignmentItem }) {
     </button>
   );
 }
+
+
+function FocusWidget() {
+  const { data, isLoading, isError, error } = useQuery(assignmentsQO);
+  const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
+
+  const soon = (data ?? [])
+    .filter((a) => {
+      if (!a.due_at || completed.has(a.id)) return false;
+      const due = new Date(a.due_at).getTime();
+      const now = Date.now();
+      return due >= now && due <= now + 48 * 60 * 60 * 1000;
+    })
+    .sort(
+      (a, b) =>
+        new Date(a.due_at as string).getTime() -
+        new Date(b.due_at as string).getTime(),
+    );
+
+  return (
+    <GlassCard
+      title="Focus"
+      subtitle="Due within 48 hours"
+      action={
+        <Link
+          to="/focus"
+          className="glass-hover rounded-lg px-2.5 py-1 text-xs font-medium text-muted-foreground"
+        >
+          Open
+        </Link>
+      }
+    >
+      {isLoading && (
+        <div className="space-y-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="glass-inset p-3">
+              <Skeleton className="h-4 w-2/3" />
+            </div>
+          ))}
+        </div>
+      )}
+      {isError && <ErrorState message={(error as Error).message} />}
+      {data && soon.length === 0 && (
+        <EmptyState message="Nothing due in the next 48 hours." />
+      )}
+      {soon.length > 0 && (
+        <ul className="space-y-2">
+          {soon.map((a) => {
+            const cd = getCountdown(a.due_at, { completed: false });
+            return (
+              <li
+                key={a.id}
+                className={cn(
+                  "glass-inset glass-hover flex items-center justify-between gap-3 p-3",
+                  cd && urgencyAccentClass(cd.urgency),
+                )}
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{a.name}</p>
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                    {displayCourseName(a.course_name, a.course_code)}
+                  </p>
+                </div>
+                <span
+                  className={cn(
+                    "shrink-0 whitespace-nowrap text-sm tabular-nums",
+                    cd ? urgencyTextClass(cd.urgency) : "text-muted-foreground",
+                  )}
+                >
+                  {cd ? cd.label : "—"}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </GlassCard>
+  );
+}
+
+function CalendarWidget() {
+  const { data, isLoading, isError, error } = useQuery(eventsQO);
+
+  const upcoming = (data ?? [])
+    .filter((e) => {
+      if (!e.start_at) return false;
+      const t = new Date(e.start_at).getTime();
+      const now = Date.now();
+      return t >= now && t <= now + 7 * 24 * 60 * 60 * 1000;
+    })
+    .sort(
+      (a, b) =>
+        new Date(a.start_at as string).getTime() -
+        new Date(b.start_at as string).getTime(),
+    )
+    .slice(0, 8);
+
+  return (
+    <GlassCard
+      title="Calendar"
+      subtitle="Next 7 days"
+      action={
+        <Link
+          to="/schedule"
+          className="glass-hover rounded-lg px-2.5 py-1 text-xs font-medium text-muted-foreground"
+        >
+          View all
+        </Link>
+      }
+    >
+      {isLoading && (
+        <div className="space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="glass-inset p-3">
+              <Skeleton className="h-4 w-2/3" />
+            </div>
+          ))}
+        </div>
+      )}
+      {isError && <ErrorState message={(error as Error).message} />}
+      {data && upcoming.length === 0 && (
+        <EmptyState message="No calendar events this week." />
+      )}
+      {upcoming.length > 0 && (
+        <ul className="space-y-2">
+          {upcoming.map((e) => (
+            <li
+              key={String(e.id)}
+              className="glass-inset glass-hover flex items-center justify-between gap-3 p-3"
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium">{e.title}</p>
+                {e.context_name && (
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                    {e.context_name}
+                  </p>
+                )}
+              </div>
+              <span className="shrink-0 whitespace-nowrap text-xs tabular-nums text-muted-foreground">
+                {new Date(e.start_at as string).toLocaleString(undefined, {
+                  weekday: "short",
+                  hour: "numeric",
+                  minute: "2-digit",
+                })}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </GlassCard>
+  );
+}
+
+function HeatmapWidget() {
+  const { data, isLoading, isError, error } = useQuery(assignmentsQO);
+  return (
+    <GlassCard title="Workload" subtitle="Assignment density by week">
+      {isLoading && <Skeleton className="h-24 w-full" />}
+      {isError && <ErrorState message={(error as Error).message} />}
+      {data && <WorkloadHeatmap assignments={data} />}
+    </GlassCard>
+  );
+}
+
+/** Shown in place of a Pro-only widget for free-tier accounts. */
+export function LockedWidget({
+  title,
+  feature,
+}: {
+  title: string;
+  feature: string;
+}) {
+  return (
+    <GlassCard title={title} subtitle="Canvas Pro">
+      <div className="flex flex-col items-start gap-3 p-1">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Lock className="h-4 w-4" />
+          <p className="text-sm">{feature} is part of Canvas Pro.</p>
+        </div>
+        <Link
+          to="/billing"
+          className="glass-hover inline-flex min-h-10 items-center rounded-xl bg-foreground px-4 text-sm font-semibold text-background"
+        >
+          Upgrade — $2.99/month
+        </Link>
+      </div>
+    </GlassCard>
+  );
+}
+
+export interface WidgetMeta {
+  label: string;
+  wide?: boolean;
+  pro?: boolean;
+  render: () => ReactElement;
+}
+
+export const WIDGETS: Record<WidgetId, WidgetMeta> = {
+  digest: { label: "Since your last visit", wide: true, render: () => <DigestWidget /> },
+  focus: { label: "Focus", pro: true, render: () => <FocusWidget /> },
+  classes: { label: "Classes & Grades", render: () => <CoursesWidget /> },
+  upcoming: { label: "Upcoming Assignments", wide: true, render: () => <UpcomingWidget /> },
+  announcements: { label: "Announcements", wide: true, render: () => <AnnouncementsWidget /> },
+  calendar: { label: "Calendar", pro: true, render: () => <CalendarWidget /> },
+  heatmap: { label: "Workload heatmap", pro: true, wide: true, render: () => <HeatmapWidget /> },
+};
