@@ -117,7 +117,7 @@ function BillingPage() {
           ) : showCheckout ? (
             <StripeEmbeddedCheckoutForm
               priceId={CANVAS_PRO_PRICE_ID}
-              returnUrl={`${window.location.origin}/billing?checkout=complete`}
+              returnUrl={`${window.location.origin}/checkout/return?session_id={CHECKOUT_SESSION_ID}`}
             />
           ) : (
             <button

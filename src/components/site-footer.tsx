@@ -6,6 +6,9 @@ export function SiteFooter() {
       <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 text-xs text-muted-foreground sm:flex-row">
         <p>© {new Date().getFullYear()} Canvas Pro. All rights reserved.</p>
         <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
+          <Link to="/pricing" className="transition-colors hover:text-foreground">
+            Pricing
+          </Link>
           <Link
             to="/privacy"
             className="transition-colors hover:text-foreground"
