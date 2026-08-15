@@ -29,6 +29,7 @@ export const Route = createFileRoute("/_authenticated/settings")({
 
 function SettingsPage() {
   const { data: savedKey, isLoading } = useCanvasKey();
+  const { isActive: isPro } = useSubscription();
   const save = useSaveCanvasKey();
   const [value, setValue] = useState("");
   const [status, setStatus] = useState<string | null>(null);
