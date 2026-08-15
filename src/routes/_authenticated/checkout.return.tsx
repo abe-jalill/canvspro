@@ -65,7 +65,7 @@ function CheckoutReturnPage() {
           )}
           <div className="flex flex-col gap-2 sm:flex-row">
             <Link
-              to="/"
+              to="/dashboard"
               className="glass-hover inline-flex min-h-11 items-center justify-center rounded-xl bg-foreground px-4 text-sm font-semibold text-background"
             >
               Go to dashboard

@@ -49,7 +49,7 @@ function SignupPage() {
       return;
     }
     if (data.session) {
-      navigate({ to: "/", replace: true });
+      navigate({ to: "/dashboard", replace: true });
       return;
     }
     setNotice("Check your email to confirm your account, then sign in.");
