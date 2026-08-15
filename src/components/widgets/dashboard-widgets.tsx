@@ -390,12 +390,13 @@ function AnnouncementsWidget() {
               ) : (
                 <ul className="space-y-2">
                   {g.items.slice(0, 4).map((a) => (
-                    <li key={a.id} className="glass-inset glass-hover p-4">
-                      <div className="flex items-baseline justify-between gap-3">
-                        <p className="truncate text-sm font-semibold">
+                    <li key={a.id} className="glass-inset glass-hover p-3 sm:p-4">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <p className="min-w-0 flex-1 truncate text-sm font-semibold">
                           {a.title}
                         </p>
-                        <div className="flex items-center gap-2">
+                        <div className="flex shrink-0 items-center gap-2">
+
                           <span className="whitespace-nowrap text-xs text-muted-foreground">
                             {new Date(a.posted_at).toLocaleDateString()}
                           </span>
