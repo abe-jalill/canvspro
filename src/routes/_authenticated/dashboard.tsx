@@ -37,25 +37,26 @@ function Dashboard() {
   const visible = layout.order.filter((id) => !layout.isHidden(id));
 
   return (
-    <div className="space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-3 px-1 pt-2">
-        <div>
+    <div className="w-full min-w-0 space-y-6">
+      <header className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 px-1 pt-2">
+        <div className="min-w-0">
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
             Overview
           </p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">
+          <h1 className="mt-1 truncate text-2xl font-semibold tracking-tight sm:text-3xl md:text-4xl">
             Dashboard
           </h1>
         </div>
         <button
           onClick={() => setCustomizing((v) => !v)}
           aria-pressed={customizing}
-          className="glass-inset glass-hover inline-flex min-h-10 items-center gap-2 rounded-xl px-3 text-sm font-medium"
+          className="glass-inset glass-hover inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-3 text-sm font-medium"
         >
           <SlidersHorizontal className="h-4 w-4" />
           {customizing ? "Done" : "Customize"}
         </button>
       </header>
+
 
       {customizing && (
         <section className="glass-panel-strong p-5">
