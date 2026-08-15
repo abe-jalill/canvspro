@@ -96,6 +96,17 @@ function SignupPage() {
           {busy ? "Creating account…" : "Create account"}
         </button>
       </form>
+      <p className="mt-4 text-center text-xs text-muted-foreground">
+        By signing up, you agree to our{" "}
+        <Link to="/terms" className="font-medium text-foreground underline underline-offset-4">
+          Terms of Service
+        </Link>{" "}
+        and{" "}
+        <Link to="/privacy" className="font-medium text-foreground underline underline-offset-4">
+          Privacy Policy
+        </Link>
+        .
+      </p>
       <div className="mt-5">
         <SocialAuthButtons />
       </div>
