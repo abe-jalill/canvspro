@@ -4,6 +4,8 @@ import { AppSidebar, MobileNav } from "@/components/app-sidebar";
 import { CanvasKeyBanner } from "@/components/canvas-key-banner";
 import { CanvasKeyGate } from "@/components/canvas-key-gate";
 import { ClassNamesGate } from "@/components/class-names-editor";
+import { ProGate } from "@/components/pro-gate";
+import { useSubscription } from "@/lib/subscription";
 import { NotificationCenter } from "@/components/notification-center";
 import { useNotificationEngine } from "@/hooks/use-notification-engine";
 import { setUserScope } from "@/lib/user-scope";
@@ -25,7 +27,8 @@ export const Route = createFileRoute("/_authenticated")({
 
 
 function AuthenticatedLayout() {
-  useNotificationEngine();
+  const { isActive: isPro } = useSubscription();
+  useNotificationEngine(isPro);
   return (
     <div className="min-h-screen w-full">
       <AppSidebar />
@@ -33,12 +36,14 @@ function AuthenticatedLayout() {
       <main className="md:pl-64 md:pr-4 md:py-4">
         <div className="mx-auto w-full max-w-6xl px-4 py-4 md:p-6">
           <div className="mb-2 hidden justify-end md:flex">
-            <NotificationCenter />
+            {isPro && <NotificationCenter />}
           </div>
           <CanvasKeyBanner />
           <CanvasKeyGate>
             <ClassNamesGate>
-              <Outlet />
+              <ProGate>
+                <Outlet />
+              </ProGate>
             </ClassNamesGate>
           </CanvasKeyGate>
         </div>
