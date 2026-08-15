@@ -21,8 +21,10 @@ import { Route as AuthenticatedScheduleRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedGradesRouteImport } from './routes/_authenticated/grades'
 import { Route as AuthenticatedFocusRouteImport } from './routes/_authenticated/focus'
 import { Route as AuthenticatedClassScheduleRouteImport } from './routes/_authenticated/class-schedule'
+import { Route as AuthenticatedBillingRouteImport } from './routes/_authenticated/billing'
 import { Route as AuthenticatedAssignmentsRouteImport } from './routes/_authenticated/assignments'
 import { Route as AuthenticatedAnnouncementsRouteImport } from './routes/_authenticated/announcements'
+import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
@@ -84,6 +86,11 @@ const AuthenticatedClassScheduleRoute =
     path: '/class-schedule',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedBillingRoute = AuthenticatedBillingRouteImport.update({
+  id: '/billing',
+  path: '/billing',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedAssignmentsRoute =
   AuthenticatedAssignmentsRouteImport.update({
     id: '/assignments',
@@ -96,6 +103,12 @@ const AuthenticatedAnnouncementsRoute =
     path: '/announcements',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiPublicPaymentsWebhookRoute =
+  ApiPublicPaymentsWebhookRouteImport.update({
+    id: '/api/public/payments/webhook',
+    path: '/api/public/payments/webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -106,11 +119,13 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/announcements': typeof AuthenticatedAnnouncementsRoute
   '/assignments': typeof AuthenticatedAssignmentsRoute
+  '/billing': typeof AuthenticatedBillingRoute
   '/class-schedule': typeof AuthenticatedClassScheduleRoute
   '/focus': typeof AuthenticatedFocusRoute
   '/grades': typeof AuthenticatedGradesRoute
   '/schedule': typeof AuthenticatedScheduleRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
@@ -120,12 +135,14 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/announcements': typeof AuthenticatedAnnouncementsRoute
   '/assignments': typeof AuthenticatedAssignmentsRoute
+  '/billing': typeof AuthenticatedBillingRoute
   '/class-schedule': typeof AuthenticatedClassScheduleRoute
   '/focus': typeof AuthenticatedFocusRoute
   '/grades': typeof AuthenticatedGradesRoute
   '/schedule': typeof AuthenticatedScheduleRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/': typeof AuthenticatedIndexRoute
+  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -137,12 +154,14 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/_authenticated/announcements': typeof AuthenticatedAnnouncementsRoute
   '/_authenticated/assignments': typeof AuthenticatedAssignmentsRoute
+  '/_authenticated/billing': typeof AuthenticatedBillingRoute
   '/_authenticated/class-schedule': typeof AuthenticatedClassScheduleRoute
   '/_authenticated/focus': typeof AuthenticatedFocusRoute
   '/_authenticated/grades': typeof AuthenticatedGradesRoute
   '/_authenticated/schedule': typeof AuthenticatedScheduleRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -155,11 +174,13 @@ export interface FileRouteTypes {
     | '/terms'
     | '/announcements'
     | '/assignments'
+    | '/billing'
     | '/class-schedule'
     | '/focus'
     | '/grades'
     | '/schedule'
     | '/settings'
+    | '/api/public/payments/webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
@@ -169,12 +190,14 @@ export interface FileRouteTypes {
     | '/terms'
     | '/announcements'
     | '/assignments'
+    | '/billing'
     | '/class-schedule'
     | '/focus'
     | '/grades'
     | '/schedule'
     | '/settings'
     | '/'
+    | '/api/public/payments/webhook'
   id:
     | '__root__'
     | '/_authenticated'
@@ -185,12 +208,14 @@ export interface FileRouteTypes {
     | '/terms'
     | '/_authenticated/announcements'
     | '/_authenticated/assignments'
+    | '/_authenticated/billing'
     | '/_authenticated/class-schedule'
     | '/_authenticated/focus'
     | '/_authenticated/grades'
     | '/_authenticated/schedule'
     | '/_authenticated/settings'
     | '/_authenticated/'
+    | '/api/public/payments/webhook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -200,6 +225,7 @@ export interface RootRouteChildren {
   SignupRoute: typeof SignupRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermsRoute: typeof TermsRoute
+  ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -288,6 +314,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClassScheduleRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/billing': {
+      id: '/_authenticated/billing'
+      path: '/billing'
+      fullPath: '/billing'
+      preLoaderRoute: typeof AuthenticatedBillingRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/assignments': {
       id: '/_authenticated/assignments'
       path: '/assignments'
@@ -302,12 +335,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAnnouncementsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/payments/webhook': {
+      id: '/api/public/payments/webhook'
+      path: '/api/public/payments/webhook'
+      fullPath: '/api/public/payments/webhook'
+      preLoaderRoute: typeof ApiPublicPaymentsWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAnnouncementsRoute: typeof AuthenticatedAnnouncementsRoute
   AuthenticatedAssignmentsRoute: typeof AuthenticatedAssignmentsRoute
+  AuthenticatedBillingRoute: typeof AuthenticatedBillingRoute
   AuthenticatedClassScheduleRoute: typeof AuthenticatedClassScheduleRoute
   AuthenticatedFocusRoute: typeof AuthenticatedFocusRoute
   AuthenticatedGradesRoute: typeof AuthenticatedGradesRoute
@@ -319,6 +360,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAnnouncementsRoute: AuthenticatedAnnouncementsRoute,
   AuthenticatedAssignmentsRoute: AuthenticatedAssignmentsRoute,
+  AuthenticatedBillingRoute: AuthenticatedBillingRoute,
   AuthenticatedClassScheduleRoute: AuthenticatedClassScheduleRoute,
   AuthenticatedFocusRoute: AuthenticatedFocusRoute,
   AuthenticatedGradesRoute: AuthenticatedGradesRoute,
@@ -337,6 +379,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignupRoute: SignupRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermsRoute: TermsRoute,
+  ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -16,6 +16,7 @@ const items = [
   { title: "Grades", to: "/grades" as const },
   { title: "Assignments", to: "/assignments" as const },
   { title: "Announcements", to: "/announcements" as const },
+  { title: "Billing", to: "/billing" as const },
   { title: "Settings", to: "/settings" as const },
 ];
 
