@@ -11,7 +11,7 @@ import { useSubscription } from "@/lib/subscription";
 import { isFreePath } from "@/components/pro-gate";
 
 const items = [
-  { title: "Dashboard", to: "/" as const },
+  { title: "Dashboard", to: "/dashboard" as const },
   { title: "Focus", to: "/focus" as const },
   { title: "Calendar", to: "/schedule" as const },
   { title: "Class Schedule", to: "/class-schedule" as const },
@@ -27,7 +27,7 @@ function useActivePath() {
 }
 
 function isActive(pathname: string, to: string) {
-  return to === "/" ? pathname === "/" : pathname === to || pathname.startsWith(to + "/");
+  return pathname === to || pathname.startsWith(to + "/");
 }
 
 function ReminderToggle({ compact = false }: { compact?: boolean }) {

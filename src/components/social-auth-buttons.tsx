@@ -25,7 +25,7 @@ export function SocialAuthButtons() {
         return;
       }
       if (result.redirected) return;
-      navigate({ to: "/", replace: true });
+      navigate({ to: "/dashboard", replace: true });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Sign-in failed.");
     }
