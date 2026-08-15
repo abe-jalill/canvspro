@@ -22,25 +22,26 @@ export function GlassCard({
     <section
       className={cn(
         strong ? "glass-panel-strong" : "glass-panel",
-        "p-6 md:p-7",
+        "min-w-0 overflow-hidden p-4 sm:p-6 md:p-7",
         className,
       )}
     >
       {(title || action) && (
-        <header className="mb-5 flex items-start justify-between gap-4">
-          <div>
+        <header className="mb-5 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+          <div className="min-w-0">
             {title && (
-              <h2 className="text-lg font-semibold tracking-tight text-foreground">
+              <h2 className="truncate text-base font-semibold tracking-tight text-foreground sm:text-lg">
                 {title}
               </h2>
             )}
             {subtitle && (
-              <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
+              <p className="mt-1 text-xs text-muted-foreground sm:text-sm">{subtitle}</p>
             )}
           </div>
-          {action}
+          {action ? <div className="shrink-0">{action}</div> : <span />}
         </header>
       )}
+
       {children}
     </section>
   );
