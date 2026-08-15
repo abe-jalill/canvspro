@@ -21,6 +21,7 @@ import { Route as AuthenticatedScheduleRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedGradesRouteImport } from './routes/_authenticated/grades'
 import { Route as AuthenticatedFocusRouteImport } from './routes/_authenticated/focus'
 import { Route as AuthenticatedClassScheduleRouteImport } from './routes/_authenticated/class-schedule'
+import { Route as AuthenticatedBillingRouteImport } from './routes/_authenticated/billing'
 import { Route as AuthenticatedAssignmentsRouteImport } from './routes/_authenticated/assignments'
 import { Route as AuthenticatedAnnouncementsRouteImport } from './routes/_authenticated/announcements'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
@@ -85,6 +86,11 @@ const AuthenticatedClassScheduleRoute =
     path: '/class-schedule',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedBillingRoute = AuthenticatedBillingRouteImport.update({
+  id: '/billing',
+  path: '/billing',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedAssignmentsRoute =
   AuthenticatedAssignmentsRouteImport.update({
     id: '/assignments',
@@ -113,6 +119,7 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/announcements': typeof AuthenticatedAnnouncementsRoute
   '/assignments': typeof AuthenticatedAssignmentsRoute
+  '/billing': typeof AuthenticatedBillingRoute
   '/class-schedule': typeof AuthenticatedClassScheduleRoute
   '/focus': typeof AuthenticatedFocusRoute
   '/grades': typeof AuthenticatedGradesRoute
@@ -128,6 +135,7 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/announcements': typeof AuthenticatedAnnouncementsRoute
   '/assignments': typeof AuthenticatedAssignmentsRoute
+  '/billing': typeof AuthenticatedBillingRoute
   '/class-schedule': typeof AuthenticatedClassScheduleRoute
   '/focus': typeof AuthenticatedFocusRoute
   '/grades': typeof AuthenticatedGradesRoute
@@ -146,6 +154,7 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/_authenticated/announcements': typeof AuthenticatedAnnouncementsRoute
   '/_authenticated/assignments': typeof AuthenticatedAssignmentsRoute
+  '/_authenticated/billing': typeof AuthenticatedBillingRoute
   '/_authenticated/class-schedule': typeof AuthenticatedClassScheduleRoute
   '/_authenticated/focus': typeof AuthenticatedFocusRoute
   '/_authenticated/grades': typeof AuthenticatedGradesRoute
@@ -165,6 +174,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/announcements'
     | '/assignments'
+    | '/billing'
     | '/class-schedule'
     | '/focus'
     | '/grades'
@@ -180,6 +190,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/announcements'
     | '/assignments'
+    | '/billing'
     | '/class-schedule'
     | '/focus'
     | '/grades'
@@ -197,6 +208,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/_authenticated/announcements'
     | '/_authenticated/assignments'
+    | '/_authenticated/billing'
     | '/_authenticated/class-schedule'
     | '/_authenticated/focus'
     | '/_authenticated/grades'
@@ -302,6 +314,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClassScheduleRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/billing': {
+      id: '/_authenticated/billing'
+      path: '/billing'
+      fullPath: '/billing'
+      preLoaderRoute: typeof AuthenticatedBillingRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/assignments': {
       id: '/_authenticated/assignments'
       path: '/assignments'
@@ -329,6 +348,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAnnouncementsRoute: typeof AuthenticatedAnnouncementsRoute
   AuthenticatedAssignmentsRoute: typeof AuthenticatedAssignmentsRoute
+  AuthenticatedBillingRoute: typeof AuthenticatedBillingRoute
   AuthenticatedClassScheduleRoute: typeof AuthenticatedClassScheduleRoute
   AuthenticatedFocusRoute: typeof AuthenticatedFocusRoute
   AuthenticatedGradesRoute: typeof AuthenticatedGradesRoute
@@ -340,6 +360,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAnnouncementsRoute: AuthenticatedAnnouncementsRoute,
   AuthenticatedAssignmentsRoute: AuthenticatedAssignmentsRoute,
+  AuthenticatedBillingRoute: AuthenticatedBillingRoute,
   AuthenticatedClassScheduleRoute: AuthenticatedClassScheduleRoute,
   AuthenticatedFocusRoute: AuthenticatedFocusRoute,
   AuthenticatedGradesRoute: AuthenticatedGradesRoute,
