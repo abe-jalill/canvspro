@@ -113,12 +113,13 @@ function CoursesWidget() {
                 key={c.id}
                 className="glass-inset glass-hover flex items-center justify-between gap-2 p-3"
               >
-                <div className="min-w-0 pr-2">
+                <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">
                     {displayCourseName(c.name, c.course_code)}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
+
                   {c.syllabus_body && (
                     <button
                       onClick={() => setSyllabus(c)}
