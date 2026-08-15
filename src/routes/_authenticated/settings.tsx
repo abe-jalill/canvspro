@@ -4,6 +4,8 @@ import { GlassCard } from "@/components/glass-card";
 import { useCanvasKey, useSaveCanvasKey } from "@/lib/user-settings";
 import { ClassNamesSection } from "@/components/class-names-editor";
 import { NotificationSettings } from "@/components/notification-settings";
+import { useSubscription } from "@/lib/subscription";
+import { UpgradeCard } from "@/components/pro-gate";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
@@ -118,7 +120,7 @@ function SettingsPage() {
         title="Notifications"
         subtitle="Choose which alerts you want and when."
       >
-        <NotificationSettings />
+        {isPro ? <NotificationSettings /> : <UpgradeCard feature="Notifications" />}
       </GlassCard>
 
       <GlassCard
