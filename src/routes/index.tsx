@@ -283,5 +283,7 @@ function LandingPage() {
       </Reveal>
       </div>
     </div>
+  );
+
 
 }
