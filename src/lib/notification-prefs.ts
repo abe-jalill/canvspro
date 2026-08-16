@@ -68,6 +68,23 @@ export const DUE_WINDOWS: Array<{
   { key: "due1d", label: "1 day before", hours: 24 },
 ];
 
+/** True when the current time falls inside the user's quiet-hours window. */
+export function inQuietHours(date = new Date()): boolean {
+  const p = readPrefs();
+  if (!p.quietEnabled) return false;
+  const h = date.getHours();
+  const { quietStart: s, quietEnd: e } = p;
+  if (s === e) return false;
+  return s < e ? h >= s && h < e : h >= s || h < e;
+}
+
+export function formatHour(h: number): string {
+  const suffix = h < 12 ? "AM" : "PM";
+  const base = h % 12 === 0 ? 12 : h % 12;
+  return `${base}:00 ${suffix}`;
+}
+
+
 export function useNotificationPrefs() {
   const [prefs, setPrefs] = useState<NotificationPrefs>(DEFAULT_PREFS);
 
