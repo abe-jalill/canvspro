@@ -63,8 +63,11 @@ export function fireBrowserNotification(title: string, body?: string, tag?: stri
 }
 
 export function notify(n: Omit<AppNotification, "ts" | "read">) {
-  if (pushNotification(n)) fireBrowserNotification(n.title, n.body, n.id);
+  if (!pushNotification(n)) return;
+  if (inQuietHours()) return; // still in the bell menu, just no popup
+  fireBrowserNotification(n.title, n.body, n.id);
 }
+
 
 export function useNotifications() {
   const [list, setList] = useState<AppNotification[]>([]);
