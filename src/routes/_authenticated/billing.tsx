@@ -5,13 +5,14 @@ import { GlassCard } from "@/components/glass-card";
 import { PaymentTestModeBanner } from "@/components/payment-test-mode-banner";
 import { StripeEmbeddedCheckout } from "@/components/stripe-embedded-checkout";
 import {
-  CANVAS_PRO_PRICE_ID,
-  CANVAS_PRO_PRICE_LABEL,
+  CANVAS_PRO_PLANS,
+  type CanvasProPlan,
   getStripeEnvironment,
   isPaymentsConfigured,
 } from "@/lib/stripe";
 import { useSubscription } from "@/lib/subscription";
 import { createPortalSession } from "@/utils/payments.functions";
+
 
 export const Route = createFileRoute("/_authenticated/billing")({
   head: () => ({
