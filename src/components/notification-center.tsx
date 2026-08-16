@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Bell, Check, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNotifications } from "@/lib/notifications";
@@ -18,16 +19,40 @@ export function NotificationCenter({ className }: { className?: string }) {
     useNotifications();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; width: number }>({
+    top: 0,
+    left: 0,
+    width: 320,
+  });
 
   useEffect(() => {
     if (!open) return;
+    const place = () => {
+      const btn = ref.current?.getBoundingClientRect();
+      if (!btn) return;
+      const margin = 12;
+      const width = Math.min(352, window.innerWidth - margin * 2);
+      const left = Math.min(
+        Math.max(margin, btn.right - width),
+        window.innerWidth - width - margin,
+      );
+      setPos({ top: btn.bottom + 8, left, width });
+    };
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
     const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      if (panelRef.current?.contains(t)) return;
+      if (ref.current && !ref.current.contains(t)) setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
     return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("keydown", onKey);
     };
@@ -50,8 +75,26 @@ export function NotificationCenter({ className }: { className?: string }) {
         )}
       </button>
 
-      {open && (
-        <div className="glass-panel-strong absolute right-0 z-50 mt-2 w-[min(22rem,calc(100vw-2rem))] overflow-hidden p-2">
+      {open && typeof document !== "undefined" && createPortal(
+        <>
+          <div
+            className="fixed inset-0 z-[60] bg-background/70 sm:hidden"
+            aria-hidden="true"
+            onClick={() => setOpen(false)}
+          />
+          <div
+            ref={panelRef}
+            role="dialog"
+            aria-label="Notifications"
+            style={{
+              background: "hsl(var(--background) / 0.97)",
+              top: pos.top,
+              left: pos.left,
+              width: pos.width,
+            }}
+            className="glass-panel-strong fixed z-[70] overflow-hidden p-2 shadow-2xl"
+          >
+
           <div className="flex items-center justify-between gap-2 px-2 py-1.5">
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               Notifications
@@ -117,8 +160,11 @@ export function NotificationCenter({ className }: { className?: string }) {
               </ul>
             )}
           </div>
-        </div>
+          </div>
+        </>,
+        document.body,
       )}
+
     </div>
   );
 }
