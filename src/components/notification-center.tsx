@@ -58,7 +58,7 @@ export function NotificationCenter({ className }: { className?: string }) {
             onClick={() => setOpen(false)}
           />
           <div
-            style={{ background: "color-mix(in oklab, var(--background) 96%, transparent)" }}
+            style={{ background: "hsl(var(--background) / 0.97)" }}
             className="glass-panel-strong fixed inset-x-3 top-[5.25rem] z-50 overflow-hidden p-2 shadow-2xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[22rem]"
           >
 
