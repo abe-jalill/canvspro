@@ -40,7 +40,7 @@ async function handleSubscriptionCreated(subscription: any, env: StripeEnv) {
         stripe_subscription_id: subscription.id,
         stripe_customer_id: subscription.customer,
         product_id: item?.price?.product,
-        price_id: priceIdOf(item),
+        price_id: priceIdOf(item) ?? "",
         status: subscription.status,
         current_period_start: periodStart
           ? new Date(periodStart * 1000).toISOString()
