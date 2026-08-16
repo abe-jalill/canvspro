@@ -120,9 +120,18 @@ function SettingsPage() {
       <GlassCard
         title="Notifications"
         subtitle="Choose which alerts you want and when."
+        action={
+          <Link
+            to="/notifications"
+            className="glass-hover glass-inset flex min-h-11 items-center rounded-xl px-3 text-sm font-medium"
+          >
+            Open page
+          </Link>
+        }
       >
         {isPro ? <NotificationSettings /> : <UpgradeCard feature="Notifications" />}
       </GlassCard>
+
 
       <GlassCard
         title="Class names"
