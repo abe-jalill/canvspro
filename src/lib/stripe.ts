@@ -37,3 +37,23 @@ export function getStripeEnvironment(): StripeEnv {
 export const CANVAS_PRO_PRICE_ID = "pro_monthly";
 export const CANVAS_PRO_PRICE_LABEL = "$2.99/month";
 
+export type CanvasProPlan = {
+  priceId: "pro_monthly" | "pro_yearly";
+  label: string;
+  price: string;
+  cadence: string;
+  note?: string;
+};
+
+export const CANVAS_PRO_PLANS: CanvasProPlan[] = [
+  { priceId: "pro_monthly", label: "Monthly", price: "$2.99", cadence: "per month" },
+  {
+    priceId: "pro_yearly",
+    label: "Yearly",
+    price: "$24.99",
+    cadence: "per year",
+    note: "About 2 months free",
+  },
+];
+
+
