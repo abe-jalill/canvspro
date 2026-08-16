@@ -124,8 +124,10 @@ export function NotificationCenter({ className }: { className?: string }) {
               </ul>
             )}
           </div>
-        </div>
+          </div>
+        </>
       )}
+
     </div>
   );
 }
