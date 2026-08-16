@@ -82,10 +82,15 @@ function PricingPage() {
           <div>
             <h2 className="text-lg font-semibold tracking-tight">Pro</h2>
             <p className="mt-1 text-2xl font-semibold tracking-tight">
+            <p className="mt-1 text-2xl font-semibold tracking-tight">
               $2.99
               <span className="text-sm font-normal text-muted-foreground"> / month</span>
             </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              or $24.99 / year — about 2 months free
+            </p>
           </div>
+
           <FeatureList items={PRO_FEATURES} />
           <Link
             to="/billing"
