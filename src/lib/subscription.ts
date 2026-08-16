@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { getStripeEnvironment } from "@/lib/stripe";
+import { getStripeEnvironment, isPaymentsConfigured } from "@/lib/stripe";
+
 
 export type SubscriptionRow = {
   status: string;
