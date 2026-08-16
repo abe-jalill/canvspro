@@ -80,8 +80,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/bdf1beaf-d775-40f3-b194-aafd54341d35/id-preview-4231fc3a--affbea3f-cfe8-4941-aebb-24d8872c528c.lovable.app-1783984199763.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/bdf1beaf-d775-40f3-b194-aafd54341d35/id-preview-4231fc3a--affbea3f-cfe8-4941-aebb-24d8872c528c.lovable.app-1783984199763.png" },
+      { property: "og:image", content: "https://canvaspro.app/og-home.png" },
+      { property: "og:image:width", content: "1200" },
+      { property: "og:image:height", content: "630" },
+      { name: "twitter:image", content: "https://canvaspro.app/og-home.png" },
+      { name: "twitter:image:alt", content: "Canvas Pro — a calmer, faster dashboard for your Canvas classes" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
