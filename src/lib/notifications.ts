@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { scopedKey, subscribeToUserScope } from "@/lib/user-scope";
+import { inQuietHours } from "@/lib/notification-prefs";
+
 
 export type NotificationKind = "due" | "grade" | "announcement" | "system";
 
