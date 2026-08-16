@@ -54,8 +54,11 @@ function Toggle({
   );
 }
 
+const HOURS = Array.from({ length: 24 }, (_, i) => i);
+
 export function NotificationSettings() {
-  const { prefs, toggle } = useNotificationPrefs();
+  const { prefs, set, toggle } = useNotificationPrefs();
+
   const [permission, setPermission] = useState<string>("default");
 
   useEffect(() => {
