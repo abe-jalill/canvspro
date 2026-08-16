@@ -134,13 +134,13 @@ function LandingPage() {
           className="rise-in text-5xl font-semibold tracking-tight sm:text-7xl"
           style={{ animationDelay: "80ms" }}
         >
-          CanvasPro
+          Hey! Welcome to CanvasPro.
         </h1>
         <p
-          className="rise-in mt-4 text-lg text-muted-foreground sm:text-2xl"
+          className="rise-in mt-4 max-w-2xl text-lg text-muted-foreground sm:text-2xl"
           style={{ animationDelay: "320ms" }}
         >
-          Canvas, but better.
+          Your Canvas experience, finally built around you.
         </p>
         <button
           type="button"
