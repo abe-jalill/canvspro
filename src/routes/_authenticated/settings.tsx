@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { GlassCard } from "@/components/glass-card";
 import { useCanvasKey, useSaveCanvasKey } from "@/lib/user-settings";
