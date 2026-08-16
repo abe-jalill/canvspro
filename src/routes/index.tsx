@@ -200,7 +200,9 @@ function LandingPage() {
       </Reveal>
 
 
+      <Reveal delay={60}>
       <section className="mt-16">
+
         <h2 className="px-1 text-sm font-medium uppercase tracking-[0.18em] text-muted-foreground">
           What you get
         </h2>
