@@ -247,8 +247,11 @@ function LandingPage() {
           </article>
         ))}
       </section>
+      </Reveal>
 
+      <Reveal delay={60}>
       <section className="glass-panel-strong mt-16 flex flex-col items-center gap-4 p-8 text-center">
+
         <h2 className="text-2xl font-semibold tracking-tight">
           Free tools while you're here
         </h2>
