@@ -10,8 +10,11 @@ import {
   Calculator,
   BarChart3,
   Sparkles,
+  ChevronDown,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { Reveal } from "@/components/reveal";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
