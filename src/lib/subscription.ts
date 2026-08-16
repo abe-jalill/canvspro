@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { getStripeEnvironment } from "@/lib/stripe";
+import { getStripeEnvironment, isPaymentsConfigured } from "@/lib/stripe";
+
 
 export type SubscriptionRow = {
   status: string;
@@ -38,6 +39,7 @@ export function useSubscription() {
           cancel_at_period_end: false,
         };
       }
+      if (!isPaymentsConfigured()) return null;
       const { data, error } = await supabase
         .from("subscriptions")
         .select("status, price_id, current_period_end, cancel_at_period_end")
@@ -49,6 +51,7 @@ export function useSubscription() {
       if (error) throw new Error(error.message);
       return (data as SubscriptionRow | null) ?? null;
     },
+
     staleTime: 30_000,
   });
 
