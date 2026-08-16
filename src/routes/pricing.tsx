@@ -82,7 +82,7 @@ function PricingPage() {
           <div>
             <h2 className="text-lg font-semibold tracking-tight">Pro</h2>
             <p className="mt-1 text-2xl font-semibold tracking-tight">
-            <p className="mt-1 text-2xl font-semibold tracking-tight">
+
               $2.99
               <span className="text-sm font-normal text-muted-foreground"> / month</span>
             </p>
