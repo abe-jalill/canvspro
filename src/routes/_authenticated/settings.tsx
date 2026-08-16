@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { GlassCard } from "@/components/glass-card";
 import { useCanvasKey, useSaveCanvasKey } from "@/lib/user-settings";
@@ -120,9 +120,18 @@ function SettingsPage() {
       <GlassCard
         title="Notifications"
         subtitle="Choose which alerts you want and when."
+        action={
+          <Link
+            to="/notifications"
+            className="glass-hover glass-inset flex min-h-11 items-center rounded-xl px-3 text-sm font-medium"
+          >
+            Open page
+          </Link>
+        }
       >
         {isPro ? <NotificationSettings /> : <UpgradeCard feature="Notifications" />}
       </GlassCard>
+
 
       <GlassCard
         title="Class names"
