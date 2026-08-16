@@ -65,6 +65,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
+      {
+        name: "google-site-verification",
+        content: "P8Sm6eDHpOJ5ZpV1NufDHGqBEtfhaWG4FTZ1gkc2w0M",
+      },
+
       { title: "Canvas Pro — Student Productivity Dashboard" },
       {
         name: "description",
