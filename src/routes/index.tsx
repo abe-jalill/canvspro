@@ -280,6 +280,8 @@ function LandingPage() {
           </Link>
         </div>
       </section>
+      </Reveal>
+      </div>
     </div>
-  );
+
 }
