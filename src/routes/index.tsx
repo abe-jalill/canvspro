@@ -216,9 +216,11 @@ function LandingPage() {
           ))}
         </div>
       </section>
+      </Reveal>
 
+      <Reveal delay={60}>
       <section className="mt-16 grid gap-4 sm:grid-cols-3">
-        {[
+
           {
             step: "1",
             title: "Create your account",
