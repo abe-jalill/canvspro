@@ -53,11 +53,14 @@ export function NotificationCenter({ className }: { className?: string }) {
       {open && (
         <>
           <div
-            className="fixed inset-0 z-40 bg-background/60 sm:hidden"
+            className="fixed inset-0 z-40 bg-background/70 sm:hidden"
             aria-hidden="true"
             onClick={() => setOpen(false)}
           />
-          <div className="glass-panel-strong fixed inset-x-3 top-[5.25rem] z-50 overflow-hidden bg-background/95 p-2 shadow-2xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[22rem] sm:bg-transparent">
+          <div
+            style={{ background: "color-mix(in oklab, var(--background) 96%, transparent)" }}
+            className="glass-panel-strong fixed inset-x-3 top-[5.25rem] z-50 overflow-hidden p-2 shadow-2xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[22rem]"
+          >
 
           <div className="flex items-center justify-between gap-2 px-2 py-1.5">
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
