@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Bell, Check, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNotifications } from "@/lib/notifications";
@@ -50,7 +51,7 @@ export function NotificationCenter({ className }: { className?: string }) {
         )}
       </button>
 
-      {open && (
+      {open && typeof document !== "undefined" && createPortal(
         <>
           <div
             className="fixed inset-0 z-40 bg-background/70 sm:hidden"
