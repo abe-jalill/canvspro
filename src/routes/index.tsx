@@ -10,8 +10,11 @@ import {
   Calculator,
   BarChart3,
   Sparkles,
+  ChevronDown,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { Reveal } from "@/components/reveal";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -125,14 +128,48 @@ function LandingPage() {
   }, [navigate]);
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-12 sm:py-16">
+    <div className="w-full">
+      <section className="flex min-h-[86svh] flex-col items-center justify-center px-4 text-center">
+        <h1
+          className="rise-in text-5xl font-semibold tracking-tight sm:text-7xl"
+          style={{ animationDelay: "80ms" }}
+        >
+          CanvasPro
+        </h1>
+        <p
+          className="rise-in mt-4 text-lg text-muted-foreground sm:text-2xl"
+          style={{ animationDelay: "320ms" }}
+        >
+          Canvas, but better.
+        </p>
+        <button
+          type="button"
+          onClick={() =>
+            document
+              .getElementById("overview")
+              ?.scrollIntoView({ behavior: "smooth", block: "start" })
+          }
+          aria-label="Scroll down to learn more"
+          className="rise-in glass-inset glass-hover mt-14 inline-flex h-12 w-12 items-center justify-center rounded-full"
+          style={{ animationDelay: "620ms" }}
+        >
+          <ChevronDown className="scroll-hint h-5 w-5" />
+        </button>
+      </section>
+
+      <div
+        id="overview"
+        className="mx-auto w-full max-w-5xl px-4 pb-12 sm:pb-16"
+        style={{ scrollMarginTop: "1rem" }}
+      >
+      <Reveal>
       <section className="text-center">
         <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
           Canvas Pro
         </p>
-        <h1 className="mx-auto mt-3 max-w-3xl text-4xl font-semibold tracking-tight sm:text-5xl">
+        <h2 className="mx-auto mt-3 max-w-3xl text-4xl font-semibold tracking-tight sm:text-5xl">
           A calmer, faster dashboard for your Canvas classes
-        </h1>
+        </h2>
         <p className="mx-auto mt-4 max-w-2xl text-base text-muted-foreground">
           Canvas Pro connects to your school's Canvas account and pulls your
           classes, grades, assignments, and announcements into one customizable
@@ -155,9 +192,20 @@ function LandingPage() {
         <p className="mt-3 text-xs text-muted-foreground">
           Free dashboard tier. Cancel anytime.
         </p>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Curious what we store?{" "}
+          <Link to="/privacy" className="underline underline-offset-4 hover:text-foreground">
+            Read the privacy policy
+          </Link>
+          .
+        </p>
       </section>
+      </Reveal>
 
+
+      <Reveal delay={60}>
       <section className="mt-16">
+
         <h2 className="px-1 text-sm font-medium uppercase tracking-[0.18em] text-muted-foreground">
           What you get
         </h2>
@@ -171,9 +219,12 @@ function LandingPage() {
           ))}
         </div>
       </section>
+      </Reveal>
 
+      <Reveal delay={60}>
       <section className="mt-16 grid gap-4 sm:grid-cols-3">
         {[
+
           {
             step: "1",
             title: "Create your account",
@@ -199,8 +250,11 @@ function LandingPage() {
           </article>
         ))}
       </section>
+      </Reveal>
 
+      <Reveal delay={60}>
       <section className="glass-panel-strong mt-16 flex flex-col items-center gap-4 p-8 text-center">
+
         <h2 className="text-2xl font-semibold tracking-tight">
           Free tools while you're here
         </h2>
@@ -229,6 +283,10 @@ function LandingPage() {
           </Link>
         </div>
       </section>
+      </Reveal>
+      </div>
     </div>
   );
+
+
 }
