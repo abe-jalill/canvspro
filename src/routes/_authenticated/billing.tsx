@@ -1,11 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
 import { GlassCard } from "@/components/glass-card";
-import { PaymentTestModeBanner } from "@/components/payment-test-mode-banner";
-import { StripeEmbeddedCheckoutForm } from "@/components/stripe-embedded-checkout";
+import { isPaymentsConfigured } from "@/lib/stripe";
 import { useSubscription } from "@/lib/subscription";
-import { CANVAS_PRO_PRICE_ID, getStripeEnvironment } from "@/lib/stripe";
-import { createPortalSession } from "@/utils/payments.functions";
 
 export const Route = createFileRoute("/_authenticated/billing")({
   head: () => ({
@@ -38,28 +34,7 @@ const FEATURES = [
 
 function BillingPage() {
   const { subscription, isActive, isLoading } = useSubscription();
-  const [showCheckout, setShowCheckout] = useState(false);
-  const [status, setStatus] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  async function openPortal() {
-    setStatus(null);
-    setBusy(true);
-    try {
-      const result = await createPortalSession({
-        data: {
-          returnUrl: window.location.href,
-          environment: getStripeEnvironment(),
-        },
-      });
-      if ("error" in result) throw new Error(result.error);
-      window.open(result.url, "_blank", "noopener,noreferrer");
-    } catch (err) {
-      setStatus(err instanceof Error ? err.message : "Could not open the billing portal.");
-    } finally {
-      setBusy(false);
-    }
-  }
+  const configured = isPaymentsConfigured();
 
   const renews = subscription?.current_period_end
     ? new Date(subscription.current_period_end).toLocaleDateString(undefined, {
@@ -78,8 +53,6 @@ function BillingPage() {
         </p>
       </header>
 
-      <PaymentTestModeBanner />
-
       <GlassCard
         title="Canvas Pro"
         subtitle={isActive ? "Your subscription is active." : "$2.99 / month"}
@@ -93,6 +66,13 @@ function BillingPage() {
 
           {isLoading ? (
             <p className="text-sm text-muted-foreground">Loading your plan…</p>
+          ) : !configured ? (
+            <div className="rounded-xl border border-foreground/10 bg-foreground/[0.03] p-4">
+              <p className="text-sm text-foreground/90">
+                Payments are being reset. The new checkout setup will appear here once the
+                Stripe integration is re-enabled.
+              </p>
+            </div>
           ) : isActive ? (
             <div className="flex flex-col gap-3">
               <p className="text-sm text-muted-foreground">
@@ -103,32 +83,17 @@ function BillingPage() {
                     : ` — renews ${renews}`
                   : ""}
               </p>
-              <button
-                onClick={openPortal}
-                disabled={busy}
-                className="glass-hover min-h-11 w-full rounded-xl bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-60 sm:w-auto"
-              >
-                {busy ? "Opening…" : "Manage subscription"}
-              </button>
               <p className="text-xs text-muted-foreground">
-                The billing portal opens in a new tab.
+                Manage your subscription from the billing portal (available once checkout is
+                wired up).
               </p>
             </div>
-          ) : showCheckout ? (
-            <StripeEmbeddedCheckoutForm
-              priceId={CANVAS_PRO_PRICE_ID}
-              returnUrl={`${window.location.origin}/checkout/return?session_id={CHECKOUT_SESSION_ID}`}
-            />
           ) : (
-            <button
-              onClick={() => setShowCheckout(true)}
-              className="glass-hover min-h-11 w-full rounded-xl bg-foreground px-4 text-sm font-semibold text-background sm:w-auto"
-            >
-              Subscribe — $2.99/month
-            </button>
+            <p className="text-sm text-muted-foreground">
+              Subscribe to unlock every Pro feature. The checkout form will be restored after
+              the new product is created.
+            </p>
           )}
-
-          {status && <p className="text-sm text-foreground/80">{status}</p>}
         </div>
       </GlassCard>
     </div>
