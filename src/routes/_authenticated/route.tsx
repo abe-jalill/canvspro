@@ -39,7 +39,9 @@ function AuthenticatedLayout() {
           <div className="mb-2 hidden justify-end md:flex">
             {isPro && <NotificationCenter />}
           </div>
+          <PastDueBanner />
           <CanvasKeyBanner />
+
           <CanvasKeyGate>
             <ClassNamesGate>
               <ProGate>
