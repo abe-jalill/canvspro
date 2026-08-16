@@ -4,7 +4,9 @@ import { AppSidebar, MobileNav } from "@/components/app-sidebar";
 import { CanvasKeyBanner } from "@/components/canvas-key-banner";
 import { CanvasKeyGate } from "@/components/canvas-key-gate";
 import { ClassNamesGate } from "@/components/class-names-editor";
+import { PastDueBanner } from "@/components/past-due-banner";
 import { ProGate } from "@/components/pro-gate";
+
 import { useSubscription } from "@/lib/subscription";
 import { NotificationCenter } from "@/components/notification-center";
 import { useNotificationEngine } from "@/hooks/use-notification-engine";
@@ -39,7 +41,9 @@ function AuthenticatedLayout() {
           <div className="mb-2 hidden justify-end md:flex">
             {isPro && <NotificationCenter />}
           </div>
+          <PastDueBanner />
           <CanvasKeyBanner />
+
           <CanvasKeyGate>
             <ClassNamesGate>
               <ProGate>
