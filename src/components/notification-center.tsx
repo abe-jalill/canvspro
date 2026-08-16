@@ -51,7 +51,14 @@ export function NotificationCenter({ className }: { className?: string }) {
       </button>
 
       {open && (
-        <div className="glass-panel-strong absolute right-0 z-50 mt-2 w-[min(22rem,calc(100vw-2rem))] overflow-hidden p-2">
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-background/60 sm:hidden"
+            aria-hidden="true"
+            onClick={() => setOpen(false)}
+          />
+          <div className="glass-panel-strong fixed inset-x-3 top-[5.25rem] z-50 overflow-hidden bg-background/95 p-2 shadow-2xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[22rem] sm:bg-transparent">
+
           <div className="flex items-center justify-between gap-2 px-2 py-1.5">
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               Notifications
