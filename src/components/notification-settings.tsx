@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { DUE_WINDOWS, useNotificationPrefs } from "@/lib/notification-prefs";
+import { DUE_WINDOWS, formatHour, useNotificationPrefs } from "@/lib/notification-prefs";
+
 
 function Toggle({
   label,
