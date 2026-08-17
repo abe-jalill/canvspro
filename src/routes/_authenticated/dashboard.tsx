@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { useDashboardLayout, type WidgetId } from "@/lib/dashboard-layout";
 import { WIDGETS, LockedWidget } from "@/components/widgets/dashboard-widgets";
 import { useSubscription } from "@/lib/subscription";
+import { DataFreshness } from "@/components/data-freshness";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
