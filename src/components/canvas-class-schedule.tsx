@@ -96,10 +96,16 @@ export default function CanvasClassSchedule() {
           <Skeleton />
         </GlassCard>
       ) : isError ? (
-        <ErrorState
-          message={error instanceof Error ? error.message : "Couldn't load"}
-          onRetry={() => void refetch()}
-        />
+        <div className="space-y-3">
+          <ErrorState message={error instanceof Error ? error.message : "Couldn't load"} />
+          <button
+            type="button"
+            onClick={() => void refetch()}
+            className="glass-inset rounded-full px-4 py-2 text-sm font-medium"
+          >
+            Retry
+          </button>
+        </div>
       ) : sessions.length === 0 ? (
         <div className="glass-panel p-6 text-sm text-muted-foreground">
           Canvas hasn't published any recurring class meeting times for your
