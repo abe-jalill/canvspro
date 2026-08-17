@@ -12,8 +12,8 @@ export interface ClassNickname {
 export const nicknamesQueryKey = ["class-nicknames"] as const;
 
 export async function fetchNicknames(): Promise<ClassNickname[]> {
-  const { data: userData } = await supabase.auth.getUser();
-  const user = userData.user;
+  const { data: sessionData } = await supabase.auth.getSession();
+  const user = sessionData.session?.user;
   if (!user) return [];
   const { data, error } = await supabase
     .from("class_nicknames")
