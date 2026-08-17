@@ -27,7 +27,7 @@ export const announcementsQO = queryOptions({
 });
 
 export const eventsQO = queryOptions({
-  queryKey: ["canvas", "events"],
+  queryKey: ["canvas", "calendar"],
   queryFn: () => getCalendarEventsFn(),
   staleTime: STALE,
 });
