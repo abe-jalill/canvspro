@@ -28,8 +28,8 @@ function ClassSchedulePage() {
 
   useEffect(() => {
     let active = true;
-    supabase.auth.getUser().then(({ data }) => {
-      if (active) setIsOwner(data.user?.id === OWNER_USER_ID);
+    supabase.auth.getSession().then(({ data }) => {
+      if (active) setIsOwner(data.session?.user?.id === OWNER_USER_ID);
     });
     return () => {
       active = false;

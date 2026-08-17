@@ -45,9 +45,12 @@ export function useSubscription() {
   const query = useQuery({
     queryKey: subscriptionQueryKey,
     queryFn: async (): Promise<SubscriptionRow | null> => {
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user) return null;
-      const email = userData.user.email?.toLowerCase() ?? "";
+      // getSession() is local (no auth round-trip) and is only used to read
+      // identity for a query the database re-checks under RLS anyway.
+      const { data: sessionData } = await supabase.auth.getSession();
+      const sessionUser = sessionData.session?.user;
+      if (!sessionUser) return null;
+      const email = sessionUser.email?.toLowerCase() ?? "";
       if (COMP_EMAILS.includes(email)) {
         return {
           status: "active",
@@ -61,7 +64,7 @@ export function useSubscription() {
       const { data, error } = await supabase
         .from("subscriptions")
         .select("status, price_id, current_period_end, cancel_at_period_end, updated_at")
-        .eq("user_id", userData.user.id)
+        .eq("user_id", sessionUser.id)
         .eq("environment", getStripeEnvironment())
         .order("created_at", { ascending: false })
         .limit(1)
