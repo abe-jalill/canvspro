@@ -60,8 +60,10 @@ export function useSaveCanvasKey() {
       return key;
     },
     onSuccess: async () => {
+      resetCanvasKeyCheck();
       await qc.invalidateQueries({ queryKey: canvasKeyQueryKey });
       await qc.invalidateQueries({ queryKey: ["canvas"] });
     },
+
   });
 }
