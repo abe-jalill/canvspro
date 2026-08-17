@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { useDashboardLayout, type WidgetId } from "@/lib/dashboard-layout";
 import { WIDGETS, LockedWidget } from "@/components/widgets/dashboard-widgets";
 import { useSubscription } from "@/lib/subscription";
+import { DataFreshness } from "@/components/data-freshness";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
@@ -38,7 +39,7 @@ function Dashboard() {
 
   return (
     <div className="w-full min-w-0 space-y-6">
-      <header className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 px-1 pt-2">
+      <header className="flex flex-wrap items-end justify-between gap-3 px-1 pt-2">
         <div className="min-w-0">
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
             Overview
@@ -47,14 +48,17 @@ function Dashboard() {
             Dashboard
           </h1>
         </div>
-        <button
-          onClick={() => setCustomizing((v) => !v)}
-          aria-pressed={customizing}
-          className="glass-inset glass-hover inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-3 text-sm font-medium"
-        >
-          <SlidersHorizontal className="h-4 w-4" />
-          {customizing ? "Done" : "Customize"}
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <DataFreshness />
+          <button
+            onClick={() => setCustomizing((v) => !v)}
+            aria-pressed={customizing}
+            className="glass-inset glass-hover inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-3 text-sm font-medium"
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            {customizing ? "Done" : "Customize"}
+          </button>
+        </div>
       </header>
 
 

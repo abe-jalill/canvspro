@@ -95,6 +95,11 @@
   --glass-strong: 0 0% 15% / 0.75;
   --glass-border: 0 0% 100% / 0.1;
 
+  /* Freshness status dots */
+  --status-fresh: 152 62% 48%;
+  --status-aging: 32 90% 55%;
+  --status-stale: 0 72% 58%;
+
   --sidebar: 0 0% 9% / 0.7;
   --sidebar-foreground: 0 0% 95%;
   --sidebar-primary: 0 0% 98%;
@@ -171,6 +176,9 @@
   --color-glass: hsl(var(--glass));
   --color-glass-border: hsl(var(--glass-border));
   --color-glass-strong: hsl(var(--glass-strong));
+  --color-status-fresh: hsl(var(--status-fresh));
+  --color-status-aging: hsl(var(--status-aging));
+  --color-status-stale: hsl(var(--status-stale));
 }
 
 @layer base {
