@@ -13,7 +13,7 @@ import { useSubscription } from "@/lib/subscription";
 import { NotificationCenter } from "@/components/notification-center";
 import { useNotificationEngine } from "@/hooks/use-notification-engine";
 import { setUserScope } from "@/lib/user-scope";
-import { allCanvasQueries } from "@/lib/canvas-queries";
+import { prefetchAllCanvas } from "@/lib/canvas-queries";
 import { hydrateCanvasCache, persistCanvasCache } from "@/lib/canvas-cache";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -46,9 +46,7 @@ function AuthenticatedLayout() {
   useEffect(() => {
     hydrateCanvasCache(qc);
     const stop = persistCanvasCache(qc);
-    for (const qo of allCanvasQueries) {
-      void qc.prefetchQuery(qo);
-    }
+    prefetchAllCanvas(qc);
     return stop;
   }, [qc]);
 

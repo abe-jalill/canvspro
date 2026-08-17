@@ -32,9 +32,14 @@ export const eventsQO = queryOptions({
   staleTime: STALE,
 });
 
-export const allCanvasQueries = [
-  coursesQO,
-  assignmentsQO,
-  announcementsQO,
-  eventsQO,
-];
+export function prefetchAllCanvas(qc: {
+  prefetchQuery: (options: never) => Promise<void>;
+}) {
+  const client = qc as unknown as {
+    prefetchQuery: (o: unknown) => Promise<void>;
+  };
+  void client.prefetchQuery(coursesQO);
+  void client.prefetchQuery(assignmentsQO);
+  void client.prefetchQuery(announcementsQO);
+  void client.prefetchQuery(eventsQO);
+}
