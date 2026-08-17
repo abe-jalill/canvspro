@@ -13,6 +13,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from "@/integrations/supabase/client";
 import { setUserScope } from "@/lib/user-scope";
 import { SiteFooter } from "@/components/site-footer";
+import { PageTransition } from "@/components/page-transition";
 
 
 function NotFoundComponent() {
@@ -138,7 +139,9 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
+      <PageTransition>
+        <Outlet />
+      </PageTransition>
       <SiteFooter />
     </QueryClientProvider>
   );

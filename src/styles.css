@@ -371,3 +371,44 @@
   .rise-in, .scroll-hint { animation: none; opacity: 1; }
   .reveal { opacity: 1; transform: none; transition: none; }
 }
+
+/* Route-change transition — same curve as the home page hero */
+@keyframes page-enter {
+  from { opacity: 0; transform: translateY(14px); filter: blur(5px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+.page-transition {
+  animation: page-enter 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Fluid press/hover feel on every interactive control */
+button,
+a,
+[role="tab"],
+[role="button"],
+summary,
+select,
+input[type="submit"],
+input[type="button"] {
+  transition:
+    transform 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    color 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+button:active,
+a:active,
+[role="tab"]:active,
+[role="button"]:active,
+input[type="submit"]:active,
+input[type="button"]:active {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-transition { animation: none; }
+  button, a, [role="tab"], [role="button"], summary, select { transition: none; }
+  button:active, a:active, [role="tab"]:active, [role="button"]:active { transform: none; }
+}
