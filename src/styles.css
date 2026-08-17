@@ -171,6 +171,9 @@
   --color-glass: hsl(var(--glass));
   --color-glass-border: hsl(var(--glass-border));
   --color-glass-strong: hsl(var(--glass-strong));
+  --color-status-fresh: hsl(var(--status-fresh));
+  --color-status-aging: hsl(var(--status-aging));
+  --color-status-stale: hsl(var(--status-stale));
 }
 
 @layer base {
