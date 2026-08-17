@@ -3,6 +3,7 @@ import {
   getAllAssignmentsFn,
   getAnnouncementsFn,
   getCalendarEventsFn,
+  getClassScheduleFn,
   getCoursesFn,
 } from "@/lib/canvas.functions";
 
@@ -29,6 +30,12 @@ export const announcementsQO = queryOptions({
 export const eventsQO = queryOptions({
   queryKey: ["canvas", "calendar"],
   queryFn: () => getCalendarEventsFn(),
+  staleTime: STALE,
+});
+
+export const classScheduleQO = queryOptions({
+  queryKey: ["canvas", "class-schedule"],
+  queryFn: () => getClassScheduleFn(),
   staleTime: STALE,
 });
 
