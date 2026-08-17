@@ -245,115 +245,6 @@ async function handleCalendar(creds: Creds, daysAhead = 14) {
   });
 }
 
-// Derives the recurring weekly class timetable from Canvas calendar events.
-// Canvas stores each class meeting as its own event, so we group events by
-// (course, weekday, start/end time) and treat repeated groups as weekly slots.
-const DAY_CODES = ["U", "M", "T", "W", "R", "F", "S"] as const;
-
-interface DerivedSession {
-  key: string;
-  course_id: number;
-  course_name: string;
-  course_code: string;
-  title: string;
-  location: string | null;
-  days: string[];
-  startMinutes: number;
-  endMinutes: number;
-  occurrences: number;
-  recurring: boolean;
-  firstDate: string;
-  lastDate: string;
-}
-
-async function handleClassSchedule(creds: Creds, weeksAhead = 6) {
-  const courses = await fetchActiveCourses(creds);
-  if (courses.length === 0) return { sessions: [], generated_at: new Date().toISOString() };
-
-  const start = new Date();
-  start.setDate(start.getDate() - 7);
-  const end = new Date();
-  end.setDate(end.getDate() + weeksAhead * 7);
-
-  const params = new URLSearchParams();
-  courses.forEach((c) => params.append("context_codes[]", `course_${c.id}`));
-  params.set("start_date", start.toISOString());
-  params.set("end_date", end.toISOString());
-  params.set("per_page", "100");
-  params.set("type", "event");
-
-  const events = await canvasFetch<CanvasCalendarEvent[]>(
-    creds,
-    `/calendar_events?${params.toString()}`,
-  );
-
-  const courseById = new Map(courses.map((c) => [c.id, c]));
-  type Group = DerivedSession & { dayCounts: Record<string, number> };
-  const groups = new Map<string, Group>();
-
-  for (const e of events) {
-    if (!e.start_at || !e.end_at) continue;
-    const id = Number((e.context_code ?? "").replace("course_", ""));
-    if (!Number.isFinite(id) || EXCLUDED_COURSE_IDS.has(id)) continue;
-    const course = courseById.get(id);
-    if (!course) continue;
-
-    const s = new Date(e.start_at);
-    const en = new Date(e.end_at);
-    const startMinutes = s.getHours() * 60 + s.getMinutes();
-    const endMinutes = en.getHours() * 60 + en.getMinutes();
-    if (endMinutes <= startMinutes) continue;
-    const day = DAY_CODES[s.getDay()];
-    const title = (e.title ?? "").trim() || course.name;
-    const key = `${id}|${title.toLowerCase()}|${startMinutes}|${endMinutes}`;
-
-    const existing = groups.get(key);
-    if (existing) {
-      existing.occurrences += 1;
-      existing.dayCounts[day] = (existing.dayCounts[day] ?? 0) + 1;
-      if (e.start_at < existing.firstDate) existing.firstDate = e.start_at;
-      if (e.start_at > existing.lastDate) existing.lastDate = e.start_at;
-      if (!existing.location && e.location_name) existing.location = e.location_name;
-    } else {
-      groups.set(key, {
-        key,
-        course_id: id,
-        course_name: course.name,
-        course_code: course.course_code,
-        title,
-        location: e.location_name ?? null,
-        days: [],
-        startMinutes,
-        endMinutes,
-        occurrences: 1,
-        recurring: false,
-        firstDate: e.start_at,
-        lastDate: e.start_at,
-        dayCounts: { [day]: 1 },
-      });
-    }
-  }
-
-  const all: DerivedSession[] = Array.from(groups.values()).map((g) => {
-    const days = DAY_CODES.filter((d) => (g.dayCounts[d] ?? 0) > 0) as unknown as string[];
-    const { dayCounts: _drop, ...rest } = g;
-    return { ...rest, days, recurring: g.occurrences > 1 };
-  });
-
-  // Prefer clearly recurring slots; fall back to one-offs for courses that
-  // have no repeating meetings so the page is never empty for them.
-  const recurringCourseIds = new Set(
-    all.filter((s) => s.recurring).map((s) => s.course_id),
-  );
-  const sessions = all
-    .filter((s) => s.recurring || !recurringCourseIds.has(s.course_id))
-    .sort((a, b) => a.startMinutes - b.startMinutes);
-
-  return { sessions, generated_at: new Date().toISOString() };
-}
-
-
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: CORS_HEADERS });
@@ -390,10 +281,6 @@ Deno.serve(async (req) => {
       case "calendar":
         data = await handleCalendar(creds, days ?? 14);
         break;
-      case "class_schedule":
-        data = await handleClassSchedule(creds);
-        break;
-
       default:
         return new Response(
           JSON.stringify({ error: `Unknown resource: ${resource}` }),

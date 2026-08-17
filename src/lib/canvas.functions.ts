@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchHasCanvasKey } from "@/lib/user-settings";
 
 async function invokeCanvas<T>(
-  resource: "courses" | "assignments" | "announcements" | "calendar" | "class_schedule",
+  resource: "courses" | "assignments" | "announcements" | "calendar",
   extra?: Record<string, unknown>,
 ): Promise<T> {
   // No key saved yet → render blank states instead of erroring.
@@ -105,30 +105,3 @@ export const getAnnouncementsFn = () =>
   invokeCanvas<AnnouncementItem[]>("announcements", { days: 30 });
 export const getCalendarEventsFn = () =>
   invokeCanvas<CalendarEventItem[]>("calendar", { days: 14 });
-
-export interface ClassScheduleSession {
-  key: string;
-  course_id: number;
-  course_name: string;
-  course_code: string;
-  title: string;
-  location: string | null;
-  days: string[];
-  startMinutes: number;
-  endMinutes: number;
-  occurrences: number;
-  recurring: boolean;
-  firstDate: string;
-  lastDate: string;
-}
-
-export interface ClassScheduleResult {
-  sessions: ClassScheduleSession[];
-  generated_at: string;
-}
-
-export const getClassScheduleFn = async (): Promise<ClassScheduleResult> => {
-  const res = await invokeCanvas<ClassScheduleResult | unknown[]>("class_schedule");
-  if (Array.isArray(res)) return { sessions: [], generated_at: new Date().toISOString() };
-  return res;
-};
