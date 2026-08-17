@@ -64,7 +64,7 @@ export function useSubscription() {
       const { data, error } = await supabase
         .from("subscriptions")
         .select("status, price_id, current_period_end, cancel_at_period_end, updated_at")
-        .eq("user_id", userData.user.id)
+        .eq("user_id", sessionUser.id)
         .eq("environment", getStripeEnvironment())
         .order("created_at", { ascending: false })
         .limit(1)
