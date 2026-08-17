@@ -39,6 +39,20 @@ export const Route = createFileRoute("/_authenticated")({
 function AuthenticatedLayout() {
   const { isActive: isPro } = useSubscription();
   useNotificationEngine(isPro);
+  const qc = useQueryClient();
+
+  // Paint from the last known payloads immediately, then warm every Canvas
+  // query once per session so switching pages never waits on the network.
+  useEffect(() => {
+    hydrateCanvasCache(qc);
+    const stop = persistCanvasCache(qc);
+    for (const qo of allCanvasQueries) {
+      void qc.prefetchQuery(qo);
+    }
+    return stop;
+  }, [qc]);
+
+
   return (
     <div className="min-h-screen w-full overflow-x-hidden">
       <AppSidebar />
