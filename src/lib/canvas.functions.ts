@@ -105,3 +105,8 @@ export const getAnnouncementsFn = () =>
   invokeCanvas<AnnouncementItem[]>("announcements", { days: 30 });
 export const getCalendarEventsFn = () =>
   invokeCanvas<CalendarEventItem[]>("calendar", { days: 14 });
+
+// Longer window than the calendar page: enough weeks to detect the recurring
+// weekly class meeting pattern.
+export const getClassMeetingsFn = () =>
+  invokeCanvas<CalendarEventItem[]>("calendar", { days: 28 });
