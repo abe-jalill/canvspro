@@ -1,4 +1,6 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppSidebar, MobileNav } from "@/components/app-sidebar";
 import { CanvasKeyBanner } from "@/components/canvas-key-banner";
@@ -11,21 +13,27 @@ import { useSubscription } from "@/lib/subscription";
 import { NotificationCenter } from "@/components/notification-center";
 import { useNotificationEngine } from "@/hooks/use-notification-engine";
 import { setUserScope } from "@/lib/user-scope";
+import { allCanvasQueries } from "@/lib/canvas-queries";
+import { hydrateCanvasCache, persistCanvasCache } from "@/lib/canvas-cache";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async () => {
-    const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) {
+    // getSession() reads the locally cached session (and refreshes it only
+    // when expired), so navigation doesn't wait on a network round-trip.
+    const { data, error } = await supabase.auth.getSession();
+    const user = data.session?.user;
+    if (error || !user) {
       setUserScope(null);
       throw redirect({ to: "/auth" });
     }
     // Scope all browser-stored state to this account.
-    setUserScope(data.user.id);
-    return { user: data.user };
+    setUserScope(user.id);
+    return { user };
   },
   component: AuthenticatedLayout,
 });
+
 
 
 function AuthenticatedLayout() {
