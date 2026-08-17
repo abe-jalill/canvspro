@@ -6,14 +6,33 @@ export const canvasKeyQueryKey = ["user-settings", "canvas-key"] as const;
 /**
  * The Canvas token is write-only from the browser: we only ever ask the
  * backend whether one is saved, never for the value itself.
+ *
+ * The answer is memoized for a minute so the four Canvas queries don't each
+ * pay for an auth round-trip plus an RPC on every page view.
  */
-export async function fetchHasCanvasKey(): Promise<boolean> {
-  const { data: userData } = await supabase.auth.getUser();
-  if (!userData.user) return false;
-  const { data, error } = await supabase.rpc("has_canvas_key");
-  if (error) throw new Error(error.message);
-  return data === true;
+let keyCheck: { at: number; promise: Promise<boolean> } | null = null;
+const KEY_CHECK_TTL = 60_000;
+
+export function resetCanvasKeyCheck() {
+  keyCheck = null;
 }
+
+export async function fetchHasCanvasKey(): Promise<boolean> {
+  if (keyCheck && Date.now() - keyCheck.at < KEY_CHECK_TTL) return keyCheck.promise;
+  const promise = (async () => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session) return false;
+    const { data, error } = await supabase.rpc("has_canvas_key");
+    if (error) throw new Error(error.message);
+    return data === true;
+  })();
+  keyCheck = { at: Date.now(), promise };
+  promise.catch(() => {
+    keyCheck = null;
+  });
+  return promise;
+}
+
 
 export function useCanvasKey() {
   return useQuery({
