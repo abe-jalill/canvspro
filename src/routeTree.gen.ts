@@ -29,6 +29,7 @@ import { Route as AuthenticatedClassScheduleRouteImport } from './routes/_authen
 import { Route as AuthenticatedBillingRouteImport } from './routes/_authenticated/billing'
 import { Route as AuthenticatedAssignmentsRouteImport } from './routes/_authenticated/assignments'
 import { Route as AuthenticatedAnnouncementsRouteImport } from './routes/_authenticated/announcements'
+import { Route as AuthenticatedCheckoutIndexRouteImport } from './routes/_authenticated/checkout.index'
 import { Route as AuthenticatedCheckoutReturnRouteImport } from './routes/_authenticated/checkout.return'
 import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
 import { Route as LovableEmailAuthWebhookRouteImport } from './routes/lovable/email/auth/webhook'
@@ -138,6 +139,12 @@ const AuthenticatedAnnouncementsRoute =
     path: '/announcements',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedCheckoutIndexRoute =
+  AuthenticatedCheckoutIndexRouteImport.update({
+    id: '/checkout/',
+    path: '/checkout/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedCheckoutReturnRoute =
   AuthenticatedCheckoutReturnRouteImport.update({
     id: '/checkout/return',
@@ -188,6 +195,7 @@ export interface FileRoutesByFullPath {
   '/schedule': typeof AuthenticatedScheduleRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/checkout/return': typeof AuthenticatedCheckoutReturnRoute
+  '/checkout/': typeof AuthenticatedCheckoutIndexRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
@@ -214,6 +222,7 @@ export interface FileRoutesByTo {
   '/schedule': typeof AuthenticatedScheduleRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/checkout/return': typeof AuthenticatedCheckoutReturnRoute
+  '/checkout': typeof AuthenticatedCheckoutIndexRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
@@ -242,6 +251,7 @@ export interface FileRoutesById {
   '/_authenticated/schedule': typeof AuthenticatedScheduleRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/checkout/return': typeof AuthenticatedCheckoutReturnRoute
+  '/_authenticated/checkout/': typeof AuthenticatedCheckoutIndexRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
@@ -270,6 +280,7 @@ export interface FileRouteTypes {
     | '/schedule'
     | '/settings'
     | '/checkout/return'
+    | '/checkout/'
     | '/api/public/payments/webhook'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
@@ -296,6 +307,7 @@ export interface FileRouteTypes {
     | '/schedule'
     | '/settings'
     | '/checkout/return'
+    | '/checkout'
     | '/api/public/payments/webhook'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
@@ -323,6 +335,7 @@ export interface FileRouteTypes {
     | '/_authenticated/schedule'
     | '/_authenticated/settings'
     | '/_authenticated/checkout/return'
+    | '/_authenticated/checkout/'
     | '/api/public/payments/webhook'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
@@ -488,6 +501,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAnnouncementsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/checkout/': {
+      id: '/_authenticated/checkout/'
+      path: '/checkout'
+      fullPath: '/checkout/'
+      preLoaderRoute: typeof AuthenticatedCheckoutIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/checkout/return': {
       id: '/_authenticated/checkout/return'
       path: '/checkout/return'
@@ -538,6 +558,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedScheduleRoute: typeof AuthenticatedScheduleRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedCheckoutReturnRoute: typeof AuthenticatedCheckoutReturnRoute
+  AuthenticatedCheckoutIndexRoute: typeof AuthenticatedCheckoutIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -552,6 +573,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedScheduleRoute: AuthenticatedScheduleRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedCheckoutReturnRoute: AuthenticatedCheckoutReturnRoute,
+  AuthenticatedCheckoutIndexRoute: AuthenticatedCheckoutIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
