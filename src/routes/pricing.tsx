@@ -92,16 +92,26 @@ function PricingPage() {
           </div>
 
           <FeatureList items={PRO_FEATURES} />
-          <Link
-            to="/checkout"
-            search={{ plan: "pro_monthly" as const }}
-            className="glass-hover mt-auto inline-flex min-h-11 items-center justify-center rounded-xl bg-foreground px-4 text-sm font-semibold text-background"
-          >
-            Buy now
-          </Link>
+          <div className="mt-auto flex flex-col gap-2">
+            <Link
+              to="/checkout"
+              search={{ plan: "pro_monthly" as const }}
+              className="glass-hover inline-flex min-h-11 items-center justify-center rounded-xl bg-foreground px-4 text-sm font-semibold text-background"
+            >
+              Buy monthly — $2.99/mo
+            </Link>
+            <Link
+              to="/checkout"
+              search={{ plan: "pro_yearly" as const }}
+              className="glass-hover glass-inset inline-flex min-h-11 items-center justify-center rounded-xl px-4 text-center text-sm font-medium"
+            >
+              Buy yearly — $24.99/yr (about 2 months free)
+            </Link>
+          </div>
           <p className="text-xs text-muted-foreground">
             Sign in first — checkout opens securely on the billing page.
           </p>
+
         </section>
       </div>
     </div>

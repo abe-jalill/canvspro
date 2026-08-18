@@ -190,8 +190,13 @@ function LandingPage() {
           </Link>
         </div>
         <p className="mt-3 text-xs text-muted-foreground">
-          Free dashboard tier. Cancel anytime.
+          Free dashboard tier. Cancel anytime. Or save with{" "}
+          <Link to="/pricing" className="underline underline-offset-4 hover:text-foreground">
+            $24.99/year — about 2 months free
+          </Link>
+          .
         </p>
+
         <p className="mt-2 text-xs text-muted-foreground">
           Curious what we store?{" "}
           <Link to="/privacy" className="underline underline-offset-4 hover:text-foreground">
