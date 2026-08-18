@@ -48,23 +48,30 @@ function CheckoutPage() {
 
       <GlassCard title="Your plan" subtitle={`${plan.price} ${plan.cadence}`}>
         <div className="flex w-full flex-col gap-4">
-          <div className="flex flex-wrap gap-2">
+          <div className="grid gap-2 sm:grid-cols-2">
             {CANVAS_PRO_PLANS.map((p) => (
               <Link
                 key={p.priceId}
                 to="/checkout"
                 search={{ plan: p.priceId }}
                 aria-current={p.priceId === plan.priceId ? "true" : undefined}
-                className={`flex min-h-11 items-center rounded-xl border px-4 text-sm transition ${
+                className={`flex min-h-16 flex-col items-start justify-center rounded-xl border px-4 py-3 text-sm transition ${
                   p.priceId === plan.priceId
-                    ? "border-foreground/40 bg-foreground/10 font-medium"
+                    ? "border-foreground/50 bg-foreground/10 font-medium ring-1 ring-foreground/20"
                     : "border-foreground/10 bg-foreground/[0.03] hover:bg-foreground/[0.06]"
                 }`}
               >
-                {p.label} — {p.price} {p.cadence}
+                <span className="font-medium">{p.label}</span>
+                <span className="text-muted-foreground">
+                  {p.price} {p.cadence}
+                </span>
+                {p.note ? (
+                  <span className="mt-0.5 text-xs text-muted-foreground">{p.note}</span>
+                ) : null}
               </Link>
             ))}
           </div>
+
 
           {configured ? (
             <StripeEmbeddedCheckout
