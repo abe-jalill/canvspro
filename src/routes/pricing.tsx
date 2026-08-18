@@ -93,10 +93,11 @@ function PricingPage() {
 
           <FeatureList items={PRO_FEATURES} />
           <Link
-            to="/billing"
+            to="/checkout"
+            search={{ plan: "pro_monthly" as const }}
             className="glass-hover mt-auto inline-flex min-h-11 items-center justify-center rounded-xl bg-foreground px-4 text-sm font-semibold text-background"
           >
-            Checkout
+            Buy now
           </Link>
           <p className="text-xs text-muted-foreground">
             Sign in first — checkout opens securely on the billing page.
