@@ -125,10 +125,21 @@ function BillingPage() {
                   {portalBusy ? "Opening…" : "Manage subscription"}
                 </button>
               ) : null}
+              {subscription?.price_id === "pro_monthly" ? (
+                <button
+                  type="button"
+                  onClick={openPortal}
+                  disabled={portalBusy}
+                  className="min-h-11 w-full rounded-xl border border-foreground/15 px-4 text-sm font-medium transition hover:bg-foreground/[0.06] disabled:opacity-60 sm:w-auto"
+                >
+                  Switch to yearly — $24.99/yr (about 2 months free)
+                </button>
+              ) : null}
               <p className="text-xs text-muted-foreground">
                 Switching between monthly and yearly, or canceling, happens in the billing
                 portal. Canceling keeps Pro until the end of the period you already paid for.
               </p>
+
             </div>
           ) : checkoutOpen ? (
             <div className="flex flex-col gap-3">
