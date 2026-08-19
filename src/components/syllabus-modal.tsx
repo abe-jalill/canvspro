@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
+import DOMPurify from "dompurify";
 import { X } from "lucide-react";
 
 interface SyllabusModalProps {
