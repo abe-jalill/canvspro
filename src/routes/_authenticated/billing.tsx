@@ -171,13 +171,13 @@ function BillingPage() {
                   );
                 })}
               </div>
-              <button
-                type="button"
-                onClick={() => setCheckoutOpen(true)}
-                className="min-h-11 w-full rounded-xl bg-foreground px-4 text-sm font-semibold text-background transition hover:opacity-90 sm:w-auto"
+              <Link
+                to="/checkout"
+                search={{ plan: selectedPlan.priceId }}
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-foreground px-4 text-sm font-semibold text-background transition hover:opacity-90 sm:w-auto"
               >
                 Subscribe — {selectedPlan.price} {selectedPlan.cadence}
-              </button>
+              </Link>
             </div>
           )}
         </div>
