@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { GlassCard } from "@/components/glass-card";
 import { PaymentTestModeBanner } from "@/components/payment-test-mode-banner";
-import { StripeEmbeddedCheckout } from "@/components/stripe-embedded-checkout";
 import {
   CANVAS_PRO_PLANS,
   type CanvasProPlan,
