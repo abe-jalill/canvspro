@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { GlassCard } from "@/components/glass-card";
 import { PaymentTestModeBanner } from "@/components/payment-test-mode-banner";
-import { StripeEmbeddedCheckout } from "@/components/stripe-embedded-checkout";
 import {
   CANVAS_PRO_PLANS,
   type CanvasProPlan,
@@ -45,7 +44,7 @@ const FEATURES = [
 
 function BillingPage() {
   const { subscription, isActive, isLoading } = useSubscription();
-  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  
   const [selectedPlan, setSelectedPlan] = useState<CanvasProPlan>(CANVAS_PRO_PLANS[0]!);
 
   const [portalBusy, setPortalBusy] = useState(false);
@@ -141,20 +140,6 @@ function BillingPage() {
               </p>
 
             </div>
-          ) : checkoutOpen ? (
-            <div className="flex flex-col gap-3">
-              <StripeEmbeddedCheckout
-                priceId={selectedPlan.priceId}
-                returnUrl={`${window.location.origin}/checkout/return?session_id={CHECKOUT_SESSION_ID}`}
-              />
-              <button
-                type="button"
-                onClick={() => setCheckoutOpen(false)}
-                className="min-h-10 text-xs text-muted-foreground underline underline-offset-4"
-              >
-                Choose a different plan
-              </button>
-            </div>
           ) : (
             <div className="flex flex-col gap-3">
               <div className="grid gap-2 sm:grid-cols-2">
@@ -185,13 +170,13 @@ function BillingPage() {
                   );
                 })}
               </div>
-              <button
-                type="button"
-                onClick={() => setCheckoutOpen(true)}
-                className="min-h-11 w-full rounded-xl bg-foreground px-4 text-sm font-semibold text-background transition hover:opacity-90 sm:w-auto"
+              <Link
+                to="/checkout"
+                search={{ plan: selectedPlan.priceId }}
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-foreground px-4 text-sm font-semibold text-background transition hover:opacity-90 sm:w-auto"
               >
                 Subscribe — {selectedPlan.price} {selectedPlan.cadence}
-              </button>
+              </Link>
             </div>
           )}
         </div>
