@@ -44,7 +44,7 @@ const FEATURES = [
 
 function BillingPage() {
   const { subscription, isActive, isLoading } = useSubscription();
-  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  
   const [selectedPlan, setSelectedPlan] = useState<CanvasProPlan>(CANVAS_PRO_PLANS[0]!);
 
   const [portalBusy, setPortalBusy] = useState(false);
