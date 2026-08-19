@@ -63,10 +63,8 @@ export function SyllabusModal({ title, html, onClose }: SyllabusModalProps) {
           </button>
         </header>
         <div className="syllabus-body overflow-y-auto px-6 py-5 text-sm leading-relaxed">
-          <div
-            // Canvas returns sanitized HTML; render as-is inside a scoped container.
-            dangerouslySetInnerHTML={{ __html: html }}
-          />
+          {/* Canvas HTML is untrusted: sanitized with DOMPurify before render. */}
+          <div dangerouslySetInnerHTML={{ __html: safeHtml }} />
         </div>
       </div>
     </div>
