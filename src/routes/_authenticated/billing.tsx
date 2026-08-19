@@ -141,20 +141,6 @@ function BillingPage() {
               </p>
 
             </div>
-          ) : checkoutOpen ? (
-            <div className="flex flex-col gap-3">
-              <StripeEmbeddedCheckout
-                priceId={selectedPlan.priceId}
-                returnUrl={`${window.location.origin}/checkout/return?session_id={CHECKOUT_SESSION_ID}`}
-              />
-              <button
-                type="button"
-                onClick={() => setCheckoutOpen(false)}
-                className="min-h-10 text-xs text-muted-foreground underline underline-offset-4"
-              >
-                Choose a different plan
-              </button>
-            </div>
           ) : (
             <div className="flex flex-col gap-3">
               <div className="grid gap-2 sm:grid-cols-2">
