@@ -32,8 +32,11 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 function Dashboard() {
   const layout = useDashboardLayout();
   const { isActive: isPro } = useSubscription();
+  const navigate = useNavigate();
+  const router = useRouter();
   const [customizing, setCustomizing] = useState(false);
   const [dragId, setDragId] = useState<WidgetId | null>(null);
+
 
   const visible = layout.order.filter((id) => !layout.isHidden(id));
 
