@@ -11,7 +11,7 @@ export function PageTransition({ children }: { children: ReactNode }) {
   const { pathname, isLoading } = useRouterState({
     select: (s) => ({
       pathname: s.location.pathname,
-      isLoading: s.status === "pending" || s.isLoading || s.isTransitioning,
+      isLoading: s.status === "pending" || s.isLoading,
     }),
   });
   const ref = useRef<HTMLDivElement>(null);

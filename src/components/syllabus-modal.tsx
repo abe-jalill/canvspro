@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
+import DOMPurify from "dompurify";
 import { X } from "lucide-react";
 
 interface SyllabusModalProps {
@@ -8,6 +9,16 @@ interface SyllabusModalProps {
 }
 
 export function SyllabusModal({ title, html, onClose }: SyllabusModalProps) {
+  const safeHtml = useMemo(() => {
+    if (typeof window === "undefined") return "";
+    return DOMPurify.sanitize(html ?? "", {
+      USE_PROFILES: { html: true },
+      FORBID_TAGS: ["style", "form", "input", "button", "iframe", "object", "embed"],
+      FORBID_ATTR: ["style", "srcdoc", "formaction"],
+      ALLOW_DATA_ATTR: false,
+    });
+  }, [html]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -52,10 +63,8 @@ export function SyllabusModal({ title, html, onClose }: SyllabusModalProps) {
           </button>
         </header>
         <div className="syllabus-body overflow-y-auto px-6 py-5 text-sm leading-relaxed">
-          <div
-            // Canvas returns sanitized HTML; render as-is inside a scoped container.
-            dangerouslySetInnerHTML={{ __html: html }}
-          />
+          {/* Canvas HTML is untrusted: sanitized with DOMPurify before render. */}
+          <div dangerouslySetInnerHTML={{ __html: safeHtml }} />
         </div>
       </div>
     </div>
