@@ -74,6 +74,9 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
         ui_mode: "embedded_page",
         return_url: data.returnUrl,
         customer: customerId,
+        // Card only — keeps Link (and other wallets) out of the payment form
+        // so charges present as your own business, not LINK.COM*.
+        payment_method_types: ["card"],
         metadata: { userId },
         ...(isRecurring && { subscription_data: { metadata: { userId } } }),
       });
