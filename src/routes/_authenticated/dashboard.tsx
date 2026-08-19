@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { ChevronDown, ChevronUp, Eye, EyeOff, GripVertical, RotateCcw, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -32,8 +32,11 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 function Dashboard() {
   const layout = useDashboardLayout();
   const { isActive: isPro } = useSubscription();
+  const navigate = useNavigate();
+  const router = useRouter();
   const [customizing, setCustomizing] = useState(false);
   const [dragId, setDragId] = useState<WidgetId | null>(null);
+
 
   const visible = layout.order.filter((id) => !layout.isHidden(id));
 
@@ -145,17 +148,49 @@ function Dashboard() {
       <div className="grid min-w-0 gap-4 md:grid-cols-2 md:gap-6">
         {visible.map((id) => {
           const meta = WIDGETS[id];
+          const locked = meta.pro && !isPro;
+          const content = locked ? (
+            <LockedWidget title={meta.label} feature={meta.label} />
+          ) : (
+            meta.render()
+          );
+          const openable = !locked && !customizing && meta.to;
           return (
-            <div key={id} className={cn("min-w-0", meta.wide && "md:col-span-2")}>
-              {meta.pro && !isPro ? (
-                <LockedWidget title={meta.label} feature={meta.label} />
+            <div
+              key={id}
+              className={cn("min-w-0", meta.wide && "md:col-span-2")}
+            >
+              {openable ? (
+                <div
+                  role="link"
+                  tabIndex={0}
+                  aria-label={`Open ${meta.label}`}
+                  onMouseEnter={() => router.preloadRoute({ to: meta.to! })}
+                  onClick={(e) => {
+                    const target = e.target as HTMLElement;
+                    if (target.closest("a,button,input,select,textarea,[role='button']"))
+                      return;
+                    navigate({ to: meta.to! });
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.target !== e.currentTarget) return;
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      navigate({ to: meta.to! });
+                    }
+                  }}
+                  className="widget-open block cursor-pointer rounded-[inherit] outline-none transition-all duration-300 ease-out hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-foreground/30 active:scale-[0.995]"
+                >
+                  {content}
+                </div>
               ) : (
-                meta.render()
+                content
               )}
             </div>
           );
         })}
       </div>
+
 
     </div>
   );

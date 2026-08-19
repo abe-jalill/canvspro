@@ -687,15 +687,18 @@ export interface WidgetMeta {
   label: string;
   wide?: boolean;
   pro?: boolean;
+  /** Page this widget opens when clicked. */
+  to?: string;
   render: () => ReactElement;
 }
 
 export const WIDGETS: Record<WidgetId, WidgetMeta> = {
   digest: { label: "Since your last visit", wide: true, render: () => <DigestWidget /> },
-  focus: { label: "Focus", pro: true, render: () => <FocusWidget /> },
-  classes: { label: "Classes & Grades", render: () => <CoursesWidget /> },
-  upcoming: { label: "Upcoming Assignments", wide: true, render: () => <UpcomingWidget /> },
-  announcements: { label: "Announcements", wide: true, render: () => <AnnouncementsWidget /> },
-  calendar: { label: "Calendar", pro: true, render: () => <CalendarWidget /> },
-  heatmap: { label: "Workload heatmap", pro: true, wide: true, render: () => <HeatmapWidget /> },
+  focus: { label: "Focus", pro: true, to: "/focus", render: () => <FocusWidget /> },
+  classes: { label: "Classes & Grades", to: "/grades", render: () => <CoursesWidget /> },
+  upcoming: { label: "Upcoming Assignments", wide: true, to: "/assignments", render: () => <UpcomingWidget /> },
+  announcements: { label: "Announcements", wide: true, to: "/announcements", render: () => <AnnouncementsWidget /> },
+  calendar: { label: "Calendar", pro: true, to: "/schedule", render: () => <CalendarWidget /> },
+  heatmap: { label: "Workload heatmap", pro: true, wide: true, to: "/schedule", render: () => <HeatmapWidget /> },
 };
+
