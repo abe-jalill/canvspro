@@ -9,6 +9,16 @@ interface SyllabusModalProps {
 }
 
 export function SyllabusModal({ title, html, onClose }: SyllabusModalProps) {
+  const safeHtml = useMemo(() => {
+    if (typeof window === "undefined") return "";
+    return DOMPurify.sanitize(html ?? "", {
+      USE_PROFILES: { html: true },
+      FORBID_TAGS: ["style", "form", "input", "button", "iframe", "object", "embed"],
+      FORBID_ATTR: ["style", "srcdoc", "formaction"],
+      ALLOW_DATA_ATTR: false,
+    });
+  }, [html]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
