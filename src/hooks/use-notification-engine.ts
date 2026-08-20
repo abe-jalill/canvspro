@@ -72,10 +72,12 @@ function runDueChecks(assignments: AssignmentItem[]) {
       notify({
         id: `due:${a.id}:${w.key}`,
         kind: "due",
-        title: `Due ${w.label.replace(" before", "")} or less: ${a.name}`,
-        body: `${displayCourseName(a.course_name, a.course_code)} · due ${new Date(
-          a.due_at,
-        ).toLocaleString()}`,
+        title: `An assignment is due soon in ${displayCourseName(
+          a.course_name,
+          a.course_code,
+        )}`,
+        body: `Due ${new Date(a.due_at).toLocaleString()}`,
+        to: "/assignments",
       });
     }
   }
@@ -103,8 +105,12 @@ function runGradeChecks(assignments: AssignmentItem[]) {
     notify({
       id: `grade:${key}`,
       kind: "grade",
-      title: `Good job! You scored ${pct}% on ${a.name}!`,
-      body: displayCourseName(a.course_name, a.course_code),
+      title: `An assignment was graded in ${displayCourseName(
+        a.course_name,
+        a.course_code,
+      )}`,
+      body: "A new grade was posted since your last visit.",
+      to: "/grades",
     });
   }
 
@@ -127,8 +133,9 @@ function runAnnouncementChecks(items: AnnouncementItem[]) {
     notify({
       id: `announcement:${key}`,
       kind: "announcement",
-      title: a.title,
-      body: `New announcement in ${displayCourseName(a.course_name, a.course_code)}`,
+      title: `${displayCourseName(a.course_name, a.course_code)} posted a new announcement`,
+      body: "Posted since your last visit.",
+      to: "/announcements",
     });
   }
 
