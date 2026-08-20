@@ -119,7 +119,9 @@ export function AppSidebar() {
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
             &nbsp;
           </p>
-          <p className="mt-1 text-lg font-semibold tracking-tight">CanvasPro</p>
+          <Link to="/" className="mt-1 text-lg font-semibold tracking-tight transition-colors hover:text-foreground/80">
+            CanvasPro
+          </Link>
         </div>
         <nav className="flex flex-col gap-1">
           {items.map((item) => (
