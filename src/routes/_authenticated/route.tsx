@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect, useRouter } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +15,7 @@ import { useNotificationEngine } from "@/hooks/use-notification-engine";
 import { setUserScope } from "@/lib/user-scope";
 import { prefetchAllCanvas } from "@/lib/canvas-queries";
 import { hydrateCanvasCache, persistCanvasCache } from "@/lib/canvas-cache";
+import { warmAuthenticatedApp } from "@/lib/preload-routes";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -40,6 +41,7 @@ function AuthenticatedLayout() {
   const { isActive: isPro } = useSubscription();
   useNotificationEngine(isPro);
   const qc = useQueryClient();
+  const router = useRouter();
 
   // Paint from the last known payloads immediately, then warm every Canvas
   // query once per session so switching pages never waits on the network.
@@ -47,8 +49,13 @@ function AuthenticatedLayout() {
     hydrateCanvasCache(qc);
     const stop = persistCanvasCache(qc);
     prefetchAllCanvas(qc);
-    return stop;
-  }, [qc]);
+    // Then, while the browser is idle, preload every page's code + data.
+    const stopWarm = warmAuthenticatedApp(router, qc);
+    return () => {
+      stopWarm();
+      stop();
+    };
+  }, [qc, router]);
 
 
   return (

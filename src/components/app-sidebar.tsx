@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { NotificationCenter } from "@/components/notification-center";
 import { useSubscription } from "@/lib/subscription";
 import { isFreePath } from "@/components/pro-gate";
+import { resetAppWarmup } from "@/lib/preload-routes";
 
 const items = [
   { title: "Dashboard", to: "/dashboard" as const },
@@ -85,6 +86,7 @@ function useSignOut() {
   return async function signOut() {
     await queryClient.cancelQueries();
     queryClient.clear();
+    resetAppWarmup();
     await supabase.auth.signOut();
     navigate({ to: "/auth", replace: true });
   };
