@@ -310,7 +310,7 @@ const FLOATING_ITEMS = [
   {
     id: "assignment",
     left: "3%",
-    top: "78%",
+    top: "84%",
     rotate: 4,
     cardClass: "glass-panel p-4 text-left w-72",
     delay: "2.4s",
