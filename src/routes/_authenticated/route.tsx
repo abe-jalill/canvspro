@@ -41,6 +41,7 @@ function AuthenticatedLayout() {
   const { isActive: isPro } = useSubscription();
   useNotificationEngine(isPro);
   const qc = useQueryClient();
+  const router = useRouter();
 
   // Paint from the last known payloads immediately, then warm every Canvas
   // query once per session so switching pages never waits on the network.
@@ -48,8 +49,13 @@ function AuthenticatedLayout() {
     hydrateCanvasCache(qc);
     const stop = persistCanvasCache(qc);
     prefetchAllCanvas(qc);
-    return stop;
-  }, [qc]);
+    // Then, while the browser is idle, preload every page's code + data.
+    const stopWarm = warmAuthenticatedApp(router, qc);
+    return () => {
+      stopWarm();
+      stop();
+    };
+  }, [qc, router]);
 
 
   return (
