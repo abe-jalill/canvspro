@@ -3,6 +3,7 @@ import {
   getAllAssignmentsFn,
   getAnnouncementsFn,
   getCalendarEventsFn,
+  getClassMeetingsFn,
   getCoursesFn,
 } from "@/lib/canvas.functions";
 
