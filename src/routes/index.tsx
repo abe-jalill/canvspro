@@ -311,105 +311,28 @@ function LandingPage() {
     <div className="w-full">
       <section className="relative flex min-h-[92svh] flex-col items-center justify-center overflow-hidden px-4 text-center">
         {/* Floating decorative cards (desktop only, purely decorative) */}
-        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 hidden h-[62%] lg:block">
-          <div className="float-soft glass-panel absolute left-[4%] top-[20%] w-72 -rotate-3 p-4 text-left">
-            <div className="flex items-start gap-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand/15 text-brand">
-                <FileText className="h-4 w-4" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium">Your assignment has been graded!</p>
-                <p className="mt-1 text-xs text-muted-foreground">Biology Lab Report</p>
-              </div>
-              <span className="text-[10px] text-muted-foreground">2m ago</span>
-            </div>
-          </div>
-
-          <div
-            className="float-soft glass-panel absolute left-[7%] top-[50%] w-56 p-4 text-left"
-            style={{ animationDelay: "1.2s" }}
-          >
-            <p className="text-xs text-muted-foreground">Current Grade</p>
-            <p className="mt-1 flex items-baseline gap-2 text-2xl font-semibold">
-              88.6%
-              <span className="rounded-md bg-status-fresh/15 px-1.5 py-0.5 text-[11px] font-medium text-status-fresh">
-                ↑ 4.2%
-              </span>
-            </p>
-            <TrendingUp className="mt-2 h-10 w-full text-brand" strokeWidth={1.5} />
-          </div>
-
-          <div
-            className="float-soft glass-panel absolute left-[3%] bottom-0 w-80 p-4 text-left"
-            style={{ animationDelay: "2.1s" }}
-          >
-            <div className="flex items-center gap-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand/15 text-brand">
-                <CalendarDays className="h-4 w-4" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-medium text-brand">Upcoming Assignment</p>
-                <p className="truncate text-sm font-semibold">Research Paper Draft</p>
-                <p className="text-xs text-muted-foreground">English 101</p>
-              </div>
-              <div className="text-right">
-                <p className="text-[10px] text-muted-foreground">Due in</p>
-                <p className="text-xs font-semibold text-brand">2 days</p>
+        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 hidden h-[80%] lg:block">
+          {FLOATING_ITEMS.map((item) => (
+            <div
+              key={item.id}
+              className="absolute"
+              style={{
+                left: item.left,
+                top: item.top,
+                transform: `rotate(${item.rotate}deg)`,
+              }}
+            >
+              <div
+                className={`float-soft ${item.cardClass}`}
+                style={{
+                  animationDelay: item.delay,
+                  animationDuration: item.duration,
+                }}
+              >
+                {item.children}
               </div>
             </div>
-          </div>
-
-          <div
-            className="float-soft glass-panel absolute right-[4%] top-[16%] w-64 p-4 text-left"
-            style={{ animationDelay: "0.8s" }}
-          >
-            <p className="text-sm font-semibold">Calendar</p>
-            <p className="text-xs text-muted-foreground">This week</p>
-            <div className="mt-3 grid grid-cols-7 gap-1 text-center text-[10px] text-muted-foreground">
-              {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
-                <span key={`${d}-${i}`}>{d}</span>
-              ))}
-              {Array.from({ length: 14 }, (_, i) => i + 1).map((n) => (
-                <span
-                  key={n}
-                  className={
-                    n === 7
-                      ? "rounded-full bg-brand py-0.5 font-semibold text-white"
-                      : "py-0.5 text-foreground/70"
-                  }
-                >
-                  {n}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <div
-            className="float-soft glass-panel absolute right-[6%] top-[58%] flex h-16 w-16 items-center justify-center"
-            style={{ animationDelay: "1.7s" }}
-          >
-            <Bell className="h-6 w-6 text-brand" />
-            <span className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-xs font-semibold text-destructive-foreground">
-              3
-            </span>
-          </div>
-
-          <div
-            className="float-soft glass-panel absolute right-[3%] bottom-0 w-80 p-4 text-left"
-            style={{ animationDelay: "2.6s" }}
-          >
-            <div className="flex items-start gap-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand/15 text-brand">
-                <Megaphone className="h-4 w-4" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-medium text-brand">New Announcement</p>
-                <p className="truncate text-sm font-semibold">Class canceled Friday</p>
-                <p className="text-xs text-muted-foreground">Calculus II</p>
-              </div>
-              <span className="text-[10px] text-muted-foreground">1h ago</span>
-            </div>
-          </div>
+          ))}
         </div>
 
         <div className="relative z-10 flex w-full max-w-3xl flex-col items-center">
