@@ -33,6 +33,12 @@ export const eventsQO = queryOptions({
   staleTime: STALE,
 });
 
+export const classMeetingsQO = queryOptions({
+  queryKey: ["canvas", "class-meetings"],
+  queryFn: () => getClassMeetingsFn(),
+  staleTime: STALE,
+});
+
 export function prefetchAllCanvas(qc: {
   prefetchQuery: (options: never) => Promise<void>;
 }) {
