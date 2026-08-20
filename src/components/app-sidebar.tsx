@@ -85,6 +85,7 @@ function useSignOut() {
   return async function signOut() {
     await queryClient.cancelQueries();
     queryClient.clear();
+    resetAppWarmup();
     await supabase.auth.signOut();
     navigate({ to: "/auth", replace: true });
   };
