@@ -135,32 +135,204 @@ function LandingPage() {
 
   return (
     <div className="w-full">
-      <section className="flex min-h-[86svh] flex-col items-center justify-center px-4 text-center">
-        <h1
-          className="rise-in text-5xl font-semibold tracking-tight sm:text-7xl"
-          style={{ animationDelay: "80ms" }}
-        >
-          Hey! Welcome to CanvasPro.
-        </h1>
-        <p
-          className="rise-in mt-4 max-w-2xl text-lg text-muted-foreground sm:text-2xl"
-          style={{ animationDelay: "320ms" }}
-        >
-          Your Canvas experience, finally built around you.
-        </p>
-        <button
-          type="button"
-          onClick={() =>
-            document
-              .getElementById("overview")
-              ?.scrollIntoView({ behavior: "smooth", block: "start" })
-          }
-          aria-label="Scroll down to learn more"
-          className="rise-in glass-inset glass-hover mt-14 inline-flex h-12 w-12 items-center justify-center rounded-full"
-          style={{ animationDelay: "620ms" }}
-        >
-          <ChevronDown className="scroll-hint h-5 w-5" />
-        </button>
+      <section className="relative flex min-h-[92svh] flex-col items-center justify-center overflow-hidden px-4 text-center">
+        {/* Floating decorative cards (desktop only, purely decorative) */}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 hidden lg:block">
+          <div className="float-soft glass-panel absolute left-[4%] top-[14%] w-72 -rotate-3 p-4 text-left">
+            <div className="flex items-start gap-3">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand/15 text-brand">
+                <FileText className="h-4 w-4" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium">Your assignment has been graded!</p>
+                <p className="mt-1 text-xs text-muted-foreground">Biology Lab Report</p>
+              </div>
+              <span className="text-[10px] text-muted-foreground">2m ago</span>
+            </div>
+          </div>
+
+          <div
+            className="float-soft glass-panel absolute left-[6%] top-[38%] w-56 p-4 text-left"
+            style={{ animationDelay: "1.2s" }}
+          >
+            <p className="text-xs text-muted-foreground">Current Grade</p>
+            <p className="mt-1 flex items-baseline gap-2 text-2xl font-semibold">
+              88.6%
+              <span className="rounded-md bg-status-fresh/15 px-1.5 py-0.5 text-[11px] font-medium text-status-fresh">
+                ↑ 4.2%
+              </span>
+            </p>
+            <TrendingUp className="mt-2 h-10 w-full text-brand" strokeWidth={1.5} />
+          </div>
+
+          <div
+            className="float-soft glass-panel absolute left-[5%] bottom-[16%] w-80 p-4 text-left"
+            style={{ animationDelay: "2.1s" }}
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand/15 text-brand">
+                <CalendarDays className="h-4 w-4" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium text-brand">Upcoming Assignment</p>
+                <p className="truncate text-sm font-semibold">Research Paper Draft</p>
+                <p className="text-xs text-muted-foreground">English 101</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] text-muted-foreground">Due in</p>
+                <p className="text-xs font-semibold text-brand">2 days</p>
+              </div>
+            </div>
+          </div>
+
+          <div
+            className="float-soft glass-panel absolute right-[4%] top-[12%] w-64 p-4 text-left"
+            style={{ animationDelay: "0.8s" }}
+          >
+            <p className="text-sm font-semibold">Calendar</p>
+            <p className="text-xs text-muted-foreground">This week</p>
+            <div className="mt-3 grid grid-cols-7 gap-1 text-center text-[10px] text-muted-foreground">
+              {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
+                <span key={`${d}-${i}`}>{d}</span>
+              ))}
+              {Array.from({ length: 14 }, (_, i) => i + 1).map((n) => (
+                <span
+                  key={n}
+                  className={
+                    n === 7
+                      ? "rounded-full bg-brand py-0.5 font-semibold text-white"
+                      : "py-0.5 text-foreground/70"
+                  }
+                >
+                  {n}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div
+            className="float-soft glass-panel absolute right-[6%] top-[44%] flex h-16 w-16 items-center justify-center"
+            style={{ animationDelay: "1.7s" }}
+          >
+            <Bell className="h-6 w-6 text-brand" />
+            <span className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-xs font-semibold text-destructive-foreground">
+              3
+            </span>
+          </div>
+
+          <div
+            className="float-soft glass-panel absolute right-[4%] bottom-[18%] w-80 p-4 text-left"
+            style={{ animationDelay: "2.6s" }}
+          >
+            <div className="flex items-start gap-3">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand/15 text-brand">
+                <Megaphone className="h-4 w-4" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium text-brand">New Announcement</p>
+                <p className="truncate text-sm font-semibold">Class canceled Friday</p>
+                <p className="text-xs text-muted-foreground">Calculus II</p>
+              </div>
+              <span className="text-[10px] text-muted-foreground">1h ago</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="relative z-10 flex w-full max-w-3xl flex-col items-center">
+          <h1
+            className="rise-in text-5xl font-semibold tracking-tight sm:text-7xl"
+            style={{ animationDelay: "80ms" }}
+          >
+            Hey! Welcome to{" "}
+            <span className="bg-gradient-to-r from-brand to-brand-strong bg-clip-text text-transparent">
+              CanvasPro.
+            </span>
+          </h1>
+          <p
+            className="rise-in mt-4 max-w-2xl text-lg text-muted-foreground sm:text-2xl"
+            style={{ animationDelay: "320ms" }}
+          >
+            Your Canvas experience, finally built around you.
+          </p>
+
+          <div
+            className="rise-in mt-8 flex flex-wrap items-center justify-center gap-3"
+            style={{ animationDelay: "440ms" }}
+          >
+            {isLoggedIn ? (
+              <Link
+                to="/dashboard"
+                className="glass-hover inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand to-brand-strong px-7 text-sm font-semibold text-white"
+              >
+                Go to my dashboard <ArrowRight className="h-4 w-4" />
+              </Link>
+            ) : (
+              <>
+                <Link
+                  to="/signup"
+                  className="glass-hover inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand to-brand-strong px-7 text-sm font-semibold text-white"
+                >
+                  Get started — $2.99/month <ArrowRight className="h-4 w-4" />
+                </Link>
+                <Link
+                  to="/auth"
+                  className="glass-inset glass-hover inline-flex min-h-12 items-center justify-center rounded-xl px-6 text-sm font-medium"
+                >
+                  Sign in
+                </Link>
+              </>
+            )}
+          </div>
+
+          <p
+            className="rise-in mt-5 text-sm text-muted-foreground"
+            style={{ animationDelay: "520ms" }}
+          >
+            Free dashboard tier. Cancel anytime. Or save with{" "}
+            <Link to="/pricing" className="underline underline-offset-4 hover:text-foreground">
+              $24.99/year — about 2 months free
+            </Link>
+            .
+          </p>
+          <p
+            className="rise-in mt-1 text-sm text-muted-foreground"
+            style={{ animationDelay: "560ms" }}
+          >
+            Curious what we store?{" "}
+            <Link to="/privacy" className="underline underline-offset-4 hover:text-foreground">
+              Read the privacy policy
+            </Link>
+            .
+          </p>
+
+          <button
+            type="button"
+            onClick={() =>
+              document
+                .getElementById("overview")
+                ?.scrollIntoView({ behavior: "smooth", block: "start" })
+            }
+            aria-label="Scroll down to learn more"
+            className="rise-in glass-inset glass-hover mt-12 inline-flex h-12 w-12 items-center justify-center rounded-full"
+            style={{ animationDelay: "620ms" }}
+          >
+            <ChevronDown className="scroll-hint h-5 w-5" />
+          </button>
+        </div>
+
+        <ul className="relative z-10 mt-14 grid w-full max-w-5xl grid-cols-2 gap-4 text-left sm:grid-cols-3 lg:grid-cols-5">
+          {HERO_HIGHLIGHTS.map((h) => (
+            <li key={h.title} className="flex items-center gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand/15 text-brand">
+                <h.icon className="h-4 w-4" />
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-medium">{h.title}</span>
+                <span className="block truncate text-xs text-muted-foreground">{h.body}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
       </section>
 
       <div
@@ -168,61 +340,7 @@ function LandingPage() {
         className="mx-auto w-full max-w-5xl px-4 pb-12 sm:pb-16"
         style={{ scrollMarginTop: "1rem" }}
       >
-      <Reveal>
-      <section className="text-center">
-        <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-          Canvas Pro
-        </p>
-        <h2 className="mx-auto mt-3 max-w-3xl text-4xl font-semibold tracking-tight sm:text-5xl">
-          A calmer, faster dashboard for your Canvas classes
-        </h2>
-        <p className="mx-auto mt-4 max-w-2xl text-base text-muted-foreground">
-          Canvas Pro connects to your school's Canvas account and pulls your
-          classes, grades, assignments, and announcements into one customizable
-          home screen — so you stop hunting through course pages.
-        </p>
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          {isLoggedIn ? (
-            <Link
-              to="/dashboard"
-              className="glass-hover inline-flex min-h-12 items-center justify-center rounded-xl bg-foreground px-6 text-sm font-semibold text-background"
-            >
-              Go to my dashboard
-            </Link>
-          ) : (
-            <>
-              <Link
-                to="/signup"
-                className="glass-hover inline-flex min-h-12 items-center justify-center rounded-xl bg-foreground px-6 text-sm font-semibold text-background"
-              >
-                Get started — $2.99/month
-              </Link>
-              <Link
-                to="/auth"
-                className="glass-inset glass-hover inline-flex min-h-12 items-center justify-center rounded-xl px-6 text-sm font-medium"
-              >
-                Sign in
-              </Link>
-            </>
-          )}
-        </div>
-        <p className="mt-3 text-xs text-muted-foreground">
-          Free dashboard tier. Cancel anytime. Or save with{" "}
-          <Link to="/pricing" className="underline underline-offset-4 hover:text-foreground">
-            $24.99/year — about 2 months free
-          </Link>
-          .
-        </p>
 
-        <p className="mt-2 text-xs text-muted-foreground">
-          Curious what we store?{" "}
-          <Link to="/privacy" className="underline underline-offset-4 hover:text-foreground">
-            Read the privacy policy
-          </Link>
-          .
-        </p>
-      </section>
-      </Reveal>
 
 
       <Reveal delay={60}>
