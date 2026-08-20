@@ -183,7 +183,7 @@ function LandingPage() {
           </div>
 
           <div
-            className="float-soft glass-panel absolute left-[3%] bottom-[34%] w-80 p-4 text-left"
+            className="float-soft glass-panel absolute left-[3%] top-[58%] w-80 p-4 text-left"
             style={{ animationDelay: "2.1s" }}
           >
             <div className="flex items-center gap-3">
@@ -238,7 +238,7 @@ function LandingPage() {
           </div>
 
           <div
-            className="float-soft glass-panel absolute right-[3%] bottom-[34%] w-80 p-4 text-left"
+            className="float-soft glass-panel absolute right-[3%] top-[58%] w-80 p-4 text-left"
             style={{ animationDelay: "2.6s" }}
           >
             <div className="flex items-start gap-3">
