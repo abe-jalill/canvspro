@@ -115,17 +115,23 @@ const FEATURES = [
 ];
 
 function LandingPage() {
-  const navigate = useNavigate();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
-    let active = true;
-    supabase.auth.getSession().then(({ data }) => {
-      if (active && data.session) navigate({ to: "/dashboard", replace: true });
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      setIsLoggedIn(!!session);
+      if (event !== "SIGNED_IN" && event !== "SIGNED_OUT") return;
+      setIsChecking(false);
     });
-    return () => {
-      active = false;
-    };
-  }, [navigate]);
+    supabase.auth.getSession().then(({ data }) => {
+      setIsLoggedIn(!!data.session);
+      setIsChecking(false);
+    });
+    return () => data.subscription.unsubscribe();
+  }, []);
+
+  if (isChecking) return null;
 
   return (
     <div className="w-full">
