@@ -22,6 +22,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import canvasLogoAsset from "@/assets/canvas-logo.png.asset.json";
 import { Reveal } from "@/components/reveal";
 
 
