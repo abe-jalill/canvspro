@@ -11,6 +11,15 @@ import {
   BarChart3,
   Sparkles,
   ChevronDown,
+  FileText,
+  TrendingUp,
+  Megaphone,
+  ArrowRight,
+  FolderOpen,
+  Zap,
+  Layers,
+  Lock,
+  RefreshCw,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Reveal } from "@/components/reveal";
@@ -112,6 +121,14 @@ const FEATURES = [
     title: "And many more",
     body: "Announcements in one place, class nicknames, syllabus quick-view, grade trend arrows, .ICS export, dark/light mode, and a mobile-first layout.",
   },
+];
+
+const HERO_HIGHLIGHTS = [
+  { icon: FolderOpen, title: "All your classes", body: "In one place" },
+  { icon: Zap, title: "Real-time updates", body: "When it matters" },
+  { icon: Layers, title: "Organized for you", body: "Not against you" },
+  { icon: Lock, title: "Privacy first", body: "Your data stays yours" },
+  { icon: RefreshCw, title: "Works with Canvas", body: "Seamless sync" },
 ];
 
 function LandingPage() {
