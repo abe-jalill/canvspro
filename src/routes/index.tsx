@@ -22,6 +22,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import canvasLogoAsset from "@/assets/canvas-logo.png.asset.json";
 import { Reveal } from "@/components/reveal";
 
 
@@ -142,8 +143,8 @@ const FLOATING_ITEMS = [
     duration: "6.5s",
     children: (
       <img
-        src="/logo.png"
-        alt="Canvas logo"
+        src={canvasLogoAsset.url}
+        alt="Canvas LMS logo"
         className="h-24 w-auto rounded-xl object-contain"
       />
     ),
