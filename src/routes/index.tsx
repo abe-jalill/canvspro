@@ -142,7 +142,7 @@ const HERO_HIGHLIGHTS = [
 const FLOATING_ITEMS = [
   {
     id: "logo",
-    left: "45%",
+    left: "47%",
     top: "1%",
     rotate: -6,
     cardClass: "glass-panel p-4 text-center w-auto",
@@ -158,8 +158,8 @@ const FLOATING_ITEMS = [
   },
   {
     id: "streak",
-    left: "20%",
-    top: "3%",
+    left: "27%",
+    top: "4%",
     rotate: 8,
     cardClass: "glass-panel flex items-center gap-3 p-4 text-left w-56",
     delay: "0.5s",
@@ -178,7 +178,7 @@ const FLOATING_ITEMS = [
   },
   {
     id: "focus",
-    left: "63%",
+    left: "61%",
     top: "5%",
     rotate: -4,
     cardClass: "glass-panel flex items-center gap-3 p-4 text-left w-60",
@@ -198,8 +198,8 @@ const FLOATING_ITEMS = [
   },
   {
     id: "complete",
-    left: "82%",
-    top: "20%",
+    right: "3%",
+    top: "24%",
     rotate: -7,
     cardClass: "glass-panel flex items-center gap-3 p-4 text-left w-52",
     delay: "2.0s",
@@ -218,8 +218,8 @@ const FLOATING_ITEMS = [
   },
   {
     id: "graded",
-    left: "2%",
-    top: "30%",
+    left: "1%",
+    top: "27%",
     rotate: 5,
     cardClass: "glass-panel p-4 text-left w-72",
     delay: "1.1s",
@@ -239,8 +239,8 @@ const FLOATING_ITEMS = [
   },
   {
     id: "bell",
-    left: "89%",
-    top: "36%",
+    right: "8%",
+    top: "6%",
     rotate: -5,
     cardClass: "glass-panel flex h-20 w-20 items-center justify-center p-3",
     delay: "1.6s",
@@ -257,7 +257,7 @@ const FLOATING_ITEMS = [
   {
     id: "grade",
     left: "2%",
-    top: "47%",
+    top: "52%",
     rotate: -3,
     cardClass: "glass-panel p-4 text-left w-56",
     delay: "1.8s",
@@ -277,8 +277,8 @@ const FLOATING_ITEMS = [
   },
   {
     id: "calendar",
-    left: "72%",
-    top: "45%",
+    right: "1%",
+    top: "46%",
     rotate: 4,
     cardClass: "glass-panel p-4 text-left w-64",
     delay: "0.7s",
@@ -309,8 +309,8 @@ const FLOATING_ITEMS = [
   },
   {
     id: "assignment",
-    left: "3%",
-    top: "63%",
+    left: "1%",
+    top: "74%",
     rotate: 4,
     cardClass: "glass-panel p-4 text-left w-72",
     delay: "2.4s",
@@ -334,8 +334,8 @@ const FLOATING_ITEMS = [
   },
   {
     id: "announcement",
-    left: "62%",
-    top: "68%",
+    right: "1%",
+    top: "72%",
     rotate: 2,
     cardClass: "glass-panel p-4 text-left w-80",
     delay: "2.5s",
@@ -385,18 +385,13 @@ function LandingPage() {
               key={item.id}
               className="absolute"
               style={{
-                left: item.left,
+                left: "left" in item ? item.left : undefined,
+                right: "right" in item ? item.right : undefined,
                 top: item.top,
                 transform: `rotate(${item.rotate}deg)`,
               }}
             >
-              <div
-                className={`float-soft ${item.cardClass}`}
-                style={{
-                  animationDelay: item.delay,
-                  animationDuration: item.duration,
-                }}
-              >
+              <div className={item.cardClass}>
                 {item.children}
               </div>
             </div>
