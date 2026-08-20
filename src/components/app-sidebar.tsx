@@ -117,9 +117,9 @@ export function AppSidebar() {
       <div className="glass-panel-strong flex h-full flex-col overflow-y-auto p-5">
         <div className="mb-8 px-2">
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            Canvas
+            &nbsp;
           </p>
-          <p className="mt-1 text-lg font-semibold tracking-tight">Pro</p>
+          <p className="mt-1 text-lg font-semibold tracking-tight">CanvasPro</p>
         </div>
         <nav className="flex flex-col gap-1">
           {items.map((item) => (
