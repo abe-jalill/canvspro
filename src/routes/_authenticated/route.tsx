@@ -15,6 +15,7 @@ import { useNotificationEngine } from "@/hooks/use-notification-engine";
 import { setUserScope } from "@/lib/user-scope";
 import { prefetchAllCanvas } from "@/lib/canvas-queries";
 import { hydrateCanvasCache, persistCanvasCache } from "@/lib/canvas-cache";
+import { warmAuthenticatedApp } from "@/lib/preload-routes";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
