@@ -385,8 +385,8 @@ function LandingPage() {
               key={item.id}
               className="absolute"
               style={{
-    left: "66%",
-    top: "80%",
+                left: item.left,
+                top: item.top,
                 transform: `rotate(${item.rotate}deg)`,
               }}
             >
