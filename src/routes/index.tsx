@@ -154,8 +154,8 @@ function LandingPage() {
     <div className="w-full">
       <section className="relative flex min-h-[92svh] flex-col items-center justify-center overflow-hidden px-4 text-center">
         {/* Floating decorative cards (desktop only, purely decorative) */}
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 hidden lg:block">
-          <div className="float-soft glass-panel absolute left-[4%] top-[14%] w-72 -rotate-3 p-4 text-left">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 hidden h-[62%] lg:block">
+          <div className="float-soft glass-panel absolute left-[4%] top-[20%] w-72 -rotate-3 p-4 text-left">
             <div className="flex items-start gap-3">
               <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand/15 text-brand">
                 <FileText className="h-4 w-4" />
@@ -169,7 +169,7 @@ function LandingPage() {
           </div>
 
           <div
-            className="float-soft glass-panel absolute left-[7%] top-[36%] w-56 p-4 text-left"
+            className="float-soft glass-panel absolute left-[7%] top-[50%] w-56 p-4 text-left"
             style={{ animationDelay: "1.2s" }}
           >
             <p className="text-xs text-muted-foreground">Current Grade</p>
@@ -183,7 +183,7 @@ function LandingPage() {
           </div>
 
           <div
-            className="float-soft glass-panel absolute left-[3%] top-[58%] w-80 p-4 text-left"
+            className="float-soft glass-panel absolute left-[3%] bottom-0 w-80 p-4 text-left"
             style={{ animationDelay: "2.1s" }}
           >
             <div className="flex items-center gap-3">
@@ -203,7 +203,7 @@ function LandingPage() {
           </div>
 
           <div
-            className="float-soft glass-panel absolute right-[4%] top-[12%] w-64 p-4 text-left"
+            className="float-soft glass-panel absolute right-[4%] top-[16%] w-64 p-4 text-left"
             style={{ animationDelay: "0.8s" }}
           >
             <p className="text-sm font-semibold">Calendar</p>
@@ -228,7 +228,7 @@ function LandingPage() {
           </div>
 
           <div
-            className="float-soft glass-panel absolute right-[6%] top-[44%] flex h-16 w-16 items-center justify-center"
+            className="float-soft glass-panel absolute right-[6%] top-[58%] flex h-16 w-16 items-center justify-center"
             style={{ animationDelay: "1.7s" }}
           >
             <Bell className="h-6 w-6 text-brand" />
@@ -238,7 +238,7 @@ function LandingPage() {
           </div>
 
           <div
-            className="float-soft glass-panel absolute right-[3%] top-[58%] w-80 p-4 text-left"
+            className="float-soft glass-panel absolute right-[3%] bottom-0 w-80 p-4 text-left"
             style={{ animationDelay: "2.6s" }}
           >
             <div className="flex items-start gap-3">
