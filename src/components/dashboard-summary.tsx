@@ -7,7 +7,6 @@ import { CalendarClock, ArrowRight } from "lucide-react";
 import { assignmentsQO, classMeetingsQO } from "@/lib/canvas-queries";
 import {
   DAY_LABELS,
-  DAY_ORDER,
   deriveWeeklySchedule,
   minutesToLabel,
   type ClassDay,
@@ -75,7 +74,7 @@ export function DashboardSummary() {
   const open = (assignments.data ?? []).filter(
     (a) =>
       a.due_at &&
-      !completed.has(String(a.id)) &&
+      !completed.has(a.id) &&
       !a.submission?.submitted_at &&
       new Date(a.due_at).getTime() > now.getTime(),
   );
@@ -152,5 +151,3 @@ export function DashboardSummary() {
     </section>
   );
 }
-
-export { DAY_ORDER };
