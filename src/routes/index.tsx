@@ -277,8 +277,8 @@ const FLOATING_ITEMS = [
   },
   {
     id: "calendar",
-    left: "74%",
-    top: "52%",
+    left: "72%",
+    top: "45%",
     rotate: 4,
     cardClass: "glass-panel p-4 text-left w-64",
     delay: "0.7s",
