@@ -187,6 +187,12 @@
   --color-status-stale: hsl(var(--status-stale));
   --color-brand: hsl(var(--brand));
   --color-brand-strong: hsl(var(--brand-strong));
+
+  --color-vivid-emerald: hsl(var(--vivid-emerald));
+  --color-vivid-amber: hsl(var(--vivid-amber));
+  --color-vivid-rose: hsl(var(--vivid-rose));
+  --color-vivid-violet: hsl(var(--vivid-violet));
+  --color-vivid-sky: hsl(var(--vivid-sky));
 }
 
 @layer base {
