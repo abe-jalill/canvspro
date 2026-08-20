@@ -137,14 +137,14 @@ const FLOATING_ITEMS = [
     left: "6%",
     top: "9%",
     rotate: -6,
-    cardClass: "glass-panel p-3 text-center w-48",
+    cardClass: "glass-panel p-4 text-center w-56",
     delay: "0.2s",
     duration: "6.5s",
     children: (
       <img
         src="/logo.png"
         alt="Canvas logo"
-        className="h-20 w-auto rounded-lg object-contain shadow-sm"
+        className="h-24 w-auto rounded-xl object-contain"
       />
     ),
   },
