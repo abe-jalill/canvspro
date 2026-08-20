@@ -104,6 +104,14 @@
   --brand: 232 83% 66%;
   --brand-strong: 244 75% 62%;
 
+  /* Landing vivid accents */
+  --vivid-emerald: 158 82% 45%;
+  --vivid-amber: 38 92% 55%;
+  --vivid-rose: 344 80% 58%;
+  --vivid-violet: 258 80% 62%;
+  --vivid-sky: 198 85% 50%;
+
+
   --sidebar: 0 0% 9% / 0.7;
   --sidebar-foreground: 0 0% 95%;
   --sidebar-primary: 0 0% 98%;
