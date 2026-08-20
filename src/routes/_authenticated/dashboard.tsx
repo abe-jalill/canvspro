@@ -6,6 +6,7 @@ import { useDashboardLayout, type WidgetId } from "@/lib/dashboard-layout";
 import { WIDGETS, LockedWidget } from "@/components/widgets/dashboard-widgets";
 import { useSubscription } from "@/lib/subscription";
 import { DataFreshness } from "@/components/data-freshness";
+import { DashboardSummary } from "@/components/dashboard-summary";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
@@ -64,6 +65,8 @@ function Dashboard() {
         </div>
       </header>
 
+
+      <DashboardSummary />
 
       {customizing && (
         <section className="glass-panel-strong min-w-0 overflow-hidden p-4 sm:p-5">

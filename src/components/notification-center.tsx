@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Bell, Check, Trash2, X } from "lucide-react";
+import { ArrowRight, Bell, Check, Trash2, X } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 import { useNotifications } from "@/lib/notifications";
 
@@ -67,9 +68,9 @@ export function NotificationCenter({ className }: { className?: string }) {
         className="glass-hover glass-inset relative flex h-11 w-11 items-center justify-center rounded-xl"
         title="Notifications"
       >
-        <Bell className="h-4 w-4" />
+        <Bell className={cn("h-4 w-4", unread > 0 && "bell-ring")} />
         {unread > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[10px] font-semibold tabular-nums text-background">
+          <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold tabular-nums text-destructive-foreground shadow-sm">
             {unread > 9 ? "9+" : unread}
           </span>
         )}
@@ -148,6 +149,18 @@ export function NotificationCenter({ className }: { className?: string }) {
                         {timeAgo(n.ts)}
                       </p>
                     </button>
+                    {n.to && (
+                      <Link
+                        to={n.to}
+                        onClick={() => {
+                          markRead(n.id);
+                          setOpen(false);
+                        }}
+                        className="glass-hover mt-1 inline-flex shrink-0 items-center gap-1 self-start rounded-lg px-2 py-1 text-[11px] font-medium text-muted-foreground"
+                      >
+                        See more <ArrowRight className="h-3 w-3" />
+                      </Link>
+                    )}
                     <button
                       onClick={() => remove(n.id)}
                       aria-label="Dismiss notification"

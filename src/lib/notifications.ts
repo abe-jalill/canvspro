@@ -10,6 +10,8 @@ export interface AppNotification {
   kind: NotificationKind;
   title: string;
   body?: string;
+  /** Optional in-app route the notification links to. */
+  to?: string;
   ts: number;
   read: boolean;
 }

@@ -407,7 +407,22 @@ input[type="button"]:active {
   transform: scale(0.97);
 }
 
+@keyframes bell-ring {
+  0%, 60%, 100% { transform: rotate(0deg); }
+  65% { transform: rotate(14deg); }
+  70% { transform: rotate(-12deg); }
+  75% { transform: rotate(9deg); }
+  80% { transform: rotate(-7deg); }
+  85% { transform: rotate(4deg); }
+  90% { transform: rotate(-2deg); }
+}
+.bell-ring {
+  transform-origin: 50% 10%;
+  animation: bell-ring 3s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .bell-ring { animation: none; }
   .page-transition { animation: none; }
   button, a, [role="tab"], [role="button"], summary, select { transition: none; }
   button:active, a:active, [role="tab"]:active, [role="button"]:active { transform: none; }
