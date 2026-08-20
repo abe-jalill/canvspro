@@ -20,6 +20,13 @@ import {
   Layers,
   Lock,
   RefreshCw,
+  BookOpen,
+  CheckCircle2,
+  Clock,
+  Flame,
+  Trophy,
+  Target,
+  Inbox,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import canvasLogoAsset from "@/assets/canvas-logo.png.asset.json";
@@ -135,8 +142,8 @@ const HERO_HIGHLIGHTS = [
 const FLOATING_ITEMS = [
   {
     id: "logo",
-    left: "6%",
-    top: "9%",
+    left: "3%",
+    top: "18%",
     rotate: -6,
     cardClass: "glass-panel p-4 text-center w-auto",
     delay: "0.2s",
@@ -150,16 +157,76 @@ const FLOATING_ITEMS = [
     ),
   },
   {
+    id: "streak",
+    left: "4%",
+    top: "4%",
+    rotate: 8,
+    cardClass: "glass-panel flex items-center gap-3 p-4 text-left w-56",
+    delay: "0.5s",
+    duration: "7.1s",
+    children: (
+      <>
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-vivid-amber/15 text-vivid-amber">
+          <Flame className="h-5 w-5" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold">5-day streak</p>
+          <p className="text-xs text-muted-foreground">Keep it going</p>
+        </div>
+      </>
+    ),
+  },
+  {
+    id: "focus",
+    left: "75%",
+    top: "4%",
+    rotate: -4,
+    cardClass: "glass-panel flex items-center gap-3 p-4 text-left w-60",
+    delay: "0.8s",
+    duration: "6.8s",
+    children: (
+      <>
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-vivid-violet/15 text-vivid-violet">
+          <Target className="h-5 w-5" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold">Focus mode</p>
+          <p className="text-xs text-muted-foreground">3 due today</p>
+        </div>
+      </>
+    ),
+  },
+  {
+    id: "complete",
+    left: "80%",
+    top: "20%",
+    rotate: -7,
+    cardClass: "glass-panel flex items-center gap-3 p-4 text-left w-52",
+    delay: "2.0s",
+    duration: "7.3s",
+    children: (
+      <>
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-vivid-emerald/15 text-vivid-emerald">
+          <CheckCircle2 className="h-5 w-5" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold">12 done</p>
+          <p className="text-xs text-muted-foreground">This week</p>
+        </div>
+      </>
+    ),
+  },
+  {
     id: "graded",
-    left: "9%",
-    top: "32%",
+    left: "4%",
+    top: "46%",
     rotate: 5,
     cardClass: "glass-panel p-4 text-left w-72",
     delay: "1.1s",
     duration: "7.2s",
     children: (
       <div className="flex items-start gap-3">
-        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand/15 text-brand">
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-vivid-emerald/15 text-vivid-emerald">
           <FileText className="h-4 w-4" />
         </span>
         <div className="min-w-0 flex-1">
@@ -171,9 +238,26 @@ const FLOATING_ITEMS = [
     ),
   },
   {
+    id: "bell",
+    left: "80%",
+    top: "34%",
+    rotate: -5,
+    cardClass: "glass-panel flex h-20 w-20 items-center justify-center p-3",
+    delay: "1.6s",
+    duration: "7.0s",
+    children: (
+      <div className="relative">
+        <Bell className="h-6 w-6 text-vivid-rose" />
+        <span className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-vivid-rose text-xs font-semibold text-white">
+          3
+        </span>
+      </div>
+    ),
+  },
+  {
     id: "grade",
-    left: "4%",
-    top: "52%",
+    left: "2%",
+    top: "62%",
     rotate: -3,
     cardClass: "glass-panel p-4 text-left w-56",
     delay: "1.8s",
@@ -183,43 +267,18 @@ const FLOATING_ITEMS = [
         <p className="text-xs text-muted-foreground">Current Grade</p>
         <p className="mt-1 flex items-baseline gap-2 text-2xl font-semibold">
           88.6%
-          <span className="rounded-md bg-status-fresh/15 px-1.5 py-0.5 text-[11px] font-medium text-status-fresh">
+          <span className="rounded-md bg-vivid-emerald/15 px-1.5 py-0.5 text-[11px] font-medium text-vivid-emerald">
             ↑ 4.2%
           </span>
         </p>
-        <TrendingUp className="mt-2 h-10 w-full text-brand" strokeWidth={1.5} />
+        <TrendingUp className="mt-2 h-10 w-full text-vivid-emerald" strokeWidth={1.5} />
       </>
     ),
   },
   {
-    id: "assignment",
-    left: "2%",
-    top: "72%",
-    rotate: 4,
-    cardClass: "glass-panel p-4 text-left w-72",
-    delay: "2.4s",
-    duration: "7.5s",
-    children: (
-      <div className="flex items-center gap-3">
-        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand/15 text-brand">
-          <CalendarDays className="h-4 w-4" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="text-xs font-medium text-brand">Upcoming Assignment</p>
-          <p className="truncate text-sm font-semibold">Research Paper Draft</p>
-          <p className="text-xs text-muted-foreground">English 101</p>
-        </div>
-        <div className="text-right">
-          <p className="text-[10px] text-muted-foreground">Due in</p>
-          <p className="text-xs font-semibold text-brand">2 days</p>
-        </div>
-      </div>
-    ),
-  },
-  {
     id: "calendar",
-    left: "76%",
-    top: "8%",
+    left: "74%",
+    top: "54%",
     rotate: 4,
     cardClass: "glass-panel p-4 text-left w-64",
     delay: "0.7s",
@@ -237,7 +296,7 @@ const FLOATING_ITEMS = [
               key={n}
               className={
                 n === 7
-                  ? "rounded-full bg-brand py-0.5 font-semibold text-white"
+                  ? "rounded-full bg-vivid-sky py-0.5 font-semibold text-white"
                   : "py-0.5 text-foreground/70"
               }
             >
@@ -249,37 +308,45 @@ const FLOATING_ITEMS = [
     ),
   },
   {
-    id: "bell",
-    left: "83%",
-    top: "38%",
-    rotate: -5,
-    cardClass: "glass-panel flex h-20 w-20 items-center justify-center p-3",
-    delay: "1.6s",
-    duration: "7.0s",
+    id: "assignment",
+    left: "3%",
+    top: "84%",
+    rotate: 4,
+    cardClass: "glass-panel p-4 text-left w-72",
+    delay: "2.4s",
+    duration: "7.5s",
     children: (
-      <div className="relative">
-        <Bell className="h-6 w-6 text-brand" />
-        <span className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-xs font-semibold text-destructive-foreground">
-          3
+      <div className="flex items-center gap-3">
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-vivid-sky/15 text-vivid-sky">
+          <CalendarDays className="h-4 w-4" />
         </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-medium text-vivid-sky">Upcoming Assignment</p>
+          <p className="truncate text-sm font-semibold">Research Paper Draft</p>
+          <p className="text-xs text-muted-foreground">English 101</p>
+        </div>
+        <div className="text-right">
+          <p className="text-[10px] text-muted-foreground">Due in</p>
+          <p className="text-xs font-semibold text-vivid-sky">2 days</p>
+        </div>
       </div>
     ),
   },
   {
     id: "announcement",
-    left: "78%",
-    top: "60%",
+    left: "68%",
+    top: "82%",
     rotate: 2,
     cardClass: "glass-panel p-4 text-left w-80",
     delay: "2.5s",
     duration: "7.8s",
     children: (
       <div className="flex items-start gap-3">
-        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand/15 text-brand">
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-vivid-amber/15 text-vivid-amber">
           <Megaphone className="h-4 w-4" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-medium text-brand">New Announcement</p>
+          <p className="text-xs font-medium text-vivid-amber">New Announcement</p>
           <p className="truncate text-sm font-semibold">Class canceled Friday</p>
           <p className="text-xs text-muted-foreground">Calculus II</p>
         </div>
