@@ -219,7 +219,7 @@ const FLOATING_ITEMS = [
   {
     id: "graded",
     left: "4%",
-    top: "30%",
+    top: "40%",
     rotate: 5,
     cardClass: "glass-panel p-4 text-left w-72",
     delay: "1.1s",
@@ -240,7 +240,7 @@ const FLOATING_ITEMS = [
   {
     id: "bell",
     left: "80%",
-    top: "26%",
+    top: "34%",
     rotate: -5,
     cardClass: "glass-panel flex h-20 w-20 items-center justify-center p-3",
     delay: "1.6s",
@@ -257,7 +257,7 @@ const FLOATING_ITEMS = [
   {
     id: "grade",
     left: "2%",
-    top: "50%",
+    top: "54%",
     rotate: -3,
     cardClass: "glass-panel p-4 text-left w-56",
     delay: "1.8s",
@@ -310,7 +310,7 @@ const FLOATING_ITEMS = [
   {
     id: "assignment",
     left: "3%",
-    top: "72%",
+    top: "70%",
     rotate: 4,
     cardClass: "glass-panel p-4 text-left w-72",
     delay: "2.4s",
