@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { NotificationCenter } from "@/components/notification-center";
 import { useSubscription } from "@/lib/subscription";
 import { isFreePath } from "@/components/pro-gate";
+import { resetAppWarmup } from "@/lib/preload-routes";
 
 const items = [
   { title: "Dashboard", to: "/dashboard" as const },
