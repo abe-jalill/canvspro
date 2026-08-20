@@ -142,8 +142,8 @@ const HERO_HIGHLIGHTS = [
 const FLOATING_ITEMS = [
   {
     id: "logo",
-    left: "3%",
-    top: "18%",
+    left: "45%",
+    top: "1%",
     rotate: -6,
     cardClass: "glass-panel p-4 text-center w-auto",
     delay: "0.2s",
@@ -158,8 +158,8 @@ const FLOATING_ITEMS = [
   },
   {
     id: "streak",
-    left: "4%",
-    top: "4%",
+    left: "20%",
+    top: "3%",
     rotate: 8,
     cardClass: "glass-panel flex items-center gap-3 p-4 text-left w-56",
     delay: "0.5s",
@@ -178,8 +178,8 @@ const FLOATING_ITEMS = [
   },
   {
     id: "focus",
-    left: "75%",
-    top: "4%",
+    left: "63%",
+    top: "5%",
     rotate: -4,
     cardClass: "glass-panel flex items-center gap-3 p-4 text-left w-60",
     delay: "0.8s",
@@ -198,7 +198,7 @@ const FLOATING_ITEMS = [
   },
   {
     id: "complete",
-    left: "80%",
+    left: "82%",
     top: "20%",
     rotate: -7,
     cardClass: "glass-panel flex items-center gap-3 p-4 text-left w-52",
@@ -218,8 +218,8 @@ const FLOATING_ITEMS = [
   },
   {
     id: "graded",
-    left: "4%",
-    top: "46%",
+    left: "2%",
+    top: "30%",
     rotate: 5,
     cardClass: "glass-panel p-4 text-left w-72",
     delay: "1.1s",
@@ -239,8 +239,8 @@ const FLOATING_ITEMS = [
   },
   {
     id: "bell",
-    left: "80%",
-    top: "34%",
+    left: "89%",
+    top: "36%",
     rotate: -5,
     cardClass: "glass-panel flex h-20 w-20 items-center justify-center p-3",
     delay: "1.6s",
@@ -257,7 +257,7 @@ const FLOATING_ITEMS = [
   {
     id: "grade",
     left: "2%",
-    top: "62%",
+    top: "47%",
     rotate: -3,
     cardClass: "glass-panel p-4 text-left w-56",
     delay: "1.8s",
@@ -277,8 +277,8 @@ const FLOATING_ITEMS = [
   },
   {
     id: "calendar",
-    left: "74%",
-    top: "54%",
+    left: "72%",
+    top: "45%",
     rotate: 4,
     cardClass: "glass-panel p-4 text-left w-64",
     delay: "0.7s",
@@ -310,7 +310,7 @@ const FLOATING_ITEMS = [
   {
     id: "assignment",
     left: "3%",
-    top: "84%",
+    top: "63%",
     rotate: 4,
     cardClass: "glass-panel p-4 text-left w-72",
     delay: "2.4s",
@@ -334,8 +334,8 @@ const FLOATING_ITEMS = [
   },
   {
     id: "announcement",
-    left: "68%",
-    top: "82%",
+    left: "62%",
+    top: "68%",
     rotate: 2,
     cardClass: "glass-panel p-4 text-left w-80",
     delay: "2.5s",
