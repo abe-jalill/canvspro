@@ -1,5 +1,5 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import {
   CalendarDays,
   Bell,
@@ -115,17 +115,23 @@ const FEATURES = [
 ];
 
 function LandingPage() {
-  const navigate = useNavigate();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
-    let active = true;
-    supabase.auth.getSession().then(({ data }) => {
-      if (active && data.session) navigate({ to: "/dashboard", replace: true });
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      setIsLoggedIn(!!session);
+      if (event !== "SIGNED_IN" && event !== "SIGNED_OUT") return;
+      setIsChecking(false);
     });
-    return () => {
-      active = false;
-    };
-  }, [navigate]);
+    supabase.auth.getSession().then(({ data }) => {
+      setIsLoggedIn(!!data.session);
+      setIsChecking(false);
+    });
+    return () => data.subscription.unsubscribe();
+  }, []);
+
+  if (isChecking) return null;
 
   return (
     <div className="w-full">
@@ -176,18 +182,29 @@ function LandingPage() {
           home screen — so you stop hunting through course pages.
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <Link
-            to="/signup"
-            className="glass-hover inline-flex min-h-12 items-center justify-center rounded-xl bg-foreground px-6 text-sm font-semibold text-background"
-          >
-            Get started — $2.99/month
-          </Link>
-          <Link
-            to="/auth"
-            className="glass-inset glass-hover inline-flex min-h-12 items-center justify-center rounded-xl px-6 text-sm font-medium"
-          >
-            Sign in
-          </Link>
+          {isLoggedIn ? (
+            <Link
+              to="/dashboard"
+              className="glass-hover inline-flex min-h-12 items-center justify-center rounded-xl bg-foreground px-6 text-sm font-semibold text-background"
+            >
+              Go to my dashboard
+            </Link>
+          ) : (
+            <>
+              <Link
+                to="/signup"
+                className="glass-hover inline-flex min-h-12 items-center justify-center rounded-xl bg-foreground px-6 text-sm font-semibold text-background"
+              >
+                Get started — $2.99/month
+              </Link>
+              <Link
+                to="/auth"
+                className="glass-inset glass-hover inline-flex min-h-12 items-center justify-center rounded-xl px-6 text-sm font-medium"
+              >
+                Sign in
+              </Link>
+            </>
+          )}
         </div>
         <p className="mt-3 text-xs text-muted-foreground">
           Free dashboard tier. Cancel anytime. Or save with{" "}
