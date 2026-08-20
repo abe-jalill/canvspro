@@ -4,12 +4,12 @@ const THEME_KEY = "canvas:theme";
 export type Theme = "dark" | "light";
 
 function readTheme(): Theme {
-  if (typeof window === "undefined") return "dark";
+  if (typeof window === "undefined") return "light";
   try {
     const v = window.localStorage.getItem(THEME_KEY);
-    return v === "light" ? "light" : "dark";
+    return v === "dark" ? "dark" : "light";
   } catch {
-    return "dark";
+    return "light";
   }
 }
 
@@ -21,7 +21,7 @@ function applyTheme(t: Theme) {
 }
 
 export function useTheme() {
-  const [theme, setTheme] = useState<Theme>("dark");
+  const [theme, setTheme] = useState<Theme>("light");
 
   useEffect(() => {
     const t = readTheme();

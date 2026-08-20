@@ -100,6 +100,10 @@
   --status-aging: 32 90% 55%;
   --status-stale: 0 72% 58%;
 
+  /* Brand accent (landing hero) */
+  --brand: 232 83% 66%;
+  --brand-strong: 244 75% 62%;
+
   --sidebar: 0 0% 9% / 0.7;
   --sidebar-foreground: 0 0% 95%;
   --sidebar-primary: 0 0% 98%;
@@ -113,6 +117,8 @@
 /* Light mode — same layout, white/light-gray surfaces, dark navy text.
    Only colors change; radii, blur, shadows, hover animations all inherit. */
 .light {
+  --brand: 226 83% 58%;
+  --brand-strong: 248 70% 60%;
   --background: 210 40% 97%;         /* near-white with a hint of blue */
   --foreground: 216 55% 12%;         /* deep navy text */
 
@@ -179,6 +185,8 @@
   --color-status-fresh: hsl(var(--status-fresh));
   --color-status-aging: hsl(var(--status-aging));
   --color-status-stale: hsl(var(--status-stale));
+  --color-brand: hsl(var(--brand));
+  --color-brand-strong: hsl(var(--brand-strong));
 }
 
 @layer base {
@@ -426,4 +434,15 @@ input[type="button"]:active {
   .page-transition { animation: none; }
   button, a, [role="tab"], [role="button"], summary, select { transition: none; }
   button:active, a:active, [role="tab"]:active, [role="button"]:active { transform: none; }
+}
+
+
+/* Landing hero: slow floating drift for the decorative cards */
+@keyframes float-soft {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -10px, 0); }
+}
+.float-soft { animation: float-soft 7s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .float-soft { animation: none; }
 }
