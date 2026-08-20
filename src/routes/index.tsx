@@ -219,7 +219,7 @@ const FLOATING_ITEMS = [
   {
     id: "graded",
     left: "4%",
-    top: "40%",
+    top: "46%",
     rotate: 5,
     cardClass: "glass-panel p-4 text-left w-72",
     delay: "1.1s",
@@ -257,7 +257,7 @@ const FLOATING_ITEMS = [
   {
     id: "grade",
     left: "2%",
-    top: "54%",
+    top: "62%",
     rotate: -3,
     cardClass: "glass-panel p-4 text-left w-56",
     delay: "1.8s",
@@ -278,7 +278,7 @@ const FLOATING_ITEMS = [
   {
     id: "calendar",
     left: "74%",
-    top: "48%",
+    top: "54%",
     rotate: 4,
     cardClass: "glass-panel p-4 text-left w-64",
     delay: "0.7s",
@@ -310,7 +310,7 @@ const FLOATING_ITEMS = [
   {
     id: "assignment",
     left: "3%",
-    top: "70%",
+    top: "78%",
     rotate: 4,
     cardClass: "glass-panel p-4 text-left w-72",
     delay: "2.4s",
@@ -335,7 +335,7 @@ const FLOATING_ITEMS = [
   {
     id: "announcement",
     left: "68%",
-    top: "72%",
+    top: "76%",
     rotate: 2,
     cardClass: "glass-panel p-4 text-left w-80",
     delay: "2.5s",
