@@ -142,8 +142,8 @@ const HERO_HIGHLIGHTS = [
 const FLOATING_ITEMS = [
   {
     id: "logo",
-    left: "5%",
-    top: "6%",
+    left: "6%",
+    top: "8%",
     rotate: -6,
     cardClass: "glass-panel p-4 text-center w-auto",
     delay: "0.2s",
@@ -158,8 +158,8 @@ const FLOATING_ITEMS = [
   },
   {
     id: "streak",
-    left: "4%",
-    top: "2%",
+    left: "5%",
+    top: "5%",
     rotate: 8,
     cardClass: "glass-panel flex items-center gap-3 p-4 text-left w-56",
     delay: "0.5s",
@@ -178,8 +178,8 @@ const FLOATING_ITEMS = [
   },
   {
     id: "focus",
-    left: "86%",
-    top: "3%",
+    left: "78%",
+    top: "5%",
     rotate: -4,
     cardClass: "glass-panel flex items-center gap-3 p-4 text-left w-60",
     delay: "0.8s",
@@ -198,8 +198,8 @@ const FLOATING_ITEMS = [
   },
   {
     id: "complete",
-    left: "88%",
-    top: "16%",
+    left: "80%",
+    top: "14%",
     rotate: -7,
     cardClass: "glass-panel flex items-center gap-3 p-4 text-left w-52",
     delay: "2.0s",
