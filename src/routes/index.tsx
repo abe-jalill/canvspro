@@ -20,6 +20,13 @@ import {
   Layers,
   Lock,
   RefreshCw,
+  BookOpen,
+  CheckCircle2,
+  Clock,
+  Flame,
+  Trophy,
+  Target,
+  Inbox,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import canvasLogoAsset from "@/assets/canvas-logo.png.asset.json";
