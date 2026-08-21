@@ -94,7 +94,7 @@ function summarize(
   if (today > 0) parts.push(`${today} today`);
   if (tomorrow > 0) parts.push(`${tomorrow} tomorrow`);
   if (overdue > 0) parts.push(`${overdue} past due`);
-  return { text: parts.join(", "), week, today, tomorrow, overdue };
+  return { text: parts.join(" · "), week, today, tomorrow, overdue };
 }
 
 export function DashboardHero() {
@@ -115,38 +115,40 @@ export function DashboardHero() {
   const nextStart = next?.start_at ? new Date(next.start_at) : null;
 
   return (
-    <section className="glass-panel-strong min-w-0 overflow-hidden p-5 sm:p-7 md:p-8">
-      <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+    <section className="glass-panel-strong min-w-0 overflow-hidden p-6 sm:p-8 md:p-10">
+      <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
         {now.toLocaleDateString(undefined, {
           weekday: "long",
           month: "long",
           day: "numeric",
         })}
       </p>
-      <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl md:text-4xl">
+
+      <h1 className="mt-3 text-[1.75rem] font-semibold leading-tight tracking-tight sm:text-4xl">
         {greeting(now)}
       </h1>
 
-      <p className="mt-3 max-w-2xl text-sm text-foreground/85 sm:text-base">
+      <p className="mt-2 max-w-2xl text-sm text-muted-foreground sm:text-base">
         {loading
           ? "Pulling together your day…"
           : (summary?.text ?? "No assignment data yet")}
-        {summary && summary.week === 0 && summary.overdue === 0 && " — enjoy it."}
       </p>
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-        <div className="glass-inset min-w-0 rounded-xl p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+      <div className="mt-7 h-px w-full bg-foreground/10" />
+
+      <div className="mt-5 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
             Next up
           </p>
           {loading ? (
-            <p className="mt-1.5 text-sm text-muted-foreground">Loading…</p>
+            <p className="mt-2 text-sm text-muted-foreground">Loading…</p>
           ) : nextStart && next ? (
             <>
-              <p className="mt-1.5 truncate text-base font-semibold tracking-tight">
+              <p className="mt-2 truncate text-lg font-medium tracking-tight sm:text-xl">
                 {next.title}
               </p>
-              <p className="mt-0.5 truncate text-xs text-muted-foreground">
+              <p className="mt-1 truncate text-xs text-muted-foreground sm:text-sm">
                 {untilLabel(nextStart, now)} ·{" "}
                 {nextStart.toLocaleString(undefined, {
                   weekday: "short",
@@ -156,22 +158,21 @@ export function DashboardHero() {
                 {next.context_name
                   ? ` · ${displayCourseName(next.context_name, "")}`
                   : ""}
-                {next.location_name ? ` · ${next.location_name}` : ""}
               </p>
             </>
           ) : (
-            <p className="mt-1.5 text-sm text-muted-foreground">
-              No scheduled classes or events in the next two weeks.
+            <p className="mt-2 text-sm text-muted-foreground">
+              Nothing scheduled in the next two weeks.
             </p>
           )}
         </div>
 
         <Link
           to="/focus"
-          className="glass-hover inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-foreground px-4 text-sm font-semibold text-background"
+          className="press group inline-flex min-h-11 shrink-0 items-center gap-2 self-start rounded-full border border-foreground/15 px-5 text-sm font-medium transition-colors hover:bg-foreground/[0.06] sm:self-auto"
         >
           Open Focus
-          <ArrowRight className="h-4 w-4" />
+          <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5" />
         </Link>
       </div>
     </section>
