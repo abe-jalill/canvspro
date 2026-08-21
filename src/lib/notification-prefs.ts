@@ -10,6 +10,14 @@ export interface NotificationPrefs {
   due1d: boolean;
   grades: boolean;
   announcements: boolean;
+  /** Only notify about grades at or above this percentage. */
+  gradeThreshold: number;
+  /** Mute browser pop-ups (in-app bell still collects everything). */
+  browserPush: boolean;
+  /** Silence browser pop-ups during a nightly window. */
+  quietEnabled: boolean;
+  quietStart: number; // hour 0-23
+  quietEnd: number; // hour 0-23
 }
 
 export const DEFAULT_PREFS: NotificationPrefs = {
@@ -20,7 +28,16 @@ export const DEFAULT_PREFS: NotificationPrefs = {
   due1d: true,
   grades: true,
   announcements: true,
+  gradeThreshold: 80,
+  browserPush: true,
+  quietEnabled: true,
+  quietStart: 22,
+  quietEnd: 7,
 };
+
+export type BooleanPrefKey = {
+  [K in keyof NotificationPrefs]: NotificationPrefs[K] extends boolean ? K : never;
+}[keyof NotificationPrefs];
 
 const BASE_KEY = "canvas:notification-prefs";
 const EVENT = "canvas:notification-prefs-changed";
@@ -58,6 +75,26 @@ export const DUE_WINDOWS: Array<{
   { key: "due1d", label: "1 day before", hours: 24 },
 ];
 
+export function hourLabel(h: number): string {
+  const period = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:00 ${period}`;
+}
+
+/** True when the current time falls inside the user's quiet window. */
+export function isQuietNow(prefs: NotificationPrefs, now = new Date()): boolean {
+  if (!prefs.quietEnabled) return false;
+  const h = now.getHours();
+  const { quietStart: s, quietEnd: e } = prefs;
+  if (s === e) return false;
+  return s < e ? h >= s && h < e : h >= s || h < e;
+}
+
+/** Should a browser pop-up fire right now? */
+export function allowBrowserPush(prefs = readPrefs()): boolean {
+  return prefs.enabled && prefs.browserPush && !isQuietNow(prefs);
+}
+
 export function useNotificationPrefs() {
   const [prefs, setPrefs] = useState<NotificationPrefs>(DEFAULT_PREFS);
 
@@ -83,7 +120,7 @@ export function useNotificationPrefs() {
     });
   }, []);
 
-  const toggle = useCallback((key: keyof NotificationPrefs) => {
+  const toggle = useCallback((key: BooleanPrefKey) => {
     setPrefs((prev) => {
       const next = { ...prev, [key]: !prev[key] };
       writePrefs(next);
@@ -91,5 +128,10 @@ export function useNotificationPrefs() {
     });
   }, []);
 
-  return { prefs, set, toggle };
+  const reset = useCallback(() => {
+    setPrefs(DEFAULT_PREFS);
+    writePrefs(DEFAULT_PREFS);
+  }, []);
+
+  return { prefs, set, toggle, reset };
 }

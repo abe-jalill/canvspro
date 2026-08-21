@@ -1,9 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { GlassCard } from "@/components/glass-card";
 import { useCanvasKey, useSaveCanvasKey } from "@/lib/user-settings";
 import { ClassNamesSection } from "@/components/class-names-editor";
-import { NotificationSettings } from "@/components/notification-settings";
 import { useSubscription } from "@/lib/subscription";
 import { UpgradeCard } from "@/components/pro-gate";
 
@@ -121,7 +120,22 @@ function SettingsPage() {
         title="Notifications"
         subtitle="Choose which alerts you want and when."
       >
-        {isPro ? <NotificationSettings /> : <UpgradeCard feature="Notifications" />}
+        {isPro ? (
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Full controls — due-date lead times, grade thresholds, browser
+              pop-ups, and quiet hours — live on their own page.
+            </p>
+            <Link
+              to="/notifications"
+              className="glass-hover inline-flex min-h-11 items-center rounded-xl bg-foreground px-4 text-sm font-semibold text-background"
+            >
+              Open notification settings
+            </Link>
+          </div>
+        ) : (
+          <UpgradeCard feature="Notifications" />
+        )}
       </GlassCard>
 
       <GlassCard

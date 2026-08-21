@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { DUE_WINDOWS, useNotificationPrefs } from "@/lib/notification-prefs";
+import {
+  DUE_WINDOWS,
+  hourLabel,
+  isQuietNow,
+  useNotificationPrefs,
+} from "@/lib/notification-prefs";
 
 function Toggle({
   label,
@@ -53,8 +58,18 @@ function Toggle({
   );
 }
 
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="px-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+      {children}
+    </p>
+  );
+}
+
+const HOURS = Array.from({ length: 24 }, (_, i) => i);
+
 export function NotificationSettings() {
-  const { prefs, toggle } = useNotificationPrefs();
+  const { prefs, set, toggle, reset } = useNotificationPrefs();
   const [permission, setPermission] = useState<string>("default");
 
   useEffect(() => {
@@ -72,7 +87,7 @@ export function NotificationSettings() {
   const off = !prefs.enabled;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       <Toggle
         label="Notifications"
         description="Master switch for all alerts"
@@ -81,8 +96,9 @@ export function NotificationSettings() {
       />
 
       <div className="space-y-2">
-        <p className="px-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-          Assignment due dates
+        <SectionLabel>When: assignment due dates</SectionLabel>
+        <p className="px-1 text-xs text-muted-foreground">
+          Pick how far ahead of a due date you want a heads-up.
         </p>
         {DUE_WINDOWS.map((w) => (
           <Toggle
@@ -96,22 +112,120 @@ export function NotificationSettings() {
       </div>
 
       <div className="space-y-2">
-        <p className="px-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-          Other alerts
-        </p>
+        <SectionLabel>What: grades</SectionLabel>
         <Toggle
           label="New grades"
-          description="Celebrate scores above 80%"
+          description={`Only when the score is above ${prefs.gradeThreshold}%`}
           checked={prefs.grades}
           disabled={off}
           onChange={() => toggle("grades")}
         />
+        <div
+          className={cn(
+            "glass-inset rounded-xl p-3",
+            (off || !prefs.grades) && "opacity-50",
+          )}
+        >
+          <div className="flex items-center justify-between gap-3">
+            <label
+              htmlFor="grade-threshold"
+              className="text-sm font-medium"
+            >
+              Score threshold
+            </label>
+            <span className="text-sm font-semibold tabular-nums">
+              {prefs.gradeThreshold}%
+            </span>
+          </div>
+          <input
+            id="grade-threshold"
+            type="range"
+            min={0}
+            max={100}
+            step={5}
+            value={prefs.gradeThreshold}
+            disabled={off || !prefs.grades}
+            onChange={(e) => set("gradeThreshold", Number(e.target.value))}
+            className="mt-3 w-full accent-[hsl(var(--foreground))]"
+          />
+          <p className="mt-2 text-xs text-muted-foreground">
+            Set to 0% to be told about every posted grade.
+          </p>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <SectionLabel>What: course activity</SectionLabel>
         <Toggle
           label="New announcements"
+          description="Instructor posts in your courses"
           checked={prefs.announcements}
           disabled={off}
           onChange={() => toggle("announcements")}
         />
+      </div>
+
+      <div className="space-y-2">
+        <SectionLabel>How &amp; when to interrupt</SectionLabel>
+        <Toggle
+          label="Browser pop-ups"
+          description="Off keeps alerts inside the bell menu only"
+          checked={prefs.browserPush}
+          disabled={off}
+          onChange={() => toggle("browserPush")}
+        />
+        <Toggle
+          label="Quiet hours"
+          description={
+            prefs.quietEnabled
+              ? `Muted ${hourLabel(prefs.quietStart)} – ${hourLabel(prefs.quietEnd)}${
+                  isQuietNow(prefs) ? " · quiet right now" : ""
+                }`
+              : "Pop-ups can arrive any time"
+          }
+          checked={prefs.quietEnabled}
+          disabled={off || !prefs.browserPush}
+          onChange={() => toggle("quietEnabled")}
+        />
+        {prefs.quietEnabled && (
+          <div
+            className={cn(
+              "glass-inset grid gap-3 rounded-xl p-3 sm:grid-cols-2",
+              (off || !prefs.browserPush) && "opacity-50",
+            )}
+          >
+            <label className="flex flex-col gap-1.5 text-xs text-muted-foreground">
+              Start
+              <select
+                value={prefs.quietStart}
+                disabled={off || !prefs.browserPush}
+                onChange={(e) => set("quietStart", Number(e.target.value))}
+                className="glass-inset min-h-11 rounded-xl bg-transparent px-3 text-sm text-foreground"
+              >
+                {HOURS.map((h) => (
+                  <option key={h} value={h} className="bg-background">
+                    {hourLabel(h)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1.5 text-xs text-muted-foreground">
+              End
+              <select
+                value={prefs.quietEnd}
+                disabled={off || !prefs.browserPush}
+                onChange={(e) => set("quietEnd", Number(e.target.value))}
+                className="glass-inset min-h-11 rounded-xl bg-transparent px-3 text-sm text-foreground"
+              >
+                {HOURS.map((h) => (
+                  <option key={h} value={h} className="bg-background">
+                    {hourLabel(h)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        )}
       </div>
 
       {permission !== "granted" && (
@@ -132,6 +246,14 @@ export function NotificationSettings() {
           )}
         </div>
       )}
+
+      <button
+        type="button"
+        onClick={reset}
+        className="glass-hover glass-inset min-h-11 self-start rounded-xl px-4 text-sm font-medium text-muted-foreground"
+      >
+        Reset to defaults
+      </button>
     </div>
   );
 }

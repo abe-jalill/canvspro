@@ -99,7 +99,7 @@ function runGradeChecks(assignments: AssignmentItem[]) {
     const total = a.points_possible;
     if (!total) continue;
     const pct = Math.round((score / total) * 100);
-    if (pct <= 80) continue;
+    if (pct < prefs.gradeThreshold) continue;
     notify({
       id: `grade:${key}`,
       kind: "grade",
