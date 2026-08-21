@@ -1,14 +1,16 @@
-// One-time animated welcome sequence. Plays over the dashboard on the first
-// visit after a user creates an account, then never again for that account
-// (flag stored per-user in localStorage via scopedKey).
+// One-time animated welcome sequence. Plays over the dashboard on the very
+// first sign-in for an account — on any device — then never again. The
+// authoritative flag lives on the account (user_settings.seen_onboarding);
+// localStorage only mirrors it so a refresh mid-session can't re-trigger it.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { scopedKey, useUserScope } from "@/lib/user-scope";
 
 const FLAG = "onboarding-seen";
 const STEP_MS = [5200, 5200, 3600];
 
-function hasSeen(key: string): boolean {
+function hasSeenLocal(key: string): boolean {
   try {
     return window.localStorage.getItem(key) === "1";
   } catch {
@@ -16,7 +18,7 @@ function hasSeen(key: string): boolean {
   }
 }
 
-function markSeen(key: string) {
+function markSeenLocal(key: string) {
   try {
     window.localStorage.setItem(key, "1");
   } catch {
@@ -32,21 +34,46 @@ export function OnboardingOverlay() {
   const [leaving, setLeaving] = useState(false);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  // Decide after mount so SSR and hydration match.
+  // Decide after mount so SSR and hydration match, and only once the account
+  // flag has come back — otherwise the overlay would flash for returning users.
   useEffect(() => {
     if (!userId) return;
-    if (hasSeen(key)) return;
-    setStep(0);
-    setLeaving(false);
-    setOpen(true);
+    if (hasSeenLocal(key)) return;
+    let cancelled = false;
+
+    (async () => {
+      const { data, error } = await supabase
+        .from("user_settings")
+        .select("seen_onboarding")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (cancelled) return;
+      if (error) return; // can't confirm — stay quiet rather than replay
+      if (data?.seen_onboarding) {
+        markSeenLocal(key);
+        return;
+      }
+      // Mark seen up front so a refresh or close mid-sequence doesn't replay it.
+      markSeenLocal(key);
+      void supabase
+        .from("user_settings")
+        .upsert({ user_id: userId, seen_onboarding: true }, { onConflict: "user_id" });
+      setStep(0);
+      setLeaving(false);
+      setOpen(true);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [key, userId]);
 
   function finish() {
-    markSeen(key);
     setLeaving(true);
     const t = setTimeout(() => setOpen(false), 700);
     timers.current.push(t);
   }
+
 
   useEffect(() => {
     if (!open || leaving) return;
