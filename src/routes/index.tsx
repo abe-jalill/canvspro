@@ -371,11 +371,6 @@ function LandingPage() {
           <div className="absolute right-0 top-[-1rem]"><CalendarSticker /></div>
           <div className="absolute -right-2 top-[18rem]"><BellSticker /></div>
           <div className="absolute right-0 top-[27.5rem]"><AnnouncementSticker /></div>
-          <div className="absolute left-[16rem] top-[-1rem]">
-            <IconSticker delay="0.4s" duration="7.5s">
-              <span className="grid h-7 w-7 place-items-center rounded-full border-[3px] border-dashed border-red-400" />
-            </IconSticker>
-          </div>
           <div className="absolute left-[18rem] top-[38rem]">
             <IconSticker delay="1.8s" duration="8.2s">
               <BookOpen className="h-7 w-7 text-blue-500" />
