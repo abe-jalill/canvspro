@@ -22,9 +22,7 @@ export default function ClassScheduleView({
   onEdit?: () => void;
 }) {
   const byDay = sessionsByDay(sessions);
-  const term = sessions.find((s) => s.term)?.term ?? "My semester";
-  const dates = sessions.find((s) => s.dateRange)?.dateRange ?? "—";
-  const campus = sessions.find((s) => s.campus)?.campus ?? "—";
+
 
   return (
     <div className="space-y-6">
