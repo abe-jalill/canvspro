@@ -35,6 +35,10 @@ export const DEFAULT_PREFS: NotificationPrefs = {
   quietEnd: 7,
 };
 
+export type BooleanPrefKey = {
+  [K in keyof NotificationPrefs]: NotificationPrefs[K] extends boolean ? K : never;
+}[keyof NotificationPrefs];
+
 const BASE_KEY = "canvas:notification-prefs";
 const EVENT = "canvas:notification-prefs-changed";
 
@@ -116,7 +120,7 @@ export function useNotificationPrefs() {
     });
   }, []);
 
-  const toggle = useCallback((key: keyof NotificationPrefs) => {
+  const toggle = useCallback((key: BooleanPrefKey) => {
     setPrefs((prev) => {
       const next = { ...prev, [key]: !prev[key] };
       writePrefs(next);
