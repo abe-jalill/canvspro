@@ -1,11 +1,19 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import {
-  CalendarDays,
+  BarChart3,
   Bell,
+  BookOpen,
+  Calculator,
+  CalendarDays,
+  Download,
   GraduationCap,
   LayoutGrid,
   ListChecks,
+  Moon,
+  Newspaper,
+  Pencil,
+  SlidersHorizontal,
   Timer,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
