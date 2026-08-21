@@ -56,7 +56,7 @@ function nextEvent(events: CalendarEventItem[] | undefined, now: Date) {
 
 function summarize(
   assignments: AssignmentItem[] | undefined,
-  completed: Set<string>,
+  isCompleted: (id: string | number) => boolean,
   now: Date,
 ) {
   if (!assignments) return null;
@@ -73,7 +73,7 @@ function summarize(
 
   for (const a of assignments) {
     if (!a.due_at) continue;
-    if (completed.has(String(a.id))) continue;
+    if (isCompleted(a.id)) continue;
     if (a.submission?.submitted_at) continue;
     const due = new Date(a.due_at).getTime();
     if (due < now.getTime()) {
@@ -109,7 +109,7 @@ export function DashboardHero() {
   }, []);
 
   const next = nextEvent(events.data, now);
-  const summary = summarize(assignments.data, completed.set, now);
+  const summary = summarize(assignments.data, completed.has, now);
   const loading = assignments.isLoading || events.isLoading;
 
   const nextStart = next?.start_at ? new Date(next.start_at) : null;
