@@ -162,18 +162,21 @@ export type Database = {
         Row: {
           canvas_api_key: string | null
           created_at: string
+          seen_onboarding: boolean
           updated_at: string
           user_id: string
         }
         Insert: {
           canvas_api_key?: string | null
           created_at?: string
+          seen_onboarding?: boolean
           updated_at?: string
           user_id: string
         }
         Update: {
           canvas_api_key?: string | null
           created_at?: string
+          seen_onboarding?: boolean
           updated_at?: string
           user_id?: string
         }
