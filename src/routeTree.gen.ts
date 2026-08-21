@@ -21,6 +21,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedScheduleRouteImport } from './routes/_authenticated/schedule'
+import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
 import { Route as AuthenticatedGradesRouteImport } from './routes/_authenticated/grades'
 import { Route as AuthenticatedFocusRouteImport } from './routes/_authenticated/focus'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
@@ -90,6 +91,12 @@ const AuthenticatedScheduleRoute = AuthenticatedScheduleRouteImport.update({
   path: '/schedule',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedNotificationsRoute =
+  AuthenticatedNotificationsRouteImport.update({
+    id: '/notifications',
+    path: '/notifications',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedGradesRoute = AuthenticatedGradesRouteImport.update({
   id: '/grades',
   path: '/grades',
@@ -158,6 +165,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/focus': typeof AuthenticatedFocusRoute
   '/grades': typeof AuthenticatedGradesRoute
+  '/notifications': typeof AuthenticatedNotificationsRoute
   '/schedule': typeof AuthenticatedScheduleRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/checkout/return': typeof AuthenticatedCheckoutReturnRoute
@@ -180,6 +188,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/focus': typeof AuthenticatedFocusRoute
   '/grades': typeof AuthenticatedGradesRoute
+  '/notifications': typeof AuthenticatedNotificationsRoute
   '/schedule': typeof AuthenticatedScheduleRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/checkout/return': typeof AuthenticatedCheckoutReturnRoute
@@ -204,6 +213,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/focus': typeof AuthenticatedFocusRoute
   '/_authenticated/grades': typeof AuthenticatedGradesRoute
+  '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
   '/_authenticated/schedule': typeof AuthenticatedScheduleRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/checkout/return': typeof AuthenticatedCheckoutReturnRoute
@@ -228,6 +238,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/focus'
     | '/grades'
+    | '/notifications'
     | '/schedule'
     | '/settings'
     | '/checkout/return'
@@ -250,6 +261,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/focus'
     | '/grades'
+    | '/notifications'
     | '/schedule'
     | '/settings'
     | '/checkout/return'
@@ -273,6 +285,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/focus'
     | '/_authenticated/grades'
+    | '/_authenticated/notifications'
     | '/_authenticated/schedule'
     | '/_authenticated/settings'
     | '/_authenticated/checkout/return'
@@ -379,6 +392,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedScheduleRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/notifications': {
+      id: '/_authenticated/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof AuthenticatedNotificationsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/grades': {
       id: '/_authenticated/grades'
       path: '/grades'
@@ -453,6 +473,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedFocusRoute: typeof AuthenticatedFocusRoute
   AuthenticatedGradesRoute: typeof AuthenticatedGradesRoute
+  AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
   AuthenticatedScheduleRoute: typeof AuthenticatedScheduleRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedCheckoutReturnRoute: typeof AuthenticatedCheckoutReturnRoute
@@ -466,6 +487,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedFocusRoute: AuthenticatedFocusRoute,
   AuthenticatedGradesRoute: AuthenticatedGradesRoute,
+  AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
   AuthenticatedScheduleRoute: AuthenticatedScheduleRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedCheckoutReturnRoute: AuthenticatedCheckoutReturnRoute,
