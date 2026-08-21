@@ -1,11 +1,19 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import {
-  CalendarDays,
+  BarChart3,
   Bell,
+  BookOpen,
+  Calculator,
+  CalendarDays,
+  Download,
   GraduationCap,
   LayoutGrid,
   ListChecks,
+  Moon,
+  Newspaper,
+  Pencil,
+  SlidersHorizontal,
   Timer,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -66,6 +74,11 @@ const FEATURES = [
     body: "Every class score in one list, with trend arrows when something changes.",
   },
   {
+    icon: Calculator,
+    title: "Grade calculator",
+    body: "Weighted category calculator and a final-exam score estimator — no more spreadsheet math.",
+  },
+  {
     icon: ListChecks,
     title: "Assignments that stay sorted",
     body: "Grouped by class, sorted by due date, with countdowns and one-tap complete.",
@@ -81,9 +94,39 @@ const FEATURES = [
     body: "See only what's due within a day, two days, three days, or the week.",
   },
   {
-    icon: Bell,
-    title: "Reminders that matter",
-    body: "Hourly nudges between 9 AM and 9 PM, plus alerts for new grades and announcements.",
+    icon: BarChart3,
+    title: "Workload heatmap",
+    body: "Spot busy weeks at a glance so you can plan ahead instead of cram.",
+  },
+  {
+    icon: Newspaper,
+    title: "Daily digest",
+    body: "A quick summary of what changed since you last opened Canvas Pro.",
+  },
+  {
+    icon: SlidersHorizontal,
+    title: "Notifications you control",
+    body: "Choose when and what you get notified about: due windows, new grades, and announcements.",
+  },
+  {
+    icon: Pencil,
+    title: "Friendly class names",
+    body: "Rename PHY1154 to Physics and MATH2010 to Calc 2 everywhere the app shows your courses.",
+  },
+  {
+    icon: BookOpen,
+    title: "Syllabus links",
+    body: "Open any course syllabus in a modal without leaving your dashboard.",
+  },
+  {
+    icon: Download,
+    title: ".ics calendar export",
+    body: "Export assignment due dates to Apple Calendar, Google Calendar, or Outlook in one tap.",
+  },
+  {
+    icon: Moon,
+    title: "Dark and light mode",
+    body: "Switch between a pure-black OLED theme and a clean light look.",
   },
 ];
 
