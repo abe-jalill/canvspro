@@ -125,11 +125,12 @@ export function AppSidebar() {
             <Link
               key={item.to}
               to={item.to}
+              preload="intent"
               className={cn(
-                "glass-hover rounded-xl px-3 py-2 text-sm font-medium transition-colors",
+                "press rounded-xl px-3 py-2 text-sm font-medium",
                 isActive(pathname, item.to)
                   ? "bg-foreground/[0.08] text-foreground"
-                  : "text-muted-foreground hover:text-foreground",
+                  : "text-muted-foreground hover:bg-foreground/[0.05] hover:text-foreground",
               )}
             >
               <span className="flex items-center justify-between gap-2">
@@ -188,9 +189,10 @@ export function MobileNav() {
             <Link
               key={item.to}
               to={item.to}
+              preload="intent"
               onClick={() => setOpen(false)}
               className={cn(
-                "flex min-h-11 items-center rounded-xl px-3 text-sm font-medium",
+                "press flex min-h-11 items-center rounded-xl px-3 text-sm font-medium",
                 isActive(pathname, item.to)
                   ? "bg-foreground/[0.08] text-foreground"
                   : "text-muted-foreground",
