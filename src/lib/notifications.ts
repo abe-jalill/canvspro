@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { scopedKey, subscribeToUserScope } from "@/lib/user-scope";
+import { allowBrowserPush } from "@/lib/notification-prefs";
 
 export type NotificationKind = "due" | "grade" | "announcement" | "system";
 
@@ -63,7 +64,10 @@ export function fireBrowserNotification(title: string, body?: string, tag?: stri
 }
 
 export function notify(n: Omit<AppNotification, "ts" | "read">) {
-  if (pushNotification(n)) fireBrowserNotification(n.title, n.body, n.id);
+  // Always record in the bell menu; only interrupt when the user allows it.
+  if (pushNotification(n) && allowBrowserPush()) {
+    fireBrowserNotification(n.title, n.body, n.id);
+  }
 }
 
 export function useNotifications() {
