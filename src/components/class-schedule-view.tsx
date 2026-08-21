@@ -29,10 +29,7 @@ export default function ClassScheduleView({
       <header className="glass-panel-strong p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              {term}
-            </p>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight">
+            <h1 className="text-2xl font-semibold tracking-tight">
               Class Schedule
             </h1>
           </div>
@@ -47,11 +44,15 @@ export default function ClassScheduleView({
           ) : null}
         </div>
         <div className="mt-4 flex flex-wrap gap-6 text-sm">
-          <Stat label="Courses" value={String(sessions.length)} />
-          <Stat label="Credit Hours" value={totalCredits(sessions).toFixed(3)} />
-          <Stat label="Dates" value={dates} />
-          <Stat label="Campus" value={campus} />
+          <Stat label="Classes" value={String(sessions.length)} />
+          {totalCredits(sessions) > 0 ? (
+            <Stat
+              label="Credit Hours"
+              value={String(totalCredits(sessions))}
+            />
+          ) : null}
         </div>
+
       </header>
 
       <section className="glass-panel p-4 md:p-6">
