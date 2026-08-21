@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { useDashboardLayout, type WidgetId } from "@/lib/dashboard-layout";
 import { WIDGETS, LockedWidget } from "@/components/widgets/dashboard-widgets";
 import { useSubscription } from "@/lib/subscription";
+import { DashboardHero } from "@/components/dashboard-hero";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
@@ -38,14 +39,16 @@ function Dashboard() {
 
   return (
     <div className="w-full min-w-0 space-y-6">
-      <header className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 px-1 pt-2">
+      <DashboardHero />
+
+      <header className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 px-1">
         <div className="min-w-0">
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
             Overview
           </p>
-          <h1 className="mt-1 truncate text-2xl font-semibold tracking-tight sm:text-3xl md:text-4xl">
-            Dashboard
-          </h1>
+          <h2 className="mt-1 truncate text-lg font-semibold tracking-tight sm:text-xl">
+            Your widgets
+          </h2>
         </div>
         <button
           onClick={() => setCustomizing((v) => !v)}
