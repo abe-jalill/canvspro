@@ -365,12 +365,12 @@ function LandingPage() {
               <span className="grid h-7 w-7 place-items-center rounded-full border-[3px] border-dashed border-red-400" />
             </IconSticker>
           </div>
-          <div className="absolute left-[18rem] top-[40rem]">
+          <div className="absolute left-[18rem] top-[38rem]">
             <IconSticker delay="1.8s" duration="8.2s">
               <BookOpen className="h-7 w-7 text-blue-500" />
             </IconSticker>
           </div>
-          <div className="absolute right-[18rem] top-[40rem]">
+          <div className="absolute right-[18rem] top-[38rem]">
             <IconSticker delay="2.4s" duration="7.8s">
               <CheckSquare className="h-7 w-7 text-emerald-500" />
             </IconSticker>
@@ -380,7 +380,7 @@ function LandingPage() {
           <div className="absolute left-[31%] top-[30rem] text-2xl font-light text-slate-300/70">+</div>
         </div>
 
-        <div className="relative mx-auto max-w-3xl text-center">
+        <div className="relative mx-auto max-w-4xl text-center">
           <h1 className="text-[2.35rem] font-extrabold leading-[1.08] tracking-[-0.03em] text-slate-900 sm:text-6xl lg:text-[4.25rem]">
             Hey! Welcome to{" "}
             <span className="text-gradient-animated">CanvasPro.</span>
@@ -427,7 +427,7 @@ function LandingPage() {
       </section>
 
       {/* Feature strip */}
-      <section className="mx-auto w-full max-w-6xl px-4 pb-16 lg:pt-[19rem]">
+      <section className="mx-auto w-full max-w-6xl px-4 pb-16 lg:pt-[8rem]">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5 lg:divide-x lg:divide-slate-200/80">
           {STRIP.map((s) => (
             <div key={s.title} className="flex items-center gap-3 px-0 lg:px-4">
