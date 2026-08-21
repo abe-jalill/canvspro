@@ -1,6 +1,6 @@
-// Lets a user type in their own recurring class meeting times. Canvas's API
-// does not expose section meeting times reliably, so the timetable is entered
-// here and stored per-account.
+// Minimal entry form for a user's recurring class meeting times. Canvas's API
+// does not expose section meeting times reliably, so they're entered here and
+// stored per-account. Only class name, days and times are required.
 import { useEffect, useState } from "react";
 import {
   DAY_LABELS,
@@ -17,15 +17,10 @@ import {
 
 interface Draft {
   key: string;
-  code: string;
-  section: string;
   title: string;
-  crn: string;
   credits: string;
   instructor: string;
   location: string;
-  campus: string;
-  scheduleType: string;
   days: ClassDay[];
   start: string;
   end: string;
@@ -37,15 +32,10 @@ const nextKey = () => `row-${keySeq++}`;
 function emptyDraft(): Draft {
   return {
     key: nextKey(),
-    code: "",
-    section: "",
     title: "",
-    crn: "",
-    credits: "3",
+    credits: "",
     instructor: "",
     location: "",
-    campus: "",
-    scheduleType: "Lecture",
     days: [],
     start: "09:30",
     end: "10:45",
@@ -55,15 +45,10 @@ function emptyDraft(): Draft {
 function toDraft(s: ClassSession): Draft {
   return {
     key: nextKey(),
-    code: s.code,
-    section: s.section,
     title: s.title,
-    crn: s.crn,
-    credits: String(s.credits),
+    credits: s.credits ? String(s.credits) : "",
     instructor: s.instructor,
     location: s.location,
-    campus: s.campus,
-    scheduleType: s.scheduleType || "Lecture",
     days: s.days,
     start: toTimeInput(s.startMinutes),
     end: toTimeInput(s.endMinutes),
@@ -80,17 +65,11 @@ export default function ClassScheduleEditor({
   onCancel?: () => void;
 }) {
   const save = useSaveClassSchedule();
-  const [term, setTerm] = useState("");
-  const [dateRange, setDateRange] = useState("");
-  const [campus, setCampus] = useState("");
   const [rows, setRows] = useState<Draft[]>([]);
   const [status, setStatus] = useState<string | null>(null);
 
   useEffect(() => {
     setRows(sessions.length > 0 ? sessions.map(toDraft) : [emptyDraft()]);
-    setTerm(sessions.find((s) => s.term)?.term ?? "");
-    setDateRange(sessions.find((s) => s.dateRange)?.dateRange ?? "");
-    setCampus(sessions.find((s) => s.campus)?.campus ?? "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessions.length]);
 
@@ -135,20 +114,20 @@ export default function ClassScheduleEditor({
         return;
       }
       payload.push({
-        code: r.code,
-        section: r.section,
+        code: "",
+        section: "",
         title: r.title,
-        crn: r.crn,
+        crn: "",
         credits: Number(r.credits) || 0,
         instructor: r.instructor,
         location: r.location,
-        campus: campus,
-        scheduleType: r.scheduleType,
+        campus: "",
+        scheduleType: "Lecture",
         days: r.days,
         startMinutes: start,
         endMinutes: end,
-        term,
-        dateRange,
+        term: "",
+        dateRange: "",
       });
     }
 
@@ -170,38 +149,9 @@ export default function ClassScheduleEditor({
           Enter your class schedule
         </h1>
         <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-          Canvas doesn't share your recurring class meeting times, so add them
-          once here. They'll show up as a weekly timetable and course cards.
+          Add each class once — name, meeting days, and times. Credit hours,
+          professor, and location are optional.
         </p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <Field label="Term">
-            <input
-              value={term}
-              onChange={(e) => setTerm(e.target.value)}
-              placeholder="Fall 2026"
-              maxLength={60}
-              className="field"
-            />
-          </Field>
-          <Field label="Semester dates">
-            <input
-              value={dateRange}
-              onChange={(e) => setDateRange(e.target.value)}
-              placeholder="Aug 24 – Dec 11, 2026"
-              maxLength={80}
-              className="field"
-            />
-          </Field>
-          <Field label="Campus">
-            <input
-              value={campus}
-              onChange={(e) => setCampus(e.target.value)}
-              placeholder="Main campus"
-              maxLength={60}
-              className="field"
-            />
-          </Field>
-        </div>
       </header>
 
       <div className="space-y-3">
@@ -234,34 +184,7 @@ export default function ClassScheduleEditor({
                   className="field"
                 />
               </Field>
-              <Field label="Course code">
-                <input
-                  value={r.code}
-                  onChange={(e) => update(r.key, { code: e.target.value })}
-                  placeholder="MCS 1424"
-                  maxLength={30}
-                  className="field"
-                />
-              </Field>
-              <Field label="Section">
-                <input
-                  value={r.section}
-                  onChange={(e) => update(r.key, { section: e.target.value })}
-                  placeholder="03"
-                  maxLength={12}
-                  className="field"
-                />
-              </Field>
-              <Field label="CRN">
-                <input
-                  value={r.crn}
-                  onChange={(e) => update(r.key, { crn: e.target.value })}
-                  placeholder="1146"
-                  maxLength={12}
-                  className="field"
-                />
-              </Field>
-              <Field label="Credit hours">
+              <Field label="Credit hours (optional)">
                 <input
                   type="number"
                   min={0}
@@ -269,25 +192,11 @@ export default function ClassScheduleEditor({
                   step="0.5"
                   value={r.credits}
                   onChange={(e) => update(r.key, { credits: e.target.value })}
+                  placeholder="3"
                   className="field"
                 />
               </Field>
-              <Field label="Type">
-                <select
-                  value={r.scheduleType}
-                  onChange={(e) =>
-                    update(r.key, { scheduleType: e.target.value })
-                  }
-                  className="field"
-                >
-                  <option value="Lecture">Lecture</option>
-                  <option value="Lab">Lab</option>
-                  <option value="Seminar">Seminar</option>
-                  <option value="Studio">Studio</option>
-                  <option value="Online">Online</option>
-                </select>
-              </Field>
-              <Field label="Instructor">
+              <Field label="Professor">
                 <input
                   value={r.instructor}
                   onChange={(e) => update(r.key, { instructor: e.target.value })}
@@ -296,11 +205,11 @@ export default function ClassScheduleEditor({
                   className="field"
                 />
               </Field>
-              <Field label="Room / location">
+              <Field label="Location (optional)">
                 <input
                   value={r.location}
                   onChange={(e) => update(r.key, { location: e.target.value })}
-                  placeholder="Science Building S206"
+                  placeholder="Room S206"
                   maxLength={100}
                   className="field"
                 />
