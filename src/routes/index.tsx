@@ -400,14 +400,16 @@ function LandingPage() {
           </div>
 
           <div className="mt-6 space-y-1 text-sm text-slate-400">
-            <p>Free dashboard tier. Cancel anytime.</p>
-            <p>Or save with $24.99/year — about 2 months free.</p>
             <p>
-              Curious what we store?{" "}
+              Free dashboard tier. 2.99/month.{"\u00a0"} Cancel anytime.
+              <br />
+              Your data is private.{" "}
               <Link to="/privacy" className="font-medium text-blue-600 hover:underline">
                 Read the privacy policy.
               </Link>
             </p>
+            <p>{"\n"}</p>
+            <p>{"\n"}</p>
           </div>
 
           <a
