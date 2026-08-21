@@ -1,0 +1,115 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  isClassDay,
+  timeRangeLabel,
+  type ClassDay,
+  type ClassSession,
+} from "@/lib/class-schedule";
+
+export const classScheduleQueryKey = ["class-schedule-entries"] as const;
+
+export interface ScheduleEntryInput {
+  id?: string;
+  code: string;
+  section: string;
+  title: string;
+  crn: string;
+  credits: number;
+  instructor: string;
+  location: string;
+  campus: string;
+  scheduleType: string;
+  days: ClassDay[];
+  startMinutes: number;
+  endMinutes: number;
+  term: string;
+  dateRange: string;
+}
+
+export async function fetchClassSchedule(): Promise<ClassSession[]> {
+  const { data: userData } = await supabase.auth.getUser();
+  const user = userData.user;
+  if (!user) return [];
+  const { data, error } = await supabase
+    .from("class_schedule_entries")
+    .select(
+      "id, code, section, title, crn, credits, instructor, location, campus, schedule_type, days, start_minutes, end_minutes, term, date_range",
+    )
+    .eq("user_id", user.id)
+    .order("start_minutes", { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => ({
+    id: String(r.id),
+    code: r.code ?? "",
+    section: r.section ?? "",
+    title: r.title,
+    displayName: r.title,
+    crn: r.crn ?? "",
+    credits: Number(r.credits ?? 0),
+    instructor: r.instructor ?? "",
+    location: r.location ?? "",
+    campus: r.campus ?? "",
+    scheduleType: r.schedule_type ?? "Lecture",
+    days: (r.days ?? []).filter(isClassDay),
+    startMinutes: Number(r.start_minutes),
+    endMinutes: Number(r.end_minutes),
+    timeLabel: timeRangeLabel(Number(r.start_minutes), Number(r.end_minutes)),
+    dateRange: r.date_range ?? "",
+    term: r.term ?? "",
+  }));
+}
+
+export function useClassSchedule() {
+  return useQuery({
+    queryKey: classScheduleQueryKey,
+    queryFn: fetchClassSchedule,
+    staleTime: 5 * 60_000,
+  });
+}
+
+/** Replaces the signed-in user's whole schedule with the given rows. */
+export function useSaveClassSchedule() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (rows: ScheduleEntryInput[]) => {
+      const { data: userData } = await supabase.auth.getUser();
+      const user = userData.user;
+      if (!user) throw new Error("You must be signed in.");
+
+      const { error: delError } = await supabase
+        .from("class_schedule_entries")
+        .delete()
+        .eq("user_id", user.id);
+      if (delError) throw new Error(delError.message);
+
+      const keep = rows.filter((r) => r.title.trim().length > 0);
+      if (keep.length > 0) {
+        const { error } = await supabase.from("class_schedule_entries").insert(
+          keep.map((r) => ({
+            user_id: user.id,
+            code: r.code.trim(),
+            section: r.section.trim(),
+            title: r.title.trim(),
+            crn: r.crn.trim(),
+            credits: Number.isFinite(r.credits) ? r.credits : 0,
+            instructor: r.instructor.trim(),
+            location: r.location.trim(),
+            campus: r.campus.trim(),
+            schedule_type: r.scheduleType.trim() || "Lecture",
+            days: r.days,
+            start_minutes: r.startMinutes,
+            end_minutes: r.endMinutes,
+            term: r.term.trim(),
+            date_range: r.dateRange.trim(),
+          })),
+        );
+        if (error) throw new Error(error.message);
+      }
+      return keep.length;
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: classScheduleQueryKey });
+    },
+  });
+}
