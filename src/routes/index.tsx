@@ -139,159 +139,145 @@ const HERO_HIGHLIGHTS = [
   { icon: RefreshCw, title: "Works with Canvas", body: "Seamless sync" },
 ];
 
-const FLOATING_ITEMS = [
+/* Faint blue background decorations (dot grids, plus marks, rings, watermarks) */
+function DotGrid({ cols = 5, rows = 4 }: { cols?: number; rows?: number }) {
+  return (
+    <div
+      className="grid gap-[10px]"
+      style={{ gridTemplateColumns: `repeat(${cols}, 4px)` }}
+    >
+      {Array.from({ length: cols * rows }).map((_, i) => (
+        <span key={i} className="h-1 w-1 rounded-full bg-brand/25" />
+      ))}
+    </div>
+  );
+}
+
+const DECOR = [
+  { id: "dots-top", left: "55%", top: "9%", node: <DotGrid cols={6} rows={4} /> },
   {
-    id: "logo",
-    left: "46%",
-    top: "5%",
-    rotate: -4,
-    cardClass: "glass-panel p-4 text-center w-auto",
-    delay: "0.2s",
-    duration: "6.5s",
-    children: (
+    id: "ring",
+    left: "50%",
+    top: "23%",
+    node: <span className="block h-5 w-5 rounded-full border border-brand/25" />,
+  },
+  {
+    id: "plus-left",
+    left: "24%",
+    top: "29%",
+    node: (
+      <span className="relative block h-4 w-4">
+        <span className="absolute left-1/2 top-0 h-4 w-px -translate-x-1/2 bg-brand/25" />
+        <span className="absolute top-1/2 left-0 h-px w-4 -translate-y-1/2 bg-brand/25" />
+      </span>
+    ),
+  },
+  { id: "dots-right", left: "82%", top: "45%", node: <DotGrid cols={4} rows={4} /> },
+  {
+    id: "plus-mid",
+    left: "32%",
+    top: "64%",
+    node: (
+      <span className="relative block h-4 w-4">
+        <span className="absolute left-1/2 top-0 h-4 w-px -translate-x-1/2 bg-brand/25" />
+        <span className="absolute top-1/2 left-0 h-px w-4 -translate-y-1/2 bg-brand/25" />
+      </span>
+    ),
+  },
+  { id: "dots-lower", left: "27%", top: "76%", node: <DotGrid cols={5} rows={4} /> },
+  {
+    id: "square-top",
+    left: "68%",
+    top: "13%",
+    node: (
+      <span className="block h-14 w-14 rotate-12 rounded-2xl border border-brand/15 bg-brand/[0.06]" />
+    ),
+  },
+  {
+    id: "watermark-left",
+    left: "2%",
+    top: "76%",
+    node: (
       <img
         src={canvasLogoAsset.url}
-        alt="Canvas LMS logo"
-        className="h-24 w-auto rounded-xl object-contain"
+        alt=""
+        className="h-32 w-32 opacity-[0.08] [filter:grayscale(1)_sepia(1)_hue-rotate(185deg)_saturate(4)]"
       />
     ),
   },
   {
-    id: "streak",
-    left: "25%",
-    top: "8%",
-    rotate: 5,
-    cardClass: "glass-panel flex items-center gap-3 p-4 text-left w-56",
-    delay: "0.5s",
-    duration: "7.1s",
-    children: (
-      <>
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-vivid-amber/15 text-vivid-amber">
-          <Flame className="h-5 w-5" />
-        </span>
-        <div className="min-w-0">
-          <p className="text-sm font-semibold">5-day streak</p>
-          <p className="text-xs text-muted-foreground">Keep it going</p>
-        </div>
-      </>
+    id: "watermark-right",
+    right: "1%",
+    top: "70%",
+    node: (
+      <img
+        src={canvasLogoAsset.url}
+        alt=""
+        className="h-44 w-44 opacity-[0.08] [filter:grayscale(1)_sepia(1)_hue-rotate(185deg)_saturate(4)]"
+      />
     ),
   },
-  {
-    id: "focus",
-    left: "62%",
-    top: "9%",
-    rotate: -3,
-    cardClass: "glass-panel flex items-center gap-3 p-4 text-left w-60",
-    delay: "0.8s",
-    duration: "6.8s",
-    children: (
-      <>
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-vivid-violet/15 text-vivid-violet">
-          <Target className="h-5 w-5" />
-        </span>
-        <div className="min-w-0">
-          <p className="text-sm font-semibold">Focus mode</p>
-          <p className="text-xs text-muted-foreground">3 due today</p>
-        </div>
-      </>
-    ),
-  },
-  {
-    id: "complete",
-    right: "4%",
-    top: "26%",
-    rotate: -5,
-    cardClass: "glass-panel flex items-center gap-3 p-4 text-left w-52",
-    delay: "2.0s",
-    duration: "7.3s",
-    children: (
-      <>
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-vivid-emerald/15 text-vivid-emerald">
-          <CheckCircle2 className="h-5 w-5" />
-        </span>
-        <div className="min-w-0">
-          <p className="text-sm font-semibold">12 done</p>
-          <p className="text-xs text-muted-foreground">This week</p>
-        </div>
-      </>
-    ),
-  },
+];
+
+const FLOATING_ITEMS = [
   {
     id: "graded",
-    left: "3%",
-    top: "24%",
-    rotate: 4,
-    cardClass: "glass-panel p-4 text-left w-72",
-    delay: "1.1s",
-    duration: "7.2s",
+    left: "4%",
+    top: "15%",
+    rotate: -4,
+    cardClass: "glass-panel p-4 text-left w-80",
     children: (
       <div className="flex items-start gap-3">
-        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-vivid-emerald/15 text-vivid-emerald">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-vivid-sky/15 text-vivid-sky">
           <FileText className="h-4 w-4" />
         </span>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium">Your assignment has been graded!</p>
           <p className="mt-1 text-xs text-muted-foreground">Biology Lab Report</p>
         </div>
-        <span className="text-[10px] text-muted-foreground">2m ago</span>
-      </div>
-    ),
-  },
-  {
-    id: "bell",
-    right: "9%",
-    top: "9%",
-    rotate: -4,
-    cardClass: "glass-panel flex h-20 w-20 items-center justify-center p-3",
-    delay: "1.6s",
-    duration: "7.0s",
-    children: (
-      <div className="relative">
-        <Bell className="h-6 w-6 text-vivid-rose" />
-        <span className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-vivid-rose text-xs font-semibold text-white">
-          3
-        </span>
-      </div>
-    ),
-  },
-  {
-    id: "grade",
-    left: "3%",
-    top: "50%",
-    rotate: -3,
-    cardClass: "glass-panel p-4 text-left w-56",
-    delay: "1.8s",
-    duration: "6.8s",
-    children: (
-      <>
-        <p className="text-xs text-muted-foreground">Current Grade</p>
-        <p className="mt-1 flex items-baseline gap-2 text-2xl font-semibold">
-          88.6%
+        <div className="flex flex-col items-end gap-1">
+          <span className="text-[10px] text-muted-foreground">2m ago</span>
           <span className="rounded-md bg-vivid-emerald/15 px-1.5 py-0.5 text-[11px] font-medium text-vivid-emerald">
-            ↑ 4.2%
+            92 / 100
           </span>
-        </p>
-        <TrendingUp className="mt-2 h-10 w-full text-vivid-emerald" strokeWidth={1.5} />
-      </>
+        </div>
+      </div>
+    ),
+  },
+  {
+    id: "logo",
+    left: "33%",
+    top: "13%",
+    rotate: 0,
+    cardClass: "glass-panel flex h-20 w-20 items-center justify-center p-3",
+    children: (
+      <img
+        src={canvasLogoAsset.url}
+        alt="Canvas LMS logo"
+        className="h-10 w-10 object-contain"
+      />
     ),
   },
   {
     id: "calendar",
-    right: "3%",
-    top: "44%",
-    rotate: 3,
-    cardClass: "glass-panel p-4 text-left w-64",
-    delay: "0.7s",
-    duration: "6.2s",
+    right: "7%",
+    top: "15%",
+    rotate: 0,
+    cardClass: "glass-panel p-4 text-left w-60",
     children: (
       <>
         <p className="text-sm font-semibold">Calendar</p>
-        <p className="text-xs text-muted-foreground">This week</p>
+        <p className="text-xs text-muted-foreground">May 2024</p>
         <div className="mt-3 grid grid-cols-7 gap-1 text-center text-[10px] text-muted-foreground">
           {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
             <span key={`${d}-${i}`}>{d}</span>
           ))}
-          {Array.from({ length: 14 }, (_, i) => i + 1).map((n) => (
+          {[28, 29, 30].map((n) => (
+            <span key={`p${n}`} className="py-0.5 text-muted-foreground/50">
+              {n}
+            </span>
+          ))}
+          {Array.from({ length: 18 }, (_, i) => i + 1).map((n) => (
             <span
               key={n}
               className={
@@ -308,20 +294,52 @@ const FLOATING_ITEMS = [
     ),
   },
   {
+    id: "grade",
+    left: "8%",
+    top: "38%",
+    rotate: -2,
+    cardClass: "glass-panel p-4 text-left w-52",
+    children: (
+      <>
+        <p className="text-xs text-muted-foreground">Current Grade</p>
+        <p className="mt-1 flex items-baseline gap-2 text-2xl font-semibold">
+          88.6%
+          <span className="rounded-md bg-vivid-emerald/15 px-1.5 py-0.5 text-[11px] font-medium text-vivid-emerald">
+            ↑ 4.2%
+          </span>
+        </p>
+        <TrendingUp className="mt-2 h-10 w-full text-vivid-sky" strokeWidth={1.5} />
+      </>
+    ),
+  },
+  {
+    id: "bell",
+    right: "4%",
+    top: "48%",
+    rotate: 0,
+    cardClass: "glass-panel flex h-20 w-20 items-center justify-center p-3",
+    children: (
+      <div className="relative">
+        <Bell className="h-6 w-6 text-vivid-sky" />
+        <span className="absolute -right-3 -top-3 flex h-6 w-6 items-center justify-center rounded-full bg-vivid-rose text-xs font-semibold text-white">
+          3
+        </span>
+      </div>
+    ),
+  },
+  {
     id: "assignment",
-    left: "3%",
-    top: "72%",
-    rotate: 3,
-    cardClass: "glass-panel p-4 text-left w-72",
-    delay: "2.4s",
-    duration: "7.5s",
+    left: "5%",
+    top: "59%",
+    rotate: 2,
+    cardClass: "glass-panel p-4 text-left w-80",
     children: (
       <div className="flex items-center gap-3">
-        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-vivid-sky/15 text-vivid-sky">
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-vivid-violet/15 text-vivid-violet">
           <CalendarDays className="h-4 w-4" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-medium text-vivid-sky">Upcoming Assignment</p>
+          <p className="text-xs font-medium text-muted-foreground">Upcoming Assignment</p>
           <p className="truncate text-sm font-semibold">Research Paper Draft</p>
           <p className="text-xs text-muted-foreground">English 101</p>
         </div>
@@ -334,19 +352,17 @@ const FLOATING_ITEMS = [
   },
   {
     id: "announcement",
-    right: "3%",
-    top: "70%",
-    rotate: 2,
+    right: "11%",
+    top: "59%",
+    rotate: -2,
     cardClass: "glass-panel p-4 text-left w-80",
-    delay: "2.5s",
-    duration: "7.8s",
     children: (
       <div className="flex items-start gap-3">
-        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-vivid-amber/15 text-vivid-amber">
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-vivid-sky/15 text-vivid-sky">
           <Megaphone className="h-4 w-4" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-medium text-vivid-amber">New Announcement</p>
+          <p className="text-xs font-medium text-vivid-sky">New Announcement</p>
           <p className="truncate text-sm font-semibold">Class canceled Friday</p>
           <p className="text-xs text-muted-foreground">Calculus II</p>
         </div>
@@ -354,7 +370,24 @@ const FLOATING_ITEMS = [
       </div>
     ),
   },
+  {
+    id: "book",
+    left: "17%",
+    top: "80%",
+    rotate: 0,
+    cardClass: "glass-panel flex h-20 w-20 items-center justify-center p-3",
+    children: <BookOpen className="h-7 w-7 text-vivid-sky" />,
+  },
+  {
+    id: "done",
+    left: "76%",
+    top: "80%",
+    rotate: 0,
+    cardClass: "glass-panel flex h-20 w-20 items-center justify-center p-3",
+    children: <CheckCircle2 className="h-7 w-7 text-vivid-emerald" />,
+  },
 ];
+
 
 function LandingPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
