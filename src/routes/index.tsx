@@ -496,20 +496,19 @@ function LandingPage() {
           </div>
 
           <p
-            className="rise-in mt-5 text-sm text-muted-foreground"
+            className="rise-in mt-5 text-sm text-muted-foreground whitespace-pre-line"
             style={{ animationDelay: "520ms" }}
           >
-            Free dashboard tier. Cancel anytime. Or save with{" "}
+            Free plan available • No credit card required{"\n\n"}
             <Link to="/pricing" className="underline underline-offset-4 hover:text-foreground">
-              $24.99/year — about 2 months free
+              Upgrade anytime for $2.99/month
             </Link>
-            .
           </p>
           <p
             className="rise-in mt-1 text-sm text-muted-foreground"
             style={{ animationDelay: "560ms" }}
           >
-            Curious what we store?{" "}
+            Your data stays private.&nbsp;&nbsp;
             <Link to="/privacy" className="underline underline-offset-4 hover:text-foreground">
               Read the privacy policy
             </Link>
