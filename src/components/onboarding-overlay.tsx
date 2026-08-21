@@ -2,6 +2,7 @@
 // visit after a user creates an account, then never again for that account
 // (flag stored per-user in localStorage via scopedKey).
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { scopedKey, useUserScope } from "@/lib/user-scope";
 
 const FLAG = "onboarding-seen";
@@ -76,7 +77,9 @@ export function OnboardingOverlay() {
 
   if (!open) return null;
 
-  return (
+  // Portalled to <body>: the route wrapper animates (transform), which would
+  // otherwise become the containing block for this fixed overlay.
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -147,7 +150,8 @@ export function OnboardingOverlay() {
           />
         ))}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
