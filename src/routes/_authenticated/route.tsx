@@ -34,7 +34,9 @@ export const Route = createFileRoute("/_authenticated")({
 
 function AuthenticatedLayout() {
   const { isActive: isPro } = useSubscription();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
   useNotificationEngine(isPro);
+  useAppPrefetch(true);
   return (
     <div className="min-h-screen w-full overflow-x-hidden">
       <AppSidebar />
@@ -49,7 +51,9 @@ function AuthenticatedLayout() {
           <CanvasKeyGate>
             <ClassNamesGate>
               <ProGate>
-                <Outlet />
+                <div key={pathname} className="page-transition min-w-0">
+                  <Outlet />
+                </div>
               </ProGate>
             </ClassNamesGate>
           </CanvasKeyGate>
