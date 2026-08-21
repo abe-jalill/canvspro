@@ -314,13 +314,24 @@ function LandingPage() {
 
   useEffect(() => {
     let active = true;
-    supabase.auth.getSession().then(({ data }) => {
-      if (active && data.session) navigate({ to: "/dashboard", replace: true });
+    // Only bounce to the dashboard when the stored session is actually valid.
+    // A stale/expired token would otherwise send us to /dashboard, where the
+    // auth gate immediately kicks the visitor to /auth.
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (!active || !data.session) return;
+      const { data: userData, error } = await supabase.auth.getUser();
+      if (!active) return;
+      if (error || !userData.user) {
+        await supabase.auth.signOut();
+        return;
+      }
+      navigate({ to: "/dashboard", replace: true });
     });
     return () => {
       active = false;
     };
   }, [navigate]);
+
 
   return (
     <div className="relative overflow-hidden">
