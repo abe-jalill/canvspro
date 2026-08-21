@@ -47,6 +47,69 @@ export type Database = {
         }
         Relationships: []
       }
+      class_schedule_entries: {
+        Row: {
+          campus: string
+          code: string
+          created_at: string
+          credits: number
+          crn: string
+          date_range: string
+          days: string[]
+          end_minutes: number
+          id: string
+          instructor: string
+          location: string
+          schedule_type: string
+          section: string
+          start_minutes: number
+          term: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          campus?: string
+          code?: string
+          created_at?: string
+          credits?: number
+          crn?: string
+          date_range?: string
+          days?: string[]
+          end_minutes: number
+          id?: string
+          instructor?: string
+          location?: string
+          schedule_type?: string
+          section?: string
+          start_minutes: number
+          term?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          campus?: string
+          code?: string
+          created_at?: string
+          credits?: number
+          crn?: string
+          date_range?: string
+          days?: string[]
+          end_minutes?: number
+          id?: string
+          instructor?: string
+          location?: string
+          schedule_type?: string
+          section?: string
+          start_minutes?: number
+          term?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           cancel_at_period_end: boolean | null
