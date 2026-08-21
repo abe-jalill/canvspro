@@ -22,19 +22,14 @@ export default function ClassScheduleView({
   onEdit?: () => void;
 }) {
   const byDay = sessionsByDay(sessions);
-  const term = sessions.find((s) => s.term)?.term ?? "My semester";
-  const dates = sessions.find((s) => s.dateRange)?.dateRange ?? "—";
-  const campus = sessions.find((s) => s.campus)?.campus ?? "—";
+
 
   return (
     <div className="space-y-6">
       <header className="glass-panel-strong p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              {term}
-            </p>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight">
+            <h1 className="text-2xl font-semibold tracking-tight">
               Class Schedule
             </h1>
           </div>
@@ -49,11 +44,15 @@ export default function ClassScheduleView({
           ) : null}
         </div>
         <div className="mt-4 flex flex-wrap gap-6 text-sm">
-          <Stat label="Courses" value={String(sessions.length)} />
-          <Stat label="Credit Hours" value={totalCredits(sessions).toFixed(3)} />
-          <Stat label="Dates" value={dates} />
-          <Stat label="Campus" value={campus} />
+          <Stat label="Classes" value={String(sessions.length)} />
+          {totalCredits(sessions) > 0 ? (
+            <Stat
+              label="Credit Hours"
+              value={String(totalCredits(sessions))}
+            />
+          ) : null}
         </div>
+
       </header>
 
       <section className="glass-panel p-4 md:p-6">
@@ -65,40 +64,34 @@ export default function ClassScheduleView({
 
       <section className="space-y-3">
         <h2 className="text-sm font-medium uppercase tracking-[0.18em] text-muted-foreground">
-          Course details
+          Your classes
         </h2>
         <div className="grid gap-3 md:grid-cols-2">
           {sessions.map((c) => (
             <article key={c.id} className="glass-panel p-5">
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  {c.code || c.section || c.crn ? (
-                    <p className="truncate text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                      {[c.code, c.section, c.crn ? `CRN ${c.crn}` : ""]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </p>
-                  ) : null}
-                  <h3 className="mt-1 text-base font-semibold tracking-tight">
-                    {c.title}
-                  </h3>
-                </div>
-                <span className="glass-inset shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                  {c.credits} cr
-                </span>
+                <h3 className="min-w-0 text-base font-semibold tracking-tight">
+                  {c.title}
+                </h3>
+                {c.credits > 0 ? (
+                  <span className="glass-inset shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                    {c.credits} cr
+                  </span>
+                ) : null}
               </div>
               <dl className="mt-4 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
                 <Row label="Days">
                   {c.days.map((d) => DAY_LABELS[d].slice(0, 3)).join(" ") || "—"}
                 </Row>
                 <Row label="Time">{c.timeLabel}</Row>
-                <Row label="Room">{c.location || "—"}</Row>
-                <Row label="Type">{c.scheduleType}</Row>
-                <Row label="Instructor">{c.instructor || "—"}</Row>
-                <Row label="Dates">{c.dateRange || "—"}</Row>
+                {c.instructor ? (
+                  <Row label="Professor">{c.instructor}</Row>
+                ) : null}
+                {c.location ? <Row label="Location">{c.location}</Row> : null}
               </dl>
             </article>
           ))}
+
         </div>
       </section>
     </div>
