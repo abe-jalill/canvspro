@@ -1,21 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Suspense, lazy, useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { Suspense, lazy, useState } from "react";
+import { useClassSchedule } from "@/lib/user-class-schedule";
 
-// The static weekly schedule is personal data belonging to this account.
-const OWNER_USER_ID = "0a0857b8-3e9a-466e-8b40-9cd32d338850";
-
-// Loaded only after ownership is confirmed, so the timetable is not part of
-// the bundle every signed-in user downloads.
-const OwnerClassSchedule = lazy(() => import("@/components/owner-class-schedule"));
+// Both views are lazy so the timetable UI isn't in the shared first-load bundle.
+const ClassScheduleView = lazy(() => import("@/components/class-schedule-view"));
+const ClassScheduleEditor = lazy(
+  () => import("@/components/class-schedule-editor"),
+);
 
 export const Route = createFileRoute("/_authenticated/class-schedule")({
   head: () => ({
     meta: [
       { title: "Class Schedule — Canvas Pro" },
-      { name: "description", content: "Your weekly recurring class meeting times and locations for the Fall 2026 semester." },
+      { name: "description", content: "Add your recurring class meeting times and see them as a clean weekly timetable." },
       { property: "og:title", content: "Class Schedule — Canvas Pro" },
-      { property: "og:description", content: "Your weekly recurring class meeting times and locations for the Fall 2026 semester." },
+      { property: "og:description", content: "Add your recurring class meeting times and see them as a clean weekly timetable." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -24,34 +23,41 @@ export const Route = createFileRoute("/_authenticated/class-schedule")({
 });
 
 function ClassSchedulePage() {
-  const [isOwner, setIsOwner] = useState<boolean | null>(null);
+  const { data, isLoading, error } = useClassSchedule();
+  const [editing, setEditing] = useState(false);
 
-  useEffect(() => {
-    let active = true;
-    supabase.auth.getUser().then(({ data }) => {
-      if (active) setIsOwner(data.user?.id === OWNER_USER_ID);
-    });
-    return () => {
-      active = false;
-    };
-  }, []);
+  if (isLoading) {
+    return <div className="glass-panel skeleton-shimmer h-40 rounded-2xl" />;
+  }
 
-  if (isOwner === null) return null;
-  if (!isOwner) {
+  if (error) {
     return (
       <div className="glass-panel-strong p-6">
         <h1 className="text-xl font-semibold tracking-tight">Class Schedule</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          This weekly class-time schedule is personal to its owner. Your own
-          Canvas courses, grades, and assignments appear on the other pages.
+          Couldn't load your schedule. Please try again.
         </p>
       </div>
     );
   }
 
+  const sessions = data ?? [];
+
+  if (editing || sessions.length === 0) {
+    return (
+      <Suspense fallback={null}>
+        <ClassScheduleEditor
+          sessions={sessions}
+          onSaved={() => setEditing(false)}
+          onCancel={sessions.length > 0 ? () => setEditing(false) : undefined}
+        />
+      </Suspense>
+    );
+  }
+
   return (
     <Suspense fallback={null}>
-      <OwnerClassSchedule />
+      <ClassScheduleView sessions={sessions} onEdit={() => setEditing(true)} />
     </Suspense>
   );
 }

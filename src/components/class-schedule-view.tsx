@@ -1,45 +1,58 @@
-// Personal weekly timetable. Loaded lazily and only after the signed-in
-// account is confirmed as the owner, so the data never ships in the shared
-// bundle for other users.
+// Renders a user's weekly class timetable in the original grid + detail format.
 import {
-  CLASS_SCHEDULE,
   DAY_LABELS,
   DAY_ORDER,
-  TOTAL_CREDITS,
+  minutesToLabel,
   sessionsByDay,
+  totalCredits,
   type ClassDay,
+  type ClassSession,
 } from "@/lib/class-schedule";
-
-function minutesToLabel(m: number): string {
-  const h24 = Math.floor(m / 60);
-  const min = m % 60;
-  const period = h24 >= 12 ? "PM" : "AM";
-  const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
-  return `${h12}:${min.toString().padStart(2, "0")} ${period}`;
-}
 
 // Weekly grid bounds
 const DAY_START = 8 * 60; // 8:00
 const DAY_END = 18 * 60; // 6:00 PM
 const PX_PER_MIN = 1.4; // grid density
 
-export default function OwnerClassSchedule() {
-  const byDay = sessionsByDay();
+export default function ClassScheduleView({
+  sessions,
+  onEdit,
+}: {
+  sessions: ClassSession[];
+  onEdit?: () => void;
+}) {
+  const byDay = sessionsByDay(sessions);
+  const term = sessions.find((s) => s.term)?.term ?? "My semester";
+  const dates = sessions.find((s) => s.dateRange)?.dateRange ?? "—";
+  const campus = sessions.find((s) => s.campus)?.campus ?? "—";
 
   return (
     <div className="space-y-6">
       <header className="glass-panel-strong p-6">
-        <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-          Fall 2026
-        </p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">
-          Class Schedule
-        </h1>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              {term}
+            </p>
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight">
+              Class Schedule
+            </h1>
+          </div>
+          {onEdit ? (
+            <button
+              type="button"
+              onClick={onEdit}
+              className="glass-inset press rounded-full px-4 py-2 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground"
+            >
+              Edit schedule
+            </button>
+          ) : null}
+        </div>
         <div className="mt-4 flex flex-wrap gap-6 text-sm">
-          <Stat label="Courses" value={String(CLASS_SCHEDULE.length)} />
-          <Stat label="Credit Hours" value={TOTAL_CREDITS.toFixed(3)} />
-          <Stat label="Dates" value="Aug 24 – Dec 11" />
-          <Stat label="Campus" value="Southfield" />
+          <Stat label="Courses" value={String(sessions.length)} />
+          <Stat label="Credit Hours" value={totalCredits(sessions).toFixed(3)} />
+          <Stat label="Dates" value={dates} />
+          <Stat label="Campus" value={campus} />
         </div>
       </header>
 
@@ -55,13 +68,17 @@ export default function OwnerClassSchedule() {
           Course details
         </h2>
         <div className="grid gap-3 md:grid-cols-2">
-          {CLASS_SCHEDULE.map((c) => (
-            <article key={c.crn} className="glass-panel p-5">
+          {sessions.map((c) => (
+            <article key={c.id} className="glass-panel p-5">
               <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                    {c.code} · {c.section} · CRN {c.crn}
-                  </p>
+                <div className="min-w-0">
+                  {c.code || c.section || c.crn ? (
+                    <p className="truncate text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                      {[c.code, c.section, c.crn ? `CRN ${c.crn}` : ""]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                  ) : null}
                   <h3 className="mt-1 text-base font-semibold tracking-tight">
                     {c.title}
                   </h3>
@@ -71,12 +88,14 @@ export default function OwnerClassSchedule() {
                 </span>
               </div>
               <dl className="mt-4 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
-                <Row label="Days">{c.days.map((d) => DAY_LABELS[d][0]).join(" ")}</Row>
+                <Row label="Days">
+                  {c.days.map((d) => DAY_LABELS[d].slice(0, 3)).join(" ") || "—"}
+                </Row>
                 <Row label="Time">{c.timeLabel}</Row>
-                <Row label="Room">{c.location}</Row>
+                <Row label="Room">{c.location || "—"}</Row>
                 <Row label="Type">{c.scheduleType}</Row>
-                <Row label="Instructor">{c.instructor}</Row>
-                <Row label="Dates">{c.dateRange}</Row>
+                <Row label="Instructor">{c.instructor || "—"}</Row>
+                <Row label="Dates">{c.dateRange || "—"}</Row>
               </dl>
             </article>
           ))}
@@ -108,11 +127,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
-function WeeklyGrid({
-  byDay,
-}: {
-  byDay: Record<ClassDay, ReturnType<typeof sessionsByDay>[ClassDay]>;
-}) {
+function WeeklyGrid({ byDay }: { byDay: Record<ClassDay, ClassSession[]> }) {
   const totalMin = DAY_END - DAY_START;
   const height = totalMin * PX_PER_MIN;
   const hourMarks: number[] = [];
@@ -159,7 +174,7 @@ function WeeklyGrid({
                   Math.max(24, (s.endMinutes - s.startMinutes) * PX_PER_MIN) - 4;
                 return (
                   <div
-                    key={`${s.crn}-${d}`}
+                    key={`${s.id}-${d}`}
                     className="glass-panel absolute left-1 right-1 overflow-hidden rounded-lg p-2 text-[11px] leading-tight"
                     style={{ top: `${top}px`, height: `${h}px` }}
                     title={`${s.title} · ${s.location}`}
