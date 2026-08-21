@@ -411,8 +411,26 @@ function LandingPage() {
   return (
     <div className="w-full">
       <section className="relative flex min-h-[92svh] flex-col items-center justify-center overflow-hidden px-4 text-center">
+        {/* Faint blue background decorations */}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 hidden lg:block">
+          {DECOR.map((d) => (
+            <div
+              key={d.id}
+              className="absolute"
+              style={{
+                left: "left" in d ? d.left : undefined,
+                right: "right" in d ? d.right : undefined,
+                top: d.top,
+              }}
+            >
+              {d.node}
+            </div>
+          ))}
+        </div>
+
         {/* Floating decorative cards (desktop only, purely decorative) */}
         <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 hidden h-[80%] lg:block">
+
           {FLOATING_ITEMS.map((item) => (
             <div
               key={item.id}
