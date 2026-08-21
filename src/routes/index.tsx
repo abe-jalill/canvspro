@@ -348,7 +348,6 @@ function LandingPage() {
           </Link>
           <div className="hidden items-center gap-7 text-sm font-medium text-slate-600 md:flex">
             <a href="#features" className="press hover:text-slate-900">Features</a>
-            <Link to="/pricing" className="press hover:text-slate-900">Pricing</Link>
             <Link to="/privacy" className="press hover:text-slate-900">Privacy</Link>
             <Link to="/terms" className="press hover:text-slate-900">Terms</Link>
           </div>
@@ -483,9 +482,6 @@ function LandingPage() {
             </Link>
             <Link to="/canvas-dashboard-guide" className="press inline-flex min-h-11 items-center rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700">
               Customize your Canvas dashboard
-            </Link>
-            <Link to="/pricing" className="press inline-flex min-h-11 items-center rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700">
-              See pricing
             </Link>
           </div>
         </div>

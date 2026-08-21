@@ -12,12 +12,7 @@ export function SiteFooter() {
           <Link to="/canvas-dashboard-guide" className="transition-colors hover:text-foreground">
             Canvas Dashboard Guide
           </Link>
-          <Link to="/pricing" className="transition-colors hover:text-foreground">
-            Pricing
-          </Link>
-
-          <Link
-            to="/privacy"
+          <Link to="/privacy" className="transition-colors hover:text-foreground">
             className="transition-colors hover:text-foreground"
           >
             Privacy Policy
