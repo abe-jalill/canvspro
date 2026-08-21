@@ -13,7 +13,6 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from "@/integrations/supabase/client";
 import { setUserScope } from "@/lib/user-scope";
 import { SiteFooter } from "@/components/site-footer";
-import { PageTransition } from "@/components/page-transition";
 
 
 function NotFoundComponent() {
@@ -66,11 +65,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      {
-        name: "google-site-verification",
-        content: "P8Sm6eDHpOJ5ZpV1NufDHGqBEtfhaWG4FTZ1gkc2w0M",
-      },
-
       { title: "Canvas Pro — Student Productivity Dashboard" },
       {
         name: "description",
@@ -86,11 +80,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { property: "og:image", content: "https://canvaspro.app/og-home.png" },
-      { property: "og:image:width", content: "1200" },
-      { property: "og:image:height", content: "630" },
-      { name: "twitter:image", content: "https://canvaspro.app/og-home.png" },
-      { name: "twitter:image:alt", content: "Canvas Pro — a calmer, faster dashboard for your Canvas classes" },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/bdf1beaf-d775-40f3-b194-aafd54341d35/id-preview-4231fc3a--affbea3f-cfe8-4941-aebb-24d8872c528c.lovable.app-1783984199763.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/bdf1beaf-d775-40f3-b194-aafd54341d35/id-preview-4231fc3a--affbea3f-cfe8-4941-aebb-24d8872c528c.lovable.app-1783984199763.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -107,7 +98,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className="light">
+    <html lang="en">
       <head>
         <HeadContent />
       </head>
@@ -139,9 +130,7 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <PageTransition>
-        <Outlet />
-      </PageTransition>
+      <Outlet />
       <SiteFooter />
     </QueryClientProvider>
   );

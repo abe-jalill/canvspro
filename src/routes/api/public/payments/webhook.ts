@@ -1,25 +1,32 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
-import type { Database } from "@/integrations/supabase/types";
 import { type StripeEnv, verifyWebhook } from "@/lib/stripe.server";
 
-let _supabase: ReturnType<typeof createClient<Database>> | null = null;
+let _supabase: ReturnType<typeof createClient> | null = null;
 function getSupabase() {
   if (!_supabase) {
-    _supabase = createClient<Database>(
-      process.env["SUPABASE_URL"]!,
-      process.env["SUPABASE_SERVICE_ROLE_KEY"]!,
+    _supabase = createClient(
+      process.env['SUPABASE_URL']!,
+      process.env['SUPABASE_SERVICE_ROLE_KEY']!,
     );
   }
   return _supabase;
 }
 
-function priceIdOf(item: any): string | undefined {
+function subscriptionsTable() {
+  return getSupabase().from("subscriptions") as any;
+}
+
+function priceIdOf(item: any): string {
   return (
     item?.price?.lookup_key ||
     item?.price?.metadata?.lovable_external_id ||
     item?.price?.id
   );
+}
+
+function isoOrNull(seconds: number | null | undefined) {
+  return seconds ? new Date(seconds * 1000).toISOString() : null;
 }
 
 async function handleSubscriptionCreated(subscription: any, env: StripeEnv) {
@@ -32,20 +39,17 @@ async function handleSubscriptionCreated(subscription: any, env: StripeEnv) {
   const periodStart = item?.current_period_start ?? subscription.current_period_start;
   const periodEnd = item?.current_period_end ?? subscription.current_period_end;
 
-  await getSupabase()
-    .from("subscriptions")
+  await subscriptionsTable()
     .upsert(
       {
         user_id: userId,
         stripe_subscription_id: subscription.id,
         stripe_customer_id: subscription.customer,
         product_id: item?.price?.product,
-        price_id: priceIdOf(item) ?? "",
+        price_id: priceIdOf(item),
         status: subscription.status,
-        current_period_start: periodStart
-          ? new Date(periodStart * 1000).toISOString()
-          : null,
-        current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+        current_period_start: isoOrNull(periodStart),
+        current_period_end: isoOrNull(periodEnd),
         cancel_at_period_end: subscription.cancel_at_period_end || false,
         environment: env,
         updated_at: new Date().toISOString(),
@@ -59,16 +63,13 @@ async function handleSubscriptionUpdated(subscription: any, env: StripeEnv) {
   const periodStart = item?.current_period_start ?? subscription.current_period_start;
   const periodEnd = item?.current_period_end ?? subscription.current_period_end;
 
-  await getSupabase()
-    .from("subscriptions")
+  await subscriptionsTable()
     .update({
       status: subscription.status,
       product_id: item?.price?.product,
       price_id: priceIdOf(item),
-      current_period_start: periodStart
-        ? new Date(periodStart * 1000).toISOString()
-        : null,
-      current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+      current_period_start: isoOrNull(periodStart),
+      current_period_end: isoOrNull(periodEnd),
       cancel_at_period_end: subscription.cancel_at_period_end || false,
       updated_at: new Date().toISOString(),
     })
@@ -77,8 +78,7 @@ async function handleSubscriptionUpdated(subscription: any, env: StripeEnv) {
 }
 
 async function handleSubscriptionDeleted(subscription: any, env: StripeEnv) {
-  await getSupabase()
-    .from("subscriptions")
+  await subscriptionsTable()
     .update({ status: "canceled", updated_at: new Date().toISOString() })
     .eq("stripe_subscription_id", subscription.id)
     .eq("environment", env);
@@ -86,6 +86,7 @@ async function handleSubscriptionDeleted(subscription: any, env: StripeEnv) {
 
 async function handleWebhook(req: Request, env: StripeEnv) {
   const event = await verifyWebhook(req, env);
+
   switch (event.type) {
     case "customer.subscription.created":
       await handleSubscriptionCreated(event.data.object, env);
@@ -107,7 +108,7 @@ export const Route = createFileRoute("/api/public/payments/webhook")({
       POST: async ({ request }) => {
         const rawEnv = new URL(request.url).searchParams.get("env");
         if (rawEnv !== "sandbox" && rawEnv !== "live") {
-          console.error("Webhook invalid env:", rawEnv);
+          console.error("Webhook received with invalid env:", rawEnv);
           return Response.json({ received: true, ignored: "invalid env" });
         }
         try {

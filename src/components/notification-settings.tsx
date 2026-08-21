@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { DUE_WINDOWS, formatHour, useNotificationPrefs } from "@/lib/notification-prefs";
-
+import { DUE_WINDOWS, useNotificationPrefs } from "@/lib/notification-prefs";
 
 function Toggle({
   label,
@@ -54,11 +53,8 @@ function Toggle({
   );
 }
 
-const HOURS = Array.from({ length: 24 }, (_, i) => i);
-
 export function NotificationSettings() {
-  const { prefs, set, toggle } = useNotificationPrefs();
-
+  const { prefs, toggle } = useNotificationPrefs();
   const [permission, setPermission] = useState<string>("default");
 
   useEffect(() => {
@@ -117,49 +113,6 @@ export function NotificationSettings() {
           onChange={() => toggle("announcements")}
         />
       </div>
-
-      <div className="space-y-2">
-        <p className="px-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-          Quiet hours
-        </p>
-        <Toggle
-          label="Pause popups overnight"
-          description={
-            prefs.quietEnabled
-              ? `Silent ${formatHour(prefs.quietStart)} – ${formatHour(prefs.quietEnd)}`
-              : "Alerts still appear in the bell menu"
-          }
-          checked={prefs.quietEnabled}
-          disabled={off}
-          onChange={() => toggle("quietEnabled")}
-        />
-        {prefs.quietEnabled && (
-          <div className="grid grid-cols-2 gap-2">
-            {(["quietStart", "quietEnd"] as const).map((k) => (
-              <label key={k} className="glass-inset flex min-w-0 flex-col gap-1 rounded-xl p-3">
-                <span className="text-xs text-muted-foreground">
-                  {k === "quietStart" ? "From" : "Until"}
-                </span>
-                <select
-                  aria-label={k === "quietStart" ? "Quiet hours start" : "Quiet hours end"}
-                  value={prefs[k]}
-                  disabled={off}
-                  onChange={(e) => set(k, Number(e.target.value))}
-                  className="min-h-11 w-full rounded-lg bg-transparent text-sm font-medium outline-none"
-                >
-                  {HOURS.map((h) => (
-                    <option key={h} value={h} className="bg-background text-foreground">
-                      {formatHour(h)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ))}
-          </div>
-        )}
-      </div>
-
-
 
       {permission !== "granted" && (
         <div className="glass-inset flex flex-col gap-2 rounded-xl p-3 sm:flex-row sm:items-center sm:justify-between">

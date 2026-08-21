@@ -7,7 +7,7 @@ interface StripeEmbeddedCheckoutProps {
   returnUrl?: string;
 }
 
-export function StripeEmbeddedCheckout({
+export function StripeEmbeddedCheckoutForm({
   priceId,
   returnUrl,
 }: StripeEmbeddedCheckoutProps) {
@@ -25,7 +25,7 @@ export function StripeEmbeddedCheckout({
   };
 
   return (
-    <div id="checkout" className="w-full overflow-hidden rounded-2xl">
+    <div id="checkout" className="mt-4">
       <EmbeddedCheckoutProvider stripe={getStripe()} options={{ fetchClientSecret }}>
         <EmbeddedCheckout />
       </EmbeddedCheckoutProvider>

@@ -19,15 +19,8 @@ export const getRouter = () => {
     routeTree,
     context: { queryClient },
     scrollRestoration: true,
-    // Warm route chunks as soon as a link is hovered/touched.
-    defaultPreload: "intent",
-    defaultPreloadDelay: 30,
-    defaultPreloadStaleTime: 30_000,
-    defaultPendingMs: 120,
-    defaultPendingMinMs: 0,
+    defaultPreloadStaleTime: 0,
   });
-
-
 
   return router;
 };

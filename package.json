@@ -14,8 +14,6 @@
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@lovable.dev/cloud-auth-js": "^1.0.0",
-    "@lovable.dev/email-js": "0.1.0",
-    "@lovable.dev/webhooks-js": "^0.0.1",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-aspect-ratio": "^1.1.8",
@@ -42,21 +40,18 @@
     "@radix-ui/react-toggle": "^1.1.10",
     "@radix-ui/react-toggle-group": "^1.1.11",
     "@radix-ui/react-tooltip": "^1.2.8",
-    "@react-email/components": "^1.0.12",
-    "@react-email/render": "^2.0.10",
     "@stripe/react-stripe-js": "6.2.0",
     "@stripe/stripe-js": "9.2.0",
     "@supabase/supabase-js": "^2.110.2",
     "@tailwindcss/vite": "^4.2.1",
     "@tanstack/react-query": "^5.101.1",
-    "@tanstack/react-router": "^1.170.29",
-    "@tanstack/react-start": "1.168.47",
-    "@tanstack/router-plugin": "^1.168.32",
+    "@tanstack/react-router": "^1.170.16",
+    "@tanstack/react-start": "^1.168.26",
+    "@tanstack/router-plugin": "^1.168.18",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
-    "dompurify": "^3.4.13",
     "embla-carousel-react": "^8.6.0",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.575.0",
@@ -93,18 +88,5 @@
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.56.1",
     "vite": "^8.0.16"
-  },
-  "pnpm": {
-    "overrides": {
-      "entities": "4.5.0"
-    }
-  },
-  "overrides": {
-    "js-yaml": "^4.3.1",
-    "@tanstack/router-core": "1.171.25"
-  },
-  "resolutions": {
-    "js-yaml": "^4.3.1",
-    "@tanstack/router-core": "1.171.25"
   }
 }

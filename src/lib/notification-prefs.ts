@@ -10,12 +10,6 @@ export interface NotificationPrefs {
   due1d: boolean;
   grades: boolean;
   announcements: boolean;
-  /** Silence browser popups during a nightly window (alerts still land in the bell menu). */
-  quietEnabled: boolean;
-  /** Hour of day 0-23 when quiet hours start. */
-  quietStart: number;
-  /** Hour of day 0-23 when quiet hours end. */
-  quietEnd: number;
 }
 
 export const DEFAULT_PREFS: NotificationPrefs = {
@@ -26,11 +20,7 @@ export const DEFAULT_PREFS: NotificationPrefs = {
   due1d: true,
   grades: true,
   announcements: true,
-  quietEnabled: false,
-  quietStart: 22,
-  quietEnd: 8,
 };
-
 
 const BASE_KEY = "canvas:notification-prefs";
 const EVENT = "canvas:notification-prefs-changed";
@@ -67,23 +57,6 @@ export const DUE_WINDOWS: Array<{
   { key: "due2d", label: "2 days before", hours: 24 * 2 },
   { key: "due1d", label: "1 day before", hours: 24 },
 ];
-
-/** True when the current time falls inside the user's quiet-hours window. */
-export function inQuietHours(date = new Date()): boolean {
-  const p = readPrefs();
-  if (!p.quietEnabled) return false;
-  const h = date.getHours();
-  const { quietStart: s, quietEnd: e } = p;
-  if (s === e) return false;
-  return s < e ? h >= s && h < e : h >= s || h < e;
-}
-
-export function formatHour(h: number): string {
-  const suffix = h < 12 ? "AM" : "PM";
-  const base = h % 12 === 0 ? 12 : h % 12;
-  return `${base}:00 ${suffix}`;
-}
-
 
 export function useNotificationPrefs() {
   const [prefs, setPrefs] = useState<NotificationPrefs>(DEFAULT_PREFS);

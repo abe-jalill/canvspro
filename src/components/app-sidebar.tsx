@@ -1,6 +1,6 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Bell, BellOff, Lock, LogOut, Menu, Moon, Sun, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/lib/theme";
@@ -9,7 +9,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { NotificationCenter } from "@/components/notification-center";
 import { useSubscription } from "@/lib/subscription";
 import { isFreePath } from "@/components/pro-gate";
-import { resetAppWarmup } from "@/lib/preload-routes";
 
 const items = [
   { title: "Dashboard", to: "/dashboard" as const },
@@ -20,9 +19,7 @@ const items = [
   { title: "Assignments", to: "/assignments" as const },
   { title: "Announcements", to: "/announcements" as const },
   { title: "Billing", to: "/billing" as const },
-  { title: "Notifications", to: "/notifications" as const },
   { title: "Settings", to: "/settings" as const },
-
 ];
 
 function useActivePath() {
@@ -86,7 +83,6 @@ function useSignOut() {
   return async function signOut() {
     await queryClient.cancelQueries();
     queryClient.clear();
-    resetAppWarmup();
     await supabase.auth.signOut();
     navigate({ to: "/auth", replace: true });
   };
@@ -119,11 +115,9 @@ export function AppSidebar() {
       <div className="glass-panel-strong flex h-full flex-col overflow-y-auto p-5">
         <div className="mb-8 px-2">
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            &nbsp;
+            Canvas
           </p>
-          <Link to="/" className="mt-1 text-lg font-semibold tracking-tight transition-colors hover:text-foreground/80">
-            CanvasPro
-          </Link>
+          <p className="mt-1 text-lg font-semibold tracking-tight">Pro</p>
         </div>
         <nav className="flex flex-col gap-1">
           {items.map((item) => (
@@ -160,30 +154,15 @@ export function MobileNav() {
   const pathname = useActivePath();
   const { isActive: isPro } = useSubscription();
   const [open, setOpen] = useState(false);
-  const navRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
 
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    const onDown = (e: MouseEvent) => {
-      if (navRef.current && !navRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("keydown", onKey);
-    document.addEventListener("mousedown", onDown);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.removeEventListener("mousedown", onDown);
-    };
-  }, [open]);
-
   const current = items.find((i) => isActive(pathname, i.to))?.title ?? "Canvas Pro";
 
   return (
-    <div ref={navRef} className="md:hidden">
+    <div className="md:hidden">
       <div className="glass-panel-strong sticky top-2 z-40 mx-2 mt-2 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 p-2">
         <button
           onClick={() => setOpen((v) => !v)}

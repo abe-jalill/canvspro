@@ -82,36 +82,20 @@ function PricingPage() {
           <div>
             <h2 className="text-lg font-semibold tracking-tight">Pro</h2>
             <p className="mt-1 text-2xl font-semibold tracking-tight">
-
               $2.99
               <span className="text-sm font-normal text-muted-foreground"> / month</span>
             </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              or $24.99 / year — about 2 months free
-            </p>
           </div>
-
           <FeatureList items={PRO_FEATURES} />
-          <div className="mt-auto flex flex-col gap-2">
-            <Link
-              to="/checkout"
-              search={{ plan: "pro_monthly" as const }}
-              className="glass-hover inline-flex min-h-11 items-center justify-center rounded-xl bg-foreground px-4 text-sm font-semibold text-background"
-            >
-              Buy monthly — $2.99/mo
-            </Link>
-            <Link
-              to="/checkout"
-              search={{ plan: "pro_yearly" as const }}
-              className="glass-hover glass-inset inline-flex min-h-11 items-center justify-center rounded-xl px-4 text-center text-sm font-medium"
-            >
-              Buy yearly — $24.99/yr (about 2 months free)
-            </Link>
-          </div>
+          <Link
+            to="/billing"
+            className="glass-hover mt-auto inline-flex min-h-11 items-center justify-center rounded-xl bg-foreground px-4 text-sm font-semibold text-background"
+          >
+            Checkout
+          </Link>
           <p className="text-xs text-muted-foreground">
             Sign in first — checkout opens securely on the billing page.
           </p>
-
         </section>
       </div>
     </div>

@@ -1,17 +1,11 @@
+import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { toast } from "sonner";
 import { GlassCard } from "@/components/glass-card";
 import { PaymentTestModeBanner } from "@/components/payment-test-mode-banner";
-import {
-  CANVAS_PRO_PLANS,
-  type CanvasProPlan,
-  getStripeEnvironment,
-  isPaymentsConfigured,
-} from "@/lib/stripe";
+import { StripeEmbeddedCheckoutForm } from "@/components/stripe-embedded-checkout";
 import { useSubscription } from "@/lib/subscription";
+import { CANVAS_PRO_PRICE_ID, getStripeEnvironment } from "@/lib/stripe";
 import { createPortalSession } from "@/utils/payments.functions";
-
 
 export const Route = createFileRoute("/_authenticated/billing")({
   head: () => ({
@@ -44,11 +38,28 @@ const FEATURES = [
 
 function BillingPage() {
   const { subscription, isActive, isLoading } = useSubscription();
-  
-  const [selectedPlan, setSelectedPlan] = useState<CanvasProPlan>(CANVAS_PRO_PLANS[0]!);
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  const [portalBusy, setPortalBusy] = useState(false);
-  const configured = isPaymentsConfigured();
+  async function openPortal() {
+    setStatus(null);
+    setBusy(true);
+    try {
+      const result = await createPortalSession({
+        data: {
+          returnUrl: window.location.href,
+          environment: getStripeEnvironment(),
+        },
+      });
+      if ("error" in result) throw new Error(result.error);
+      window.open(result.url, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : "Could not open the billing portal.");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   const renews = subscription?.current_period_end
     ? new Date(subscription.current_period_end).toLocaleDateString(undefined, {
@@ -58,30 +69,12 @@ function BillingPage() {
       })
     : null;
 
-  async function openPortal() {
-    setPortalBusy(true);
-    try {
-      const result = await createPortalSession({
-        data: {
-          returnUrl: `${window.location.origin}/billing`,
-          environment: getStripeEnvironment(),
-        },
-      });
-      if ("error" in result) throw new Error(result.error);
-      window.open(result.url, "_blank", "noopener");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Couldn't open billing portal");
-    } finally {
-      setPortalBusy(false);
-    }
-  }
-
   return (
-    <div className="flex w-full max-w-full flex-col gap-5 overflow-x-hidden">
+    <div className="flex flex-col gap-5">
       <header>
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Billing</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Canvas Pro is $2.99/month or $24.99/year. Cancel anytime.
+          Canvas Pro is $2.99 per month. Cancel anytime.
         </p>
       </header>
 
@@ -89,7 +82,7 @@ function BillingPage() {
 
       <GlassCard
         title="Canvas Pro"
-        subtitle={isActive ? "Your subscription is active." : "Pick a plan"}
+        subtitle={isActive ? "Your subscription is active." : "$2.99 / month"}
       >
         <div className="flex w-full flex-col gap-4">
           <ul className="flex flex-col gap-2 text-sm text-muted-foreground">
@@ -100,10 +93,6 @@ function BillingPage() {
 
           {isLoading ? (
             <p className="text-sm text-muted-foreground">Loading your plan…</p>
-          ) : !configured ? (
-            <p className="text-sm text-muted-foreground">
-              Checkout isn't available in this build yet.
-            </p>
           ) : isActive ? (
             <div className="flex flex-col gap-3">
               <p className="text-sm text-muted-foreground">
@@ -114,74 +103,34 @@ function BillingPage() {
                     : ` — renews ${renews}`
                   : ""}
               </p>
-              {subscription?.price_id !== "comped" ? (
-                <button
-                  type="button"
-                  onClick={openPortal}
-                  disabled={portalBusy}
-                  className="min-h-11 w-full rounded-xl border border-foreground/15 bg-foreground/[0.06] px-4 text-sm font-medium transition hover:bg-foreground/10 disabled:opacity-60 sm:w-auto"
-                >
-                  {portalBusy ? "Opening…" : "Manage subscription"}
-                </button>
-              ) : null}
-              {subscription?.price_id === "pro_monthly" ? (
-                <button
-                  type="button"
-                  onClick={openPortal}
-                  disabled={portalBusy}
-                  className="min-h-11 w-full rounded-xl border border-foreground/15 px-4 text-sm font-medium transition hover:bg-foreground/[0.06] disabled:opacity-60 sm:w-auto"
-                >
-                  Switch to yearly — $24.99/yr (about 2 months free)
-                </button>
-              ) : null}
-              <p className="text-xs text-muted-foreground">
-                Switching between monthly and yearly, or canceling, happens in the billing
-                portal. Canceling keeps Pro until the end of the period you already paid for.
-              </p>
-
-            </div>
-          ) : (
-            <div className="flex flex-col gap-3">
-              <div className="grid gap-2 sm:grid-cols-2">
-                {CANVAS_PRO_PLANS.map((plan) => {
-                  const active = plan.priceId === selectedPlan.priceId;
-                  return (
-                    <button
-                      key={plan.priceId}
-                      type="button"
-                      onClick={() => setSelectedPlan(plan)}
-                      aria-pressed={active}
-                      className={`flex min-h-16 flex-col items-start rounded-xl border px-4 py-3 text-left transition ${
-                        active
-                          ? "border-foreground/40 bg-foreground/10"
-                          : "border-foreground/10 bg-foreground/[0.03] hover:bg-foreground/[0.06]"
-                      }`}
-                    >
-                      <span className="text-sm font-medium">{plan.label}</span>
-                      <span className="text-sm text-muted-foreground">
-                        {plan.price} {plan.cadence}
-                      </span>
-                      {plan.note ? (
-                        <span className="mt-0.5 text-xs text-muted-foreground">
-                          {plan.note}
-                        </span>
-                      ) : null}
-                    </button>
-                  );
-                })}
-              </div>
-              <Link
-                to="/checkout"
-                search={{ plan: selectedPlan.priceId }}
-                className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-foreground px-4 text-sm font-semibold text-background transition hover:opacity-90 sm:w-auto"
+              <button
+                onClick={openPortal}
+                disabled={busy}
+                className="glass-hover min-h-11 w-full rounded-xl bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-60 sm:w-auto"
               >
-                Subscribe — {selectedPlan.price} {selectedPlan.cadence}
-              </Link>
+                {busy ? "Opening…" : "Manage subscription"}
+              </button>
+              <p className="text-xs text-muted-foreground">
+                The billing portal opens in a new tab.
+              </p>
             </div>
+          ) : showCheckout ? (
+            <StripeEmbeddedCheckoutForm
+              priceId={CANVAS_PRO_PRICE_ID}
+              returnUrl={`${window.location.origin}/checkout/return?session_id={CHECKOUT_SESSION_ID}`}
+            />
+          ) : (
+            <button
+              onClick={() => setShowCheckout(true)}
+              className="glass-hover min-h-11 w-full rounded-xl bg-foreground px-4 text-sm font-semibold text-background sm:w-auto"
+            >
+              Subscribe — $2.99/month
+            </button>
           )}
+
+          {status && <p className="text-sm text-foreground/80">{status}</p>}
         </div>
       </GlassCard>
     </div>
   );
 }
-
