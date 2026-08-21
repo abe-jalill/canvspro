@@ -13,8 +13,6 @@ export function SiteFooter() {
             Canvas Dashboard Guide
           </Link>
           <Link to="/privacy" className="transition-colors hover:text-foreground">
-            className="transition-colors hover:text-foreground"
-          >
             Privacy Policy
           </Link>
           <Link
