@@ -378,14 +378,14 @@
   width: 100%;
   min-height: 2.75rem;
   border-radius: 0.75rem;
-  border: 1px solid hsl(var(--border) / 0.6);
-  background: hsl(var(--card) / 0.6);
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
   padding: 0.5rem 0.75rem;
   font-size: 0.875rem;
   color: hsl(var(--foreground));
 
   &:focus {
-    outline: 2px solid hsl(var(--ring) / 0.5);
+    outline: 2px solid hsl(var(--ring));
     outline-offset: 1px;
   }
 }
