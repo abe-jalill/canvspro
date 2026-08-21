@@ -295,7 +295,7 @@ const FLOATING_ITEMS = [
   },
   {
     id: "grade",
-    left: "8%",
+    left: "2%",
     top: "38%",
     rotate: -2,
     cardClass: "glass-panel p-4 text-left w-52",
@@ -314,7 +314,7 @@ const FLOATING_ITEMS = [
   },
   {
     id: "bell",
-    right: "4%",
+    right: "2%",
     top: "48%",
     rotate: 0,
     cardClass: "glass-panel flex h-20 w-20 items-center justify-center p-3",
@@ -329,7 +329,7 @@ const FLOATING_ITEMS = [
   },
   {
     id: "assignment",
-    left: "5%",
+    left: "2%",
     top: "59%",
     rotate: 2,
     cardClass: "glass-panel p-4 text-left w-80",
@@ -352,7 +352,7 @@ const FLOATING_ITEMS = [
   },
   {
     id: "announcement",
-    right: "11%",
+    right: "2%",
     top: "59%",
     rotate: -2,
     cardClass: "glass-panel p-4 text-left w-80",
