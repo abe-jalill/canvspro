@@ -570,3 +570,57 @@
     animation-delay: 0ms;
   }
 }
+
+/* ---------- Public landing page motion ---------- */
+
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@utility text-gradient-animated {
+  background-image: linear-gradient(
+    100deg,
+    #2563eb,
+    #4f46e5,
+    #7c3aed,
+    #3b82f6,
+    #2563eb
+  );
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gradient-shift 9s ease-in-out infinite;
+}
+
+@keyframes sticker-breathe {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(0, -8px, 0) scale(1.02);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@utility sticker {
+  will-change: transform;
+  animation: sticker-breathe 7s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sticker,
+  .text-gradient-animated {
+    animation: none !important;
+  }
+}
