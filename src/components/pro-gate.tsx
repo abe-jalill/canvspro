@@ -4,7 +4,7 @@ import { Lock } from "lucide-react";
 import { useSubscription } from "@/lib/subscription";
 
 /** Routes available on the free tier. Everything else requires Canvas Pro. */
-export const FREE_PATHS = ["/dashboard", "/billing", "/settings", "/checkout"] as const;
+export const FREE_PATHS = ["/dashboard", "/billing", "/settings", "/notifications", "/checkout"] as const;
 
 export function isFreePath(pathname: string): boolean {
   if (pathname === "/") return true;
