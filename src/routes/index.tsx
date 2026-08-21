@@ -152,7 +152,7 @@ const CARD = "rounded-2xl border border-slate-200/70 bg-white/90 shadow-[0_18px_
 
 function GradedSticker() {
   return (
-    <div className={`${CARD} sticker w-[19rem] p-4`} style={{ animationDelay: "0s", animationDuration: "7s" }}>
+    <div className={`${CARD} sticker w-full max-w-[19rem] p-4`} style={{ animationDelay: "0s", animationDuration: "7s" }}>
       <div className="flex items-start gap-3">
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-600">
           <FileText className="h-4 w-4" />
@@ -178,7 +178,7 @@ function GradedSticker() {
 
 function GradeSticker() {
   return (
-    <div className={`${CARD} sticker w-[13rem] p-4`} style={{ animationDelay: "1.4s", animationDuration: "8.5s" }}>
+    <div className={`${CARD} sticker w-full max-w-[13rem] p-4`} style={{ animationDelay: "1.4s", animationDuration: "8.5s" }}>
       <p className="text-xs text-slate-500">Current Grade</p>
       <div className="mt-1 flex items-end gap-2">
         <p className="text-2xl font-bold tracking-tight text-slate-900">88.6%</p>
@@ -200,7 +200,7 @@ function GradeSticker() {
 
 function UpcomingSticker() {
   return (
-    <div className={`${CARD} sticker w-[21rem] p-4`} style={{ animationDelay: "0.8s", animationDuration: "9.5s" }}>
+    <div className={`${CARD} sticker w-full max-w-[21rem] p-4`} style={{ animationDelay: "0.8s", animationDuration: "9.5s" }}>
       <div className="flex items-center gap-3">
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-indigo-50 text-indigo-600">
           <CalendarDays className="h-4 w-4" />
@@ -223,7 +223,7 @@ function CalendarSticker() {
   const days = ["S", "M", "T", "W", "T", "F", "S"];
   const cells = [28, 29, 30, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
   return (
-    <div className={`${CARD} sticker w-[14rem] p-4`} style={{ animationDelay: "2.1s", animationDuration: "8s" }}>
+    <div className={`${CARD} sticker w-full max-w-[14rem] p-4`} style={{ animationDelay: "2.1s", animationDuration: "8s" }}>
       <p className="text-sm font-semibold text-slate-800">Calendar</p>
       <p className="mt-2 text-[11px] text-slate-400">May 2024</p>
       <div className="mt-2 grid grid-cols-7 gap-y-1 text-center text-[10px] text-slate-400">
@@ -262,7 +262,7 @@ function BellSticker() {
 
 function AnnouncementSticker() {
   return (
-    <div className={`${CARD} sticker w-[20rem] p-4`} style={{ animationDelay: "2.6s", animationDuration: "9s" }}>
+    <div className={`${CARD} sticker w-full max-w-[20rem] p-4`} style={{ animationDelay: "2.6s", animationDuration: "9s" }}>
       <div className="flex items-start gap-3">
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-600">
           <Megaphone className="h-4 w-4" />
@@ -331,7 +331,7 @@ function LandingPage() {
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-base font-bold text-white">
               C
             </span>
-            <span className="text-sm font-extrabold tracking-[0.12em] text-blue-700">
+            <span className="whitespace-nowrap text-xs font-extrabold tracking-[0.12em] text-blue-700 sm:text-sm">
               CANVAS PRO
             </span>
           </Link>
@@ -420,7 +420,7 @@ function LandingPage() {
         </div>
 
         {/* mobile-friendly sample cards */}
-        <div className="mt-12 grid gap-3 lg:hidden">
+        <div className="mt-12 grid gap-3 px-1 lg:hidden">
           <GradedSticker />
           <UpcomingSticker />
         </div>
