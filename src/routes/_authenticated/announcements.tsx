@@ -14,6 +14,7 @@ import {
 import { displayCourseName } from "@/lib/course-display";
 import { useLocalSet, DISMISSED_ANNOUNCEMENTS_KEY } from "@/lib/local-state";
 import { X, RotateCcw } from "lucide-react";
+import { htmlToText } from "@/lib/html-text";
 
 const announcementsQO = queryOptions({
   queryKey: ["canvas", "announcements"],
