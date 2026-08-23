@@ -6,7 +6,6 @@ import { useDashboardLayout, type WidgetId } from "@/lib/dashboard-layout";
 import { WIDGETS, LockedWidget } from "@/components/widgets/dashboard-widgets";
 import { useSubscription } from "@/lib/subscription";
 import { DashboardHero } from "@/components/dashboard-hero";
-import { OnboardingOverlay } from "@/components/onboarding-overlay";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
@@ -40,7 +39,6 @@ function Dashboard() {
 
   return (
     <div className="w-full min-w-0 space-y-6">
-      <OnboardingOverlay />
       <DashboardHero />
 
       <header className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 px-1">

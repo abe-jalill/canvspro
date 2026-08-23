@@ -13,6 +13,7 @@ import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as CanvasGradeCalculatorRouteImport } from './routes/canvas-grade-calculator'
 import { Route as CanvasDashboardGuideRouteImport } from './routes/canvas-dashboard-guide'
 import { Route as AuthRouteImport } from './routes/auth'
@@ -49,6 +50,11 @@ const SignupRoute = SignupRouteImport.update({
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PricingRoute = PricingRouteImport.update({
+  id: '/pricing',
+  path: '/pricing',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CanvasGradeCalculatorRoute = CanvasGradeCalculatorRouteImport.update({
@@ -147,6 +153,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/canvas-dashboard-guide': typeof CanvasDashboardGuideRoute
   '/canvas-grade-calculator': typeof CanvasGradeCalculatorRoute
+  '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -169,6 +176,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/canvas-dashboard-guide': typeof CanvasDashboardGuideRoute
   '/canvas-grade-calculator': typeof CanvasGradeCalculatorRoute
+  '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -193,6 +201,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/canvas-dashboard-guide': typeof CanvasDashboardGuideRoute
   '/canvas-grade-calculator': typeof CanvasGradeCalculatorRoute
+  '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -217,6 +226,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/canvas-dashboard-guide'
     | '/canvas-grade-calculator'
+    | '/pricing'
     | '/privacy'
     | '/signup'
     | '/sitemap.xml'
@@ -239,6 +249,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/canvas-dashboard-guide'
     | '/canvas-grade-calculator'
+    | '/pricing'
     | '/privacy'
     | '/signup'
     | '/sitemap.xml'
@@ -262,6 +273,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/canvas-dashboard-guide'
     | '/canvas-grade-calculator'
+    | '/pricing'
     | '/privacy'
     | '/signup'
     | '/sitemap.xml'
@@ -286,6 +298,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   CanvasDashboardGuideRoute: typeof CanvasDashboardGuideRoute
   CanvasGradeCalculatorRoute: typeof CanvasGradeCalculatorRoute
+  PricingRoute: typeof PricingRoute
   PrivacyRoute: typeof PrivacyRoute
   SignupRoute: typeof SignupRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
@@ -321,6 +334,13 @@ declare module '@tanstack/react-router' {
       path: '/privacy'
       fullPath: '/privacy'
       preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pricing': {
+      id: '/pricing'
+      path: '/pricing'
+      fullPath: '/pricing'
+      preLoaderRoute: typeof PricingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/canvas-grade-calculator': {
@@ -482,6 +502,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   CanvasDashboardGuideRoute: CanvasDashboardGuideRoute,
   CanvasGradeCalculatorRoute: CanvasGradeCalculatorRoute,
+  PricingRoute: PricingRoute,
   PrivacyRoute: PrivacyRoute,
   SignupRoute: SignupRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
