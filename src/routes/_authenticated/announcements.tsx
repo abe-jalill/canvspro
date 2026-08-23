@@ -14,6 +14,7 @@ import {
 import { displayCourseName } from "@/lib/course-display";
 import { useLocalSet, DISMISSED_ANNOUNCEMENTS_KEY } from "@/lib/local-state";
 import { X, RotateCcw } from "lucide-react";
+import { htmlToText } from "@/lib/html-text";
 
 const announcementsQO = queryOptions({
   queryKey: ["canvas", "announcements"],
@@ -42,7 +43,7 @@ export const Route = createFileRoute("/_authenticated/announcements")({
 });
 
 function stripHtml(html: string) {
-  return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  return htmlToText(html);
 }
 
 function AnnouncementsPage() {

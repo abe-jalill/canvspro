@@ -15,6 +15,7 @@ import {
   EmptyState,
 } from "@/components/glass-card";
 import { cn } from "@/lib/utils";
+import { htmlToText } from "@/lib/html-text";
 import type { WidgetId } from "@/lib/dashboard-layout";
 import { displayCourseName } from "@/lib/course-display";
 import {
@@ -68,7 +69,7 @@ function formatScore(score: number | null, grade: string | null) {
 }
 
 function stripHtml(html: string) {
-  return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  return htmlToText(html);
 }
 
 function DigestWidget() {
