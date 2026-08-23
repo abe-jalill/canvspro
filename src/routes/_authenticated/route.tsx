@@ -12,6 +12,7 @@ import { ClassNamesGate } from "@/components/class-names-editor";
 import { ProGate } from "@/components/pro-gate";
 import { useSubscription } from "@/lib/subscription";
 import { NotificationCenter } from "@/components/notification-center";
+import { CanvasLiveStatus } from "@/components/canvas-live-status";
 import { useNotificationEngine } from "@/hooks/use-notification-engine";
 import { useAppPrefetch } from "@/hooks/use-app-prefetch";
 import { setUserScope } from "@/lib/user-scope";
@@ -44,7 +45,8 @@ function AuthenticatedLayout() {
       <main className="md:pl-64 md:pr-4 md:py-4">
         <div className="mx-auto w-full min-w-0 max-w-6xl px-3 py-4 sm:px-4 md:p-6">
 
-          <div className="mb-2 hidden justify-end md:flex">
+          <div className="mb-2 flex min-w-0 items-center justify-end gap-2">
+            <CanvasLiveStatus />
             {isPro && <NotificationCenter />}
           </div>
           <CanvasKeyBanner />
