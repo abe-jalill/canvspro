@@ -41,6 +41,9 @@
   --color-glass: var(--glass);
   --color-glass-border: var(--glass-border);
   --color-glass-strong: var(--glass-strong);
+  --color-status-live: var(--status-live);
+  --color-status-warning: var(--status-warning);
+  --shadow-status-live: 0 0 8px hsl(var(--status-live) / 0.7);
 
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter",
     "Segoe UI", ui-sans-serif, system-ui, sans-serif;
@@ -85,6 +88,8 @@
 
   --destructive: 0 70% 60%;
   --destructive-foreground: 0 0% 98%;
+  --status-live: 145 68% 48%;
+  --status-warning: 43 92% 55%;
 
   --border: 0 0% 100% / 0.1;
   --input: 0 0% 100% / 0.12;
@@ -171,6 +176,8 @@
   --color-glass: hsl(var(--glass));
   --color-glass-border: hsl(var(--glass-border));
   --color-glass-strong: hsl(var(--glass-strong));
+  --color-status-live: hsl(var(--status-live));
+  --color-status-warning: hsl(var(--status-warning));
 }
 
 @layer base {
