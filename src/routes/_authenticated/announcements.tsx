@@ -42,7 +42,7 @@ export const Route = createFileRoute("/_authenticated/announcements")({
 });
 
 function stripHtml(html: string) {
-  return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  return htmlToText(html);
 }
 
 function AnnouncementsPage() {
