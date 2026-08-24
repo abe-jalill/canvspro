@@ -51,15 +51,19 @@ interface NextUpItem {
 function nextUp(
   events: CalendarEventItem[] | undefined,
   assignments: AssignmentItem[] | undefined,
-  isCompleted: (id: string | number) => boolean,
   now: Date,
 ): NextUpItem | null {
   const items: NextUpItem[] = [];
+  const endOfWindow = now.getTime() + 7 * 24 * 60 * 60 * 1000;
 
   for (const e of events ?? []) {
     if (!e.start_at) continue;
     const start = new Date(e.start_at);
-    if (Number.isNaN(start.getTime()) || start.getTime() <= now.getTime())
+    if (
+      Number.isNaN(start.getTime()) ||
+      start.getTime() <= now.getTime() ||
+      start.getTime() > endOfWindow
+    )
       continue;
     items.push({
       title: e.title,
@@ -72,10 +76,12 @@ function nextUp(
 
   for (const a of assignments ?? []) {
     if (!a.due_at) continue;
-    if (isCompleted(a.id)) continue;
-    if (a.submission?.submitted_at) continue;
     const start = new Date(a.due_at);
-    if (Number.isNaN(start.getTime()) || start.getTime() <= now.getTime())
+    if (
+      Number.isNaN(start.getTime()) ||
+      start.getTime() < now.getTime() ||
+      start.getTime() > endOfWindow
+    )
       continue;
     items.push({
       title: a.name,
@@ -143,7 +149,7 @@ export function DashboardHero() {
     return () => clearInterval(id);
   }, []);
 
-  const next = nextUp(events.data, assignments.data, completed.has, now);
+  const next = nextUp(events.data, assignments.data, now);
   const summary = summarize(assignments.data, completed.has, now);
   const loading = assignments.isLoading || events.isLoading;
 
@@ -196,7 +202,7 @@ export function DashboardHero() {
             </>
           ) : (
             <p className="mt-2 text-sm text-muted-foreground">
-              Nothing scheduled or due in the next two weeks.
+              Nothing scheduled or due in the next week.
 
             </p>
           )}
