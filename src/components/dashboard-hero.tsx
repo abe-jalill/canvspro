@@ -191,14 +191,13 @@ export function DashboardHero() {
                   hour: "numeric",
                   minute: "2-digit",
                 })}
-                {next.context_name
-                  ? ` · ${displayCourseName(next.context_name, "")}`
-                  : ""}
+                {next.subtitle ? ` · ${next.subtitle}` : ""}
               </p>
             </>
           ) : (
             <p className="mt-2 text-sm text-muted-foreground">
-              Nothing scheduled in the next two weeks.
+              Nothing scheduled or due in the next two weeks.
+
             </p>
           )}
         </div>
