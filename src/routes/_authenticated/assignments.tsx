@@ -51,6 +51,7 @@ export const Route = createFileRoute("/_authenticated/assignments")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
+  validateSearch: validateCourseSearch,
   component: AssignmentsPage,
 });
 
@@ -93,6 +94,7 @@ function AssignmentsPage() {
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
+  const highlight = useCourseHighlight();
 
   const groups: ClassGroup[] = useMemo(() => {
     const map = new Map<number, ClassGroup>();
@@ -333,6 +335,7 @@ function AssignmentsPage() {
                 </div>
               )}
             </GlassCard>
+            </div>
           );
         })}
       </div>
