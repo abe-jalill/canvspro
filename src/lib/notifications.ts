@@ -2,7 +2,12 @@ import { useCallback, useEffect, useState } from "react";
 import { scopedKey, subscribeToUserScope } from "@/lib/user-scope";
 import { allowBrowserPush } from "@/lib/notification-prefs";
 
-export type NotificationKind = "due" | "grade" | "announcement" | "system";
+export type NotificationKind =
+  | "due"
+  | "overdue"
+  | "grade"
+  | "announcement"
+  | "system";
 
 export interface AppNotification {
   id: string;
