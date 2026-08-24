@@ -242,77 +242,101 @@ function UpcomingWidget() {
         <EmptyState message="No active courses." />
       )}
       {groups.length > 0 && (
-        <div className="space-y-5">
-          {groups.map((g) => (
-            <div key={g.id}>
-              <div className="mb-2 flex items-baseline gap-2 px-1">
-                <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-foreground/80">
-                  {displayCourseName(g.name, g.code)}
-                </h3>
-              </div>
-              {g.items.length === 0 ? (
-                <p className="px-2 py-3 text-center text-xs text-muted-foreground/80">
-                  No upcoming assignments
-                </p>
-              ) : (
-                <ul className="space-y-2">
-                  {g.items.map((a) => {
-                    const done = completed.has(a.id);
-                    const cd = getCountdown(a.due_at, { completed: done });
-                    return (
-                      <li
-                        key={a.id}
-                        className={cn(
-                          "glass-inset glass-hover flex items-center justify-between gap-2 p-3",
-                          cd && urgencyAccentClass(cd.urgency),
-                          done && "opacity-60",
-                        )}
-                      >
-                        <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
-                          <CompleteButton
-                            done={done}
-                            onClick={() => completed.toggle(a.id)}
-                            label={a.name}
-                          />
-                          <p
-                            className={cn(
-                              "min-w-0 flex-1 truncate text-sm font-medium",
-                              done && "text-muted-foreground line-through",
-                            )}
-                          >
-                            {a.name}
-                          </p>
-                        </div>
-                        <div className="flex shrink-0 items-center gap-2">
-                          <div className="text-right">
+        <div className="divide-y divide-foreground/10">
+          {groups.map((g) => {
+            const isOpen = expanded.includes(g.id);
+            return (
+              <div key={g.id} className="py-1.5">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setExpanded((prev) =>
+                      prev.includes(g.id)
+                        ? prev.filter((x) => x !== g.id)
+                        : [...prev, g.id],
+                    )
+                  }
+                  aria-expanded={isOpen}
+                  className="glass-hover flex min-h-11 w-full items-center gap-3 rounded-xl px-1.5 text-left"
+                >
+                  <ChevronDown
+                    className={cn(
+                      "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+                      isOpen && "rotate-180",
+                    )}
+                  />
+                  <h3 className="min-w-0 flex-1 truncate text-xs font-semibold uppercase tracking-[0.14em] text-foreground/80">
+                    {displayCourseName(g.name, g.code)}
+                  </h3>
+                  <span className="shrink-0 text-sm font-semibold tabular-nums text-muted-foreground">
+                    {g.items.length}
+                  </span>
+                </button>
+                {isOpen && g.items.length > 0 && (
+                  <ul className="mt-2 space-y-2">
+                    {g.items.map((a) => {
+                      const done = completed.has(a.id);
+                      const cd = getCountdown(a.due_at, { completed: done });
+                      return (
+                        <li
+                          key={a.id}
+                          className={cn(
+                            "glass-inset glass-hover flex items-center justify-between gap-2 p-3",
+                            cd && urgencyAccentClass(cd.urgency),
+                            done && "opacity-60",
+                          )}
+                        >
+                          <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+                            <CompleteButton
+                              done={done}
+                              onClick={() => completed.toggle(a.id)}
+                              label={a.name}
+                            />
                             <p
                               className={cn(
-                                "whitespace-nowrap text-xs tabular-nums sm:text-sm",
-                                cd
-                                  ? urgencyTextClass(cd.urgency)
-                                  : "text-muted-foreground",
+                                "min-w-0 flex-1 truncate text-sm font-medium",
+                                done && "text-muted-foreground line-through",
                               )}
                             >
-                              {cd ? cd.label : "—"}
+                              {a.name}
                             </p>
-                            {cd && (
-                              <p className="mt-0.5 hidden whitespace-nowrap text-[10px] tabular-nums text-muted-foreground/80 sm:block">
-                                {cd.fullDate}
-                              </p>
-                            )}
                           </div>
-                          <IcsButton assignment={a} />
-                        </div>
-                      </li>
-
-                    );
-                  })}
-                </ul>
-              )}
-            </div>
-          ))}
+                          <div className="flex shrink-0 items-center gap-2">
+                            <div className="text-right">
+                              <p
+                                className={cn(
+                                  "whitespace-nowrap text-xs tabular-nums sm:text-sm",
+                                  cd
+                                    ? urgencyTextClass(cd.urgency)
+                                    : "text-muted-foreground",
+                                )}
+                              >
+                                {cd ? cd.label : "—"}
+                              </p>
+                              {cd && (
+                                <p className="mt-0.5 hidden whitespace-nowrap text-[10px] tabular-nums text-muted-foreground/80 sm:block">
+                                  {cd.fullDate}
+                                </p>
+                              )}
+                            </div>
+                            <IcsButton assignment={a} />
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+                {isOpen && g.items.length === 0 && (
+                  <p className="px-2 py-3 text-xs text-muted-foreground/80">
+                    No upcoming assignments
+                  </p>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
+
     </GlassCard>
   );
 }
