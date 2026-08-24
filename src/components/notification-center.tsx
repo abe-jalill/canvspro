@@ -6,6 +6,15 @@ import { useNotifications, type AppNotification } from "@/lib/notifications";
 
 const PER_GROUP = 3;
 
+type FilterKind = "due" | "overdue" | "grade" | "announcement";
+
+const FILTERS: Array<{ id: FilterKind; label: string }> = [
+  { id: "due", label: "Due" },
+  { id: "overdue", label: "Overdue" },
+  { id: "grade", label: "Grades" },
+  { id: "announcement", label: "Announcements" },
+];
+
 function timeAgo(ts: number) {
   const s = Math.max(1, Math.round((Date.now() - ts) / 1000));
   if (s < 60) return `${s}s ago`;
