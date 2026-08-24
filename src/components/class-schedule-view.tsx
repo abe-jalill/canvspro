@@ -2,6 +2,8 @@
 import {
   DAY_LABELS,
   DAY_ORDER,
+  conflictLabel,
+  findScheduleConflicts,
   minutesToLabel,
   sessionsByDay,
   totalCredits,
@@ -24,6 +26,16 @@ export default function ClassScheduleView({
   const byDay = sessionsByDay(sessions);
   const groups = groupByTitle(sessions);
   const credits = totalCredits(groups.map((g) => g.sessions[0]));
+  const conflicts = findScheduleConflicts(
+    sessions.map((s) => ({
+      key: s.id,
+      title: s.displayName || s.title,
+      days: s.days,
+      startMinutes: s.startMinutes,
+      endMinutes: s.endMinutes,
+    })),
+  );
+
 
 
   return (
