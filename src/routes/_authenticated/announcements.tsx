@@ -12,8 +12,10 @@ import {
 } from "@/components/glass-card";
 import { displayCourseName } from "@/lib/course-display";
 import { useLocalSet, DISMISSED_ANNOUNCEMENTS_KEY } from "@/lib/local-state";
-import { X, RotateCcw } from "lucide-react";
+import { X, RotateCcw, ChevronDown } from "lucide-react";
 import { htmlToText } from "@/lib/html-text";
+import { cn } from "@/lib/utils";
+import { useState } from "react";
 import {
   useCourseHighlight,
   validateCourseSearch,
@@ -48,6 +50,7 @@ function AnnouncementsPage() {
   const { data, isLoading, isError, error } = useQuery(announcementsQO);
   const dismissed = useLocalSet(DISMISSED_ANNOUNCEMENTS_KEY);
   const highlight = useCourseHighlight();
+  const [expanded, setExpanded] = useState<number[]>([]);
 
   const visible = (data ?? []).filter((a) => !dismissed.has(a.id));
 
@@ -125,7 +128,7 @@ function AnnouncementsPage() {
               const isOpen = expanded.includes(g.id);
               const label = displayCourseName(g.name, g.code);
               return (
-                <div key={g.id} className="py-1.5" {...highlight(label)}>
+                <div key={g.id} {...highlight(label)}>
                   <button
                     type="button"
                     onClick={() =>
