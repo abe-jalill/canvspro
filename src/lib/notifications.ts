@@ -9,9 +9,14 @@ export interface AppNotification {
   kind: NotificationKind;
   title: string;
   body?: string;
+  /** Friendly class name used to group notifications. */
+  course?: string;
+  /** In-app route this notification links to. */
+  to?: string;
   ts: number;
   read: boolean;
 }
+
 
 const BASE_KEY = "canvas:notifications";
 const EVENT = "canvas:notifications-changed";
