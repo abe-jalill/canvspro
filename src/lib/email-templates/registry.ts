@@ -1,4 +1,6 @@
 import type { ComponentType } from 'react'
+import { template as welcomeTemplate } from './welcome'
+import { template as subscriptionReceiptTemplate } from './subscription-receipt'
 
 export interface TemplateEntry {
   component: ComponentType<any>
