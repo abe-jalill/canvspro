@@ -143,11 +143,12 @@ export function DashboardHero() {
     return () => clearInterval(id);
   }, []);
 
-  const next = nextEvent(events.data, now);
+  const next = nextUp(events.data, assignments.data, completed.has, now);
   const summary = summarize(assignments.data, completed.has, now);
   const loading = assignments.isLoading || events.isLoading;
 
-  const nextStart = next?.start_at ? new Date(next.start_at) : null;
+  const nextStart = next?.start ?? null;
+
 
   return (
     <section className="glass-panel-strong min-w-0 overflow-hidden p-6 sm:p-8 md:p-10">
