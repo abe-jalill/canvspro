@@ -140,6 +140,50 @@ export function NotificationCenter({ className }: { className?: string }) {
             </div>
           </div>
 
+          <div
+            role="group"
+            aria-label="Filter notifications"
+            className="flex flex-wrap gap-1.5 px-1 pb-3"
+          >
+            {FILTERS.map((f) => {
+              const on = active.includes(f.id);
+              return (
+                <button
+                  key={f.id}
+                  aria-pressed={on}
+                  onClick={() =>
+                    setActive((prev) =>
+                      prev.includes(f.id)
+                        ? prev.filter((x) => x !== f.id)
+                        : [...prev, f.id],
+                    )
+                  }
+                  className={cn(
+                    "rounded-full px-3 py-1.5 text-[11px] font-medium transition-colors",
+                    on
+                      ? "bg-foreground text-background"
+                      : "glass-inset glass-hover text-muted-foreground",
+                  )}
+                >
+                  {f.label}
+                  {counts[f.id] ? (
+                    <span className="ml-1 tabular-nums opacity-60">
+                      {counts[f.id]}
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
+            {active.length > 0 && (
+              <button
+                onClick={() => setActive([])}
+                className="glass-hover rounded-full px-3 py-1.5 text-[11px] font-medium text-muted-foreground"
+              >
+                All
+              </button>
+            )}
+          </div>
+
           <div className="no-scrollbar max-h-[70vh] overflow-y-auto">
             {groups.length === 0 ? (
               <p className="px-3 py-10 text-center text-sm text-muted-foreground/80">
