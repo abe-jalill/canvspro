@@ -159,6 +159,8 @@ function UpcomingWidget() {
   const { data, isLoading, isError, error } = useQuery(assignmentsQO);
   const courses = useQuery(coursesQO);
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
+  const [expanded, setExpanded] = useState<number[]>([]);
+
 
   const inWindow = (data ?? []).filter((a) => {
     if (!a.due_at) return false;
