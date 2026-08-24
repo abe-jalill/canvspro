@@ -96,3 +96,52 @@ export function sessionsByDay(
   }
   return out;
 }
+
+/** Minimal shape needed to detect time overlaps. */
+export interface ConflictItem {
+  key: string;
+  title: string;
+  days: ClassDay[];
+  startMinutes: number;
+  endMinutes: number;
+}
+
+export interface ScheduleConflict {
+  day: ClassDay;
+  a: ConflictItem;
+  b: ConflictItem;
+}
+
+/**
+ * Finds pairs of meetings that share a day and overlap in time.
+ * Two meetings of the same class (same key) are still compared, since a class
+ * with per-day times can be mis-entered too.
+ */
+export function findScheduleConflicts(
+  items: ConflictItem[],
+): ScheduleConflict[] {
+  const out: ScheduleConflict[] = [];
+  for (const day of DAY_ORDER) {
+    const onDay = items
+      .filter((i) => i.days.includes(day))
+      .sort((a, b) => a.startMinutes - b.startMinutes);
+    for (let i = 0; i < onDay.length; i++) {
+      for (let j = i + 1; j < onDay.length; j++) {
+        const a = onDay[i];
+        const b = onDay[j];
+        if (b.startMinutes >= a.endMinutes) break;
+        if (a.startMinutes < b.endMinutes && b.startMinutes < a.endMinutes) {
+          out.push({ day, a, b });
+        }
+      }
+    }
+  }
+  return out;
+}
+
+/** Human-readable one-liner for a conflict. */
+export function conflictLabel(c: ScheduleConflict): string {
+  const a = `${c.a.title || "Untitled class"} (${timeRangeLabel(c.a.startMinutes, c.a.endMinutes)})`;
+  const b = `${c.b.title || "Untitled class"} (${timeRangeLabel(c.b.startMinutes, c.b.endMinutes)})`;
+  return `${DAY_LABELS[c.day]}: ${a} overlaps ${b}`;
+}
