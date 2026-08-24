@@ -46,12 +46,9 @@ export default function ClassScheduleView({
           ) : null}
         </div>
         <div className="mt-4 flex flex-wrap gap-6 text-sm">
-          <Stat label="Classes" value={String(sessions.length)} />
-          {totalCredits(sessions) > 0 ? (
-            <Stat
-              label="Credit Hours"
-              value={String(totalCredits(sessions))}
-            />
+          <Stat label="Classes" value={String(groups.length)} />
+          {credits > 0 ? (
+            <Stat label="Credit Hours" value={String(credits)} />
           ) : null}
         </div>
 
