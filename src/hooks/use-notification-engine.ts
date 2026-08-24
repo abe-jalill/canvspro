@@ -73,10 +73,11 @@ function runDueChecks(assignments: AssignmentItem[]) {
         id: `due:${a.id}:${w.key}`,
         kind: "due",
         title: `Due ${w.label.replace(" before", "")} or less: ${a.name}`,
-        body: `${displayCourseName(a.course_name, a.course_code)} · due ${new Date(
-          a.due_at,
-        ).toLocaleString()}`,
+        course: displayCourseName(a.course_name, a.course_code),
+        to: "/assignments",
+        body: `due ${new Date(a.due_at).toLocaleString()}`,
       });
+
     }
   }
 }
@@ -104,8 +105,10 @@ function runGradeChecks(assignments: AssignmentItem[]) {
       id: `grade:${key}`,
       kind: "grade",
       title: `Good job! You scored ${pct}% on ${a.name}!`,
-      body: displayCourseName(a.course_name, a.course_code),
+      course: displayCourseName(a.course_name, a.course_code),
+      to: "/grades",
     });
+
   }
 
   if (changed) writeSet(SEEN_GRADES_KEY, seen);
@@ -128,8 +131,11 @@ function runAnnouncementChecks(items: AnnouncementItem[]) {
       id: `announcement:${key}`,
       kind: "announcement",
       title: a.title,
-      body: `New announcement in ${displayCourseName(a.course_name, a.course_code)}`,
+      course: displayCourseName(a.course_name, a.course_code),
+      to: "/announcements",
+      body: "New announcement",
     });
+
   }
 
   if (changed) writeSet(SEEN_ANNOUNCEMENTS_KEY, seen);
