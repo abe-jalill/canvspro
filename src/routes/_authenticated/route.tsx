@@ -39,6 +39,7 @@ function AuthenticatedLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   useNotificationEngine(isPro);
   useAppPrefetch(true);
+  useWelcomeEmail(true);
   return (
     <div className="min-h-screen w-full overflow-x-hidden">
       <AppSidebar />
