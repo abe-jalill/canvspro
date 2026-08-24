@@ -179,23 +179,29 @@ function GradesPage() {
           <GlassCard
             title={displayCourseName(c.name, c.course_code)}
             action={
-              <span className="flex items-center gap-1.5 text-lg font-semibold tabular-nums">
-                {trend === "up" && (
-                  <ArrowUp className="h-4 w-4 text-white" aria-label="Grade up" />
-                )}
-                {trend === "down" && (
-                  <ArrowDown
-                    className="h-4 w-4 text-white/60"
-                    aria-label="Grade down"
-                  />
-                )}
-                {fmt(c.current_score)}
-                {c.current_grade ? (
-                  <span className="ml-2 text-sm font-medium text-muted-foreground">
-                    {c.current_grade}
-                  </span>
-                ) : null}
-              </span>
+                <span className="flex items-center gap-1.5 text-lg font-semibold tabular-nums">
+                  {trend === "up" && (
+                    <ArrowUp className="h-4 w-4 text-white" aria-label="Grade up" />
+                  )}
+                  {trend === "down" && (
+                    <ArrowDown
+                      className="h-4 w-4 text-white/60"
+                      aria-label="Grade down"
+                    />
+                  )}
+                  {trend == null && (
+                    <Minus
+                      className="h-4 w-4 text-muted-foreground"
+                      aria-label="No grade change"
+                    />
+                  )}
+                  {fmt(c.current_score)}
+                  {c.current_grade ? (
+                    <span className="ml-2 text-sm font-medium text-muted-foreground">
+                      {c.current_grade}
+                    </span>
+                  ) : null}
+                </span>
             }
           >
             {items.length === 0 ? (
