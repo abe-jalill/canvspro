@@ -50,6 +50,7 @@ export type Database = {
       class_schedule_entries: {
         Row: {
           campus: string
+          canvas_course_id: number | null
           code: string
           created_at: string
           credits: number
@@ -70,6 +71,7 @@ export type Database = {
         }
         Insert: {
           campus?: string
+          canvas_course_id?: number | null
           code?: string
           created_at?: string
           credits?: number
@@ -90,6 +92,7 @@ export type Database = {
         }
         Update: {
           campus?: string
+          canvas_course_id?: number | null
           code?: string
           created_at?: string
           credits?: number
@@ -106,6 +109,30 @@ export type Database = {
           term?: string
           title?: string
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      grade_snapshots: {
+        Row: {
+          course_id: number
+          id: string
+          recorded_at: string
+          score: number
+          user_id: string
+        }
+        Insert: {
+          course_id: number
+          id?: string
+          recorded_at?: string
+          score: number
+          user_id: string
+        }
+        Update: {
+          course_id?: number
+          id?: string
+          recorded_at?: string
+          score?: number
           user_id?: string
         }
         Relationships: []
@@ -155,6 +182,60 @@ export type Database = {
           stripe_subscription_id?: string
           updated_at?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      user_assignment_meta: {
+        Row: {
+          assignment_id: number
+          course_id: number
+          created_at: string
+          estimated_minutes: number | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assignment_id: number
+          course_id: number
+          created_at?: string
+          estimated_minutes?: number | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assignment_id?: number
+          course_id?: number
+          created_at?: string
+          estimated_minutes?: number | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_preferences: {
+        Row: {
+          id: string
+          key: string
+          updated_at: string
+          user_id: string
+          value: Json
+        }
+        Insert: {
+          id?: string
+          key: string
+          updated_at?: string
+          user_id: string
+          value?: Json
+        }
+        Update: {
+          id?: string
+          key?: string
+          updated_at?: string
+          user_id?: string
+          value?: Json
         }
         Relationships: []
       }
