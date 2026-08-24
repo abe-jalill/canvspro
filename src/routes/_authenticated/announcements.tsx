@@ -141,11 +141,7 @@ function AnnouncementsPage() {
         <GlassCard
           title={displayCourseName(g.name, g.code)}
         >
-          {g.items.length === 0 ? (
-            <p className="px-2 py-4 text-center text-sm text-muted-foreground/80">
-              No new announcements
-            </p>
-          ) : (
+          {(
             <div className="space-y-3">
               {g.items.map((a) => (
                 <div key={a.id} className="glass-inset glass-hover p-4">
