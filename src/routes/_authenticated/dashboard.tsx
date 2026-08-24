@@ -43,10 +43,13 @@ function Dashboard() {
 
       <header className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 px-1">
         <div className="min-w-0">
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+          <p
+            aria-hidden="true"
+            className="sr-only whitespace-pre-line text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground"
+          >
             {"\n"}
           </p>
-          <h2 className="mt-1 truncate text-lg font-semibold tracking-tight sm:text-xl">
+          <h2 className="truncate text-lg font-semibold tracking-tight sm:text-xl">
             Your widgets
           </h2>
         </div>
