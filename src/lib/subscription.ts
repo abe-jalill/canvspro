@@ -12,7 +12,7 @@ export type SubscriptionRow = {
 export const subscriptionQueryKey = ["subscription"] as const;
 
 /** Accounts that always have full Pro access, no payment required. */
-const COMP_EMAILS = ["ajalil@ltu.edu"];
+const COMP_EMAILS = ["ajalil@ltu.edu", "abrahim.jalil11@gmail.com"];
 
 function isActive(sub: SubscriptionRow | null): boolean {
   if (!sub) return false;
