@@ -18,19 +18,6 @@ import {
   useGradeSnapshots,
   useRecordGradeSnapshots,
 } from "@/hooks/use-grade-snapshots";
-import { useDebounce } from "@/hooks/use-debounce";
-
-const coursesQO = queryOptions({
-  queryKey: ["canvas", "courses"],
-  queryFn: () => getCoursesFn(),
-  staleTime: 5 * 60_000,
-});
-
-const assignmentsQO = queryOptions({
-  queryKey: ["canvas", "assignments"],
-  queryFn: () => getAllAssignmentsFn(),
-  staleTime: 5 * 60_000,
-});
 
 const coursesQO = queryOptions({
   queryKey: ["canvas", "courses"],
