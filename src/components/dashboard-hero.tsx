@@ -43,9 +43,9 @@ function untilLabel(target: Date, now: Date) {
 }
 
 interface NextUpItem {
-  title: string;
   start: Date;
-  subtitle: string | null;
+  course: string | null;
+  kind: "assignment" | "event";
 }
 
 function nextUp(
@@ -66,11 +66,9 @@ function nextUp(
     )
       continue;
     items.push({
-      title: e.title,
       start,
-      subtitle: e.context_name
-        ? displayCourseName(e.context_name, "")
-        : null,
+      course: e.context_name ? displayCourseName(e.context_name, "") : null,
+      kind: "event",
     });
   }
 
@@ -84,16 +82,15 @@ function nextUp(
     )
       continue;
     items.push({
-      title: a.name,
       start,
-      subtitle: `Due · ${displayCourseName(a.course_name, a.course_code)}`,
+      course: displayCourseName(a.course_name, a.course_code),
+      kind: "assignment",
     });
   }
 
   items.sort((a, b) => a.start.getTime() - b.start.getTime());
   return items[0] ?? null;
 }
-
 
 function summarize(
   assignments: AssignmentItem[] | undefined,
@@ -155,7 +152,6 @@ export function DashboardHero() {
 
   const nextStart = next?.start ?? null;
 
-
   return (
     <section className="glass-panel-strong min-w-0 overflow-hidden p-6 sm:p-8 md:p-10">
       <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
@@ -176,34 +172,24 @@ export function DashboardHero() {
           : (summary?.text ?? "No assignment data yet")}
       </p>
 
-      <div className="mt-7 h-px w-full bg-foreground/10" />
+      <div className="mt-7 h-px w-full bg-foreground/[0.06]" />
 
-      <div className="mt-5 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+      <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
             Next up
           </p>
           {loading ? (
-            <p className="mt-2 text-sm text-muted-foreground">Loading…</p>
+            <p className="mt-1 text-sm text-muted-foreground">Loading…</p>
           ) : nextStart && next ? (
-            <>
-              <p className="mt-2 truncate text-lg font-medium tracking-tight sm:text-xl">
-                {next.title}
-              </p>
-              <p className="mt-1 truncate text-xs text-muted-foreground sm:text-sm">
-                {untilLabel(nextStart, now)} ·{" "}
-                {nextStart.toLocaleString(undefined, {
-                  weekday: "short",
-                  hour: "numeric",
-                  minute: "2-digit",
-                })}
-                {next.subtitle ? ` · ${next.subtitle}` : ""}
-              </p>
-            </>
+            <p className="mt-1 truncate text-sm text-foreground sm:text-base">
+              {next.kind === "assignment" ? "1 assignment due " : "1 event "}
+              {untilLabel(nextStart, now)}
+              {next.course ? ` for ${next.course}` : ""}
+            </p>
           ) : (
-            <p className="mt-2 text-sm text-muted-foreground">
+            <p className="mt-1 text-sm text-muted-foreground">
               Nothing scheduled or due in the next week.
-
             </p>
           )}
         </div>
@@ -212,7 +198,7 @@ export function DashboardHero() {
           to="/focus"
           className="press group inline-flex min-h-11 shrink-0 items-center gap-2 self-start rounded-full border border-foreground/15 px-5 text-sm font-medium transition-colors hover:bg-foreground/[0.06] sm:self-auto"
         >
-          Open Focus
+          See more
           <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5" />
         </Link>
       </div>
