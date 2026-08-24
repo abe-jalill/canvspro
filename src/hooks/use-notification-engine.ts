@@ -131,8 +131,11 @@ function runAnnouncementChecks(items: AnnouncementItem[]) {
       id: `announcement:${key}`,
       kind: "announcement",
       title: a.title,
-      body: `New announcement in ${displayCourseName(a.course_name, a.course_code)}`,
+      course: displayCourseName(a.course_name, a.course_code),
+      to: "/announcements",
+      body: "New announcement",
     });
+
   }
 
   if (changed) writeSet(SEEN_ANNOUNCEMENTS_KEY, seen);
