@@ -44,6 +44,48 @@ function urgencyClass(urgency: string) {
   }
 }
 
+function EstimateEditor({
+  assignmentId,
+  courseId,
+  minutes,
+}: {
+  assignmentId: number;
+  courseId: number;
+  minutes: number | null;
+}) {
+  const [draft, setDraft] = useState<string>(
+    minutes === null ? "" : String(minutes),
+  );
+  const { mutate, isPending } = useSetAssignmentEstimate();
+
+  function save() {
+    const value = parseInt(draft, 10);
+    mutate({
+      assignmentId,
+      courseId,
+      minutes: Number.isNaN(value) || value <= 0 ? null : value,
+    });
+  }
+
+  return (
+    <div className="flex items-center gap-2 text-xs">
+      <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+      <input
+        type="number"
+        min={0}
+        step={15}
+        placeholder="Time est. (min)"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={save}
+        onKeyDown={(e) => e.key === "Enter" && save()}
+        disabled={isPending}
+        className="w-28 rounded-md border border-foreground/10 bg-background/50 px-2 py-1 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+      />
+    </div>
+  );
+}
+
 export function PriorityAssignmentsWidget() {
   const assignments = useQuery(assignmentsQO);
   const courses = useQuery(coursesQO);
