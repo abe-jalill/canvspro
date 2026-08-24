@@ -63,8 +63,22 @@ export default function ClassScheduleView({
             <Stat label="Credit Hours" value={String(credits)} />
           ) : null}
         </div>
-
+        {conflicts.length > 0 ? (
+          <div className="glass-inset mt-4 rounded-2xl px-4 py-3 text-xs text-muted-foreground">
+            <p className="font-medium uppercase tracking-[0.14em]">
+              {conflicts.length === 1
+                ? "1 time conflict"
+                : `${conflicts.length} time conflicts`}
+            </p>
+            <ul className="mt-1.5 space-y-0.5">
+              {conflicts.slice(0, 4).map((c, i) => (
+                <li key={i}>{conflictLabel(c)}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </header>
+
 
       <section className="glass-panel p-4 md:p-6">
         <h2 className="mb-4 text-sm font-medium uppercase tracking-[0.18em] text-muted-foreground">
