@@ -121,50 +121,63 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 }
 
 function WeeklyGrid({ byDay }: { byDay: Record<ClassDay, ClassSession[]> }) {
-  const totalMin = DAY_END - DAY_START;
-  const height = totalMin * PX_PER_MIN;
+  // Bounds derived from the actual classes so blocks never sit outside the grid.
+  const all = DAY_ORDER.flatMap((d) => byDay[d]);
+  const earliest = all.length
+    ? Math.min(...all.map((s) => s.startMinutes))
+    : DAY_START;
+  const latest = all.length ? Math.max(...all.map((s) => s.endMinutes)) : DAY_END;
+  const start = Math.min(DAY_START, Math.floor(earliest / 60) * 60);
+  const end = Math.max(DAY_END, Math.ceil(latest / 60) * 60);
+
+  const height = (end - start) * PX_PER_MIN;
   const hourMarks: number[] = [];
-  for (let h = DAY_START; h <= DAY_END; h += 60) hourMarks.push(h);
+  for (let h = start; h <= end; h += 60) hourMarks.push(h);
 
   return (
-    <div className="overflow-x-auto">
-      <div className="flex min-w-[720px] gap-2">
-        {/* Time gutter */}
-        <div
-          className="relative w-14 shrink-0 pr-2"
-          style={{ height: `${height}px` }}
-        >
-          {hourMarks.map((m) => (
+    <div className="no-scrollbar overflow-x-auto overflow-y-hidden">
+      <div className="min-w-[640px]">
+        {/* Header row: spacer keeps the time gutter aligned with the grid body */}
+        <div className="flex gap-2">
+          <div className="w-14 shrink-0" />
+          {DAY_ORDER.map((d) => (
             <div
-              key={m}
-              className="absolute right-2 -translate-y-1/2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground"
-              style={{ top: `${(m - DAY_START) * PX_PER_MIN}px` }}
+              key={d}
+              className="flex-1 pb-2 text-center text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground"
             >
-              {minutesToLabel(m)}
+              <span className="hidden sm:inline">{DAY_LABELS[d]}</span>
+              <span className="sm:hidden">{DAY_LABELS[d].slice(0, 3)}</span>
             </div>
           ))}
         </div>
 
-        {DAY_ORDER.map((d) => (
-          <div key={d} className="flex-1">
-            <div className="mb-2 text-center text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-              {DAY_LABELS[d]}
-            </div>
-            <div
-              className="glass-inset relative rounded-xl"
-              style={{ height: `${height}px` }}
-            >
+        <div className="flex gap-2" style={{ height: `${height}px` }}>
+          {/* Time gutter */}
+          <div className="relative w-14 shrink-0 pr-2">
+            {hourMarks.map((m) => (
+              <div
+                key={m}
+                className="absolute right-2 -translate-y-1/2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground"
+                style={{ top: `${(m - start) * PX_PER_MIN}px` }}
+              >
+                {minutesToLabel(m)}
+              </div>
+            ))}
+          </div>
+
+          {DAY_ORDER.map((d) => (
+            <div key={d} className="glass-inset relative flex-1 rounded-xl">
               {hourMarks.slice(1, -1).map((m) => (
                 <div
                   key={m}
                   className="absolute left-0 right-0 border-t border-foreground/[0.06]"
-                  style={{ top: `${(m - DAY_START) * PX_PER_MIN}px` }}
+                  style={{ top: `${(m - start) * PX_PER_MIN}px` }}
                 />
               ))}
               {byDay[d].map((s) => {
-                const top = Math.max(0, (s.startMinutes - DAY_START) * PX_PER_MIN);
+                const top = (s.startMinutes - start) * PX_PER_MIN;
                 const h =
-                  Math.max(24, (s.endMinutes - s.startMinutes) * PX_PER_MIN) - 4;
+                  Math.max(28, (s.endMinutes - s.startMinutes) * PX_PER_MIN) - 4;
                 return (
                   <div
                     key={`${s.id}-${d}`}
@@ -172,20 +185,21 @@ function WeeklyGrid({ byDay }: { byDay: Record<ClassDay, ClassSession[]> }) {
                     style={{ top: `${top}px`, height: `${h}px` }}
                     title={`${s.title} · ${s.location}`}
                   >
-                    <p className="font-semibold tracking-tight">
+                    <p className="truncate font-semibold tracking-tight">
                       {s.displayName}
                     </p>
-                    <p className="text-muted-foreground">{s.timeLabel}</p>
-                    <p className="text-muted-foreground/80 truncate">
+                    <p className="truncate text-muted-foreground">{s.timeLabel}</p>
+                    <p className="truncate text-muted-foreground/80">
                       {s.location}
                     </p>
                   </div>
                 );
               })}
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );
 }
+
