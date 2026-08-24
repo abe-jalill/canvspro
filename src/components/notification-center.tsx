@@ -56,9 +56,25 @@ export function NotificationCenter({ className }: { className?: string }) {
     };
   }, [open]);
 
+  const filtered = useMemo(
+    () =>
+      active.length === 0
+        ? notifications
+        : notifications.filter((n) =>
+            active.includes(n.kind as FilterKind),
+          ),
+    [notifications, active],
+  );
+
+  const counts = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const n of notifications) c[n.kind] = (c[n.kind] ?? 0) + 1;
+    return c;
+  }, [notifications]);
+
   const groups = useMemo(() => {
     const map = new Map<string, AppNotification[]>();
-    for (const n of notifications) {
+    for (const n of filtered) {
       const key = n.course?.trim() || "General";
       const arr = map.get(key) ?? [];
       arr.push(n);
