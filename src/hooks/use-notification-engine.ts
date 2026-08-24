@@ -73,10 +73,11 @@ function runDueChecks(assignments: AssignmentItem[]) {
         id: `due:${a.id}:${w.key}`,
         kind: "due",
         title: `Due ${w.label.replace(" before", "")} or less: ${a.name}`,
-        body: `${displayCourseName(a.course_name, a.course_code)} · due ${new Date(
-          a.due_at,
-        ).toLocaleString()}`,
+        course: displayCourseName(a.course_name, a.course_code),
+        to: "/assignments",
+        body: `due ${new Date(a.due_at).toLocaleString()}`,
       });
+
     }
   }
 }
