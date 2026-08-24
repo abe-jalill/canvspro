@@ -152,7 +152,6 @@ export function DashboardHero() {
 
   const nextStart = next?.start ?? null;
 
-
   return (
     <section className="glass-panel-strong min-w-0 overflow-hidden p-6 sm:p-8 md:p-10">
       <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
