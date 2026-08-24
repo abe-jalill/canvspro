@@ -80,12 +80,20 @@ export function notify(n: Omit<AppNotification, "ts" | "read">) {
   }
 }
 
+/** Unread first, then newest first. */
+function sortNotifications(list: AppNotification[]): AppNotification[] {
+  return [...list].sort((a, b) => {
+    if (a.read !== b.read) return a.read ? 1 : -1;
+    return b.ts - a.ts;
+  });
+}
+
 export function useNotifications() {
   const [list, setList] = useState<AppNotification[]>([]);
 
   useEffect(() => {
-    setList(read());
-    const sync = () => setList(read());
+    setList(sortNotifications(read()));
+    const sync = () => setList(sortNotifications(read()));
     window.addEventListener(EVENT, sync);
     window.addEventListener("storage", sync);
     const unsub = subscribeToUserScope(sync);
