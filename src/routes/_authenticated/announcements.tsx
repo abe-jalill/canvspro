@@ -121,41 +121,72 @@ function AnnouncementsPage() {
         </GlassCard>
       )}
 
-      {groups.length > 0 && (
-        <GlassCard>
-          <div className="divide-y divide-foreground/10">
-            {groups.map((g) => {
-              const isOpen = expanded.includes(g.id);
-              const label = displayCourseName(g.name, g.code);
-              return (
-                <div key={g.id} {...highlight(label)}>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setExpanded((prev) =>
-                        prev.includes(g.id)
-                          ? prev.filter((x) => x !== g.id)
-                          : [...prev, g.id],
-                      )
-                    }
-                    aria-expanded={isOpen}
-                    className="glass-hover flex min-h-11 w-full items-center gap-3 rounded-xl px-1.5 text-left"
-                  >
-                    <ChevronDown
-                      className={cn(
-                        "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
-                        isOpen && "rotate-180",
-                      )}
-                    />
-                    <h2 className="min-w-0 flex-1 truncate text-xs font-semibold uppercase tracking-[0.14em] text-foreground/80">
+      <div className="space-y-3">
+        {groups.map((g) => {
+          const open = expanded.includes(g.id);
+          const label = displayCourseName(g.name, g.code);
+          const latest = g.items.reduce(
+            (max, a) => Math.max(max, new Date(a.posted_at).getTime()),
+            0,
+          );
+          return (
+            <div key={g.id} {...highlight(label)}>
+              <GlassCard className="p-0 sm:p-0 md:p-0">
+                <button
+                  onClick={() =>
+                    setExpanded((prev) =>
+                      prev.includes(g.id)
+                        ? prev.filter((x) => x !== g.id)
+                        : [...prev, g.id],
+                    )
+                  }
+                  aria-expanded={open}
+                  className="glass-hover grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 p-4 text-left sm:p-6"
+                >
+                  <div className="min-w-0">
+                    <h2 className="truncate text-base font-semibold tracking-tight sm:text-lg">
                       {label}
                     </h2>
-                    <span className="shrink-0 text-sm font-semibold tabular-nums text-muted-foreground">
-                      {g.items.length}
-                    </span>
-                  </button>
-                  {isOpen && (
-                    <div className="mt-2 space-y-3">
+                    <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                      <span>
+                        {g.items.length} announcement
+                        {g.items.length === 1 ? "" : "s"}
+                      </span>
+                      {latest > 0 && (
+                        <>
+                          <span className="opacity-40">·</span>
+                          <span>
+                            latest{" "}
+                            {new Date(latest).toLocaleDateString(undefined, {
+                              month: "short",
+                              day: "numeric",
+                            })}
+                          </span>
+                        </>
+                      )}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-3">
+                    <div className="text-right">
+                      <p className="text-lg font-semibold tabular-nums tracking-tight">
+                        {g.items.length}
+                      </p>
+                      <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                        Posts
+                      </p>
+                    </div>
+                    <ChevronDown
+                      className={cn(
+                        "h-4 w-4 text-muted-foreground transition-transform",
+                        open && "rotate-180",
+                      )}
+                    />
+                  </div>
+                </button>
+
+                {open && (
+                  <div className="border-t border-glass-border p-4 sm:p-6">
+                    <div className="space-y-3">
                       {g.items.map((a) => (
                         <div key={a.id} className="glass-inset glass-hover p-3 sm:p-4">
                           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2 sm:gap-3">
@@ -184,13 +215,14 @@ function AnnouncementsPage() {
                         </div>
                       ))}
                     </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </GlassCard>
-      )}
+                  </div>
+                )}
+              </GlassCard>
+            </div>
+          );
+        })}
+      </div>
+
 
     </div>
   );
