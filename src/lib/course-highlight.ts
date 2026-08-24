@@ -47,8 +47,8 @@ export function useCourseHighlight() {
 }
 
 /** Search-param validator shared by pages that support class deep links. */
-export function validateCourseSearch(search: { course?: unknown } | undefined) {
-  return {
-    course: typeof search?.course === "string" ? search.course : undefined,
-  };
+export function validateCourseSearch(
+  search: { course?: unknown } | undefined,
+): { course?: string } {
+  return typeof search?.course === "string" ? { course: search.course } : {};
 }
