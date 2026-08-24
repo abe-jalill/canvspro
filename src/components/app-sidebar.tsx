@@ -154,14 +154,25 @@ export function AppSidebar() {
 
 export function MobileNav() {
   const pathname = useActivePath();
+  const locationHref = useRouterState({ select: (s) => s.location.href });
   const { isActive: isPro } = useSubscription();
   const [open, setOpen] = useState(false);
 
+  // Close on any navigation (including same-path clicks) and on Escape /
+  // outside taps, so the panel never lingers over the new page.
   useEffect(() => {
     setOpen(false);
-  }, [pathname]);
+  }, [locationHref]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
 
   const current = items.find((i) => isActive(pathname, i.to))?.title ?? "Canvas Pro";
+
 
   return (
     <div className="md:hidden">
