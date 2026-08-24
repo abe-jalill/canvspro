@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 
-const TITLE = "How to Customize Your Canvas Dashboard (Student Guide)";
-const DESCRIPTION =
+export const TITLE = "How to Customize Your Canvas Dashboard (Student Guide)";
+export const DESCRIPTION =
   "Show grades on Canvas dashboard cards, rename or color-code courses, and remove old classes from your dashboard — step by step, for students.";
 
 export const Route = createFileRoute("/canvas-dashboard-guide")({

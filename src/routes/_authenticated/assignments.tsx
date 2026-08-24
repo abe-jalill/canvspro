@@ -119,13 +119,13 @@ function AssignmentsPage() {
       return g;
     };
 
-    (courses.data ?? []).forEach((c) =>
-      addCourse(c.id, displayCourseName(c.name, c.course_code), c),
-    );
+    const courseById = new Map((courses.data ?? []).map((course) => [course.id, course]));
     (data ?? []).forEach((a) => {
+      const course = courseById.get(a.course_id);
       const g = addCourse(
         a.course_id,
         displayCourseName(a.course_name, a.course_code),
+        course,
       );
       g.items.push(a);
     });
@@ -133,16 +133,13 @@ function AssignmentsPage() {
     const now = Date.now();
     const threeDays = now + 3 * 24 * 60 * 60 * 1000;
     for (const g of map.values()) {
+      g.items = g.items.filter((a) => !isDone(a, completed.has(a.id)));
       g.items.sort((a, b) => {
-        const ac = isDone(a, completed.has(a.id)) ? 1 : 0;
-        const bc = isDone(b, completed.has(b.id)) ? 1 : 0;
-        if (ac !== bc) return ac - bc;
         if (!a.due_at) return 1;
         if (!b.due_at) return -1;
         return new Date(a.due_at).getTime() - new Date(b.due_at).getTime();
       });
       for (const a of g.items) {
-        if (isDone(a, completed.has(a.id))) continue;
         if (!a.due_at) continue;
         const t = new Date(a.due_at).getTime();
         if (t < now) g.overdue += 1;
@@ -150,9 +147,9 @@ function AssignmentsPage() {
       }
     }
 
-    return Array.from(map.values()).sort((a, b) =>
-      a.label.localeCompare(b.label),
-    );
+    return Array.from(map.values())
+      .filter((group) => group.items.length > 0)
+      .sort((a, b) => a.label.localeCompare(b.label));
   }, [courses.data, data, completed]);
 
   const q = search.trim().toLowerCase();

@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, queryOptions } from "@tanstack/react-query";
 import {
   getAnnouncementsFn,
-  getCoursesFn,
   type AnnouncementItem,
 } from "@/lib/canvas.functions";
 import {
@@ -23,12 +22,6 @@ import {
 const announcementsQO = queryOptions({
   queryKey: ["canvas", "announcements"],
   queryFn: () => getAnnouncementsFn(),
-  staleTime: 5 * 60_000,
-});
-
-const coursesQO = queryOptions({
-  queryKey: ["canvas", "courses"],
-  queryFn: () => getCoursesFn(),
   staleTime: 5 * 60_000,
 });
 
@@ -53,7 +46,6 @@ function stripHtml(html: string) {
 
 function AnnouncementsPage() {
   const { data, isLoading, isError, error } = useQuery(announcementsQO);
-  const courses = useQuery(coursesQO);
   const dismissed = useLocalSet(DISMISSED_ANNOUNCEMENTS_KEY);
   const highlight = useCourseHighlight();
 
@@ -66,14 +58,6 @@ function AnnouncementsPage() {
     items: AnnouncementItem[];
   };
   const groupMap = new Map<number, Group>();
-  (courses.data ?? []).forEach((c) => {
-    groupMap.set(c.id, {
-      id: c.id,
-      name: c.name,
-      code: c.course_code ?? "",
-      items: [],
-    });
-  });
   visible.forEach((a) => {
     const g = groupMap.get(a.course_id) ?? {
       id: a.course_id,
@@ -84,9 +68,7 @@ function AnnouncementsPage() {
     g.items.push(a);
     groupMap.set(a.course_id, g);
   });
-  const groups = Array.from(groupMap.values())
-    .filter((g) => g.items.length > 0)
-    .sort((a, b) =>
+  const groups = Array.from(groupMap.values()).sort((a, b) =>
     displayCourseName(a.name, a.code).localeCompare(
       displayCourseName(b.name, b.code),
     ),
