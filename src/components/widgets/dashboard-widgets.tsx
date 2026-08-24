@@ -23,7 +23,7 @@ import {
   DISMISSED_ANNOUNCEMENTS_KEY,
   COMPLETED_ASSIGNMENTS_KEY,
 } from "@/lib/local-state";
-import { Check, X, CalendarPlus, FileText } from "lucide-react";
+import { Check, X, CalendarPlus, FileText, ChevronDown } from "lucide-react";
 import {
   getCountdown,
   urgencyTextClass,
