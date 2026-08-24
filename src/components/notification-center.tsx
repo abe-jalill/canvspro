@@ -42,6 +42,13 @@ export function NotificationCenter({ className }: { className?: string }) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const ref = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const locationHref = useRouterState({ select: (s) => s.location.href });
+
+  // Any navigation closes the panel (mobile especially).
+  useEffect(() => {
+    setOpen(false);
+  }, [locationHref]);
+
 
   useEffect(() => {
     if (!open) return;
