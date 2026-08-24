@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Bell, Check, ChevronRight, Trash2, X } from "lucide-react";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 import { useNotifications, type AppNotification } from "@/lib/notifications";
+
 
 const PER_GROUP = 3;
 
