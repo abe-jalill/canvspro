@@ -116,27 +116,34 @@ export function PriorityAssignmentsWidget() {
           {topItems.map((p) => (
             <li
               key={p.assignment.id}
-              className="glass-inset flex items-center justify-between gap-3 p-3"
+              className="glass-inset flex flex-col gap-2 p-3"
             >
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium">
-                  {p.assignment.name}
-                </p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {displayCourseName(
-                    p.assignment.course_name,
-                    p.assignment.course_code,
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">
+                    {p.assignment.name}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {displayCourseName(
+                      p.assignment.course_name,
+                      p.assignment.course_code,
+                    )}
+                  </p>
+                </div>
+                <span
+                  className={cn(
+                    "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide",
+                    urgencyClass(p.urgency),
                   )}
-                </p>
+                >
+                  {p.urgency}
+                </span>
               </div>
-              <span
-                className={cn(
-                  "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide",
-                  urgencyClass(p.urgency),
-                )}
-              >
-                {p.urgency}
-              </span>
+              <EstimateEditor
+                assignmentId={p.assignment.id}
+                courseId={p.assignment.course_id}
+                minutes={p.estimatedMinutes}
+              />
             </li>
           ))}
         </ul>
