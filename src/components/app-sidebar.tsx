@@ -229,7 +229,9 @@ export function MobileNav() {
             <SignOutButton />
           </div>
         </div>
+        </>
       )}
+
     </div>
   );
 }
