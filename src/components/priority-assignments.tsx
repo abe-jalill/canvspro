@@ -12,7 +12,12 @@ import { useLocalSet, COMPLETED_ASSIGNMENTS_KEY } from "@/lib/local-state";
 import { displayCourseName } from "@/lib/course-display";
 import { buildPriorityList, describePriorityList } from "@/lib/priority";
 import { cn } from "@/lib/utils";
-import { useAssignmentMetaMap } from "@/hooks/use-assignment-meta";
+import {
+  useAssignmentMetaMap,
+  useSetAssignmentEstimate,
+} from "@/hooks/use-assignment-meta";
+import { Clock } from "lucide-react";
+import { useState } from "react";
 
 const assignmentsQO = queryOptions({
   queryKey: ["canvas", "assignments"],
