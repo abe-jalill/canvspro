@@ -220,6 +220,7 @@ function UpcomingWidget() {
       action={
         <Link
           to="/assignments"
+              search={{}}
           className="glass-hover rounded-lg px-2.5 py-1 text-xs font-medium text-muted-foreground"
         >
           View all
@@ -357,6 +358,7 @@ function AnnouncementsWidget() {
       action={
         <Link
           to="/announcements"
+              search={{}}
           className="glass-hover rounded-lg px-2.5 py-1 text-xs font-medium text-muted-foreground"
         >
           View all
