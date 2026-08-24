@@ -42,17 +42,52 @@ function untilLabel(target: Date, now: Date) {
   return days === 1 ? "tomorrow" : `in ${days} days`;
 }
 
-function nextEvent(events: CalendarEventItem[] | undefined, now: Date) {
-  if (!events) return null;
-  const upcoming = events
-    .filter((e) => e.start_at && new Date(e.start_at).getTime() > now.getTime())
-    .sort(
-      (a, b) =>
-        new Date(a.start_at as string).getTime() -
-        new Date(b.start_at as string).getTime(),
-    );
-  return upcoming[0] ?? null;
+interface NextUpItem {
+  title: string;
+  start: Date;
+  subtitle: string | null;
 }
+
+function nextUp(
+  events: CalendarEventItem[] | undefined,
+  assignments: AssignmentItem[] | undefined,
+  isCompleted: (id: string | number) => boolean,
+  now: Date,
+): NextUpItem | null {
+  const items: NextUpItem[] = [];
+
+  for (const e of events ?? []) {
+    if (!e.start_at) continue;
+    const start = new Date(e.start_at);
+    if (Number.isNaN(start.getTime()) || start.getTime() <= now.getTime())
+      continue;
+    items.push({
+      title: e.title,
+      start,
+      subtitle: e.context_name
+        ? displayCourseName(e.context_name, "")
+        : null,
+    });
+  }
+
+  for (const a of assignments ?? []) {
+    if (!a.due_at) continue;
+    if (isCompleted(a.id)) continue;
+    if (a.submission?.submitted_at) continue;
+    const start = new Date(a.due_at);
+    if (Number.isNaN(start.getTime()) || start.getTime() <= now.getTime())
+      continue;
+    items.push({
+      title: a.name,
+      start,
+      subtitle: `Due · ${displayCourseName(a.course_name, a.course_code)}`,
+    });
+  }
+
+  items.sort((a, b) => a.start.getTime() - b.start.getTime());
+  return items[0] ?? null;
+}
+
 
 function summarize(
   assignments: AssignmentItem[] | undefined,
@@ -108,11 +143,12 @@ export function DashboardHero() {
     return () => clearInterval(id);
   }, []);
 
-  const next = nextEvent(events.data, now);
+  const next = nextUp(events.data, assignments.data, completed.has, now);
   const summary = summarize(assignments.data, completed.has, now);
   const loading = assignments.isLoading || events.isLoading;
 
-  const nextStart = next?.start_at ? new Date(next.start_at) : null;
+  const nextStart = next?.start ?? null;
+
 
   return (
     <section className="glass-panel-strong min-w-0 overflow-hidden p-6 sm:p-8 md:p-10">
@@ -155,14 +191,13 @@ export function DashboardHero() {
                   hour: "numeric",
                   minute: "2-digit",
                 })}
-                {next.context_name
-                  ? ` · ${displayCourseName(next.context_name, "")}`
-                  : ""}
+                {next.subtitle ? ` · ${next.subtitle}` : ""}
               </p>
             </>
           ) : (
             <p className="mt-2 text-sm text-muted-foreground">
-              Nothing scheduled in the next two weeks.
+              Nothing scheduled or due in the next two weeks.
+
             </p>
           )}
         </div>
