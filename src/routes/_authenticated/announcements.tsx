@@ -15,6 +15,10 @@ import { displayCourseName } from "@/lib/course-display";
 import { useLocalSet, DISMISSED_ANNOUNCEMENTS_KEY } from "@/lib/local-state";
 import { X, RotateCcw } from "lucide-react";
 import { htmlToText } from "@/lib/html-text";
+import {
+  useCourseHighlight,
+  validateCourseSearch,
+} from "@/lib/course-highlight";
 
 const announcementsQO = queryOptions({
   queryKey: ["canvas", "announcements"],
@@ -39,6 +43,7 @@ export const Route = createFileRoute("/_authenticated/announcements")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
+  validateSearch: validateCourseSearch,
   component: AnnouncementsPage,
 });
 
@@ -50,6 +55,7 @@ function AnnouncementsPage() {
   const { data, isLoading, isError, error } = useQuery(announcementsQO);
   const courses = useQuery(coursesQO);
   const dismissed = useLocalSet(DISMISSED_ANNOUNCEMENTS_KEY);
+  const highlight = useCourseHighlight();
 
   const visible = (data ?? []).filter((a) => !dismissed.has(a.id));
 
@@ -129,8 +135,8 @@ function AnnouncementsPage() {
       )}
 
       {groups.map((g) => (
+        <div key={g.id} {...highlight(displayCourseName(g.name, g.code))}>
         <GlassCard
-          key={g.id}
           title={displayCourseName(g.name, g.code)}
         >
           {g.items.length === 0 ? (
@@ -170,6 +176,7 @@ function AnnouncementsPage() {
             </div>
           )}
         </GlassCard>
+        </div>
       ))}
     </div>
   );

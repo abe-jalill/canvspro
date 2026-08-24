@@ -23,6 +23,10 @@ import {
   urgencyAccentClass,
 } from "@/lib/countdown";
 import { buildIcs, downloadIcs, safeFilename } from "@/lib/ics";
+import {
+  useCourseHighlight,
+  validateCourseSearch,
+} from "@/lib/course-highlight";
 
 const assignmentsQO = queryOptions({
   queryKey: ["canvas", "assignments"],
@@ -212,7 +216,8 @@ function AssignmentsPage() {
         {visibleGroups.map((g) => {
           const open = expanded.has(g.id) || Boolean(q);
           return (
-            <GlassCard key={g.id} className="p-0 sm:p-0 md:p-0">
+            <div key={g.id} {...highlight(g.label)}>
+            <GlassCard className="p-0 sm:p-0 md:p-0">
               <button
                 onClick={() => toggle(g.id)}
                 aria-expanded={open}
