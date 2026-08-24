@@ -84,7 +84,9 @@ function AnnouncementsPage() {
     g.items.push(a);
     groupMap.set(a.course_id, g);
   });
-  const groups = Array.from(groupMap.values()).sort((a, b) =>
+  const groups = Array.from(groupMap.values())
+    .filter((g) => g.items.length > 0)
+    .sort((a, b) =>
     displayCourseName(a.name, a.code).localeCompare(
       displayCourseName(b.name, b.code),
     ),
