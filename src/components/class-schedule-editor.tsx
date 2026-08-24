@@ -1,6 +1,8 @@
 // Minimal entry form for a user's recurring class meeting times. Canvas's API
 // does not expose section meeting times reliably, so they're entered here and
 // stored per-account. Only class name, days and times are required.
+// A class can optionally use different times for each meeting day; in that case
+// one row is stored per day, and the view groups them back by class name.
 import { useEffect, useState } from "react";
 import {
   DAY_LABELS,
@@ -15,6 +17,8 @@ import {
   type ScheduleEntryInput,
 } from "@/lib/user-class-schedule";
 
+type DayTimes = Partial<Record<ClassDay, { start: string; end: string }>>;
+
 interface Draft {
   key: string;
   title: string;
@@ -24,6 +28,8 @@ interface Draft {
   days: ClassDay[];
   start: string;
   end: string;
+  perDay: boolean;
+  dayTimes: DayTimes;
 }
 
 let keySeq = 0;
@@ -39,20 +45,51 @@ function emptyDraft(): Draft {
     days: [],
     start: "09:30",
     end: "10:45",
+    perDay: false,
+    dayTimes: {},
   };
 }
 
-function toDraft(s: ClassSession): Draft {
-  return {
-    key: nextKey(),
-    title: s.title,
-    credits: s.credits ? String(s.credits) : "",
-    instructor: s.instructor,
-    location: s.location,
-    days: s.days,
-    start: toTimeInput(s.startMinutes),
-    end: toTimeInput(s.endMinutes),
-  };
+/** Groups stored rows back into one draft per class name. */
+function toDrafts(sessions: ClassSession[]): Draft[] {
+  const groups = new Map<string, ClassSession[]>();
+  for (const s of sessions) {
+    const k = s.title.trim().toLowerCase();
+    const list = groups.get(k);
+    if (list) list.push(s);
+    else groups.set(k, [s]);
+  }
+
+  return [...groups.values()].map((list) => {
+    const first = list[0];
+    const days: ClassDay[] = [];
+    const dayTimes: DayTimes = {};
+    for (const s of list) {
+      for (const d of s.days) {
+        if (!days.includes(d)) days.push(d);
+        dayTimes[d] = {
+          start: toTimeInput(s.startMinutes),
+          end: toTimeInput(s.endMinutes),
+        };
+      }
+    }
+    const ordered = DAY_ORDER.filter((d) => days.includes(d));
+    const distinct = new Set(
+      ordered.map((d) => `${dayTimes[d]?.start}-${dayTimes[d]?.end}`),
+    );
+    return {
+      key: nextKey(),
+      title: first.title,
+      credits: first.credits ? String(first.credits) : "",
+      instructor: first.instructor,
+      location: first.location,
+      days: ordered,
+      start: toTimeInput(first.startMinutes),
+      end: toTimeInput(first.endMinutes),
+      perDay: distinct.size > 1,
+      dayTimes,
+    };
+  });
 }
 
 export default function ClassScheduleEditor({
@@ -69,7 +106,7 @@ export default function ClassScheduleEditor({
   const [status, setStatus] = useState<string | null>(null);
 
   useEffect(() => {
-    setRows(sessions.length > 0 ? sessions.map(toDraft) : [emptyDraft()]);
+    setRows(sessions.length > 0 ? toDrafts(sessions) : [emptyDraft()]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessions.length]);
 
@@ -77,18 +114,56 @@ export default function ClassScheduleEditor({
     setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
   }
 
-  function toggleDay(key: string, day: ClassDay) {
+  function setDayTime(
+    key: string,
+    day: ClassDay,
+    patch: { start?: string; end?: string },
+  ) {
     setRows((prev) =>
       prev.map((r) =>
         r.key === key
           ? {
               ...r,
-              days: r.days.includes(day)
-                ? r.days.filter((d) => d !== day)
-                : [...DAY_ORDER].filter((d) => d === day || r.days.includes(d)),
+              dayTimes: {
+                ...r.dayTimes,
+                [day]: {
+                  start: patch.start ?? r.dayTimes[day]?.start ?? r.start,
+                  end: patch.end ?? r.dayTimes[day]?.end ?? r.end,
+                },
+              },
             }
           : r,
       ),
+    );
+  }
+
+  function togglePerDay(key: string) {
+    setRows((prev) =>
+      prev.map((r) => {
+        if (r.key !== key) return r;
+        if (r.perDay) return { ...r, perDay: false };
+        const dayTimes: DayTimes = { ...r.dayTimes };
+        for (const d of r.days) {
+          if (!dayTimes[d]) dayTimes[d] = { start: r.start, end: r.end };
+        }
+        return { ...r, perDay: true, dayTimes };
+      }),
+    );
+  }
+
+  function toggleDay(key: string, day: ClassDay) {
+    setRows((prev) =>
+      prev.map((r) => {
+        if (r.key !== key) return r;
+        const days = r.days.includes(day)
+          ? r.days.filter((d) => d !== day)
+          : [...DAY_ORDER].filter((d) => d === day || r.days.includes(d));
+        const dayTimes: DayTimes = { ...r.dayTimes };
+        if (!r.days.includes(day) && !dayTimes[day]) {
+          dayTimes[day] = { start: r.start, end: r.end };
+        }
+        return { ...r, days, dayTimes };
+      }),
     );
   }
 
@@ -103,17 +178,12 @@ export default function ClassScheduleEditor({
     }
     const payload: ScheduleEntryInput[] = [];
     for (const r of filled) {
-      const start = parseTimeInput(r.start);
-      const end = parseTimeInput(r.end);
-      if (start === null || end === null || end <= start) {
-        setStatus(`Check the start and end time for "${r.title.trim()}".`);
-        return;
-      }
       if (r.days.length === 0) {
         setStatus(`Pick at least one meeting day for "${r.title.trim()}".`);
         return;
       }
-      payload.push({
+
+      const base = {
         code: "",
         section: "",
         title: r.title,
@@ -123,12 +193,43 @@ export default function ClassScheduleEditor({
         location: r.location,
         campus: "",
         scheduleType: "Lecture",
-        days: r.days,
-        startMinutes: start,
-        endMinutes: end,
         term: "",
         dateRange: "",
-      });
+      };
+
+      if (!r.perDay) {
+        const start = parseTimeInput(r.start);
+        const end = parseTimeInput(r.end);
+        if (start === null || end === null || end <= start) {
+          setStatus(`Check the start and end time for "${r.title.trim()}".`);
+          return;
+        }
+        payload.push({
+          ...base,
+          days: r.days,
+          startMinutes: start,
+          endMinutes: end,
+        });
+        continue;
+      }
+
+      for (const d of DAY_ORDER.filter((x) => r.days.includes(x))) {
+        const t = r.dayTimes[d] ?? { start: r.start, end: r.end };
+        const start = parseTimeInput(t.start);
+        const end = parseTimeInput(t.end);
+        if (start === null || end === null || end <= start) {
+          setStatus(
+            `Check the ${DAY_LABELS[d]} time for "${r.title.trim()}".`,
+          );
+          return;
+        }
+        payload.push({
+          ...base,
+          days: [d],
+          startMinutes: start,
+          endMinutes: end,
+        });
+      }
     }
 
     try {
@@ -150,7 +251,8 @@ export default function ClassScheduleEditor({
         </h1>
         <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
           Add each class once — name, meeting days, and times. Credit hours,
-          professor, and location are optional.
+          professor, and location are optional. If a class meets at different
+          times on different days, turn on “Different times each day”.
         </p>
       </header>
 
@@ -214,22 +316,26 @@ export default function ClassScheduleEditor({
                   className="field"
                 />
               </Field>
-              <Field label="Start time">
-                <input
-                  type="time"
-                  value={r.start}
-                  onChange={(e) => update(r.key, { start: e.target.value })}
-                  className="field"
-                />
-              </Field>
-              <Field label="End time">
-                <input
-                  type="time"
-                  value={r.end}
-                  onChange={(e) => update(r.key, { end: e.target.value })}
-                  className="field"
-                />
-              </Field>
+              {!r.perDay ? (
+                <>
+                  <Field label="Start time">
+                    <input
+                      type="time"
+                      value={r.start}
+                      onChange={(e) => update(r.key, { start: e.target.value })}
+                      className="field"
+                    />
+                  </Field>
+                  <Field label="End time">
+                    <input
+                      type="time"
+                      value={r.end}
+                      onChange={(e) => update(r.key, { end: e.target.value })}
+                      className="field"
+                    />
+                  </Field>
+                </>
+              ) : null}
             </div>
 
             <div>
@@ -257,6 +363,64 @@ export default function ClassScheduleEditor({
                 })}
               </div>
             </div>
+
+            <button
+              type="button"
+              onClick={() => togglePerDay(r.key)}
+              aria-pressed={r.perDay}
+              className={`press min-h-11 rounded-full px-4 text-[11px] font-medium uppercase tracking-[0.14em] ${
+                r.perDay
+                  ? "glass-panel-strong text-foreground"
+                  : "glass-inset text-muted-foreground"
+              }`}
+            >
+              {r.perDay
+                ? "Using different times each day"
+                : "Different times each day"}
+            </button>
+
+            {r.perDay ? (
+              r.days.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  Pick meeting days above to set their times.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {DAY_ORDER.filter((d) => r.days.includes(d)).map((d) => {
+                    const t = r.dayTimes[d] ?? { start: r.start, end: r.end };
+                    return (
+                      <div
+                        key={d}
+                        className="glass-inset flex flex-wrap items-center gap-2 rounded-xl p-3"
+                      >
+                        <span className="w-20 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                          {DAY_LABELS[d]}
+                        </span>
+                        <input
+                          type="time"
+                          value={t.start}
+                          onChange={(e) =>
+                            setDayTime(r.key, d, { start: e.target.value })
+                          }
+                          aria-label={`${DAY_LABELS[d]} start time`}
+                          className="field w-auto flex-1 min-w-[7rem]"
+                        />
+                        <span className="text-xs text-muted-foreground">to</span>
+                        <input
+                          type="time"
+                          value={t.end}
+                          onChange={(e) =>
+                            setDayTime(r.key, d, { end: e.target.value })
+                          }
+                          aria-label={`${DAY_LABELS[d]} end time`}
+                          className="field w-auto flex-1 min-w-[7rem]"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              )
+            ) : null}
           </div>
         ))}
       </div>

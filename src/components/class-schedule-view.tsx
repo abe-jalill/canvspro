@@ -22,6 +22,8 @@ export default function ClassScheduleView({
   onEdit?: () => void;
 }) {
   const byDay = sessionsByDay(sessions);
+  const groups = groupByTitle(sessions);
+  const credits = totalCredits(groups.map((g) => g.sessions[0]));
 
 
   return (
@@ -44,12 +46,9 @@ export default function ClassScheduleView({
           ) : null}
         </div>
         <div className="mt-4 flex flex-wrap gap-6 text-sm">
-          <Stat label="Classes" value={String(sessions.length)} />
-          {totalCredits(sessions) > 0 ? (
-            <Stat
-              label="Credit Hours"
-              value={String(totalCredits(sessions))}
-            />
+          <Stat label="Classes" value={String(groups.length)} />
+          {credits > 0 ? (
+            <Stat label="Credit Hours" value={String(credits)} />
           ) : null}
         </div>
 
@@ -67,35 +66,72 @@ export default function ClassScheduleView({
           Your classes
         </h2>
         <div className="grid gap-3 md:grid-cols-2">
-          {sessions.map((c) => (
-            <article key={c.id} className="glass-panel p-5">
-              <div className="flex items-start justify-between gap-3">
-                <h3 className="min-w-0 text-base font-semibold tracking-tight">
-                  {c.title}
-                </h3>
-                {c.credits > 0 ? (
-                  <span className="glass-inset shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                    {c.credits} cr
-                  </span>
-                ) : null}
-              </div>
-              <dl className="mt-4 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
-                <Row label="Days">
-                  {c.days.map((d) => DAY_LABELS[d].slice(0, 3)).join(" ") || "—"}
-                </Row>
-                <Row label="Time">{c.timeLabel}</Row>
-                {c.instructor ? (
-                  <Row label="Professor">{c.instructor}</Row>
-                ) : null}
-                {c.location ? <Row label="Location">{c.location}</Row> : null}
-              </dl>
-            </article>
-          ))}
-
+          {groups.map((g) => {
+            const c = g.sessions[0];
+            const varied = g.sessions.length > 1;
+            return (
+              <article key={g.key} className="glass-panel p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <h3 className="min-w-0 text-base font-semibold tracking-tight">
+                    {c.title}
+                  </h3>
+                  {c.credits > 0 ? (
+                    <span className="glass-inset shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                      {c.credits} cr
+                    </span>
+                  ) : null}
+                </div>
+                <dl className="mt-4 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+                  {varied ? (
+                    <div className="sm:col-span-2">
+                      <dt className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                        Meeting times
+                      </dt>
+                      <dd className="mt-1 space-y-0.5 text-sm text-foreground">
+                        {g.sessions.map((s) => (
+                          <p key={s.id}>
+                            {s.days.map((d) => DAY_LABELS[d].slice(0, 3)).join(" ")}
+                            {" · "}
+                            {s.timeLabel}
+                          </p>
+                        ))}
+                      </dd>
+                    </div>
+                  ) : (
+                    <>
+                      <Row label="Days">
+                        {c.days.map((d) => DAY_LABELS[d].slice(0, 3)).join(" ") ||
+                          "—"}
+                      </Row>
+                      <Row label="Time">{c.timeLabel}</Row>
+                    </>
+                  )}
+                  {c.instructor ? (
+                    <Row label="Professor">{c.instructor}</Row>
+                  ) : null}
+                  {c.location ? <Row label="Location">{c.location}</Row> : null}
+                </dl>
+              </article>
+            );
+          })}
         </div>
       </section>
     </div>
   );
+}
+
+/** Rows for one class name are grouped so per-day times show in one card. */
+function groupByTitle(
+  sessions: ClassSession[],
+): { key: string; sessions: ClassSession[] }[] {
+  const map = new Map<string, ClassSession[]>();
+  for (const s of sessions) {
+    const k = s.title.trim().toLowerCase();
+    const list = map.get(k);
+    if (list) list.push(s);
+    else map.set(k, [s]);
+  }
+  return [...map.entries()].map(([key, list]) => ({ key, sessions: list }));
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
