@@ -66,7 +66,7 @@ export default function ClassScheduleView({
           Your classes
         </h2>
         <div className="grid gap-3 md:grid-cols-2">
-          {groupByTitle(sessions).map((g) => {
+          {groups.map((g) => {
             const c = g.sessions[0];
             const varied = g.sessions.length > 1;
             return (
