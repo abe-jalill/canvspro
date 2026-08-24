@@ -259,9 +259,7 @@ function AssignmentsPage() {
 
               {open && (
                 <div className="border-t border-glass-border p-4 sm:p-6">
-                  {g.items.length === 0 ? (
-                    <EmptyState message="No assignments for this class." />
-                  ) : (
+                  {(
                     <ul className="space-y-2">
                       {g.items.map((a) => {
                         const done = completed.has(a.id);
