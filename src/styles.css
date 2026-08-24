@@ -403,3 +403,21 @@
     display: none;
   }
 }
+
+/* Deep-linked class section highlight (from notification center). */
+@keyframes course-highlight-pulse {
+  0% {
+    box-shadow: 0 0 0 0 hsl(var(--foreground) / 0.35);
+  }
+  100% {
+    box-shadow: 0 0 0 10px hsl(var(--foreground) / 0);
+  }
+}
+
+.course-highlight {
+  border-radius: 1.25rem;
+  outline: 1px solid hsl(var(--foreground) / 0.35);
+  outline-offset: 2px;
+  animation: course-highlight-pulse 1.6s ease-out 2;
+  scroll-margin-top: 6rem;
+}
