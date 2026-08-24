@@ -29,7 +29,7 @@ function routeFor(n: AppNotification) {
   if (n.to) return n.to;
   if (n.kind === "grade") return "/grades";
   if (n.kind === "announcement") return "/announcements";
-  if (n.kind === "due") return "/assignments";
+  if (n.kind === "due" || n.kind === "overdue") return "/assignments";
   return null;
 }
 
@@ -37,6 +37,7 @@ export function NotificationCenter({ className }: { className?: string }) {
   const { notifications, unread, markRead, markAllRead, remove, clear } =
     useNotifications();
   const [open, setOpen] = useState(false);
+  const [active, setActive] = useState<FilterKind[]>([]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const ref = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
