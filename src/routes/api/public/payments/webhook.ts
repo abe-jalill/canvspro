@@ -56,6 +56,40 @@ async function handleSubscriptionCreated(subscription: any, env: StripeEnv) {
       },
       { onConflict: "stripe_subscription_id" },
     );
+
+  await sendReceipt(userId, item, periodEnd);
+}
+
+async function sendReceipt(
+  userId: string,
+  item: any,
+  periodEnd: number | null | undefined,
+) {
+  try {
+    const { data } = await (getSupabase().auth as any).admin.getUserById(userId);
+    const email = data?.user?.email as string | undefined;
+    if (!email) return;
+
+    const { sendTemplateEmail } = await import("@/lib/email-templates/send-email");
+    const cents = item?.price?.unit_amount ?? null;
+    await sendTemplateEmail("subscription-receipt", email, {
+      templateData: {
+        plan: "CanvasPro Monthly",
+        amount: cents != null ? `$${(cents / 100).toFixed(2)}` : "$2.99",
+        renewsOn: periodEnd
+          ? new Date(periodEnd * 1000).toLocaleDateString("en-US", {
+              month: "long",
+              day: "numeric",
+              year: "numeric",
+            })
+          : undefined,
+        appUrl: "https://canvaspro.app",
+      },
+      idempotencyKey: `subscription-receipt-${userId}-${item?.id ?? "sub"}`,
+    });
+  } catch (error) {
+    console.error("Receipt email failed:", error);
+  }
 }
 
 async function handleSubscriptionUpdated(subscription: any, env: StripeEnv) {
