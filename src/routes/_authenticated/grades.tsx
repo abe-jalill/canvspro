@@ -11,6 +11,10 @@ import {
 import { displayCourseName } from "@/lib/course-display";
 import { Search, ArrowUp, ArrowDown } from "lucide-react";
 import { useLocalNumberMap, LAST_SEEN_GRADES_KEY } from "@/lib/local-value";
+import {
+  useCourseHighlight,
+  validateCourseSearch,
+} from "@/lib/course-highlight";
 
 const coursesQO = queryOptions({
   queryKey: ["canvas", "courses"],
@@ -35,6 +39,7 @@ export const Route = createFileRoute("/_authenticated/grades")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
+  validateSearch: validateCourseSearch,
   component: GradesPage,
 });
 
@@ -48,6 +53,7 @@ function GradesPage() {
   const assignments = useQuery(assignmentsQO);
   const [search, setSearch] = useState("");
   const lastSeen = useLocalNumberMap(LAST_SEEN_GRADES_KEY);
+  const highlight = useCourseHighlight();
 
   const loading = courses.isLoading || assignments.isLoading;
   const error = courses.error || assignments.error;
@@ -154,8 +160,8 @@ function GradesPage() {
         if (q) items = items.filter((a) => a.name.toLowerCase().includes(q));
 
         return (
+          <div key={c.id} {...highlight(displayCourseName(c.name, c.course_code))}>
           <GlassCard
-            key={c.id}
             title={displayCourseName(c.name, c.course_code)}
             action={
               <span className="flex items-center gap-1.5 text-lg font-semibold tabular-nums">
@@ -201,6 +207,7 @@ function GradesPage() {
               </ul>
             )}
           </GlassCard>
+          </div>
         );
       })}
     </div>

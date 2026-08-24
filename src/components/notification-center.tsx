@@ -6,6 +6,15 @@ import { useNotifications, type AppNotification } from "@/lib/notifications";
 
 const PER_GROUP = 3;
 
+type FilterKind = "due" | "overdue" | "grade" | "announcement";
+
+const FILTERS: Array<{ id: FilterKind; label: string }> = [
+  { id: "due", label: "Due" },
+  { id: "overdue", label: "Overdue" },
+  { id: "grade", label: "Grades" },
+  { id: "announcement", label: "Announcements" },
+];
+
 function timeAgo(ts: number) {
   const s = Math.max(1, Math.round((Date.now() - ts) / 1000));
   if (s < 60) return `${s}s ago`;
@@ -20,7 +29,7 @@ function routeFor(n: AppNotification) {
   if (n.to) return n.to;
   if (n.kind === "grade") return "/grades";
   if (n.kind === "announcement") return "/announcements";
-  if (n.kind === "due") return "/assignments";
+  if (n.kind === "due" || n.kind === "overdue") return "/assignments";
   return null;
 }
 
@@ -28,6 +37,7 @@ export function NotificationCenter({ className }: { className?: string }) {
   const { notifications, unread, markRead, markAllRead, remove, clear } =
     useNotifications();
   const [open, setOpen] = useState(false);
+  const [active, setActive] = useState<FilterKind[]>([]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const ref = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -46,9 +56,25 @@ export function NotificationCenter({ className }: { className?: string }) {
     };
   }, [open]);
 
+  const filtered = useMemo(
+    () =>
+      active.length === 0
+        ? notifications
+        : notifications.filter((n) =>
+            active.includes(n.kind as FilterKind),
+          ),
+    [notifications, active],
+  );
+
+  const counts = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const n of notifications) c[n.kind] = (c[n.kind] ?? 0) + 1;
+    return c;
+  }, [notifications]);
+
   const groups = useMemo(() => {
     const map = new Map<string, AppNotification[]>();
-    for (const n of notifications) {
+    for (const n of filtered) {
       const key = n.course?.trim() || "General";
       const arr = map.get(key) ?? [];
       arr.push(n);
@@ -57,14 +83,17 @@ export function NotificationCenter({ className }: { className?: string }) {
     return Array.from(map.entries())
       .filter(([, items]) => items.length > 0)
       .sort((a, b) => a[0].localeCompare(b[0]));
-  }, [notifications]);
+  }, [filtered]);
 
   function openNotification(n: AppNotification) {
     markRead(n.id);
     const to = routeFor(n);
     if (to) {
       setOpen(false);
-      navigate({ to });
+      navigate({
+        to,
+        search: n.course ? { course: n.course } : {},
+      } as never);
     }
   }
 
@@ -109,6 +138,50 @@ export function NotificationCenter({ className }: { className?: string }) {
                 <Trash2 className="h-3.5 w-3.5" /> Clear
               </button>
             </div>
+          </div>
+
+          <div
+            role="group"
+            aria-label="Filter notifications"
+            className="flex flex-wrap gap-1.5 px-1 pb-3"
+          >
+            {FILTERS.map((f) => {
+              const on = active.includes(f.id);
+              return (
+                <button
+                  key={f.id}
+                  aria-pressed={on}
+                  onClick={() =>
+                    setActive((prev) =>
+                      prev.includes(f.id)
+                        ? prev.filter((x) => x !== f.id)
+                        : [...prev, f.id],
+                    )
+                  }
+                  className={cn(
+                    "rounded-full px-3 py-1.5 text-[11px] font-medium transition-colors",
+                    on
+                      ? "bg-foreground text-background"
+                      : "glass-inset glass-hover text-muted-foreground",
+                  )}
+                >
+                  {f.label}
+                  {counts[f.id] ? (
+                    <span className="ml-1 tabular-nums opacity-60">
+                      {counts[f.id]}
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
+            {active.length > 0 && (
+              <button
+                onClick={() => setActive([])}
+                className="glass-hover rounded-full px-3 py-1.5 text-[11px] font-medium text-muted-foreground"
+              >
+                All
+              </button>
+            )}
           </div>
 
           <div className="no-scrollbar max-h-[70vh] overflow-y-auto">

@@ -23,6 +23,10 @@ import {
   urgencyAccentClass,
 } from "@/lib/countdown";
 import { buildIcs, downloadIcs, safeFilename } from "@/lib/ics";
+import {
+  useCourseHighlight,
+  validateCourseSearch,
+} from "@/lib/course-highlight";
 
 const assignmentsQO = queryOptions({
   queryKey: ["canvas", "assignments"],
@@ -47,6 +51,7 @@ export const Route = createFileRoute("/_authenticated/assignments")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
+  validateSearch: validateCourseSearch,
   component: AssignmentsPage,
 });
 
@@ -89,6 +94,7 @@ function AssignmentsPage() {
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
+  const highlight = useCourseHighlight();
 
   const groups: ClassGroup[] = useMemo(() => {
     const map = new Map<number, ClassGroup>();
@@ -212,7 +218,8 @@ function AssignmentsPage() {
         {visibleGroups.map((g) => {
           const open = expanded.has(g.id) || Boolean(q);
           return (
-            <GlassCard key={g.id} className="p-0 sm:p-0 md:p-0">
+            <div key={g.id} {...highlight(g.label)}>
+            <GlassCard className="p-0 sm:p-0 md:p-0">
               <button
                 onClick={() => toggle(g.id)}
                 aria-expanded={open}
@@ -328,6 +335,7 @@ function AssignmentsPage() {
                 </div>
               )}
             </GlassCard>
+            </div>
           );
         })}
       </div>

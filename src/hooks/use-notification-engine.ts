@@ -58,7 +58,20 @@ function runDueChecks(assignments: AssignmentItem[]) {
     if (completed.has(String(a.id))) continue;
     if (a.submission?.submitted_at) continue;
     const due = new Date(a.due_at).getTime();
-    if (due <= now) continue;
+    if (due <= now) {
+      // Overdue: only surface items that slipped in the last week.
+      if (now - due <= 7 * 24 * 3_600_000) {
+        notify({
+          id: `overdue:${a.id}`,
+          kind: "overdue",
+          title: `Overdue: ${a.name}`,
+          course: displayCourseName(a.course_name, a.course_code),
+          to: "/assignments",
+          body: `was due ${new Date(a.due_at).toLocaleString()}`,
+        });
+      }
+      continue;
+    }
     const hoursLeft = (due - now) / 3_600_000;
 
     for (const w of DUE_WINDOWS) {

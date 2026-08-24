@@ -166,6 +166,7 @@ export function DigestCard({ announcements, assignments, courses }: Props) {
             <Link
               key={a.id}
               to="/announcements"
+
               className="glass-inset glass-hover block p-2.5"
             >
               <p className="truncate text-xs font-medium">{a.title}</p>
@@ -186,6 +187,7 @@ export function DigestCard({ announcements, assignments, courses }: Props) {
             <Link
               key={a.id}
               to="/grades"
+
               className="glass-inset glass-hover block p-2.5"
             >
               <p className="truncate text-xs font-medium">{a.name}</p>
@@ -216,6 +218,7 @@ export function DigestCard({ announcements, assignments, courses }: Props) {
             <Link
               key={a.id}
               to="/assignments"
+
               className="glass-inset glass-hover block p-2.5"
             >
               <p className="truncate text-xs font-medium">{a.name}</p>
