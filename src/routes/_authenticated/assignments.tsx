@@ -162,8 +162,8 @@ function AssignmentsPage() {
           ...g,
           items: g.items.filter((a) => a.name.toLowerCase().includes(q)),
         }))
-        .filter((g) => g.items.length > 0 || g.label.toLowerCase().includes(q))
-    : groups;
+        .filter((g) => g.items.length > 0)
+    : groups.filter((g) => g.items.length > 0);
 
   const toggle = (id: number) =>
     setExpanded((prev) => {
