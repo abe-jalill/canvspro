@@ -44,7 +44,7 @@ function Dashboard() {
       <header className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 px-1">
         <div className="min-w-0">
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            Overview
+            {"\n"}
           </p>
           <h2 className="mt-1 truncate text-lg font-semibold tracking-tight sm:text-xl">
             Your widgets
