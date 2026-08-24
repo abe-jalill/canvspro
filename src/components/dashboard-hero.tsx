@@ -43,9 +43,9 @@ function untilLabel(target: Date, now: Date) {
 }
 
 interface NextUpItem {
-  title: string;
   start: Date;
-  subtitle: string | null;
+  course: string | null;
+  kind: "assignment" | "event";
 }
 
 function nextUp(
@@ -66,11 +66,9 @@ function nextUp(
     )
       continue;
     items.push({
-      title: e.title,
       start,
-      subtitle: e.context_name
-        ? displayCourseName(e.context_name, "")
-        : null,
+      course: e.context_name ? displayCourseName(e.context_name, "") : null,
+      kind: "event",
     });
   }
 
@@ -84,15 +82,16 @@ function nextUp(
     )
       continue;
     items.push({
-      title: a.name,
       start,
-      subtitle: `Due · ${displayCourseName(a.course_name, a.course_code)}`,
+      course: displayCourseName(a.course_name, a.course_code),
+      kind: "assignment",
     });
   }
 
   items.sort((a, b) => a.start.getTime() - b.start.getTime());
   return items[0] ?? null;
 }
+
 
 
 function summarize(
