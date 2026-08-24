@@ -132,7 +132,7 @@ function AnnouncementsPage() {
       )}
       {!isLoading && !isError && groups.length === 0 && (
         <GlassCard>
-          <EmptyState message="No active courses." />
+          <EmptyState message="No announcements in the last 30 days." />
         </GlassCard>
       )}
 
