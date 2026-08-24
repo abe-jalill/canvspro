@@ -15,6 +15,7 @@ import { NotificationCenter } from "@/components/notification-center";
 import { CanvasLiveStatus } from "@/components/canvas-live-status";
 import { useNotificationEngine } from "@/hooks/use-notification-engine";
 import { useAppPrefetch } from "@/hooks/use-app-prefetch";
+import { useWelcomeEmail } from "@/hooks/use-welcome-email";
 import { setUserScope } from "@/lib/user-scope";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -38,6 +39,7 @@ function AuthenticatedLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   useNotificationEngine(isPro);
   useAppPrefetch(true);
+  useWelcomeEmail(true);
   return (
     <div className="min-h-screen w-full overflow-x-hidden">
       <AppSidebar />
