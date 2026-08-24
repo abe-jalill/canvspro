@@ -1,7 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
-import { useScopedKey } from "@/lib/user-scope";
+import { useCallback, useEffect } from "react";
+import {
+  useUserPreferenceKey,
+  useSetUserPreference,
+} from "@/hooks/use-user-preferences";
 
-export const DASHBOARD_LAYOUT_KEY = "canvas:dashboard-layout";
+export const DASHBOARD_LAYOUT_KEY = "dashboard-layout";
 
 export type WidgetId =
   | "digest"
@@ -10,12 +13,14 @@ export type WidgetId =
   | "upcoming"
   | "announcements"
   | "calendar"
-  | "heatmap";
+  | "heatmap"
+  | "gpa";
 
 export const DEFAULT_ORDER: WidgetId[] = [
   "digest",
   "focus",
   "classes",
+  "gpa",
   "upcoming",
   "announcements",
   "calendar",
@@ -29,49 +34,30 @@ interface StoredLayout {
 
 function normalize(raw: Partial<StoredLayout> | null): StoredLayout {
   const known = new Set(DEFAULT_ORDER);
-  const order = (raw?.order ?? []).filter((id): id is WidgetId => known.has(id as WidgetId));
+  const order = (raw?.order ?? []).filter((id): id is WidgetId =>
+    known.has(id as WidgetId),
+  );
   for (const id of DEFAULT_ORDER) if (!order.includes(id)) order.push(id);
-  const hidden = (raw?.hidden ?? []).filter((id): id is WidgetId => known.has(id as WidgetId));
+  const hidden = (raw?.hidden ?? []).filter((id): id is WidgetId =>
+    known.has(id as WidgetId),
+  );
   return { order, hidden };
 }
 
-function read(key: string): StoredLayout {
-  if (typeof window === "undefined") return normalize(null);
-  try {
-    const raw = window.localStorage.getItem(key);
-    return normalize(raw ? (JSON.parse(raw) as StoredLayout) : null);
-  } catch {
-    return normalize(null);
-  }
-}
-
-function write(key: string, layout: StoredLayout) {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(key, JSON.stringify(layout));
-  } catch {
-    // ignore quota errors
-  }
-}
-
-/** Per-account dashboard widget order + visibility, persisted in the browser. */
+/** Cross-device dashboard widget order + visibility, persisted via user_preferences. */
 export function useDashboardLayout() {
-  const key = useScopedKey(DASHBOARD_LAYOUT_KEY);
-  const [layout, setLayout] = useState<StoredLayout>(() => normalize(null));
-
-  useEffect(() => {
-    setLayout(read(key));
-  }, [key]);
+  const { value, set } = useUserPreferenceKey<Partial<StoredLayout>>(
+    DASHBOARD_LAYOUT_KEY,
+    {},
+  );
+  const layout = normalize(value);
 
   const update = useCallback(
     (fn: (prev: StoredLayout) => StoredLayout) => {
-      setLayout((prev) => {
-        const next = fn(prev);
-        write(key, next);
-        return next;
-      });
+      const next = fn(layout);
+      set(next);
     },
-    [key],
+    [layout, set],
   );
 
   const toggle = useCallback(
@@ -103,7 +89,12 @@ export function useDashboardLayout() {
       update((prev) => {
         const order = [...prev.order];
         const from = order.indexOf(id);
-        if (from < 0 || toIndex < 0 || toIndex >= order.length || from === toIndex)
+        if (
+          from < 0 ||
+          toIndex < 0 ||
+          toIndex >= order.length ||
+          from === toIndex
+        )
           return prev;
         order.splice(from, 1);
         order.splice(toIndex, 0, id);
@@ -123,4 +114,8 @@ export function useDashboardLayout() {
     reorder,
     reset,
   };
+}
+
+export function useSaveDashboardLayout() {
+  return useSetUserPreference();
 }

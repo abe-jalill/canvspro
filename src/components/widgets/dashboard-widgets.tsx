@@ -33,6 +33,7 @@ import { buildIcs, downloadIcs, safeFilename } from "@/lib/ics";
 import { SyllabusModal } from "@/components/syllabus-modal";
 import { DigestCard } from "@/components/digest-card";
 import { WorkloadHeatmap } from "@/components/workload-heatmap";
+import { GpaCalculator } from "@/components/gpa-calculator";
 import { getCalendarEventsFn } from "@/lib/canvas.functions";
 import { Lock } from "lucide-react";
 
@@ -698,6 +699,10 @@ function HeatmapWidget() {
   );
 }
 
+function GpaWidget() {
+  return <GpaCalculator />;
+}
+
 /** Shown in place of a Pro-only widget for free-tier accounts. */
 export function LockedWidget({
   title,
@@ -735,6 +740,7 @@ export const WIDGETS: Record<WidgetId, WidgetMeta> = {
   digest: { label: "Since your last visit", wide: true, render: () => <DigestWidget /> },
   focus: { label: "Focus", pro: true, render: () => <FocusWidget /> },
   classes: { label: "Classes & Grades", render: () => <CoursesWidget /> },
+  gpa: { label: "GPA", render: () => <GpaWidget /> },
   upcoming: { label: "Upcoming Assignments", wide: true, render: () => <UpcomingWidget /> },
   announcements: { label: "Announcements", wide: true, render: () => <AnnouncementsWidget /> },
   calendar: { label: "Calendar", pro: true, render: () => <CalendarWidget /> },

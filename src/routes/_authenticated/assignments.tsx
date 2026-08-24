@@ -16,7 +16,7 @@ import {
 import { cn } from "@/lib/utils";
 import { displayCourseName } from "@/lib/course-display";
 import { useLocalSet, COMPLETED_ASSIGNMENTS_KEY } from "@/lib/local-state";
-import { Check, Search, CalendarPlus, ChevronDown } from "lucide-react";
+import { Check, Search, CalendarPlus, ChevronDown, Sparkles } from "lucide-react";
 import {
   getCountdown,
   urgencyTextClass,
@@ -27,6 +27,8 @@ import {
   useCourseHighlight,
   validateCourseSearch,
 } from "@/lib/course-highlight";
+import { buildPriorityList, describePriorityList } from "@/lib/priority";
+import { useAssignmentMetaMap } from "@/hooks/use-assignment-meta";
 
 const assignmentsQO = queryOptions({
   queryKey: ["canvas", "assignments"],
@@ -86,6 +88,92 @@ interface ClassGroup {
   items: AssignmentItem[];
   overdue: number;
   dueSoon: number;
+}
+
+function PriorityAssignmentsCard({
+  groups,
+  loading,
+  error,
+}: {
+  groups: ReturnType<typeof buildPriorityList>;
+  loading: boolean;
+  error: Error | null;
+}) {
+  if (loading) {
+    return (
+      <GlassCard title="Priority Assignments">
+        <div className="space-y-3">
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-12" />
+          <Skeleton className="h-12" />
+        </div>
+      </GlassCard>
+    );
+  }
+
+  if (error) {
+    return (
+      <GlassCard title="Priority Assignments">
+        <ErrorState message={error.message} />
+      </GlassCard>
+    );
+  }
+
+  const summary = describePriorityList(groups);
+  const topItems = groups.flatMap((g) => g.items.slice(0, 2)).slice(0, 5);
+
+  return (
+    <GlassCard
+      title="Priority Assignments"
+      subtitle="Smart ordering by deadline and weight"
+      className="overflow-hidden"
+    >
+      <div className="flex items-start gap-3">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-foreground/10">
+          <Sparkles className="h-4 w-4 text-foreground/80" />
+        </div>
+        <p className="text-sm leading-relaxed text-foreground/90">{summary}</p>
+      </div>
+
+      {topItems.length > 0 && (
+        <ul className="mt-4 space-y-2">
+          {topItems.map((p) => (
+            <li
+              key={p.assignment.id}
+              className="glass-inset flex items-center justify-between gap-3 p-3"
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium">
+                  {p.assignment.name}
+                </p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {displayCourseName(
+                    p.assignment.course_name,
+                    p.assignment.course_code,
+                  )}
+                </p>
+              </div>
+              <span
+                className={cn(
+                  "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide",
+                  p.urgency === "critical" &&
+                    "text-red-400 bg-red-400/10 border-red-400/20",
+                  p.urgency === "high" &&
+                    "text-amber-400 bg-amber-400/10 border-amber-400/20",
+                  p.urgency === "medium" &&
+                    "text-blue-400 bg-blue-400/10 border-blue-400/20",
+                  p.urgency === "low" &&
+                    "text-muted-foreground bg-foreground/5 border-foreground/10",
+                )}
+              >
+                {p.urgency}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </GlassCard>
+  );
 }
 
 function AssignmentsPage() {
@@ -152,6 +240,25 @@ function AssignmentsPage() {
       .sort((a, b) => a.label.localeCompare(b.label));
   }, [courses.data, data, completed]);
 
+  const metaMap = useAssignmentMetaMap();
+  const priorityGroups = useMemo(() => {
+    const estimates: Record<number, number | null> = {};
+    for (const [id, meta] of metaMap.entries()) {
+      estimates[id] = meta.estimatedMinutes;
+    }
+    return buildPriorityList(
+      data ?? [],
+      (courses.data ?? []).map((c) => ({
+        id: c.id,
+        name: displayCourseName(c.name, c.course_code),
+        course_code: c.course_code,
+      })),
+      completed.has,
+      Date.now(),
+      { estimates },
+    );
+  }, [data, courses.data, completed.has, metaMap]);
+
   const q = search.trim().toLowerCase();
   const visibleGroups = q
     ? groups
@@ -192,6 +299,12 @@ function AssignmentsPage() {
           aria-label="Search assignments"
         />
       </div>
+
+      <PriorityAssignmentsCard
+        groups={priorityGroups}
+        loading={isLoading}
+        error={isError ? (error as Error) : null}
+      />
 
       {isLoading && (
         <div className="space-y-3">

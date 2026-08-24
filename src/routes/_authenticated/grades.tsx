@@ -9,12 +9,15 @@ import {
   EmptyState,
 } from "@/components/glass-card";
 import { displayCourseName } from "@/lib/course-display";
-import { Search, ArrowUp, ArrowDown } from "lucide-react";
-import { useLocalNumberMap, LAST_SEEN_GRADES_KEY } from "@/lib/local-value";
+import { Search, ArrowUp, ArrowDown, Minus } from "lucide-react";
 import {
   useCourseHighlight,
   validateCourseSearch,
 } from "@/lib/course-highlight";
+import {
+  useGradeSnapshots,
+  useRecordGradeSnapshots,
+} from "@/hooks/use-grade-snapshots";
 
 const coursesQO = queryOptions({
   queryKey: ["canvas", "courses"],
@@ -52,13 +55,24 @@ function GradesPage() {
   const courses = useQuery(coursesQO);
   const assignments = useQuery(assignmentsQO);
   const [search, setSearch] = useState("");
-  const lastSeen = useLocalNumberMap(LAST_SEEN_GRADES_KEY);
+  const snapshots = useGradeSnapshots();
+  const record = useRecordGradeSnapshots();
   const highlight = useCourseHighlight();
 
-  const loading = courses.isLoading || assignments.isLoading;
-  const error = courses.error || assignments.error;
+  const loading =
+    courses.isLoading || assignments.isLoading || snapshots.isLoading;
+  const error = courses.error || assignments.error || snapshots.error;
 
-  // Compute trend for each course based on stored last-seen grade, then update.
+  // Latest snapshot per course, if any.
+  const latestByCourse = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const s of snapshots.data ?? []) {
+      if (!map.has(s.courseId)) map.set(s.courseId, s.score);
+    }
+    return map;
+  }, [snapshots.data]);
+
+  // Compute trend by comparing current score to the most recent stored snapshot.
   const trends = useMemo(() => {
     const map = new Map<number, "up" | "down" | null>();
     (courses.data ?? []).forEach((c) => {
@@ -66,24 +80,25 @@ function GradesPage() {
         map.set(c.id, null);
         return;
       }
-      const prev = lastSeen.get(c.id);
+      const prev = latestByCourse.get(c.id);
       if (prev == null) map.set(c.id, null);
       else if (c.current_score > prev + 0.05) map.set(c.id, "up");
       else if (c.current_score < prev - 0.05) map.set(c.id, "down");
       else map.set(c.id, null);
     });
     return map;
-  }, [courses.data, lastSeen]);
+  }, [courses.data, latestByCourse]);
 
-  // After render, persist current scores as the new baseline.
+  // Record snapshots for any course whose current score differs from latest.
   useEffect(() => {
-    (courses.data ?? []).forEach((c) => {
-      if (c.current_score != null && lastSeen.get(c.id) !== c.current_score) {
-        lastSeen.set(c.id, c.current_score);
-      }
-    });
+    if (!courses.data || !snapshots.isSuccess) return;
+    const toRecord = courses.data
+      .filter((c) => c.current_score != null)
+      .filter((c) => latestByCourse.get(c.id) !== c.current_score)
+      .map((c) => ({ courseId: c.id, score: c.current_score! }));
+    if (toRecord.length > 0) record.mutate(toRecord);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [courses.data]);
+  }, [courses.data, snapshots.isSuccess]);
 
   type AssignmentItem = NonNullable<typeof assignments.data>[number];
   const byCourse = new Map<number, AssignmentItem[]>();
@@ -164,23 +179,29 @@ function GradesPage() {
           <GlassCard
             title={displayCourseName(c.name, c.course_code)}
             action={
-              <span className="flex items-center gap-1.5 text-lg font-semibold tabular-nums">
-                {trend === "up" && (
-                  <ArrowUp className="h-4 w-4 text-white" aria-label="Grade up" />
-                )}
-                {trend === "down" && (
-                  <ArrowDown
-                    className="h-4 w-4 text-white/60"
-                    aria-label="Grade down"
-                  />
-                )}
-                {fmt(c.current_score)}
-                {c.current_grade ? (
-                  <span className="ml-2 text-sm font-medium text-muted-foreground">
-                    {c.current_grade}
-                  </span>
-                ) : null}
-              </span>
+                <span className="flex items-center gap-1.5 text-lg font-semibold tabular-nums">
+                  {trend === "up" && (
+                    <ArrowUp className="h-4 w-4 text-white" aria-label="Grade up" />
+                  )}
+                  {trend === "down" && (
+                    <ArrowDown
+                      className="h-4 w-4 text-white/60"
+                      aria-label="Grade down"
+                    />
+                  )}
+                  {trend == null && (
+                    <Minus
+                      className="h-4 w-4 text-muted-foreground"
+                      aria-label="No grade change"
+                    />
+                  )}
+                  {fmt(c.current_score)}
+                  {c.current_grade ? (
+                    <span className="ml-2 text-sm font-medium text-muted-foreground">
+                      {c.current_grade}
+                    </span>
+                  ) : null}
+                </span>
             }
           >
             {items.length === 0 ? (
