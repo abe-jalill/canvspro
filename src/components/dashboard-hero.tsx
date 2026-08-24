@@ -153,7 +153,7 @@ export function DashboardHero() {
   const nextStart = next?.start ?? null;
 
   return (
-    <section className="glass-panel-strong min-w-0 overflow-hidden p-6 sm:p-8 md:p-10">
+    <section className="glass-panel-strong min-w-0 overflow-hidden p-5 sm:p-8 md:p-10">
       <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
         {now.toLocaleDateString(undefined, {
           weekday: "long",
@@ -162,7 +162,7 @@ export function DashboardHero() {
         })}
       </p>
 
-      <h1 className="mt-3 text-[1.75rem] font-semibold leading-tight tracking-tight sm:text-4xl">
+      <h1 className="mt-3 text-[1.5rem] font-semibold leading-tight tracking-tight sm:text-[1.75rem] md:text-4xl">
         {greeting(now)}
       </h1>
 
@@ -172,9 +172,9 @@ export function DashboardHero() {
           : (summary?.text ?? "No assignment data yet")}
       </p>
 
-      <div className="mt-7 h-px w-full bg-foreground/[0.06]" />
+      <div className="mt-6 h-px w-full bg-foreground/[0.06] sm:mt-7" />
 
-      <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mt-4 flex flex-col gap-4 sm:mt-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
             Next up
