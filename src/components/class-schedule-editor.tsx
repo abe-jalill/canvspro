@@ -154,7 +154,6 @@ export default function ClassScheduleEditor({
   function toggleDay(key: string, day: ClassDay) {
     setRows((prev) =>
       prev.map((r) => {
-        if (r.key !== day && r.key !== key) return r;
         if (r.key !== key) return r;
         const days = r.days.includes(day)
           ? r.days.filter((d) => d !== day)
