@@ -9,12 +9,28 @@ import {
   EmptyState,
 } from "@/components/glass-card";
 import { displayCourseName } from "@/lib/course-display";
-import { Search, ArrowUp, ArrowDown } from "lucide-react";
-import { useLocalNumberMap, LAST_SEEN_GRADES_KEY } from "@/lib/local-value";
+import { Search, ArrowUp, ArrowDown, Minus } from "lucide-react";
 import {
   useCourseHighlight,
   validateCourseSearch,
 } from "@/lib/course-highlight";
+import {
+  useGradeSnapshots,
+  useRecordGradeSnapshots,
+} from "@/hooks/use-grade-snapshots";
+import { useDebounce } from "@/hooks/use-debounce";
+
+const coursesQO = queryOptions({
+  queryKey: ["canvas", "courses"],
+  queryFn: () => getCoursesFn(),
+  staleTime: 5 * 60_000,
+});
+
+const assignmentsQO = queryOptions({
+  queryKey: ["canvas", "assignments"],
+  queryFn: () => getAllAssignmentsFn(),
+  staleTime: 5 * 60_000,
+});
 
 const coursesQO = queryOptions({
   queryKey: ["canvas", "courses"],
