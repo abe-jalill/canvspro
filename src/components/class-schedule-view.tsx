@@ -121,6 +121,20 @@ export default function ClassScheduleView({
   );
 }
 
+/** Rows for one class name are grouped so per-day times show in one card. */
+function groupByTitle(
+  sessions: ClassSession[],
+): { key: string; sessions: ClassSession[] }[] {
+  const map = new Map<string, ClassSession[]>();
+  for (const s of sessions) {
+    const k = s.title.trim().toLowerCase();
+    const list = map.get(k);
+    if (list) list.push(s);
+    else map.set(k, [s]);
+  }
+  return [...map.entries()].map(([key, list]) => ({ key, sessions: list }));
+}
+
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
