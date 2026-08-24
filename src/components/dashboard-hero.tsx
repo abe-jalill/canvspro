@@ -92,8 +92,6 @@ function nextUp(
   return items[0] ?? null;
 }
 
-
-
 function summarize(
   assignments: AssignmentItem[] | undefined,
   isCompleted: (id: string | number) => boolean,
