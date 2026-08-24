@@ -195,7 +195,14 @@ export function MobileNav() {
       </div>
 
       {open && (
+        <>
+          <div
+            aria-hidden
+            onClick={() => setOpen(false)}
+            className="fixed inset-0 z-30"
+          />
         <div className="glass-panel-strong sticky top-[4.75rem] z-40 mx-2 mt-2 flex flex-col gap-1 p-2">
+
           {items.map((item) => (
             <Link
               key={item.to}
