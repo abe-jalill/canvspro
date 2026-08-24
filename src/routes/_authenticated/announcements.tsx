@@ -12,8 +12,10 @@ import {
 } from "@/components/glass-card";
 import { displayCourseName } from "@/lib/course-display";
 import { useLocalSet, DISMISSED_ANNOUNCEMENTS_KEY } from "@/lib/local-state";
-import { X, RotateCcw } from "lucide-react";
+import { X, RotateCcw, ChevronDown } from "lucide-react";
 import { htmlToText } from "@/lib/html-text";
+import { cn } from "@/lib/utils";
+import { useState } from "react";
 import {
   useCourseHighlight,
   validateCourseSearch,
@@ -48,6 +50,7 @@ function AnnouncementsPage() {
   const { data, isLoading, isError, error } = useQuery(announcementsQO);
   const dismissed = useLocalSet(DISMISSED_ANNOUNCEMENTS_KEY);
   const highlight = useCourseHighlight();
+  const [expanded, setExpanded] = useState<number[]>([]);
 
   const visible = (data ?? []).filter((a) => !dismissed.has(a.id));
 
@@ -118,46 +121,77 @@ function AnnouncementsPage() {
         </GlassCard>
       )}
 
-      {groups.map((g) => (
-        <div key={g.id} {...highlight(displayCourseName(g.name, g.code))}>
-        <GlassCard
-          title={displayCourseName(g.name, g.code)}
-        >
-          {(
-            <div className="space-y-3">
-              {g.items.map((a) => (
-                <div key={a.id} className="glass-inset glass-hover p-4">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <h3 className="text-sm font-semibold tracking-tight">
-                      {a.title}
-                    </h3>
-                    <div className="flex items-center gap-2">
-                      <span className="whitespace-nowrap text-xs text-muted-foreground">
-                        {new Date(a.posted_at).toLocaleDateString(undefined, {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
-                      </span>
-                      <button
-                        onClick={() => dismissed.add(a.id)}
-                        aria-label={`Dismiss ${a.title}`}
-                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-foreground/20 text-muted-foreground transition-colors hover:border-foreground/50 hover:text-foreground"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
+      {groups.length > 0 && (
+        <GlassCard>
+          <div className="divide-y divide-foreground/10">
+            {groups.map((g) => {
+              const isOpen = expanded.includes(g.id);
+              const label = displayCourseName(g.name, g.code);
+              return (
+                <div key={g.id} {...highlight(label)}>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setExpanded((prev) =>
+                        prev.includes(g.id)
+                          ? prev.filter((x) => x !== g.id)
+                          : [...prev, g.id],
+                      )
+                    }
+                    aria-expanded={isOpen}
+                    className="glass-hover flex min-h-11 w-full items-center gap-3 rounded-xl px-1.5 text-left"
+                  >
+                    <ChevronDown
+                      className={cn(
+                        "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+                        isOpen && "rotate-180",
+                      )}
+                    />
+                    <h2 className="min-w-0 flex-1 truncate text-xs font-semibold uppercase tracking-[0.14em] text-foreground/80">
+                      {label}
+                    </h2>
+                    <span className="shrink-0 text-sm font-semibold tabular-nums text-muted-foreground">
+                      {g.items.length}
+                    </span>
+                  </button>
+                  {isOpen && (
+                    <div className="mt-2 space-y-3">
+                      {g.items.map((a) => (
+                        <div key={a.id} className="glass-inset glass-hover p-3 sm:p-4">
+                          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2 sm:gap-3">
+                            <h3 className="min-w-0 text-sm font-semibold tracking-tight">
+                              {a.title}
+                            </h3>
+                            <div className="flex shrink-0 items-center gap-2">
+                              <span className="whitespace-nowrap text-[11px] text-muted-foreground sm:text-xs">
+                                {new Date(a.posted_at).toLocaleDateString(undefined, {
+                                  month: "short",
+                                  day: "numeric",
+                                })}
+                              </span>
+                              <button
+                                onClick={() => dismissed.add(a.id)}
+                                aria-label={`Dismiss ${a.title}`}
+                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-foreground/20 text-muted-foreground transition-colors hover:border-foreground/50 hover:text-foreground"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                          <p className="mt-2 line-clamp-6 whitespace-pre-line break-words text-sm leading-relaxed text-muted-foreground">
+                            {stripHtml(a.message)}
+                          </p>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                  <p className="mt-2 line-clamp-6 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
-                    {stripHtml(a.message)}
-                  </p>
+                  )}
                 </div>
-              ))}
-            </div>
-          )}
+              );
+            })}
+          </div>
         </GlassCard>
-        </div>
-      ))}
+      )}
+
     </div>
   );
 }
