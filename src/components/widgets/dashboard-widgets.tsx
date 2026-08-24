@@ -345,22 +345,14 @@ function UpcomingWidget() {
 
 function AnnouncementsWidget() {
   const { data, isLoading, isError, error } = useQuery(announcementsQO);
-  const courses = useQuery(coursesQO);
   const dismissed = useLocalSet(DISMISSED_ANNOUNCEMENTS_KEY);
+  const [expanded, setExpanded] = useState<number[]>([]);
 
   const visible = (data ?? []).filter((a) => !dismissed.has(a.id));
 
   type Item = (typeof visible)[number];
   type Group = { id: number; name: string; code: string; items: Item[] };
   const groupMap = new Map<number, Group>();
-  (courses.data ?? []).forEach((c) => {
-    groupMap.set(c.id, {
-      id: c.id,
-      name: c.name,
-      code: c.course_code ?? "",
-      items: [],
-    });
-  });
   visible.forEach((a) => {
     const g = groupMap.get(a.course_id) ?? {
       id: a.course_id,
@@ -371,11 +363,13 @@ function AnnouncementsWidget() {
     g.items.push(a);
     groupMap.set(a.course_id, g);
   });
-  const groups = Array.from(groupMap.values()).sort((a, b) =>
-    displayCourseName(a.name, a.code).localeCompare(
-      displayCourseName(b.name, b.code),
-    ),
-  );
+  const groups = Array.from(groupMap.values())
+    .filter((group) => group.items.length > 0)
+    .sort((a, b) =>
+      displayCourseName(a.name, a.code).localeCompare(
+        displayCourseName(b.name, b.code),
+      ),
+    );
 
   return (
     <GlassCard
@@ -403,49 +397,67 @@ function AnnouncementsWidget() {
       )}
       {isError && <ErrorState message={(error as Error).message} />}
       {data && groups.length === 0 && (
-        <EmptyState message="No active courses." />
+        <EmptyState message="No new announcements." />
       )}
       {groups.length > 0 && (
-        <div className="space-y-5">
-          {groups.map((g) => (
-            <div key={g.id}>
-              <div className="mb-2 flex items-baseline gap-2 px-1">
-                <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-foreground/80">
-                  {displayCourseName(g.name, g.code)}
-                </h3>
-              </div>
-              {g.items.length === 0 ? (
-                <p className="px-2 py-3 text-center text-xs text-muted-foreground/80">
-                  No new announcements
-                </p>
-              ) : (
-                <ul className="space-y-2">
-                  {g.items.slice(0, 4).map((a) => (
-                    <li key={a.id} className="glass-inset glass-hover p-3 sm:p-4">
-                      <div className="flex items-baseline justify-between gap-2">
-                        <p className="min-w-0 flex-1 truncate text-sm font-semibold">
-                          {a.title}
-                        </p>
-                        <div className="flex shrink-0 items-center gap-2">
-
-                          <span className="whitespace-nowrap text-xs text-muted-foreground">
-                            {new Date(a.posted_at).toLocaleDateString()}
-                          </span>
-                          <DismissButton
-                            onClick={() => dismissed.add(a.id)}
-                            label={a.title}
-                          />
+        <div className="divide-y divide-foreground/10">
+          {groups.map((g) => {
+            const isOpen = expanded.includes(g.id);
+            return (
+              <div key={g.id} className="py-1.5">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setExpanded((prev) =>
+                      prev.includes(g.id)
+                        ? prev.filter((id) => id !== g.id)
+                        : [...prev, g.id],
+                    )
+                  }
+                  aria-expanded={isOpen}
+                  className="glass-hover flex min-h-11 w-full items-center gap-3 rounded-xl px-1.5 text-left"
+                >
+                  <ChevronDown
+                    className={cn(
+                      "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+                      isOpen && "rotate-180",
+                    )}
+                  />
+                  <h3 className="min-w-0 flex-1 truncate text-xs font-semibold uppercase tracking-[0.14em] text-foreground/80">
+                    {displayCourseName(g.name, g.code)}
+                  </h3>
+                  <span className="shrink-0 text-sm font-semibold tabular-nums text-muted-foreground">
+                    {g.items.length}
+                  </span>
+                </button>
+                {isOpen && (
+                  <ul className="mt-2 space-y-2">
+                    {g.items.slice(0, 4).map((a) => (
+                      <li key={a.id} className="glass-inset glass-hover p-3 sm:p-4">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="min-w-0 flex-1 text-sm font-semibold">
+                            {a.title}
+                          </p>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <span className="hidden whitespace-nowrap text-xs text-muted-foreground sm:inline">
+                              {new Date(a.posted_at).toLocaleDateString()}
+                            </span>
+                            <DismissButton
+                              onClick={() => dismissed.add(a.id)}
+                              label={a.title}
+                            />
+                          </div>
                         </div>
-                      </div>
-                      <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                        {stripHtml(a.message)}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          ))}
+                        <p className="mt-1 line-clamp-2 break-words text-xs text-muted-foreground">
+                          {stripHtml(a.message)}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </GlassCard>
