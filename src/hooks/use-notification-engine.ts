@@ -105,8 +105,10 @@ function runGradeChecks(assignments: AssignmentItem[]) {
       id: `grade:${key}`,
       kind: "grade",
       title: `Good job! You scored ${pct}% on ${a.name}!`,
-      body: displayCourseName(a.course_name, a.course_code),
+      course: displayCourseName(a.course_name, a.course_code),
+      to: "/grades",
     });
+
   }
 
   if (changed) writeSet(SEEN_GRADES_KEY, seen);
