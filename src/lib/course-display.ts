@@ -16,6 +16,17 @@ export interface NicknameLookupRow {
   custom_name: string;
 }
 
+function norm(s: string) {
+  return s.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+/** Loose key: strips punctuation/section suffixes so variants still match. */
+function loose(s: string) {
+  return norm(s)
+    .split(/[:|(]/)[0]
+    .replace(/[^a-z0-9]+/g, "");
+}
+
 export function setNicknameLookup(rows: NicknameLookupRow[]) {
   const byText = new Map<string, string>();
   const byId = new Map<number, string>();
@@ -23,8 +34,12 @@ export function setNicknameLookup(rows: NicknameLookupRow[]) {
     const custom = r.custom_name?.trim();
     if (!custom) continue;
     byId.set(Number(r.canvas_course_id), custom);
-    if (r.raw_name) byText.set(r.raw_name.trim().toLowerCase(), custom);
-    if (r.raw_code) byText.set(r.raw_code.trim().toLowerCase(), custom);
+    for (const raw of [r.raw_name, r.raw_code]) {
+      if (!raw) continue;
+      byText.set(norm(raw), custom);
+      const l = loose(raw);
+      if (l && !byText.has(l)) byText.set(l, custom);
+    }
   }
   nicknameByText = byText;
   nicknameById = byId;
@@ -45,11 +60,12 @@ export function nicknameForCourseId(id?: number | null) {
 function nicknameFor(name?: string | null, code?: string | null) {
   for (const h of [name, code]) {
     if (!h) continue;
-    const hit = nicknameByText.get(h.trim().toLowerCase());
+    const hit = nicknameByText.get(norm(h)) ?? nicknameByText.get(loose(h));
     if (hit) return hit;
   }
   return undefined;
 }
+
 
 export function displayCourseName(name?: string | null, code?: string | null) {
   const nick = nicknameFor(name, code);

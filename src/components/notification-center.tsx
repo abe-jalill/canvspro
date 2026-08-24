@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Bell, Check, ChevronRight, Trash2, X } from "lucide-react";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 import { useNotifications, type AppNotification } from "@/lib/notifications";
+
 
 const PER_GROUP = 3;
 
@@ -41,6 +42,13 @@ export function NotificationCenter({ className }: { className?: string }) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const ref = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const locationHref = useRouterState({ select: (s) => s.location.href });
+
+  // Any navigation closes the panel (mobile especially).
+  useEffect(() => {
+    setOpen(false);
+  }, [locationHref]);
+
 
   useEffect(() => {
     if (!open) return;
