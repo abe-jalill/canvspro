@@ -22,6 +22,8 @@ export default function ClassScheduleView({
   onEdit?: () => void;
 }) {
   const byDay = sessionsByDay(sessions);
+  const groups = groupByTitle(sessions);
+  const credits = totalCredits(groups.map((g) => g.sessions[0]));
 
 
   return (
