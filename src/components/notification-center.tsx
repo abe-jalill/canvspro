@@ -83,14 +83,17 @@ export function NotificationCenter({ className }: { className?: string }) {
     return Array.from(map.entries())
       .filter(([, items]) => items.length > 0)
       .sort((a, b) => a[0].localeCompare(b[0]));
-  }, [notifications]);
+  }, [filtered]);
 
   function openNotification(n: AppNotification) {
     markRead(n.id);
     const to = routeFor(n);
     if (to) {
       setOpen(false);
-      navigate({ to });
+      navigate({
+        to,
+        search: n.course ? { course: n.course } : {},
+      } as never);
     }
   }
 
