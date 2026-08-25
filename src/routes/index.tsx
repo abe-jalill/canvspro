@@ -10,7 +10,6 @@ import {
   GraduationCap,
   LayoutGrid,
   ListChecks,
-  Moon,
   Newspaper,
   Pencil,
   SlidersHorizontal,
