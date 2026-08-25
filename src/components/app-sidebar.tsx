@@ -114,12 +114,17 @@ export function AppSidebar() {
   return (
     <aside className="fixed left-4 top-4 bottom-4 z-30 hidden w-56 flex-col md:flex">
       <div className="glass-panel-strong flex h-full flex-col overflow-y-auto p-5">
-        <div className="mb-8 px-2">
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+        <Link
+          to="/"
+          preload="intent"
+          className="mb-8 block px-2 press transition-opacity hover:opacity-80"
+          aria-label="Go to homepage"
+        >
+          <span className="block text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
             {"\n"}
-          </p>
-          <p className="mt-1 text-lg font-semibold tracking-tight">CanvasPro</p>
-        </div>
+          </span>
+          <span className="mt-1 block text-lg font-semibold tracking-tight">CanvasPro</span>
+        </Link>
         <nav className="flex flex-col gap-1">
           {items.map((item) => (
             <Link

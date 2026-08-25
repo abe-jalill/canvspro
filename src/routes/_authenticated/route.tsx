@@ -41,10 +41,10 @@ function AuthenticatedLayout() {
   useAppPrefetch(true);
   useWelcomeEmail(true);
   return (
-    <div className="min-h-screen w-full overflow-x-hidden">
+    <div className="min-h-screen w-full overflow-x-hidden md:h-screen md:overflow-hidden">
       <AppSidebar />
       <MobileNav />
-      <main className="md:pl-64 md:pr-4 md:py-4">
+      <main className="md:h-screen md:overflow-y-auto md:pl-64 md:pr-4 md:py-4">
         <div className="mx-auto w-full min-w-0 max-w-6xl px-3 py-4 sm:px-4 md:p-6">
 
           <div className="mb-2 flex min-w-0 items-center justify-end gap-2">
