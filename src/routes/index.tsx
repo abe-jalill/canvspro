@@ -123,11 +123,6 @@ const FEATURES = [
     title: ".ics calendar export",
     body: "Export assignment due dates to Apple Calendar, Google Calendar, or Outlook in one tap.",
   },
-  {
-    icon: Moon,
-    title: "\n",
-    body: "\n",
-  },
 ];
 
 function LandingPage() {
