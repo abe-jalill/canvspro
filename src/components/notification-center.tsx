@@ -104,7 +104,7 @@ export function NotificationCenter({ className }: { className?: string }) {
     return Array.from(map.entries())
       .filter(([, items]) => items.length > 0)
       .sort((a, b) => a[0].localeCompare(b[0]));
-  }, [filtered]);
+  }, [filtered, nickVersion]);
 
   function openNotification(n: AppNotification) {
     markRead(n.id);
