@@ -147,7 +147,7 @@ function LandingPage() {
     <div className="mx-auto w-full max-w-5xl px-4 py-12 sm:py-16">
       <section className="text-center">
         <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-          Canvas Pro
+          CANVASPRO
         </p>
         <h1 className="mx-auto mt-3 max-w-3xl text-4xl font-semibold tracking-tight sm:text-5xl">
           A calmer, faster dashboard for your Canvas classes
