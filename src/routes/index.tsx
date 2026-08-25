@@ -125,8 +125,8 @@ const FEATURES = [
   },
   {
     icon: Moon,
-    title: "Dark and light mode",
-    body: "Switch between a pure-black OLED theme and a clean light look.",
+    title: "\n",
+    body: "\n",
   },
 ];
 
