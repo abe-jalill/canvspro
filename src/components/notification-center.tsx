@@ -3,7 +3,8 @@ import { Bell, Check, ChevronRight, Trash2, X } from "lucide-react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 import { useNotifications, type AppNotification } from "@/lib/notifications";
-import { displayCourseName } from "@/lib/course-display";
+import { displayCourseName, nicknameLookupVersion } from "@/lib/course-display";
+import { useNicknames } from "@/lib/nicknames";
 
 /** Resolve the nickname at render time so late-loading nicknames still apply. */
 function displayName(n: AppNotification) {
@@ -46,6 +47,9 @@ function routeFor(n: AppNotification) {
 export function NotificationCenter({ className }: { className?: string }) {
   const { notifications, unread, markRead, markAllRead, remove, clear } =
     useNotifications();
+  // Ensures this component re-renders once nicknames finish loading.
+  useNicknames();
+  const nickVersion = nicknameLookupVersion();
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState<FilterKind[]>([]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
