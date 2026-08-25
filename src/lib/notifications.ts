@@ -16,6 +16,9 @@ export interface AppNotification {
   body?: string;
   /** Friendly class name used to group notifications. */
   course?: string;
+  /** Raw Canvas course name/code, kept so nicknames can be applied at render time. */
+  course_name?: string | null;
+  course_code?: string | null;
   /** In-app route this notification links to. */
   to?: string;
   ts: number;

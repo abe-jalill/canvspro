@@ -66,6 +66,8 @@ function runDueChecks(assignments: AssignmentItem[]) {
           kind: "overdue",
           title: `Overdue: ${a.name}`,
           course: displayCourseName(a.course_name, a.course_code),
+          course_name: a.course_name,
+          course_code: a.course_code,
           to: "/assignments",
           body: `was due ${new Date(a.due_at).toLocaleString()}`,
         });
@@ -87,6 +89,8 @@ function runDueChecks(assignments: AssignmentItem[]) {
         kind: "due",
         title: `Due ${w.label.replace(" before", "")} or less: ${a.name}`,
         course: displayCourseName(a.course_name, a.course_code),
+        course_name: a.course_name,
+        course_code: a.course_code,
         to: "/assignments",
         body: `due ${new Date(a.due_at).toLocaleString()}`,
       });
@@ -119,6 +123,8 @@ function runGradeChecks(assignments: AssignmentItem[]) {
       kind: "grade",
       title: `Good job! You scored ${pct}% on ${a.name}!`,
       course: displayCourseName(a.course_name, a.course_code),
+      course_name: a.course_name,
+      course_code: a.course_code,
       to: "/grades",
     });
 
@@ -145,6 +151,8 @@ function runAnnouncementChecks(items: AnnouncementItem[]) {
       kind: "announcement",
       title: a.title,
       course: displayCourseName(a.course_name, a.course_code),
+      course_name: a.course_name,
+      course_code: a.course_code,
       to: "/announcements",
       body: "New announcement",
     });
