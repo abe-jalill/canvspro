@@ -3,6 +3,15 @@ import { Bell, Check, ChevronRight, Trash2, X } from "lucide-react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 import { useNotifications, type AppNotification } from "@/lib/notifications";
+import { displayCourseName } from "@/lib/course-display";
+
+/** Resolve the nickname at render time so late-loading nicknames still apply. */
+function displayName(n: AppNotification) {
+  return displayCourseName(
+    n.course_name ?? n.course,
+    n.course_code ?? n.course,
+  );
+}
 
 
 const PER_GROUP = 3;
@@ -83,7 +92,7 @@ export function NotificationCenter({ className }: { className?: string }) {
   const groups = useMemo(() => {
     const map = new Map<string, AppNotification[]>();
     for (const n of filtered) {
-      const key = n.course?.trim() || "General";
+      const key = displayName(n)?.trim() || "General";
       const arr = map.get(key) ?? [];
       arr.push(n);
       map.set(key, arr);
@@ -100,7 +109,7 @@ export function NotificationCenter({ className }: { className?: string }) {
       setOpen(false);
       navigate({
         to,
-        search: n.course ? { course: n.course } : {},
+        search: n.course ? { course: displayName(n) } : {},
       } as never);
     }
   }
