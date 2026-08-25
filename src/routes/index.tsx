@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
   BarChart3,
@@ -125,7 +125,6 @@ const FEATURES = [
 ];
 
 function LandingPage() {
-  const navigate = useNavigate();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
@@ -134,13 +133,12 @@ function LandingPage() {
       if (!active) return;
       if (data.session) {
         setIsLoggedIn(true);
-        navigate({ to: "/dashboard", replace: true });
       }
     });
     return () => {
       active = false;
     };
-  }, [navigate]);
+  }, []);
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-12 sm:py-16">
