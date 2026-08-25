@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   BarChart3,
   Bell,
@@ -126,11 +126,16 @@ const FEATURES = [
 
 function LandingPage() {
   const navigate = useNavigate();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
     let active = true;
     supabase.auth.getSession().then(({ data }) => {
-      if (active && data.session) navigate({ to: "/dashboard", replace: true });
+      if (!active) return;
+      if (data.session) {
+        setIsLoggedIn(true);
+        navigate({ to: "/dashboard", replace: true });
+      }
     });
     return () => {
       active = false;
@@ -152,22 +157,35 @@ function LandingPage() {
           home screen — so you stop hunting through course pages.
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <Link
-            to="/signup"
-            className="glass-hover inline-flex min-h-12 items-center justify-center rounded-xl bg-foreground px-6 text-sm font-semibold text-background"
-          >
-            Get started — $2.99/month
-          </Link>
-          <Link
-            to="/auth"
-            className="glass-inset glass-hover inline-flex min-h-12 items-center justify-center rounded-xl px-6 text-sm font-medium"
-          >
-            Sign in
-          </Link>
+          {isLoggedIn ? (
+            <Link
+              to="/dashboard"
+              className="glass-hover inline-flex min-h-12 items-center justify-center rounded-xl bg-foreground px-6 text-sm font-semibold text-background"
+            >
+              Go to my dashboard
+            </Link>
+          ) : (
+            <>
+              <Link
+                to="/signup"
+                className="glass-hover inline-flex min-h-12 items-center justify-center rounded-xl bg-foreground px-6 text-sm font-semibold text-background"
+              >
+                Get started — $2.99/month
+              </Link>
+              <Link
+                to="/auth"
+                className="glass-inset glass-hover inline-flex min-h-12 items-center justify-center rounded-xl px-6 text-sm font-medium"
+              >
+                Sign in
+              </Link>
+            </>
+          )}
         </div>
-        <p className="mt-3 text-xs text-muted-foreground">
-          Free dashboard tier. Cancel anytime.
-        </p>
+        {!isLoggedIn && (
+          <p className="mt-3 text-xs text-muted-foreground">
+            Free dashboard tier. Cancel anytime.
+          </p>
+        )}
       </section>
 
       <section className="mt-16">
