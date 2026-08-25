@@ -116,7 +116,8 @@ export function AppSidebar() {
       <div className="glass-panel-strong flex h-full flex-col overflow-y-auto p-5">
         <Link
           to="/"
-          className="mb-8 block px-2 press"
+          preload="intent"
+          className="mb-8 block px-2 press transition-opacity hover:opacity-80"
           aria-label="Go to homepage"
         >
           <span className="block text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
