@@ -183,11 +183,11 @@ export function ClassNamesGate({ children }: { children: ReactNode }) {
             courses={courses.data ?? []}
             nicknames={nicknames.data ?? []}
             ctaLabel="Save and continue"
-            onSaved={() => setSkipped(true)}
+            onSaved={dismiss}
           />
           <button
             type="button"
-            onClick={() => setSkipped(true)}
+            onClick={dismiss}
             className="glass-hover mt-3 min-h-11 rounded-xl px-3 text-sm text-muted-foreground"
           >
             Skip for now
