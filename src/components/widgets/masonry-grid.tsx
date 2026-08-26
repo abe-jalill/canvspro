@@ -91,6 +91,7 @@ export function MasonryGrid({
       style={{
         gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
         gridAutoRows: `${ROW_HEIGHT}px`,
+        gridAutoFlow: "row dense",
         columnGap: `${GAP}px`,
       }}
     >
