@@ -3,12 +3,16 @@ import { Bell, Check, ChevronRight, Trash2, X } from "lucide-react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 import { useNotifications, type AppNotification } from "@/lib/notifications";
-import { displayCourseName, nicknameLookupVersion } from "@/lib/course-display";
+import {
+  displayCourseNameForCourse,
+  nicknameLookupVersion,
+} from "@/lib/course-display";
 import { useNicknames } from "@/lib/nicknames";
 
 /** Resolve the nickname at render time so late-loading nicknames still apply. */
 function displayName(n: AppNotification) {
-  return displayCourseName(
+  return displayCourseNameForCourse(
+    n.course_id,
     n.course_name ?? n.course,
     n.course_code ?? n.course,
   );

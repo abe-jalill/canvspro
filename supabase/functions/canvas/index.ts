@@ -152,7 +152,20 @@ async function fetchActiveCourses(creds: Creds): Promise<CanvasCourse[]> {
 
 async function handleCourses(creds: Creds) {
   const courses = await fetchActiveCourses(creds);
-  return courses.map((c) => {
+  const detailed = await Promise.all(
+    courses.map(async (course) => {
+      if ((course.syllabus_body ?? "").trim()) return course;
+      try {
+        return await canvasFetch<CanvasCourse>(
+          creds,
+          `/courses/${course.id}?include[]=total_scores&include[]=syllabus_body`,
+        );
+      } catch {
+        return course;
+      }
+    }),
+  );
+  return detailed.map((c) => {
     const enr =
       c.enrollments?.find((e) => e.type === "student") ?? c.enrollments?.[0];
     const syllabus = (c.syllabus_body ?? "").trim();
