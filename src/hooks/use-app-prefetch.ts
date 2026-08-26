@@ -36,18 +36,9 @@ export function useAppPrefetch(enabled = true) {
     let cancelled = false;
 
     const warm = async () => {
-      // Route chunks first — cheap and makes the click feel instant.
-      for (const to of ROUTES) {
-        if (cancelled) return;
-        try {
-          await router.preloadRoute({ to });
-        } catch {
-          /* ignore preload misses */
-        }
-      }
-
-      if (cancelled) return;
+      // Route chunks and shared data warm in parallel — nothing waits in line.
       await Promise.allSettled([
+        ...ROUTES.map((to) => router.preloadRoute({ to }).catch(() => undefined)),
         queryClient.prefetchQuery({
           queryKey: ["canvas", "courses"],
           queryFn: () => getCoursesFn(),
@@ -71,7 +62,7 @@ export function useAppPrefetch(enabled = true) {
       ]);
     };
 
-    const idle = setTimeout(warm, 300);
+    const idle = setTimeout(warm, 0);
     return () => {
       cancelled = true;
       clearTimeout(idle);

@@ -1,9 +1,4 @@
-import {
-  createFileRoute,
-  Outlet,
-  redirect,
-  useRouterState,
-} from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect, useRouterState } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { AppSidebar, MobileNav } from "@/components/app-sidebar";
 import { CanvasKeyBanner } from "@/components/canvas-key-banner";
@@ -17,6 +12,7 @@ import { useNotificationEngine } from "@/hooks/use-notification-engine";
 import { useAppPrefetch } from "@/hooks/use-app-prefetch";
 import { useWelcomeEmail } from "@/hooks/use-welcome-email";
 import { setUserScope } from "@/lib/user-scope";
+import { PullToRefresh } from "@/components/pull-to-refresh";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -33,7 +29,6 @@ export const Route = createFileRoute("/_authenticated")({
   component: AuthenticatedLayout,
 });
 
-
 function AuthenticatedLayout() {
   const { isActive: isPro } = useSubscription();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -46,7 +41,6 @@ function AuthenticatedLayout() {
       <MobileNav />
       <main className="md:h-screen md:overflow-y-auto md:pl-64 md:pr-4 md:py-4">
         <div className="mx-auto w-full min-w-0 max-w-6xl px-3 py-4 sm:px-4 md:p-6">
-
           <div className="mb-2 flex min-w-0 items-center justify-end gap-2">
             <CanvasLiveStatus />
             {isPro && <NotificationCenter />}
@@ -55,9 +49,11 @@ function AuthenticatedLayout() {
           <CanvasKeyGate>
             <ClassNamesGate>
               <ProGate>
-                <div key={pathname} className="page-transition min-w-0">
-                  <Outlet />
-                </div>
+                <PullToRefresh>
+                  <div key={pathname} className="page-transition min-w-0">
+                    <Outlet />
+                  </div>
+                </PullToRefresh>
               </ProGate>
             </ClassNamesGate>
           </CanvasKeyGate>

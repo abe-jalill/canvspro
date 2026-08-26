@@ -1,11 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  isClassDay,
-  timeRangeLabel,
-  type ClassDay,
-  type ClassSession,
-} from "@/lib/class-schedule";
+import { toast } from "sonner";
+import { isClassDay, timeRangeLabel, type ClassDay, type ClassSession } from "@/lib/class-schedule";
 
 export const classScheduleQueryKey = ["class-schedule-entries"] as const;
 
@@ -109,7 +105,9 @@ export function useSaveClassSchedule() {
       return keep.length;
     },
     onSuccess: async () => {
+      toast.success("Schedule saved");
       await qc.invalidateQueries({ queryKey: classScheduleQueryKey });
     },
+    onError: (err: Error) => toast.error("Could not save schedule", { description: err.message }),
   });
 }
