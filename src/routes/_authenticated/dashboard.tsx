@@ -50,8 +50,7 @@ function Dashboard() {
   const [customizing, setCustomizing] = useState(false);
   const [dragId, setDragId] = useState<WidgetId | null>(null);
 
-  const sizeOf = (id: WidgetId): WidgetSize =>
-    layout.sizes[id] ?? WIDGETS[id].defaultSize;
+  const sizeOf = (id: WidgetId): WidgetSize => layout.sizes[id] ?? WIDGETS[id].defaultSize;
 
   const visible = layout.order.filter((id) => !layout.isHidden(id));
   const source = customizing ? layout.order : visible;
@@ -61,11 +60,7 @@ function Dashboard() {
     const hidden = layout.isHidden(id);
     const index = layout.order.indexOf(id);
     const body =
-      meta.pro && !isPro ? (
-        <LockedWidget title={meta.label} feature={meta.label} />
-      ) : (
-        meta.render()
-      );
+      meta.pro && !isPro ? <LockedWidget title={meta.label} feature={meta.label} /> : meta.render();
 
     return {
       key: id,
@@ -149,9 +144,7 @@ function Dashboard() {
 
       <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-1">
         <div className="min-w-0">
-          <h2 className="truncate text-lg font-semibold tracking-tight sm:text-xl">
-            Your widgets
-          </h2>
+          <h2 className="truncate text-lg font-semibold tracking-tight sm:text-xl">Your widgets</h2>
           {customizing && (
             <p className="mt-0.5 truncate text-xs text-muted-foreground">
               Drag to reorder, pick a size, hide what you don&apos;t need.
