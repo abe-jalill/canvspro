@@ -8,27 +8,19 @@ import {
   type AssignmentItem,
   type CourseSummary,
 } from "@/lib/canvas.functions";
-import {
-  GlassCard,
-  Skeleton,
-  ErrorState,
-  EmptyState,
-} from "@/components/glass-card";
+import { GlassCard, Skeleton, ErrorState, EmptyState } from "@/components/glass-card";
 import { cn } from "@/lib/utils";
 import { htmlToText } from "@/lib/html-text";
 import type { WidgetId } from "@/lib/dashboard-layout";
 import { displayCourseName } from "@/lib/course-display";
+import { courseSlug } from "@/lib/course-highlight";
 import {
   useLocalSet,
   DISMISSED_ANNOUNCEMENTS_KEY,
   COMPLETED_ASSIGNMENTS_KEY,
 } from "@/lib/local-state";
 import { Check, X, CalendarPlus, FileText, ChevronDown } from "lucide-react";
-import {
-  getCountdown,
-  urgencyTextClass,
-  urgencyAccentClass,
-} from "@/lib/countdown";
+import { getCountdown, urgencyTextClass, urgencyAccentClass } from "@/lib/countdown";
 import { buildIcs, downloadIcs, safeFilename } from "@/lib/ics";
 import { SyllabusModal } from "@/components/syllabus-modal";
 import { DigestCard } from "@/components/digest-card";
@@ -105,9 +97,7 @@ function CoursesWidget() {
           </div>
         )}
         {isError && <ErrorState message={(error as Error).message} />}
-        {data && data.length === 0 && (
-          <EmptyState message="No active courses." />
-        )}
+        {data && data.length === 0 && <EmptyState message="No active courses." />}
         {data && data.length > 0 && (
           <ul className="space-y-2">
             {data.map((c) => (
@@ -121,14 +111,10 @@ function CoursesWidget() {
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-
                   {c.syllabus_body && (
                     <button
                       onClick={() => setSyllabus(c)}
-                      aria-label={`Open ${displayCourseName(
-                        c.name,
-                        c.course_code,
-                      )} syllabus`}
+                      aria-label={`Open ${displayCourseName(c.name, c.course_code)} syllabus`}
                       title="Syllabus"
                       className="flex h-7 items-center gap-1 rounded-lg border border-glass-border px-2 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
                     >
@@ -161,7 +147,6 @@ function UpcomingWidget() {
   const courses = useQuery(coursesQO);
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
   const [expanded, setExpanded] = useState<number[]>([]);
-
 
   const inWindow = (data ?? []).filter((a) => {
     if (!a.due_at) return false;
@@ -199,9 +184,7 @@ function UpcomingWidget() {
     groupMap.set(a.course_id, g);
   });
   const groups = Array.from(groupMap.values()).sort((a, b) =>
-    displayCourseName(a.name, a.code).localeCompare(
-      displayCourseName(b.name, b.code),
-    ),
+    displayCourseName(a.name, a.code).localeCompare(displayCourseName(b.name, b.code)),
   );
   // Sort each group's items: incomplete first, then by due date.
   groups.forEach((g) => {
@@ -209,10 +192,7 @@ function UpcomingWidget() {
       const ac = completed.has(a.id) ? 1 : 0;
       const bc = completed.has(b.id) ? 1 : 0;
       if (ac !== bc) return ac - bc;
-      return (
-        new Date(a.due_at as string).getTime() -
-        new Date(b.due_at as string).getTime()
-      );
+      return new Date(a.due_at as string).getTime() - new Date(b.due_at as string).getTime();
     });
   });
 
@@ -223,7 +203,6 @@ function UpcomingWidget() {
       action={
         <Link
           to="/assignments"
-
           className="glass-hover rounded-lg px-2.5 py-1 text-xs font-medium text-muted-foreground"
         >
           View all
@@ -241,9 +220,7 @@ function UpcomingWidget() {
         </div>
       )}
       {isError && <ErrorState message={(error as Error).message} />}
-      {data && groups.length === 0 && (
-        <EmptyState message="No active courses." />
-      )}
+      {data && groups.length === 0 && <EmptyState message="No active courses." />}
       {groups.length > 0 && (
         <div className="divide-y divide-foreground/10">
           {groups.map((g) => {
@@ -254,9 +231,7 @@ function UpcomingWidget() {
                   type="button"
                   onClick={() =>
                     setExpanded((prev) =>
-                      prev.includes(g.id)
-                        ? prev.filter((x) => x !== g.id)
-                        : [...prev, g.id],
+                      prev.includes(g.id) ? prev.filter((x) => x !== g.id) : [...prev, g.id],
                     )
                   }
                   aria-expanded={isOpen}
@@ -309,9 +284,7 @@ function UpcomingWidget() {
                               <p
                                 className={cn(
                                   "whitespace-nowrap text-xs tabular-nums sm:text-sm",
-                                  cd
-                                    ? urgencyTextClass(cd.urgency)
-                                    : "text-muted-foreground",
+                                  cd ? urgencyTextClass(cd.urgency) : "text-muted-foreground",
                                 )}
                               >
                                 {cd ? cd.label : "—"}
@@ -339,7 +312,6 @@ function UpcomingWidget() {
           })}
         </div>
       )}
-
     </GlassCard>
   );
 }
@@ -367,9 +339,7 @@ function AnnouncementsWidget() {
   const groups = Array.from(groupMap.values())
     .filter((group) => group.items.length > 0)
     .sort((a, b) =>
-      displayCourseName(a.name, a.code).localeCompare(
-        displayCourseName(b.name, b.code),
-      ),
+      displayCourseName(a.name, a.code).localeCompare(displayCourseName(b.name, b.code)),
     );
 
   return (
@@ -379,7 +349,6 @@ function AnnouncementsWidget() {
       action={
         <Link
           to="/announcements"
-
           className="glass-hover rounded-lg px-2.5 py-1 text-xs font-medium text-muted-foreground"
         >
           View all
@@ -397,9 +366,7 @@ function AnnouncementsWidget() {
         </div>
       )}
       {isError && <ErrorState message={(error as Error).message} />}
-      {data && groups.length === 0 && (
-        <EmptyState message="No new announcements." />
-      )}
+      {data && groups.length === 0 && <EmptyState message="No new announcements." />}
       {groups.length > 0 && (
         <div className="divide-y divide-foreground/10">
           {groups.map((g) => {
@@ -410,9 +377,7 @@ function AnnouncementsWidget() {
                   type="button"
                   onClick={() =>
                     setExpanded((prev) =>
-                      prev.includes(g.id)
-                        ? prev.filter((id) => id !== g.id)
-                        : [...prev, g.id],
+                      prev.includes(g.id) ? prev.filter((id) => id !== g.id) : [...prev, g.id],
                     )
                   }
                   aria-expanded={isOpen}
@@ -434,24 +399,33 @@ function AnnouncementsWidget() {
                 {isOpen && (
                   <ul className="mt-2 space-y-2">
                     {g.items.slice(0, 4).map((a) => (
-                      <li key={a.id} className="glass-inset glass-hover p-3 sm:p-4">
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="min-w-0 flex-1 text-sm font-semibold">
-                            {a.title}
-                          </p>
-                          <div className="flex shrink-0 items-center gap-2">
+                      <li
+                        key={a.id}
+                        className="glass-inset glass-hover flex items-start gap-2 p-3 sm:p-4"
+                      >
+                        <Link
+                          to="/announcements"
+                          search={{
+                            course: courseSlug(displayCourseName(g.name, g.code)),
+                            expand: String(a.id),
+                          }}
+                          className="min-w-0 flex-1"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="min-w-0 flex-1 text-sm font-semibold">{a.title}</p>
                             <span className="hidden whitespace-nowrap text-xs text-muted-foreground sm:inline">
                               {new Date(a.posted_at).toLocaleDateString()}
                             </span>
-                            <DismissButton
-                              onClick={() => dismissed.add(a.id)}
-                              label={a.title}
-                            />
                           </div>
-                        </div>
-                        <p className="mt-1 line-clamp-2 break-words text-xs text-muted-foreground">
-                          {stripHtml(a.message)}
-                        </p>
+                          <p className="mt-1 line-clamp-2 break-words text-xs text-muted-foreground">
+                            {stripHtml(a.message)}
+                          </p>
+                        </Link>
+                        <DismissButton
+                          stopPropagation
+                          onClick={() => dismissed.add(a.id)}
+                          label={a.title}
+                        />
                       </li>
                     ))}
                   </ul>
@@ -494,13 +468,18 @@ function CompleteButton({
 function DismissButton({
   onClick,
   label,
+  stopPropagation,
 }: {
   onClick: () => void;
   label: string;
+  stopPropagation?: boolean;
 }) {
   return (
     <button
-      onClick={onClick}
+      onClick={(e) => {
+        if (stopPropagation) e.stopPropagation();
+        onClick();
+      }}
       aria-label={`Dismiss ${label}`}
       className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-foreground/20 text-muted-foreground transition-colors hover:border-foreground/50 hover:text-foreground"
     >
@@ -536,7 +515,6 @@ function IcsButton({ assignment }: { assignment: AssignmentItem }) {
   );
 }
 
-
 function FocusWidget() {
   const { data, isLoading, isError, error } = useQuery(assignmentsQO);
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
@@ -549,9 +527,7 @@ function FocusWidget() {
       return due >= now && due <= now + 48 * 60 * 60 * 1000;
     })
     .sort(
-      (a, b) =>
-        new Date(a.due_at as string).getTime() -
-        new Date(b.due_at as string).getTime(),
+      (a, b) => new Date(a.due_at as string).getTime() - new Date(b.due_at as string).getTime(),
     );
 
   return (
@@ -577,9 +553,7 @@ function FocusWidget() {
         </div>
       )}
       {isError && <ErrorState message={(error as Error).message} />}
-      {data && soon.length === 0 && (
-        <EmptyState message="Nothing due in the next 48 hours." />
-      )}
+      {data && soon.length === 0 && <EmptyState message="Nothing due in the next 48 hours." />}
       {soon.length > 0 && (
         <ul className="space-y-2">
           {soon.map((a) => {
@@ -626,9 +600,7 @@ function CalendarWidget() {
       return t >= now && t <= now + 7 * 24 * 60 * 60 * 1000;
     })
     .sort(
-      (a, b) =>
-        new Date(a.start_at as string).getTime() -
-        new Date(b.start_at as string).getTime(),
+      (a, b) => new Date(a.start_at as string).getTime() - new Date(b.start_at as string).getTime(),
     )
     .slice(0, 8);
 
@@ -655,9 +627,7 @@ function CalendarWidget() {
         </div>
       )}
       {isError && <ErrorState message={(error as Error).message} />}
-      {data && upcoming.length === 0 && (
-        <EmptyState message="No calendar events this week." />
-      )}
+      {data && upcoming.length === 0 && <EmptyState message="No calendar events this week." />}
       {upcoming.length > 0 && (
         <ul className="space-y-2">
           {upcoming.map((e) => (
@@ -668,9 +638,7 @@ function CalendarWidget() {
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium">{e.title}</p>
                 {e.context_name && (
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                    {e.context_name}
-                  </p>
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">{e.context_name}</p>
                 )}
               </div>
               <span className="shrink-0 whitespace-nowrap text-xs tabular-nums text-muted-foreground">
@@ -704,13 +672,7 @@ function GpaWidget() {
 }
 
 /** Shown in place of a Pro-only widget for free-tier accounts. */
-export function LockedWidget({
-  title,
-  feature,
-}: {
-  title: string;
-  feature: string;
-}) {
+export function LockedWidget({ title, feature }: { title: string; feature: string }) {
   return (
     <GlassCard title={title} subtitle="Canvas Pro">
       <div className="flex flex-col items-start gap-3 p-1">

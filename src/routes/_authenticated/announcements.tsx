@@ -1,25 +1,14 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useSearch } from "@tanstack/react-router";
 import { useQuery, queryOptions } from "@tanstack/react-query";
-import {
-  getAnnouncementsFn,
-  type AnnouncementItem,
-} from "@/lib/canvas.functions";
-import {
-  GlassCard,
-  Skeleton,
-  ErrorState,
-  EmptyState,
-} from "@/components/glass-card";
+import { getAnnouncementsFn, type AnnouncementItem } from "@/lib/canvas.functions";
+import { GlassCard, Skeleton, ErrorState, EmptyState } from "@/components/glass-card";
 import { displayCourseName } from "@/lib/course-display";
 import { useLocalSet, DISMISSED_ANNOUNCEMENTS_KEY } from "@/lib/local-state";
 import { X, RotateCcw, ChevronDown } from "lucide-react";
 import { htmlToText } from "@/lib/html-text";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
-import {
-  useCourseHighlight,
-  validateCourseSearch,
-} from "@/lib/course-highlight";
+import { useEffect, useMemo, useState } from "react";
+import { useCourseHighlight } from "@/lib/course-highlight";
 
 const announcementsQO = queryOptions({
   queryKey: ["canvas", "announcements"],
@@ -31,14 +20,23 @@ export const Route = createFileRoute("/_authenticated/announcements")({
   head: () => ({
     meta: [
       { title: "Announcements — Canvas Pro" },
-      { name: "description", content: "Recent announcements from all of your Canvas courses, grouped by class." },
+      {
+        name: "description",
+        content: "Recent announcements from all of your Canvas courses, grouped by class.",
+      },
       { property: "og:title", content: "Announcements — Canvas Pro" },
-      { property: "og:description", content: "Recent announcements from all of your Canvas courses, grouped by class." },
+      {
+        property: "og:description",
+        content: "Recent announcements from all of your Canvas courses, grouped by class.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  validateSearch: validateCourseSearch,
+  validateSearch: (search: { course?: unknown; expand?: unknown }) => ({
+    ...(typeof search?.course === "string" ? { course: search.course } : {}),
+    ...(typeof search?.expand === "string" ? { expand: search.expand } : {}),
+  }),
   component: AnnouncementsPage,
 });
 
@@ -50,9 +48,17 @@ function AnnouncementsPage() {
   const { data, isLoading, isError, error } = useQuery(announcementsQO);
   const dismissed = useLocalSet(DISMISSED_ANNOUNCEMENTS_KEY);
   const highlight = useCourseHighlight();
+  const search = useSearch({ strict: false }) as {
+    course?: string;
+    expand?: string;
+  };
   const [expanded, setExpanded] = useState<number[]>([]);
+  const [expandedBody, setExpandedBody] = useState<Set<number>>(new Set());
 
-  const visible = (data ?? []).filter((a) => !dismissed.has(a.id));
+  const visible = useMemo(
+    () => (data ?? []).filter((a) => !dismissed.has(a.id)),
+    [data, dismissed],
+  );
 
   type Group = {
     id: number;
@@ -60,22 +66,52 @@ function AnnouncementsPage() {
     code: string;
     items: AnnouncementItem[];
   };
-  const groupMap = new Map<number, Group>();
-  visible.forEach((a) => {
-    const g = groupMap.get(a.course_id) ?? {
-      id: a.course_id,
-      name: a.course_name,
-      code: a.course_code ?? "",
-      items: [],
-    };
-    g.items.push(a);
-    groupMap.set(a.course_id, g);
-  });
-  const groups = Array.from(groupMap.values()).sort((a, b) =>
-    displayCourseName(a.name, a.code).localeCompare(
-      displayCourseName(b.name, b.code),
-    ),
-  );
+  const groups = useMemo(() => {
+    const groupMap = new Map<number, Group>();
+    visible.forEach((a) => {
+      const g = groupMap.get(a.course_id) ?? {
+        id: a.course_id,
+        name: a.course_name,
+        code: a.course_code ?? "",
+        items: [],
+      };
+      g.items.push(a);
+      groupMap.set(a.course_id, g);
+    });
+    return Array.from(groupMap.values()).sort((a, b) =>
+      displayCourseName(a.name, a.code).localeCompare(displayCourseName(b.name, b.code)),
+    );
+  }, [visible]);
+
+  useEffect(() => {
+    if (!data || !search.expand) return;
+    const id = Number(search.expand);
+    if (!id) return;
+    const group = groups.find((g) => g.items.some((a) => a.id === id));
+    if (!group) return;
+    setExpanded((prev) => (prev.includes(group.id) ? prev : [...prev, group.id]));
+    setExpandedBody((prev) => {
+      if (prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+    const timer = window.setTimeout(() => {
+      document
+        .getElementById(`announcement-${id}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 180);
+    return () => window.clearTimeout(timer);
+  }, [data, search.expand, groups]);
+
+  const toggleBody = (id: number) => {
+    setExpandedBody((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -84,9 +120,7 @@ function AnnouncementsPage() {
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
             Last 30 days
           </p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">
-            Announcements
-          </h1>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">Announcements</h1>
         </div>
         {dismissed.size > 0 && (
           <button
@@ -135,9 +169,7 @@ function AnnouncementsPage() {
                 <button
                   onClick={() =>
                     setExpanded((prev) =>
-                      prev.includes(g.id)
-                        ? prev.filter((x) => x !== g.id)
-                        : [...prev, g.id],
+                      prev.includes(g.id) ? prev.filter((x) => x !== g.id) : [...prev, g.id],
                     )
                   }
                   aria-expanded={open}
@@ -187,33 +219,55 @@ function AnnouncementsPage() {
                 {open && (
                   <div className="border-t border-glass-border p-4 sm:p-6">
                     <div className="space-y-3">
-                      {g.items.map((a) => (
-                        <div key={a.id} className="glass-inset glass-hover p-3 sm:p-4">
-                          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2 sm:gap-3">
-                            <h3 className="min-w-0 text-sm font-semibold tracking-tight">
-                              {a.title}
-                            </h3>
-                            <div className="flex shrink-0 items-center gap-2">
-                              <span className="whitespace-nowrap text-[11px] text-muted-foreground sm:text-xs">
-                                {new Date(a.posted_at).toLocaleDateString(undefined, {
-                                  month: "short",
-                                  day: "numeric",
-                                })}
-                              </span>
-                              <button
-                                onClick={() => dismissed.add(a.id)}
-                                aria-label={`Dismiss ${a.title}`}
-                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-foreground/20 text-muted-foreground transition-colors hover:border-foreground/50 hover:text-foreground"
-                              >
-                                <X className="h-3.5 w-3.5" />
-                              </button>
+                      {g.items.map((a) => {
+                        const bodyOpen = expandedBody.has(a.id);
+                        const bodyText = stripHtml(a.message);
+                        return (
+                          <div
+                            key={a.id}
+                            id={`announcement-${a.id}`}
+                            className="glass-inset glass-hover p-3 sm:p-4"
+                          >
+                            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2 sm:gap-3">
+                              <h3 className="min-w-0 text-sm font-semibold tracking-tight">
+                                {a.title}
+                              </h3>
+                              <div className="flex shrink-0 items-center gap-2">
+                                <span className="whitespace-nowrap text-[11px] text-muted-foreground sm:text-xs">
+                                  {new Date(a.posted_at).toLocaleDateString(undefined, {
+                                    month: "short",
+                                    day: "numeric",
+                                  })}
+                                </span>
+                                <button
+                                  onClick={() => dismissed.add(a.id)}
+                                  aria-label={`Dismiss ${a.title}`}
+                                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-foreground/20 text-muted-foreground transition-colors hover:border-foreground/50 hover:text-foreground"
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
                             </div>
+                            <p
+                              className={cn(
+                                "mt-2 whitespace-pre-line break-words text-sm leading-relaxed text-muted-foreground",
+                                !bodyOpen && "line-clamp-6",
+                              )}
+                            >
+                              {bodyText}
+                            </p>
+                            {bodyText.length > 200 && (
+                              <button
+                                type="button"
+                                onClick={() => toggleBody(a.id)}
+                                className="mt-2 text-xs font-medium text-foreground/80 underline decoration-foreground/30 underline-offset-2 transition-colors hover:text-foreground"
+                              >
+                                {bodyOpen ? "See less" : "See more"}
+                              </button>
+                            )}
                           </div>
-                          <p className="mt-2 line-clamp-6 whitespace-pre-line break-words text-sm leading-relaxed text-muted-foreground">
-                            {stripHtml(a.message)}
-                          </p>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -222,8 +276,6 @@ function AnnouncementsPage() {
           );
         })}
       </div>
-
-
     </div>
   );
 }
