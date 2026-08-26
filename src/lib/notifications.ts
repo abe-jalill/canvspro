@@ -56,7 +56,17 @@ export function pushNotification(
   n: Omit<AppNotification, "ts" | "read"> & { ts?: number },
 ): boolean {
   const list = read();
-  if (list.some((x) => x.id === n.id)) return false;
+  const existingIndex = list.findIndex((x) => x.id === n.id);
+  if (existingIndex >= 0) {
+    const existing = list[existingIndex];
+    const updated = { ...existing, ...n, ts: existing.ts, read: existing.read };
+    if (JSON.stringify(updated) !== JSON.stringify(existing)) {
+      const next = [...list];
+      next[existingIndex] = updated;
+      write(next);
+    }
+    return false;
+  }
   write([{ ...n, ts: n.ts ?? Date.now(), read: false }, ...list]);
   return true;
 }
