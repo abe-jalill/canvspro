@@ -3,7 +3,7 @@ import { Bell, Check, ChevronRight, Trash2, X } from "lucide-react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 import { useNotifications, type AppNotification } from "@/lib/notifications";
-import { displayCourseNameForCourse, nicknameLookupVersion } from "@/lib/course-display";
+import { displayCourseNameForCourse } from "@/lib/course-display";
 import { useNicknames } from "@/lib/nicknames";
 
 /** Resolve the nickname at render time so late-loading nicknames still apply. */
@@ -47,8 +47,7 @@ function routeFor(n: AppNotification) {
 export function NotificationCenter({ className }: { className?: string }) {
   const { notifications, unread, markRead, markAllRead, remove, clear } = useNotifications();
   // Ensures this component re-renders once nicknames finish loading.
-  useNicknames();
-  const nickVersion = nicknameLookupVersion();
+  const nicknames = useNicknames();
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState<FilterKind[]>([]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -100,7 +99,7 @@ export function NotificationCenter({ className }: { className?: string }) {
     return Array.from(map.entries())
       .filter(([, items]) => items.length > 0)
       .sort((a, b) => a[0].localeCompare(b[0]));
-  }, [filtered, nickVersion]);
+  }, [filtered, nicknames.data]);
 
   function openNotification(n: AppNotification) {
     markRead(n.id);
