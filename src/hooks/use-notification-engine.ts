@@ -7,7 +7,7 @@ import {
   type AnnouncementItem,
 } from "@/lib/canvas.functions";
 import { displayCourseName } from "@/lib/course-display";
-import { notify } from "@/lib/notifications";
+import { notify, updateNotification } from "@/lib/notifications";
 import { DUE_WINDOWS, readPrefs } from "@/lib/notification-prefs";
 import { COMPLETED_ASSIGNMENTS_KEY } from "@/lib/local-state";
 import { scopedKey } from "@/lib/user-scope";
@@ -33,7 +33,6 @@ function writeSet(baseKey: string, set: Set<string>) {
     // ignore
   }
 }
-
 
 const assignmentsQO = queryOptions({
   queryKey: ["canvas", "assignments"],
@@ -66,6 +65,7 @@ function runDueChecks(assignments: AssignmentItem[]) {
           kind: "overdue",
           title: `Overdue: ${a.name}`,
           course: displayCourseName(a.course_name, a.course_code),
+          course_id: a.course_id,
           course_name: a.course_name,
           course_code: a.course_code,
           to: "/assignments",
@@ -89,12 +89,12 @@ function runDueChecks(assignments: AssignmentItem[]) {
         kind: "due",
         title: `Due ${w.label.replace(" before", "")} or less: ${a.name}`,
         course: displayCourseName(a.course_name, a.course_code),
+        course_id: a.course_id,
         course_name: a.course_name,
         course_code: a.course_code,
         to: "/assignments",
         body: `due ${new Date(a.due_at).toLocaleString()}`,
       });
-
     }
   }
 }
@@ -109,6 +109,12 @@ function runGradeChecks(assignments: AssignmentItem[]) {
     const score = a.submission?.score;
     if (score == null) continue;
     const key = `${a.id}:${score}`;
+    updateNotification(`grade:${key}`, {
+      course: displayCourseName(a.course_name, a.course_code),
+      course_id: a.course_id,
+      course_name: a.course_name,
+      course_code: a.course_code,
+    });
     if (seen.has(key)) continue;
     seen.add(key);
     changed = true;
@@ -123,11 +129,11 @@ function runGradeChecks(assignments: AssignmentItem[]) {
       kind: "grade",
       title: `Good job! You scored ${pct}% on ${a.name}!`,
       course: displayCourseName(a.course_name, a.course_code),
+      course_id: a.course_id,
       course_name: a.course_name,
       course_code: a.course_code,
       to: "/grades",
     });
-
   }
 
   if (changed) writeSet(SEEN_GRADES_KEY, seen);
@@ -141,6 +147,12 @@ function runAnnouncementChecks(items: AnnouncementItem[]) {
 
   for (const a of items) {
     const key = String(a.id);
+    updateNotification(`announcement:${key}`, {
+      course: displayCourseName(a.course_name, a.course_code),
+      course_id: a.course_id,
+      course_name: a.course_name,
+      course_code: a.course_code,
+    });
     if (seen.has(key)) continue;
     seen.add(key);
     changed = true;
@@ -151,12 +163,12 @@ function runAnnouncementChecks(items: AnnouncementItem[]) {
       kind: "announcement",
       title: a.title,
       course: displayCourseName(a.course_name, a.course_code),
+      course_id: a.course_id,
       course_name: a.course_name,
       course_code: a.course_code,
       to: "/announcements",
       body: "New announcement",
     });
-
   }
 
   if (changed) writeSet(SEEN_ANNOUNCEMENTS_KEY, seen);

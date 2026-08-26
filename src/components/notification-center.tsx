@@ -3,17 +3,17 @@ import { Bell, Check, ChevronRight, Trash2, X } from "lucide-react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 import { useNotifications, type AppNotification } from "@/lib/notifications";
-import { displayCourseName, nicknameLookupVersion } from "@/lib/course-display";
+import { displayCourseNameForCourse } from "@/lib/course-display";
 import { useNicknames } from "@/lib/nicknames";
 
 /** Resolve the nickname at render time so late-loading nicknames still apply. */
 function displayName(n: AppNotification) {
-  return displayCourseName(
+  return displayCourseNameForCourse(
+    n.course_id,
     n.course_name ?? n.course,
     n.course_code ?? n.course,
   );
 }
-
 
 const PER_GROUP = 3;
 
@@ -45,11 +45,9 @@ function routeFor(n: AppNotification) {
 }
 
 export function NotificationCenter({ className }: { className?: string }) {
-  const { notifications, unread, markRead, markAllRead, remove, clear } =
-    useNotifications();
+  const { notifications, unread, markRead, markAllRead, remove, clear } = useNotifications();
   // Ensures this component re-renders once nicknames finish loading.
   useNicknames();
-  const nickVersion = nicknameLookupVersion();
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState<FilterKind[]>([]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -61,7 +59,6 @@ export function NotificationCenter({ className }: { className?: string }) {
   useEffect(() => {
     setOpen(false);
   }, [locationHref]);
-
 
   useEffect(() => {
     if (!open) return;
@@ -81,9 +78,7 @@ export function NotificationCenter({ className }: { className?: string }) {
     () =>
       active.length === 0
         ? notifications
-        : notifications.filter((n) =>
-            active.includes(n.kind as FilterKind),
-          ),
+        : notifications.filter((n) => active.includes(n.kind as FilterKind)),
     [notifications, active],
   );
 
@@ -93,18 +88,16 @@ export function NotificationCenter({ className }: { className?: string }) {
     return c;
   }, [notifications]);
 
-  const groups = useMemo(() => {
-    const map = new Map<string, AppNotification[]>();
-    for (const n of filtered) {
-      const key = displayName(n)?.trim() || "General";
-      const arr = map.get(key) ?? [];
-      arr.push(n);
-      map.set(key, arr);
-    }
-    return Array.from(map.entries())
-      .filter(([, items]) => items.length > 0)
-      .sort((a, b) => a[0].localeCompare(b[0]));
-  }, [filtered, nickVersion]);
+  const groupMap = new Map<string, AppNotification[]>();
+  for (const n of filtered) {
+    const key = displayName(n)?.trim() || "General";
+    const arr = groupMap.get(key) ?? [];
+    arr.push(n);
+    groupMap.set(key, arr);
+  }
+  const groups = Array.from(groupMap.entries())
+    .filter(([, items]) => items.length > 0)
+    .sort((a, b) => a[0].localeCompare(b[0]));
 
   function openNotification(n: AppNotification) {
     markRead(n.id);
@@ -174,9 +167,7 @@ export function NotificationCenter({ className }: { className?: string }) {
                   aria-pressed={on}
                   onClick={() =>
                     setActive((prev) =>
-                      prev.includes(f.id)
-                        ? prev.filter((x) => x !== f.id)
-                        : [...prev, f.id],
+                      prev.includes(f.id) ? prev.filter((x) => x !== f.id) : [...prev, f.id],
                     )
                   }
                   className={cn(
@@ -188,9 +179,7 @@ export function NotificationCenter({ className }: { className?: string }) {
                 >
                   {f.label}
                   {counts[f.id] ? (
-                    <span className="ml-1 tabular-nums opacity-60">
-                      {counts[f.id]}
-                    </span>
+                    <span className="ml-1 tabular-nums opacity-60">{counts[f.id]}</span>
                   ) : null}
                 </button>
               );
@@ -223,9 +212,7 @@ export function NotificationCenter({ className }: { className?: string }) {
                           {course}
                         </h3>
                         <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
-                          {groupUnread > 0
-                            ? `${groupUnread} new · ${items.length}`
-                            : items.length}
+                          {groupUnread > 0 ? `${groupUnread} new · ${items.length}` : items.length}
                         </span>
                       </header>
                       <ul className="space-y-2">
@@ -241,9 +228,7 @@ export function NotificationCenter({ className }: { className?: string }) {
                               onClick={() => openNotification(n)}
                               className="min-w-0 flex-1 text-left"
                             >
-                              <p className="text-sm font-medium leading-snug">
-                                {n.title}
-                              </p>
+                              <p className="text-sm font-medium leading-snug">{n.title}</p>
                               {n.body && (
                                 <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
                                   {n.body}
@@ -251,9 +236,7 @@ export function NotificationCenter({ className }: { className?: string }) {
                               )}
                               <p className="mt-1.5 flex items-center gap-1 text-[11px] text-muted-foreground/70">
                                 {timeAgo(n.ts)}
-                                {routeFor(n) && (
-                                  <ChevronRight className="h-3 w-3" />
-                                )}
+                                {routeFor(n) && <ChevronRight className="h-3 w-3" />}
                               </p>
                             </button>
                             <button
@@ -268,14 +251,10 @@ export function NotificationCenter({ className }: { className?: string }) {
                       </ul>
                       {items.length > PER_GROUP && (
                         <button
-                          onClick={() =>
-                            setExpanded((p) => ({ ...p, [course]: !p[course] }))
-                          }
+                          onClick={() => setExpanded((p) => ({ ...p, [course]: !p[course] }))}
                           className="glass-hover mt-2 w-full rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground"
                         >
-                          {isOpen
-                            ? "See less"
-                            : `See more (${items.length - PER_GROUP})`}
+                          {isOpen ? "See less" : `See more (${items.length - PER_GROUP})`}
                         </button>
                       )}
                     </section>

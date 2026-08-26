@@ -2,12 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { scopedKey, subscribeToUserScope } from "@/lib/user-scope";
 import { allowBrowserPush } from "@/lib/notification-prefs";
 
-export type NotificationKind =
-  | "due"
-  | "overdue"
-  | "grade"
-  | "announcement"
-  | "system";
+export type NotificationKind = "due" | "overdue" | "grade" | "announcement" | "system";
 
 export interface AppNotification {
   id: string;
@@ -17,6 +12,7 @@ export interface AppNotification {
   /** Friendly class name used to group notifications. */
   course?: string;
   /** Raw Canvas course name/code, kept so nicknames can be applied at render time. */
+  course_id?: number | null;
   course_name?: string | null;
   course_code?: string | null;
   /** In-app route this notification links to. */
@@ -24,7 +20,6 @@ export interface AppNotification {
   ts: number;
   read: boolean;
 }
-
 
 const BASE_KEY = "canvas:notifications";
 const EVENT = "canvas:notifications-changed";
@@ -56,13 +51,37 @@ function write(list: AppNotification[]) {
   window.dispatchEvent(new CustomEvent(EVENT));
 }
 
-
 /** Adds a notification if its id has not been seen before. Returns true when added. */
-export function pushNotification(n: Omit<AppNotification, "ts" | "read"> & { ts?: number }): boolean {
+export function pushNotification(
+  n: Omit<AppNotification, "ts" | "read"> & { ts?: number },
+): boolean {
   const list = read();
-  if (list.some((x) => x.id === n.id)) return false;
+  const existingIndex = list.findIndex((x) => x.id === n.id);
+  if (existingIndex >= 0) {
+    const existing = list[existingIndex];
+    const updated = { ...existing, ...n, ts: existing.ts, read: existing.read };
+    if (JSON.stringify(updated) !== JSON.stringify(existing)) {
+      const next = [...list];
+      next[existingIndex] = updated;
+      write(next);
+    }
+    return false;
+  }
   write([{ ...n, ts: n.ts ?? Date.now(), read: false }, ...list]);
   return true;
+}
+
+/** Refreshes metadata on an existing notification without creating a new alert. */
+export function updateNotification(
+  id: string,
+  patch: Partial<Pick<AppNotification, "course" | "course_id" | "course_name" | "course_code">>,
+) {
+  const list = read();
+  const index = list.findIndex((item) => item.id === id);
+  if (index < 0) return;
+  const next = [...list];
+  next[index] = { ...next[index], ...patch };
+  write(next);
 }
 
 /** Fires a browser notification when permission has been granted. */
@@ -106,7 +125,6 @@ export function useNotifications() {
       unsub();
     };
   }, []);
-
 
   const markRead = useCallback((id: string) => {
     const next = read().map((n) => (n.id === id ? { ...n, read: true } : n));

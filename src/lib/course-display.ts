@@ -57,6 +57,15 @@ export function nicknameForCourseId(id?: number | null) {
   return nicknameById.get(Number(id));
 }
 
+/** Prefer the stable Canvas course id, then fall back to raw name/code matching. */
+export function displayCourseNameForCourse(
+  id?: number | null,
+  name?: string | null,
+  code?: string | null,
+) {
+  return nicknameForCourseId(id) ?? displayCourseName(name, code);
+}
+
 function nicknameFor(name?: string | null, code?: string | null) {
   for (const h of [name, code]) {
     if (!h) continue;
@@ -65,7 +74,6 @@ function nicknameFor(name?: string | null, code?: string | null) {
   }
   return undefined;
 }
-
 
 export function displayCourseName(name?: string | null, code?: string | null) {
   const nick = nicknameFor(name, code);

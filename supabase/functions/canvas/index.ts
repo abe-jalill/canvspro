@@ -4,8 +4,7 @@
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 };
 
@@ -120,14 +119,11 @@ async function credsForRequest(req: Request): Promise<Creds> {
   if (!authHeader) throw new Error("NOT_AUTHENTICATED");
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const apiKey =
-    Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ??
-    Deno.env.get("SUPABASE_ANON_KEY")!;
+  const apiKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
 
-  const res = await fetch(
-    `${supabaseUrl}/rest/v1/user_settings?select=canvas_api_key&limit=1`,
-    { headers: { apikey: apiKey, Authorization: authHeader } },
-  );
+  const res = await fetch(`${supabaseUrl}/rest/v1/user_settings?select=canvas_api_key&limit=1`, {
+    headers: { apikey: apiKey, Authorization: authHeader },
+  });
   if (!res.ok) throw new Error("NOT_AUTHENTICATED");
   const rows = (await res.json()) as Array<{ canvas_api_key: string | null }>;
   const token = rows?.[0]?.canvas_api_key?.trim();
@@ -152,9 +148,21 @@ async function fetchActiveCourses(creds: Creds): Promise<CanvasCourse[]> {
 
 async function handleCourses(creds: Creds) {
   const courses = await fetchActiveCourses(creds);
-  return courses.map((c) => {
-    const enr =
-      c.enrollments?.find((e) => e.type === "student") ?? c.enrollments?.[0];
+  const detailed = await Promise.all(
+    courses.map(async (course) => {
+      if ((course.syllabus_body ?? "").trim()) return course;
+      try {
+        return await canvasFetch<CanvasCourse>(
+          creds,
+          `/courses/${course.id}?include[]=total_scores&include[]=syllabus_body`,
+        );
+      } catch {
+        return course;
+      }
+    }),
+  );
+  return detailed.map((c) => {
+    const enr = c.enrollments?.find((e) => e.type === "student") ?? c.enrollments?.[0];
     const syllabus = (c.syllabus_body ?? "").trim();
     return {
       id: c.id,
@@ -199,10 +207,7 @@ async function handleAnnouncements(creds: Creds, days = 30) {
   start.setDate(start.getDate() - days);
   params.set("start_date", start.toISOString());
   params.set("per_page", "50");
-  const raw = await canvasFetch<CanvasAnnouncement[]>(
-    creds,
-    `/announcements?${params.toString()}`,
-  );
+  const raw = await canvasFetch<CanvasAnnouncement[]>(creds, `/announcements?${params.toString()}`);
   const courseById = new Map(courses.map((c) => [c.id, c]));
   return raw
     .map((a) => {
@@ -282,13 +287,10 @@ Deno.serve(async (req) => {
         data = await handleCalendar(creds, days ?? 14);
         break;
       default:
-        return new Response(
-          JSON.stringify({ error: `Unknown resource: ${resource}` }),
-          {
-            status: 400,
-            headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-          },
-        );
+        return new Response(JSON.stringify({ error: `Unknown resource: ${resource}` }), {
+          status: 400,
+          headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+        });
     }
 
     return new Response(JSON.stringify(data), {
@@ -296,8 +298,7 @@ Deno.serve(async (req) => {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    const status =
-      message === "NOT_AUTHENTICATED" ? 401 : message === "NO_CANVAS_KEY" ? 428 : 500;
+    const status = message === "NOT_AUTHENTICATED" ? 401 : message === "NO_CANVAS_KEY" ? 428 : 500;
     if (status === 500) console.error("[canvas]", message);
     return new Response(JSON.stringify({ error: message }), {
       status,
