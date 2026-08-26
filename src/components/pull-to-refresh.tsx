@@ -28,6 +28,11 @@ export function PullToRefresh({ children }: { children: ReactNode }) {
   const [pull, setPull] = useState(0);
   const { sync, isSyncing } = useCanvasSync();
 
+  // Keep latest pull value readable inside the stable touchend handler.
+  const pullRef = useRef(0);
+  pullRef.current = pull;
+
+
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
@@ -70,10 +75,6 @@ export function PullToRefresh({ children }: { children: ReactNode }) {
       host.removeEventListener("touchcancel", onEnd);
     };
   }, [isSyncing, sync]);
-
-  // Keep latest pull value readable inside the stable touchend handler.
-  const pullRef = useRef(0);
-  pullRef.current = pull;
 
   const active = pull > 0 || isSyncing;
   const progress = Math.min(1, pull / TRIGGER);
