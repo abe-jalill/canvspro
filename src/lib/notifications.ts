@@ -71,6 +71,19 @@ export function pushNotification(
   return true;
 }
 
+/** Refreshes metadata on an existing notification without creating a new alert. */
+export function updateNotification(
+  id: string,
+  patch: Partial<Pick<AppNotification, "course" | "course_id" | "course_name" | "course_code">>,
+) {
+  const list = read();
+  const index = list.findIndex((item) => item.id === id);
+  if (index < 0) return;
+  const next = [...list];
+  next[index] = { ...next[index], ...patch };
+  write(next);
+}
+
 /** Fires a browser notification when permission has been granted. */
 export function fireBrowserNotification(title: string, body?: string, tag?: string) {
   if (typeof window === "undefined" || !("Notification" in window)) return;
