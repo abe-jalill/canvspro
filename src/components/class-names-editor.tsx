@@ -8,6 +8,7 @@ import {
   type ClassNickname,
 } from "@/lib/nicknames";
 import { nicknameLookupVersion } from "@/lib/course-display";
+import { useUserPreferenceKey } from "@/hooks/use-user-preferences";
 
 const coursesQuery = {
   queryKey: ["canvas", "courses"] as const,
