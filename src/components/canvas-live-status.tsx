@@ -27,12 +27,7 @@ function readStatus(queryClient: ReturnType<typeof useQueryClient>): CanvasStatu
 
   return {
     updatedAt,
-    error:
-      error instanceof Error
-        ? error.message
-        : error
-          ? String(error)
-          : null,
+    error: error instanceof Error ? error.message : error ? String(error) : null,
   };
 }
 
@@ -86,11 +81,7 @@ export function CanvasLiveStatus() {
   }
 
   const label =
-    freshness === "live"
-      ? "LIVE"
-      : freshness === "checking"
-        ? "Checking"
-        : elapsedLabel(age);
+    freshness === "live" ? "LIVE" : freshness === "checking" ? "Checking" : elapsedLabel(age);
 
   return (
     <button

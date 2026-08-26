@@ -32,7 +32,6 @@ export function PullToRefresh({ children }: { children: ReactNode }) {
   const pullRef = useRef(0);
   pullRef.current = pull;
 
-
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;

@@ -88,6 +88,7 @@ export function useSaveNicknames() {
       toast.success("Class names updated");
       await qc.invalidateQueries({ queryKey: nicknamesQueryKey });
     },
-    onError: (err: Error) => toast.error("Could not save class names", { description: err.message }),
+    onError: (err: Error) =>
+      toast.error("Could not save class names", { description: err.message }),
   });
 }

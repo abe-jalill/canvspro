@@ -1,12 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import {
-  isClassDay,
-  timeRangeLabel,
-  type ClassDay,
-  type ClassSession,
-} from "@/lib/class-schedule";
+import { isClassDay, timeRangeLabel, type ClassDay, type ClassSession } from "@/lib/class-schedule";
 
 export const classScheduleQueryKey = ["class-schedule-entries"] as const;
 
