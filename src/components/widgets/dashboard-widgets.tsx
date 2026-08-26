@@ -691,20 +691,22 @@ export function LockedWidget({ title, feature }: { title: string; feature: strin
   );
 }
 
+export type WidgetSize = "sm" | "md" | "full";
+
 export interface WidgetMeta {
   label: string;
-  wide?: boolean;
+  defaultSize: WidgetSize;
   pro?: boolean;
   render: () => ReactElement;
 }
 
 export const WIDGETS: Record<WidgetId, WidgetMeta> = {
-  digest: { label: "Since your last visit", wide: true, render: () => <DigestWidget /> },
-  focus: { label: "Focus", pro: true, render: () => <FocusWidget /> },
-  classes: { label: "Classes & Grades", render: () => <CoursesWidget /> },
-  gpa: { label: "GPA", render: () => <GpaWidget /> },
-  upcoming: { label: "Upcoming Assignments", wide: true, render: () => <UpcomingWidget /> },
-  announcements: { label: "Announcements", wide: true, render: () => <AnnouncementsWidget /> },
-  calendar: { label: "Calendar", pro: true, render: () => <CalendarWidget /> },
-  heatmap: { label: "Workload heatmap", pro: true, wide: true, render: () => <HeatmapWidget /> },
+  digest: { label: "Since your last visit", defaultSize: "full", render: () => <DigestWidget /> },
+  focus: { label: "Focus", pro: true, defaultSize: "sm", render: () => <FocusWidget /> },
+  classes: { label: "Classes & Grades", defaultSize: "md", render: () => <CoursesWidget /> },
+  gpa: { label: "GPA", defaultSize: "sm", render: () => <GpaWidget /> },
+  upcoming: { label: "Upcoming Assignments", defaultSize: "md", render: () => <UpcomingWidget /> },
+  announcements: { label: "Announcements", defaultSize: "md", render: () => <AnnouncementsWidget /> },
+  calendar: { label: "Calendar", pro: true, defaultSize: "sm", render: () => <CalendarWidget /> },
+  heatmap: { label: "Workload heatmap", pro: true, defaultSize: "full", render: () => <HeatmapWidget /> },
 };
