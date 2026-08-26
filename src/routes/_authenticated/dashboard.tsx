@@ -78,13 +78,29 @@ function Dashboard() {
             dragId === id && "ring-2 ring-foreground/40",
           )}
         >
-          <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 border-b border-foreground/10 px-3 py-2">
-            <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-muted-foreground" />
-            <span className="min-w-0 truncate text-xs font-medium text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-2 border-b border-foreground/10 px-3 py-2">
+            <GripVertical className="hidden h-4 w-4 shrink-0 cursor-grab text-muted-foreground sm:block" />
+            <span className="min-w-0 flex-1 truncate text-xs font-medium text-muted-foreground">
               {meta.label}
             </span>
             <span className="flex shrink-0 items-center gap-1">
-              <span className="hidden items-center gap-0.5 rounded-lg border border-foreground/15 p-0.5 sm:flex">
+              <button
+                onClick={() => layout.move(id, -1)}
+                disabled={index === 0}
+                aria-label={`Move ${meta.label} up`}
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-foreground/15 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
+              >
+                <ChevronUp className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => layout.move(id, 1)}
+                disabled={index === layout.order.length - 1}
+                aria-label={`Move ${meta.label} down`}
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-foreground/15 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
+              >
+                <ChevronDown className="h-4 w-4" />
+              </button>
+              <span className="flex items-center gap-0.5 rounded-lg border border-foreground/15 p-0.5">
                 {SIZE_OPTIONS.map((o) => (
                   <button
                     key={o.value}
@@ -92,7 +108,7 @@ function Dashboard() {
                     aria-label={`Set ${meta.label} size ${o.label}`}
                     aria-pressed={sizeOf(id) === o.value}
                     className={cn(
-                      "h-7 w-7 rounded-md text-[11px] font-semibold text-muted-foreground transition-colors",
+                      "h-8 w-8 rounded-md text-[11px] font-semibold text-muted-foreground transition-colors",
                       sizeOf(id) === o.value && "bg-foreground/10 text-foreground",
                     )}
                   >
@@ -110,6 +126,7 @@ function Dashboard() {
               </button>
             </span>
           </div>
+
           <div className="pointer-events-none p-1">{body}</div>
         </div>
       ) : (
