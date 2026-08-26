@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, RefreshCw } from "lucide-react";
+import { useCanvasSync } from "@/hooks/use-canvas-sync";
 import { cn } from "@/lib/utils";
 
 const FIVE_MINUTES = 5 * 60_000;
@@ -42,6 +43,7 @@ function elapsedLabel(age: number) {
 
 export function CanvasLiveStatus() {
   const queryClient = useQueryClient();
+  const { sync, isSyncing } = useCanvasSync();
   const [now, setNow] = useState(Date.now());
   const [status, setStatus] = useState(() => readStatus(queryClient));
 
@@ -69,14 +71,17 @@ export function CanvasLiveStatus() {
 
   if (status.error) {
     return (
-      <div
+      <button
+        type="button"
+        onClick={sync}
         role="alert"
         className="flex min-h-8 max-w-full items-center gap-2 rounded-full border border-destructive/30 bg-destructive/10 px-3 py-1.5 text-xs text-destructive"
         title={status.error}
       >
         <AlertCircle className="h-3.5 w-3.5 shrink-0" />
         <span className="max-w-72 truncate">{status.error}</span>
-      </div>
+        <RefreshCw className={cn("h-3.5 w-3.5 shrink-0", isSyncing && "animate-spin")} />
+      </button>
     );
   }
 
@@ -88,9 +93,12 @@ export function CanvasLiveStatus() {
         : elapsedLabel(age);
 
   return (
-    <div
-      className="glass-inset flex min-h-8 items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase text-muted-foreground"
-      aria-label={`Canvas data status: ${label}`}
+    <button
+      type="button"
+      onClick={sync}
+      title="Refresh Canvas data"
+      className="glass-inset glass-hover flex min-h-8 items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase text-muted-foreground transition-colors hover:text-foreground"
+      aria-label={`Canvas data status: ${label}. Tap to refresh.`}
     >
       <span
         aria-hidden="true"
@@ -102,7 +110,7 @@ export function CanvasLiveStatus() {
           freshness === "checking" && "animate-pulse bg-muted-foreground",
         )}
       />
-      <span>{label}</span>
-    </div>
+      <span>{isSyncing ? "Syncing" : label}</span>
+    </button>
   );
 }
