@@ -40,26 +40,16 @@ function spanFor(size: MasonrySize, cols: number) {
   return 1;
 }
 
-function Cell({
-  children,
-  colSpan,
-  onHeight,
-}: {
-  children: ReactNode;
-  colSpan: number;
-  onHeight: (h: number) => void;
-}) {
+function Cell({ children, colSpan }: { children: ReactNode; colSpan: number }) {
   const ref = useRef<HTMLDivElement | null>(null);
-  const [rows, setRows] = useState(20);
+  const [rows, setRows] = useState(24);
 
   const measure = useCallback(() => {
     const el = ref.current;
     if (!el) return;
     const h = el.getBoundingClientRect().height;
-    const next = Math.max(1, Math.ceil((h + GAP) / (ROW_HEIGHT + GAP / 1)));
     setRows(Math.max(1, Math.ceil((h + GAP) / ROW_HEIGHT)));
-    onHeight(next);
-  }, [onHeight]);
+  }, []);
 
   useLayoutEffect(() => {
     measure();
@@ -94,7 +84,6 @@ export function MasonryGrid({
   className?: string;
 }) {
   const cols = useColumnCount();
-  const noop = useCallback(() => {}, []);
 
   return (
     <div
@@ -106,7 +95,7 @@ export function MasonryGrid({
       }}
     >
       {items.map((item) => (
-        <Cell key={item.key} colSpan={spanFor(item.size, cols)} onHeight={noop}>
+        <Cell key={item.key} colSpan={spanFor(item.size, cols)}>
           <div style={{ paddingBottom: GAP }}>{item.node}</div>
         </Cell>
       ))}
