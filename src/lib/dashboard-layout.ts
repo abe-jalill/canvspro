@@ -114,15 +114,23 @@ export function useDashboardLayout() {
     [update],
   );
 
+  const setSize = useCallback(
+    (id: WidgetId, size: WidgetSize) =>
+      update((prev) => ({ ...prev, sizes: { ...prev.sizes, [id]: size } })),
+    [update],
+  );
+
   const reset = useCallback(() => update(() => normalize(null)), [update]);
 
   return {
     order: layout.order,
     hidden: layout.hidden,
+    sizes: layout.sizes,
     isHidden: (id: WidgetId) => layout.hidden.includes(id),
     toggle,
     move,
     reorder,
+    setSize,
     reset,
   };
 }
