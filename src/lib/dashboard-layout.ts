@@ -27,10 +27,15 @@ export const DEFAULT_ORDER: WidgetId[] = [
   "heatmap",
 ];
 
+export type WidgetSize = "sm" | "md" | "full";
+
 interface StoredLayout {
   order: WidgetId[];
   hidden: WidgetId[];
+  sizes: Partial<Record<WidgetId, WidgetSize>>;
 }
+
+const SIZES: WidgetSize[] = ["sm", "md", "full"];
 
 function normalize(raw: Partial<StoredLayout> | null): StoredLayout {
   const known = new Set(DEFAULT_ORDER);
@@ -41,7 +46,13 @@ function normalize(raw: Partial<StoredLayout> | null): StoredLayout {
   const hidden = (raw?.hidden ?? []).filter((id): id is WidgetId =>
     known.has(id as WidgetId),
   );
-  return { order, hidden };
+  const sizes: Partial<Record<WidgetId, WidgetSize>> = {};
+  for (const [id, size] of Object.entries(raw?.sizes ?? {})) {
+    if (known.has(id as WidgetId) && SIZES.includes(size as WidgetSize)) {
+      sizes[id as WidgetId] = size as WidgetSize;
+    }
+  }
+  return { order, hidden, sizes };
 }
 
 /** Cross-device dashboard widget order + visibility, persisted via user_preferences. */
