@@ -47,7 +47,7 @@ function routeFor(n: AppNotification) {
 export function NotificationCenter({ className }: { className?: string }) {
   const { notifications, unread, markRead, markAllRead, remove, clear } = useNotifications();
   // Ensures this component re-renders once nicknames finish loading.
-  const nicknames = useNicknames();
+  useNicknames();
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState<FilterKind[]>([]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -88,18 +88,16 @@ export function NotificationCenter({ className }: { className?: string }) {
     return c;
   }, [notifications]);
 
-  const groups = useMemo(() => {
-    const map = new Map<string, AppNotification[]>();
-    for (const n of filtered) {
-      const key = displayName(n)?.trim() || "General";
-      const arr = map.get(key) ?? [];
-      arr.push(n);
-      map.set(key, arr);
-    }
-    return Array.from(map.entries())
-      .filter(([, items]) => items.length > 0)
-      .sort((a, b) => a[0].localeCompare(b[0]));
-  }, [filtered, nicknames.data]);
+  const groupMap = new Map<string, AppNotification[]>();
+  for (const n of filtered) {
+    const key = displayName(n)?.trim() || "General";
+    const arr = groupMap.get(key) ?? [];
+    arr.push(n);
+    groupMap.set(key, arr);
+  }
+  const groups = Array.from(groupMap.entries())
+    .filter(([, items]) => items.length > 0)
+    .sort((a, b) => a[0].localeCompare(b[0]));
 
   function openNotification(n: AppNotification) {
     markRead(n.id);
