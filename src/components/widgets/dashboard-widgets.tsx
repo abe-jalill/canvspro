@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { htmlToText } from "@/lib/html-text";
 import type { WidgetId } from "@/lib/dashboard-layout";
 import { displayCourseName } from "@/lib/course-display";
+import { courseSlug } from "@/lib/course-highlight";
 import {
   useLocalSet,
   DISMISSED_ANNOUNCEMENTS_KEY,
@@ -379,7 +380,6 @@ function AnnouncementsWidget() {
       action={
         <Link
           to="/announcements"
-
           className="glass-hover rounded-lg px-2.5 py-1 text-xs font-medium text-muted-foreground"
         >
           View all
@@ -434,24 +434,35 @@ function AnnouncementsWidget() {
                 {isOpen && (
                   <ul className="mt-2 space-y-2">
                     {g.items.slice(0, 4).map((a) => (
-                      <li key={a.id} className="glass-inset glass-hover p-3 sm:p-4">
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="min-w-0 flex-1 text-sm font-semibold">
-                            {a.title}
-                          </p>
-                          <div className="flex shrink-0 items-center gap-2">
+                      <li
+                        key={a.id}
+                        className="glass-inset glass-hover flex items-start gap-2 p-3 sm:p-4"
+                      >
+                        <Link
+                          to="/announcements"
+                          search={{
+                            course: courseSlug(displayCourseName(g.name, g.code)),
+                            expand: String(a.id),
+                          }}
+                          className="min-w-0 flex-1"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="min-w-0 flex-1 text-sm font-semibold">
+                              {a.title}
+                            </p>
                             <span className="hidden whitespace-nowrap text-xs text-muted-foreground sm:inline">
                               {new Date(a.posted_at).toLocaleDateString()}
                             </span>
-                            <DismissButton
-                              onClick={() => dismissed.add(a.id)}
-                              label={a.title}
-                            />
                           </div>
-                        </div>
-                        <p className="mt-1 line-clamp-2 break-words text-xs text-muted-foreground">
-                          {stripHtml(a.message)}
-                        </p>
+                          <p className="mt-1 line-clamp-2 break-words text-xs text-muted-foreground">
+                            {stripHtml(a.message)}
+                          </p>
+                        </Link>
+                        <DismissButton
+                          stopPropagation
+                          onClick={() => dismissed.add(a.id)}
+                          label={a.title}
+                        />
                       </li>
                     ))}
                   </ul>
@@ -494,13 +505,18 @@ function CompleteButton({
 function DismissButton({
   onClick,
   label,
+  stopPropagation,
 }: {
   onClick: () => void;
   label: string;
+  stopPropagation?: boolean;
 }) {
   return (
     <button
-      onClick={onClick}
+      onClick={(e) => {
+        if (stopPropagation) e.stopPropagation();
+        onClick();
+      }}
       aria-label={`Dismiss ${label}`}
       className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-foreground/20 text-muted-foreground transition-colors hover:border-foreground/50 hover:text-foreground"
     >

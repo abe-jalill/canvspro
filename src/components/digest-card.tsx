@@ -166,7 +166,6 @@ export function DigestCard({ announcements, assignments, courses }: Props) {
             <Link
               key={a.id}
               to="/announcements"
-
               className="glass-inset glass-hover block p-2.5"
             >
               <p className="truncate text-xs font-medium">{a.title}</p>
