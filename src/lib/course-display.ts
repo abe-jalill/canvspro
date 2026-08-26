@@ -75,7 +75,6 @@ function nicknameFor(name?: string | null, code?: string | null) {
   return undefined;
 }
 
-
 export function displayCourseName(name?: string | null, code?: string | null) {
   const nick = nicknameFor(name, code);
   if (nick) return nick;

@@ -2,12 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { scopedKey, subscribeToUserScope } from "@/lib/user-scope";
 import { allowBrowserPush } from "@/lib/notification-prefs";
 
-export type NotificationKind =
-  | "due"
-  | "overdue"
-  | "grade"
-  | "announcement"
-  | "system";
+export type NotificationKind = "due" | "overdue" | "grade" | "announcement" | "system";
 
 export interface AppNotification {
   id: string;
@@ -25,7 +20,6 @@ export interface AppNotification {
   ts: number;
   read: boolean;
 }
-
 
 const BASE_KEY = "canvas:notifications";
 const EVENT = "canvas:notifications-changed";
@@ -57,9 +51,10 @@ function write(list: AppNotification[]) {
   window.dispatchEvent(new CustomEvent(EVENT));
 }
 
-
 /** Adds a notification if its id has not been seen before. Returns true when added. */
-export function pushNotification(n: Omit<AppNotification, "ts" | "read"> & { ts?: number }): boolean {
+export function pushNotification(
+  n: Omit<AppNotification, "ts" | "read"> & { ts?: number },
+): boolean {
   const list = read();
   if (list.some((x) => x.id === n.id)) return false;
   write([{ ...n, ts: n.ts ?? Date.now(), read: false }, ...list]);
@@ -107,7 +102,6 @@ export function useNotifications() {
       unsub();
     };
   }, []);
-
 
   const markRead = useCallback((id: string) => {
     const next = read().map((n) => (n.id === id ? { ...n, read: true } : n));

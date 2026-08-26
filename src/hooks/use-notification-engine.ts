@@ -34,7 +34,6 @@ function writeSet(baseKey: string, set: Set<string>) {
   }
 }
 
-
 const assignmentsQO = queryOptions({
   queryKey: ["canvas", "assignments"],
   queryFn: () => getAllAssignmentsFn(),
@@ -96,7 +95,6 @@ function runDueChecks(assignments: AssignmentItem[]) {
         to: "/assignments",
         body: `due ${new Date(a.due_at).toLocaleString()}`,
       });
-
     }
   }
 }
@@ -130,7 +128,6 @@ function runGradeChecks(assignments: AssignmentItem[]) {
       course_code: a.course_code,
       to: "/grades",
     });
-
   }
 
   if (changed) writeSet(SEEN_GRADES_KEY, seen);
@@ -160,7 +157,6 @@ function runAnnouncementChecks(items: AnnouncementItem[]) {
       to: "/announcements",
       body: "New announcement",
     });
-
   }
 
   if (changed) writeSet(SEEN_ANNOUNCEMENTS_KEY, seen);
