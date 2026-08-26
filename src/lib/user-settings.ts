@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 export const canvasKeyQueryKey = ["user-settings", "canvas-key"] as const;
 
@@ -40,9 +41,11 @@ export function useSaveCanvasKey() {
       if (error) throw new Error(error.message);
       return key;
     },
-    onSuccess: async () => {
+    onSuccess: async (key) => {
+      toast.success(key ? "Canvas key saved" : "Canvas key cleared");
       await qc.invalidateQueries({ queryKey: canvasKeyQueryKey });
       await qc.invalidateQueries({ queryKey: ["canvas"] });
     },
+    onError: (err: Error) => toast.error("Could not save the key", { description: err.message }),
   });
 }

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { setNicknameLookup } from "@/lib/course-display";
 
 export interface ClassNickname {
@@ -84,7 +85,9 @@ export function useSaveNicknames() {
       return keep.length;
     },
     onSuccess: async () => {
+      toast.success("Class names updated");
       await qc.invalidateQueries({ queryKey: nicknamesQueryKey });
     },
+    onError: (err: Error) => toast.error("Could not save class names", { description: err.message }),
   });
 }

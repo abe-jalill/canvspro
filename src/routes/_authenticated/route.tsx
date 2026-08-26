@@ -17,6 +17,7 @@ import { useNotificationEngine } from "@/hooks/use-notification-engine";
 import { useAppPrefetch } from "@/hooks/use-app-prefetch";
 import { useWelcomeEmail } from "@/hooks/use-welcome-email";
 import { setUserScope } from "@/lib/user-scope";
+import { PullToRefresh } from "@/components/pull-to-refresh";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -55,9 +56,11 @@ function AuthenticatedLayout() {
           <CanvasKeyGate>
             <ClassNamesGate>
               <ProGate>
-                <div key={pathname} className="page-transition min-w-0">
-                  <Outlet />
-                </div>
+                <PullToRefresh>
+                  <div key={pathname} className="page-transition min-w-0">
+                    <Outlet />
+                  </div>
+                </PullToRefresh>
               </ProGate>
             </ClassNamesGate>
           </CanvasKeyGate>
