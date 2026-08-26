@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { ChevronDown, ChevronUp, Eye, EyeOff, GripVertical, RotateCcw, SlidersHorizontal } from "lucide-react";
+import { Eye, EyeOff, GripVertical, RotateCcw, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useDashboardLayout, type WidgetId } from "@/lib/dashboard-layout";
+import { useDashboardLayout, type WidgetId, type WidgetSize } from "@/lib/dashboard-layout";
 import { WIDGETS, LockedWidget } from "@/components/widgets/dashboard-widgets";
+import { MasonryGrid } from "@/components/widgets/masonry-grid";
 import { useSubscription } from "@/lib/subscription";
 import { DashboardHero } from "@/components/dashboard-hero";
 
@@ -29,136 +30,131 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
 });
 
+const SIZE_OPTIONS: { value: WidgetSize; label: string }[] = [
+  { value: "sm", label: "S" },
+  { value: "md", label: "M" },
+  { value: "full", label: "L" },
+];
+
 function Dashboard() {
   const layout = useDashboardLayout();
   const { isActive: isPro } = useSubscription();
   const [customizing, setCustomizing] = useState(false);
   const [dragId, setDragId] = useState<WidgetId | null>(null);
 
+  const sizeOf = (id: WidgetId): WidgetSize =>
+    layout.sizes[id] ?? WIDGETS[id].defaultSize;
+
   const visible = layout.order.filter((id) => !layout.isHidden(id));
+  const source = customizing ? layout.order : visible;
+
+  const items = source.map((id) => {
+    const meta = WIDGETS[id];
+    const hidden = layout.isHidden(id);
+    const index = layout.order.indexOf(id);
+    const body =
+      meta.pro && !isPro ? (
+        <LockedWidget title={meta.label} feature={meta.label} />
+      ) : (
+        meta.render()
+      );
+
+    return {
+      key: id,
+      size: sizeOf(id),
+      node: customizing ? (
+        <div
+          draggable
+          onDragStart={() => setDragId(id)}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={() => {
+            if (dragId && dragId !== id) layout.reorder(dragId, index);
+            setDragId(null);
+          }}
+          onDragEnd={() => setDragId(null)}
+          className={cn(
+            "relative rounded-2xl ring-1 ring-foreground/10 transition",
+            hidden && "opacity-40",
+            dragId === id && "ring-2 ring-foreground/40",
+          )}
+        >
+          <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 border-b border-foreground/10 px-3 py-2">
+            <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-muted-foreground" />
+            <span className="min-w-0 truncate text-xs font-medium text-muted-foreground">
+              {meta.label}
+            </span>
+            <span className="flex shrink-0 items-center gap-1">
+              <span className="hidden items-center gap-0.5 rounded-lg border border-foreground/15 p-0.5 sm:flex">
+                {SIZE_OPTIONS.map((o) => (
+                  <button
+                    key={o.value}
+                    onClick={() => layout.setSize(id, o.value)}
+                    aria-label={`Set ${meta.label} size ${o.label}`}
+                    aria-pressed={sizeOf(id) === o.value}
+                    className={cn(
+                      "h-7 w-7 rounded-md text-[11px] font-semibold text-muted-foreground transition-colors",
+                      sizeOf(id) === o.value && "bg-foreground/10 text-foreground",
+                    )}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </span>
+              <button
+                onClick={() => layout.toggle(id)}
+                aria-label={hidden ? `Show ${meta.label}` : `Hide ${meta.label}`}
+                aria-pressed={!hidden}
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-foreground/15 text-muted-foreground transition-colors hover:text-foreground"
+              >
+                {hidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </span>
+          </div>
+          <div className="pointer-events-none p-1">{body}</div>
+        </div>
+      ) : (
+        body
+      ),
+    };
+  });
 
   return (
     <div className="w-full min-w-0 space-y-6">
       <DashboardHero />
 
-      <header className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 px-1">
+      <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-1">
         <div className="min-w-0">
-          <p
-            aria-hidden="true"
-            className="sr-only whitespace-pre-line text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground"
-          >
-            {"\n"}
-          </p>
           <h2 className="truncate text-lg font-semibold tracking-tight sm:text-xl">
             Your widgets
           </h2>
+          {customizing && (
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+              Drag to reorder, pick a size, hide what you don&apos;t need.
+            </p>
+          )}
         </div>
-        <button
-          onClick={() => setCustomizing((v) => !v)}
-          aria-pressed={customizing}
-          className="glass-inset glass-hover inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-3 text-sm font-medium"
-        >
-          <SlidersHorizontal className="h-4 w-4" />
-          {customizing ? "Done" : "Customize"}
-        </button>
-      </header>
-
-
-      {customizing && (
-        <section className="glass-panel-strong min-w-0 overflow-hidden p-4 sm:p-5">
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-            <div className="min-w-0">
-              <h2 className="text-sm font-semibold tracking-tight">Widgets</h2>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Show, hide, and reorder. Saved to this browser for your account.
-              </p>
-            </div>
+        <div className="flex shrink-0 items-center gap-2">
+          {customizing && (
             <button
               onClick={layout.reset}
-              className="glass-hover inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-xl px-3 text-xs font-medium text-muted-foreground"
+              className="glass-hover inline-flex min-h-10 items-center gap-1.5 rounded-xl px-3 text-xs font-medium text-muted-foreground"
             >
               <RotateCcw className="h-3.5 w-3.5" />
               Reset
             </button>
-          </div>
-          <ul className="mt-4 space-y-2">
-            {layout.order.map((id, index) => {
-              const meta = WIDGETS[id];
-              const hidden = layout.isHidden(id);
-              return (
-                <li
-                  key={id}
-                  draggable
-                  onDragStart={() => setDragId(id)}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={() => {
-                    if (dragId && dragId !== id) layout.reorder(dragId, index);
-                    setDragId(null);
-                  }}
-                  onDragEnd={() => setDragId(null)}
-                  className={cn(
-                    "glass-inset grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 p-3",
-                    hidden && "opacity-55",
-                    dragId === id && "ring-1 ring-foreground/30",
-                  )}
-                >
-                  <span className="flex min-w-0 items-center gap-2">
-                    <GripVertical className="hidden h-4 w-4 shrink-0 cursor-grab text-muted-foreground sm:block" />
-                    <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                      {meta.label}
-                      {meta.pro && !isPro && (
-                        <span className="ml-2 text-[10px] uppercase tracking-wide text-muted-foreground">
-                          Pro
-                        </span>
-                      )}
-                    </span>
-                  </span>
-                  <span className="flex shrink-0 items-center gap-1.5">
-                    <button
-                      onClick={() => layout.move(id, -1)}
-                      aria-label={`Move ${meta.label} up`}
-                      className="flex h-9 w-9 items-center justify-center rounded-lg border border-foreground/15 text-muted-foreground transition-colors hover:text-foreground"
-                    >
-                      <ChevronUp className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => layout.move(id, 1)}
-                      aria-label={`Move ${meta.label} down`}
-                      className="flex h-9 w-9 items-center justify-center rounded-lg border border-foreground/15 text-muted-foreground transition-colors hover:text-foreground"
-                    >
-                      <ChevronDown className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => layout.toggle(id)}
-                      aria-label={hidden ? `Show ${meta.label}` : `Hide ${meta.label}`}
-                      aria-pressed={!hidden}
-                      className="flex h-9 w-9 items-center justify-center rounded-lg border border-foreground/15 text-muted-foreground transition-colors hover:text-foreground"
-                    >
-                      {hidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      )}
+          )}
+          <button
+            onClick={() => setCustomizing((v) => !v)}
+            aria-pressed={customizing}
+            className="glass-inset glass-hover inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-3 text-sm font-medium"
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            {customizing ? "Done" : "Customize"}
+          </button>
+        </div>
+      </header>
 
-      <div className="grid min-w-0 gap-4 md:grid-cols-2 md:gap-6">
-        {visible.map((id) => {
-          const meta = WIDGETS[id];
-          return (
-            <div key={id} className={cn("min-w-0", meta.wide && "md:col-span-2")}>
-              {meta.pro && !isPro ? (
-                <LockedWidget title={meta.label} feature={meta.label} />
-              ) : (
-                meta.render()
-              )}
-            </div>
-          );
-        })}
-      </div>
-
+      <MasonryGrid items={items} />
     </div>
   );
 }
