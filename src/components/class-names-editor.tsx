@@ -135,23 +135,37 @@ export function ClassNamesSection() {
   );
 }
 
+const NAMING_SEEN_KEY = "class-naming-seen-courses";
+
 /**
  * Shows the "Name your classes" setup screen the first time courses load, and
- * again whenever a new course appears without a custom name.
+ * again whenever a new course appears that the user has never been asked about.
  */
 export function ClassNamesGate({ children }: { children: ReactNode }) {
   const { data: key } = useCanvasKey();
   const nicknames = useNicknames();
   const courses = useQuery({ ...coursesQuery, enabled: !!key });
+  const seen = useUserPreferenceKey<string[]>(NAMING_SEEN_KEY, []);
   const [skipped, setSkipped] = useState(false);
 
   const missing = useMemo(() => {
     const list = courses.data ?? [];
     const named = new Set((nicknames.data ?? []).map((n) => n.canvas_course_id));
-    return list.filter((c) => !named.has(c.id));
-  }, [courses.data, nicknames.data]);
+    const acknowledged = new Set(seen.value ?? []);
+    return list.filter(
+      (c) => !named.has(c.id) && !acknowledged.has(String(c.id)),
+    );
+  }, [courses.data, nicknames.data, seen.value]);
 
-  const ready = !key || (!nicknames.isLoading && !courses.isLoading);
+  const dismiss = () => {
+    const ids = (courses.data ?? []).map((c) => String(c.id));
+    const merged = Array.from(new Set([...(seen.value ?? []), ...ids]));
+    seen.set(merged);
+    setSkipped(true);
+  };
+
+  const ready =
+    !key || (!nicknames.isLoading && !courses.isLoading && !seen.isLoading);
   const needsSetup =
     !!key && ready && !skipped && (courses.data ?? []).length > 0 && missing.length > 0;
 
