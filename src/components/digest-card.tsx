@@ -1,11 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { Link } from "@tanstack/react-router";
 import { Bell, TrendingUp, Clock, Check } from "lucide-react";
-import type {
-  AnnouncementItem,
-  AssignmentItem,
-  CourseSummary,
-} from "@/lib/canvas.functions";
+import type { AnnouncementItem, AssignmentItem, CourseSummary } from "@/lib/canvas.functions";
 import { GlassCard } from "@/components/glass-card";
 import { displayCourseName } from "@/lib/course-display";
 import { getCountdown } from "@/lib/countdown";
@@ -51,9 +47,7 @@ export function DigestCard({ announcements, assignments, courses }: Props) {
 
   const newAnnouncements = useMemo(
     () =>
-      announcements
-        .filter((a) => new Date(a.posted_at).getTime() > lastVisit.value)
-        .slice(0, 8),
+      announcements.filter((a) => new Date(a.posted_at).getTime() > lastVisit.value).slice(0, 8),
     [announcements, lastVisit.value],
   );
 
@@ -90,8 +84,7 @@ export function DigestCard({ announcements, assignments, courses }: Props) {
       .slice(0, 8);
   }, [assignments, seenCountdowns]);
 
-  const total =
-    newAnnouncements.length + gradeChanges.length + newlyUrgent.length;
+  const total = newAnnouncements.length + gradeChanges.length + newlyUrgent.length;
 
   // On mount (or when the data landed) treat this as first render of this
   // snapshot — but do NOT immediately mark seen; user should see the digest.
@@ -115,10 +108,7 @@ export function DigestCard({ announcements, assignments, courses }: Props) {
 
   const courseName = (id: number, fallbackName?: string, fallbackCode?: string) => {
     const c = courses.find((c) => c.id === id);
-    return displayCourseName(
-      c?.name ?? fallbackName,
-      c?.course_code ?? fallbackCode,
-    );
+    return displayCourseName(c?.name ?? fallbackName, c?.course_code ?? fallbackCode);
   };
 
   if (total === 0) {
@@ -136,7 +126,6 @@ export function DigestCard({ announcements, assignments, courses }: Props) {
               </p>
             </div>
           </div>
-
         </div>
       </GlassCard>
     );
@@ -163,11 +152,7 @@ export function DigestCard({ announcements, assignments, courses }: Props) {
           emptyText="No new posts"
         >
           {newAnnouncements.map((a) => (
-            <Link
-              key={a.id}
-              to="/announcements"
-              className="glass-inset glass-hover block p-2.5"
-            >
+            <Link key={a.id} to="/announcements" className="glass-inset glass-hover block p-2.5">
               <p className="truncate text-xs font-medium">{a.title}</p>
               <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
                 {courseName(a.course_id, a.course_name, a.course_code)}
@@ -183,12 +168,7 @@ export function DigestCard({ announcements, assignments, courses }: Props) {
           emptyText="No new grades"
         >
           {gradeChanges.map(({ a, prev, next }) => (
-            <Link
-              key={a.id}
-              to="/grades"
-
-              className="glass-inset glass-hover block p-2.5"
-            >
+            <Link key={a.id} to="/grades" className="glass-inset glass-hover block p-2.5">
               <p className="truncate text-xs font-medium">{a.name}</p>
               <div className="mt-0.5 flex items-baseline justify-between gap-2">
                 <p className="truncate text-[10px] text-muted-foreground">
@@ -197,9 +177,7 @@ export function DigestCard({ announcements, assignments, courses }: Props) {
                 <p className="whitespace-nowrap text-[11px] font-semibold tabular-nums">
                   {prev !== undefined ? `${prev} → ${next}` : `${next}`}
                   {a.points_possible ? (
-                    <span className="text-muted-foreground">
-                      {" "}/ {a.points_possible}
-                    </span>
+                    <span className="text-muted-foreground"> / {a.points_possible}</span>
                   ) : null}
                 </p>
               </div>
@@ -214,12 +192,7 @@ export function DigestCard({ announcements, assignments, courses }: Props) {
           emptyText="Nothing new due soon"
         >
           {newlyUrgent.map(({ a, urgency }) => (
-            <Link
-              key={a.id}
-              to="/assignments"
-
-              className="glass-inset glass-hover block p-2.5"
-            >
+            <Link key={a.id} to="/assignments" className="glass-inset glass-hover block p-2.5">
               <p className="truncate text-xs font-medium">{a.name}</p>
               <div className="mt-0.5 flex items-baseline justify-between gap-2">
                 <p className="truncate text-[10px] text-muted-foreground">
@@ -257,14 +230,10 @@ function Section({
         <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-foreground/80">
           {label}
         </h3>
-        <span className="ml-auto text-[10px] tabular-nums text-muted-foreground">
-          {count}
-        </span>
+        <span className="ml-auto text-[10px] tabular-nums text-muted-foreground">{count}</span>
       </div>
       {count === 0 ? (
-        <p className="px-1 py-2 text-[11px] text-muted-foreground/80">
-          {emptyText}
-        </p>
+        <p className="px-1 py-2 text-[11px] text-muted-foreground/80">{emptyText}</p>
       ) : (
         <div className="space-y-1.5">{children}</div>
       )}

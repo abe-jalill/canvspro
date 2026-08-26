@@ -1,15 +1,7 @@
 import { createFileRoute, useSearch } from "@tanstack/react-router";
 import { useQuery, queryOptions } from "@tanstack/react-query";
-import {
-  getAnnouncementsFn,
-  type AnnouncementItem,
-} from "@/lib/canvas.functions";
-import {
-  GlassCard,
-  Skeleton,
-  ErrorState,
-  EmptyState,
-} from "@/components/glass-card";
+import { getAnnouncementsFn, type AnnouncementItem } from "@/lib/canvas.functions";
+import { GlassCard, Skeleton, ErrorState, EmptyState } from "@/components/glass-card";
 import { displayCourseName } from "@/lib/course-display";
 import { useLocalSet, DISMISSED_ANNOUNCEMENTS_KEY } from "@/lib/local-state";
 import { X, RotateCcw, ChevronDown } from "lucide-react";
@@ -17,8 +9,6 @@ import { htmlToText } from "@/lib/html-text";
 import { cn } from "@/lib/utils";
 import { useEffect, useMemo, useState } from "react";
 import { useCourseHighlight } from "@/lib/course-highlight";
-
-
 
 const announcementsQO = queryOptions({
   queryKey: ["canvas", "announcements"],
@@ -30,9 +20,15 @@ export const Route = createFileRoute("/_authenticated/announcements")({
   head: () => ({
     meta: [
       { title: "Announcements — Canvas Pro" },
-      { name: "description", content: "Recent announcements from all of your Canvas courses, grouped by class." },
+      {
+        name: "description",
+        content: "Recent announcements from all of your Canvas courses, grouped by class.",
+      },
       { property: "og:title", content: "Announcements — Canvas Pro" },
-      { property: "og:description", content: "Recent announcements from all of your Canvas courses, grouped by class." },
+      {
+        property: "og:description",
+        content: "Recent announcements from all of your Canvas courses, grouped by class.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -83,9 +79,7 @@ function AnnouncementsPage() {
       groupMap.set(a.course_id, g);
     });
     return Array.from(groupMap.values()).sort((a, b) =>
-      displayCourseName(a.name, a.code).localeCompare(
-        displayCourseName(b.name, b.code),
-      ),
+      displayCourseName(a.name, a.code).localeCompare(displayCourseName(b.name, b.code)),
     );
   }, [visible]);
 
@@ -126,9 +120,7 @@ function AnnouncementsPage() {
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
             Last 30 days
           </p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">
-            Announcements
-          </h1>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">Announcements</h1>
         </div>
         {dismissed.size > 0 && (
           <button
@@ -177,9 +169,7 @@ function AnnouncementsPage() {
                 <button
                   onClick={() =>
                     setExpanded((prev) =>
-                      prev.includes(g.id)
-                        ? prev.filter((x) => x !== g.id)
-                        : [...prev, g.id],
+                      prev.includes(g.id) ? prev.filter((x) => x !== g.id) : [...prev, g.id],
                     )
                   }
                   aria-expanded={open}
@@ -286,8 +276,6 @@ function AnnouncementsPage() {
           );
         })}
       </div>
-
-
     </div>
   );
 }
