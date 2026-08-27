@@ -1,7 +1,7 @@
 // Server-side alert generation for background push. Mirrors the in-browser
 // rules in src/lib/notification-prefs.ts + use-notification-engine.ts.
 
-import { sendWebPush, type PushSubscriptionRecord } from "@/lib/webpush.server";
+import { sendWebPushWithRetry, type PushSubscriptionRecord } from "@/lib/webpush.server";
 
 export interface ServerPrefs {
   enabled: boolean;
