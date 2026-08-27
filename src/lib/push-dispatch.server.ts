@@ -202,25 +202,41 @@ export async function buildAlertsForUser(
   return alerts;
 }
 
+export interface DeliveryReport {
+  /** Subscription ids whose endpoint is gone and should be deleted. */
+  dead: string[];
+  /** Subscription ids that failed for a non-permanent reason. */
+  failed: string[];
+  /** Subscription ids that accepted the push. */
+  delivered: string[];
+}
+
 export async function deliver(
   subs: Array<PushSubscriptionRecord & { id: string }>,
   alert: Alert,
   vapid: { publicKey: string; privateKey: string; subject: string },
-): Promise<string[]> {
+): Promise<DeliveryReport> {
   const dead: string[] = [];
+  const failed: string[] = [];
+  const delivered: string[] = [];
   await Promise.all(
     subs.map(async (s) => {
-      try {
-        const res = await sendWebPush(
-          s,
-          { title: alert.title, body: alert.body, to: alert.to, tag: alert.id },
-          vapid,
+      const res = await sendWebPushWithRetry(
+        s,
+        { title: alert.title, body: alert.body, to: alert.to, tag: alert.id },
+        { ...vapid, context: `alert=${alert.id}` },
+      );
+      if (res.ok) delivered.push(s.id);
+      else if (res.expired) dead.push(s.id);
+      else {
+        failed.push(s.id);
+        console.error(
+          `[push-dispatch] giving up sub=${s.id} alert=${alert.id} status=${res.status} attempts=${res.attempts}${
+            res.detail ? ` detail=${res.detail}` : ""
+          }`,
         );
-        if (res.expired) dead.push(s.id);
-      } catch {
-        // ignore per-device failures
       }
     }),
   );
-  return dead;
+  return { dead, failed, delivered };
 }
