@@ -217,6 +217,19 @@ export function NotificationSettings() {
           onChange={() => toggle("browserPush")}
         />
         <Toggle
+          label="Alerts when CanvasPro is closed"
+          description={
+            background
+              ? "This device gets pushed alerts even with the site closed"
+              : needsHomeScreenInstall()
+                ? "iPhone/iPad: add CanvasPro to your Home Screen first"
+                : "Turn on to keep getting alerts with the browser closed"
+          }
+          checked={background}
+          disabled={off || !prefs.browserPush || busy || !pushSupported()}
+          onChange={() => void toggleBackground()}
+        />
+        <Toggle
           label="Quiet hours"
           description={
             prefs.quietEnabled
