@@ -9,7 +9,7 @@ export interface PushSubscriptionRecord {
 
 const enc = new TextEncoder();
 
-function b64urlToBytes(s: string): Uint8Array {
+function b64urlToBytes(s: string): Uint8Array<ArrayBuffer> {
   const norm = s.replace(/-/g, "+").replace(/_/g, "/");
   const padded = norm + "=".repeat((4 - (norm.length % 4)) % 4);
   const bin = atob(padded);
@@ -18,13 +18,13 @@ function b64urlToBytes(s: string): Uint8Array {
   return out;
 }
 
-function bytesToB64url(b: Uint8Array): string {
+function bytesToB64url(b: Uint8Array<ArrayBuffer>): string {
   let s = "";
   for (const x of b) s += String.fromCharCode(x);
   return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-function concat(...parts: Uint8Array[]): Uint8Array {
+function concat(...parts: Uint8Array<ArrayBuffer>[]): Uint8Array<ArrayBuffer> {
   const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
   let off = 0;
   for (const p of parts) {
@@ -35,11 +35,11 @@ function concat(...parts: Uint8Array[]): Uint8Array {
 }
 
 async function hkdf(
-  salt: Uint8Array,
-  ikm: Uint8Array,
-  info: Uint8Array,
+  salt: Uint8Array<ArrayBuffer>,
+  ikm: Uint8Array<ArrayBuffer>,
+  info: Uint8Array<ArrayBuffer>,
   length: number,
-): Promise<Uint8Array> {
+): Promise<Uint8Array<ArrayBuffer>> {
   const key = await crypto.subtle.importKey("raw", ikm, "HKDF", false, ["deriveBits"]);
   const bits = await crypto.subtle.deriveBits(
     { name: "HKDF", hash: "SHA-256", salt, info },
@@ -91,7 +91,7 @@ async function vapidHeader(
 async function encryptPayload(
   sub: PushSubscriptionRecord,
   payload: string,
-): Promise<Uint8Array> {
+): Promise<Uint8Array<ArrayBuffer>> {
   const uaPublicBytes = b64urlToBytes(sub.p256dh);
   const authSecret = b64urlToBytes(sub.auth);
 
