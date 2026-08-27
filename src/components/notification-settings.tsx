@@ -80,12 +80,22 @@ const HOURS = Array.from({ length: 24 }, (_, i) => i);
 export function NotificationSettings() {
   const { prefs, set, toggle, reset } = useNotificationPrefs();
   const [permission, setPermission] = useState<string>("default");
+  const [background, setBackground] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined" && "Notification" in window) {
       setPermission(Notification.permission);
     }
+    void isPushEnabled().then(setBackground);
   }, []);
+
+  // Keep the backend copy of the preferences in sync so background alerts match.
+  useEffect(() => {
+    if (!background) return;
+    const id = setTimeout(() => void syncPrefsToServer(), 600);
+    return () => clearTimeout(id);
+  }, [prefs, background]);
 
   async function requestPermission() {
     if (typeof window === "undefined" || !("Notification" in window)) return;
@@ -93,7 +103,30 @@ export function NotificationSettings() {
     setPermission(p);
   }
 
+  async function toggleBackground() {
+    setBusy(true);
+    try {
+      if (background) {
+        await disableBackgroundPush();
+        setBackground(false);
+        toast.success("Background notifications turned off");
+      } else {
+        const res = await enableBackgroundPush();
+        if (res.ok) {
+          setBackground(true);
+          setPermission("granted");
+          toast.success("Background notifications on — alerts arrive even with CanvasPro closed");
+        } else {
+          toast.error(res.reason);
+        }
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const off = !prefs.enabled;
+
 
   return (
     <div className="flex flex-col gap-5">
