@@ -48,7 +48,7 @@ export async function syncPrefsToServer(): Promise<void> {
   await supabase.from("notification_prefs").upsert(
     {
       user_id: user.id,
-      prefs: readPrefs() as unknown as Record<string, unknown>,
+      prefs: JSON.parse(JSON.stringify(readPrefs())),
       timezone_offset_minutes: new Date().getTimezoneOffset(),
       updated_at: new Date().toISOString(),
     },
