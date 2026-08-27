@@ -135,6 +135,8 @@ export interface SendResult {
   status: number;
   /** True when the endpoint is gone and the subscription row should be deleted. */
   expired: boolean;
+  /** Push-service error body or thrown message, for logging. */
+  detail?: string;
 }
 
 export async function sendWebPush(
