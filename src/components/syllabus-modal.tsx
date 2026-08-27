@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 interface SyllabusModalProps {
@@ -21,7 +22,9 @@ export function SyllabusModal({ title, html, onClose }: SyllabusModalProps) {
     };
   }, [onClose]);
 
-  return (
+  // Render via a portal so `position: fixed` is relative to the viewport,
+  // unaffected by any ancestor transforms (e.g. pull-to-refresh).
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       role="dialog"
@@ -58,6 +61,7 @@ export function SyllabusModal({ title, html, onClose }: SyllabusModalProps) {
           />
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

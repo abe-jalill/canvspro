@@ -99,11 +99,12 @@ export function PullToRefresh({ children }: { children: ReactNode }) {
         </span>
       </div>
       <div
-        className="min-w-0 will-change-transform"
-        style={{
-          transform: pull ? `translateY(${pull * 0.15}px)` : undefined,
-          transition: pull ? undefined : "transform 200ms ease",
-        }}
+        className="min-w-0"
+        style={
+          pull
+            ? { transform: `translateY(${pull * 0.15}px)` }
+            : { transition: "transform 200ms ease" }
+        }
       >
         {children}
       </div>
