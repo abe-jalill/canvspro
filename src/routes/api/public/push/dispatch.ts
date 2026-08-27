@@ -113,7 +113,9 @@ async function run(): Promise<Response> {
           .upsert(loggable.map((a) => ({ user_id: userId, alert_id: a.id })));
       }
       if (dead.size > 0) {
-        console.warn(`[push-dispatch] removing ${dead.size} expired subscription(s) user=${userId}`);
+        console.warn(
+          `[push-dispatch] removing ${dead.size} expired subscription(s) user=${userId}`,
+        );
         await supabaseAdmin.from("push_subscriptions").delete().in("id", Array.from(dead));
       }
       if (okSubs.size > 0) {

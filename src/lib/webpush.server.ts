@@ -102,11 +102,9 @@ async function encryptPayload(
     false,
     [],
   );
-  const asKeys = (await crypto.subtle.generateKey(
-    { name: "ECDH", namedCurve: "P-256" },
-    true,
-    ["deriveBits"],
-  )) as CryptoKeyPair;
+  const asKeys = (await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, [
+    "deriveBits",
+  ])) as CryptoKeyPair;
   const asPublicBytes = new Uint8Array(await crypto.subtle.exportKey("raw", asKeys.publicKey));
   const sharedBits = new Uint8Array(
     await crypto.subtle.deriveBits({ name: "ECDH", public: uaPublic }, asKeys.privateKey, 256),

@@ -10,6 +10,7 @@ import {
   pushSupported,
   syncPrefsToServer,
 } from "@/lib/push-client";
+import { sendTestPush } from "@/lib/push-test.functions";
 
 function Toggle({
   label,
@@ -75,6 +76,7 @@ export function NotificationSettings() {
   const [permission, setPermission] = useState<string>("default");
   const [background, setBackground] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [testing, setTesting] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined" && "Notification" in window) {
@@ -115,6 +117,19 @@ export function NotificationSettings() {
       }
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function sendTest() {
+    setTesting(true);
+    try {
+      const res = await sendTestPush({ data: undefined });
+      if (res.ok) toast.success(res.message);
+      else toast.error(res.message);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't send the test notification.");
+    } finally {
+      setTesting(false);
     }
   }
 
@@ -211,6 +226,19 @@ export function NotificationSettings() {
           disabled={off || !prefs.browserPush || busy || !pushSupported()}
           onChange={() => void toggleBackground()}
         />
+        <div className="glass-inset flex flex-col gap-2 rounded-xl p-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-muted-foreground">
+            Send a test push to this device to confirm delivery works right now.
+          </p>
+          <button
+            type="button"
+            onClick={() => void sendTest()}
+            disabled={testing || !background}
+            className="glass-hover min-h-11 shrink-0 rounded-xl bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-50"
+          >
+            {testing ? "Sending…" : "Send test notification"}
+          </button>
+        </div>
         <Toggle
           label="Quiet hours"
           description={

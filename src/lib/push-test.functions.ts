@@ -27,7 +27,12 @@ export const sendTestPush = createServerFn({ method: "POST" })
     };
     if (!vapid.publicKey || !vapid.privateKey) {
       console.error("[push-test] VAPID keys are not configured");
-      return { ok: false, delivered: 0, devices: 0, message: "Push isn't configured on the server." };
+      return {
+        ok: false,
+        delivered: 0,
+        devices: 0,
+        message: "Push isn't configured on the server.",
+      };
     }
 
     const { data, error } = await supabase
