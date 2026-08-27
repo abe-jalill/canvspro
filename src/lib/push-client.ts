@@ -26,7 +26,8 @@ export function pushSupported(): boolean {
 export function needsHomeScreenInstall(): boolean {
   if (typeof window === "undefined") return false;
   const ua = navigator.userAgent;
-  const isIOS = /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  const isIOS =
+    /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
   if (!isIOS) return false;
   const standalone =
     window.matchMedia("(display-mode: standalone)").matches ||

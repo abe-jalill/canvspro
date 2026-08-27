@@ -1,12 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import {
-  DUE_WINDOWS,
-  hourLabel,
-  isQuietNow,
-  useNotificationPrefs,
-} from "@/lib/notification-prefs";
+import { DUE_WINDOWS, hourLabel, isQuietNow, useNotificationPrefs } from "@/lib/notification-prefs";
 import {
   disableBackgroundPush,
   enableBackgroundPush,
@@ -45,9 +40,7 @@ function Toggle({
       <span className="min-w-0">
         <span className="block truncate text-sm font-medium">{label}</span>
         {description && (
-          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-            {description}
-          </span>
+          <span className="mt-0.5 block truncate text-xs text-muted-foreground">{description}</span>
         )}
       </span>
       <span
@@ -127,7 +120,6 @@ export function NotificationSettings() {
 
   const off = !prefs.enabled;
 
-
   return (
     <div className="flex flex-col gap-5">
       <Toggle
@@ -162,22 +154,12 @@ export function NotificationSettings() {
           disabled={off}
           onChange={() => toggle("grades")}
         />
-        <div
-          className={cn(
-            "glass-inset rounded-xl p-3",
-            (off || !prefs.grades) && "opacity-50",
-          )}
-        >
+        <div className={cn("glass-inset rounded-xl p-3", (off || !prefs.grades) && "opacity-50")}>
           <div className="flex items-center justify-between gap-3">
-            <label
-              htmlFor="grade-threshold"
-              className="text-sm font-medium"
-            >
+            <label htmlFor="grade-threshold" className="text-sm font-medium">
               Score threshold
             </label>
-            <span className="text-sm font-semibold tabular-nums">
-              {prefs.gradeThreshold}%
-            </span>
+            <span className="text-sm font-semibold tabular-nums">{prefs.gradeThreshold}%</span>
           </div>
           <input
             id="grade-threshold"
