@@ -137,6 +137,96 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_prefs: {
+        Row: {
+          prefs: Json
+          timezone_offset_minutes: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          prefs?: Json
+          timezone_offset_minutes?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          prefs?: Json
+          timezone_offset_minutes?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      push_cron_config: {
+        Row: {
+          id: boolean
+          secret: string
+        }
+        Insert: {
+          id?: boolean
+          secret: string
+        }
+        Update: {
+          id?: boolean
+          secret?: string
+        }
+        Relationships: []
+      }
+      push_sent_log: {
+        Row: {
+          alert_id: string
+          sent_at: string
+          user_id: string
+        }
+        Insert: {
+          alert_id: string
+          sent_at?: string
+          user_id: string
+        }
+        Update: {
+          alert_id?: string
+          sent_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          failure_count: number
+          id: string
+          last_success_at: string | null
+          p256dh: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          failure_count?: number
+          id?: string
+          last_success_at?: string | null
+          p256dh: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          failure_count?: number
+          id?: string
+          last_success_at?: string | null
+          p256dh?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           cancel_at_period_end: boolean | null

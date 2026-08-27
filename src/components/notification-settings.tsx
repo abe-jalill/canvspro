@@ -1,11 +1,15 @@
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { DUE_WINDOWS, hourLabel, isQuietNow, useNotificationPrefs } from "@/lib/notification-prefs";
 import {
-  DUE_WINDOWS,
-  hourLabel,
-  isQuietNow,
-  useNotificationPrefs,
-} from "@/lib/notification-prefs";
+  disableBackgroundPush,
+  enableBackgroundPush,
+  isPushEnabled,
+  needsHomeScreenInstall,
+  pushSupported,
+  syncPrefsToServer,
+} from "@/lib/push-client";
 
 function Toggle({
   label,
@@ -36,9 +40,7 @@ function Toggle({
       <span className="min-w-0">
         <span className="block truncate text-sm font-medium">{label}</span>
         {description && (
-          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-            {description}
-          </span>
+          <span className="mt-0.5 block truncate text-xs text-muted-foreground">{description}</span>
         )}
       </span>
       <span
@@ -71,17 +73,49 @@ const HOURS = Array.from({ length: 24 }, (_, i) => i);
 export function NotificationSettings() {
   const { prefs, set, toggle, reset } = useNotificationPrefs();
   const [permission, setPermission] = useState<string>("default");
+  const [background, setBackground] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined" && "Notification" in window) {
       setPermission(Notification.permission);
     }
+    void isPushEnabled().then(setBackground);
   }, []);
+
+  // Keep the backend copy of the preferences in sync so background alerts match.
+  useEffect(() => {
+    if (!background) return;
+    const id = setTimeout(() => void syncPrefsToServer(), 600);
+    return () => clearTimeout(id);
+  }, [prefs, background]);
 
   async function requestPermission() {
     if (typeof window === "undefined" || !("Notification" in window)) return;
     const p = await Notification.requestPermission();
     setPermission(p);
+  }
+
+  async function toggleBackground() {
+    setBusy(true);
+    try {
+      if (background) {
+        await disableBackgroundPush();
+        setBackground(false);
+        toast.success("Background notifications turned off");
+      } else {
+        const res = await enableBackgroundPush();
+        if (res.ok) {
+          setBackground(true);
+          setPermission("granted");
+          toast.success("Background notifications on — alerts arrive even with CanvasPro closed");
+        } else {
+          toast.error(res.reason);
+        }
+      }
+    } finally {
+      setBusy(false);
+    }
   }
 
   const off = !prefs.enabled;
@@ -120,22 +154,12 @@ export function NotificationSettings() {
           disabled={off}
           onChange={() => toggle("grades")}
         />
-        <div
-          className={cn(
-            "glass-inset rounded-xl p-3",
-            (off || !prefs.grades) && "opacity-50",
-          )}
-        >
+        <div className={cn("glass-inset rounded-xl p-3", (off || !prefs.grades) && "opacity-50")}>
           <div className="flex items-center justify-between gap-3">
-            <label
-              htmlFor="grade-threshold"
-              className="text-sm font-medium"
-            >
+            <label htmlFor="grade-threshold" className="text-sm font-medium">
               Score threshold
             </label>
-            <span className="text-sm font-semibold tabular-nums">
-              {prefs.gradeThreshold}%
-            </span>
+            <span className="text-sm font-semibold tabular-nums">{prefs.gradeThreshold}%</span>
           </div>
           <input
             id="grade-threshold"
@@ -173,6 +197,19 @@ export function NotificationSettings() {
           checked={prefs.browserPush}
           disabled={off}
           onChange={() => toggle("browserPush")}
+        />
+        <Toggle
+          label="Alerts when CanvasPro is closed"
+          description={
+            background
+              ? "This device gets pushed alerts even with the site closed"
+              : needsHomeScreenInstall()
+                ? "iPhone/iPad: add CanvasPro to your Home Screen first"
+                : "Turn on to keep getting alerts with the browser closed"
+          }
+          checked={background}
+          disabled={off || !prefs.browserPush || busy || !pushSupported()}
+          onChange={() => void toggleBackground()}
         />
         <Toggle
           label="Quiet hours"
