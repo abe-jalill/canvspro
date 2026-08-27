@@ -61,6 +61,7 @@ export function SyllabusModal({ title, html, onClose }: SyllabusModalProps) {
           />
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
