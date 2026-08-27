@@ -13,6 +13,7 @@ interface SubRow {
   endpoint: string;
   p256dh: string;
   auth: string;
+  failure_count?: number;
 }
 
 async function run(): Promise<Response> {
@@ -29,7 +30,7 @@ async function run(): Promise<Response> {
 
   const { data: subs } = await supabaseAdmin
     .from("push_subscriptions")
-    .select("id,user_id,endpoint,p256dh,auth");
+    .select("id,user_id,endpoint,p256dh,auth,failure_count");
   const rows = (subs ?? []) as SubRow[];
   if (rows.length === 0) return Response.json({ users: 0, sent: 0 });
 
@@ -41,6 +42,7 @@ async function run(): Promise<Response> {
   }
 
   let sent = 0;
+  let failures = 0;
   for (const [userId, userSubs] of byUser) {
     try {
       const [{ data: prefRow }, { data: settings }] = await Promise.all([
@@ -82,26 +84,62 @@ async function run(): Promise<Response> {
       if (fresh.length === 0) continue;
 
       const dead = new Set<string>();
+      const failedSubs = new Set<string>();
+      const okSubs = new Set<string>();
+      const loggable: typeof fresh = [];
       for (const alert of fresh) {
         const targets = userSubs.filter((s) => !dead.has(s.id));
         if (targets.length === 0) break;
-        const expired = await deliver(targets, alert, vapid);
-        expired.forEach((id) => dead.add(id));
-        sent += 1;
+        const report = await deliver(targets, alert, vapid);
+        report.dead.forEach((id) => dead.add(id));
+        report.failed.forEach((id) => failedSubs.add(id));
+        report.delivered.forEach((id) => okSubs.add(id));
+        if (report.delivered.length > 0) {
+          loggable.push(alert);
+          sent += 1;
+        } else {
+          failures += 1;
+          console.error(
+            `[push-dispatch] alert not delivered user=${userId} alert=${alert.id} targets=${targets.length}`,
+          );
+        }
       }
 
-      await supabaseAdmin
-        .from("push_sent_log")
-        .upsert(fresh.map((a) => ({ user_id: userId, alert_id: a.id })));
+      // Only mark alerts as sent when at least one device actually got them,
+      // so a transient outage doesn't permanently suppress the notification.
+      if (loggable.length > 0) {
+        await supabaseAdmin
+          .from("push_sent_log")
+          .upsert(loggable.map((a) => ({ user_id: userId, alert_id: a.id })));
+      }
       if (dead.size > 0) {
+        console.warn(
+          `[push-dispatch] removing ${dead.size} expired subscription(s) user=${userId}`,
+        );
         await supabaseAdmin.from("push_subscriptions").delete().in("id", Array.from(dead));
       }
+      if (okSubs.size > 0) {
+        await supabaseAdmin
+          .from("push_subscriptions")
+          .update({ failure_count: 0, last_success_at: new Date().toISOString() })
+          .in("id", Array.from(okSubs));
+      }
+      for (const id of failedSubs) {
+        if (okSubs.has(id)) continue;
+        const row = userSubs.find((s) => s.id === id);
+        await supabaseAdmin
+          .from("push_subscriptions")
+          .update({ failure_count: (row?.failure_count ?? 0) + 1 })
+          .eq("id", id);
+      }
     } catch (err) {
+      failures += 1;
       console.error("[push-dispatch]", userId, err instanceof Error ? err.message : err);
     }
   }
 
-  return Response.json({ users: byUser.size, sent });
+  console.info(`[push-dispatch] done users=${byUser.size} sent=${sent} failures=${failures}`);
+  return Response.json({ users: byUser.size, sent, failures });
 }
 
 export const Route = createFileRoute("/api/public/push/dispatch")({

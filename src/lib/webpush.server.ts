@@ -102,11 +102,9 @@ async function encryptPayload(
     false,
     [],
   );
-  const asKeys = (await crypto.subtle.generateKey(
-    { name: "ECDH", namedCurve: "P-256" },
-    true,
-    ["deriveBits"],
-  )) as CryptoKeyPair;
+  const asKeys = (await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, [
+    "deriveBits",
+  ])) as CryptoKeyPair;
   const asPublicBytes = new Uint8Array(await crypto.subtle.exportKey("raw", asKeys.publicKey));
   const sharedBits = new Uint8Array(
     await crypto.subtle.deriveBits({ name: "ECDH", public: uaPublic }, asKeys.privateKey, 256),
@@ -135,6 +133,8 @@ export interface SendResult {
   status: number;
   /** True when the endpoint is gone and the subscription row should be deleted. */
   expired: boolean;
+  /** Push-service error body or thrown message, for logging. */
+  detail?: string;
 }
 
 export async function sendWebPush(
@@ -158,5 +158,73 @@ export async function sendWebPush(
     body,
   });
 
-  return { ok: res.ok, status: res.status, expired: res.status === 404 || res.status === 410 };
+  let detail: string | undefined;
+  if (!res.ok) {
+    detail = (await res.text().catch(() => "")).slice(0, 300) || undefined;
+  }
+  return {
+    ok: res.ok,
+    status: res.status,
+    expired: res.status === 404 || res.status === 410,
+    detail,
+  };
+}
+
+/** True for transient push-service failures worth retrying. */
+function isRetryableStatus(status: number): boolean {
+  return [408, 429, 500, 502, 503, 504].includes(status);
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Sends a push with exponential backoff (default 3 attempts: ~0.5s then 1s)
+ * and structured logging so failures never disappear silently.
+ */
+export async function sendWebPushWithRetry(
+  sub: PushSubscriptionRecord & { id?: string },
+  payload: unknown,
+  opts: {
+    publicKey: string;
+    privateKey: string;
+    subject: string;
+    ttl?: number;
+    attempts?: number;
+    baseDelayMs?: number;
+    context?: string;
+  },
+): Promise<SendResult & { attempts: number }> {
+  const maxAttempts = Math.max(1, opts.attempts ?? 3);
+  const base = opts.baseDelayMs ?? 500;
+  const label = `[webpush]${opts.context ? ` ${opts.context}` : ""}`;
+  const target = sub.id ?? new URL(sub.endpoint).host;
+  let last: SendResult = { ok: false, status: 0, expired: false };
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      last = await sendWebPush(sub, payload, opts);
+      if (last.ok) {
+        if (attempt > 1) console.warn(`${label} recovered sub=${target} attempt=${attempt}`);
+        return { ...last, attempts: attempt };
+      }
+      console.error(
+        `${label} failed sub=${target} attempt=${attempt}/${maxAttempts} status=${last.status}${
+          last.detail ? ` detail=${last.detail}` : ""
+        }`,
+      );
+      if (last.expired || !isRetryableStatus(last.status)) return { ...last, attempts: attempt };
+    } catch (err) {
+      last = {
+        ok: false,
+        status: 0,
+        expired: false,
+        detail: err instanceof Error ? err.message : String(err),
+      };
+      console.error(
+        `${label} threw sub=${target} attempt=${attempt}/${maxAttempts} error=${last.detail}`,
+      );
+    }
+    if (attempt < maxAttempts) await sleep(base * 2 ** (attempt - 1));
+  }
+  return { ...last, attempts: maxAttempts };
 }
