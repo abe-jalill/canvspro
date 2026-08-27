@@ -13,6 +13,7 @@ interface SubRow {
   endpoint: string;
   p256dh: string;
   auth: string;
+  failure_count?: number;
 }
 
 async function run(): Promise<Response> {
@@ -29,7 +30,7 @@ async function run(): Promise<Response> {
 
   const { data: subs } = await supabaseAdmin
     .from("push_subscriptions")
-    .select("id,user_id,endpoint,p256dh,auth");
+    .select("id,user_id,endpoint,p256dh,auth,failure_count");
   const rows = (subs ?? []) as SubRow[];
   if (rows.length === 0) return Response.json({ users: 0, sent: 0 });
 
@@ -41,6 +42,7 @@ async function run(): Promise<Response> {
   }
 
   let sent = 0;
+  let failures = 0;
   for (const [userId, userSubs] of byUser) {
     try {
       const [{ data: prefRow }, { data: settings }] = await Promise.all([
