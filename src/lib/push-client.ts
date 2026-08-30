@@ -80,6 +80,13 @@ export async function isPushEnabled(): Promise<boolean> {
 export async function enableBackgroundPush(): Promise<
   { ok: true } | { ok: false; reason: string }
 > {
+  if (inEditorPreview()) {
+    return {
+      ok: false,
+      reason:
+        "Background alerts can only be turned on from the live site (canvaspro.app), not the editor preview.",
+    };
+  }
   if (!pushSupported()) {
     return {
       ok: false,
