@@ -13,6 +13,18 @@ function urlBase64ToUint8Array(base64: string): Uint8Array {
   return out;
 }
 
+/** True inside the Lovable editor preview iframe, where service workers can't register. */
+export function inEditorPreview(): boolean {
+  if (typeof window === "undefined") return false;
+  const host = window.location.hostname;
+  return (
+    window.self !== window.top ||
+    host.startsWith("id-preview--") ||
+    host.startsWith("preview--") ||
+    host.endsWith(".lovableproject.com")
+  );
+}
+
 export function pushSupported(): boolean {
   return (
     typeof window !== "undefined" &&
@@ -21,6 +33,7 @@ export function pushSupported(): boolean {
     "Notification" in window
   );
 }
+
 
 /** True on iOS/iPadOS Safari outside an installed home-screen app. */
 export function needsHomeScreenInstall(): boolean {
