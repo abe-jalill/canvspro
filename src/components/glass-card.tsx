@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
+import { AlertCircle, Inbox, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useCanvasSync } from "@/hooks/use-canvas-sync";
 
 interface GlassCardProps {
   children: ReactNode;
