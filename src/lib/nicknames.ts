@@ -84,11 +84,37 @@ export function useSaveNicknames() {
       }
       return keep.length;
     },
+    // Names update instantly everywhere; rolled back if the save fails.
+    onMutate: async (rows: NicknameInput[]) => {
+      await qc.cancelQueries({ queryKey: nicknamesQueryKey });
+      const previous = qc.getQueryData<ClassNickname[]>(nicknamesQueryKey);
+      const next = new Map((previous ?? []).map((n) => [n.canvas_course_id, n]));
+      for (const r of rows) {
+        const name = r.custom_name.trim();
+        if (!name) next.delete(r.canvas_course_id);
+        else
+          next.set(r.canvas_course_id, {
+            canvas_course_id: r.canvas_course_id,
+            raw_name: r.raw_name ?? null,
+            raw_code: r.raw_code ?? null,
+            custom_name: name,
+          });
+      }
+      const optimistic = [...next.values()];
+      qc.setQueryData(nicknamesQueryKey, optimistic);
+      setNicknameLookup(optimistic);
+      return { previous };
+    },
     onSuccess: async () => {
       toast.success("Class names updated");
       await qc.invalidateQueries({ queryKey: nicknamesQueryKey });
     },
-    onError: (err: Error) =>
-      toast.error("Could not save class names", { description: err.message }),
+    onError: (err: Error, _rows, context) => {
+      if (context?.previous) {
+        qc.setQueryData(nicknamesQueryKey, context.previous);
+        setNicknameLookup(context.previous);
+      }
+      toast.error("Could not save class names", { description: err.message });
+    },
   });
 }
