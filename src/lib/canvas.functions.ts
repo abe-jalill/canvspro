@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchHasCanvasKey } from "@/lib/user-settings";
 
 async function invokeCanvas<T>(
-  resource: "courses" | "assignments" | "announcements" | "calendar",
+  resource: "courses" | "assignments" | "announcements" | "calendar" | "all",
   extra?: Record<string, unknown>,
 ): Promise<T> {
   // No key saved yet → render blank states instead of erroring.
