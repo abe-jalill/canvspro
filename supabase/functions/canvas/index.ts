@@ -274,6 +274,18 @@ Deno.serve(async (req) => {
 
     let data: unknown;
     switch (resource) {
+      case "all": {
+        // Single round trip for the whole app: the shared course lookup is
+        // deduped by the in-memory canvasFetch cache.
+        const [courses, assignments, announcements, calendar] = await Promise.all([
+          handleCourses(creds),
+          handleAssignments(creds),
+          handleAnnouncements(creds, 30),
+          handleCalendar(creds, 14),
+        ]);
+        data = { courses, assignments, announcements, calendar };
+        break;
+      }
       case "courses":
         data = await handleCourses(creds);
         break;
