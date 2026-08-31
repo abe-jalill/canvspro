@@ -13,6 +13,7 @@ import { useAppPrefetch } from "@/hooks/use-app-prefetch";
 import { useWelcomeEmail } from "@/hooks/use-welcome-email";
 import { setUserScope } from "@/lib/user-scope";
 import { PullToRefresh } from "@/components/pull-to-refresh";
+import { useQueryCachePersistence } from "@/lib/query-persist";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -33,6 +34,7 @@ function AuthenticatedLayout() {
   const { isActive: isPro } = useSubscription();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   useNotificationEngine(isPro);
+  useQueryCachePersistence();
   useAppPrefetch(true);
   useWelcomeEmail(true);
   return (

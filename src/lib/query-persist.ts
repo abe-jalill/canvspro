@@ -12,8 +12,8 @@ const BUSTER = "v1";
 const PERSISTED_ROOTS = new Set([
   "canvas",
   "class-nicknames",
-  "class-schedule",
-  "assignment-meta",
+  "class-schedule-entries",
+  "user-assignment-meta",
   "grade-snapshots",
   "user-preferences",
 ]);
