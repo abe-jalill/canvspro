@@ -47,7 +47,8 @@ function makePersister(key: string): Persister {
 
 function start(queryClient: QueryClient, storageKey: string) {
   const [unsubscribe] = persistQueryClient({
-    queryClient,
+    // Cast: persist-client-core resolves its own copy of query-core types.
+    queryClient: queryClient as unknown as Parameters<typeof persistQueryClient>[0]["queryClient"],
     persister: makePersister(storageKey),
     maxAge: MAX_AGE,
     buster: BUSTER,
