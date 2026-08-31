@@ -61,6 +61,20 @@ export function useSetAssignmentEstimate() {
       if (error) throw new Error(error.message);
       return { assignmentId, minutes };
     },
+    // Estimate shows immediately; rolled back if the write fails.
+    onMutate: async ({ assignmentId, courseId, minutes }) => {
+      await qc.cancelQueries({ queryKey: assignmentMetaQueryKey });
+      const previous = qc.getQueryData<AssignmentMeta[]>(assignmentMetaQueryKey);
+      const rest = (previous ?? []).filter((m) => m.assignmentId !== assignmentId);
+      qc.setQueryData<AssignmentMeta[]>(assignmentMetaQueryKey, [
+        ...rest,
+        { assignmentId, courseId, estimatedMinutes: minutes },
+      ]);
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) qc.setQueryData(assignmentMetaQueryKey, context.previous);
+    },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: assignmentMetaQueryKey });
     },

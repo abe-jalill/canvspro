@@ -104,10 +104,42 @@ export function useSaveClassSchedule() {
       }
       return keep.length;
     },
+    // Paint the new schedule right away; roll back if the save fails.
+    onMutate: async (rows: ScheduleEntryInput[]) => {
+      await qc.cancelQueries({ queryKey: classScheduleQueryKey });
+      const previous = qc.getQueryData<ClassSession[]>(classScheduleQueryKey);
+      const optimistic: ClassSession[] = rows
+        .filter((r) => r.title.trim().length > 0)
+        .map((r, i) => ({
+          id: r.id ?? `optimistic-${i}`,
+          code: r.code.trim(),
+          section: r.section.trim(),
+          title: r.title.trim(),
+          displayName: r.title.trim(),
+          crn: r.crn.trim(),
+          credits: Number.isFinite(r.credits) ? r.credits : 0,
+          instructor: r.instructor.trim(),
+          location: r.location.trim(),
+          campus: r.campus.trim(),
+          scheduleType: r.scheduleType.trim() || "Lecture",
+          days: r.days,
+          startMinutes: r.startMinutes,
+          endMinutes: r.endMinutes,
+          timeLabel: timeRangeLabel(r.startMinutes, r.endMinutes),
+          dateRange: r.dateRange.trim(),
+          term: r.term.trim(),
+        }))
+        .sort((a, b) => a.startMinutes - b.startMinutes);
+      qc.setQueryData(classScheduleQueryKey, optimistic);
+      return { previous };
+    },
     onSuccess: async () => {
       toast.success("Schedule saved");
       await qc.invalidateQueries({ queryKey: classScheduleQueryKey });
     },
-    onError: (err: Error) => toast.error("Could not save schedule", { description: err.message }),
+    onError: (err: Error, _rows, context) => {
+      if (context?.previous) qc.setQueryData(classScheduleQueryKey, context.previous);
+      toast.error("Could not save schedule", { description: err.message });
+    },
   });
 }

@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchHasCanvasKey } from "@/lib/user-settings";
 
 async function invokeCanvas<T>(
-  resource: "courses" | "assignments" | "announcements" | "calendar",
+  resource: "courses" | "assignments" | "announcements" | "calendar" | "all",
   extra?: Record<string, unknown>,
 ): Promise<T> {
   // No key saved yet → render blank states instead of erroring.
@@ -98,10 +98,50 @@ export interface CalendarEventItem {
   location_name?: string | null;
 }
 
-export const getCoursesFn = () => invokeCanvas<CourseSummary[]>("courses");
-export const getAllAssignmentsFn = () =>
-  invokeCanvas<AssignmentItem[]>("assignments");
-export const getAnnouncementsFn = () =>
-  invokeCanvas<AnnouncementItem[]>("announcements", { days: 30 });
-export const getCalendarEventsFn = () =>
-  invokeCanvas<CalendarEventItem[]>("calendar", { days: 14 });
+export interface CanvasBundle {
+  courses: CourseSummary[];
+  assignments: AssignmentItem[];
+  announcements: AnnouncementItem[];
+  calendar: CalendarEventItem[];
+}
+
+const EMPTY_BUNDLE: CanvasBundle = {
+  courses: [],
+  assignments: [],
+  announcements: [],
+  calendar: [],
+};
+
+// All four Canvas datasets come back in ONE request. Concurrent callers
+// (the four page queries, prefetch, sync) share a single in-flight promise,
+// so a full app load hits the network once instead of four times.
+let inflight: Promise<CanvasBundle> | null = null;
+let inflightAt = 0;
+const DEDUPE_MS = 2_000;
+
+export function fetchCanvasBundle(): Promise<CanvasBundle> {
+  if (inflight && Date.now() - inflightAt < DEDUPE_MS) return inflight;
+  inflightAt = Date.now();
+  inflight = invokeCanvas<CanvasBundle | unknown[]>("all")
+    .then((raw) => {
+      // invokeCanvas returns [] when no Canvas key is saved yet.
+      if (Array.isArray(raw)) return EMPTY_BUNDLE;
+      const b = raw as CanvasBundle;
+      return {
+        courses: b.courses ?? [],
+        assignments: b.assignments ?? [],
+        announcements: b.announcements ?? [],
+        calendar: b.calendar ?? [],
+      };
+    })
+    .catch((err) => {
+      inflight = null;
+      throw err;
+    });
+  return inflight;
+}
+
+export const getCoursesFn = async () => (await fetchCanvasBundle()).courses;
+export const getAllAssignmentsFn = async () => (await fetchCanvasBundle()).assignments;
+export const getAnnouncementsFn = async () => (await fetchCanvasBundle()).announcements;
+export const getCalendarEventsFn = async () => (await fetchCanvasBundle()).calendar;
