@@ -99,13 +99,19 @@ export async function enableBackgroundPush(): Promise<
 
   const reg = await getRegistration();
   await navigator.serviceWorker.ready;
-  const existing = await reg.pushManager.getSubscription();
-  const sub =
-    existing ??
-    (await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource,
-    }));
+
+  // Drop any stale subscription first: one made with a different VAPID key can
+  // never be delivered to, and the browser refuses to re-subscribe over it.
+  const stale = await reg.pushManager.getSubscription();
+  if (stale) {
+    await supabase.from("push_subscriptions").delete().eq("endpoint", stale.endpoint);
+    await stale.unsubscribe().catch(() => undefined);
+  }
+
+  const sub = await reg.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource,
+  });
 
   const json = sub.toJSON();
   const { data } = await supabase.auth.getUser();
