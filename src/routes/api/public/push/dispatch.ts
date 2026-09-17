@@ -6,6 +6,7 @@ import {
   SERVER_DEFAULT_PREFS,
   type ServerPrefs,
 } from "@/lib/push-dispatch.server";
+import { VAPID_PRIVATE_KEY, VAPID_PUBLIC_KEY, VAPID_SUBJECT } from "@/lib/vapid";
 
 interface SubRow {
   id: string;
@@ -20,9 +21,9 @@ async function run(): Promise<Response> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const domain = process.env["CANVAS_DOMAIN"];
   const vapid = {
-    publicKey: process.env["VAPID_PUBLIC_KEY"] ?? "",
-    privateKey: process.env["VAPID_PRIVATE_KEY"] ?? "",
-    subject: process.env["VAPID_SUBJECT"] ?? "mailto:support@canvaspro.app",
+    publicKey: VAPID_PUBLIC_KEY,
+    privateKey: VAPID_PRIVATE_KEY,
+    subject: VAPID_SUBJECT,
   };
   if (!domain || !vapid.publicKey || !vapid.privateKey) {
     return Response.json({ error: "push not configured" }, { status: 500 });
