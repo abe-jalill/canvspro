@@ -1,18 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import {
-  ChevronDown,
-  ChevronUp,
-  Eye,
-  EyeOff,
-  GripVertical,
-  RotateCcw,
-  SlidersHorizontal,
-} from "lucide-react";
+import { useState, type DragEvent } from "react";
+import { ChevronDown, ChevronUp, Eye, EyeOff, GripVertical, Plus, RotateCcw, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDashboardLayout, type WidgetId, type WidgetSize } from "@/lib/dashboard-layout";
 import { WIDGETS, LockedWidget } from "@/components/widgets/dashboard-widgets";
-import { MasonryGrid } from "@/components/widgets/masonry-grid";
 import { useSubscription } from "@/lib/subscription";
 import { DashboardHero } from "@/components/dashboard-hero";
 
@@ -38,141 +29,300 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
 });
 
-const SIZE_OPTIONS: { value: WidgetSize; label: string }[] = [
-  { value: "sm", label: "S" },
-  { value: "md", label: "M" },
-  { value: "full", label: "L" },
+const SIZE_OPTIONS: { value: WidgetSize; label: string; desc: string }[] = [
+  { value: "sm", label: "S", desc: "1/3 width" },
+  { value: "md", label: "M", desc: "2/3 width" },
+  { value: "full", label: "L", desc: "Full width" },
 ];
+
+function colSpanClass(size: WidgetSize): string {
+  switch (size) {
+    case "sm":
+      return "col-span-1 md:col-span-6 lg:col-span-4";
+    case "md":
+      return "col-span-1 md:col-span-6 lg:col-span-6 xl:col-span-8";
+    case "full":
+    default:
+      return "col-span-full";
+  }
+}
 
 function Dashboard() {
   const layout = useDashboardLayout();
   const { isActive: isPro } = useSubscription();
   const [customizing, setCustomizing] = useState(false);
-  const [dragId, setDragId] = useState<WidgetId | null>(null);
+  const [draggedId, setDraggedId] = useState<WidgetId | null>(null);
+  const [dropIndicator, setDropIndicator] = useState<{
+    id: WidgetId;
+    position: "before" | "after";
+  } | null>(null);
 
   const sizeOf = (id: WidgetId): WidgetSize => layout.sizes[id] ?? WIDGETS[id].defaultSize;
 
   const visible = layout.order.filter((id) => !layout.isHidden(id));
-  const source = customizing ? layout.order : visible;
+  const activeList = customizing ? layout.order : visible;
+  const hiddenWidgets = layout.order.filter((id) => layout.isHidden(id));
 
-  const items = source.map((id) => {
-    const meta = WIDGETS[id];
-    const hidden = layout.isHidden(id);
-    const index = layout.order.indexOf(id);
-    const body =
-      meta.pro && !isPro ? <LockedWidget title={meta.label} feature={meta.label} /> : meta.render();
+  const handleDragStart = (e: DragEvent<HTMLDivElement>, id: WidgetId) => {
+    setDraggedId(id);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", id);
+  };
 
-    return {
-      key: id,
-      size: sizeOf(id),
-      node: customizing ? (
-        <div
-          draggable
-          onDragStart={() => setDragId(id)}
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={() => {
-            if (dragId && dragId !== id) layout.reorder(dragId, index);
-            setDragId(null);
-          }}
-          onDragEnd={() => setDragId(null)}
-          className={cn(
-            "relative rounded-2xl ring-1 ring-foreground/10 transition",
-            hidden && "opacity-40",
-            dragId === id && "ring-2 ring-foreground/40",
-          )}
-        >
-          <div className="flex flex-wrap items-center gap-2 border-b border-foreground/10 px-3 py-2">
-            <GripVertical className="hidden h-4 w-4 shrink-0 cursor-grab text-muted-foreground sm:block" />
-            <span className="min-w-0 flex-1 truncate text-xs font-medium text-muted-foreground">
-              {meta.label}
-            </span>
-            <span className="flex shrink-0 items-center gap-1">
-              <button
-                onClick={() => layout.move(id, -1)}
-                disabled={index === 0}
-                aria-label={`Move ${meta.label} up`}
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-foreground/15 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
-              >
-                <ChevronUp className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => layout.move(id, 1)}
-                disabled={index === layout.order.length - 1}
-                aria-label={`Move ${meta.label} down`}
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-foreground/15 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
-              >
-                <ChevronDown className="h-4 w-4" />
-              </button>
-              <span className="flex items-center gap-0.5 rounded-lg border border-foreground/15 p-0.5">
-                {SIZE_OPTIONS.map((o) => (
-                  <button
-                    key={o.value}
-                    onClick={() => layout.setSize(id, o.value)}
-                    aria-label={`Set ${meta.label} size ${o.label}`}
-                    aria-pressed={sizeOf(id) === o.value}
-                    className={cn(
-                      "h-8 w-8 rounded-md text-[11px] font-semibold text-muted-foreground transition-colors",
-                      sizeOf(id) === o.value && "bg-foreground/10 text-foreground",
-                    )}
-                  >
-                    {o.label}
-                  </button>
-                ))}
-              </span>
-              <button
-                onClick={() => layout.toggle(id)}
-                aria-label={hidden ? `Show ${meta.label}` : `Hide ${meta.label}`}
-                aria-pressed={!hidden}
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-foreground/15 text-muted-foreground transition-colors hover:text-foreground"
-              >
-                {hidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </span>
-          </div>
+  const handleDragOver = (e: DragEvent<HTMLDivElement>, targetId: WidgetId) => {
+    e.preventDefault();
+    if (!draggedId || draggedId === targetId) return;
 
-          <div className="pointer-events-none p-1">{body}</div>
-        </div>
-      ) : (
-        body
-      ),
-    };
-  });
+    const rect = e.currentTarget.getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    const position = e.clientY < midY ? "before" : "after";
+
+    setDropIndicator({ id: targetId, position });
+  };
+
+  const handleDragLeave = (e: DragEvent<HTMLDivElement>) => {
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setDropIndicator(null);
+    }
+  };
+
+  const handleDrop = (e: DragEvent<HTMLDivElement>, targetId: WidgetId) => {
+    e.preventDefault();
+    if (!draggedId || draggedId === targetId) {
+      setDraggedId(null);
+      setDropIndicator(null);
+      return;
+    }
+
+    const currentOrder = [...layout.order];
+    const fromIndex = currentOrder.indexOf(draggedId);
+    let toIndex = currentOrder.indexOf(targetId);
+
+    if (fromIndex !== -1 && toIndex !== -1) {
+      if (dropIndicator?.position === "after") {
+        toIndex = fromIndex < toIndex ? toIndex : toIndex + 1;
+      } else {
+        toIndex = fromIndex < toIndex ? toIndex - 1 : toIndex;
+      }
+      toIndex = Math.max(0, Math.min(toIndex, currentOrder.length - 1));
+      layout.reorder(draggedId, toIndex);
+    }
+
+    setDraggedId(null);
+    setDropIndicator(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedId(null);
+    setDropIndicator(null);
+  };
 
   return (
-    <div className="w-full min-w-0 space-y-6">
+    <div className="w-full min-w-0 space-y-6 pb-12">
       <DashboardHero />
 
-      <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-1">
+      {/* Customization Header */}
+      <header className="flex flex-wrap items-center justify-between gap-3 px-1">
         <div className="min-w-0">
-          <h2 className="truncate text-lg font-semibold tracking-tight sm:text-xl">Your widgets</h2>
-          {customizing && (
-            <p className="mt-0.5 truncate text-xs text-muted-foreground">
-              Drag to reorder, pick a size, hide what you don&apos;t need.
-            </p>
-          )}
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">Your Widgets</h2>
+            {customizing && (
+              <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+                Edit Mode
+              </span>
+            )}
+          </div>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {customizing
+              ? "Drag cards or use arrows to arrange. Choose sizes or hide widgets you don't need."
+              : "Customize your layout by clicking Customize."}
+          </p>
         </div>
+
         <div className="flex shrink-0 items-center gap-2">
           {customizing && (
             <button
               onClick={layout.reset}
-              className="glass-hover inline-flex min-h-10 items-center gap-1.5 rounded-xl px-3 text-xs font-medium text-muted-foreground"
+              type="button"
+              className="glass-hover inline-flex min-h-10 items-center gap-1.5 rounded-xl px-3 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
               <RotateCcw className="h-3.5 w-3.5" />
-              Reset
+              Reset Layout
             </button>
           )}
+
           <button
             onClick={() => setCustomizing((v) => !v)}
+            type="button"
             aria-pressed={customizing}
-            className="glass-inset glass-hover inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-3 text-sm font-medium"
+            className={cn(
+              "glass-hover inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-4 text-sm font-medium transition",
+              customizing ? "bg-foreground text-background font-semibold" : "glass-inset text-foreground",
+            )}
           >
             <SlidersHorizontal className="h-4 w-4" />
-            {customizing ? "Done" : "Customize"}
+            {customizing ? "Save Layout" : "Customize"}
           </button>
         </div>
       </header>
 
-      <MasonryGrid items={items} />
+      {/* Instructions banner */}
+      {customizing && (
+        <div className="glass-panel rounded-2xl border border-primary/20 bg-primary/[0.03] p-4 text-xs text-muted-foreground flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <GripVertical className="h-4 w-4 text-primary" />
+            <span>
+              <strong className="text-foreground">Drag by the handle</strong> to move widgets, or tap{" "}
+              <strong className="text-foreground">↑ / ↓</strong> arrows to reorder.
+            </span>
+          </div>
+          <span className="text-muted-foreground">Changes save automatically to your account.</span>
+        </div>
+      )}
+
+      {/* 12-Column Grid Container */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-5 min-w-0">
+        {activeList.map((id) => {
+          const meta = WIDGETS[id];
+          const hidden = layout.isHidden(id);
+          const index = layout.order.indexOf(id);
+          const isDragging = draggedId === id;
+          const isDropTarget = dropIndicator?.id === id;
+
+          const widgetBody =
+            meta.pro && !isPro ? <LockedWidget title={meta.label} feature={meta.label} /> : meta.render();
+
+          return (
+            <div
+              key={id}
+              draggable={customizing}
+              onDragStart={(e) => handleDragStart(e, id)}
+              onDragOver={(e) => handleDragOver(e, id)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, id)}
+              onDragEnd={handleDragEnd}
+              className={cn(
+                colSpanClass(sizeOf(id)),
+                "min-w-0 transition-all duration-200 relative group",
+                customizing && "rounded-2xl ring-1 ring-foreground/15 hover:ring-foreground/30",
+                isDragging && "opacity-40 scale-[0.98] ring-2 ring-primary shadow-2xl",
+                hidden && "opacity-40",
+                isDropTarget &&
+                  dropIndicator.position === "before" &&
+                  "before:absolute before:-top-3 before:left-0 before:right-0 before:h-1.5 before:rounded-full before:bg-primary before:shadow-status-live before:z-20",
+                isDropTarget &&
+                  dropIndicator.position === "after" &&
+                  "after:absolute after:-bottom-3 after:left-0 after:right-0 after:h-1.5 after:rounded-full after:bg-primary after:shadow-status-live after:z-20",
+              )}
+            >
+              {customizing && (
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-foreground/10 bg-foreground/[0.04] px-3.5 py-2.5 rounded-t-2xl">
+                  {/* Grip & Title */}
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground">
+                      <GripVertical className="h-4 w-4 shrink-0" />
+                    </span>
+                    <span className="truncate text-xs font-semibold text-foreground">{meta.label}</span>
+                  </div>
+
+                  {/* Controls */}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {/* Size Selector */}
+                    <div className="flex items-center rounded-lg border border-foreground/15 p-0.5 bg-background/50">
+                      {SIZE_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => layout.setSize(id, opt.value)}
+                          title={`${meta.label} size ${opt.label} (${opt.desc})`}
+                          aria-pressed={sizeOf(id) === opt.value}
+                          className={cn(
+                            "h-7 w-7 rounded-md text-[11px] font-semibold transition-colors",
+                            sizeOf(id) === opt.value
+                              ? "bg-foreground text-background shadow-sm"
+                              : "text-muted-foreground hover:text-foreground",
+                          )}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Move Up */}
+                    <button
+                      type="button"
+                      onClick={() => layout.move(id, -1)}
+                      disabled={index === 0}
+                      title={`Move ${meta.label} earlier`}
+                      className="flex h-7 w-7 items-center justify-center rounded-lg border border-foreground/15 text-muted-foreground transition-colors hover:text-foreground hover:bg-foreground/5 disabled:opacity-25"
+                    >
+                      <ChevronUp className="h-3.5 w-3.5" />
+                    </button>
+
+                    {/* Move Down */}
+                    <button
+                      type="button"
+                      onClick={() => layout.move(id, 1)}
+                      disabled={index === layout.order.length - 1}
+                      title={`Move ${meta.label} later`}
+                      className="flex h-7 w-7 items-center justify-center rounded-lg border border-foreground/15 text-muted-foreground transition-colors hover:text-foreground hover:bg-foreground/5 disabled:opacity-25"
+                    >
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    </button>
+
+                    {/* Hide Toggle */}
+                    <button
+                      type="button"
+                      onClick={() => layout.toggle(id)}
+                      title={hidden ? `Show ${meta.label}` : `Hide ${meta.label}`}
+                      aria-pressed={!hidden}
+                      className={cn(
+                        "flex h-7 w-7 items-center justify-center rounded-lg border border-foreground/15 transition-colors",
+                        hidden
+                          ? "text-muted-foreground hover:text-foreground"
+                          : "text-foreground hover:bg-foreground/5",
+                      )}
+                    >
+                      {hidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Widget Content */}
+              <div className={cn(customizing && "p-1 pointer-events-none")}>{widgetBody}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Hidden Widgets Restore Tray */}
+      {customizing && hiddenWidgets.length > 0 && (
+        <section className="glass-panel-strong mt-8 p-5">
+          <div className="flex items-center gap-2">
+            <EyeOff className="h-4 w-4 text-muted-foreground" />
+            <h3 className="text-sm font-semibold text-foreground">Hidden Widgets ({hiddenWidgets.length})</h3>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">Click any widget below to add it back to your dashboard.</p>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            {hiddenWidgets.map((hid) => {
+              const meta = WIDGETS[hid];
+              return (
+                <button
+                  key={hid}
+                  type="button"
+                  onClick={() => layout.toggle(hid)}
+                  className="glass-inset glass-hover inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-foreground transition"
+                >
+                  <Plus className="h-3.5 w-3.5 text-primary" />
+                  <span>{meta.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
