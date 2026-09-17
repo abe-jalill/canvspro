@@ -1,13 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery, queryOptions } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { AlertCircle, Calendar, CalendarDays, Clock, Flame, Sparkles } from "lucide-react";
-import {
-  getAllAssignmentsFn,
-  getCalendarEventsFn,
-  type AssignmentItem,
-  type CalendarEventItem,
-} from "@/lib/canvas.functions";
+import { getAllAssignmentsFn, getCalendarEventsFn, type AssignmentItem } from "@/lib/canvas.functions";
 import { COMPLETED_ASSIGNMENTS_KEY, useLocalSet } from "@/lib/local-state";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -88,83 +82,88 @@ export function DashboardHero() {
   const overdueCount = summary?.overdue ?? 0;
 
   return (
-    <div className="mb-6 flex flex-col gap-5">
-      <div>
-        <h1 className="text-2xl font-normal tracking-tight text-foreground sm:text-3xl">
-          {userName ? `${userName} Returns!` : "Abrahim Returns!"}
-        </h1>
-        <p className="mt-1.5 text-sm font-normal text-muted-foreground sm:text-base">
-          {loading ? (
-            "Syncing your Canvas schedule…"
-          ) : todayCount > 0 ? (
-            <>
-              You have{" "}
-              <span className="text-foreground">
-                {todayCount} assignment{todayCount === 1 ? "" : "s"}
-              </span>{" "}
-              due today. Let&apos;s knock them out.
-            </>
-          ) : weekCount > 0 ? (
-            <>
-              You&apos;re clear for today.{" "}
-              <span className="text-foreground">
-                {weekCount} item{weekCount === 1 ? "" : "s"}
-              </span>{" "}
-              coming up over the next 7 days.
-            </>
-          ) : (
-            "All caught up! Nothing due over the next 7 days."
-          )}
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <Link
-          to="/focus"
-          className="glass-inset glass-hover flex items-center gap-3 rounded-2xl px-3.5 py-2 transition-all border border-white/5 hover:border-white/12"
-        >
-          <span className="text-2xl font-normal text-foreground tracking-tight tabular-nums">{todayCount}</span>
-          <span className="text-xs font-normal text-muted-foreground leading-tight">
-            Due
-            <br />
-            Today
-          </span>
-        </Link>
-
-        <div className="h-6 w-px bg-white/10 hidden sm:block" />
-
-        <Link
-          to="/focus"
-          className="glass-inset glass-hover flex items-center gap-3 rounded-2xl px-3.5 py-2 transition-all border border-white/5 hover:border-white/12"
-        >
-          <span className="text-2xl font-normal text-foreground tracking-tight tabular-nums">{weekCount}</span>
-          <span className="text-xs font-normal text-muted-foreground leading-tight">
-            This
-            <br />
-            Week
-          </span>
-        </Link>
-
-        <div className="h-6 w-px bg-white/10 hidden sm:block" />
-
-        <Link
-          to="/focus"
-          className="glass-inset glass-hover flex items-center gap-3 rounded-2xl px-3.5 py-2 transition-all border border-white/5 hover:border-white/12"
-        >
-          <span
-            className={cn(
-              "text-2xl font-normal tracking-tight tabular-nums",
-              overdueCount > 0 ? "text-rose-400" : "text-foreground",
+    <div className="glass-panel-strong mb-6 overflow-hidden rounded-3xl p-5 sm:p-6 shadow-glass">
+      <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-xl font-normal tracking-tight text-foreground sm:text-2xl">
+            {userName ? `${userName} Returns!` : "Abrahim Returns!"}
+          </h1>
+          <p className="mt-1 text-xs font-normal text-muted-foreground sm:text-sm">
+            {loading ? (
+              "Syncing your Canvas schedule…"
+            ) : todayCount > 0 ? (
+              <>
+                You have{" "}
+                <span className="text-foreground font-normal">
+                  {todayCount} assignment{todayCount === 1 ? "" : "s"}
+                </span>{" "}
+                due today. Let&apos;s knock them out.
+              </>
+            ) : weekCount > 0 ? (
+              <>
+                You&apos;re clear for today.{" "}
+                <span className="text-foreground font-normal">
+                  {weekCount} item{weekCount === 1 ? "" : "s"}
+                </span>{" "}
+                coming up over the next 7 days.
+              </>
+            ) : (
+              "All caught up! Nothing due over the next 7 days."
             )}
+          </p>
+        </div>
+
+        {/* 3 stats in unified segmented card pill separated by vertical lines */}
+        <div className="glass-inset flex shrink-0 items-stretch divide-x divide-white/10 rounded-2xl border border-white/5 overflow-hidden">
+          <Link
+            to="/focus"
+            search={{ window: "1" }}
+            className="glass-hover flex items-center gap-2.5 px-4 py-2.5 transition-colors"
+            title="Assignments due today"
           >
-            {overdueCount}
-          </span>
-          <span className="text-xs font-normal text-muted-foreground leading-tight">
-            Past
-            <br />
-            Due
-          </span>
-        </Link>
+            <span className="text-xl font-normal text-foreground tracking-tight tabular-nums sm:text-2xl">
+              {todayCount}
+            </span>
+            <span className="text-[11px] font-normal text-muted-foreground leading-tight sm:text-xs">
+              Due
+              <br className="hidden sm:inline" /> Today
+            </span>
+          </Link>
+
+          <Link
+            to="/focus"
+            search={{ window: "7" }}
+            className="glass-hover flex items-center gap-2.5 px-4 py-2.5 transition-colors"
+            title="Assignments due within one week"
+          >
+            <span className="text-xl font-normal text-foreground tracking-tight tabular-nums sm:text-2xl">
+              {weekCount}
+            </span>
+            <span className="text-[11px] font-normal text-muted-foreground leading-tight sm:text-xs">
+              One
+              <br className="hidden sm:inline" /> Week
+            </span>
+          </Link>
+
+          <Link
+            to="/focus"
+            className="glass-hover flex items-center gap-2.5 px-4 py-2.5 transition-colors"
+            title="Past due assignments"
+          >
+            <span
+              className={cn(
+                "text-xl font-normal tracking-tight tabular-nums sm:text-2xl",
+                overdueCount > 0 ? "text-rose-400" : "text-foreground",
+              )}
+            >
+              {overdueCount}
+            </span>
+            <span className="text-[11px] font-normal text-muted-foreground leading-tight sm:text-xs">
+              Past
+              <br className="hidden sm:inline" /> Due
+            </span>
+          </Link>
+        </div>
       </div>
     </div>
   );
