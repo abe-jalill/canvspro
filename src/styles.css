@@ -45,20 +45,17 @@
   --color-status-warning: var(--status-warning);
   --shadow-status-live: 0 0 8px hsl(var(--status-live) / 0.7);
 
-  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter",
-    "Segoe UI", ui-sans-serif, system-ui, sans-serif;
-  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter",
-    "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-display:
+    -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
 
-  --shadow-glass: 0 1px 0 0 rgb(255 255 255 / 0.08) inset,
-    0 8px 24px -8px rgb(0 0 0 / 0.45),
-    0 2px 8px -2px rgb(0 0 0 / 0.3);
-  --shadow-glass-lg: 0 1px 0 0 rgb(255 255 255 / 0.1) inset,
-    0 24px 60px -20px rgb(0 0 0 / 0.55),
-    0 10px 24px -8px rgb(0 0 0 / 0.35);
-  --shadow-glass-hover: 0 1px 0 0 rgb(255 255 255 / 0.16) inset,
-    0 24px 60px -20px rgb(255 255 255 / 0.12),
-    0 10px 26px -8px rgb(0 0 0 / 0.6);
+  --shadow-glass:
+    0 1px 0 0 rgb(255 255 255 / 0.08) inset, 0 10px 28px -10px rgb(0 0 0 / 0.45), 0 2px 8px -2px rgb(0 0 0 / 0.25);
+  --shadow-glass-lg:
+    0 1px 0 0 rgb(255 255 255 / 0.1) inset, 0 24px 64px -20px rgb(0 0 0 / 0.55), 0 8px 24px -8px rgb(0 0 0 / 0.3);
+  --shadow-glass-hover:
+    0 1px 0 0 rgb(255 255 255 / 0.15) inset, 0 16px 40px -12px rgb(0 0 0 / 0.55), 0 0 20px 0 rgb(255 255 255 / 0.03);
 }
 
 :root {
@@ -110,38 +107,28 @@
   --sidebar-ring: 0 0% 100% / 0.3;
 }
 
-/* Light mode — same layout, white/light-gray surfaces, dark navy text.
-   Only colors change; radii, blur, shadows, hover animations all inherit. */
+/* Light mode */
 .light {
-  --background: 210 40% 97%;         /* near-white with a hint of blue */
-  --foreground: 216 55% 12%;         /* deep navy text */
-
+  --background: 210 40% 97%;
+  --foreground: 216 55% 12%;
   --card: 210 40% 100% / 0.7;
   --card-foreground: 216 55% 12%;
-
   --popover: 210 40% 100% / 0.95;
   --popover-foreground: 216 55% 12%;
-
   --primary: 216 55% 12%;
   --primary-foreground: 210 40% 98%;
-
   --secondary: 214 30% 92% / 0.75;
   --secondary-foreground: 216 55% 12%;
-
   --muted: 214 25% 90% / 0.6;
   --muted-foreground: 216 20% 40%;
-
   --accent: 214 35% 88% / 0.7;
   --accent-foreground: 216 55% 12%;
-
   --border: 216 30% 20% / 0.1;
   --input: 216 30% 20% / 0.1;
   --ring: 216 55% 30% / 0.35;
-
   --glass: 210 40% 100% / 0.65;
   --glass-strong: 210 40% 100% / 0.8;
   --glass-border: 216 30% 20% / 0.1;
-
   --sidebar: 210 40% 100% / 0.65;
   --sidebar-foreground: 216 55% 12%;
   --sidebar-primary: 216 55% 12%;
@@ -152,7 +139,6 @@
   --sidebar-ring: 216 55% 30% / 0.3;
 }
 
-/* Rewrap tokens to use hsl() wrappers so utility classes resolve correctly */
 @theme inline {
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
@@ -181,7 +167,9 @@
 }
 
 @layer base {
-  * {
+  *,
+  ::before,
+  ::after {
     border-color: hsl(var(--border));
   }
 
@@ -190,67 +178,66 @@
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
     font-family: var(--font-sans);
+    font-weight: 400;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    letter-spacing: -0.011em;
+    text-rendering: optimizeLegibility;
+    letter-spacing: -0.012em;
     font-feature-settings: "ss01", "cv11";
   }
 
   body {
     min-height: 100vh;
-    background-color: hsl(0 0% 3%);
+    background-color: hsl(0 0% 3.5%);
     background-image:
-      radial-gradient(
-        60rem 40rem at 15% 10%,
-        hsl(0 0% 22% / 0.5),
-        transparent 70%
-      ),
-      radial-gradient(
-        75rem 55rem at 50% 110%,
-        hsl(0 0% 16% / 0.5),
-        transparent 70%
-      );
+      radial-gradient(65rem 40rem at 18% 0%, hsl(222 55% 12% / 0.35), transparent 70%),
+      radial-gradient(50rem 35rem at 85% 12%, hsl(255 45% 12% / 0.25), transparent 65%),
+      radial-gradient(75rem 55rem at 50% 100%, hsl(215 50% 9% / 0.35), transparent 70%);
+    background-attachment: fixed;
   }
 
   .light body {
     background-color: hsl(210 40% 97%);
     background-image:
-      radial-gradient(
-        60rem 40rem at 15% 10%,
-        hsl(220 90% 88% / 0.75),
-        transparent 70%
-      ),
-      radial-gradient(
-        55rem 45rem at 90% 15%,
-        hsl(230 85% 90% / 0.7),
-        transparent 70%
-      ),
-      radial-gradient(
-        75rem 55rem at 50% 110%,
-        hsl(210 90% 90% / 0.75),
-        transparent 70%
-      );
+      radial-gradient(60rem 40rem at 15% 10%, hsl(220 90% 88% / 0.75), transparent 70%),
+      radial-gradient(55rem 45rem at 90% 15%, hsl(230 85% 90% / 0.7), transparent 70%),
+      radial-gradient(75rem 55rem at 50% 110%, hsl(210 90% 90% / 0.75), transparent 70%);
   }
 
   h1,
   h2,
   h3,
-  h4 {
+  h4,
+  h5,
+  h6 {
     font-family: var(--font-display);
     letter-spacing: -0.022em;
-    font-weight: 600;
+    font-weight: 500;
   }
 
   h1 {
     letter-spacing: -0.03em;
-    font-weight: 700;
+    font-weight: 500;
   }
 }
 
-/* Frosted glass surfaces (blur kept light for smooth scrolling) */
+/* Global unbolding overrides: tone down harsh bold weights to sleek modern weights */
+.font-bold {
+  font-weight: 500 !important;
+}
+
+.font-semibold {
+  font-weight: 500 !important;
+}
+
+.font-medium {
+  font-weight: 450 !important;
+}
+
+/* Frosted glass surfaces */
 @utility glass-panel {
   background: hsl(var(--glass));
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(14px) saturate(180%);
   border: 1px solid hsl(var(--glass-border));
   box-shadow: var(--shadow-glass);
   border-radius: var(--radius-2xl);
@@ -258,37 +245,53 @@
 
 @utility glass-panel-strong {
   background: hsl(var(--glass-strong));
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(16px) saturate(190%);
   border: 1px solid hsl(var(--glass-border));
   box-shadow: var(--shadow-glass-lg);
   border-radius: var(--radius-2xl);
 }
 
 @utility glass-inset {
-  background: hsl(0 0% 100% / 0.045);
-  border: 1px solid hsl(0 0% 100% / 0.08);
+  background: hsl(0 0% 100% / 0.035);
+  border: 1px solid hsl(0 0% 100% / 0.06);
   border-radius: var(--radius-lg);
 }
 
 .light .glass-inset {
-  background: hsl(216 30% 20% / 0.04);
-  border-color: hsl(216 30% 20% / 0.08);
+  background: hsl(216 30% 20% / 0.035);
+  border-color: hsl(216 30% 20% / 0.07);
 }
 
-/* Apple-style "inhale" hover: scale up + soft glow bloom */
+/* Apple-style subtle hover */
 @utility glass-hover {
   transition:
-    transform 260ms cubic-bezier(0.22, 1, 0.36, 1),
-    background-color 260ms cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 260ms cubic-bezier(0.22, 1, 0.36, 1),
-    border-color 260ms cubic-bezier(0.22, 1, 0.36, 1);
+    transform 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 220ms cubic-bezier(0.16, 1, 0.3, 1);
 
   &:hover {
-    transform: scale(1.03);
-    background-color: hsl(0 0% 20% / 0.65);
-    border-color: hsl(0 0% 100% / 0.2);
+    transform: translateY(-1px);
+    background-color: hsl(0 0% 16% / 0.65);
+    border-color: hsl(0 0% 100% / 0.16);
     box-shadow: var(--shadow-glass-hover);
   }
+}
+
+/* Sleek custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--foreground) / 0.15);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--foreground) / 0.28);
 }
 
 .light .glass-hover:hover {
@@ -362,25 +365,48 @@
 
 /* Scoped prose styles for syllabus modal content (Canvas HTML). */
 .syllabus-body :is(h1, h2, h3, h4) {
-  font-weight: 600;
+  font-weight: 500;
   margin: 1.25em 0 0.5em;
 }
-.syllabus-body h1 { font-size: 1.125rem; }
-.syllabus-body h2 { font-size: 1rem; }
-.syllabus-body p { margin: 0.5em 0; }
-.syllabus-body ul, .syllabus-body ol { margin: 0.5em 0 0.5em 1.25em; }
-.syllabus-body ul { list-style: disc; }
-.syllabus-body ol { list-style: decimal; }
-.syllabus-body a { color: hsl(var(--foreground)); text-decoration: underline; }
-.syllabus-body table { border-collapse: collapse; margin: 0.75em 0; }
-.syllabus-body th, .syllabus-body td {
+.syllabus-body h1 {
+  font-size: 1.125rem;
+}
+.syllabus-body h2 {
+  font-size: 1rem;
+}
+.syllabus-body p {
+  margin: 0.5em 0;
+}
+.syllabus-body ul,
+.syllabus-body ol {
+  margin: 0.5em 0 0.5em 1.25em;
+}
+.syllabus-body ul {
+  list-style: disc;
+}
+.syllabus-body ol {
+  list-style: decimal;
+}
+.syllabus-body a {
+  color: hsl(var(--foreground));
+  text-decoration: underline;
+}
+.syllabus-body table {
+  border-collapse: collapse;
+  margin: 0.75em 0;
+}
+.syllabus-body th,
+.syllabus-body td {
   border: 1px solid hsl(var(--glass-border));
   padding: 0.35em 0.6em;
 }
-.syllabus-body img { max-width: 100%; height: auto; border-radius: 0.5rem; }
+.syllabus-body img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+}
 
-
-/* Form inputs used by the class-schedule editor */
+/* Form inputs */
 @utility field {
   width: 100%;
   min-height: 2.75rem;
@@ -402,22 +428,4 @@
   &::-webkit-scrollbar {
     display: none;
   }
-}
-
-/* Deep-linked class section highlight (from notification center). */
-@keyframes course-highlight-pulse {
-  0% {
-    box-shadow: 0 0 0 0 hsl(var(--foreground) / 0.35);
-  }
-  100% {
-    box-shadow: 0 0 0 10px hsl(var(--foreground) / 0);
-  }
-}
-
-.course-highlight {
-  border-radius: 1.25rem;
-  outline: 1px solid hsl(var(--foreground) / 0.35);
-  outline-offset: 2px;
-  animation: course-highlight-pulse 1.6s ease-out 2;
-  scroll-margin-top: 6rem;
 }
