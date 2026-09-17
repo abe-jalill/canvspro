@@ -10,7 +10,7 @@ import {
   pushSupported,
   syncPrefsToServer,
 } from "@/lib/push-client";
-import { sendTestPush } from "@/lib/push-test.functions";
+import { supabase } from "@/integrations/supabase/client";
 
 function Toggle({
   label,
@@ -123,9 +123,20 @@ export function NotificationSettings() {
   async function sendTest() {
     setTesting(true);
     try {
-      const res = await sendTestPush({ data: undefined });
-      if (res.ok) toast.success(res.message);
-      else toast.error(res.message);
+      const { data: session } = await supabase.auth.getSession();
+      const token = session.session?.access_token;
+      if (!token) {
+        toast.error("Please sign in again and retry.");
+        return;
+      }
+      const response = await fetch("/api/public/push/dispatch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: "test" }),
+      });
+      const res = (await response.json()) as { ok?: boolean; message?: string };
+      if (res.ok) toast.success(res.message ?? "Test notification sent.");
+      else toast.error(res.message ?? "Couldn't send the test notification.");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Couldn't send the test notification.");
     } finally {
