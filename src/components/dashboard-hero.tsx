@@ -54,10 +54,11 @@ function summarize(
 
 export function DashboardHero() {
   const [now, setNow] = useState(() => new Date());
-  const [userName, setUserName] = useState<string | null>(null);
+  const [emailPrefix, setEmailPrefix] = useState<string | null>(null);
   const assignments = useQuery(assignmentsQO);
   const events = useQuery(eventsQO);
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
+  const { data: profile } = useUserProfile();
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 30_000);
@@ -66,13 +67,16 @@ export function DashboardHero() {
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
-      if (data?.user) {
-        const meta = data.user.user_metadata;
-        const name = meta?.full_name || meta?.name || data.user.email?.split("@")[0];
-        if (name) setUserName(name.charAt(0).toUpperCase() + name.slice(1));
-      }
+      const email = data?.user?.email;
+      if (email) setEmailPrefix(email.split("@")[0]);
     });
   }, []);
+
+  const displayName =
+    profile?.nickname ||
+    profile?.firstName ||
+    [profile?.firstName, profile?.lastName].filter(Boolean).join(" ") ||
+    (emailPrefix ? emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1) : null);
 
   const summary = summarize(assignments.data, completed.has, now);
   const loading = assignments.isLoading || events.isLoading;
