@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { VAPID_PRIVATE_KEY, VAPID_PUBLIC_KEY, VAPID_SUBJECT } from "@/lib/vapid";
 
 interface SubRow {
   id: string;
@@ -21,9 +22,9 @@ export const sendTestPush = createServerFn({ method: "POST" })
   .handler(async ({ context }): Promise<TestPushResult> => {
     const { userId, supabase } = context;
     const vapid = {
-      publicKey: process.env["VAPID_PUBLIC_KEY"] ?? "",
-      privateKey: process.env["VAPID_PRIVATE_KEY"] ?? "",
-      subject: process.env["VAPID_SUBJECT"] ?? "mailto:support@canvaspro.app",
+      publicKey: VAPID_PUBLIC_KEY,
+      privateKey: VAPID_PRIVATE_KEY,
+      subject: VAPID_SUBJECT,
     };
     if (!vapid.publicKey || !vapid.privateKey) {
       console.error("[push-test] VAPID keys are not configured");
