@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
 import { useQuery, queryOptions } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { getAllAssignmentsFn, getCalendarEventsFn, type AssignmentItem } from "@/lib/canvas.functions";
+import { AlertCircle, Calendar, CalendarDays, Clock, Flame, Sparkles } from "lucide-react";
+import {
+  getAllAssignmentsFn,
+  getCalendarEventsFn,
+  type AssignmentItem,
+  type CalendarEventItem,
+} from "@/lib/canvas.functions";
 import { COMPLETED_ASSIGNMENTS_KEY, useLocalSet } from "@/lib/local-state";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -85,7 +91,7 @@ export function DashboardHero() {
     <div className="mb-6 flex flex-col gap-5">
       <div>
         <h1 className="text-2xl font-normal tracking-tight text-foreground sm:text-3xl">
-          {userName ? `${userName} Returns!` : "Welcome Back!"}
+          {userName ? `${userName} Returns!` : "Abrahim Returns!"}
         </h1>
         <p className="mt-1.5 text-sm font-normal text-muted-foreground sm:text-base">
           {loading ? (
