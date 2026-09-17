@@ -143,10 +143,104 @@ async function run(): Promise<Response> {
   return Response.json({ users: byUser.size, sent, failures });
 }
 
+/** Sends a "test notification" push to every device the signed-in user registered. */
+async function runTest(accessToken: string): Promise<Response> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: userData } = await supabaseAdmin.auth.getUser(accessToken);
+  const user = userData?.user;
+  if (!user) {
+    return Response.json({ ok: false, message: "You need to be signed in." }, { status: 401 });
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("push_subscriptions")
+    .select("id,endpoint,p256dh,auth")
+    .eq("user_id", user.id);
+  if (error) {
+    console.error("[push-test] subscription lookup failed", error.message);
+    return Response.json({ ok: false, message: "Couldn't read your devices." });
+  }
+  const subs = (data ?? []) as Array<{ id: string; endpoint: string; p256dh: string; auth: string }>;
+  if (subs.length === 0) {
+    return Response.json({
+      ok: false,
+      message: "No device registered yet — turn on “Alerts when CanvasPro is closed” first.",
+    });
+  }
+
+  const { sendWebPushWithRetry } = await import("@/lib/webpush.server");
+  let delivered = 0;
+  const dead: string[] = [];
+  await Promise.all(
+    subs.map(async (s) => {
+      const res = await sendWebPushWithRetry(
+        s,
+        {
+          title: "CanvasPro test notification",
+          body: "Push delivery is working on this device.",
+          to: "/settings",
+          tag: `test:${Date.now()}`,
+        },
+        {
+          publicKey: VAPID_PUBLIC_KEY,
+          privateKey: VAPID_PRIVATE_KEY,
+          subject: VAPID_SUBJECT,
+          ttl: 60,
+          context: `test user=${user.id}`,
+        },
+      );
+      if (res.ok) delivered += 1;
+      else if (res.expired) dead.push(s.id);
+    }),
+  );
+  if (dead.length > 0) {
+    console.warn(`[push-test] removing ${dead.length} expired subscription(s) user=${user.id}`);
+    await supabaseAdmin.from("push_subscriptions").delete().in("id", dead);
+  }
+
+  console.info(`[push-test] user=${user.id} devices=${subs.length} delivered=${delivered}`);
+  return Response.json({
+    ok: delivered > 0,
+    delivered,
+    devices: subs.length,
+    message:
+      delivered > 0
+        ? `Test notification sent to ${delivered} device${delivered === 1 ? "" : "s"}.`
+        : "Push delivery failed on every registered device — try turning background alerts off and on.",
+  });
+}
+
 export const Route = createFileRoute("/api/public/push/dispatch")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        let action = "";
+        try {
+          const body = (await request.json()) as { action?: string } | null;
+          action = String(body?.action ?? "");
+        } catch {
+          action = "";
+        }
+
+        if (action === "test") {
+          const token = (request.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
+          if (!token) {
+            return Response.json(
+              { ok: false, message: "You need to be signed in." },
+              { status: 401 },
+            );
+          }
+          try {
+            return await runTest(token);
+          } catch (err) {
+            console.error("[push-test] failed", err);
+            return Response.json(
+              { ok: false, message: "Couldn't send the test notification." },
+              { status: 500 },
+            );
+          }
+        }
+
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const provided = request.headers.get("x-cron-secret") ?? "";
         const { data } = await supabaseAdmin
