@@ -276,14 +276,32 @@ Deno.serve(async (req) => {
     switch (resource) {
       case "all": {
         // Single round trip for the whole app: the shared course lookup is
-        // deduped by the in-memory canvasFetch cache.
-        const [courses, assignments, announcements, calendar] = await Promise.all([
+        // deduped by the in-memory canvasFetch cache. One failing section
+        // must NOT blank the others, so each settles independently and its
+        // error is reported per-section.
+        const settled = await Promise.allSettled([
           handleCourses(creds),
           handleAssignments(creds),
           handleAnnouncements(creds, 30),
           handleCalendar(creds, 14),
         ]);
-        data = { courses, assignments, announcements, calendar };
+        const names = ["courses", "assignments", "announcements", "calendar"] as const;
+        const bundle: Record<string, unknown> = {};
+        const errors: Record<string, string> = {};
+        settled.forEach((r, i) => {
+          const name = names[i];
+          if (r.status === "fulfilled") {
+            bundle[name] = r.value;
+          } else {
+            bundle[name] = [];
+            const msg = r.reason instanceof Error ? r.reason.message : String(r.reason);
+            // Auth / missing-key problems affect everything: surface them as-is.
+            if (msg === "NOT_AUTHENTICATED" || msg === "NO_CANVAS_KEY") throw r.reason;
+            errors[name] = msg;
+            console.error(`[canvas] ${name}:`, msg);
+          }
+        });
+        data = Object.keys(errors).length > 0 ? { ...bundle, errors } : bundle;
         break;
       }
       case "courses":

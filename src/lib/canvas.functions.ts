@@ -103,6 +103,8 @@ export interface CanvasBundle {
   assignments: AssignmentItem[];
   announcements: AnnouncementItem[];
   calendar: CalendarEventItem[];
+  /** Per-section failures: other sections still hold good data. */
+  errors?: Partial<Record<"courses" | "assignments" | "announcements" | "calendar", string>>;
 }
 
 const EMPTY_BUNDLE: CanvasBundle = {
