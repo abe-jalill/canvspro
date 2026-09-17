@@ -1,9 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
 import { readPrefs } from "@/lib/notification-prefs";
+import { VAPID_PUBLIC_KEY } from "@/lib/vapid";
 
-/** VAPID public key — safe to ship to the browser. */
-export const VAPID_PUBLIC_KEY =
-  "BIeiHkkt-8fd25J_83IiMJRzcRj8fD3duryjxNN0kysCF66iY8TWYk6oZpgpOm8Q3QpO4aaAX26ScZKZHUwo39Q";
+export { VAPID_PUBLIC_KEY };
 
 function urlBase64ToUint8Array(base64: string): Uint8Array {
   const padding = "=".repeat((4 - (base64.length % 4)) % 4);
