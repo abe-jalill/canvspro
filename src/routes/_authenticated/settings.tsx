@@ -1,7 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { GlassCard } from "@/components/glass-card";
 import { useCanvasKey, useSaveCanvasKey } from "@/lib/user-settings";
+import {
+  useUserProfile,
+  useSaveUserProfile,
+  type UserProfile,
+} from "@/lib/user-profile";
 import { ClassNamesSection } from "@/components/class-names-editor";
 import { useSubscription } from "@/lib/subscription";
 import { UpgradeCard } from "@/components/pro-gate";
@@ -64,6 +69,8 @@ function SettingsPage() {
           Your Canvas API key is stored securely on your account.
         </p>
       </header>
+
+      <ProfileCard />
 
       <GlassCard title="Canvas API key" subtitle="Used to load your courses, grades, and assignments.">
         <form onSubmit={onSubmit} className="flex w-full flex-col gap-4">
@@ -145,5 +152,79 @@ function SettingsPage() {
         <ClassNamesSection />
       </GlassCard>
     </div>
+  );
+}
+
+const EMPTY_PROFILE: UserProfile = {
+  firstName: "",
+  lastName: "",
+  nickname: "",
+  school: "",
+  major: "",
+  classOf: "",
+};
+
+function ProfileCard() {
+  const { data: profile, isLoading } = useUserProfile();
+  const save = useSaveUserProfile();
+  const [form, setForm] = useState<UserProfile>(EMPTY_PROFILE);
+  const [dirty, setDirty] = useState(false);
+
+  // Pre-fill once the saved profile arrives, unless the user already typed.
+  useEffect(() => {
+    if (profile && !dirty) setForm(profile);
+  }, [profile, dirty]);
+
+  function set<K extends keyof UserProfile>(key: K, value: string) {
+    setDirty(true);
+    setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    await save.mutateAsync(form);
+  }
+
+  return (
+    <GlassCard
+      title="Profile"
+      subtitle="Your name and school — saved to your account and used to greet you."
+    >
+      <form onSubmit={onSubmit} className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2">
+        {(
+          [
+            ["firstName", "First name", "Your first name"],
+            ["lastName", "Last name", "Your last name"],
+            ["nickname", "Nickname", "What you'd like to be called"],
+            ["school", "School", "e.g. Lawrence Technological University"],
+            ["major", "Major", "e.g. Biomedical Engineering"],
+            ["classOf", "Class of", "e.g. 2028"],
+          ] as [keyof UserProfile, string, string][]
+        ).map(([key, label, placeholder]) => (
+          <label key={key} className="flex flex-col gap-1.5">
+            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {label}
+            </span>
+            <input
+              type="text"
+              value={form[key]}
+              onChange={(e) => set(key, e.target.value)}
+              placeholder={isLoading ? "Loading…" : placeholder}
+              autoComplete="off"
+              className="glass-inset min-h-11 w-full rounded-xl bg-transparent px-4 text-base text-foreground outline-none placeholder:text-muted-foreground/60 focus:ring-1 focus:ring-foreground/20"
+            />
+          </label>
+        ))}
+        <div className="sm:col-span-2">
+          <button
+            type="submit"
+            disabled={save.isPending || (!dirty && isLoading)}
+            className="glass-hover min-h-11 w-full rounded-xl bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-60 sm:w-auto"
+          >
+            {save.isPending ? "Saving…" : "Save profile"}
+          </button>
+        </div>
+      </form>
+    </GlassCard>
   );
 }
