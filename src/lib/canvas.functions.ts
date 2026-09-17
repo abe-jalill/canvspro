@@ -134,6 +134,7 @@ export function fetchCanvasBundle(): Promise<CanvasBundle> {
         assignments: b.assignments ?? [],
         announcements: b.announcements ?? [],
         calendar: b.calendar ?? [],
+        errors: b.errors,
       };
     })
     .catch((err) => {
@@ -143,7 +144,18 @@ export function fetchCanvasBundle(): Promise<CanvasBundle> {
   return inflight;
 }
 
-export const getCoursesFn = async () => (await fetchCanvasBundle()).courses;
-export const getAllAssignmentsFn = async () => (await fetchCanvasBundle()).assignments;
-export const getAnnouncementsFn = async () => (await fetchCanvasBundle()).announcements;
-export const getCalendarEventsFn = async () => (await fetchCanvasBundle()).calendar;
+// Each getter only fails when ITS OWN section failed, so one bad Canvas
+// endpoint shows an error in that section while the rest render normally.
+async function section<K extends "courses" | "assignments" | "announcements" | "calendar">(
+  key: K,
+): Promise<CanvasBundle[K]> {
+  const bundle = await fetchCanvasBundle();
+  const err = bundle.errors?.[key];
+  if (err) throw new Error(err);
+  return bundle[key];
+}
+
+export const getCoursesFn = () => section("courses");
+export const getAllAssignmentsFn = () => section("assignments");
+export const getAnnouncementsFn = () => section("announcements");
+export const getCalendarEventsFn = () => section("calendar");
