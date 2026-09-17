@@ -6,7 +6,6 @@ import {
   SERVER_DEFAULT_PREFS,
   type ServerPrefs,
 } from "@/lib/push-dispatch.server";
-import { VAPID_PRIVATE_KEY, VAPID_PUBLIC_KEY, VAPID_SUBJECT } from "@/lib/vapid";
 
 interface SubRow {
   id: string;
@@ -20,11 +19,7 @@ interface SubRow {
 async function run(): Promise<Response> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const domain = process.env["CANVAS_DOMAIN"];
-  const vapid = {
-    publicKey: VAPID_PUBLIC_KEY,
-    privateKey: VAPID_PRIVATE_KEY,
-    subject: VAPID_SUBJECT,
-  };
+  const { vapid } = await import("@/lib/vapid.server");
   if (!domain || !vapid.publicKey || !vapid.privateKey) {
     return Response.json({ error: "push not configured" }, { status: 500 });
   }
@@ -169,6 +164,7 @@ async function runTest(accessToken: string): Promise<Response> {
   }
 
   const { sendWebPushWithRetry } = await import("@/lib/webpush.server");
+  const { vapid } = await import("@/lib/vapid.server");
   let delivered = 0;
   const dead: string[] = [];
   await Promise.all(
@@ -182,9 +178,7 @@ async function runTest(accessToken: string): Promise<Response> {
           tag: `test:${Date.now()}`,
         },
         {
-          publicKey: VAPID_PUBLIC_KEY,
-          privateKey: VAPID_PRIVATE_KEY,
-          subject: VAPID_SUBJECT,
+          ...vapid,
           ttl: 60,
           context: `test user=${user.id}`,
         },
