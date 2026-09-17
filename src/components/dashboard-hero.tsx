@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery, queryOptions } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { useUserProfile } from "@/lib/user-profile";
 import { getAllAssignmentsFn, getCalendarEventsFn, type AssignmentItem } from "@/lib/canvas.functions";
 import { COMPLETED_ASSIGNMENTS_KEY, useLocalSet } from "@/lib/local-state";
 import { supabase } from "@/integrations/supabase/client";
@@ -90,7 +91,7 @@ export function DashboardHero() {
       <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
         <div className="min-w-0">
           <h1 className="text-xl font-normal tracking-tight text-foreground sm:text-2xl">
-            {userName ? `${userName} Returns!` : "Abrahim Returns!"}
+            {displayName ? `${displayName} Returns!` : "Welcome back!"}
           </h1>
           <p className="mt-1 text-xs font-normal text-muted-foreground sm:text-sm">
             {loading ? (
