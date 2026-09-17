@@ -107,28 +107,37 @@
   --sidebar-ring: 0 0% 100% / 0.3;
 }
 
-/* Light mode */
+/* Light mode — same layout, white/light-gray surfaces, dark navy text. */
 .light {
   --background: 210 40% 97%;
   --foreground: 216 55% 12%;
+
   --card: 210 40% 100% / 0.7;
   --card-foreground: 216 55% 12%;
+
   --popover: 210 40% 100% / 0.95;
   --popover-foreground: 216 55% 12%;
+
   --primary: 216 55% 12%;
   --primary-foreground: 210 40% 98%;
+
   --secondary: 214 30% 92% / 0.75;
   --secondary-foreground: 216 55% 12%;
+
   --muted: 214 25% 90% / 0.6;
   --muted-foreground: 216 20% 40%;
+
   --accent: 214 35% 88% / 0.7;
   --accent-foreground: 216 55% 12%;
+
   --border: 216 30% 20% / 0.1;
   --input: 216 30% 20% / 0.1;
   --ring: 216 55% 30% / 0.35;
+
   --glass: 210 40% 100% / 0.65;
   --glass-strong: 210 40% 100% / 0.8;
   --glass-border: 216 30% 20% / 0.1;
+
   --sidebar: 210 40% 100% / 0.65;
   --sidebar-foreground: 216 55% 12%;
   --sidebar-primary: 216 55% 12%;
@@ -306,14 +315,14 @@
 /* Tactile press feedback for links/buttons */
 @utility press {
   transition:
-    transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
-    background-color 180ms cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 180ms cubic-bezier(0.22, 1, 0.36, 1);
+    transform 140ms cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 140ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 140ms cubic-bezier(0.16, 1, 0.3, 1);
   -webkit-tap-highlight-color: transparent;
 
   &:active {
-    transform: scale(0.96);
-    opacity: 0.85;
+    transform: scale(0.985);
+    opacity: 0.92;
   }
 }
 
@@ -321,7 +330,7 @@
 @keyframes page-enter {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -330,7 +339,7 @@
 }
 
 @utility page-transition {
-  animation: page-enter 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: page-enter 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -343,14 +352,9 @@
 }
 
 @utility skeleton-shimmer {
-  background: linear-gradient(
-    90deg,
-    hsl(210 60% 90% / 0.05) 0%,
-    hsl(210 60% 90% / 0.12) 50%,
-    hsl(210 60% 90% / 0.05) 100%
-  );
+  background: linear-gradient(90deg, hsl(0 0% 100% / 0.03) 0%, hsl(0 0% 100% / 0.09) 50%, hsl(0 0% 100% / 0.03) 100%);
   background-size: 200% 100%;
-  animation: shimmer 1.6s ease-in-out infinite;
+  animation: shimmer 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   border-radius: var(--radius-md);
 }
 
@@ -365,7 +369,7 @@
 
 /* Scoped prose styles for syllabus modal content (Canvas HTML). */
 .syllabus-body :is(h1, h2, h3, h4) {
-  font-weight: 500;
+  font-weight: 600;
   margin: 1.25em 0 0.5em;
 }
 .syllabus-body h1 {
@@ -406,7 +410,7 @@
   border-radius: 0.5rem;
 }
 
-/* Form inputs */
+/* Form inputs used by the class-schedule editor */
 @utility field {
   width: 100%;
   min-height: 2.75rem;
@@ -428,4 +432,22 @@
   &::-webkit-scrollbar {
     display: none;
   }
+}
+
+/* Deep-linked class section highlight (from notification center). */
+@keyframes course-highlight-pulse {
+  0% {
+    box-shadow: 0 0 0 0 hsl(var(--foreground) / 0.35);
+  }
+  100% {
+    box-shadow: 0 0 0 10px hsl(var(--foreground) / 0);
+  }
+}
+
+.course-highlight {
+  border-radius: 1.25rem;
+  outline: 1px solid hsl(var(--foreground) / 0.35);
+  outline-offset: 2px;
+  animation: course-highlight-pulse 1.6s ease-out 2;
+  scroll-margin-top: 6rem;
 }
