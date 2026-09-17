@@ -45,11 +45,7 @@ function ReminderToggle({ compact = false }: { compact?: boolean }) {
       title={enabled ? "Reminders on (9 AM – 9 PM)" : "Reminders off"}
     >
       {enabled ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
-      {!compact && (
-        <span className="ml-2 text-xs font-medium">
-          {enabled ? "Reminders on" : "Reminders off"}
-        </span>
-      )}
+      {!compact && <span className="ml-2 text-xs font-medium">{enabled ? "Reminders on" : "Reminders off"}</span>}
     </button>
   );
 }
@@ -69,11 +65,7 @@ function ThemeToggle({ compact = false }: { compact?: boolean }) {
       title={isDark ? "Light mode" : "Dark mode"}
     >
       {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-      {!compact && (
-        <span className="ml-2 text-xs font-medium">
-          {isDark ? "Light mode" : "Dark mode"}
-        </span>
-      )}
+      {!compact && <span className="ml-2 text-xs font-medium">{isDark ? "Light mode" : "Dark mode"}</span>}
     </button>
   );
 }
@@ -120,29 +112,28 @@ export function AppSidebar() {
           className="mb-8 block px-2 press transition-opacity hover:opacity-80"
           aria-label="Go to homepage"
         >
-          <span className="block text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            {"\n"}
-          </span>
-          <span className="mt-1 block text-lg font-semibold tracking-tight">CanvasPro</span>
+          <span className="block text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">{"\n"}</span>
+          <span className="mt-1 block text-base font-normal tracking-tight text-foreground">CanvasPro</span>
         </Link>
-        <nav className="flex flex-col gap-1">
+        <nav className="flex flex-col gap-0.5">
           {items.map((item) => (
             <Link
               key={item.to}
               to={item.to}
               preload="intent"
               className={cn(
-                "press rounded-xl px-3 py-2 text-sm font-medium",
+                "press rounded-xl px-3 py-2 text-sm transition-all",
                 isActive(pathname, item.to)
-                  ? "bg-foreground/[0.08] text-foreground"
-                  : "text-muted-foreground hover:bg-foreground/[0.05] hover:text-foreground",
+                  ? "bg-foreground/[0.08] text-foreground font-medium shadow-sm"
+                  : "text-muted-foreground/80 hover:bg-foreground/[0.04] hover:text-foreground font-normal",
               )}
             >
               <span className="flex items-center justify-between gap-2">
-                {item.title}
-                {!isPro && !isFreePath(item.to) && (
-                  <Lock className="h-3.5 w-3.5 opacity-60" />
-                )}
+                <span className="flex items-center gap-2">
+                  {isActive(pathname, item.to) && <span className="h-1 w-1 rounded-full bg-primary" />}
+                  {item.title}
+                </span>
+                {!isPro && !isFreePath(item.to) && <Lock className="h-3.5 w-3.5 opacity-50" />}
               </span>
             </Link>
           ))}
@@ -163,8 +154,6 @@ export function MobileNav() {
   const { isActive: isPro } = useSubscription();
   const [open, setOpen] = useState(false);
 
-  // Close on any navigation (including same-path clicks) and on Escape /
-  // outside taps, so the panel never lingers over the new page.
   useEffect(() => {
     setOpen(false);
   }, [locationHref]);
@@ -178,7 +167,6 @@ export function MobileNav() {
 
   const current = items.find((i) => isActive(pathname, i.to))?.title ?? "Canvas Pro";
 
-
   return (
     <div className="md:hidden">
       <div className="glass-panel-strong sticky top-2 z-40 mx-2 mt-2 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 p-2">
@@ -190,9 +178,7 @@ export function MobileNav() {
         >
           {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
-        <p className="truncate text-center text-sm font-semibold tracking-tight">
-          {current}
-        </p>
+        <p className="truncate text-center text-sm font-normal tracking-tight text-foreground">{current}</p>
         <div className="flex items-center gap-2">
           {isPro && <NotificationCenter />}
           <ThemeToggle compact />
@@ -201,42 +187,34 @@ export function MobileNav() {
 
       {open && (
         <>
-          <div
-            aria-hidden
-            onClick={() => setOpen(false)}
-            className="fixed inset-0 z-30"
-          />
-        <div className="glass-panel-strong sticky top-[4.75rem] z-40 mx-2 mt-2 flex flex-col gap-1 p-2">
-
-          {items.map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              preload="intent"
-              onClick={() => setOpen(false)}
-              className={cn(
-                "press flex min-h-11 items-center rounded-xl px-3 text-sm font-medium",
-                isActive(pathname, item.to)
-                  ? "bg-foreground/[0.08] text-foreground"
-                  : "text-muted-foreground",
-              )}
-            >
-              <span className="flex w-full items-center justify-between gap-2">
-                {item.title}
-                {!isPro && !isFreePath(item.to) && (
-                  <Lock className="h-3.5 w-3.5 opacity-60" />
+          <div aria-hidden onClick={() => setOpen(false)} className="fixed inset-0 z-30" />
+          <div className="glass-panel-strong sticky top-[4.75rem] z-40 mx-2 mt-2 flex flex-col gap-1 p-2">
+            {items.map((item) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                preload="intent"
+                onClick={() => setOpen(false)}
+                className={cn(
+                  "press flex min-h-11 items-center rounded-xl px-3 text-sm font-normal",
+                  isActive(pathname, item.to)
+                    ? "bg-foreground/[0.08] text-foreground font-medium"
+                    : "text-muted-foreground",
                 )}
-              </span>
-            </Link>
-          ))}
-          <div className="mt-1 grid grid-cols-2 gap-2">
-            {isPro && <ReminderToggle />}
-            <SignOutButton />
+              >
+                <span className="flex w-full items-center justify-between gap-2">
+                  {item.title}
+                  {!isPro && !isFreePath(item.to) && <Lock className="h-3.5 w-3.5 opacity-60" />}
+                </span>
+              </Link>
+            ))}
+            <div className="mt-1 grid grid-cols-2 gap-2">
+              {isPro && <ReminderToggle />}
+              <SignOutButton />
+            </div>
           </div>
-        </div>
         </>
       )}
-
     </div>
   );
 }
