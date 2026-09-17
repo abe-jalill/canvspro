@@ -193,8 +193,8 @@ function ProfileCard() {
       <form onSubmit={onSubmit} className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2">
         {(
           [
-            ["firstName", "First name", "Abrahim"],
-            ["lastName", "Last name", "Jalil"],
+            ["firstName", "First name", "Your first name"],
+            ["lastName", "Last name", "Your last name"],
             ["nickname", "Nickname", "What you'd like to be called"],
             ["school", "School", "e.g. Lawrence Technological University"],
             ["major", "Major", "e.g. Biomedical Engineering"],
