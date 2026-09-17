@@ -12,14 +12,7 @@ interface GlassCardProps {
   strong?: boolean;
 }
 
-export function GlassCard({
-  children,
-  className,
-  title,
-  subtitle,
-  action,
-  strong,
-}: GlassCardProps) {
+export function GlassCard({ children, className, title, subtitle, action, strong }: GlassCardProps) {
   return (
     <section
       className={cn(
@@ -32,13 +25,9 @@ export function GlassCard({
         <header className="mb-5 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
           <div className="min-w-0">
             {title && (
-              <h2 className="truncate text-base font-semibold tracking-tight text-foreground sm:text-lg">
-                {title}
-              </h2>
+              <h2 className="truncate text-base font-normal tracking-tight text-foreground sm:text-lg">{title}</h2>
             )}
-            {subtitle && (
-              <p className="mt-1 text-xs text-muted-foreground sm:text-sm">{subtitle}</p>
-            )}
+            {subtitle && <p className="mt-0.5 text-xs font-normal text-muted-foreground">{subtitle}</p>}
           </div>
           {action ? <div className="shrink-0">{action}</div> : <span />}
         </header>
@@ -53,29 +42,21 @@ export function Skeleton({ className }: { className?: string }) {
   return <div className={cn("skeleton-shimmer h-4 w-full", className)} />;
 }
 
-export function ErrorState({
-  message,
-  onRetry,
-}: {
-  message?: string;
-  onRetry?: () => void;
-}) {
+export function ErrorState({ message, onRetry }: { message?: string; onRetry?: () => void }) {
   const { sync, isSyncing } = useCanvasSync();
   const retry = onRetry ?? sync;
   return (
     <div className="glass-inset flex flex-col items-start gap-2 p-4">
       <div className="flex items-center gap-2">
         <AlertCircle className="h-4 w-4 shrink-0 text-destructive" />
-        <p className="text-sm font-medium text-foreground">Couldn't load</p>
+        <p className="text-sm font-normal text-foreground">Couldn't load</p>
       </div>
-      <p className="text-xs text-muted-foreground">
-        {message ?? "Please try again in a moment."}
-      </p>
+      <p className="text-xs text-muted-foreground">{message ?? "Please try again in a moment."}</p>
       <button
         type="button"
         onClick={retry}
         disabled={isSyncing && !onRetry}
-        className="glass-hover mt-1 inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-glass-border px-3 text-xs font-medium"
+        className="glass-hover mt-1 inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-glass-border px-3 text-xs font-normal"
       >
         <RefreshCw className={cn("h-3.5 w-3.5", isSyncing && !onRetry && "animate-spin")} />
         Try again
@@ -100,7 +81,7 @@ export function EmptyState({
       <div className="glass-hover flex h-10 w-10 items-center justify-center rounded-2xl text-muted-foreground">
         {icon ?? <Inbox className="h-5 w-5" />}
       </div>
-      {title && <p className="text-sm font-medium text-foreground">{title}</p>}
+      {title && <p className="text-sm font-normal text-foreground">{title}</p>}
       <p className="max-w-sm text-sm text-muted-foreground">{message}</p>
       {action && <div className="mt-1">{action}</div>}
     </div>
