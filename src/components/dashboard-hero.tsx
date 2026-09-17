@@ -104,14 +104,144 @@ function nextUp(
   return items[0] ?? null;
 }
 
+interface Summary {
+  today: number;
+  tomorrow: number;
+  week: number;
+  overdue: number;
+}
+
 function summarize(
   assignments: AssignmentItem[] | undefined,
   isCompleted: (id: string | number) => boolean,
   now: Date,
-) {
+): Summary | null {
   if (!assignments) return null;
   const startOfDay = new Date(now);
   startOfDay.setHours(0, 0, 0, 0);
   const endOfToday = startOfDay.getTime() + 24 * 3_600_000;
   const endOfTomorrow = endOfToday + 24 * 3_600_000;
-  const inAWeek = start
+  const inAWeek = startOfDay.getTime() + 7 * 24 * 3_600_000;
+
+  const out: Summary = { today: 0, tomorrow: 0, week: 0, overdue: 0 };
+
+  for (const a of assignments) {
+    if (!a.due_at) continue;
+    if (isCompleted(a.id)) continue;
+    if (a.submission?.submitted_at) continue;
+    const due = new Date(a.due_at).getTime();
+    if (Number.isNaN(due)) continue;
+    if (due < now.getTime()) {
+      out.overdue += 1;
+      continue;
+    }
+    if (due < endOfToday) out.today += 1;
+    else if (due < endOfTomorrow) out.tomorrow += 1;
+    if (due < inAWeek) out.week += 1;
+  }
+
+  return out;
+}
+
+export function DashboardHero() {
+  const [now, setNow] = useState(() => new Date());
+  const [firstName, setFirstName] = useState<string | null>(null);
+  const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
+
+  const { data: assignments } = useQuery(assignmentsQO);
+  const { data: events } = useQuery(eventsQO);
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    supabase.auth.getUser().then(({ data }) => {
+      if (!active) return;
+      const meta = data.user?.user_metadata as
+        | { full_name?: string; name?: string }
+        | undefined;
+      const raw = meta?.full_name || meta?.name || data.user?.email || "";
+      const first = raw.split(/[\s@.]/)[0];
+      setFirstName(first ? first.charAt(0).toUpperCase() + first.slice(1) : null);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const summary = summarize(assignments, completed.has, now);
+  const next = nextUp(events, assignments, now);
+
+  const line = (() => {
+    if (!summary) return "Loading your week…";
+    if (summary.overdue > 0)
+      return `${summary.overdue} overdue · ${summary.week} due this week`;
+    if (summary.today > 0)
+      return `${summary.today} due today · ${summary.week} due this week`;
+    if (summary.tomorrow > 0)
+      return `${summary.tomorrow} due tomorrow · ${summary.week} due this week`;
+    if (summary.week > 0) return `${summary.week} due this week`;
+    return "Nothing due this week — you're clear";
+  })();
+
+  return (
+    <section className="rounded-3xl border border-border/60 bg-card/60 p-5 backdrop-blur-xl sm:p-7">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0 space-y-1.5">
+          <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            {greeting(now)}
+            {firstName ? `, ${firstName}` : ""}
+          </p>
+          <h1 className="flex items-center gap-2 text-xl font-semibold tracking-tight sm:text-2xl">
+            {summary && summary.overdue > 0 ? (
+              <AlertCircle className="size-5 shrink-0 text-muted-foreground" />
+            ) : summary && summary.week === 0 ? (
+              <Sparkles className="size-5 shrink-0 text-muted-foreground" />
+            ) : (
+              <Flame className="size-5 shrink-0 text-muted-foreground" />
+            )}
+            <span className="truncate">{line}</span>
+          </h1>
+        </div>
+
+        <Link
+          to="/focus"
+          className="inline-flex items-center gap-1.5 rounded-full border border-border/60 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <CalendarDays className="size-3.5" />
+          See more
+        </Link>
+      </div>
+
+      <div
+        className={cn(
+          "mt-5 flex items-center gap-3 border-t border-border/50 pt-4 text-sm",
+          !next && "text-muted-foreground",
+        )}
+      >
+        {next ? (
+          <>
+            <Clock className="size-4 shrink-0 text-muted-foreground" />
+            <span className="min-w-0 flex-1 truncate">
+              <span className="font-medium">{next.title}</span>
+              {next.course ? (
+                <span className="text-muted-foreground"> · {next.course}</span>
+              ) : null}
+            </span>
+            <span className="shrink-0 text-xs text-muted-foreground">
+              {untilLabel(next.start, now)}
+            </span>
+          </>
+        ) : (
+          <>
+            <Calendar className="size-4 shrink-0" />
+            <span>Nothing scheduled or due in the next week.</span>
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
