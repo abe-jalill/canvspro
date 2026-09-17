@@ -1,13 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery, queryOptions } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { AlertCircle, Calendar, CalendarDays, Clock, Flame, Sparkles } from "lucide-react";
-import {
-  getAllAssignmentsFn,
-  getCalendarEventsFn,
-  type AssignmentItem,
-  type CalendarEventItem,
-} from "@/lib/canvas.functions";
+import { getAllAssignmentsFn, getCalendarEventsFn, type AssignmentItem } from "@/lib/canvas.functions";
 import { COMPLETED_ASSIGNMENTS_KEY, useLocalSet } from "@/lib/local-state";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -23,25 +17,6 @@ const eventsQO = queryOptions({
   queryFn: () => getCalendarEventsFn(),
   staleTime: 5 * 60_000,
 });
-
-function greeting(d: Date) {
-  const h = d.getHours();
-  if (h < 5) return "Late night";
-  if (h < 12) return "Good morning";
-  if (h < 17) return "Good afternoon";
-  return "Good evening";
-}
-
-function untilLabel(target: Date, now: Date) {
-  const mins = Math.round((target.getTime() - now.getTime()) / 60_000);
-  if (mins <= 0) return "Due right now";
-  if (mins < 60) return `Due in ${mins}m`;
-  const hours = Math.floor(mins / 60);
-  const rest = mins % 60;
-  if (hours < 24) return rest ? `Due in ${hours}h ${rest}m` : `Due in ${hours}h`;
-  const days = Math.round(hours / 24);
-  return days === 1 ? "Due tomorrow" : `Due in ${days} days`;
-}
 
 function summarize(
   assignments: AssignmentItem[] | undefined,
@@ -107,18 +82,18 @@ export function DashboardHero() {
   const overdueCount = summary?.overdue ?? 0;
 
   return (
-    <div className="mb-6 flex flex-col gap-6">
+    <div className="mb-6 flex flex-col gap-5">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+        <h1 className="text-2xl font-normal tracking-tight text-foreground sm:text-3xl">
           {userName ? `${userName} Returns!` : "Welcome Back!"}
         </h1>
-        <p className="mt-2 text-base text-muted-foreground sm:text-lg">
+        <p className="mt-1.5 text-sm font-normal text-muted-foreground sm:text-base">
           {loading ? (
             "Syncing your Canvas schedule…"
           ) : todayCount > 0 ? (
             <>
               You have{" "}
-              <span className="font-semibold text-foreground">
+              <span className="text-foreground">
                 {todayCount} assignment{todayCount === 1 ? "" : "s"}
               </span>{" "}
               due today. Let&apos;s knock them out.
@@ -126,7 +101,7 @@ export function DashboardHero() {
           ) : weekCount > 0 ? (
             <>
               You&apos;re clear for today.{" "}
-              <span className="font-semibold text-foreground">
+              <span className="text-foreground">
                 {weekCount} item{weekCount === 1 ? "" : "s"}
               </span>{" "}
               coming up over the next 7 days.
@@ -137,39 +112,51 @@ export function DashboardHero() {
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-4 sm:gap-6 mt-2">
-        <Link to="/focus" className="group flex items-center gap-3 transition-opacity hover:opacity-80">
-          <span className="text-3xl font-bold text-foreground tracking-tight">{todayCount}</span>
-          <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors leading-tight">
-            Assignments
+      <div className="flex flex-wrap items-center gap-3">
+        <Link
+          to="/focus"
+          className="glass-inset glass-hover flex items-center gap-3 rounded-2xl px-3.5 py-2 transition-all border border-white/5 hover:border-white/12"
+        >
+          <span className="text-2xl font-normal text-foreground tracking-tight tabular-nums">{todayCount}</span>
+          <span className="text-xs font-normal text-muted-foreground leading-tight">
+            Due
             <br />
-            Due Today
+            Today
           </span>
         </Link>
 
-        <div className="h-10 w-px bg-foreground/10 hidden sm:block" />
+        <div className="h-6 w-px bg-white/10 hidden sm:block" />
 
-        <Link to="/focus" className="group flex items-center gap-3 transition-opacity hover:opacity-80">
-          <span className="text-3xl font-bold text-foreground tracking-tight">{weekCount}</span>
-          <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors leading-tight">
-            Assignments
+        <Link
+          to="/focus"
+          className="glass-inset glass-hover flex items-center gap-3 rounded-2xl px-3.5 py-2 transition-all border border-white/5 hover:border-white/12"
+        >
+          <span className="text-2xl font-normal text-foreground tracking-tight tabular-nums">{weekCount}</span>
+          <span className="text-xs font-normal text-muted-foreground leading-tight">
+            This
             <br />
-            This Week
+            Week
           </span>
         </Link>
 
-        <div className="h-10 w-px bg-foreground/10 hidden sm:block" />
+        <div className="h-6 w-px bg-white/10 hidden sm:block" />
 
-        <Link to="/focus" className="group flex items-center gap-3 transition-opacity hover:opacity-80">
+        <Link
+          to="/focus"
+          className="glass-inset glass-hover flex items-center gap-3 rounded-2xl px-3.5 py-2 transition-all border border-white/5 hover:border-white/12"
+        >
           <span
-            className={cn("text-3xl font-bold tracking-tight", overdueCount > 0 ? "text-rose-500" : "text-foreground")}
+            className={cn(
+              "text-2xl font-normal tracking-tight tabular-nums",
+              overdueCount > 0 ? "text-rose-400" : "text-foreground",
+            )}
           >
             {overdueCount}
           </span>
-          <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors leading-tight">
-            Assignments
+          <span className="text-xs font-normal text-muted-foreground leading-tight">
+            Past
             <br />
-            Overdue
+            Due
           </span>
         </Link>
       </div>
