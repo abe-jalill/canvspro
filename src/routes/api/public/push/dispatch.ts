@@ -26,6 +26,18 @@ interface SubRow {
 
 type Admin = (typeof import("@/integrations/supabase/client.server"))["supabaseAdmin"];
 
+/** Compares two secrets without leaking per-character timing. */
+function constantTimeEqual(a: string, b: string): boolean {
+  const enc = new TextEncoder();
+  const x = enc.encode(a);
+  const y = enc.encode(b);
+  // Always walk the longer buffer so the loop length never depends on a match.
+  const len = Math.max(x.length, y.length);
+  let diff = x.length ^ y.length;
+  for (let i = 0; i < len; i++) diff |= (x[i] ?? 0) ^ (y[i] ?? 0);
+  return diff === 0;
+}
+
 /**
  * Queues the user's upcoming countdown pushes (next class, tonight's deadlines)
  * and returns the ones whose moment has arrived. `push_sent_log` handles dedupe,
