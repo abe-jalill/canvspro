@@ -30,6 +30,7 @@ import {
   customToAssignmentItem,
   isCustomAssignmentId,
 } from "@/lib/custom-assignments";
+import { CompleteToggle } from "@/components/complete-toggle";
 import {
   getCountdown,
   urgencyTextClass,
