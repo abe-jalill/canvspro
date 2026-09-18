@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://canvaspremium.lovable.app/sitemap.xml
+Sitemap: https://canvaspro.app/sitemap.xml
