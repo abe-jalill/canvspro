@@ -221,14 +221,14 @@ export function AppSidebar() {
                 <Link
                   to="/"
                   preload="intent"
-                  className="block min-w-0 px-2 press transition-opacity hover:opacity-80"
+                  className="block min-w-0 flex-1 px-2 press transition-opacity hover:opacity-80"
                   aria-label="Go to homepage"
                 >
                   <span className="block text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">{"\n"}</span>
                   <span className="mt-1 block truncate text-base font-normal tracking-tight text-foreground">CanvasPro</span>
                 </Link>
                 <TrafficLights
-                  className="shrink-0"
+                  className="relative z-10 shrink-0"
                   onRed={() => setMode("hidden")}
                   onYellow={() => setMode("rail")}
                   onGreen={() => setMode("full")}
