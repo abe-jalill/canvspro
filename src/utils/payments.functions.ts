@@ -45,7 +45,7 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
         line_items: [{ price: stripePrice.id, quantity: 1 }],
         mode: isRecurring ? "subscription" : "payment",
         ui_mode: "embedded_page",
-        return_url: data.returnUrl,
+        return_url: returnUrl,
         customer: customerId,
         managed_payments: { enabled: true },
         metadata: { userId, managed_payments: "true" },
@@ -65,6 +65,8 @@ export const createPortalSession = createServerFn({ method: "POST" })
     const { createStripeClient, getStripeErrorMessage } = await import(
       "@/lib/stripe.server"
     );
+    const { assertSafeReturnUrl } = await import("@/lib/return-url.server");
+    const returnUrl = data.returnUrl ? assertSafeReturnUrl(data.returnUrl) : undefined;
     const { supabase, userId } = context;
 
     const { data: sub, error: subError } = await supabase
@@ -84,7 +86,7 @@ export const createPortalSession = createServerFn({ method: "POST" })
       const stripe = createStripeClient(data.environment);
       const portal = await stripe.billingPortal.sessions.create({
         customer: sub.stripe_customer_id as string,
-        ...(data.returnUrl && { return_url: data.returnUrl }),
+        ...(returnUrl && { return_url: returnUrl }),
       });
       return { url: portal.url };
     } catch (error) {
