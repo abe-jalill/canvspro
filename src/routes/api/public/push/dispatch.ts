@@ -111,7 +111,7 @@ async function run(): Promise<Response> {
   let failures = 0;
   for (const [userId, userSubs] of byUser) {
     try {
-      const [{ data: prefRow }, { data: settings }] = await Promise.all([
+      const [{ data: prefRow }, { data: settings }, { data: hiddenRow }] = await Promise.all([
         supabaseAdmin
           .from("notification_prefs")
           .select("prefs,timezone_offset_minutes")
@@ -122,7 +122,21 @@ async function run(): Promise<Response> {
           .select("canvas_api_key")
           .eq("user_id", userId)
           .maybeSingle(),
+        supabaseAdmin
+          .from("user_preferences")
+          .select("value")
+          .eq("user_id", userId)
+          .eq("key", "hidden_course_ids")
+          .maybeSingle(),
       ]);
+
+      const hiddenIds = new Set<number>(
+        Array.isArray(hiddenRow?.value)
+          ? (hiddenRow.value as unknown[])
+              .map((v) => Number(v))
+              .filter((n) => Number.isFinite(n))
+          : [],
+      );
 
       const token = (settings?.canvas_api_key ?? "").trim();
       if (!token) continue;
@@ -135,7 +149,13 @@ async function run(): Promise<Response> {
       const tz = prefRow?.timezone_offset_minutes ?? 0;
       if (isQuiet(prefs, tz)) continue;
 
-      const { alerts, tonight } = await buildAlertsForUser(domain, token, prefs, tz);
+      const { alerts, tonight } = await buildAlertsForUser(
+        domain,
+        token,
+        prefs,
+        tz,
+        hiddenIds,
+      );
 
       // Queue exact-time countdown pushes for the next few hours, then collect
       // any queued row whose moment has arrived.
