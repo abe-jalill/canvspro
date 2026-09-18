@@ -80,10 +80,7 @@ function CoursesWidget() {
         title="Classes & Grades"
         subtitle="Active enrollments"
         action={
-          <Link
-            to="/grades"
-            className="glass-hover rounded-lg px-2.5 py-1 text-xs font-normal text-muted-foreground"
-          >
+          <Link to="/grades" className="glass-hover rounded-lg px-2.5 py-1 text-xs font-normal text-muted-foreground">
             View all
           </Link>
         }
@@ -142,10 +139,7 @@ function CoursesWidget() {
                         Syllabus
                       </button>
                     )}
-                    <span
-                      className="whitespace-nowrap text-xs font-normal tabular-nums"
-                      style={{ color }}
-                    >
+                    <span className="whitespace-nowrap text-xs font-normal tabular-nums" style={{ color }}>
                       {formatScore(c.current_score, c.current_grade)}
                     </span>
                   </div>
@@ -264,10 +258,23 @@ function UpcomingWidget() {
                       isOpen && "rotate-180",
                     )}
                   />
-                  <h3 className="min-w-0 flex-1 truncate text-xs font-semibold uppercase tracking-[0.14em] text-foreground/80">
+                  {(() => {
+                    const course = (courses.data ?? []).find((c) => c.id === g.id);
+                    const color = getGradeColor(course?.current_score ?? null);
+                    return (
+                      <span
+                        className="h-2 w-2 shrink-0 rounded-full"
+                        style={{
+                          backgroundColor: color,
+                          boxShadow: `0 0 6px ${color}66`,
+                        }}
+                      />
+                    );
+                  })()}
+                  <h3 className="min-w-0 flex-1 truncate text-xs font-normal text-foreground/90">
                     {displayCourseName(g.name, g.code)}
                   </h3>
-                  <span className="shrink-0 text-sm font-semibold tabular-nums text-muted-foreground">
+                  <span className="shrink-0 text-xs font-normal tabular-nums text-muted-foreground">
                     {g.items.length}
                   </span>
                 </button>
