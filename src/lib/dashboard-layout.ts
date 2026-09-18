@@ -1,32 +1,20 @@
 import { useCallback, useEffect } from "react";
-import {
-  useUserPreferenceKey,
-  useSetUserPreference,
-} from "@/hooks/use-user-preferences";
+import { useUserPreferenceKey, useSetUserPreference } from "@/hooks/use-user-preferences";
 
 export const DASHBOARD_LAYOUT_KEY = "dashboard-layout";
 
-export type WidgetId =
-  | "digest"
-  | "focus"
-  | "classes"
-  | "upcoming"
-  | "announcements"
-  | "calendar"
-  | "heatmap"
-  | "gpa";
+export type WidgetId = "digest" | "focus" | "classes" | "upcoming" | "announcements" | "calendar" | "heatmap" | "gpa";
 
 export const DEFAULT_ORDER: WidgetId[] = [
   "digest",
-  "focus",
   "classes",
-  "gpa",
   "upcoming",
-  "announcements",
+  "focus",
   "calendar",
+  "announcements",
+  "gpa",
   "heatmap",
 ];
-
 export type WidgetSize = "sm" | "md" | "full";
 
 interface StoredLayout {
@@ -39,13 +27,9 @@ const SIZES: WidgetSize[] = ["sm", "md", "full"];
 
 function normalize(raw: Partial<StoredLayout> | null): StoredLayout {
   const known = new Set(DEFAULT_ORDER);
-  const order = (raw?.order ?? []).filter((id): id is WidgetId =>
-    known.has(id as WidgetId),
-  );
+  const order = (raw?.order ?? []).filter((id): id is WidgetId => known.has(id as WidgetId));
   for (const id of DEFAULT_ORDER) if (!order.includes(id)) order.push(id);
-  const hidden = (raw?.hidden ?? []).filter((id): id is WidgetId =>
-    known.has(id as WidgetId),
-  );
+  const hidden = (raw?.hidden ?? []).filter((id): id is WidgetId => known.has(id as WidgetId));
   const sizes: Partial<Record<WidgetId, WidgetSize>> = {};
   for (const [id, size] of Object.entries(raw?.sizes ?? {})) {
     if (known.has(id as WidgetId) && SIZES.includes(size as WidgetSize)) {
@@ -57,10 +41,7 @@ function normalize(raw: Partial<StoredLayout> | null): StoredLayout {
 
 /** Cross-device dashboard widget order + visibility, persisted via user_preferences. */
 export function useDashboardLayout() {
-  const { value, set } = useUserPreferenceKey<Partial<StoredLayout>>(
-    DASHBOARD_LAYOUT_KEY,
-    {},
-  );
+  const { value, set } = useUserPreferenceKey<Partial<StoredLayout>>(DASHBOARD_LAYOUT_KEY, {});
   const layout = normalize(value);
 
   const update = useCallback(
@@ -75,9 +56,7 @@ export function useDashboardLayout() {
     (id: WidgetId) =>
       update((prev) => ({
         ...prev,
-        hidden: prev.hidden.includes(id)
-          ? prev.hidden.filter((h) => h !== id)
-          : [...prev.hidden, id],
+        hidden: prev.hidden.includes(id) ? prev.hidden.filter((h) => h !== id) : [...prev.hidden, id],
       })),
     [update],
   );
@@ -100,13 +79,7 @@ export function useDashboardLayout() {
       update((prev) => {
         const order = [...prev.order];
         const from = order.indexOf(id);
-        if (
-          from < 0 ||
-          toIndex < 0 ||
-          toIndex >= order.length ||
-          from === toIndex
-        )
-          return prev;
+        if (from < 0 || toIndex < 0 || toIndex >= order.length || from === toIndex) return prev;
         order.splice(from, 1);
         order.splice(toIndex, 0, id);
         return { ...prev, order };
@@ -115,8 +88,7 @@ export function useDashboardLayout() {
   );
 
   const setSize = useCallback(
-    (id: WidgetId, size: WidgetSize) =>
-      update((prev) => ({ ...prev, sizes: { ...prev.sizes, [id]: size } })),
+    (id: WidgetId, size: WidgetSize) => update((prev) => ({ ...prev, sizes: { ...prev.sizes, [id]: size } })),
     [update],
   );
 
