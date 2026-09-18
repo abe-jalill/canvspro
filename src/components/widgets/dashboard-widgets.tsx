@@ -70,7 +70,7 @@ function DigestWidget() {
   return <DigestCard courses={courses.data} assignments={assignments.data} announcements={announcements.data} />;
 }
 
-ffunction CoursesWidget() {
+function CoursesWidget() {
   const { data, isLoading, isError, error } = useQuery(coursesQO);
   const [syllabus, setSyllabus] = useState<CourseSummary | null>(null);
 
