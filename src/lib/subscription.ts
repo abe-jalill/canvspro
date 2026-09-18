@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getStripeEnvironment } from "@/lib/stripe";
+import { hasCompedAccess } from "@/lib/entitlements.functions";
 
 export type SubscriptionRow = {
   status: string;
@@ -10,9 +11,6 @@ export type SubscriptionRow = {
 };
 
 export const subscriptionQueryKey = ["subscription"] as const;
-
-/** Accounts that always have full Pro access, no payment required. */
-const COMP_EMAILS = ["ajalil@ltu.edu", "abrahim.jalil11@gmail.com"];
 
 function isActive(sub: SubscriptionRow | null): boolean {
   if (!sub) return false;
@@ -29,14 +27,20 @@ export function useSubscription() {
     queryFn: async (): Promise<SubscriptionRow | null> => {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) return null;
-      const email = userData.user.email?.toLowerCase() ?? "";
-      if (COMP_EMAILS.includes(email)) {
-        return {
-          status: "active",
-          price_id: "comped",
-          current_period_end: null,
-          cancel_at_period_end: false,
-        };
+
+      // Complimentary access is decided server-side; no email list ships here.
+      try {
+        const { comped } = await hasCompedAccess();
+        if (comped) {
+          return {
+            status: "active",
+            price_id: "comped",
+            current_period_end: null,
+            cancel_at_period_end: false,
+          };
+        }
+      } catch {
+        // Fall through to the normal subscription lookup.
       }
       const { data, error } = await supabase
         .from("subscriptions")
@@ -49,7 +53,7 @@ export function useSubscription() {
       if (error) throw new Error(error.message);
       return (data as SubscriptionRow | null) ?? null;
     },
-    staleTime: 30_000,
+    staleTime: 5 * 60_000,
   });
 
   return {

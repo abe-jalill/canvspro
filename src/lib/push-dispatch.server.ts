@@ -93,7 +93,6 @@ interface CanvasAnnouncement {
   context_code: string;
 }
 
-const EXCLUDED_COURSE_IDS = new Set<number>([11452, 3465, 6219]);
 
 async function canvasFetch<T>(domain: string, token: string, path: string): Promise<T> {
   const res = await fetch(`https://${domain}/api/v1${path}`, {
@@ -114,6 +113,8 @@ export async function buildAlertsForUser(
   token: string,
   prefs: ServerPrefs,
   tzOffsetMinutes = 0,
+  /** Course ids this account chose to hide. Per-user, never hardcoded. */
+  hiddenCourseIds: Set<number> = new Set<number>(),
 ): Promise<BuildResult> {
   const alerts: Alert[] = [];
   const tonight: TonightItem[] = [];
@@ -128,7 +129,7 @@ export async function buildAlertsForUser(
     )
   ).filter(
     (c) =>
-      !EXCLUDED_COURSE_IDS.has(c.id) &&
+      !hiddenCourseIds.has(c.id) &&
       !c.access_restricted_by_date &&
       (!c.workflow_state || c.workflow_state === "available"),
   );
@@ -208,7 +209,7 @@ export async function buildAlertsForUser(
       const byId = new Map(courses.map((c) => [c.id, c]));
       for (const an of raw) {
         const cid = Number(an.context_code.replace("course_", ""));
-        if (EXCLUDED_COURSE_IDS.has(cid)) continue;
+        if (hiddenCourseIds.has(cid)) continue;
         if (now - new Date(an.posted_at).getTime() > 26 * 3_600_000) continue;
         alerts.push({
           id: `announcement:${an.id}`,

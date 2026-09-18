@@ -8,6 +8,7 @@ import {
   type UserProfile,
 } from "@/lib/user-profile";
 import { ClassNamesSection } from "@/components/class-names-editor";
+import { HiddenCoursesSection } from "@/components/hidden-courses-editor";
 import { useSubscription } from "@/lib/subscription";
 import { UpgradeCard } from "@/components/pro-gate";
 
@@ -150,6 +151,13 @@ function SettingsPage() {
         subtitle="Rename your Canvas courses to something friendlier."
       >
         <ClassNamesSection />
+      </GlassCard>
+
+      <GlassCard
+        title="Which classes to show"
+        subtitle="Hide classes you don't want anywhere in the app."
+      >
+        <HiddenCoursesSection />
       </GlassCard>
     </div>
   );

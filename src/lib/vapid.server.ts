@@ -1,8 +1,20 @@
 // Server-only half of the VAPID keypair. Never import from client code.
-import { VAPID_PUBLIC_KEY, VAPID_SUBJECT } from "@/lib/vapid";
+// All three values live in the encrypted secret store — never in source.
+
+function readEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) throw new Error(`${name} is not configured`);
+  return value;
+}
 
 export const vapid = {
-  publicKey: VAPID_PUBLIC_KEY,
-  privateKey: "S1L_t6WeBtzpTc9QoCnG1GBaivohHdviU2Zi0TaRa6E",
-  subject: VAPID_SUBJECT,
+  get publicKey() {
+    return readEnv("VAPID_PUBLIC_KEY");
+  },
+  get privateKey() {
+    return readEnv("VAPID_PRIVATE_KEY");
+  },
+  get subject() {
+    return process.env["VAPID_SUBJECT"] || "mailto:support@canvaspro.app";
+  },
 };

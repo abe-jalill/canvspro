@@ -2,5 +2,19 @@
 
 - [x] Countdown alerts: next-class + tonight's deadline pushes, app-icon badge, settings controls
 - [x] Reformat the Notifications page into clear, numbered sections
-- [ ] Notification bell panel overlaps/breaks layout on phones
-- [ ] Notification timestamps wrong (everything shows <22 hours ago)
+- [x] Notification bell panel overlaps/breaks layout on phones
+- [x] Notification timestamps wrong (everything shows <22 hours ago)
+
+## Security hardening pass
+
+- [x] VAPID private key out of source, read from secrets
+- [x] Comped-Pro email list moved server-side (COMP_EMAILS secret)
+- [x] Payment webhook returns 400 on missing/invalid env
+- [x] Validate checkout + portal return URLs server-side
+- [x] Remove hardcoded EXCLUDED_COURSE_IDS; per-user hidden courses (Settings editor)
+- [x] Restrict Canvas function CORS to app origins
+- [x] Timing-safe cron secret comparison
+- [x] Webhook: fall back to stripe_customer_id when subscription metadata has no userId
+- [x] drizzle-orm stays a dev dependency (no runtime imports in src/)
+- [x] Subscription query staleTime 30s -> 5min
+- [x] Add .env / .env.* to .gitignore (values are publishable only; no rotation needed)

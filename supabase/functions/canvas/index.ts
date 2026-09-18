@@ -2,13 +2,31 @@
 // Canvas API key, stored per-user in the `user_settings` table. The key never
 // reaches the browser: the function reads it with the caller's JWT.
 
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-};
+const ALLOWED_ORIGINS = [
+  "https://canvaspro.app",
+  "https://www.canvaspro.app",
+  "https://canvaspremium.lovable.app",
+];
 
-const EXCLUDED_COURSE_IDS = new Set<number>([11452, 3465, 6219]);
+function corsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get("Origin") ?? "";
+  let allow = ALLOWED_ORIGINS[0];
+  if (
+    ALLOWED_ORIGINS.includes(origin) ||
+    /^https:\/\/[a-z0-9-]+\.lovable\.app$/.test(origin) ||
+    /^http:\/\/localhost(:\d+)?$/.test(origin)
+  ) {
+    allow = origin;
+  }
+  return {
+    "Access-Control-Allow-Origin": allow,
+    Vary: "Origin",
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  };
+}
+
 const API_VERSION = "/api/v1";
 
 interface CanvasCourse {
@@ -68,6 +86,8 @@ interface CanvasCalendarEvent {
 interface Creds {
   domain: string;
   token: string;
+  /** Course ids this account chose to hide. Per-user, never hardcoded. */
+  excluded: Set<number>;
 }
 
 // Short-lived in-memory cache so repeated page views don't re-hit Canvas.
@@ -112,7 +132,7 @@ async function canvasFetchRaw<T>(creds: Creds, path: string): Promise<T> {
 
 // Reads the caller's Canvas API key from `user_settings` using their JWT,
 // so RLS guarantees a user can only ever use their own key.
-async function credsForRequest(req: Request): Promise<Creds> {
+async function credsForRequest(req: Request, includeHidden = false): Promise<Creds> {
   const domain = Deno.env.get("CANVAS_DOMAIN");
   if (!domain) throw new Error("Canvas domain is not configured.");
 
@@ -129,11 +149,33 @@ async function credsForRequest(req: Request): Promise<Creds> {
   const rows = (await res.json()) as Array<{ canvas_api_key: string | null }>;
   const token = rows?.[0]?.canvas_api_key?.trim();
   if (!token) throw new Error("NO_CANVAS_KEY");
-  return { domain, token };
+
+  let excluded = new Set<number>();
+  if (!includeHidden) {
+    try {
+      const prefRes = await fetch(
+        `${supabaseUrl}/rest/v1/user_preferences?select=value&key=eq.hidden_course_ids&limit=1`,
+        { headers: { apikey: apiKey, Authorization: authHeader } },
+      );
+      if (prefRes.ok) {
+        const prefRows = (await prefRes.json()) as Array<{ value: unknown }>;
+        const value = prefRows?.[0]?.value;
+        if (Array.isArray(value)) {
+          excluded = new Set(
+            value.map((v) => Number(v)).filter((n) => Number.isFinite(n)),
+          );
+        }
+      }
+    } catch {
+      // Hiding courses is a preference, not a gate — ignore lookup failures.
+    }
+  }
+
+  return { domain, token, excluded };
 }
 
-function isActive(c: CanvasCourse) {
-  if (EXCLUDED_COURSE_IDS.has(c.id)) return false;
+function isActive(c: CanvasCourse, excluded: Set<number>) {
+  if (excluded.has(c.id)) return false;
   if (c.access_restricted_by_date) return false;
   if (c.workflow_state && c.workflow_state !== "available") return false;
   return true;
@@ -144,7 +186,7 @@ async function fetchActiveCourses(creds: Creds): Promise<CanvasCourse[]> {
     creds,
     "/courses?enrollment_state=active&include[]=total_scores&include[]=syllabus_body&per_page=100",
   );
-  return courses.filter(isActive);
+  return courses.filter((c) => isActive(c, creds.excluded));
 }
 
 async function handleCourses(creds: Creds) {
@@ -196,7 +238,7 @@ async function handleAssignments(creds: Creds) {
       }
     }),
   );
-  return results.flat().filter((a) => !EXCLUDED_COURSE_IDS.has(a.course_id));
+  return results.flat().filter((a) => !creds.excluded.has(a.course_id));
 }
 
 async function handleAnnouncements(creds: Creds, days = 30) {
@@ -221,7 +263,7 @@ async function handleAnnouncements(creds: Creds, days = 30) {
         course_code: course?.course_code ?? "",
       };
     })
-    .filter((a) => !EXCLUDED_COURSE_IDS.has(a.course_id));
+    .filter((a) => !creds.excluded.has(a.course_id));
 }
 
 async function handleCalendar(creds: Creds, daysAhead = 14) {
@@ -247,11 +289,12 @@ async function handleCalendar(creds: Creds, daysAhead = 14) {
   return events.filter((e) => {
     if (!e.context_code) return true;
     const id = Number(e.context_code.replace("course_", ""));
-    return !Number.isFinite(id) || !EXCLUDED_COURSE_IDS.has(id);
+    return !Number.isFinite(id) || !creds.excluded.has(id);
   });
 }
 
 Deno.serve(async (req) => {
+  const CORS_HEADERS = corsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: CORS_HEADERS });
   }
@@ -259,19 +302,22 @@ Deno.serve(async (req) => {
   try {
     let resource: string | null = null;
     let days: number | undefined;
+    let includeHidden = false;
 
     if (req.method === "POST") {
       const body = await req.json().catch(() => ({}));
       resource = body?.resource ?? null;
       days = typeof body?.days === "number" ? body.days : undefined;
+      includeHidden = body?.includeHidden === true;
     } else {
       const url = new URL(req.url);
       resource = url.searchParams.get("resource");
       const d = url.searchParams.get("days");
       if (d) days = Number(d);
+      includeHidden = url.searchParams.get("includeHidden") === "true";
     }
 
-    const creds = await credsForRequest(req);
+    const creds = await credsForRequest(req, includeHidden);
 
     let data: unknown;
     switch (resource) {

@@ -26,6 +26,18 @@ interface SubRow {
 
 type Admin = (typeof import("@/integrations/supabase/client.server"))["supabaseAdmin"];
 
+/** Compares two secrets without leaking per-character timing. */
+function constantTimeEqual(a: string, b: string): boolean {
+  const enc = new TextEncoder();
+  const x = enc.encode(a);
+  const y = enc.encode(b);
+  // Always walk the longer buffer so the loop length never depends on a match.
+  const len = Math.max(x.length, y.length);
+  let diff = x.length ^ y.length;
+  for (let i = 0; i < len; i++) diff |= (x[i] ?? 0) ^ (y[i] ?? 0);
+  return diff === 0;
+}
+
 /**
  * Queues the user's upcoming countdown pushes (next class, tonight's deadlines)
  * and returns the ones whose moment has arrived. `push_sent_log` handles dedupe,
@@ -111,7 +123,7 @@ async function run(): Promise<Response> {
   let failures = 0;
   for (const [userId, userSubs] of byUser) {
     try {
-      const [{ data: prefRow }, { data: settings }] = await Promise.all([
+      const [{ data: prefRow }, { data: settings }, { data: hiddenRow }] = await Promise.all([
         supabaseAdmin
           .from("notification_prefs")
           .select("prefs,timezone_offset_minutes")
@@ -122,7 +134,21 @@ async function run(): Promise<Response> {
           .select("canvas_api_key")
           .eq("user_id", userId)
           .maybeSingle(),
+        supabaseAdmin
+          .from("user_preferences")
+          .select("value")
+          .eq("user_id", userId)
+          .eq("key", "hidden_course_ids")
+          .maybeSingle(),
       ]);
+
+      const hiddenIds = new Set<number>(
+        Array.isArray(hiddenRow?.value)
+          ? (hiddenRow.value as unknown[])
+              .map((v) => Number(v))
+              .filter((n) => Number.isFinite(n))
+          : [],
+      );
 
       const token = (settings?.canvas_api_key ?? "").trim();
       if (!token) continue;
@@ -135,7 +161,13 @@ async function run(): Promise<Response> {
       const tz = prefRow?.timezone_offset_minutes ?? 0;
       if (isQuiet(prefs, tz)) continue;
 
-      const { alerts, tonight } = await buildAlertsForUser(domain, token, prefs, tz);
+      const { alerts, tonight } = await buildAlertsForUser(
+        domain,
+        token,
+        prefs,
+        tz,
+        hiddenIds,
+      );
 
       // Queue exact-time countdown pushes for the next few hours, then collect
       // any queued row whose moment has arrived.
@@ -318,8 +350,8 @@ export const Route = createFileRoute("/api/public/push/dispatch")({
           .select("secret")
           .limit(1)
           .maybeSingle();
-        const expected = data?.secret ?? "";
-        if (!expected || provided.length !== expected.length || provided !== expected) {
+        const expected = (data?.secret ?? "") as string;
+        if (!expected || !constantTimeEqual(provided, expected)) {
           return new Response("Unauthorized", { status: 401 });
         }
         return run();
