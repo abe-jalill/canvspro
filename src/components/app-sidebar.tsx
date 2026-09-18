@@ -1,5 +1,5 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, queryOptions } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Bell, BellOff, Lock, LogOut, Menu, Moon, Sun, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -9,6 +9,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { NotificationCenter } from "@/components/notification-center";
 import { useSubscription } from "@/lib/subscription";
 import { isFreePath } from "@/components/pro-gate";
+import { getCoursesFn, type CourseSummary } from "@/lib/canvas.functions";
+import { displayCourseNameForCourse } from "@/lib/course-display";
+import { getGradeColor } from "@/lib/grade-color";
 
 const items = [
   { title: "Dashboard", to: "/dashboard" as const },
@@ -22,6 +25,12 @@ const items = [
   { title: "Notifications", to: "/notifications" as const },
   { title: "Settings", to: "/settings" as const },
 ];
+
+const coursesQO = queryOptions({
+  queryKey: ["canvas", "courses"],
+  queryFn: () => getCoursesFn(),
+  staleTime: 5 * 60_000,
+});
 
 function useActivePath() {
   return useRouterState({ select: (s) => s.location.pathname });
@@ -102,6 +111,7 @@ function SignOutButton({ compact = false }: { compact?: boolean }) {
 export function AppSidebar() {
   const pathname = useActivePath();
   const { isActive: isPro } = useSubscription();
+  const courses = useQuery(coursesQO);
 
   return (
     <aside className="fixed left-4 top-4 bottom-4 z-30 hidden w-56 flex-col md:flex">
@@ -137,6 +147,55 @@ export function AppSidebar() {
               </span>
             </Link>
           ))}
+
+          {/* Centered thin horizontal line separating Settings from enrolled classes */}
+          <div className="my-2.5 flex items-center justify-center">
+            <div className="h-[1px] w-20 bg-white/10 rounded-full" />
+          </div>
+
+          {/* List of all enrolled classes */}
+          <div className="flex flex-col gap-0.5">
+            {courses.data &&
+              courses.data.length > 0 &&
+              courses.data.map((course: CourseSummary) => {
+                const courseName = displayCourseNameForCourse(course.id, course.name, course.course_code);
+                const score = course.current_score;
+                const color = getGradeColor(score);
+                const coursePath = `/courses/${course.id}`;
+                const active = pathname === coursePath;
+
+                return (
+                  <Link
+                    key={course.id}
+                    to="/courses/$courseId"
+                    params={{ courseId: String(course.id) }}
+                    preload="intent"
+                    title={`${courseName} (${score != null ? score.toFixed(1) + "%" : "No grade"})`}
+                    className={cn(
+                      "press rounded-xl px-3 py-2 text-sm transition-all flex items-center justify-between gap-2 group",
+                      active
+                        ? "bg-foreground/[0.08] text-foreground font-medium shadow-sm"
+                        : "text-muted-foreground/80 hover:bg-foreground/[0.04] hover:text-foreground font-normal",
+                    )}
+                  >
+                    <span className="flex items-center gap-2 min-w-0">
+                      {/* Color indicator: closer to green for A, closer to red for 63 */}
+                      <span
+                        className="h-2 w-2 rounded-full shrink-0 transition-transform group-hover:scale-110"
+                        style={{
+                          backgroundColor: color,
+                          boxShadow: `0 0 6px ${color}66`,
+                        }}
+                      />
+                      <span className="truncate">{courseName}</span>
+                    </span>
+                    <span className="text-[11px] font-normal tabular-nums shrink-0" style={{ color }}>
+                      {score != null ? `${Math.round(score)}%` : "—"}
+                    </span>
+                  </Link>
+                );
+              })}
+          </div>
         </nav>
         <div className="mt-auto space-y-2 pt-4">
           {isPro && <ReminderToggle />}
@@ -152,6 +211,7 @@ export function MobileNav() {
   const pathname = useActivePath();
   const locationHref = useRouterState({ select: (s) => s.location.href });
   const { isActive: isPro } = useSubscription();
+  const courses = useQuery(coursesQO);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -188,7 +248,7 @@ export function MobileNav() {
       {open && (
         <>
           <div aria-hidden onClick={() => setOpen(false)} className="fixed inset-0 z-30" />
-          <div className="glass-panel-strong sticky top-[4.75rem] z-40 mx-2 mt-2 flex flex-col gap-1 p-2">
+          <div className="glass-panel-strong sticky top-[4.75rem] z-40 mx-2 mt-2 flex flex-col gap-1 p-2 max-h-[calc(100vh-6rem)] overflow-y-auto">
             {items.map((item) => (
               <Link
                 key={item.to}
@@ -208,7 +268,54 @@ export function MobileNav() {
                 </span>
               </Link>
             ))}
-            <div className="mt-1 grid grid-cols-2 gap-2">
+
+            {/* Centered thin separator line */}
+            <div className="my-2 flex items-center justify-center">
+              <div className="h-[1px] w-20 bg-white/10 rounded-full" />
+            </div>
+
+            {/* Mobile Enrolled classes */}
+            <div className="flex flex-col gap-0.5">
+              {courses.data &&
+                courses.data.length > 0 &&
+                courses.data.map((course: CourseSummary) => {
+                  const courseName = displayCourseNameForCourse(course.id, course.name, course.course_code);
+                  const score = course.current_score;
+                  const color = getGradeColor(score);
+                  const coursePath = `/courses/${course.id}`;
+                  const active = pathname === coursePath;
+
+                  return (
+                    <Link
+                      key={course.id}
+                      to="/courses/$courseId"
+                      params={{ courseId: String(course.id) }}
+                      preload="intent"
+                      onClick={() => setOpen(false)}
+                      className={cn(
+                        "press flex min-h-10 items-center justify-between rounded-xl px-3 text-sm transition-all",
+                        active ? "bg-foreground/[0.08] text-foreground font-medium" : "text-muted-foreground",
+                      )}
+                    >
+                      <span className="flex items-center gap-2 min-w-0">
+                        <span
+                          className="h-2 w-2 rounded-full shrink-0"
+                          style={{
+                            backgroundColor: color,
+                            boxShadow: `0 0 6px ${color}66`,
+                          }}
+                        />
+                        <span className="truncate">{courseName}</span>
+                      </span>
+                      <span className="text-xs font-normal tabular-nums shrink-0" style={{ color }}>
+                        {score != null ? `${Math.round(score)}%` : "—"}
+                      </span>
+                    </Link>
+                  );
+                })}
+            </div>
+
+            <div className="mt-1 grid grid-cols-2 gap-2 pt-2">
               {isPro && <ReminderToggle />}
               <SignOutButton />
             </div>
