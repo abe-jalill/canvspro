@@ -265,7 +265,7 @@ function AssignmentsPage() {
     };
 
     const courseById = new Map((courses.data ?? []).map((course) => [course.id, course]));
-    (data ?? []).forEach((a) => {
+    allAssignments.forEach((a) => {
       const course = courseById.get(a.course_id);
       const g = addCourse(
         a.course_id,
@@ -295,7 +295,7 @@ function AssignmentsPage() {
     return Array.from(map.values())
       .filter((group) => group.items.length > 0)
       .sort((a, b) => a.label.localeCompare(b.label));
-  }, [courses.data, data, completed]);
+  }, [courses.data, allAssignments, completed]);
 
   const metaMap = useAssignmentMetaMap();
   const priorityGroups = useMemo(() => {
