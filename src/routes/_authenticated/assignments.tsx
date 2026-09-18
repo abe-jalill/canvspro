@@ -16,7 +16,20 @@ import {
 import { cn } from "@/lib/utils";
 import { displayCourseName } from "@/lib/course-display";
 import { useLocalSet, COMPLETED_ASSIGNMENTS_KEY } from "@/lib/local-state";
-import { Check, Search, CalendarPlus, ChevronDown, Sparkles } from "lucide-react";
+import {
+  Search,
+  CalendarPlus,
+  ChevronDown,
+  Sparkles,
+  Plus,
+  Trash2,
+} from "lucide-react";
+import {
+  useCustomAssignments,
+  customToAssignmentItem,
+  isCustomAssignmentId,
+} from "@/lib/custom-assignments";
+import { CompleteToggle } from "@/components/complete-toggle";
 import {
   getCountdown,
   urgencyTextClass,
@@ -94,10 +107,14 @@ function PriorityAssignmentsCard({
   groups,
   loading,
   error,
+  isDone,
+  onToggleDone,
 }: {
   groups: ReturnType<typeof buildPriorityList>;
   loading: boolean;
   error: Error | null;
+  isDone: (id: number) => boolean;
+  onToggleDone: (id: number) => void;
 }) {
   if (loading) {
     return (
@@ -140,10 +157,23 @@ function PriorityAssignmentsCard({
           {topItems.map((p) => (
             <li
               key={p.assignment.id}
-              className="glass-inset flex items-center justify-between gap-3 p-3"
+              className={cn(
+                "glass-inset flex items-center justify-between gap-3 p-3",
+                isDone(p.assignment.id) && "opacity-60",
+              )}
             >
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium">
+              <CompleteToggle
+                done={isDone(p.assignment.id)}
+                onToggle={() => onToggleDone(p.assignment.id)}
+                label={p.assignment.name}
+              />
+              <div className="min-w-0 flex-1">
+                <p
+                  className={cn(
+                    "truncate text-sm font-medium",
+                    isDone(p.assignment.id) && "line-through",
+                  )}
+                >
                   {p.assignment.name}
                 </p>
                 <p className="truncate text-xs text-muted-foreground">
@@ -183,6 +213,32 @@ function AssignmentsPage() {
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
   const highlight = useCourseHighlight();
+  const custom = useCustomAssignments();
+
+  const courseOptions = useMemo(
+    () =>
+      (courses.data ?? []).map((c) => ({
+        id: c.id,
+        label: displayCourseName(c.name, c.course_code),
+      })),
+    [courses.data],
+  );
+
+  const allAssignments: AssignmentItem[] = useMemo(() => {
+    const courseById = new Map(
+      (courses.data ?? []).map((c) => [
+        c.id,
+        { name: c.name, course_code: c.course_code },
+      ]),
+    );
+    return [
+      ...(data ?? []),
+      ...custom.list.map((c) =>
+        customToAssignmentItem(c, courseById.get(c.course_id)),
+      ),
+    ];
+  }, [data, custom.list, courses.data]);
+
 
   const groups: ClassGroup[] = useMemo(() => {
     const map = new Map<number, ClassGroup>();
@@ -208,7 +264,7 @@ function AssignmentsPage() {
     };
 
     const courseById = new Map((courses.data ?? []).map((course) => [course.id, course]));
-    (data ?? []).forEach((a) => {
+    allAssignments.forEach((a) => {
       const course = courseById.get(a.course_id);
       const g = addCourse(
         a.course_id,
@@ -238,7 +294,7 @@ function AssignmentsPage() {
     return Array.from(map.values())
       .filter((group) => group.items.length > 0)
       .sort((a, b) => a.label.localeCompare(b.label));
-  }, [courses.data, data, completed]);
+  }, [courses.data, allAssignments, completed]);
 
   const metaMap = useAssignmentMetaMap();
   const priorityGroups = useMemo(() => {
@@ -247,7 +303,7 @@ function AssignmentsPage() {
       estimates[id] = meta.estimatedMinutes;
     }
     return buildPriorityList(
-      data ?? [],
+      allAssignments,
       (courses.data ?? []).map((c) => ({
         id: c.id,
         name: displayCourseName(c.name, c.course_code),
@@ -257,7 +313,7 @@ function AssignmentsPage() {
       Date.now(),
       { estimates },
     );
-  }, [data, courses.data, completed.has, metaMap]);
+  }, [allAssignments, courses.data, completed.has, metaMap]);
 
   const q = search.trim().toLowerCase();
   const visibleGroups = q
@@ -304,7 +360,21 @@ function AssignmentsPage() {
         groups={priorityGroups}
         loading={isLoading}
         error={isError ? (error as Error) : null}
+        isDone={(id) => completed.has(id)}
+        onToggleDone={(id) => completed.toggle(id)}
       />
+
+      {courseOptions.length > 0 && (
+        <GlassCard
+          title="Your own assignments"
+          subtitle="Add anything Canvas doesn't have: due date, points and notes"
+        >
+          <AddAssignmentForm
+            courseOptions={courseOptions}
+            onAdd={custom.add}
+          />
+        </GlassCard>
+      )}
 
       {isLoading && (
         <div className="space-y-3">
@@ -369,77 +439,100 @@ function AssignmentsPage() {
 
               {open && (
                 <div className="border-t border-glass-border p-4 sm:p-6">
-                  {(
-                    <ul className="space-y-2">
-                      {g.items.map((a) => {
-                        const done = completed.has(a.id);
-                        const cd = getCountdown(a.due_at, { completed: done });
-                        return (
-                          <li
-                            key={a.id}
-                            className={cn(
-                              "glass-inset flex items-start justify-between gap-4 p-3 transition-opacity",
-                              cd ? urgencyAccentClass(cd.urgency) : "",
-                              done && "opacity-60",
-                            )}
-                          >
-                            <div className="flex min-w-0 items-start gap-3">
-                              <button
-                                onClick={() => completed.toggle(a.id)}
-                                aria-label={
-                                  done
-                                    ? `Mark ${a.name} incomplete`
-                                    : `Mark ${a.name} complete`
-                                }
-                                aria-pressed={done}
+                  <ul className="space-y-2">
+                    {g.items.map((a) => {
+                      const done = completed.has(a.id);
+                      const cd = getCountdown(a.due_at, { completed: done });
+                      const mine = isCustomAssignmentId(a.id);
+                      const notes = custom.notesById.get(a.id);
+                      return (
+                        <li
+                          key={a.id}
+                          className={cn(
+                            "glass-inset flex items-start justify-between gap-4 p-3 transition-opacity",
+                            cd ? urgencyAccentClass(cd.urgency) : "",
+                            done && "opacity-60",
+                          )}
+                        >
+                          <div className="flex min-w-0 items-start gap-3">
+                            <CompleteToggle
+                              done={done}
+                              onToggle={() => completed.toggle(a.id)}
+                              label={a.name}
+                              className="mt-0.5 h-5 w-5"
+                            />
+                            <div className="min-w-0">
+                              <p
                                 className={cn(
-                                  "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors",
-                                  done
-                                    ? "border-foreground/60 bg-foreground/80 text-background"
-                                    : "border-foreground/30 text-transparent hover:border-foreground/60 hover:text-foreground/60",
+                                  "truncate text-sm font-medium",
+                                  done && "line-through",
                                 )}
                               >
-                                <Check className="h-3.5 w-3.5" strokeWidth={3} />
-                              </button>
-                              <div className="min-w-0">
-                                <p
-                                  className={cn(
-                                    "truncate text-sm font-medium",
-                                    done && "line-through",
-                                  )}
-                                >
-                                  {a.name}
-                                </p>
-                                <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                                  {done ? "Completed" : statusLabel(a)}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="flex shrink-0 items-start gap-2">
-                              <div className="text-right">
-                                <p
-                                  className={cn(
-                                    "text-sm tabular-nums",
-                                    cd
-                                      ? urgencyTextClass(cd.urgency)
-                                      : "text-muted-foreground",
-                                  )}
-                                >
-                                  {cd ? cd.label : "No due date"}
-                                </p>
-                                {cd && (
-                                  <p className="mt-0.5 text-[10px] tabular-nums text-muted-foreground/80">
-                                    {cd.fullDate}
-                                  </p>
+                                {a.name}
+                              </p>
+                              <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+                                <span>
+                                  {done
+                                    ? "Completed"
+                                    : mine
+                                      ? "Added by you"
+                                      : statusLabel(a)}
+                                </span>
+                                {a.points_possible != null && (
+                                  <>
+                                    <span className="opacity-40">·</span>
+                                    <span>{a.points_possible} pts</span>
+                                  </>
                                 )}
-                              </div>
-                              {a.due_at && <AddToCalendarButton assignment={a} />}
+                              </p>
+                              {notes && (
+                                <p className="mt-1 whitespace-pre-wrap text-xs text-foreground/70">
+                                  {notes}
+                                </p>
+                              )}
                             </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
+                          </div>
+                          <div className="flex shrink-0 items-start gap-2">
+                            <div className="text-right">
+                              <p
+                                className={cn(
+                                  "text-sm tabular-nums",
+                                  cd
+                                    ? urgencyTextClass(cd.urgency)
+                                    : "text-muted-foreground",
+                                )}
+                              >
+                                {cd ? cd.label : "No due date"}
+                              </p>
+                              {cd && (
+                                <p className="mt-0.5 text-[10px] tabular-nums text-muted-foreground/80">
+                                  {cd.fullDate}
+                                </p>
+                              )}
+                            </div>
+                            {a.due_at && <AddToCalendarButton assignment={a} />}
+                            {mine && (
+                              <button
+                                type="button"
+                                onClick={() => custom.remove(a.id)}
+                                aria-label={`Delete ${a.name}`}
+                                title="Delete"
+                                className="glass-hover flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-glass-border text-muted-foreground hover:text-foreground"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+
+                  <AddAssignmentForm
+                    courseId={g.id}
+                    courseLabel={g.label}
+                    onAdd={custom.add}
+                  />
                 </div>
               )}
             </GlassCard>
@@ -476,5 +569,151 @@ function AddToCalendarButton({ assignment }: { assignment: AssignmentItem }) {
     >
       <CalendarPlus className="h-4 w-4" />
     </button>
+  );
+}
+
+function AddAssignmentForm({
+  courseId,
+  courseLabel,
+  courseOptions,
+  onAdd,
+}: {
+  courseId?: number;
+  courseLabel?: string;
+  courseOptions?: { id: number; label: string }[];
+  onAdd: (input: {
+    course_id: number;
+    name: string;
+    due_at: string | null;
+    points_possible: number | null;
+    notes: string;
+  }) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [due, setDue] = useState("");
+  const [points, setPoints] = useState("");
+  const [notes, setNotes] = useState("");
+  const [selected, setSelected] = useState<string>(
+    courseId != null ? String(courseId) : "",
+  );
+
+  const targetId = courseId ?? (selected ? Number(selected) : NaN);
+  const canSave = name.trim().length > 0 && Number.isFinite(targetId);
+
+  function reset() {
+    setName("");
+    setDue("");
+    setPoints("");
+    setNotes("");
+    if (courseId == null) setSelected("");
+  }
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!canSave) return;
+    const pts = parseFloat(points);
+    onAdd({
+      course_id: targetId,
+      name: name.trim(),
+      due_at: due ? new Date(due).toISOString() : null,
+      points_possible: Number.isNaN(pts) ? null : pts,
+      notes: notes.trim(),
+    });
+    reset();
+    setOpen(false);
+  }
+
+  const inputClass =
+    "w-full rounded-lg border border-glass-border bg-background/50 px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:ring-1 focus:ring-primary";
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="glass-hover mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-glass-border px-3 py-2 text-sm font-medium"
+      >
+        <Plus className="h-4 w-4" />
+        Add assignment{courseLabel ? "" : " to a class"}
+      </button>
+    );
+  }
+
+  return (
+    <form onSubmit={submit} className="glass-inset mt-3 space-y-3 p-3">
+      {courseId == null && (
+        <select
+          value={selected}
+          onChange={(e) => setSelected(e.target.value)}
+          className={inputClass}
+          aria-label="Class"
+        >
+          <option value="">Choose a class…</option>
+          {(courseOptions ?? []).map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.label}
+            </option>
+          ))}
+        </select>
+      )}
+      <input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="Assignment name"
+        aria-label="Assignment name"
+        className={inputClass}
+      />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="space-y-1">
+          <span className="text-xs text-muted-foreground">Due</span>
+          <input
+            type="datetime-local"
+            value={due}
+            onChange={(e) => setDue(e.target.value)}
+            className={inputClass}
+          />
+        </label>
+        <label className="space-y-1">
+          <span className="text-xs text-muted-foreground">Points</span>
+          <input
+            type="number"
+            min={0}
+            step="any"
+            value={points}
+            onChange={(e) => setPoints(e.target.value)}
+            placeholder="e.g. 100"
+            className={inputClass}
+          />
+        </label>
+      </div>
+      <textarea
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+        placeholder="Notes (optional)"
+        aria-label="Notes"
+        rows={2}
+        className={inputClass}
+      />
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="submit"
+          disabled={!canSave}
+          className="glass-hover min-h-11 rounded-xl border border-glass-border px-4 py-2 text-sm font-medium disabled:opacity-50"
+        >
+          Save assignment
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            reset();
+            setOpen(false);
+          }}
+          className="min-h-11 rounded-xl px-4 py-2 text-sm text-muted-foreground hover:text-foreground"
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
   );
 }
