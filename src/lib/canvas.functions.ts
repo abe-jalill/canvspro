@@ -157,6 +157,13 @@ async function section<K extends "courses" | "assignments" | "announcements" | "
 }
 
 export const getCoursesFn = () => section("courses");
+
+/** Every active course, including the ones this account chose to hide.
+ *  Used by the Settings editor so hidden classes can be brought back. */
+export async function getAllCoursesIncludingHidden(): Promise<CourseSummary[]> {
+  const raw = await invokeCanvas<CourseSummary[]>("courses", { includeHidden: true });
+  return Array.isArray(raw) ? raw : [];
+}
 export const getAllAssignmentsFn = () => section("assignments");
 export const getAnnouncementsFn = () => section("announcements");
 export const getCalendarEventsFn = () => section("calendar");
