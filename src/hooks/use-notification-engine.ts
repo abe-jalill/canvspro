@@ -69,6 +69,7 @@ function runDueChecks(assignments: AssignmentItem[]) {
           course_name: a.course_name,
           course_code: a.course_code,
           to: "/assignments",
+          ts: due,
           body: `was due ${new Date(a.due_at).toLocaleString()}`,
         });
       }
@@ -110,6 +111,8 @@ function runGradeChecks(assignments: AssignmentItem[]) {
     if (score == null) continue;
     const key = `${a.id}:${score}`;
     updateNotification(`grade:${key}`, {
+      // Backfill the real graded time so older alerts stop reading as "today".
+      ts: a.submission?.graded_at ? new Date(a.submission.graded_at).getTime() : undefined,
       course: displayCourseName(a.course_name, a.course_code),
       course_id: a.course_id,
       course_name: a.course_name,
@@ -133,6 +136,7 @@ function runGradeChecks(assignments: AssignmentItem[]) {
       course_name: a.course_name,
       course_code: a.course_code,
       to: "/grades",
+      ts: a.submission?.graded_at ? new Date(a.submission.graded_at).getTime() : undefined,
     });
   }
 
@@ -148,6 +152,7 @@ function runAnnouncementChecks(items: AnnouncementItem[]) {
   for (const a of items) {
     const key = String(a.id);
     updateNotification(`announcement:${key}`, {
+      ts: a.posted_at ? new Date(a.posted_at).getTime() : undefined,
       course: displayCourseName(a.course_name, a.course_code),
       course_id: a.course_id,
       course_name: a.course_name,
@@ -167,6 +172,7 @@ function runAnnouncementChecks(items: AnnouncementItem[]) {
       course_name: a.course_name,
       course_code: a.course_code,
       to: "/announcements",
+      ts: a.posted_at ? new Date(a.posted_at).getTime() : undefined,
       body: "New announcement",
     });
   }

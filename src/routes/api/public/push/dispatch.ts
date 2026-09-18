@@ -4,8 +4,16 @@ import {
   deliver,
   isQuiet,
   SERVER_DEFAULT_PREFS,
+  type Alert,
   type ServerPrefs,
 } from "@/lib/push-dispatch.server";
+import {
+  buildClassCountdownAlerts,
+  buildTonightAlerts,
+  type ScheduledAlertRow,
+  type ScheduleRow,
+  type TonightItem,
+} from "@/lib/countdown-alerts.server";
 
 interface SubRow {
   id: string;
@@ -14,6 +22,68 @@ interface SubRow {
   p256dh: string;
   auth: string;
   failure_count?: number;
+}
+
+type Admin = (typeof import("@/integrations/supabase/client.server"))["supabaseAdmin"];
+
+/**
+ * Queues the user's upcoming countdown pushes (next class, tonight's deadlines)
+ * and returns the ones whose moment has arrived. `push_sent_log` handles dedupe,
+ * so queued rows are safe to re-read until they age out.
+ */
+async function enqueueCountdowns(
+  admin: Admin,
+  userId: string,
+  prefs: ServerPrefs,
+  tz: number,
+  tonight: TonightItem[],
+): Promise<Alert[]> {
+  if (!prefs.countdownClass && !prefs.countdownTonight) return [];
+  const now = new Date();
+
+  const rows: ScheduledAlertRow[] = [];
+  if (prefs.countdownClass) {
+    const { data: entries } = await admin
+      .from("class_schedule_entries")
+      .select("title,days,start_minutes,end_minutes,location")
+      .eq("user_id", userId);
+    rows.push(...buildClassCountdownAlerts((entries ?? []) as ScheduleRow[], prefs, tz, now));
+  }
+  rows.push(...buildTonightAlerts(tonight, prefs, tz, now));
+
+  if (rows.length > 0) {
+    await admin
+      .from("push_scheduled_alerts")
+      .upsert(
+        rows.map((r) => ({ ...r, user_id: userId })),
+        { onConflict: "user_id,tag", ignoreDuplicates: true },
+      );
+  }
+
+  // Anything scheduled for the past 6 hours is still worth delivering; older
+  // rows are pruned so the table stays small.
+  const cutoff = new Date(now.getTime() - 6 * 3_600_000).toISOString();
+  await admin
+    .from("push_scheduled_alerts")
+    .delete()
+    .eq("user_id", userId)
+    .lt("fire_at", new Date(now.getTime() - 3 * 86_400_000).toISOString());
+
+  const { data: pending } = await admin
+    .from("push_scheduled_alerts")
+    .select("tag,title,body,to_path,badge,fire_at")
+    .eq("user_id", userId)
+    .lte("fire_at", now.toISOString())
+    .gte("fire_at", cutoff)
+    .order("fire_at", { ascending: false });
+
+  return (pending ?? []).map((r) => ({
+    id: r.tag as string,
+    title: r.title as string,
+    body: (r.body as string) || undefined,
+    to: (r.to_path as string) || "/dashboard",
+    badge: prefs.badge ? ((r.badge as number | null) ?? null) : null,
+  }));
 }
 
 async function run(): Promise<Response> {
@@ -62,10 +132,16 @@ async function run(): Promise<Response> {
         ...((prefRow?.prefs ?? {}) as Partial<ServerPrefs>),
       };
       if (!prefs.enabled || !prefs.browserPush) continue;
-      if (isQuiet(prefs, prefRow?.timezone_offset_minutes ?? 0)) continue;
+      const tz = prefRow?.timezone_offset_minutes ?? 0;
+      if (isQuiet(prefs, tz)) continue;
 
-      const alerts = await buildAlertsForUser(domain, token, prefs);
-      if (alerts.length === 0) continue;
+      const { alerts, tonight } = await buildAlertsForUser(domain, token, prefs, tz);
+
+      // Queue exact-time countdown pushes for the next few hours, then collect
+      // any queued row whose moment has arrived.
+      const countdowns = await enqueueCountdowns(supabaseAdmin, userId, prefs, tz, tonight);
+      const due = [...countdowns, ...alerts];
+      if (due.length === 0) continue;
 
       const { data: sentRows } = await supabaseAdmin
         .from("push_sent_log")
@@ -73,10 +149,10 @@ async function run(): Promise<Response> {
         .eq("user_id", userId)
         .in(
           "alert_id",
-          alerts.map((a) => a.id),
+          due.map((a) => a.id),
         );
       const already = new Set((sentRows ?? []).map((r) => r.alert_id as string));
-      const fresh = alerts.filter((a) => !already.has(a.id)).slice(0, 12);
+      const fresh = due.filter((a) => !already.has(a.id)).slice(0, 12);
       if (fresh.length === 0) continue;
 
       const dead = new Set<string>();

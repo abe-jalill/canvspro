@@ -74,13 +74,18 @@ export function pushNotification(
 /** Refreshes metadata on an existing notification without creating a new alert. */
 export function updateNotification(
   id: string,
-  patch: Partial<Pick<AppNotification, "course" | "course_id" | "course_name" | "course_code">>,
+  patch: Partial<
+    Pick<AppNotification, "course" | "course_id" | "course_name" | "course_code" | "ts">
+  >,
 ) {
   const list = read();
   const index = list.findIndex((item) => item.id === id);
   if (index < 0) return;
+  const clean = Object.fromEntries(
+    Object.entries(patch).filter(([, v]) => v !== undefined && v !== null),
+  );
   const next = [...list];
-  next[index] = { ...next[index], ...patch };
+  next[index] = { ...next[index], ...clean };
   write(next);
 }
 
@@ -95,7 +100,7 @@ export function fireBrowserNotification(title: string, body?: string, tag?: stri
   }
 }
 
-export function notify(n: Omit<AppNotification, "ts" | "read">) {
+export function notify(n: Omit<AppNotification, "ts" | "read"> & { ts?: number }) {
   // Always record in the bell menu; only interrupt when the user allows it.
   if (pushNotification(n) && allowBrowserPush()) {
     fireBrowserNotification(n.title, n.body, n.id);

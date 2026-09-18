@@ -18,6 +18,16 @@ export interface NotificationPrefs {
   quietEnabled: boolean;
   quietStart: number; // hour 0-23
   quietEnd: number; // hour 0-23
+  /** Countdown alert before a class starts. */
+  countdownClass: boolean;
+  /** Minutes before the class start time to alert (0 = at start). */
+  countdownLeads: number[];
+  /** Evening summary of everything due before 11:59 PM today. */
+  countdownTonight: boolean;
+  /** Local hours (0-23) for the tonight's-deadline reminders. */
+  countdownTonightHours: number[];
+  /** Show a number badge on the app icon for things due today. */
+  badge: boolean;
 }
 
 export const DEFAULT_PREFS: NotificationPrefs = {
@@ -33,7 +43,29 @@ export const DEFAULT_PREFS: NotificationPrefs = {
   quietEnabled: true,
   quietStart: 22,
   quietEnd: 7,
+  countdownClass: false,
+  countdownLeads: [15],
+  countdownTonight: false,
+  countdownTonightHours: [18],
+  badge: false,
 };
+
+/** Lead-time choices for the "next class starts in…" countdown. */
+export const COUNTDOWN_LEADS: Array<{ minutes: number; label: string }> = [
+  { minutes: 60, label: "1 hour before" },
+  { minutes: 30, label: "30 minutes before" },
+  { minutes: 15, label: "15 minutes before" },
+  { minutes: 5, label: "5 minutes before" },
+  { minutes: 0, label: "When it starts" },
+];
+
+/** Reminder-time choices for tonight's 11:59 PM deadlines. */
+export const TONIGHT_HOURS: Array<{ hour: number; label: string }> = [
+  { hour: 15, label: "3:00 PM" },
+  { hour: 18, label: "6:00 PM" },
+  { hour: 21, label: "9:00 PM" },
+  { hour: 23, label: "11:00 PM" },
+];
 
 export type BooleanPrefKey = {
   [K in keyof NotificationPrefs]: NotificationPrefs[K] extends boolean ? K : never;

@@ -1,6 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { GlassCard } from "@/components/glass-card";
-import { NotificationSettings } from "@/components/notification-settings";
+import {
+  NotificationCountdowns,
+  NotificationDelivery,
+  NotificationMasterSwitch,
+  NotificationTriggers,
+} from "@/components/notification-settings";
 import { useSubscription } from "@/lib/subscription";
 import { UpgradeCard } from "@/components/pro-gate";
 
@@ -46,12 +51,31 @@ function NotificationsSettingsPage() {
 
       {isPro ? (
         <>
-          <GlassCard
-            title="Preferences"
-            subtitle="Saved to this browser for your account."
-          >
-            <NotificationSettings />
+          <GlassCard strong title="Notifications" subtitle="One switch for everything below.">
+            <NotificationMasterSwitch />
           </GlassCard>
+
+          <GlassCard
+            title="1 · What triggers an alert"
+            subtitle="Due dates, grades and announcements."
+          >
+            <NotificationTriggers />
+          </GlassCard>
+
+          <GlassCard
+            title="2 · Countdowns"
+            subtitle="Next class starting, and tonight's 11:59 PM deadlines."
+          >
+            <NotificationCountdowns />
+          </GlassCard>
+
+          <GlassCard
+            title="3 · How &amp; when they reach you"
+            subtitle="Pop-ups, alerts with the site closed, quiet hours."
+          >
+            <NotificationDelivery />
+          </GlassCard>
+
           <p className="px-1 text-xs text-muted-foreground">
             Looking for your Canvas key or class names?{" "}
             <Link to="/settings" className="underline underline-offset-4">
