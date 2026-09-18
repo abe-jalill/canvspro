@@ -31,19 +31,19 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 
 const SIZE_OPTIONS: { value: WidgetSize; label: string; desc: string }[] = [
   { value: "sm", label: "S", desc: "1/3 width" },
-  { value: "md", label: "M", desc: "2/3 width" },
+  { value: "md", label: "M", desc: "1/2 width" },
   { value: "full", label: "L", desc: "Full width" },
 ];
 
 function colSpanClass(size: WidgetSize): string {
   switch (size) {
     case "sm":
-      return "col-span-1 md:col-span-6 lg:col-span-4";
+      return "col-span-1 md:col-span-1 lg:col-span-4";
     case "md":
-      return "col-span-1 md:col-span-6 lg:col-span-6 xl:col-span-8";
+      return "col-span-1 md:col-span-1 lg:col-span-6";
     case "full":
     default:
-      return "col-span-full";
+      return "col-span-1 md:col-span-2 lg:col-span-12";
   }
 }
 
@@ -181,7 +181,7 @@ function Dashboard() {
       )}
 
       {/* 12-Column Grid Container */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-5 min-w-0">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-5 min-w-0 [grid-auto-flow:dense]">
         {activeList.map((id) => {
           const meta = WIDGETS[id];
           const hidden = layout.isHidden(id);
