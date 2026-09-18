@@ -428,77 +428,100 @@ function AssignmentsPage() {
 
               {open && (
                 <div className="border-t border-glass-border p-4 sm:p-6">
-                  {(
-                    <ul className="space-y-2">
-                      {g.items.map((a) => {
-                        const done = completed.has(a.id);
-                        const cd = getCountdown(a.due_at, { completed: done });
-                        return (
-                          <li
-                            key={a.id}
-                            className={cn(
-                              "glass-inset flex items-start justify-between gap-4 p-3 transition-opacity",
-                              cd ? urgencyAccentClass(cd.urgency) : "",
-                              done && "opacity-60",
-                            )}
-                          >
-                            <div className="flex min-w-0 items-start gap-3">
-                              <button
-                                onClick={() => completed.toggle(a.id)}
-                                aria-label={
-                                  done
-                                    ? `Mark ${a.name} incomplete`
-                                    : `Mark ${a.name} complete`
-                                }
-                                aria-pressed={done}
+                  <ul className="space-y-2">
+                    {g.items.map((a) => {
+                      const done = completed.has(a.id);
+                      const cd = getCountdown(a.due_at, { completed: done });
+                      const mine = isCustomAssignmentId(a.id);
+                      const notes = custom.notesById.get(a.id);
+                      return (
+                        <li
+                          key={a.id}
+                          className={cn(
+                            "glass-inset flex items-start justify-between gap-4 p-3 transition-opacity",
+                            cd ? urgencyAccentClass(cd.urgency) : "",
+                            done && "opacity-60",
+                          )}
+                        >
+                          <div className="flex min-w-0 items-start gap-3">
+                            <CompleteToggle
+                              done={done}
+                              onToggle={() => completed.toggle(a.id)}
+                              label={a.name}
+                              className="mt-0.5 h-5 w-5"
+                            />
+                            <div className="min-w-0">
+                              <p
                                 className={cn(
-                                  "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors",
-                                  done
-                                    ? "border-foreground/60 bg-foreground/80 text-background"
-                                    : "border-foreground/30 text-transparent hover:border-foreground/60 hover:text-foreground/60",
+                                  "truncate text-sm font-medium",
+                                  done && "line-through",
                                 )}
                               >
-                                <Check className="h-3.5 w-3.5" strokeWidth={3} />
-                              </button>
-                              <div className="min-w-0">
-                                <p
-                                  className={cn(
-                                    "truncate text-sm font-medium",
-                                    done && "line-through",
-                                  )}
-                                >
-                                  {a.name}
-                                </p>
-                                <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                                  {done ? "Completed" : statusLabel(a)}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="flex shrink-0 items-start gap-2">
-                              <div className="text-right">
-                                <p
-                                  className={cn(
-                                    "text-sm tabular-nums",
-                                    cd
-                                      ? urgencyTextClass(cd.urgency)
-                                      : "text-muted-foreground",
-                                  )}
-                                >
-                                  {cd ? cd.label : "No due date"}
-                                </p>
-                                {cd && (
-                                  <p className="mt-0.5 text-[10px] tabular-nums text-muted-foreground/80">
-                                    {cd.fullDate}
-                                  </p>
+                                {a.name}
+                              </p>
+                              <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+                                <span>
+                                  {done
+                                    ? "Completed"
+                                    : mine
+                                      ? "Added by you"
+                                      : statusLabel(a)}
+                                </span>
+                                {a.points_possible != null && (
+                                  <>
+                                    <span className="opacity-40">·</span>
+                                    <span>{a.points_possible} pts</span>
+                                  </>
                                 )}
-                              </div>
-                              {a.due_at && <AddToCalendarButton assignment={a} />}
+                              </p>
+                              {notes && (
+                                <p className="mt-1 whitespace-pre-wrap text-xs text-foreground/70">
+                                  {notes}
+                                </p>
+                              )}
                             </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
+                          </div>
+                          <div className="flex shrink-0 items-start gap-2">
+                            <div className="text-right">
+                              <p
+                                className={cn(
+                                  "text-sm tabular-nums",
+                                  cd
+                                    ? urgencyTextClass(cd.urgency)
+                                    : "text-muted-foreground",
+                                )}
+                              >
+                                {cd ? cd.label : "No due date"}
+                              </p>
+                              {cd && (
+                                <p className="mt-0.5 text-[10px] tabular-nums text-muted-foreground/80">
+                                  {cd.fullDate}
+                                </p>
+                              )}
+                            </div>
+                            {a.due_at && <AddToCalendarButton assignment={a} />}
+                            {mine && (
+                              <button
+                                type="button"
+                                onClick={() => custom.remove(a.id)}
+                                aria-label={`Delete ${a.name}`}
+                                title="Delete"
+                                className="glass-hover flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-glass-border text-muted-foreground hover:text-foreground"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+
+                  <AddAssignmentForm
+                    courseId={g.id}
+                    courseLabel={g.label}
+                    onAdd={custom.add}
+                  />
                 </div>
               )}
             </GlassCard>
