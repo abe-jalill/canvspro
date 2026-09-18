@@ -1,23 +1,14 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { getGradeColor } from "@/lib/grade-color";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, queryOptions } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { getCoursesFn, getAllAssignmentsFn } from "@/lib/canvas.functions";
-import {
-  GlassCard,
-  Skeleton,
-  ErrorState,
-  EmptyState,
-} from "@/components/glass-card";
+import { GlassCard, Skeleton, ErrorState, EmptyState } from "@/components/glass-card";
 import { displayCourseName } from "@/lib/course-display";
 import { Search, ArrowUp, ArrowDown, Minus } from "lucide-react";
-import {
-  useCourseHighlight,
-  validateCourseSearch,
-} from "@/lib/course-highlight";
-import {
-  useGradeSnapshots,
-  useRecordGradeSnapshots,
-} from "@/hooks/use-grade-snapshots";
+import { useCourseHighlight, validateCourseSearch } from "@/lib/course-highlight";
+import { useGradeSnapshots, useRecordGradeSnapshots } from "@/hooks/use-grade-snapshots";
 
 const coursesQO = queryOptions({
   queryKey: ["canvas", "courses"],
@@ -35,9 +26,15 @@ export const Route = createFileRoute("/_authenticated/grades")({
   head: () => ({
     meta: [
       { title: "Grades — Canvas Pro" },
-      { name: "description", content: "Per-course grade breakdown across your Canvas assignments, with trends over time." },
+      {
+        name: "description",
+        content: "Per-course grade breakdown across your Canvas assignments, with trends over time.",
+      },
       { property: "og:title", content: "Grades — Canvas Pro" },
-      { property: "og:description", content: "Per-course grade breakdown across your Canvas assignments, with trends over time." },
+      {
+        property: "og:description",
+        content: "Per-course grade breakdown across your Canvas assignments, with trends over time.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -59,8 +56,7 @@ function GradesPage() {
   const record = useRecordGradeSnapshots();
   const highlight = useCourseHighlight();
 
-  const loading =
-    courses.isLoading || assignments.isLoading || snapshots.isLoading;
+  const loading = courses.isLoading || assignments.isLoading || snapshots.isLoading;
   const error = courses.error || assignments.error || snapshots.error;
 
   // Latest snapshot per course, if any.
@@ -121,12 +117,8 @@ function GradesPage() {
   return (
     <div className="space-y-6">
       <header className="px-1 pt-2">
-        <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-          Per course
-        </p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">
-          Grades
-        </h1>
+        <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Per course</p>
+        <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">Grades</h1>
       </header>
 
       <div className="glass-panel-strong flex items-center gap-2 px-4 py-2">
@@ -160,77 +152,78 @@ function GradesPage() {
           <EmptyState message="No active courses." />
         </GlassCard>
       )}
-      {!loading && !error && (courses.data?.length ?? 0) > 0 &&
-        filteredCourses.length === 0 && (
-          <GlassCard>
-            <EmptyState message="No matching assignments found." />
-          </GlassCard>
-        )}
+      {!loading && !error && (courses.data?.length ?? 0) > 0 && filteredCourses.length === 0 && (
+        <GlassCard>
+          <EmptyState message="No matching assignments found." />
+        </GlassCard>
+      )}
 
-      {!loading && !error && filteredCourses.map((c) => {
-        const trend = trends.get(c.id);
-        let items = (byCourse.get(c.id) ?? []).filter(
-          (a) => a.submission?.score != null || a.submission?.grade,
-        );
-        if (q) items = items.filter((a) => a.name.toLowerCase().includes(q));
+      {!loading &&
+        !error &&
+        filteredCourses.map((c) => {
+          const trend = trends.get(c.id);
+          const score = c.current_score;
+          const color = getGradeColor(score);
+          let items = (byCourse.get(c.id) ?? []).filter((a) => a.submission?.score != null || a.submission?.grade);
+          if (q) items = items.filter((a) => a.name.toLowerCase().includes(q));
 
-        return (
-          <div key={c.id} {...highlight(displayCourseName(c.name, c.course_code))}>
-          <GlassCard
-            title={displayCourseName(c.name, c.course_code)}
-            action={
-                <span className="flex items-center gap-1.5 text-lg font-semibold tabular-nums">
-                  {trend === "up" && (
-                    <ArrowUp className="h-4 w-4 text-white" aria-label="Grade up" />
-                  )}
-                  {trend === "down" && (
-                    <ArrowDown
-                      className="h-4 w-4 text-white/60"
-                      aria-label="Grade down"
-                    />
-                  )}
-                  {trend == null && (
-                    <Minus
-                      className="h-4 w-4 text-muted-foreground"
-                      aria-label="No grade change"
-                    />
-                  )}
-                  {fmt(c.current_score)}
-                  {c.current_grade ? (
-                    <span className="ml-2 text-sm font-medium text-muted-foreground">
-                      {c.current_grade}
-                    </span>
-                  ) : null}
-                </span>
-            }
-          >
-            {items.length === 0 ? (
-              <EmptyState message="No graded assignments yet." />
-            ) : (
-              <ul className="divide-y divide-foreground/10">
-                {items.map((a) => (
-                  <li
-                    key={a.id}
-                    className="flex items-center justify-between gap-3 py-2.5"
+          return (
+            <div key={c.id} {...highlight(displayCourseName(c.name, c.course_code))}>
+              <GlassCard
+                title={
+                  <Link
+                    to="/courses/$courseId"
+                    params={{ courseId: String(c.id) }}
+                    className="flex items-center gap-2.5 group hover:opacity-90 transition-opacity"
                   >
-                    <p className="min-w-0 truncate text-sm">{a.name}</p>
-                    <div className="whitespace-nowrap text-sm tabular-nums">
-                      <span className="font-semibold">
-                        {a.submission?.score ?? "—"}
+                    <span
+                      className="h-2.5 w-2.5 rounded-full shrink-0 transition-transform group-hover:scale-110"
+                      style={{
+                        backgroundColor: color,
+                        boxShadow: `0 0 8px ${color}66`,
+                      }}
+                    />
+                    <span className="font-normal text-foreground">{displayCourseName(c.name, c.course_code)}</span>
+                  </Link>
+                }
+                action={
+                  <span className="flex items-center gap-1.5 text-base font-normal tabular-nums" style={{ color }}>
+                    {trend === "up" && <ArrowUp className="h-4 w-4" style={{ color }} aria-label="Grade up" />}
+                    {trend === "down" && (
+                      <ArrowDown className="h-4 w-4 opacity-70" style={{ color }} aria-label="Grade down" />
+                    )}
+                    {trend == null && <Minus className="h-4 w-4 text-muted-foreground" aria-label="No grade change" />}
+                    {fmt(c.current_score)}
+                    {c.current_grade ? (
+                      <span className="ml-1.5 text-sm font-normal opacity-85" style={{ color }}>
+                        {c.current_grade}
                       </span>
-                      <span className="text-muted-foreground">
-                        {" / "}
-                        {a.points_possible ?? "—"}
-                      </span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </GlassCard>
-          </div>
-        );
-      })}
+                    ) : null}
+                  </span>
+                }
+              >
+                {items.length === 0 ? (
+                  <EmptyState message="No graded assignments yet." />
+                ) : (
+                  <ul className="divide-y divide-foreground/10">
+                    {items.map((a) => (
+                      <li key={a.id} className="flex items-center justify-between gap-3 py-2.5">
+                        <p className="min-w-0 truncate text-sm">{a.name}</p>
+                        <div className="whitespace-nowrap text-sm tabular-nums">
+                          <span className="font-semibold">{a.submission?.score ?? "—"}</span>
+                          <span className="text-muted-foreground">
+                            {" / "}
+                            {a.points_possible ?? "—"}
+                          </span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </GlassCard>
+            </div>
+          );
+        })}
     </div>
   );
 }
