@@ -15,6 +15,7 @@ import { setUserScope } from "@/lib/user-scope";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { useQueryCachePersistence } from "@/lib/query-persist";
 import { useSidebarMode } from "@/lib/sidebar-state";
+import { AppWarmupSplash } from "@/components/app-warmup-splash";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated")({
