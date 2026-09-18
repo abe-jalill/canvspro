@@ -1,7 +1,23 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery, useQueryClient, queryOptions } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Bell, BellOff, Lock, LogOut, Moon, Sun } from "lucide-react";
+import {
+  Bell,
+  BellOff,
+  CalendarClock,
+  CalendarDays,
+  CreditCard,
+  Crosshair,
+  GraduationCap,
+  LayoutDashboard,
+  ListChecks,
+  Lock,
+  LogOut,
+  Megaphone,
+  Moon,
+  Settings,
+  Sun,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/lib/theme";
 import { useReminders } from "@/hooks/use-hourly-reminder";
@@ -16,16 +32,16 @@ import { getGradeColor } from "@/lib/grade-color";
 import { useSidebarMode } from "@/lib/sidebar-state";
 
 const items = [
-  { title: "Dashboard", to: "/dashboard" as const },
-  { title: "Focus", to: "/focus" as const },
-  { title: "Calendar", to: "/schedule" as const },
-  { title: "Class Schedule", to: "/class-schedule" as const },
-  { title: "Grades", to: "/grades" as const },
-  { title: "Assignments", to: "/assignments" as const },
-  { title: "Announcements", to: "/announcements" as const },
-  { title: "Billing", to: "/billing" as const },
-  { title: "Notifications", to: "/notifications" as const },
-  { title: "Settings", to: "/settings" as const },
+  { title: "Dashboard", to: "/dashboard" as const, icon: LayoutDashboard },
+  { title: "Focus", to: "/focus" as const, icon: Crosshair },
+  { title: "Calendar", to: "/schedule" as const, icon: CalendarDays },
+  { title: "Class Schedule", to: "/class-schedule" as const, icon: CalendarClock },
+  { title: "Grades", to: "/grades" as const, icon: GraduationCap },
+  { title: "Assignments", to: "/assignments" as const, icon: ListChecks },
+  { title: "Announcements", to: "/announcements" as const, icon: Megaphone },
+  { title: "Billing", to: "/billing" as const, icon: CreditCard },
+  { title: "Notifications", to: "/notifications" as const, icon: Bell },
+  { title: "Settings", to: "/settings" as const, icon: Settings },
 ];
 
 const coursesQO = queryOptions({
@@ -163,23 +179,26 @@ export function AppSidebar() {
                 />
               </div>
               <nav className="flex w-full flex-col items-center gap-1">
-                {items.map((item) => (
-                  <Link
-                    key={item.to}
-                    to={item.to}
-                    preload="intent"
-                    title={item.title}
-                    aria-label={item.title}
-                    className={cn(
-                      "press flex h-9 w-9 items-center justify-center rounded-xl text-xs font-medium transition-all",
-                      isActive(pathname, item.to)
-                        ? "bg-foreground/[0.08] text-foreground shadow-sm"
-                        : "text-muted-foreground/80 hover:bg-foreground/[0.04] hover:text-foreground",
-                    )}
-                  >
-                    {item.title.charAt(0)}
-                  </Link>
-                ))}
+                {items.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.to}
+                      to={item.to}
+                      preload="intent"
+                      title={item.title}
+                      aria-label={item.title}
+                      className={cn(
+                        "press flex h-9 w-9 items-center justify-center rounded-xl transition-all",
+                        isActive(pathname, item.to)
+                          ? "bg-foreground/[0.08] text-foreground shadow-sm"
+                          : "text-muted-foreground/80 hover:bg-foreground/[0.04] hover:text-foreground",
+                      )}
+                    >
+                      <Icon className="h-4 w-4" aria-hidden="true" />
+                    </Link>
+                  );
+                })}
                 <div className="my-2 h-[1px] w-6 rounded-full bg-white/10" />
                 {courses.data?.map((course: CourseSummary) => {
                   const courseName = displayCourseNameForCourse(course.id, course.name, course.course_code);
