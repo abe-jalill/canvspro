@@ -132,7 +132,7 @@ function TermsPage() {
         <section className="mt-10">
           <h2 className="text-lg font-semibold tracking-tight">Governing law</h2>
           <p className="mt-4 text-sm text-muted-foreground">
-            These terms are governed by the laws of [YOUR STATE]. Any disputes
+            These terms are governed by the laws of the State of Michigan, USA. Any disputes
             will be resolved in the courts located there.
           </p>
         </section>
@@ -142,10 +142,10 @@ function TermsPage() {
           <p className="mt-4 text-sm text-muted-foreground">
             Questions about these terms? Contact us at{" "}
             <a
-              href="mailto:[YOUR_EMAIL]"
+              href="mailto:support@canvaspro.app"
               className="font-medium text-foreground underline underline-offset-4"
             >
-              [YOUR_EMAIL]
+              support@canvaspro.app
             </a>
             .
           </p>
