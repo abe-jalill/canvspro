@@ -17,7 +17,6 @@ import { cn } from "@/lib/utils";
 import { displayCourseName } from "@/lib/course-display";
 import { useLocalSet, COMPLETED_ASSIGNMENTS_KEY } from "@/lib/local-state";
 import {
-  Check,
   Search,
   CalendarPlus,
   ChevronDown,
@@ -364,6 +363,18 @@ function AssignmentsPage() {
         isDone={(id) => completed.has(id)}
         onToggleDone={(id) => completed.toggle(id)}
       />
+
+      {courseOptions.length > 0 && (
+        <GlassCard
+          title="Your own assignments"
+          subtitle="Add anything Canvas doesn't have: due date, points and notes"
+        >
+          <AddAssignmentForm
+            courseOptions={courseOptions}
+            onAdd={custom.add}
+          />
+        </GlassCard>
+      )}
 
       {isLoading && (
         <div className="space-y-3">
