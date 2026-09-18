@@ -213,6 +213,32 @@ function AssignmentsPage() {
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
   const highlight = useCourseHighlight();
+  const custom = useCustomAssignments();
+
+  const courseOptions = useMemo(
+    () =>
+      (courses.data ?? []).map((c) => ({
+        id: c.id,
+        label: displayCourseName(c.name, c.course_code),
+      })),
+    [courses.data],
+  );
+
+  const allAssignments: AssignmentItem[] = useMemo(() => {
+    const courseById = new Map(
+      (courses.data ?? []).map((c) => [
+        c.id,
+        { name: c.name, course_code: c.course_code },
+      ]),
+    );
+    return [
+      ...(data ?? []),
+      ...custom.list.map((c) =>
+        customToAssignmentItem(c, courseById.get(c.course_id)),
+      ),
+    ];
+  }, [data, custom.list, courses.data]);
+
 
   const groups: ClassGroup[] = useMemo(() => {
     const map = new Map<number, ClassGroup>();
