@@ -39,8 +39,11 @@ function AuthenticatedLayout() {
   const [sidebarMode] = useSidebarMode();
   useNotificationEngine(isPro);
   useQueryCachePersistence();
-  useAppPrefetch(true);
+  const warmup = useAppPrefetch(true);
   useWelcomeEmail(true);
+
+  if (warmup === "warming") return <AppWarmupSplash />;
+
   return (
     <div className="min-h-screen w-full overflow-x-hidden md:h-screen md:overflow-hidden">
       <AppSidebar />
