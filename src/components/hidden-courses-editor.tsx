@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getAllCoursesIncludingHidden } from "@/lib/canvas.functions";
 import { useUserPreferenceKey } from "@/hooks/use-user-preferences";
 import { useNicknames } from "@/lib/nicknames";
+import { displayCourseNameForCourse } from "@/lib/course-display";
 
 /**
  * Lets each account hide its own courses. Replaces the old hardcoded
@@ -9,7 +10,7 @@ import { useNicknames } from "@/lib/nicknames";
  */
 export function HiddenCoursesSection() {
   const { value: hidden, set } = useUserPreferenceKey<number[]>("hidden_course_ids", []);
-  const nicknames = useNicknames();
+  useNicknames();
   const { data: courses, isLoading } = useQuery({
     queryKey: ["courses-including-hidden"],
     queryFn: getAllCoursesIncludingHidden,
@@ -53,7 +54,7 @@ export function HiddenCoursesSection() {
                   className="h-4 w-4 accent-current"
                 />
                 <span className={isHidden ? "text-muted-foreground line-through" : ""}>
-                  {nicknames.nameFor(c.id, c.name)}
+                  {displayCourseNameForCourse(c.id, c.name, c.course_code)}
                 </span>
               </label>
             </li>
