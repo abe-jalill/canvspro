@@ -68,6 +68,7 @@ export interface AssignmentItem {
     workflow_state?: string;
     submitted_at?: string | null;
     score?: number | null;
+    graded_at?: string | null;
     grade?: string | null;
     missing?: boolean;
     late?: boolean;

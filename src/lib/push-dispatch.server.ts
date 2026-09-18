@@ -2,6 +2,7 @@
 // rules in src/lib/notification-prefs.ts + use-notification-engine.ts.
 
 import { sendWebPushWithRetry, type PushSubscriptionRecord } from "@/lib/webpush.server";
+import { endOfLocalDay, type TonightItem } from "@/lib/countdown-alerts.server";
 
 export interface ServerPrefs {
   enabled: boolean;
@@ -16,6 +17,11 @@ export interface ServerPrefs {
   quietEnabled: boolean;
   quietStart: number;
   quietEnd: number;
+  countdownClass: boolean;
+  countdownLeads: number[];
+  countdownTonight: boolean;
+  countdownTonightHours: number[];
+  badge: boolean;
 }
 
 export const SERVER_DEFAULT_PREFS: ServerPrefs = {
@@ -31,6 +37,11 @@ export const SERVER_DEFAULT_PREFS: ServerPrefs = {
   quietEnabled: true,
   quietStart: 22,
   quietEnd: 7,
+  countdownClass: false,
+  countdownLeads: [15],
+  countdownTonight: false,
+  countdownTonightHours: [18],
+  badge: false,
 };
 
 const DUE_WINDOWS = [
@@ -54,6 +65,8 @@ export interface Alert {
   title: string;
   body?: string;
   to: string;
+  /** App-icon badge count to set on delivery. */
+  badge?: number | null;
 }
 
 interface CanvasCourse {
@@ -90,13 +103,22 @@ async function canvasFetch<T>(domain: string, token: string, path: string): Prom
   return (await res.json()) as T;
 }
 
+export interface BuildResult {
+  alerts: Alert[];
+  /** Unsubmitted work due before 11:59 PM local time today. */
+  tonight: TonightItem[];
+}
+
 export async function buildAlertsForUser(
   domain: string,
   token: string,
   prefs: ServerPrefs,
-): Promise<Alert[]> {
+  tzOffsetMinutes = 0,
+): Promise<BuildResult> {
   const alerts: Alert[] = [];
+  const tonight: TonightItem[] = [];
   const now = Date.now();
+  const endToday = endOfLocalDay(new Date(now), tzOffsetMinutes);
 
   const courses = (
     await canvasFetch<CanvasCourse[]>(
@@ -110,7 +132,7 @@ export async function buildAlertsForUser(
       !c.access_restricted_by_date &&
       (!c.workflow_state || c.workflow_state === "available"),
   );
-  if (courses.length === 0) return alerts;
+  if (courses.length === 0) return { alerts, tonight };
 
   const perCourse = await Promise.all(
     courses.map(async (c) => {
@@ -153,6 +175,7 @@ export async function buildAlertsForUser(
     const due = new Date(a.due_at).getTime();
     if (due <= now) continue;
     const hoursLeft = (due - now) / 3_600_000;
+    if (due <= endToday) tonight.push({ name: a.name, courseName: course.name });
 
     for (const w of DUE_WINDOWS) {
       if (!prefs[w.key]) continue;
@@ -199,7 +222,7 @@ export async function buildAlertsForUser(
     }
   }
 
-  return alerts;
+  return { alerts, tonight };
 }
 
 export interface DeliveryReport {
@@ -223,7 +246,13 @@ export async function deliver(
     subs.map(async (s) => {
       const res = await sendWebPushWithRetry(
         s,
-        { title: alert.title, body: alert.body, to: alert.to, tag: alert.id },
+        {
+          title: alert.title,
+          body: alert.body,
+          to: alert.to,
+          tag: alert.id,
+          badge: alert.badge ?? undefined,
+        },
         { ...vapid, context: `alert=${alert.id}` },
       );
       if (res.ok) delivered.push(s.id);

@@ -27,13 +27,17 @@ const FILTERS: Array<{ id: FilterKind; label: string }> = [
 ];
 
 function timeAgo(ts: number) {
-  const s = Math.max(1, Math.round((Date.now() - ts) / 1000));
-  if (s < 60) return `${s}s ago`;
-  const m = Math.round(s / 60);
+  const diff = Date.now() - ts;
+  if (diff < 0) return "just now";
+  const s = Math.max(1, Math.floor(diff / 1000));
+  if (s < 60) return "just now";
+  const m = Math.floor(s / 60);
   if (m < 60) return `${m}m ago`;
-  const h = Math.round(m / 60);
+  const h = Math.floor(m / 60);
   if (h < 24) return `${h}h ago`;
-  return `${Math.round(h / 24)}d ago`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d}d ago`;
+  return new Date(ts).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 function routeFor(n: AppNotification) {
@@ -129,7 +133,14 @@ export function NotificationCenter({ className }: { className?: string }) {
       </button>
 
       {open && (
-        <div className="glass-panel-strong absolute right-0 z-50 mt-2 w-[min(30rem,calc(100vw-1.5rem))] overflow-hidden p-3">
+        <>
+          {/* Phones get a dimmed backdrop so the panel reads as its own sheet. */}
+          <button
+            aria-label="Close notifications"
+            onClick={() => setOpen(false)}
+            className="fixed inset-0 z-40 bg-background/70 backdrop-blur-sm sm:hidden"
+          />
+          <div className="fixed inset-x-3 top-16 z-50 max-h-[80vh] overflow-hidden rounded-2xl border border-border bg-background p-3 shadow-2xl sm:glass-panel-strong sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:max-h-none sm:w-[min(30rem,calc(100vw-1.5rem))]">
           <div className="flex items-center justify-between gap-2 px-1 pb-2">
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               Notifications
@@ -194,7 +205,7 @@ export function NotificationCenter({ className }: { className?: string }) {
             )}
           </div>
 
-          <div className="no-scrollbar max-h-[70vh] overflow-y-auto">
+          <div className="no-scrollbar max-h-[55vh] overflow-y-auto overscroll-contain sm:max-h-[70vh]">
             {groups.length === 0 ? (
               <p className="px-3 py-10 text-center text-sm text-muted-foreground/80">
                 You're all caught up.
@@ -262,8 +273,9 @@ export function NotificationCenter({ className }: { className?: string }) {
                 })}
               </div>
             )}
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );

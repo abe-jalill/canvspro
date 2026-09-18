@@ -12,13 +12,27 @@ self.addEventListener("push", (event) => {
   }
   const title = data.title || "CanvasPro";
   event.waitUntil(
-    self.registration.showNotification(title, {
-      body: data.body || "",
-      tag: data.tag || title,
-      icon: "/favicon.png",
-      badge: "/favicon.png",
-      data: { to: data.to || "/dashboard" },
-    }),
+    (async () => {
+      // Countdown pushes reuse one tag per class/day so the alert updates in
+      // place instead of stacking a new notification for every step.
+      await self.registration.showNotification(title, {
+        body: data.body || "",
+        tag: data.tag || title,
+        renotify: false,
+        icon: "/favicon.png",
+        badge: "/favicon.png",
+        timestamp: Date.now(),
+        data: { to: data.to || "/dashboard" },
+      });
+      if (typeof data.badge === "number" && self.navigator && self.navigator.setAppBadge) {
+        try {
+          if (data.badge > 0) await self.navigator.setAppBadge(data.badge);
+          else await self.navigator.clearAppBadge();
+        } catch {
+          // badge support is optional
+        }
+      }
+    })(),
   );
 });
 

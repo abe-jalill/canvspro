@@ -38,6 +38,7 @@ interface CanvasAssignment {
     submitted_at?: string | null;
     score?: number | null;
     grade?: string | null;
+    graded_at?: string | null;
     missing?: boolean;
     late?: boolean;
   };

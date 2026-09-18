@@ -8,6 +8,13 @@
       "when": 1789672807791,
       "tag": "0000_fix_push_dispatch_cron",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789735693590,
+      "tag": "0001_create_push_scheduled_alerts",
+      "breakpoints": true
     }
   ]
 }

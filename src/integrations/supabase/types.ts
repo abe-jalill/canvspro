@@ -173,6 +173,45 @@ export type Database = {
         }
         Relationships: []
       }
+      push_scheduled_alerts: {
+        Row: {
+          badge: number | null
+          body: string
+          created_at: string
+          fire_at: string
+          id: string
+          sent_at: string | null
+          tag: string
+          title: string
+          to_path: string
+          user_id: string
+        }
+        Insert: {
+          badge?: number | null
+          body?: string
+          created_at?: string
+          fire_at: string
+          id?: string
+          sent_at?: string | null
+          tag: string
+          title: string
+          to_path?: string
+          user_id: string
+        }
+        Update: {
+          badge?: number | null
+          body?: string
+          created_at?: string
+          fire_at?: string
+          id?: string
+          sent_at?: string | null
+          tag?: string
+          title?: string
+          to_path?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       push_sent_log: {
         Row: {
           alert_id: string

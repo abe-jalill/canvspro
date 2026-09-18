@@ -9,6 +9,7 @@ import { useSubscription } from "@/lib/subscription";
 import { NotificationCenter } from "@/components/notification-center";
 import { CanvasLiveStatus } from "@/components/canvas-live-status";
 import { useNotificationEngine } from "@/hooks/use-notification-engine";
+import { useDueTodayBadge } from "@/hooks/use-due-today-badge";
 import { useAppPrefetch } from "@/hooks/use-app-prefetch";
 import { useWelcomeEmail } from "@/hooks/use-welcome-email";
 import { setUserScope } from "@/lib/user-scope";
@@ -38,6 +39,7 @@ function AuthenticatedLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [sidebarMode] = useSidebarMode();
   useNotificationEngine(isPro);
+  useDueTodayBadge(isPro);
   useQueryCachePersistence();
   const warmup = useAppPrefetch(true);
   useWelcomeEmail(true);
