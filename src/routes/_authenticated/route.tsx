@@ -55,7 +55,12 @@ function AuthenticatedLayout() {
         <div className="mx-auto w-full min-w-0 max-w-6xl px-3 py-4 sm:px-4 md:p-6">
           <div className="mb-2 flex min-w-0 items-center justify-end gap-2">
             <CanvasLiveStatus />
-            {isPro && <NotificationCenter />}
+            {/* Bell already lives in the mobile top bar — avoid a duplicate on phones */}
+            {isPro && (
+              <span className="hidden md:inline-flex">
+                <NotificationCenter />
+              </span>
+            )}
           </div>
           <CanvasKeyBanner />
           <CanvasKeyGate>
