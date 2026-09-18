@@ -93,7 +93,6 @@ interface CanvasAnnouncement {
   context_code: string;
 }
 
-const EXCLUDED_COURSE_IDS = new Set<number>([11452, 3465, 6219]);
 
 async function canvasFetch<T>(domain: string, token: string, path: string): Promise<T> {
   const res = await fetch(`https://${domain}/api/v1${path}`, {
@@ -114,6 +113,8 @@ export async function buildAlertsForUser(
   token: string,
   prefs: ServerPrefs,
   tzOffsetMinutes = 0,
+  /** Course ids this account chose to hide. Per-user, never hardcoded. */
+  hiddenCourseIds: Set<number> = new Set<number>(),
 ): Promise<BuildResult> {
   const alerts: Alert[] = [];
   const tonight: TonightItem[] = [];
