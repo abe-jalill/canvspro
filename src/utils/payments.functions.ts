@@ -21,6 +21,8 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
       "@/lib/stripe.server"
     );
     const { resolveOrCreateCustomer } = await import("@/lib/stripe-customers.server");
+    const { assertSafeReturnUrl } = await import("@/lib/return-url.server");
+    const returnUrl = assertSafeReturnUrl(data.returnUrl);
     try {
       const { userId, supabase } = context;
       const {

@@ -28,5 +28,7 @@ export function assertSafeReturnUrl(raw: string): string {
     url.hostname.endsWith(ALLOWED_HOST_SUFFIX);
 
   if (!allowed) throw new Error("Invalid return URL");
-  return url.toString();
+  // Return the original string: Stripe needs the literal
+  // {CHECKOUT_SESSION_ID} placeholder, which URL normalisation would encode.
+  return raw;
 }
