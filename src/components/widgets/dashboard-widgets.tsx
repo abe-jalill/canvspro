@@ -70,13 +70,24 @@ function DigestWidget() {
   return <DigestCard courses={courses.data} assignments={assignments.data} announcements={announcements.data} />;
 }
 
-function CoursesWidget() {
+ffunction CoursesWidget() {
   const { data, isLoading, isError, error } = useQuery(coursesQO);
   const [syllabus, setSyllabus] = useState<CourseSummary | null>(null);
 
   return (
     <>
-      <GlassCard title="Classes & Grades" subtitle="Active enrollments">
+      <GlassCard
+        title="Classes & Grades"
+        subtitle="Active enrollments"
+        action={
+          <Link
+            to="/grades"
+            className="glass-hover rounded-lg px-2.5 py-1 text-xs font-normal text-muted-foreground"
+          >
+            View all
+          </Link>
+        }
+      >
         {isLoading && (
           <div className="space-y-3">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -91,29 +102,56 @@ function CoursesWidget() {
         {data && data.length === 0 && <EmptyState message="No active courses." />}
         {data && data.length > 0 && (
           <ul className="space-y-2">
-            {data.map((c) => (
-              <li key={c.id} className="glass-inset glass-hover flex items-center justify-between gap-2 p-3">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{displayCourseName(c.name, c.course_code)}</p>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  {c.syllabus_body && (
-                    <button
-                      onClick={() => setSyllabus(c)}
-                      aria-label={`Open ${displayCourseName(c.name, c.course_code)} syllabus`}
-                      title="Syllabus"
-                      className="flex h-7 items-center gap-1 rounded-lg border border-glass-border px-2 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+            {data.map((c) => {
+              const score = c.current_score;
+              const color = getGradeColor(score);
+              const courseName = displayCourseName(c.name, c.course_code);
+
+              return (
+                <li
+                  key={c.id}
+                  className="glass-inset glass-hover group flex items-center justify-between gap-2 p-3 transition-colors"
+                >
+                  <Link
+                    to="/courses/$courseId"
+                    params={{ courseId: String(c.id) }}
+                    className="flex min-w-0 flex-1 items-center gap-2.5"
+                    title={`View ${courseName} details`}
+                  >
+                    {/* Glowing grade color dot indicator matching sidebar */}
+                    <span
+                      className="h-2 w-2 shrink-0 rounded-full transition-transform group-hover:scale-110"
+                      style={{
+                        backgroundColor: color,
+                        boxShadow: `0 0 6px ${color}66`,
+                      }}
+                    />
+                    <p className="truncate text-sm font-normal text-foreground/90 group-hover:text-foreground">
+                      {courseName}
+                    </p>
+                  </Link>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {c.syllabus_body && (
+                      <button
+                        onClick={() => setSyllabus(c)}
+                        aria-label={`Open ${courseName} syllabus`}
+                        title="Syllabus"
+                        className="flex h-7 items-center gap-1 rounded-lg border border-glass-border px-2 text-[11px] font-normal text-muted-foreground transition-colors hover:text-foreground"
+                      >
+                        <FileText className="h-3 w-3" />
+                        Syllabus
+                      </button>
+                    )}
+                    <span
+                      className="whitespace-nowrap text-xs font-normal tabular-nums"
+                      style={{ color }}
                     >
-                      <FileText className="h-3 w-3" />
-                      Syllabus
-                    </button>
-                  )}
-                  <span className="whitespace-nowrap text-sm font-semibold tabular-nums">
-                    {formatScore(c.current_score, c.current_grade)}
-                  </span>
-                </div>
-              </li>
-            ))}
+                      {formatScore(c.current_score, c.current_grade)}
+                    </span>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </GlassCard>
@@ -127,7 +165,6 @@ function CoursesWidget() {
     </>
   );
 }
-
 function UpcomingWidget() {
   const { data, isLoading, isError, error } = useQuery(assignmentsQO);
   const courses = useQuery(coursesQO);
