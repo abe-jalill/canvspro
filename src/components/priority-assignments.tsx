@@ -17,6 +17,7 @@ import {
   useSetAssignmentEstimate,
 } from "@/hooks/use-assignment-meta";
 import { Clock } from "lucide-react";
+import { CompleteToggle } from "@/components/complete-toggle";
 import { useState } from "react";
 
 const assignmentsQO = queryOptions({
@@ -161,8 +162,18 @@ export function PriorityAssignmentsWidget() {
               className="glass-inset flex flex-col gap-2 p-3"
             >
               <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">
+                <CompleteToggle
+                  done={completed.has(p.assignment.id)}
+                  onToggle={() => completed.toggle(p.assignment.id)}
+                  label={p.assignment.name}
+                />
+                <div className="min-w-0 flex-1">
+                  <p
+                    className={cn(
+                      "truncate text-sm font-medium",
+                      completed.has(p.assignment.id) && "line-through opacity-60",
+                    )}
+                  >
                     {p.assignment.name}
                   </p>
                   <p className="truncate text-xs text-muted-foreground">
