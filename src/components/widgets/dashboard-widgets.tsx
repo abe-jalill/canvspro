@@ -24,6 +24,7 @@ import { WorkloadHeatmap } from "@/components/workload-heatmap";
 import { GpaCalculator } from "@/components/gpa-calculator";
 import { getCalendarEventsFn } from "@/lib/canvas.functions";
 import { Lock } from "lucide-react";
+import { getGradeColor } from "@/lib/grade-color";
 
 const coursesQO = queryOptions({
   queryKey: ["canvas", "courses"],
