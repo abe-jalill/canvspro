@@ -145,7 +145,7 @@ Email: `}
               href="mailto:[YOUR_EMAIL]"
               className="font-medium text-foreground underline underline-offset-4"
             >
-              [YOUR_EMAIL]
+              {""}
             </a>
           </p>
         </section>
@@ -158,7 +158,7 @@ Email: `}
               href="mailto:[YOUR_EMAIL]"
               className="font-medium text-foreground underline underline-offset-4"
             >
-              [YOUR_EMAIL]
+              {""}
             </a>
           </p>
         </section>
