@@ -338,8 +338,8 @@ export const Route = createFileRoute("/api/public/push/dispatch")({
           .select("secret")
           .limit(1)
           .maybeSingle();
-        const expected = data?.secret ?? "";
-        if (!expected || provided.length !== expected.length || provided !== expected) {
+        const expected = (data?.secret ?? "") as string;
+        if (!expected || !constantTimeEqual(provided, expected)) {
           return new Response("Unauthorized", { status: 401 });
         }
         return run();
