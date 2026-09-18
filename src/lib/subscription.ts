@@ -53,7 +53,7 @@ export function useSubscription() {
       if (error) throw new Error(error.message);
       return (data as SubscriptionRow | null) ?? null;
     },
-    staleTime: 30_000,
+    staleTime: 5 * 60_000,
   });
 
   return {
