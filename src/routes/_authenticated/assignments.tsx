@@ -16,7 +16,20 @@ import {
 import { cn } from "@/lib/utils";
 import { displayCourseName } from "@/lib/course-display";
 import { useLocalSet, COMPLETED_ASSIGNMENTS_KEY } from "@/lib/local-state";
-import { Check, Search, CalendarPlus, ChevronDown, Sparkles } from "lucide-react";
+import {
+  Check,
+  Search,
+  CalendarPlus,
+  ChevronDown,
+  Sparkles,
+  Plus,
+  Trash2,
+} from "lucide-react";
+import {
+  useCustomAssignments,
+  customToAssignmentItem,
+  isCustomAssignmentId,
+} from "@/lib/custom-assignments";
 import {
   getCountdown,
   urgencyTextClass,
