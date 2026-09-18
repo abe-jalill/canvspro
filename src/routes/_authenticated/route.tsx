@@ -35,6 +35,7 @@ export const Route = createFileRoute("/_authenticated")({
 function AuthenticatedLayout() {
   const { isActive: isPro } = useSubscription();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const [sidebarMode] = useSidebarMode();
   useNotificationEngine(isPro);
   useQueryCachePersistence();
   useAppPrefetch(true);
