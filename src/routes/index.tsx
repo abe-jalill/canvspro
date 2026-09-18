@@ -161,14 +161,14 @@ const TESTIMONIALS = [
     quote:
       "I used to keep 10+ Canvas tabs open every Sunday night trying to piece together what was due. Having every deadline, class score, and countdown on one screen cut my weekly planning time to 2 minutes.",
     author: "Anonymous",
-    school: "LTU '29 • Engineering",
+    school: "LTU '29 • Civil Engineering",
     stars: 5,
   },
   {
     quote:
       "The built-in final exam calculator alone is worth it. It automatically told me I needed an 81% on my Chem final to keep an A, instead of me guessing with an Excel spreadsheet at 2 AM.",
     author: "Omar S.",
-    school: "UofM - Michigan",
+    school: "UofM - Michigan • Finance ",
     stars: 5,
   },
   {
