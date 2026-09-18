@@ -29,10 +29,26 @@ function isoOrNull(seconds: number | null | undefined) {
   return seconds ? new Date(seconds * 1000).toISOString() : null;
 }
 
+/** Some Stripe flows don't copy checkout metadata onto the subscription;
+ *  fall back to the customer id we already recorded for this account. */
+async function userIdForCustomer(customerId: string): Promise<string | null> {
+  if (!customerId) return null;
+  const { data } = await subscriptionsTable()
+    .select("user_id")
+    .eq("stripe_customer_id", customerId)
+    .limit(1)
+    .maybeSingle();
+  return (data?.user_id as string | undefined) ?? null;
+}
+
 async function handleSubscriptionCreated(subscription: any, env: StripeEnv) {
-  const userId = subscription.metadata?.userId;
+  const userId =
+    subscription.metadata?.userId ?? (await userIdForCustomer(subscription.customer));
   if (!userId) {
-    console.error("No userId in subscription metadata");
+    console.error(
+      "No userId in subscription metadata and no matching customer:",
+      subscription.id,
+    );
     return;
   }
   const item = subscription.items?.data?.[0];
