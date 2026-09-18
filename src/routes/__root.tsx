@@ -84,6 +84,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content:
           "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/bdf1beaf-d775-40f3-b194-aafd54341d35/id-preview-4231fc3a--affbea3f-cfe8-4941-aebb-24d8872c528c.lovable.app-1783984199763.png",
       },
+      {
+        name: "google-site-verification",
+        content: "P8Sm6eDHpOJ5ZpV1NufDHGqBEtfhaWG4FTZ1gkc2w0M",
+      },
       { name: "theme-color", content: "#000000" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-title", content: "CanvasPro" },
