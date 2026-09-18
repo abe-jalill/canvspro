@@ -7,16 +7,16 @@ export function SiteFooter() {
         <p>© {new Date().getFullYear()} CanvasPro. All rights reserved.</p>
         <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
           <Link to="/dashboard" className="transition-colors hover:text-foreground">
-             {"\n"}
+            Dashboard
           </Link>
           <Link to="/auth" className="transition-colors hover:text-foreground">
-             {"\n"}
+            Sign In
           </Link>
           <Link to="/canvas-grade-calculator" className="transition-colors hover:text-foreground">
-             {"\n"}
+            Grade Calculator
           </Link>
           <Link to="/canvas-dashboard-guide" className="transition-colors hover:text-foreground">
-             {"\n"}
+            Canvas Dashboard Guide
           </Link>
           <Link to="/pricing" className="transition-colors hover:text-foreground">
             Pricing
