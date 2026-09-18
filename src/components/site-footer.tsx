@@ -29,6 +29,24 @@ export function SiteFooter() {
           </Link>
         </div>
       </div>
+      <div className="mx-auto mt-4 flex max-w-6xl flex-wrap items-center justify-center gap-4 text-xs text-muted-foreground sm:gap-6">
+        <a
+          href="https://forms.gle/7bttezmTW3ji3zFU9"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="transition-colors hover:text-foreground"
+        >
+          Report a problem
+        </a>
+        <a
+          href="https://forms.gle/2rSFpsNFBKiRGepE9"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="transition-colors hover:text-foreground"
+        >
+          Survey (Less than 2 minutes!!)
+        </a>
+      </div>
     </footer>
   );
 }
