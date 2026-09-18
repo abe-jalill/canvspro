@@ -107,10 +107,14 @@ function PriorityAssignmentsCard({
   groups,
   loading,
   error,
+  isDone,
+  onToggleDone,
 }: {
   groups: ReturnType<typeof buildPriorityList>;
   loading: boolean;
   error: Error | null;
+  isDone: (id: number) => boolean;
+  onToggleDone: (id: number) => void;
 }) {
   if (loading) {
     return (
