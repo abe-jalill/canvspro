@@ -157,10 +157,23 @@ function PriorityAssignmentsCard({
           {topItems.map((p) => (
             <li
               key={p.assignment.id}
-              className="glass-inset flex items-center justify-between gap-3 p-3"
+              className={cn(
+                "glass-inset flex items-center justify-between gap-3 p-3",
+                isDone(p.assignment.id) && "opacity-60",
+              )}
             >
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium">
+              <CompleteToggle
+                done={isDone(p.assignment.id)}
+                onToggle={() => onToggleDone(p.assignment.id)}
+                label={p.assignment.name}
+              />
+              <div className="min-w-0 flex-1">
+                <p
+                  className={cn(
+                    "truncate text-sm font-medium",
+                    isDone(p.assignment.id) && "line-through",
+                  )}
+                >
                   {p.assignment.name}
                 </p>
                 <p className="truncate text-xs text-muted-foreground">
@@ -264,7 +277,7 @@ function AssignmentsPage() {
       estimates[id] = meta.estimatedMinutes;
     }
     return buildPriorityList(
-      data ?? [],
+      allAssignments,
       (courses.data ?? []).map((c) => ({
         id: c.id,
         name: displayCourseName(c.name, c.course_code),
@@ -274,7 +287,7 @@ function AssignmentsPage() {
       Date.now(),
       { estimates },
     );
-  }, [data, courses.data, completed.has, metaMap]);
+  }, [allAssignments, courses.data, completed.has, metaMap]);
 
   const q = search.trim().toLowerCase();
   const visibleGroups = q
@@ -321,6 +334,8 @@ function AssignmentsPage() {
         groups={priorityGroups}
         loading={isLoading}
         error={isError ? (error as Error) : null}
+        isDone={(id) => completed.has(id)}
+        onToggleDone={(id) => completed.toggle(id)}
       />
 
       {isLoading && (
