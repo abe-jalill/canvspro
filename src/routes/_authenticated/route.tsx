@@ -15,6 +15,7 @@ import { setUserScope } from "@/lib/user-scope";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { useQueryCachePersistence } from "@/lib/query-persist";
 import { useSidebarMode } from "@/lib/sidebar-state";
+import { AppWarmupSplash } from "@/components/app-warmup-splash";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -38,8 +39,11 @@ function AuthenticatedLayout() {
   const [sidebarMode] = useSidebarMode();
   useNotificationEngine(isPro);
   useQueryCachePersistence();
-  useAppPrefetch(true);
+  const warmup = useAppPrefetch(true);
   useWelcomeEmail(true);
+
+  if (warmup === "warming") return <AppWarmupSplash />;
+
   return (
     <div className="min-h-screen w-full overflow-x-hidden md:h-screen md:overflow-hidden">
       <AppSidebar />
