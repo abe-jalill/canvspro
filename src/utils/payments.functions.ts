@@ -14,6 +14,8 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
       return data;
     },
   )
+  // Checkout keeps the {CHECKOUT_SESSION_ID} placeholder, so the URL is
+  // validated inside the handler where the helper can be imported server-side.
   .handler(async ({ data, context }): Promise<CheckoutSessionResult> => {
     const { createStripeClient, getStripeErrorMessage } = await import(
       "@/lib/stripe.server"
