@@ -51,6 +51,77 @@ export function nicknameLookupVersion() {
     .map(([id, n]) => `${id}:${n}`)
     .join("|");
 }
+/**
+ * Automatically converts raw all-caps names from university systems (e.g.
+ * "UNIVERSITY PHYSICS 1", "PHYSICS 1 LAB", "CE PERSPECTIVES") into clean,
+ * readable Title Case while preserving short acronyms and Roman numerals.
+ */
+export function formatCleanTitle(str?: string | null): string {
+  if (!str) return "";
+  const trimmed = str.trim();
+  const letters = trimmed.replace(/[^a-zA-Z]/g, "");
+
+  // If the text contains at least 3 letters and is completely uppercase
+  if (letters.length >= 3 && letters === letters.toUpperCase()) {
+    const acronyms = new Set([
+      "CE",
+      "CS",
+      "IT",
+      "AI",
+      "EE",
+      "ME",
+      "BME",
+      "ECE",
+      "CIV",
+      "CHM",
+      "CHEM",
+      "BIO",
+      "ENG",
+      "ENGR",
+      "MATH",
+      "PHY",
+      "PHYS",
+      "HUM",
+      "HIST",
+      "SOC",
+      "PSY",
+      "I",
+      "II",
+      "III",
+      "IV",
+      "V",
+      "VI",
+      "VII",
+      "VIII",
+      "IX",
+      "X",
+      "AP",
+      "IB",
+      "GPA",
+      "USA",
+      "UK",
+    ]);
+    const minorWords = new Set(["of", "and", "in", "to", "for", "with", "on", "at", "by", "from", "the", "a", "an"]);
+
+    return trimmed
+      .split(/(\s+)/)
+      .map((part, idx) => {
+        if (/^\s+$/.test(part)) return part;
+        const cleanToken = part.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+        if (acronyms.has(cleanToken)) {
+          return part.toUpperCase();
+        }
+        const lower = part.toLowerCase();
+        if (idx > 0 && minorWords.has(lower)) {
+          return lower;
+        }
+        return lower.charAt(0).toUpperCase() + lower.slice(1);
+      })
+      .join("");
+  }
+
+  return trimmed;
+}
 
 export function nicknameForCourseId(id?: number | null) {
   if (id == null) return undefined;
@@ -58,12 +129,10 @@ export function nicknameForCourseId(id?: number | null) {
 }
 
 /** Prefer the stable Canvas course id, then fall back to raw name/code matching. */
-export function displayCourseNameForCourse(
-  id?: number | null,
-  name?: string | null,
-  code?: string | null,
-) {
-  return nicknameForCourseId(id) ?? displayCourseName(name, code);
+export function displayCourseNameForCourse(id?: number | null, name?: string | null, code?: string | null) {
+  const nick = nicknameForCourseId(id);
+  if (nick) return formatCleanTitle(nick);
+  return displayCourseName(name, code);
 }
 
 function nicknameFor(name?: string | null, code?: string | null) {
@@ -77,17 +146,17 @@ function nicknameFor(name?: string | null, code?: string | null) {
 
 export function displayCourseName(name?: string | null, code?: string | null) {
   const nick = nicknameFor(name, code);
-  if (nick) return nick;
+  if (nick) return formatCleanTitle(nick);
   const haystacks = [name ?? "", code ?? ""];
   for (const rule of RENAME_RULES) {
     if (haystacks.some((h) => rule.match.test(h))) return rule.name;
   }
-  return name ?? code ?? "Course";
+  return formatCleanTitle(name ?? code ?? "Course");
 }
 
 export function displayCourseCode(name?: string | null, code?: string | null) {
   const nick = nicknameFor(name, code);
-  if (nick) return nick;
+  if (nick) return formatCleanTitle(nick);
   const haystacks = [name ?? "", code ?? ""];
   for (const rule of RENAME_RULES) {
     if (haystacks.some((h) => rule.match.test(h))) return rule.name;
