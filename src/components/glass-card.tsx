@@ -6,7 +6,7 @@ import { useCanvasSync } from "@/hooks/use-canvas-sync";
 interface GlassCardProps {
   children: ReactNode;
   className?: string;
-  title?: string;
+  title?: ReactNode;
   subtitle?: string;
   action?: ReactNode;
   strong?: boolean;

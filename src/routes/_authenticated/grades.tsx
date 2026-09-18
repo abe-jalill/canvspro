@@ -1,6 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { getGradeColor } from "@/lib/grade-color";
-import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, queryOptions } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { getCoursesFn, getAllAssignmentsFn } from "@/lib/canvas.functions";
