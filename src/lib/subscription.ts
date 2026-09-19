@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import { getStripeEnvironment } from "@/lib/stripe";
 import { useAuthUserId, userKey } from "@/lib/auth-user";
 import {
   getSubscriptionAccess,
