@@ -582,7 +582,7 @@ function AssignmentsPage() {
                                 type="button"
                                 onClick={() => {
                                   setNoteEditing(noteEditing === a.id ? null : a.id);
-                                  setNoteDraft(notes);
+                                  setNoteDraft(notes ?? "");
                                 }}
                                 aria-label={`Edit note for ${a.name}`}
                                 title="Note"
