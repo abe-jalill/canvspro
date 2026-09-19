@@ -1,8 +1,20 @@
 import { supabase } from "@/integrations/supabase/client";
 import { readPrefs } from "@/lib/notification-prefs";
-import { VAPID_PUBLIC_KEY } from "@/lib/vapid";
 
-export { VAPID_PUBLIC_KEY };
+/**
+ * The application-server public key comes from the server itself, so the key a
+ * device subscribes with is always the key the sender signs with. A hardcoded
+ * copy is what previously caused "push delivery failed on every device" (the
+ * push service rejects a mismatched VAPID identity with 403).
+ */
+async function fetchServerPublicKey(): Promise<string> {
+  const res = await fetch("/api/public/push/key", { cache: "no-store" });
+  if (!res.ok) throw new Error("Push isn't configured on the server yet.");
+  const body = (await res.json()) as { publicKey?: string };
+  const key = (body.publicKey ?? "").trim();
+  if (!key) throw new Error("Push isn't configured on the server yet.");
+  return key;
+}
 
 function urlBase64ToUint8Array(base64: string): Uint8Array {
   const padding = "=".repeat((4 - (base64.length % 4)) % 4);
@@ -97,6 +109,17 @@ export async function enableBackgroundPush(): Promise<
   const permission = await Notification.requestPermission();
   if (permission !== "granted") return { ok: false, reason: "Notification permission was denied." };
 
+  let serverKey: string;
+  try {
+    serverKey = await fetchServerPublicKey();
+  } catch (err) {
+    return {
+      ok: false,
+      reason:
+        err instanceof Error ? err.message : "Couldn't reach the server to set up notifications.",
+    };
+  }
+
   const reg = await getRegistration();
   await navigator.serviceWorker.ready;
 
@@ -110,7 +133,7 @@ export async function enableBackgroundPush(): Promise<
 
   const sub = await reg.pushManager.subscribe({
     userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource,
+    applicationServerKey: urlBase64ToUint8Array(serverKey) as BufferSource,
   });
 
   const json = sub.toJSON();

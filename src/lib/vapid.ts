@@ -1,7 +1,7 @@
-// VAPID public identity for Web Push (ECDSA P-256, RFC 8291/8188).
-// Safe to ship to the browser. The matching private key lives in vapid.server.ts.
-
-export const VAPID_PUBLIC_KEY =
-  "BIhfNsgMa6yXEPAu8EL2t_PGYabFr2AbqPlhXs5_PyYa2Wr3zmUtN5JoQm7k0ihE3xBbAWTbjVCc2LIQZyeuG8E";
+// VAPID subject for Web Push (ECDSA P-256, RFC 8291/8188).
+//
+// The public key is NOT hardcoded here on purpose: the browser asks the server
+// for its live public key before subscribing (see push-client.ts), so a device
+// can never register against a key the server no longer signs with.
 
 export const VAPID_SUBJECT = "mailto:support@canvaspro.app";
