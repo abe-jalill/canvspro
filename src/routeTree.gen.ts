@@ -37,7 +37,6 @@ import { Route as AuthenticatedCheckoutReturnRouteImport } from './routes/_authe
 import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
 import { Route as LovableEmailAuthWebhookRouteImport } from './routes/lovable/email/auth/webhook'
 import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
-import { Route as ApiPublicPushKeycheckRouteImport } from './routes/api/public/push/keycheck'
 import { Route as ApiPublicPushKeyRouteImport } from './routes/api/public/push/key'
 import { Route as ApiPublicPushDispatchRouteImport } from './routes/api/public/push/dispatch'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
@@ -188,11 +187,6 @@ const LovableEmailAuthPreviewRoute = LovableEmailAuthPreviewRouteImport.update({
   path: '/lovable/email/auth/preview',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicPushKeycheckRoute = ApiPublicPushKeycheckRouteImport.update({
-  id: '/api/public/push/keycheck',
-  path: '/api/public/push/keycheck',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiPublicPushKeyRoute = ApiPublicPushKeyRouteImport.update({
   id: '/api/public/push/key',
   path: '/api/public/push/key',
@@ -238,7 +232,6 @@ export interface FileRoutesByFullPath {
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/push/dispatch': typeof ApiPublicPushDispatchRoute
   '/api/public/push/key': typeof ApiPublicPushKeyRoute
-  '/api/public/push/keycheck': typeof ApiPublicPushKeycheckRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
@@ -271,7 +264,6 @@ export interface FileRoutesByTo {
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/push/dispatch': typeof ApiPublicPushDispatchRoute
   '/api/public/push/key': typeof ApiPublicPushKeyRoute
-  '/api/public/push/keycheck': typeof ApiPublicPushKeycheckRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
@@ -306,7 +298,6 @@ export interface FileRoutesById {
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/push/dispatch': typeof ApiPublicPushDispatchRoute
   '/api/public/push/key': typeof ApiPublicPushKeyRoute
-  '/api/public/push/keycheck': typeof ApiPublicPushKeycheckRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
@@ -341,7 +332,6 @@ export interface FileRouteTypes {
     | '/api/public/payments/webhook'
     | '/api/public/push/dispatch'
     | '/api/public/push/key'
-    | '/api/public/push/keycheck'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/transactional/preview'
@@ -374,7 +364,6 @@ export interface FileRouteTypes {
     | '/api/public/payments/webhook'
     | '/api/public/push/dispatch'
     | '/api/public/push/key'
-    | '/api/public/push/keycheck'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/transactional/preview'
@@ -408,7 +397,6 @@ export interface FileRouteTypes {
     | '/api/public/payments/webhook'
     | '/api/public/push/dispatch'
     | '/api/public/push/key'
-    | '/api/public/push/keycheck'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/transactional/preview'
@@ -431,7 +419,6 @@ export interface RootRouteChildren {
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
   ApiPublicPushDispatchRoute: typeof ApiPublicPushDispatchRoute
   ApiPublicPushKeyRoute: typeof ApiPublicPushKeyRoute
-  ApiPublicPushKeycheckRoute: typeof ApiPublicPushKeycheckRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
   LovableEmailAuthWebhookRoute: typeof LovableEmailAuthWebhookRoute
   LovableEmailTransactionalPreviewRoute: typeof LovableEmailTransactionalPreviewRoute
@@ -635,13 +622,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LovableEmailAuthPreviewRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/push/keycheck': {
-      id: '/api/public/push/keycheck'
-      path: '/api/public/push/keycheck'
-      fullPath: '/api/public/push/keycheck'
-      preLoaderRoute: typeof ApiPublicPushKeycheckRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/push/key': {
       id: '/api/public/push/key'
       path: '/api/public/push/key'
@@ -716,7 +696,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
   ApiPublicPushDispatchRoute: ApiPublicPushDispatchRoute,
   ApiPublicPushKeyRoute: ApiPublicPushKeyRoute,
-  ApiPublicPushKeycheckRoute: ApiPublicPushKeycheckRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
   LovableEmailAuthWebhookRoute: LovableEmailAuthWebhookRoute,
   LovableEmailTransactionalPreviewRoute: LovableEmailTransactionalPreviewRoute,
