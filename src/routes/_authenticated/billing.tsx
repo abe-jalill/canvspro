@@ -55,10 +55,7 @@ function BillingPage() {
     }
     try {
       const result = await createPortalSession({
-        data: {
-          returnUrl: window.location.href,
-          environment: getStripeEnvironment(),
-        },
+        data: { returnUrl: window.location.href },
       });
       if ("error" in result) throw new Error(result.error);
       if (portalTab) {

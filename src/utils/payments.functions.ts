@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type Stripe from "stripe";
-import { type StripeEnv } from "@/lib/stripe.server";
 
 type CheckoutSessionResult = { clientSecret: string } | { error: string };
 type PortalSessionResult = { url: string } | { error: string };
@@ -9,7 +8,7 @@ type PortalSessionResult = { url: string } | { error: string };
 export const createCheckoutSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
-    (data: { priceId: string; returnUrl: string; environment: StripeEnv }) => {
+    (data: { priceId: string; returnUrl: string }) => {
       if (!/^[a-zA-Z0-9_-]+$/.test(data.priceId)) throw new Error("Invalid priceId");
       return data;
     },
@@ -22,6 +21,8 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
     );
     const { resolveOrCreateCustomer } = await import("@/lib/stripe-customers.server");
     const { assertSafeReturnUrl } = await import("@/lib/return-url.server");
+    const { resolveStripeEnv } = await import("@/lib/payments-env.server");
+    const environment = resolveStripeEnv();
     const returnUrl = assertSafeReturnUrl(data.returnUrl);
     try {
       const { userId, supabase } = context;
@@ -29,7 +30,7 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
         data: { user },
       } = await supabase.auth.getUser();
 
-      const stripe = createStripeClient(data.environment);
+      const stripe = createStripeClient(environment);
 
       const prices = await stripe.prices.list({ lookup_keys: [data.priceId] });
       if (!prices.data.length) throw new Error("Price not found");
@@ -60,13 +61,16 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
 
 export const createPortalSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { returnUrl?: string; environment: StripeEnv }) => data)
+  .inputValidator((data: { returnUrl?: string }) => data)
   .handler(async ({ data, context }): Promise<PortalSessionResult> => {
     try {
       const { createStripeClient, getStripeErrorMessage } = await import(
         "@/lib/stripe.server"
       );
       const { assertSafeReturnUrl } = await import("@/lib/return-url.server");
+      const { resolveStripeEnv, ENTITLEMENT_ENV } = await import(
+        "@/lib/payments-env.server"
+      );
       const returnUrl = data.returnUrl ? assertSafeReturnUrl(data.returnUrl) : undefined;
       const { supabase, userId } = context;
 
@@ -79,7 +83,7 @@ export const createPortalSession = createServerFn({ method: "POST" })
         .from("subscriptions")
         .select("stripe_customer_id, stripe_subscription_id, status, current_period_end")
         .eq("user_id", userId)
-        .eq("environment", data.environment)
+        .eq("environment", ENTITLEMENT_ENV)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -88,7 +92,7 @@ export const createPortalSession = createServerFn({ method: "POST" })
         return { error: "No paid subscription found for this account" };
       }
 
-      const stripe = createStripeClient(data.environment);
+      const stripe = createStripeClient(resolveStripeEnv());
       const stripeSubscription = await stripe.subscriptions.retrieve(
         sub.stripe_subscription_id as string,
       );
