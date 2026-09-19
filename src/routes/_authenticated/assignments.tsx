@@ -23,6 +23,8 @@ import {
   Sparkles,
   Plus,
   Trash2,
+  Timer,
+  StickyNote,
 } from "lucide-react";
 import {
   useCustomAssignments,
@@ -42,6 +44,9 @@ import {
 } from "@/lib/course-highlight";
 import { buildPriorityList, describePriorityList } from "@/lib/priority";
 import { useAssignmentMetaMap } from "@/hooks/use-assignment-meta";
+import { useAssignmentNotes } from "@/lib/assignment-notes";
+import { SubmissionBadge } from "@/components/submission-badge";
+import { openTimer } from "@/lib/focus-timer-store";
 
 const assignmentsQO = queryOptions({
   queryKey: ["canvas", "assignments"],
@@ -176,11 +181,14 @@ function PriorityAssignmentsCard({
                 >
                   {p.assignment.name}
                 </p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {displayCourseName(
-                    p.assignment.course_name,
-                    p.assignment.course_code,
-                  )}
+                <p className="flex min-w-0 items-center gap-1.5 truncate text-xs text-muted-foreground">
+                  <span className="truncate">
+                    {displayCourseName(
+                      p.assignment.course_name,
+                      p.assignment.course_code,
+                    )}
+                  </span>
+                  <SubmissionBadge assignment={p.assignment} />
                 </p>
               </div>
               <span
@@ -214,6 +222,9 @@ function AssignmentsPage() {
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
   const highlight = useCourseHighlight();
   const custom = useCustomAssignments();
+  const assignmentNotes = useAssignmentNotes();
+  const [noteEditing, setNoteEditing] = useState<number | null>(null);
+  const [noteDraft, setNoteDraft] = useState("");
 
   const courseOptions = useMemo(
     () =>
@@ -444,7 +455,13 @@ function AssignmentsPage() {
                       const done = completed.has(a.id);
                       const cd = getCountdown(a.due_at, { completed: done });
                       const mine = isCustomAssignmentId(a.id);
-                      const notes = custom.notesById.get(a.id);
+                      const notes = mine
+                        ? custom.notesById.get(a.id)
+                        : assignmentNotes.getNote(a.id);
+                      const estimate =
+                        mine
+                          ? null
+                          : (metaMap.get(a.id)?.estimatedMinutes ?? null);
                       return (
                         <li
                           key={a.id}

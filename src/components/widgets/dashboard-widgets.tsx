@@ -19,6 +19,7 @@ import { Check, X, CalendarPlus, FileText, ChevronDown } from "lucide-react";
 import { getCountdown, urgencyTextClass, urgencyAccentClass } from "@/lib/countdown";
 import { buildIcs, downloadIcs, safeFilename } from "@/lib/ics";
 import { SyllabusModal } from "@/components/syllabus-modal";
+import { SubmissionBadge } from "@/components/submission-badge";
 import { DigestCard } from "@/components/digest-card";
 import { WorkloadHeatmap } from "@/components/workload-heatmap";
 import { GpaCalculator } from "@/components/gpa-calculator";
@@ -302,6 +303,7 @@ function UpcomingWidget() {
                             >
                               {a.name}
                             </p>
+                            <SubmissionBadge assignment={a} />
                           </div>
                           <div className="flex shrink-0 items-center gap-2">
                             <div className="text-right">
