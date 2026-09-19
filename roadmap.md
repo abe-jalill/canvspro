@@ -38,3 +38,10 @@
 - [x] Remove email-based Pro bypass and make entitlement server-verified per user
 - [x] Make Stripe portal opening resistant to popup blocking
 - [x] Verify free-account lockout, paid-row isolation, and portal opening behavior
+
+## Switch to a fresh Stripe account
+
+- [ ] User disconnects current Stripe in the Payments dashboard (three-dots menu)
+- [ ] Re-enable built-in Stripe (fresh Lovable-managed account)
+- [ ] Recreate Canvas Pro product at $2.99/month (pro_monthly, tax code set)
+- [ ] Verify checkout + portal on the new account after publish
