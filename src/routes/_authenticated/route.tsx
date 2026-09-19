@@ -1,4 +1,6 @@
 import { createFileRoute, Outlet, redirect, useRouterState } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppSidebar, MobileNav } from "@/components/app-sidebar";
 import { CanvasKeyBanner } from "@/components/canvas-key-banner";
@@ -41,6 +43,14 @@ function AuthenticatedLayout() {
   const { isActive: isPro } = useSubscription();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [sidebarMode] = useSidebarMode();
+  const queryClient = useQueryClient();
+
+  // The moment Pro access is confirmed, drop any Canvas result fetched while it
+  // was still unknown, so nothing stays blank waiting for a stale window.
+  useEffect(() => {
+    if (!isPro) return;
+    void queryClient.invalidateQueries({ queryKey: ["canvas"] });
+  }, [isPro, queryClient]);
   useNotificationEngine(isPro);
   useDueTodayBadge(isPro);
   useQueryCachePersistence();
