@@ -166,6 +166,7 @@ export function PriorityAssignmentsWidget() {
                   done={completed.has(p.assignment.id)}
                   onToggle={() => completed.toggle(p.assignment.id)}
                   label={p.assignment.name}
+                  disabled={!completed.ready}
                 />
                 <div className="min-w-0 flex-1">
                   <p
