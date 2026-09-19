@@ -1,15 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { getStripeEnvironment } from "@/lib/stripe";
-import { hasCompedAccess } from "@/lib/entitlements.functions";
 import { useAuthUserId, userKey } from "@/lib/auth-user";
+import {
+  getSubscriptionAccess,
+  type SubscriptionAccess,
+} from "@/lib/subscription.functions";
 
-export type SubscriptionRow = {
-  status: string;
-  price_id: string;
-  current_period_end: string | null;
-  cancel_at_period_end: boolean | null;
-};
+export type SubscriptionRow = NonNullable<SubscriptionAccess>;
 
 /** Base key — invalidating this matches every per-user variant. */
 export const subscriptionQueryKey = ["subscription"] as const;
@@ -38,54 +35,10 @@ export function useSubscription() {
     queryKey: userKey(subscriptionQueryKey, userId),
     enabled: !!userId,
     queryFn: async (): Promise<SubscriptionRow | null> => {
-      // Re-verify the session inside the fetch so a stale closure can never
-      // attribute a subscription to the wrong account.
-      const { data: userData, error: userError } = await supabase.auth.getUser();
-      const currentId = userData.user?.id ?? null;
-      if (userError || !currentId || currentId !== userId) {
-        throw new Error("Not signed in");
-      }
-
-      // Complimentary access is decided server-side; no email list ships here.
-      try {
-        const { comped } = await hasCompedAccess();
-        if (comped) {
-          return {
-            status: "active",
-            price_id: "comped",
-            current_period_end: null,
-            cancel_at_period_end: false,
-          };
-        }
-      } catch {
-        // Not comped / verification unavailable — fall through to the DB read.
-      }
-
-      // Scope to the payment environment when it is known. If this build has
-      // no payments token configured we must not lock a paying customer out,
-      // so we read their newest row in any environment — still their own row
-      // only, because RLS and this filter both scope to their user id.
-      let environment: "sandbox" | "live" | null = null;
-      try {
-        environment = getStripeEnvironment();
-      } catch {
-        environment = null;
-      }
-
-      let select = supabase
-        .from("subscriptions")
-        .select("status, price_id, current_period_end, cancel_at_period_end")
-        .eq("user_id", currentId);
-      if (environment) select = select.eq("environment", environment);
-
-      const { data, error } = await select
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw new Error(error.message);
-      return (data as SubscriptionRow | null) ?? null;
+      const environment = getStripeEnvironment();
+      return getSubscriptionAccess({ data: { environment } });
     },
-    staleTime: 60_000,
+    staleTime: 0,
     // Never trust a warm cache across a reload for entitlement decisions.
     refetchOnMount: "always",
     retry: 1,
