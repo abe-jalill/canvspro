@@ -1,7 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import type { StripeEnv } from "@/lib/stripe.server";
 
 export type SubscriptionAccess = {
   status: string;
@@ -10,18 +8,15 @@ export type SubscriptionAccess = {
   cancel_at_period_end: boolean | null;
 } | null;
 
-const inputSchema = z.object({
-  environment: z.enum(["sandbox", "live"]),
-});
-
 /**
- * Paid access is resolved only from a server-authenticated, user-owned row.
+ * Paid access is resolved only from a server-authenticated, user-owned row in
+ * the mode this server decides (never a client-supplied environment value).
  * No email, browser cache, cookie, or device state can grant access.
  */
 export const getSubscriptionAccess = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { environment: StripeEnv }) => inputSchema.parse(data))
-  .handler(async ({ data, context }): Promise<SubscriptionAccess> => {
+  .handler(async ({ context }): Promise<SubscriptionAccess> => {
+    const { ENTITLEMENT_ENV } = await import("@/lib/payments-env.server");
     const { data: authData, error: authError } = await context.supabase.auth.getUser();
     const verifiedUserId = authData.user?.id;
     if (authError || !verifiedUserId || verifiedUserId !== context.userId) {
@@ -32,7 +27,7 @@ export const getSubscriptionAccess = createServerFn({ method: "POST" })
       .from("subscriptions")
       .select("status, price_id, current_period_end, cancel_at_period_end")
       .eq("user_id", verifiedUserId)
-      .eq("environment", data.environment)
+      .eq("environment", ENTITLEMENT_ENV)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
