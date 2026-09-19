@@ -36,13 +36,13 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Canvas Pro turns Canvas into one customizable dashboard: live grades, upcoming assignments, final exam calculator, schedule, and due-date reminders. $2.99/month.",
+          "See every Canvas class, grade, and deadline in one clean dashboard — with notifications tuned to your day. Start free, go Pro for $2.99/month.",
       },
       { property: "og:title", content: "Canvas Pro — A Better Canvas Dashboard for Students" },
       {
         property: "og:description",
         content:
-          "One customizable dashboard for your Canvas classes: calendar, grades, assignments, announcements, and smart reminders.",
+          "See every Canvas class, grade, and deadline in one clean dashboard — with notifications tuned to your day. Start free, go Pro for $2.99/month.",
       },
       { property: "og:type", content: "website" },
       { property: "og:url", content: "https://canvaspro.app/" },

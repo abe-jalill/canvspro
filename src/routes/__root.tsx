@@ -59,18 +59,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Canvas Pro — Student Productivity Dashboard" },
+      { title: "Canvas Pro — A Better Canvas Dashboard for Students" },
       {
         name: "description",
         content:
-          "Canvas Pro brings your Canvas classes, grades, due dates, and announcements together in one calm, fast dashboard.",
+          "See every Canvas class, grade, and deadline in one clean dashboard — with notifications tuned to your day. Start free, go Pro for $2.99/month.",
       },
       { property: "og:site_name", content: "Canvas Pro" },
-      { property: "og:title", content: "Canvas Pro — Student Productivity Dashboard" },
+      { property: "og:title", content: "Canvas Pro — A Better Canvas Dashboard for Students" },
       {
         property: "og:description",
         content:
-          "Canvas Pro brings your Canvas classes, grades, due dates, and announcements together in one calm, fast dashboard.",
+          "See every Canvas class, grade, and deadline in one clean dashboard — with notifications tuned to your day. Start free, go Pro for $2.99/month.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
