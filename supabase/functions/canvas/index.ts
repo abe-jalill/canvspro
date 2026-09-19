@@ -410,6 +410,9 @@ Deno.serve(async (req) => {
       case "calendar":
         data = await handleCalendar(creds, days ?? 14);
         break;
+      case "duedates":
+        data = await handleDueDates(creds);
+        break;
       default:
         return new Response(JSON.stringify({ error: `Unknown resource: ${resource}` }), {
           status: 400,
