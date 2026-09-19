@@ -11,7 +11,6 @@ import {
   type AnnouncementItem,
 } from "@/lib/canvas.functions";
 import { GlassCard, Skeleton, EmptyState } from "@/components/glass-card";
-import { GradeHistoryCard } from "@/components/grade-history-chart";
 import { displayCourseNameForCourse } from "@/lib/course-display";
 import { getGradeColor, getGradeBg, letterFromScore } from "@/lib/grade-color";
 import { useClassSchedule } from "@/lib/user-class-schedule";
@@ -356,9 +355,6 @@ function CourseDetailPage() {
           </div>
         </div>
       </GlassCard>
-
-      {/* Grade-over-time chart from recorded snapshots */}
-      <GradeHistoryCard courseId={numericCourseId} />
 
       {/* Quick Navigation Tabs */}
       <div className="flex flex-wrap gap-2">

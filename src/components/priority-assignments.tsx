@@ -16,10 +16,8 @@ import {
   useAssignmentMetaMap,
   useSetAssignmentEstimate,
 } from "@/hooks/use-assignment-meta";
-import { Clock, Play } from "lucide-react";
+import { Clock } from "lucide-react";
 import { CompleteToggle } from "@/components/complete-toggle";
-import { SubmissionBadge } from "@/components/submission-badge";
-import { openTimer } from "@/lib/focus-timer-store";
 import { useState } from "react";
 
 const assignmentsQO = queryOptions({
@@ -51,12 +49,10 @@ function EstimateEditor({
   assignmentId,
   courseId,
   minutes,
-  name,
 }: {
   assignmentId: number;
   courseId: number;
   minutes: number | null;
-  name: string;
 }) {
   const [draft, setDraft] = useState<string>(
     minutes === null ? "" : String(minutes),
@@ -87,17 +83,6 @@ function EstimateEditor({
         disabled={isPending}
         className="w-28 rounded-md border border-foreground/10 bg-background/50 px-2 py-1 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
       />
-      {minutes != null && minutes > 0 && (
-        <button
-          type="button"
-          onClick={() => openTimer({ assignmentId, name, minutes })}
-          title={`Study for ${minutes} minutes`}
-          className="glass-hover inline-flex h-7 items-center gap-1 rounded-lg border border-glass-border px-2 text-[11px] text-muted-foreground hover:text-foreground"
-        >
-          <Play className="h-3 w-3" />
-          Study {minutes}m
-        </button>
-      )}
     </div>
   );
 }
@@ -191,14 +176,11 @@ export function PriorityAssignmentsWidget() {
                   >
                     {p.assignment.name}
                   </p>
-                  <p className="flex min-w-0 items-center gap-1.5 truncate text-xs text-muted-foreground">
-                    <span className="truncate">
-                      {displayCourseName(
-                        p.assignment.course_name,
-                        p.assignment.course_code,
-                      )}
-                    </span>
-                    <SubmissionBadge assignment={p.assignment} />
+                  <p className="truncate text-xs text-muted-foreground">
+                    {displayCourseName(
+                      p.assignment.course_name,
+                      p.assignment.course_code,
+                    )}
                   </p>
                 </div>
                 <span
@@ -214,7 +196,6 @@ export function PriorityAssignmentsWidget() {
                 assignmentId={p.assignment.id}
                 courseId={p.assignment.course_id}
                 minutes={p.estimatedMinutes}
-                name={p.assignment.name}
               />
             </li>
           ))}
