@@ -12,7 +12,8 @@ import { useNotificationEngine } from "@/hooks/use-notification-engine";
 import { useDueTodayBadge } from "@/hooks/use-due-today-badge";
 import { useAppPrefetch } from "@/hooks/use-app-prefetch";
 import { useWelcomeEmail } from "@/hooks/use-welcome-email";
-import { setUserScope } from "@/lib/user-scope";
+import { purgeScopedStorage } from "@/lib/user-scope";
+import { syncAuthIdentity } from "@/lib/auth-user";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { useQueryCachePersistence } from "@/lib/query-persist";
 import { useSidebarMode } from "@/lib/sidebar-state";
@@ -21,14 +22,16 @@ import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
-  beforeLoad: async () => {
+  beforeLoad: async ({ context }) => {
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) {
-      setUserScope(null);
+      purgeScopedStorage();
+      syncAuthIdentity(context.queryClient, null);
       throw redirect({ to: "/auth" });
     }
-    // Scope all browser-stored state to this account.
-    setUserScope(data.user.id);
+    // Scope browser storage to this account and wipe any cache that belonged
+    // to a different one BEFORE a single component renders.
+    syncAuthIdentity(context.queryClient, data.user.id);
     return { user: data.user };
   },
   component: AuthenticatedLayout,

@@ -22,6 +22,8 @@ import { cn } from "@/lib/utils";
 import { useTheme } from "@/lib/theme";
 import { useReminders } from "@/hooks/use-hourly-reminder";
 import { supabase } from "@/integrations/supabase/client";
+import { purgeScopedStorage } from "@/lib/user-scope";
+import { syncAuthIdentity } from "@/lib/auth-user";
 import { NotificationCenter } from "@/components/notification-center";
 import { TrafficLights } from "@/components/traffic-lights";
 import { useSubscription } from "@/lib/subscription";
@@ -103,7 +105,9 @@ function useSignOut() {
   return async function signOut() {
     await queryClient.cancelQueries();
     queryClient.clear();
+    purgeScopedStorage();
     await supabase.auth.signOut();
+    syncAuthIdentity(queryClient, null);
     navigate({ to: "/auth", replace: true });
   };
 }
