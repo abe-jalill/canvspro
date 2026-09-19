@@ -14,6 +14,7 @@ function corsHeaders(req: Request): Record<string, string> {
   if (
     ALLOWED_ORIGINS.includes(origin) ||
     /^https:\/\/[a-z0-9-]+\.lovable\.app$/.test(origin) ||
+    /^https:\/\/[a-z0-9-]+\.lovableproject\.com$/.test(origin) ||
     /^http:\/\/localhost(:\d+)?$/.test(origin)
   ) {
     allow = origin;
