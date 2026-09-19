@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -36,7 +37,11 @@ export function useNicknames() {
     staleTime: 5 * 60_000,
   });
   // Keep the global display lookup in sync for name-based call sites.
-  setNicknameLookup(query.data ?? []);
+  // Done in an effect: writing to a module store during render updated other
+  // components mid-render and made class names flicker unpredictably.
+  useEffect(() => {
+    setNicknameLookup(query.data ?? []);
+  }, [query.data]);
   return query;
 }
 

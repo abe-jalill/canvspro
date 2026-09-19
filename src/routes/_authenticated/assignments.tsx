@@ -459,6 +459,7 @@ function AssignmentsPage() {
                               done={done}
                               onToggle={() => completed.toggle(a.id)}
                               label={a.name}
+                              disabled={!completed.ready}
                               className="mt-0.5 h-5 w-5"
                             />
                             <div className="min-w-0">

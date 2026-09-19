@@ -12,29 +12,28 @@ function readSet(value: unknown): Set<string> {
   return new Set(value.filter((v): v is string => typeof v === "string"));
 }
 
-function unionSet(a: Set<string>, b: Set<string>): Set<string> {
-  const next = new Set(a);
-  for (const v of b) next.add(v);
-  return next;
-}
-
-/** Cross-device persisted Set<string> backed by user_preferences.
- * Falls back to localStorage only when the user is not signed in.
+/**
+ * Cross-device persisted Set<string> backed by `user_preferences`.
+ *
+ * Writes are refused until this account's stored value has actually been read
+ * from the database — otherwise a write made during loading would persist the
+ * empty default and wipe everything saved on another device.
  */
 export function useSyncedSet(baseKey: string) {
-  const { value, isLoading, set } = useUserPreferenceKey<string[]>(
+  const { value, isLoading, ready, set } = useUserPreferenceKey<string[]>(
     baseKey,
     [],
   );
 
+  const setMemo = useMemo(() => readSet(value), [value]);
+
   const setValue = useCallback(
     (next: Set<string>) => {
+      if (!ready) return;
       set(Array.from(next));
     },
-    [set],
+    [ready, set],
   );
-
-  const setMemo = useMemo(() => readSet(value), [value]);
 
   const has = useCallback(
     (id: string | number) => setMemo.has(String(id)),
@@ -70,7 +69,7 @@ export function useSyncedSet(baseKey: string) {
     [setMemo, setValue],
   );
 
-  return { has, add, remove, toggle, size: setMemo.size, isLoading };
+  return { has, add, remove, toggle, size: setMemo.size, isLoading, ready };
 }
 
 /** Merge a localStorage-backed set into the synced preference on first sign-in. */

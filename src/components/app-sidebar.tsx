@@ -22,6 +22,8 @@ import { cn } from "@/lib/utils";
 import { useTheme } from "@/lib/theme";
 import { useReminders } from "@/hooks/use-hourly-reminder";
 import { supabase } from "@/integrations/supabase/client";
+import { purgeScopedStorage, useUserScope } from "@/lib/user-scope";
+import { syncAuthIdentity } from "@/lib/auth-user";
 import { NotificationCenter } from "@/components/notification-center";
 import { TrafficLights } from "@/components/traffic-lights";
 import { useSubscription } from "@/lib/subscription";
@@ -100,10 +102,16 @@ function ThemeToggle({ compact = false }: { compact?: boolean }) {
 function useSignOut() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const scope = useUserScope();
   return async function signOut() {
     await queryClient.cancelQueries();
     queryClient.clear();
+    purgeScopedStorage(scope);
     await supabase.auth.signOut();
+    syncAuthIdentity(queryClient, null);
+    // The cache persister flushes once more after clear(); drop that too so
+    // nothing of this account is left behind on the device.
+    purgeScopedStorage(scope);
     navigate({ to: "/auth", replace: true });
   };
 }

@@ -42,6 +42,35 @@ export function getUserScope(): string | null {
   return scope;
 }
 
+/**
+ * Intentionally device-specific state that survives sign out on this device:
+ * notification preferences (never synced, by design) and UI chrome.
+ */
+const DEVICE_LOCAL_BASES = ["notification-prefs", "sidebar-mode"];
+
+/**
+ * Removes cached account data belonging to one account — the persisted query
+ * cache and profile copy above all — so nothing can be served to, or reused
+ * by, the next account signing in on this device.
+ */
+export function purgeScopedStorage(userId: string | null = scope): void {
+  if (typeof window === "undefined") return;
+  const prefix = `cp:${userId ?? "anon"}:`;
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < window.localStorage.length; i += 1) {
+      const k = window.localStorage.key(i);
+      if (!k || !k.startsWith(prefix)) continue;
+      const base = k.slice(prefix.length);
+      if (DEVICE_LOCAL_BASES.includes(base)) continue;
+      keys.push(k);
+    }
+    for (const k of keys) window.localStorage.removeItem(k);
+  } catch {
+    // ignore
+  }
+}
+
 export function setUserScope(userId: string | null) {
   if (scope === userId) return;
   scope = userId;
