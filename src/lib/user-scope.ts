@@ -42,6 +42,25 @@ export function getUserScope(): string | null {
   return scope;
 }
 
+/**
+ * Removes every browser-stored value belonging to one account. Called on sign
+ * out so nothing (persisted query cache included) survives for the next user.
+ */
+export function purgeScopedStorage(userId: string | null = scope): void {
+  if (typeof window === "undefined") return;
+  const prefix = `cp:${userId ?? "anon"}:`;
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < window.localStorage.length; i += 1) {
+      const k = window.localStorage.key(i);
+      if (k && k.startsWith(prefix)) keys.push(k);
+    }
+    for (const k of keys) window.localStorage.removeItem(k);
+  } catch {
+    // ignore
+  }
+}
+
 export function setUserScope(userId: string | null) {
   if (scope === userId) return;
   scope = userId;
