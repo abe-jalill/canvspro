@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Check } from "lucide-react";
-import { CANVAS_PRO_PRICE_LABEL } from "@/lib/stripe";
+import { CANVAS_PRO_PRICE_LABEL, CANVAS_PRO_YEARLY_BADGE } from "@/lib/stripe";
 
 export const Route = createFileRoute("/pricing")({
   head: () => ({
