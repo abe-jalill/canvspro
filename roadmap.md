@@ -35,6 +35,6 @@
 
 ## Paid access and billing portal incident
 
-- [ ] Remove email-based Pro bypass and make entitlement server-verified per user
-- [ ] Make Stripe portal opening resistant to popup blocking
+- [x] Remove email-based Pro bypass and make entitlement server-verified per user
+- [x] Make Stripe portal opening resistant to popup blocking
 - [ ] Verify free, paid, account-switching, and portal behavior
