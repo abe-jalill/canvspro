@@ -23,6 +23,8 @@ import {
   Sparkles,
   Plus,
   Trash2,
+  Timer,
+  StickyNote,
 } from "lucide-react";
 import {
   useCustomAssignments,
@@ -42,6 +44,9 @@ import {
 } from "@/lib/course-highlight";
 import { buildPriorityList, describePriorityList } from "@/lib/priority";
 import { useAssignmentMetaMap } from "@/hooks/use-assignment-meta";
+import { useAssignmentNotes } from "@/lib/assignment-notes";
+import { SubmissionBadge } from "@/components/submission-badge";
+import { openTimer } from "@/lib/focus-timer-store";
 
 const assignmentsQO = queryOptions({
   queryKey: ["canvas", "assignments"],
@@ -176,11 +181,14 @@ function PriorityAssignmentsCard({
                 >
                   {p.assignment.name}
                 </p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {displayCourseName(
-                    p.assignment.course_name,
-                    p.assignment.course_code,
-                  )}
+                <p className="flex min-w-0 items-center gap-1.5 truncate text-xs text-muted-foreground">
+                  <span className="truncate">
+                    {displayCourseName(
+                      p.assignment.course_name,
+                      p.assignment.course_code,
+                    )}
+                  </span>
+                  <SubmissionBadge assignment={p.assignment} />
                 </p>
               </div>
               <span
@@ -214,6 +222,9 @@ function AssignmentsPage() {
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
   const highlight = useCourseHighlight();
   const custom = useCustomAssignments();
+  const assignmentNotes = useAssignmentNotes();
+  const [noteEditing, setNoteEditing] = useState<number | null>(null);
+  const [noteDraft, setNoteDraft] = useState("");
 
   const courseOptions = useMemo(
     () =>
@@ -444,7 +455,13 @@ function AssignmentsPage() {
                       const done = completed.has(a.id);
                       const cd = getCountdown(a.due_at, { completed: done });
                       const mine = isCustomAssignmentId(a.id);
-                      const notes = custom.notesById.get(a.id);
+                      const notes = mine
+                        ? custom.notesById.get(a.id)
+                        : assignmentNotes.getNote(a.id);
+                      const estimate =
+                        mine
+                          ? null
+                          : (metaMap.get(a.id)?.estimatedMinutes ?? null);
                       return (
                         <li
                           key={a.id}
@@ -478,6 +495,7 @@ function AssignmentsPage() {
                                       ? "Added by you"
                                       : statusLabel(a)}
                                 </span>
+                                {!mine && <SubmissionBadge assignment={a} />}
                                 {a.points_possible != null && (
                                   <>
                                     <span className="opacity-40">·</span>
@@ -489,6 +507,37 @@ function AssignmentsPage() {
                                 <p className="mt-1 whitespace-pre-wrap text-xs text-foreground/70">
                                   {notes}
                                 </p>
+                              )}
+                              {noteEditing === a.id && (
+                                <div className="mt-2 w-full">
+                                  <textarea
+                                    value={noteDraft}
+                                    onChange={(e) => setNoteDraft(e.target.value)}
+                                    rows={2}
+                                    placeholder="Your note for this assignment…"
+                                    aria-label="Assignment note"
+                                    className="glass-inset w-full rounded-xl bg-transparent px-3 py-2 text-xs text-foreground outline-none placeholder:text-muted-foreground/60"
+                                  />
+                                  <div className="mt-1.5 flex gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        assignmentNotes.setNote(a.id, noteDraft);
+                                        setNoteEditing(null);
+                                      }}
+                                      className="glass-hover min-h-8 rounded-lg bg-foreground px-3 text-xs font-semibold text-background"
+                                    >
+                                      Save note
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setNoteEditing(null)}
+                                      className="min-h-8 rounded-lg px-3 text-xs text-muted-foreground hover:text-foreground"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
                               )}
                             </div>
                           </div>
@@ -510,7 +559,43 @@ function AssignmentsPage() {
                                 </p>
                               )}
                             </div>
+                            {!mine && estimate != null && estimate > 0 && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  openTimer({
+                                    assignmentId: a.id,
+                                    name: a.name,
+                                    minutes: estimate,
+                                  })
+                                }
+                                title={`Study for ${estimate} minutes`}
+                                className="glass-hover inline-flex h-8 shrink-0 items-center gap-1 rounded-xl border border-glass-border px-2 text-xs text-muted-foreground hover:text-foreground"
+                              >
+                                <Timer className="h-3.5 w-3.5" />
+                                {estimate}m
+                              </button>
+                            )}
                             {a.due_at && <AddToCalendarButton assignment={a} />}
+                            {!mine && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setNoteEditing(noteEditing === a.id ? null : a.id);
+                                  setNoteDraft(notes ?? "");
+                                }}
+                                aria-label={`Edit note for ${a.name}`}
+                                title="Note"
+                                className={cn(
+                                  "glass-hover flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border text-muted-foreground hover:text-foreground",
+                                  notes
+                                    ? "border-glass-border text-foreground/80"
+                                    : "border-transparent",
+                                )}
+                              >
+                                <StickyNote className="h-4 w-4" />
+                              </button>
+                            )}
                             {mine && (
                               <button
                                 type="button"
