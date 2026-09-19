@@ -41,7 +41,7 @@
 
 ## Switch to a fresh Stripe account
 
-- [ ] User disconnects current Stripe in the Payments dashboard (three-dots menu)
-- [ ] Re-enable built-in Stripe (fresh Lovable-managed account)
-- [ ] Recreate Canvas Pro product at $2.99/month (pro_monthly, tax code set)
+- [x] User disconnects current Stripe in the Payments dashboard (three-dots menu)
+- [x] Re-enable built-in Stripe (fresh Lovable-managed account)
+- [x] Recreate Canvas Pro product at $2.99/month (pro_monthly, tax code set)
 - [ ] Verify checkout + portal on the new account after publish
