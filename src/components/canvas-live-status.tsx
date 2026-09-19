@@ -43,13 +43,23 @@ export function CanvasLiveStatus() {
   const [status, setStatus] = useState(() => readStatus(queryClient));
 
   useEffect(() => {
-    const update = () => {
+    // The cache notifies synchronously while other components render, so the
+    // state update is deferred to a microtask — updating during someone
+    // else's render is what produced React's setState-in-render warning.
+    let queued = false;
+    const apply = () => {
+      queued = false;
       setStatus(readStatus(queryClient));
       setNow(Date.now());
     };
+    const update = () => {
+      if (queued) return;
+      queued = true;
+      queueMicrotask(apply);
+    };
     const unsubscribe = queryClient.getQueryCache().subscribe(update);
-    const timer = window.setInterval(update, 30_000);
-    update();
+    const timer = window.setInterval(apply, 30_000);
+    apply();
     return () => {
       unsubscribe();
       window.clearInterval(timer);
