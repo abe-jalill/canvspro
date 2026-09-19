@@ -49,3 +49,12 @@
 - [x] Refund revokes Pro instantly (charge.refunded webhook sets status canceled + period end now)
 - [x] Cancel leftover sandbox test subscription and remove its row
 - [ ] User: run readiness check in Payments tab (Live), publish, make one real purchase, verify a refund ends Pro instantly, confirm payout bank account
+
+## Server-enforced paywall
+
+- [x] Canvas data service checks the paid record itself before returning anything (402 for free accounts)
+- [x] Free dashboard greeting uses a counts-only feed (due timestamps, no names/links/grades)
+- [x] All Canvas-backed dashboard widgets marked Pro so free accounts see locked cards
+- [x] Payment mode is decided by the server, never sent by the client (checkout, portal, access check)
+- [x] Only live-mode paid records grant Pro (test-mode checkouts can no longer unlock anything)
+- [x] Verified: free account gets 402 + locked widgets; paid record gets 200 + full data; checkout still opens

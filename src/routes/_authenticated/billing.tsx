@@ -4,7 +4,7 @@ import { GlassCard } from "@/components/glass-card";
 import { PaymentTestModeBanner } from "@/components/payment-test-mode-banner";
 import { StripeEmbeddedCheckoutForm } from "@/components/stripe-embedded-checkout";
 import { useSubscription } from "@/lib/subscription";
-import { CANVAS_PRO_PLANS, getStripeEnvironment, type CanvasProPlan } from "@/lib/stripe";
+import { CANVAS_PRO_PLANS, type CanvasProPlan } from "@/lib/stripe";
 import { createPortalSession } from "@/utils/payments.functions";
 
 export const Route = createFileRoute("/_authenticated/billing")({
@@ -55,10 +55,7 @@ function BillingPage() {
     }
     try {
       const result = await createPortalSession({
-        data: {
-          returnUrl: window.location.href,
-          environment: getStripeEnvironment(),
-        },
+        data: { returnUrl: window.location.href },
       });
       if ("error" in result) throw new Error(result.error);
       if (portalTab) {

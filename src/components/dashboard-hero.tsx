@@ -2,25 +2,21 @@ import { useEffect, useState } from "react";
 import { useQuery, queryOptions } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useUserProfile } from "@/lib/user-profile";
-import { getAllAssignmentsFn, getCalendarEventsFn, type AssignmentItem } from "@/lib/canvas.functions";
+import { getDueDatesFn, type DueDateItem } from "@/lib/canvas.functions";
 import { COMPLETED_ASSIGNMENTS_KEY, useLocalSet } from "@/lib/local-state";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
-const assignmentsQO = queryOptions({
-  queryKey: ["canvas", "assignments"],
-  queryFn: () => getAllAssignmentsFn(),
-  staleTime: 5 * 60_000,
-});
-
-const eventsQO = queryOptions({
-  queryKey: ["canvas", "calendar"],
-  queryFn: () => getCalendarEventsFn(),
+// Counts only. The greeting card runs on the FREE dashboard, so it must never
+// pull the full Pro dataset into a free user's browser.
+const dueDatesQO = queryOptions({
+  queryKey: ["canvas", "duedates"],
+  queryFn: () => getDueDatesFn(),
   staleTime: 5 * 60_000,
 });
 
 function summarize(
-  assignments: AssignmentItem[] | undefined,
+  assignments: DueDateItem[] | undefined,
   isCompleted: (id: string | number) => boolean,
   now: Date,
 ) {
@@ -39,7 +35,7 @@ function summarize(
   for (const a of assignments) {
     if (!a.due_at) continue;
     if (isCompleted(a.id)) continue;
-    if (a.submission?.submitted_at) continue;
+    if (a.submitted) continue;
     const due = new Date(a.due_at).getTime();
     if (due < now.getTime()) {
       if (due >= startOfDay.getTime() - 7 * 24 * 3_600_000) overdue += 1;
@@ -56,8 +52,7 @@ function summarize(
 export function DashboardHero() {
   const [now, setNow] = useState(() => new Date());
   const [emailPrefix, setEmailPrefix] = useState<string | null>(null);
-  const assignments = useQuery(assignmentsQO);
-  const events = useQuery(eventsQO);
+  const assignments = useQuery(dueDatesQO);
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
   const { data: profile } = useUserProfile();
 
@@ -80,7 +75,7 @@ export function DashboardHero() {
     (emailPrefix ? emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1) : null);
 
   const summary = summarize(assignments.data, completed.has, now);
-  const loading = assignments.isLoading || events.isLoading;
+  const loading = assignments.isLoading;
 
   const todayCount = summary?.today ?? 0;
   const weekCount = summary?.week ?? 0;

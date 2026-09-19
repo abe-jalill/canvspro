@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchHasCanvasKey } from "@/lib/user-settings";
 
 async function invokeCanvas<T>(
-  resource: "courses" | "assignments" | "announcements" | "calendar" | "all",
+  resource: "courses" | "assignments" | "announcements" | "calendar" | "all" | "duedates",
   extra?: Record<string, unknown>,
 ): Promise<T> {
   // No key saved yet → render blank states instead of erroring.
@@ -31,15 +31,17 @@ async function invokeCanvas<T>(
           message = body.slice(0, 300);
         }
       }
-      if (res.status === 428) return [] as unknown as T;
+      // 428 = no Canvas key yet, 402 = free account (server-enforced paywall).
+      // Both render as empty states, never as an error banner.
+      if (res.status === 428 || res.status === 402) return [] as unknown as T;
     }
-    if (/428|NO_CANVAS_KEY/.test(message)) return [] as unknown as T;
+    if (/428|402|NO_CANVAS_KEY|NOT_SUBSCRIBED/.test(message)) return [] as unknown as T;
     throw new Error(message);
   }
 
   if (data && typeof data === "object" && "error" in data && (data as { error?: string }).error) {
     const message = (data as { error: string }).error;
-    if (message === "NO_CANVAS_KEY") return [] as unknown as T;
+    if (message === "NO_CANVAS_KEY" || message === "NOT_SUBSCRIBED") return [] as unknown as T;
     throw new Error(message);
   }
   return data as T;
@@ -165,5 +167,18 @@ export async function getAllCoursesIncludingHidden(): Promise<CourseSummary[]> {
   return Array.isArray(raw) ? raw : [];
 }
 export const getAllAssignmentsFn = () => section("assignments");
+
+/** Free-tier due timestamps: ids and due dates only, no assignment details. */
+export interface DueDateItem {
+  id: number;
+  course_id: number;
+  due_at: string | null;
+  submitted: boolean;
+}
+
+export async function getDueDatesFn(): Promise<DueDateItem[]> {
+  const raw = await invokeCanvas<DueDateItem[]>("duedates");
+  return Array.isArray(raw) ? raw : [];
+}
 export const getAnnouncementsFn = () => section("announcements");
 export const getCalendarEventsFn = () => section("calendar");

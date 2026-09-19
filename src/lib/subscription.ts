@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import { getStripeEnvironment } from "@/lib/stripe";
 import { useAuthUserId, userKey } from "@/lib/auth-user";
 import {
   getSubscriptionAccess,
@@ -34,10 +33,8 @@ export function useSubscription() {
   const query = useQuery({
     queryKey: userKey(subscriptionQueryKey, userId),
     enabled: !!userId,
-    queryFn: async (): Promise<SubscriptionRow | null> => {
-      const environment = getStripeEnvironment();
-      return getSubscriptionAccess({ data: { environment } });
-    },
+    // The server decides which Stripe mode counts — the client never sends it.
+    queryFn: async (): Promise<SubscriptionRow | null> => getSubscriptionAccess(),
     staleTime: 0,
     // Never trust a warm cache across a reload for entitlement decisions.
     refetchOnMount: "always",

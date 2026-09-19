@@ -686,12 +686,12 @@ export interface WidgetMeta {
 }
 
 export const WIDGETS: Record<WidgetId, WidgetMeta> = {
-  digest: { label: "Since your last visit", defaultSize: "full", render: () => <DigestWidget /> },
-  classes: { label: "Classes & Grades", defaultSize: "md", render: () => <CoursesWidget /> },
-  upcoming: { label: "Upcoming Assignments", defaultSize: "md", render: () => <UpcomingWidget /> },
+  digest: { pro: true, label: "Since your last visit", defaultSize: "full", render: () => <DigestWidget /> },
+  classes: { pro: true, label: "Classes & Grades", defaultSize: "md", render: () => <CoursesWidget /> },
+  upcoming: { pro: true, label: "Upcoming Assignments", defaultSize: "md", render: () => <UpcomingWidget /> },
   focus: { label: "Focus", pro: true, defaultSize: "md", render: () => <FocusWidget /> },
   calendar: { label: "Calendar", pro: true, defaultSize: "md", render: () => <CalendarWidget /> },
-  announcements: { label: "Announcements", defaultSize: "md", render: () => <AnnouncementsWidget /> },
-  gpa: { label: "GPA", defaultSize: "md", render: () => <GpaWidget /> },
+  announcements: { pro: true, label: "Announcements", defaultSize: "md", render: () => <AnnouncementsWidget /> },
+  gpa: { pro: true, label: "GPA", defaultSize: "md", render: () => <GpaWidget /> },
   heatmap: { label: "Workload heatmap", pro: true, defaultSize: "full", render: () => <HeatmapWidget /> },
 };
