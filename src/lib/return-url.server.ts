@@ -8,7 +8,8 @@ const ALLOWED_HOSTS = [
 ];
 
 /** Lovable-hosted preview/published hosts for this project. */
-const ALLOWED_HOST_SUFFIX = ".lovable.app";
+const ALLOWED_HOST_SUFFIXES = [".lovable.app", ".lovableproject.com"];
+
 
 export function assertSafeReturnUrl(raw: string): string {
   let url: URL;
@@ -25,7 +26,7 @@ export function assertSafeReturnUrl(raw: string): string {
   const allowed =
     isLocal ||
     ALLOWED_HOSTS.includes(url.hostname) ||
-    url.hostname.endsWith(ALLOWED_HOST_SUFFIX);
+    ALLOWED_HOST_SUFFIXES.some((s) => url.hostname.endsWith(s));
 
   if (!allowed) throw new Error("Invalid return URL");
   // Return the original string: Stripe needs the literal
