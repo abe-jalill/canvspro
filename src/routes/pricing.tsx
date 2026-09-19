@@ -59,7 +59,7 @@ function PricingPage() {
         </h1>
         <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground">
           Start free with the dashboard. Unlock everything else for{" "}
-          {CANVAS_PRO_PRICE_LABEL} — or $30/year and {CANVAS_PRO_YEARLY_BADGE} Cancel anytime
+          {CANVAS_PRO_PRICE_LABEL} — or $30/year ({CANVAS_PRO_YEARLY_BADGE}). Cancel anytime
           from the billing portal.
         </p>
       </header>
