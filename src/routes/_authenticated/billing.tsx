@@ -45,6 +45,13 @@ function BillingPage() {
   async function openPortal() {
     setStatus(null);
     setBusy(true);
+    // Open synchronously inside the click gesture. Opening only after the
+    // server request is commonly blocked by Safari and mobile browsers.
+    const portalTab = window.open("about:blank", "_blank");
+    if (portalTab) {
+      portalTab.opener = null;
+      portalTab.document.title = "Opening billing portal…";
+    }
     try {
       const result = await createPortalSession({
         data: {
@@ -53,8 +60,14 @@ function BillingPage() {
         },
       });
       if ("error" in result) throw new Error(result.error);
-      window.open(result.url, "_blank", "noopener,noreferrer");
+      if (portalTab) {
+        portalTab.location.replace(result.url);
+      } else {
+        setStatus("Your browser blocked the new tab. Opening the billing portal here instead…");
+        window.location.assign(result.url);
+      }
     } catch (err) {
+      portalTab?.close();
       setStatus(err instanceof Error ? err.message : "Could not open the billing portal.");
     } finally {
       setBusy(false);
