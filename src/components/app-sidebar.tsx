@@ -108,6 +108,9 @@ function useSignOut() {
     purgeScopedStorage();
     await supabase.auth.signOut();
     syncAuthIdentity(queryClient, null);
+    // The cache persister flushes once more after clear(); drop that too so
+    // nothing of this account is left behind on the device.
+    purgeScopedStorage();
     navigate({ to: "/auth", replace: true });
   };
 }
