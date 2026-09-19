@@ -11,7 +11,8 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from "@/integrations/supabase/client";
-import { setUserScope } from "@/lib/user-scope";
+import { purgeScopedStorage } from "@/lib/user-scope";
+import { syncAuthIdentity } from "@/lib/auth-user";
 import { SiteFooter } from "@/components/site-footer";
 import { Toaster } from "@/components/ui/sonner";
 
