@@ -96,8 +96,14 @@ export const createPortalSession = createServerFn({ method: "POST" })
         typeof stripeSubscription.customer === "string"
           ? stripeSubscription.customer
           : stripeSubscription.customer.id;
+      const stripeCustomer = await stripe.customers.retrieve(stripeCustomerId);
+      const customerUserId =
+        "deleted" in stripeCustomer && stripeCustomer.deleted
+          ? null
+          : stripeCustomer.metadata?.userId;
+      const ownerUserId = stripeSubscription.metadata?.userId ?? customerUserId;
       if (
-        stripeSubscription.metadata?.userId !== userId ||
+        ownerUserId !== userId ||
         stripeCustomerId !== sub.stripe_customer_id
       ) {
         return { error: "This subscription does not belong to the signed-in account" };

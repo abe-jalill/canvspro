@@ -15,7 +15,7 @@ function isActive(sub: SubscriptionRow | null): boolean {
   if (!sub) return false;
   const end = sub.current_period_end ? new Date(sub.current_period_end) : null;
   const future = !end || end.getTime() > Date.now();
-  if (["active", "trialing", "past_due"].includes(sub.status)) return future;
+  if (["active", "trialing"].includes(sub.status)) return future;
   if (sub.status === "canceled") return !!end && end.getTime() > Date.now();
   return false;
 }
