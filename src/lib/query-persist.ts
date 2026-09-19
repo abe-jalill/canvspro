@@ -6,16 +6,21 @@ import { persistQueryClient, type Persister } from "@tanstack/query-persist-clie
 import { useUserScope, scopedKey } from "@/lib/user-scope";
 
 const MAX_AGE = 24 * 60 * 60_000;
-const BUSTER = "v1";
+const BUSTER = "v2";
 
-/** Query keys worth persisting — everything else is cheap or session-only. */
+/** Query keys worth persisting — everything else is cheap or session-only.
+ *
+ * Deliberately excluded:
+ *  - "subscription" / "auth-user": entitlements are never served from a cache.
+ *  - "user-preferences": a restored (possibly stale) copy could become the
+ *    basis for a write and overwrite newer data saved on another device.
+ */
 const PERSISTED_ROOTS = new Set([
   "canvas",
   "class-nicknames",
   "class-schedule-entries",
   "user-assignment-meta",
   "grade-snapshots",
-  "user-preferences",
 ]);
 
 function makePersister(key: string): Persister {
