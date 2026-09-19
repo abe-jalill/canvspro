@@ -43,8 +43,15 @@ export function getUserScope(): string | null {
 }
 
 /**
- * Removes every browser-stored value belonging to one account. Called on sign
- * out so nothing (persisted query cache included) survives for the next user.
+ * Intentionally device-specific state that survives sign out on this device:
+ * notification preferences (never synced, by design) and UI chrome.
+ */
+const DEVICE_LOCAL_BASES = ["notification-prefs", "sidebar-mode"];
+
+/**
+ * Removes cached account data belonging to one account — the persisted query
+ * cache and profile copy above all — so nothing can be served to, or reused
+ * by, the next account signing in on this device.
  */
 export function purgeScopedStorage(userId: string | null = scope): void {
   if (typeof window === "undefined") return;
@@ -53,7 +60,10 @@ export function purgeScopedStorage(userId: string | null = scope): void {
     const keys: string[] = [];
     for (let i = 0; i < window.localStorage.length; i += 1) {
       const k = window.localStorage.key(i);
-      if (k && k.startsWith(prefix)) keys.push(k);
+      if (!k || !k.startsWith(prefix)) continue;
+      const base = k.slice(prefix.length);
+      if (DEVICE_LOCAL_BASES.includes(base)) continue;
+      keys.push(k);
     }
     for (const k of keys) window.localStorage.removeItem(k);
   } catch {
