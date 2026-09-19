@@ -84,6 +84,14 @@ function LoginPage() {
           autoComplete="current-password"
           placeholder="••••••••"
         />
+        <p className="-mt-2 text-right text-xs">
+          <Link
+            to="/forgot-password"
+            className="text-muted-foreground underline underline-offset-4 hover:text-foreground"
+          >
+            Forgot password?
+          </Link>
+        </p>
         {error && <p className="text-sm text-foreground/80">{error}</p>}
         <button
           type="submit"

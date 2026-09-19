@@ -41,7 +41,7 @@ function SignupPage() {
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
-      options: { emailRedirectTo: window.location.origin },
+      options: { emailRedirectTo: `${window.location.origin}/email-verified` },
     });
     setBusy(false);
     if (error) {
