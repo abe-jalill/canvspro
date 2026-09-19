@@ -94,9 +94,10 @@ async function sendReceipt(
 
     const { sendTemplateEmail } = await import("@/lib/email-templates/send-email");
     const cents = item?.price?.unit_amount ?? null;
+    const isYearly = priceIdOf(item) === "pro_yearly";
     await sendTemplateEmail("subscription-receipt", email, {
       templateData: {
-        plan: "CanvasPro Monthly",
+        plan: isYearly ? "CanvasPro Yearly" : "CanvasPro Monthly",
         amount: cents != null ? `$${(cents / 100).toFixed(2)}` : "$2.99",
         renewsOn: periodEnd
           ? new Date(periodEnd * 1000).toLocaleDateString("en-US", {
@@ -140,6 +141,39 @@ async function handleSubscriptionDeleted(subscription: any, env: StripeEnv) {
     .eq("environment", env);
 }
 
+/** A full refund revokes Pro immediately — access must not linger until the
+ *  period end once the money has gone back. Partial refunds leave access. */
+async function handleChargeRefunded(charge: any, env: StripeEnv) {
+  if (!charge?.refunded) {
+    console.log("Partial refund — access kept:", charge?.id);
+    return;
+  }
+  const customerId = charge.customer as string | undefined;
+  if (!customerId) {
+    console.error("Refunded charge with no customer:", charge?.id);
+    return;
+  }
+  const now = new Date().toISOString();
+  const { data, error } = await subscriptionsTable()
+    .update({
+      status: "canceled",
+      cancel_at_period_end: false,
+      current_period_end: now,
+      updated_at: now,
+    })
+    .eq("stripe_customer_id", customerId)
+    .eq("environment", env)
+    .in("status", ["active", "trialing", "past_due"])
+    .select("id");
+  if (error) {
+    console.error("Failed to revoke on refund:", error);
+    throw error;
+  }
+  console.log(
+    `Refund ${charge.id}: revoked ${data?.length ?? 0} subscription(s) instantly for customer ${customerId} (${env})`,
+  );
+}
+
 async function handleWebhook(req: Request, env: StripeEnv) {
   const event = await verifyWebhook(req, env);
 
@@ -152,6 +186,9 @@ async function handleWebhook(req: Request, env: StripeEnv) {
       break;
     case "customer.subscription.deleted":
       await handleSubscriptionDeleted(event.data.object, env);
+      break;
+    case "charge.refunded":
+      await handleChargeRefunded(event.data.object, env);
       break;
     default:
       console.log("Unhandled event:", event.type);

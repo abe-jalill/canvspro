@@ -23,7 +23,7 @@ export function UpgradeCard({ feature }: { feature?: string }) {
           <p className="mt-1 text-sm text-muted-foreground">
             The free tier includes the Dashboard. Unlock Focus, Calendar, Class
             Schedule, Grades, Assignments, Announcements, and notifications with
-            Canvas Pro for $2.99/month.
+            Canvas Pro — $2.99/month or $30/year (save 17%!).
           </p>
         </div>
         <Link

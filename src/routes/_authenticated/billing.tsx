@@ -4,7 +4,7 @@ import { GlassCard } from "@/components/glass-card";
 import { PaymentTestModeBanner } from "@/components/payment-test-mode-banner";
 import { StripeEmbeddedCheckoutForm } from "@/components/stripe-embedded-checkout";
 import { useSubscription } from "@/lib/subscription";
-import { CANVAS_PRO_PRICE_ID, getStripeEnvironment } from "@/lib/stripe";
+import { CANVAS_PRO_PLANS, getStripeEnvironment, type CanvasProPlan } from "@/lib/stripe";
 import { createPortalSession } from "@/utils/payments.functions";
 
 export const Route = createFileRoute("/_authenticated/billing")({
@@ -14,13 +14,13 @@ export const Route = createFileRoute("/_authenticated/billing")({
       {
         name: "description",
         content:
-          "Manage your Canvas Pro subscription — $2.99 per month for your full class dashboard.",
+          "Manage your Canvas Pro subscription — $2.99 per month or $30 per year (save 17%) for your full class dashboard.",
       },
       { property: "og:title", content: "Billing — Canvas Pro" },
       {
         property: "og:description",
         content:
-          "Manage your Canvas Pro subscription — $2.99 per month for your full class dashboard.",
+          "Manage your Canvas Pro subscription — $2.99 per month or $30 per year (save 17%) for your full class dashboard.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -39,6 +39,7 @@ const FEATURES = [
 function BillingPage() {
   const { subscription, isActive, isLoading } = useSubscription();
   const [showCheckout, setShowCheckout] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<CanvasProPlan>(CANVAS_PRO_PLANS[1]);
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -87,7 +88,7 @@ function BillingPage() {
       <header>
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Billing</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Canvas Pro is $2.99 per month. Cancel anytime.
+          Canvas Pro is $2.99 per month or $30 per year — save 17% yearly. Cancel anytime.
         </p>
       </header>
 
@@ -95,7 +96,7 @@ function BillingPage() {
 
       <GlassCard
         title="Canvas Pro"
-        subtitle={isActive ? "Your subscription is active." : "$2.99 / month"}
+        subtitle={isActive ? "Your subscription is active." : "Choose monthly or yearly"}
       >
         <div className="flex w-full flex-col gap-4">
           <ul className="flex flex-col gap-2 text-sm text-muted-foreground">
@@ -129,16 +130,45 @@ function BillingPage() {
             </div>
           ) : showCheckout ? (
             <StripeEmbeddedCheckoutForm
-              priceId={CANVAS_PRO_PRICE_ID}
+              priceId={selectedPlan.id}
               returnUrl={`${window.location.origin}/checkout/return?session_id={CHECKOUT_SESSION_ID}`}
             />
           ) : (
-            <button
-              onClick={() => setShowCheckout(true)}
-              className="glass-hover min-h-11 w-full rounded-xl bg-foreground px-4 text-sm font-semibold text-background sm:w-auto"
-            >
-              Subscribe — $2.99/month
-            </button>
+            <div className="flex flex-col gap-3">
+              <div className="grid grid-cols-2 gap-2">
+                {CANVAS_PRO_PLANS.map((plan) => {
+                  const active = selectedPlan.id === plan.id;
+                  return (
+                    <button
+                      key={plan.id}
+                      type="button"
+                      onClick={() => setSelectedPlan(plan)}
+                      className={`glass-hover relative flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl px-3 py-2 text-sm ${
+                        active
+                          ? "bg-foreground text-background"
+                          : "glass-inset text-foreground"
+                      }`}
+                    >
+                      {"badge" in plan && plan.badge && (
+                        <span className="absolute -top-2 right-2 rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-semibold text-white">
+                          {plan.badge}
+                        </span>
+                      )}
+                      <span className="font-semibold">{plan.name}</span>
+                      <span className={active ? "text-xs opacity-80" : "text-xs text-muted-foreground"}>
+                        {plan.price} {plan.cadence}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                onClick={() => setShowCheckout(true)}
+                className="glass-hover min-h-11 w-full rounded-xl bg-foreground px-4 text-sm font-semibold text-background sm:w-auto"
+              >
+                Subscribe — {selectedPlan.price}{selectedPlan.cadence}
+              </button>
+            </div>
           )}
 
           {status && <p className="text-sm text-foreground/80">{status}</p>}

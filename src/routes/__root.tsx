@@ -64,14 +64,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "description",
         content:
-          "See every Canvas class, grade, and deadline in one clean dashboard — with notifications tuned to your day. Start free, go Pro for $2.99/month.",
-      },
-      { property: "og:site_name", content: "Canvas Pro" },
-      { property: "og:title", content: "Canvas Pro — A Better Canvas Dashboard for Students" },
-      {
-        property: "og:description",
-        content:
-          "See every Canvas class, grade, and deadline in one clean dashboard — with notifications tuned to your day. Start free, go Pro for $2.99/month.",
+          "See every Canvas class, grade, and deadline in one clean dashboard — with notifications tuned to your day. Start free, go Pro for $2.99/month or $30/year (save 17%).",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

@@ -36,13 +36,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "See every Canvas class, grade, and deadline in one clean dashboard — with notifications tuned to your day. Start free, go Pro for $2.99/month.",
-      },
-      { property: "og:title", content: "Canvas Pro — A Better Canvas Dashboard for Students" },
-      {
-        property: "og:description",
-        content:
-          "See every Canvas class, grade, and deadline in one clean dashboard — with notifications tuned to your day. Start free, go Pro for $2.99/month.",
+          "See every Canvas class, grade, and deadline in one clean dashboard — with notifications tuned to your day. Start free, go Pro for $2.99/month or $30/year (save 17%).",
       },
       { property: "og:type", content: "website" },
       { property: "og:url", content: "https://canvaspro.app/" },
@@ -207,7 +201,7 @@ const FAQS = [
   {
     question: "What is included in the free tier vs. Pro?",
     answer:
-      "The Free tier gives you access to the dashboard layout, custom course nicknames, light/dark themes, and our standalone Grade Calculator. Pro ($2.99/mo) unlocks live real-time Canvas sync, the final exam predictor, focus due-date windows, workload heatmap, .ics calendar export, and automated notification alerts.",
+      "The Free tier gives you access to the dashboard layout, custom course nicknames, light/dark themes, and our standalone Grade Calculator. Pro ($2.99/mo, or $30/yr — save 17%!) unlocks live real-time Canvas sync, the final exam predictor, focus due-date windows, workload heatmap, .ics calendar export, and automated notification alerts.",
   },
   {
     question: "Can I cancel my Pro subscription at any time?",
@@ -793,6 +787,12 @@ function LandingPage() {
                 $2.99
                 <span className="text-sm font-normal text-muted-foreground"> / month</span>
               </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                or <span className="font-semibold text-foreground">$30 / year</span>{" "}
+                <span className="rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-semibold text-white">
+                  Save 17%!
+                </span>
+              </p>
               <p className="mt-1 text-xs text-muted-foreground">Less than one coffee a month. Cancel anytime.</p>
 
               <ul className="mt-6 space-y-2.5 text-sm text-foreground/90">
@@ -828,7 +828,7 @@ function LandingPage() {
                 to="/signup"
                 className="glass-hover inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-foreground px-4 text-sm font-semibold text-background"
               >
-                Get started with Pro — $2.99/mo
+                Get started with Pro — $2.99/mo or $30/yr (Save 17%!)
               </Link>
             </div>
           </div>

@@ -1,21 +1,21 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Check } from "lucide-react";
-import { CANVAS_PRO_PRICE_LABEL } from "@/lib/stripe";
+import { CANVAS_PRO_PRICE_LABEL, CANVAS_PRO_YEARLY_BADGE } from "@/lib/stripe";
 
 export const Route = createFileRoute("/pricing")({
   head: () => ({
     meta: [
-      { title: "Pricing — Canvas Pro for $2.99/month" },
+      { title: "Pricing — Canvas Pro for $2.99/month or $30/year" },
       {
         name: "description",
         content:
-          "Canvas Pro is $2.99 per month: live Canvas grades, assignments, announcements, focus windows, calendar, and smart notifications. Cancel anytime.",
+          "Canvas Pro is $2.99 per month or $30 per year (save 17%): live Canvas grades, assignments, announcements, focus windows, calendar, and smart notifications. Cancel anytime.",
       },
-      { property: "og:title", content: "Pricing — Canvas Pro for $2.99/month" },
+      { property: "og:title", content: "Pricing — Canvas Pro for $2.99/month or $30/year" },
       {
         property: "og:description",
         content:
-          "One simple plan at $2.99 per month for your full Canvas class dashboard. Cancel anytime.",
+          "One simple plan at $2.99 per month, or $30 per year and save 17%. Cancel anytime.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -59,7 +59,8 @@ function PricingPage() {
         </h1>
         <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground">
           Start free with the dashboard. Unlock everything else for{" "}
-          {CANVAS_PRO_PRICE_LABEL}. Cancel anytime from the billing portal.
+          {CANVAS_PRO_PRICE_LABEL} — or $30/year ({CANVAS_PRO_YEARLY_BADGE}). Cancel anytime
+          from the billing portal.
         </p>
       </header>
 
@@ -78,12 +79,20 @@ function PricingPage() {
           </Link>
         </section>
 
-        <section className="glass-panel-strong flex flex-col gap-4 p-6">
+        <section className="glass-panel-strong relative flex flex-col gap-4 p-6">
+          <span className="absolute -top-3 right-6 rounded-full bg-emerald-500 px-3 py-0.5 text-[11px] font-semibold text-white">
+            {CANVAS_PRO_YEARLY_BADGE}
+          </span>
           <div>
             <h2 className="text-lg font-semibold tracking-tight">Pro</h2>
             <p className="mt-1 text-2xl font-semibold tracking-tight">
               $2.99
               <span className="text-sm font-normal text-muted-foreground"> / month</span>
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              or{" "}
+              <span className="font-semibold text-foreground">$30 / year</span> —{" "}
+              {CANVAS_PRO_YEARLY_BADGE}
             </p>
           </div>
           <FeatureList items={PRO_FEATURES} />
@@ -94,7 +103,8 @@ function PricingPage() {
             Checkout
           </Link>
           <p className="text-xs text-muted-foreground">
-            Sign in first — checkout opens securely on the billing page.
+            Sign in first — checkout opens securely on the billing page, where you pick monthly
+            or yearly.
           </p>
         </section>
       </div>

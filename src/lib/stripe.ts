@@ -27,4 +27,20 @@ export function getStripeEnvironment(): StripeEnv {
 }
 
 export const CANVAS_PRO_PRICE_ID = "pro_monthly";
+export const CANVAS_PRO_YEARLY_PRICE_ID = "pro_yearly";
 export const CANVAS_PRO_PRICE_LABEL = "$2.99/month";
+export const CANVAS_PRO_YEARLY_PRICE_LABEL = "$30/year";
+export const CANVAS_PRO_YEARLY_BADGE = "Save 17%!";
+
+export const CANVAS_PRO_PLANS = [
+  { id: CANVAS_PRO_PRICE_ID, name: "Monthly", price: "$2.99", cadence: "/month" },
+  {
+    id: CANVAS_PRO_YEARLY_PRICE_ID,
+    name: "Yearly",
+    price: "$30",
+    cadence: "/year",
+    badge: CANVAS_PRO_YEARLY_BADGE,
+  },
+] as const;
+
+export type CanvasProPlan = (typeof CANVAS_PRO_PLANS)[number];
