@@ -425,7 +425,14 @@ Deno.serve(async (req) => {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    const status = message === "NOT_AUTHENTICATED" ? 401 : message === "NO_CANVAS_KEY" ? 428 : 500;
+    const status =
+      message === "NOT_AUTHENTICATED"
+        ? 401
+        : message === "NOT_SUBSCRIBED"
+          ? 402
+          : message === "NO_CANVAS_KEY"
+            ? 428
+            : 500;
     if (status === 500) console.error("[canvas]", message);
     return new Response(JSON.stringify({ error: message }), {
       status,
