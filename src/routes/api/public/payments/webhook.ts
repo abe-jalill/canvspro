@@ -17,6 +17,15 @@ function subscriptionsTable() {
   return getSupabase().from("subscriptions") as any;
 }
 
+/**
+ * Stripe retries and can deliver out of order. Every write carries the event
+ * timestamp and only applies when the stored state is older, so a replayed or
+ * late delivery can never overwrite newer subscription state.
+ */
+function notStale(eventAt: string) {
+  return `stripe_event_at.is.null,stripe_event_at.lte.${eventAt}`;
+}
+
 function priceIdOf(item: any): string {
   return (
     item?.price?.lookup_key ||
@@ -46,7 +55,11 @@ async function userIdForCustomer(
   return (data?.user_id as string | undefined) ?? null;
 }
 
-async function handleSubscriptionCreated(subscription: any, env: StripeEnv) {
+async function handleSubscriptionCreated(
+  subscription: any,
+  env: StripeEnv,
+  eventAt: string,
+) {
   const userId =
     subscription.metadata?.userId ??
     (await userIdForCustomer(subscription.customer, env));
@@ -61,6 +74,16 @@ async function handleSubscriptionCreated(subscription: any, env: StripeEnv) {
   const periodStart = item?.current_period_start ?? subscription.current_period_start;
   const periodEnd = item?.current_period_end ?? subscription.current_period_end;
 
+  // A replayed "created" must not clobber a newer state (e.g. already canceled).
+  const { data: existing } = await subscriptionsTable()
+    .select("stripe_event_at")
+    .eq("stripe_subscription_id", subscription.id)
+    .maybeSingle();
+  if (existing?.stripe_event_at && existing.stripe_event_at > eventAt) {
+    console.log("Ignoring stale subscription.created:", subscription.id);
+    return;
+  }
+
   await subscriptionsTable()
     .upsert(
       {
@@ -74,6 +97,7 @@ async function handleSubscriptionCreated(subscription: any, env: StripeEnv) {
         current_period_end: isoOrNull(periodEnd),
         cancel_at_period_end: subscription.cancel_at_period_end || false,
         environment: env,
+        stripe_event_at: eventAt,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "stripe_subscription_id" },
@@ -115,7 +139,11 @@ async function sendReceipt(
   }
 }
 
-async function handleSubscriptionUpdated(subscription: any, env: StripeEnv) {
+async function handleSubscriptionUpdated(
+  subscription: any,
+  env: StripeEnv,
+  eventAt: string,
+) {
   const item = subscription.items?.data?.[0];
   const periodStart = item?.current_period_start ?? subscription.current_period_start;
   const periodEnd = item?.current_period_end ?? subscription.current_period_end;
@@ -128,22 +156,33 @@ async function handleSubscriptionUpdated(subscription: any, env: StripeEnv) {
       current_period_start: isoOrNull(periodStart),
       current_period_end: isoOrNull(periodEnd),
       cancel_at_period_end: subscription.cancel_at_period_end || false,
+      stripe_event_at: eventAt,
       updated_at: new Date().toISOString(),
     })
     .eq("stripe_subscription_id", subscription.id)
-    .eq("environment", env);
+    .eq("environment", env)
+    .or(notStale(eventAt));
 }
 
-async function handleSubscriptionDeleted(subscription: any, env: StripeEnv) {
+async function handleSubscriptionDeleted(
+  subscription: any,
+  env: StripeEnv,
+  eventAt: string,
+) {
   await subscriptionsTable()
-    .update({ status: "canceled", updated_at: new Date().toISOString() })
+    .update({
+      status: "canceled",
+      stripe_event_at: eventAt,
+      updated_at: new Date().toISOString(),
+    })
     .eq("stripe_subscription_id", subscription.id)
-    .eq("environment", env);
+    .eq("environment", env)
+    .or(notStale(eventAt));
 }
 
 /** A full refund revokes Pro immediately — access must not linger until the
  *  period end once the money has gone back. Partial refunds leave access. */
-async function handleChargeRefunded(charge: any, env: StripeEnv) {
+async function handleChargeRefunded(charge: any, env: StripeEnv, eventAt: string) {
   if (!charge?.refunded) {
     console.log("Partial refund — access kept:", charge?.id);
     return;
@@ -159,6 +198,7 @@ async function handleChargeRefunded(charge: any, env: StripeEnv) {
       status: "canceled",
       cancel_at_period_end: false,
       current_period_end: now,
+      stripe_event_at: eventAt,
       updated_at: now,
     })
     .eq("stripe_customer_id", customerId)
@@ -176,19 +216,21 @@ async function handleChargeRefunded(charge: any, env: StripeEnv) {
 
 async function handleWebhook(req: Request, env: StripeEnv) {
   const event = await verifyWebhook(req, env);
+  const createdSeconds = (event as any).created as number | undefined;
+  const eventAt = new Date((createdSeconds ?? Math.floor(Date.now() / 1000)) * 1000).toISOString();
 
   switch (event.type) {
     case "customer.subscription.created":
-      await handleSubscriptionCreated(event.data.object, env);
+      await handleSubscriptionCreated(event.data.object, env, eventAt);
       break;
     case "customer.subscription.updated":
-      await handleSubscriptionUpdated(event.data.object, env);
+      await handleSubscriptionUpdated(event.data.object, env, eventAt);
       break;
     case "customer.subscription.deleted":
-      await handleSubscriptionDeleted(event.data.object, env);
+      await handleSubscriptionDeleted(event.data.object, env, eventAt);
       break;
     case "charge.refunded":
-      await handleChargeRefunded(event.data.object, env);
+      await handleChargeRefunded(event.data.object, env, eventAt);
       break;
     default:
       console.log("Unhandled event:", event.type);

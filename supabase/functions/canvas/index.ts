@@ -100,10 +100,28 @@ function cacheKey(creds: Creds, path: string) {
   return `${creds.domain}|${creds.token.slice(-10)}|${path}`;
 }
 
+/** Expired entries are evicted, plus a hard ceiling, so the cache can't grow
+ *  without bound over the lifetime of a warm function instance. */
+const CACHE_MAX_ENTRIES = 500;
+function evictExpired() {
+  const now = Date.now();
+  for (const [k, v] of cache) {
+    if (now - v.at >= CACHE_TTL_MS) cache.delete(k);
+  }
+  if (cache.size > CACHE_MAX_ENTRIES) {
+    const oldestFirst = [...cache.entries()].sort((a, b) => a[1].at - b[1].at);
+    for (const [k] of oldestFirst.slice(0, cache.size - CACHE_MAX_ENTRIES)) {
+      cache.delete(k);
+    }
+  }
+}
+
 async function canvasFetch<T>(creds: Creds, path: string): Promise<T> {
   const key = cacheKey(creds, path);
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.value as T;
+  if (hit) cache.delete(key);
+  evictExpired();
   const pending = inflight.get(key);
   if (pending) return (await pending) as T;
   const p = canvasFetchRaw<T>(creds, path)
