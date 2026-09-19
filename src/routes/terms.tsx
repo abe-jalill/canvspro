@@ -100,10 +100,12 @@ function TermsPage() {
             Subscription terms
           </h2>
           <p className="mt-4 text-sm text-muted-foreground">
-            If a paid subscription tier is added (for example, a $2.99/month
-            plan), billing terms, cancellation policy, and refund policy will be
-            posted here. These details are not yet finalized while billing is not
-            live.
+            CanvasPro offers a paid Pro subscription at $2.99 per month or $30
+            per year (save 17%). Subscriptions renew automatically until
+            canceled. You can cancel anytime from the billing portal, and you
+            keep access until the end of the paid period. Refunds are issued at
+            our discretion; when a payment is refunded in full, Pro access ends
+            immediately.
           </p>
         </section>
 
