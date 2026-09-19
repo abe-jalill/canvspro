@@ -58,9 +58,16 @@ function start(queryClient: QueryClient, storageKey: string) {
     maxAge: MAX_AGE,
     buster: BUSTER,
     dehydrateOptions: {
-      shouldDehydrateQuery: (query) =>
-        query.state.status === "success" &&
-        PERSISTED_ROOTS.has(String(query.queryKey[0])),
+      shouldDehydrateQuery: (query) => {
+        if (query.state.status !== "success") return false;
+        if (!PERSISTED_ROOTS.has(String(query.queryKey[0]))) return false;
+        // Never persist an empty result: a momentary blank (session still
+        // settling, entitlement unresolved) must not be restored as "you have
+        // no classes" on the next load.
+        const data = query.state.data;
+        if (Array.isArray(data) && data.length === 0) return false;
+        return true;
+      },
     },
   });
   return unsubscribe;
