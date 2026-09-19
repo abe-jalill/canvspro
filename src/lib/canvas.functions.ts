@@ -3,6 +3,7 @@
 // reads it server-side, so the browser never needs to hold it.
 import { supabase } from "@/integrations/supabase/client";
 import { fetchHasCanvasKey } from "@/lib/user-settings";
+import { fetchPaidAccess } from "@/lib/subscription";
 
 async function invokeCanvas<T>(
   resource: "courses" | "assignments" | "announcements" | "calendar" | "all" | "duedates",
@@ -11,6 +12,13 @@ async function invokeCanvas<T>(
   // No key saved yet → render blank states instead of erroring.
   const hasKey = await fetchHasCanvasKey();
   if (!hasKey) return [] as unknown as T;
+
+  // Free accounts: the server refuses everything but due dates, so don't ask.
+  // (The server-side paywall remains the boundary; this only avoids the 402.)
+  if (resource !== "duedates" && !(await fetchPaidAccess())) {
+    return [] as unknown as T;
+  }
+
 
 
   const { data, error } = await supabase.functions.invoke("canvas", {
