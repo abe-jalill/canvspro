@@ -165,7 +165,10 @@ export async function sendWebPush(
   return {
     ok: res.ok,
     status: res.status,
-    expired: res.status === 404 || res.status === 410,
+    // 404/410: endpoint gone. 403: the subscription was created with a
+    // different VAPID identity, so it can never be delivered to again —
+    // dropping the row lets the device re-register cleanly.
+    expired: res.status === 404 || res.status === 410 || res.status === 403,
     detail,
   };
 }

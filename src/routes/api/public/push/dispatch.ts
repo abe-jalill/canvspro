@@ -308,7 +308,9 @@ async function runTest(accessToken: string): Promise<Response> {
     message:
       delivered > 0
         ? `Test notification sent to ${delivered} device${delivered === 1 ? "" : "s"}.`
-        : "Push delivery failed on every registered device — try turning background alerts off and on.",
+        : dead.length > 0
+          ? "This device's registration was out of date and has been cleared — turn “Alerts when CanvasPro is closed” off and on, then test again."
+          : "Push delivery failed on every registered device — try turning background alerts off and on.",
   });
 }
 
