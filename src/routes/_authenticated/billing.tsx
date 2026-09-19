@@ -4,7 +4,7 @@ import { GlassCard } from "@/components/glass-card";
 import { PaymentTestModeBanner } from "@/components/payment-test-mode-banner";
 import { StripeEmbeddedCheckoutForm } from "@/components/stripe-embedded-checkout";
 import { useSubscription } from "@/lib/subscription";
-import { CANVAS_PRO_PRICE_ID, getStripeEnvironment } from "@/lib/stripe";
+import { CANVAS_PRO_PLANS, getStripeEnvironment, type CanvasProPlan } from "@/lib/stripe";
 import { createPortalSession } from "@/utils/payments.functions";
 
 export const Route = createFileRoute("/_authenticated/billing")({
@@ -14,13 +14,13 @@ export const Route = createFileRoute("/_authenticated/billing")({
       {
         name: "description",
         content:
-          "Manage your Canvas Pro subscription — $2.99 per month for your full class dashboard.",
+          "Manage your Canvas Pro subscription — $2.99 per month or $30 per year (save 17%) for your full class dashboard.",
       },
       { property: "og:title", content: "Billing — Canvas Pro" },
       {
         property: "og:description",
         content:
-          "Manage your Canvas Pro subscription — $2.99 per month for your full class dashboard.",
+          "Manage your Canvas Pro subscription — $2.99 per month or $30 per year (save 17%) for your full class dashboard.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -39,6 +39,7 @@ const FEATURES = [
 function BillingPage() {
   const { subscription, isActive, isLoading } = useSubscription();
   const [showCheckout, setShowCheckout] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<CanvasProPlan>(CANVAS_PRO_PLANS[1]);
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
