@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function AuthShell({
@@ -48,19 +49,38 @@ export function Field({
   minLength?: number;
   required?: boolean;
 }) {
+  const [show, setShow] = useState(false);
+  const isPassword = type === "password";
+  const inputType = isPassword ? (show ? "text" : "password") : type;
+
   return (
     <label className="flex w-full flex-col gap-1.5">
       <span className="text-xs font-normal uppercase tracking-wide text-muted-foreground">{label}</span>
-      <input
-        type={type}
-        value={value}
-        required={required}
-        minLength={minLength}
-        autoComplete={autoComplete}
-        placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
-        className="glass-inset min-h-12 w-full rounded-xl bg-transparent px-4 text-base text-foreground outline-none placeholder:text-muted-foreground/60 focus:ring-1 focus:ring-foreground/20"
-      />
+      <div className="relative">
+        <input
+          type={inputType}
+          value={value}
+          required={required}
+          minLength={minLength}
+          autoComplete={autoComplete}
+          placeholder={placeholder}
+          onChange={(e) => onChange(e.target.value)}
+          className={cn(
+            "glass-inset min-h-12 w-full rounded-xl bg-transparent px-4 text-base text-foreground outline-none placeholder:text-muted-foreground/60 focus:ring-1 focus:ring-foreground/20",
+            isPassword && "pr-12",
+          )}
+        />
+        {isPassword && (
+          <button
+            type="button"
+            onClick={() => setShow((s) => !s)}
+            aria-label={show ? "Hide password" : "Show password"}
+            className="absolute right-2 top-1/2 flex min-h-9 min-w-9 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        )}
+      </div>
     </label>
   );
 }
