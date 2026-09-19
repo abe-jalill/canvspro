@@ -20,22 +20,34 @@ function isActive(sub: SubscriptionRow | null): boolean {
 }
 
 /**
- * One-off entitlement read for non-React callers, briefly memoised so a page
- * load doesn't repeat it. Used to skip Canvas requests the server would refuse
- * anyway (free accounts), so the paywall doesn't surface as a 402 error.
- * Fails closed: any problem means "not paid".
+ * One-off entitlement read for non-React callers, used only to skip Canvas
+ * requests the server would refuse anyway (free accounts) so the paywall never
+ * surfaces as a 402 error.
+ *
+ * Returns "unknown" when the lookup could not be completed (no session yet,
+ * network hiccup). Callers must NOT treat "unknown" as free: doing that is what
+ * made pages render blank right after sign-in, because an empty result got
+ * cached for minutes. Only a definite answer is memoised; the server-side
+ * paywall stays the real boundary either way.
  */
+export type Entitlement = "paid" | "free" | "unknown";
+
 let paidAt = 0;
-let paidCache: Promise<boolean> | null = null;
+let paidCache: Promise<Entitlement> | null = null;
 const PAID_TTL_MS = 30_000;
 
-export function fetchPaidAccess(): Promise<boolean> {
+export function fetchEntitlement(): Promise<Entitlement> {
   if (paidCache && Date.now() - paidAt < PAID_TTL_MS) return paidCache;
   paidAt = Date.now();
-  paidCache = getSubscriptionAccess()
-    .then((row) => isActive(row ?? null))
-    .catch(() => false);
-  return paidCache;
+  const pending: Promise<Entitlement> = getSubscriptionAccess()
+    .then((row): Entitlement => (isActive(row ?? null) ? "paid" : "free"))
+    .catch((): Entitlement => {
+      // Don't remember a failure — the next caller should ask again.
+      if (paidCache === pending) resetPaidAccessCache();
+      return "unknown";
+    });
+  paidCache = pending;
+  return pending;
 }
 
 /** Called after sign-out / subscription changes so nothing stale lingers. */

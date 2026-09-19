@@ -3,21 +3,42 @@
 // reads it server-side, so the browser never needs to hold it.
 import { supabase } from "@/integrations/supabase/client";
 import { fetchHasCanvasKey } from "@/lib/user-settings";
-import { fetchPaidAccess } from "@/lib/subscription";
+import { fetchEntitlement } from "@/lib/subscription";
+
+/**
+ * Right after sign-in the session can still be settling. Waiting for it (and
+ * throwing if it never arrives) means the query RETRIES instead of caching an
+ * empty result — the old behaviour that made Grades/Announcements/Dashboard
+ * randomly render nothing for minutes after logging in.
+ */
+async function waitForSession(timeoutMs = 4_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const { data } = await supabase.auth.getSession();
+    if (data.session) return;
+    if (Date.now() >= deadline) throw new Error("Session not ready — please retry.");
+    await new Promise((r) => setTimeout(r, 150));
+  }
+}
 
 async function invokeCanvas<T>(
   resource: "courses" | "assignments" | "announcements" | "calendar" | "all" | "duedates",
   extra?: Record<string, unknown>,
 ): Promise<T> {
+  await waitForSession();
+
   // No key saved yet → render blank states instead of erroring.
   const hasKey = await fetchHasCanvasKey();
   if (!hasKey) return [] as unknown as T;
 
   // Free accounts: the server refuses everything but due dates, so don't ask.
-  // (The server-side paywall remains the boundary; this only avoids the 402.)
-  if (resource !== "duedates" && !(await fetchPaidAccess())) {
+  // Only a DEFINITE "free" skips the request — an unresolved check must not
+  // masquerade as an empty Canvas account.
+  if (resource !== "duedates" && (await fetchEntitlement()) === "free") {
     return [] as unknown as T;
   }
+
+
 
 
 
