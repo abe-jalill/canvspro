@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet, redirect, useRouterState } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { AppSidebar, MobileNav } from "@/components/app-sidebar";
+import { FocusTimerPanel } from "@/components/focus-timer";
 import { CanvasKeyBanner } from "@/components/canvas-key-banner";
 import { CanvasKeyGate } from "@/components/canvas-key-gate";
 import { ClassNamesGate } from "@/components/class-names-editor";
@@ -50,6 +51,7 @@ function AuthenticatedLayout() {
     <div className="min-h-screen w-full overflow-x-hidden md:h-screen md:overflow-hidden">
       <AppSidebar />
       <MobileNav />
+      <FocusTimerPanel />
       <main
         className={cn(
           "transition-[padding] duration-300 ease-in-out md:h-screen md:overflow-y-auto md:py-4 md:pr-4",

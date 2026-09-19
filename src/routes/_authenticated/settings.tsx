@@ -11,6 +11,7 @@ import { ClassNamesSection } from "@/components/class-names-editor";
 import { HiddenCoursesSection } from "@/components/hidden-courses-editor";
 import { useSubscription } from "@/lib/subscription";
 import { UpgradeCard } from "@/components/pro-gate";
+import { CalendarSubscribeCard } from "@/components/calendar-subscribe-card";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
@@ -72,6 +73,9 @@ function SettingsPage() {
       </header>
 
       <ProfileCard />
+
+      <CalendarSubscribeCard />
+
 
       <GlassCard title="Canvas API key" subtitle="Used to load your courses, grades, and assignments.">
         <form onSubmit={onSubmit} className="flex w-full flex-col gap-4">
