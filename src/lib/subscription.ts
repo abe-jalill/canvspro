@@ -20,6 +20,31 @@ function isActive(sub: SubscriptionRow | null): boolean {
 }
 
 /**
+ * One-off entitlement read for non-React callers, briefly memoised so a page
+ * load doesn't repeat it. Used to skip Canvas requests the server would refuse
+ * anyway (free accounts), so the paywall doesn't surface as a 402 error.
+ * Fails closed: any problem means "not paid".
+ */
+let paidAt = 0;
+let paidCache: Promise<boolean> | null = null;
+const PAID_TTL_MS = 30_000;
+
+export function fetchPaidAccess(): Promise<boolean> {
+  if (paidCache && Date.now() - paidAt < PAID_TTL_MS) return paidCache;
+  paidAt = Date.now();
+  paidCache = getSubscriptionAccess()
+    .then((row) => isActive(row ?? null))
+    .catch(() => false);
+  return paidCache;
+}
+
+/** Called after sign-out / subscription changes so nothing stale lingers. */
+export function resetPaidAccessCache() {
+  paidCache = null;
+  paidAt = 0;
+}
+
+/**
  * Pro entitlement. Fails CLOSED: while the signed-in user is unknown, while
  * the lookup is in flight, or if the lookup errors, `isActive` is false.
  *
