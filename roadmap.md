@@ -32,3 +32,9 @@
 - [x] Fixed setState-during-render (live status + nickname lookup) causing random flicker
 - [x] Verified: all user tables cascade-delete with the account; RLS on every table scoped to auth.uid()
 - [x] Verified end-to-end: complete-assignment write lands in DB and shows on a second fresh browser; sign-out clears device state; protected routes redirect when signed out
+
+## Paid access and billing portal incident
+
+- [ ] Remove email-based Pro bypass and make entitlement server-verified per user
+- [ ] Make Stripe portal opening resistant to popup blocking
+- [ ] Verify free, paid, account-switching, and portal behavior
