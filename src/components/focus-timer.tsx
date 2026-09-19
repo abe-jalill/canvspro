@@ -26,9 +26,6 @@ export function FocusTimerPanel() {
 
   if (!t.open) return null;
 
-  const finished = !t.running && t.remainingMs <= 0alam;
-  void finished;
-
   if (t.minimized) {
     return (
       <button
