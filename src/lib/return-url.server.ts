@@ -8,7 +8,8 @@ const ALLOWED_HOSTS = [
 ];
 
 /** Lovable-hosted preview/published hosts for this project. */
-const ALLOWED_HOST_SUFFIX = ".lovable.app";
+const ALLOWED_HOST_SUFFIXES = [".lovable.app", ".lovableproject.com"];
+
 
 export function assertSafeReturnUrl(raw: string): string {
   let url: URL;
