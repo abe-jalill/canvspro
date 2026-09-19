@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createHash, timingSafeEqual } from "crypto";
 
-export const Route = createFileRoute("/api/public/calendar/$userId.$token")({
+export const Route = createFileRoute("/api/public/calendar/$userId/$token")({
   server: {
     handlers: {
       GET: async ({ params }) => {

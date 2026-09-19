@@ -25,7 +25,7 @@ export function CalendarSubscribeCard() {
       set({ token: crypto.randomUUID() });
     }
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
-u    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading, value?.token]);
 
   const feedUrl = useMemo(() => {
