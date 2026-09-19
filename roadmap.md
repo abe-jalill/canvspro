@@ -8,7 +8,7 @@
 ## Security hardening pass
 
 - [x] VAPID private key out of source, read from secrets
-- [x] Comped-Pro email list moved server-side (COMP_EMAILS secret)
+- [x] Email-based comped access removed; only paid account-owned records grant Pro
 - [x] Payment webhook returns 400 on missing/invalid env
 - [x] Validate checkout + portal return URLs server-side
 - [x] Remove hardcoded EXCLUDED_COURSE_IDS; per-user hidden courses (Settings editor)
@@ -35,6 +35,6 @@
 
 ## Paid access and billing portal incident
 
-- [ ] Remove email-based Pro bypass and make entitlement server-verified per user
-- [ ] Make Stripe portal opening resistant to popup blocking
-- [ ] Verify free, paid, account-switching, and portal behavior
+- [x] Remove email-based Pro bypass and make entitlement server-verified per user
+- [x] Make Stripe portal opening resistant to popup blocking
+- [x] Verify free-account lockout, paid-row isolation, and portal opening behavior
