@@ -109,6 +109,17 @@ export async function enableBackgroundPush(): Promise<
   const permission = await Notification.requestPermission();
   if (permission !== "granted") return { ok: false, reason: "Notification permission was denied." };
 
+  let serverKey: string;
+  try {
+    serverKey = await fetchServerPublicKey();
+  } catch (err) {
+    return {
+      ok: false,
+      reason:
+        err instanceof Error ? err.message : "Couldn't reach the server to set up notifications.",
+    };
+  }
+
   const reg = await getRegistration();
   await navigator.serviceWorker.ready;
 
@@ -122,7 +133,7 @@ export async function enableBackgroundPush(): Promise<
 
   const sub = await reg.pushManager.subscribe({
     userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource,
+    applicationServerKey: urlBase64ToUint8Array(serverKey) as BufferSource,
   });
 
   const json = sub.toJSON();
