@@ -61,11 +61,24 @@ export function useSubscription() {
         // Not comped / verification unavailable — fall through to the DB read.
       }
 
-      const { data, error } = await supabase
+      // Scope to the payment environment when it is known. If this build has
+      // no payments token configured we must not lock a paying customer out,
+      // so we read their newest row in any environment — still their own row
+      // only, because RLS and this filter both scope to their user id.
+      let environment: "sandbox" | "live" | null = null;
+      try {
+        environment = getStripeEnvironment();
+      } catch {
+        environment = null;
+      }
+
+      let select = supabase
         .from("subscriptions")
         .select("status, price_id, current_period_end, cancel_at_period_end")
-        .eq("user_id", currentId)
-        .eq("environment", getStripeEnvironment())
+        .eq("user_id", currentId);
+      if (environment) select = select.eq("environment", environment);
+
+      const { data, error } = await select
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
