@@ -12,8 +12,11 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SignupRouteImport } from './routes/signup'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PricingRouteImport } from './routes/pricing'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as EmailVerifiedRouteImport } from './routes/email-verified'
 import { Route as CanvasGradeCalculatorRouteImport } from './routes/canvas-grade-calculator'
 import { Route as CanvasDashboardGuideRouteImport } from './routes/canvas-dashboard-guide'
 import { Route as AuthRouteImport } from './routes/auth'
@@ -52,6 +55,11 @@ const SignupRoute = SignupRouteImport.update({
   path: '/signup',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
@@ -60,6 +68,16 @@ const PrivacyRoute = PrivacyRouteImport.update({
 const PricingRoute = PricingRouteImport.update({
   id: '/pricing',
   path: '/pricing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EmailVerifiedRoute = EmailVerifiedRouteImport.update({
+  id: '/email-verified',
+  path: '/email-verified',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CanvasGradeCalculatorRoute = CanvasGradeCalculatorRouteImport.update({
@@ -185,8 +203,11 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/canvas-dashboard-guide': typeof CanvasDashboardGuideRoute
   '/canvas-grade-calculator': typeof CanvasGradeCalculatorRoute
+  '/email-verified': typeof EmailVerifiedRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
@@ -213,8 +234,11 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/canvas-dashboard-guide': typeof CanvasDashboardGuideRoute
   '/canvas-grade-calculator': typeof CanvasGradeCalculatorRoute
+  '/email-verified': typeof EmailVerifiedRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
@@ -243,8 +267,11 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/canvas-dashboard-guide': typeof CanvasDashboardGuideRoute
   '/canvas-grade-calculator': typeof CanvasGradeCalculatorRoute
+  '/email-verified': typeof EmailVerifiedRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
@@ -273,8 +300,11 @@ export interface FileRouteTypes {
     | '/auth'
     | '/canvas-dashboard-guide'
     | '/canvas-grade-calculator'
+    | '/email-verified'
+    | '/forgot-password'
     | '/pricing'
     | '/privacy'
+    | '/reset-password'
     | '/signup'
     | '/sitemap.xml'
     | '/terms'
@@ -301,8 +331,11 @@ export interface FileRouteTypes {
     | '/auth'
     | '/canvas-dashboard-guide'
     | '/canvas-grade-calculator'
+    | '/email-verified'
+    | '/forgot-password'
     | '/pricing'
     | '/privacy'
+    | '/reset-password'
     | '/signup'
     | '/sitemap.xml'
     | '/terms'
@@ -330,8 +363,11 @@ export interface FileRouteTypes {
     | '/auth'
     | '/canvas-dashboard-guide'
     | '/canvas-grade-calculator'
+    | '/email-verified'
+    | '/forgot-password'
     | '/pricing'
     | '/privacy'
+    | '/reset-password'
     | '/signup'
     | '/sitemap.xml'
     | '/terms'
@@ -360,8 +396,11 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   CanvasDashboardGuideRoute: typeof CanvasDashboardGuideRoute
   CanvasGradeCalculatorRoute: typeof CanvasGradeCalculatorRoute
+  EmailVerifiedRoute: typeof EmailVerifiedRoute
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
   PricingRoute: typeof PricingRoute
   PrivacyRoute: typeof PrivacyRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermsRoute: typeof TermsRoute
@@ -395,6 +434,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignupRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/privacy': {
       id: '/privacy'
       path: '/privacy'
@@ -407,6 +453,20 @@ declare module '@tanstack/react-router' {
       path: '/pricing'
       fullPath: '/pricing'
       preLoaderRoute: typeof PricingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/email-verified': {
+      id: '/email-verified'
+      path: '/email-verified'
+      fullPath: '/email-verified'
+      preLoaderRoute: typeof EmailVerifiedRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/canvas-grade-calculator': {
@@ -605,8 +665,11 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   CanvasDashboardGuideRoute: CanvasDashboardGuideRoute,
   CanvasGradeCalculatorRoute: CanvasGradeCalculatorRoute,
+  EmailVerifiedRoute: EmailVerifiedRoute,
+  ForgotPasswordRoute: ForgotPasswordRoute,
   PricingRoute: PricingRoute,
   PrivacyRoute: PrivacyRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermsRoute: TermsRoute,
