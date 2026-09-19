@@ -45,3 +45,7 @@
 - [x] Re-enable built-in Stripe (fresh Lovable-managed account)
 - [x] Recreate Canvas Pro product at $2.99/month (pro_monthly, tax code set)
 - [x] Verify checkout + portal on the new account after publish (verified in preview: test payment → webhook → Pro active → portal opens on billing.stripe.com; live payments still require go-live in the Payments tab)
+- [x] Add yearly plan $30/year (pro_yearly) with Save 17%! messaging on homepage, pricing, billing, pro-gate, calculator, guide, terms
+- [x] Refund revokes Pro instantly (charge.refunded webhook sets status canceled + period end now)
+- [x] Cancel leftover sandbox test subscription and remove its row
+- [ ] User: run readiness check in Payments tab (Live), publish, make one real purchase, verify a refund ends Pro instantly, confirm payout bank account
