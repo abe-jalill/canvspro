@@ -119,11 +119,13 @@ function RootComponent() {
   useEffect(() => {
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
       if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
-      // Namespace browser storage per account so nothing carries over.
-      setUserScope(event === "SIGNED_OUT" ? null : (session?.user?.id ?? null));
+      const nextId = event === "SIGNED_OUT" ? null : (session?.user?.id ?? null);
+      if (event === "SIGNED_OUT") purgeScopedStorage();
+      // Namespaces browser storage per account and drops the whole query
+      // cache whenever the identity changes — no data can carry over.
+      syncAuthIdentity(queryClient, nextId);
       router.invalidate();
-      if (event !== "SIGNED_OUT") queryClient.invalidateQueries();
-      else queryClient.clear();
+      if (nextId) queryClient.invalidateQueries();
     });
     return () => data.subscription.unsubscribe();
   }, [router, queryClient]);
