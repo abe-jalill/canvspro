@@ -10,33 +10,55 @@ export type StripeEnv = 'sandbox' | 'live';
 
 const GATEWAY_STRIPE_BASE = 'https://connector-gateway.lovable.dev/stripe';
 
+// The gateway stores credentials under the base name or, after a
+// disconnect/reconnect cycle, under the same name with a `_1` suffix. Both
+// may exist; the stale one is rejected with 401 "Credential not found".
+function credentialNames(env: StripeEnv): string[] {
+  const base = env === 'sandbox' ? 'STRIPE_SANDBOX_API_KEY' : 'STRIPE_LIVE_API_KEY';
+  return [base, `${base}_1`];
+}
+
 export function getConnectionApiKey(env: StripeEnv): string {
-  return env === 'sandbox'
-    ? getEnv('STRIPE_SANDBOX_API_KEY')
-    : getEnv('STRIPE_LIVE_API_KEY');
+  for (const name of credentialNames(env)) {
+    if (process.env[name]) return process.env[name] as string;
+  }
+  throw new Error(`No Stripe credential configured for ${env}`);
 }
 
 export function createStripeClient(env: StripeEnv): Stripe {
-  const connectionApiKey = getConnectionApiKey(env);
+  const keys = credentialNames(env)
+    .map((name) => process.env[name])
+    .filter((k): k is string => !!k);
+  if (!keys.length) throw new Error(`No Stripe credential configured for ${env}`);
   const lovableApiKey = getEnv('LOVABLE_API_KEY');
 
-  return new Stripe(connectionApiKey, {
+  return new Stripe(keys[0], {
     apiVersion: '2026-03-25.dahlia',
-    httpClient: Stripe.createFetchHttpClient((input, init) => {
+    httpClient: Stripe.createFetchHttpClient(async (input, init) => {
       const stripeUrl = input instanceof Request ? input.url : input.toString();
       const gatewayUrl = stripeUrl.replace('https://api.stripe.com', GATEWAY_STRIPE_BASE);
-      return fetch(gatewayUrl, {
-        ...init,
-        headers: {
-          ...Object.fromEntries(
-            new Headers(
-              init?.headers ?? (input instanceof Request ? input.headers : undefined),
-            ).entries(),
-          ),
-          'X-Connection-Api-Key': connectionApiKey,
-          'Lovable-API-Key': lovableApiKey,
-        },
-      });
+      const attempt = (key: string) =>
+        fetch(gatewayUrl, {
+          ...init,
+          headers: {
+            ...Object.fromEntries(
+              new Headers(
+                init?.headers ?? (input instanceof Request ? input.headers : undefined),
+              ).entries(),
+            ),
+            'X-Connection-Api-Key': key,
+            'Lovable-API-Key': lovableApiKey,
+          },
+        });
+
+      let res = await attempt(keys[0]);
+      if (res.status === 401 && keys.length > 1) {
+        const body = await res.clone().text();
+        if (body.includes('Credential not found')) {
+          res = await attempt(keys[1]);
+        }
+      }
+      return res;
     }),
   });
 }
