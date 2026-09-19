@@ -793,6 +793,12 @@ function LandingPage() {
                 $2.99
                 <span className="text-sm font-normal text-muted-foreground"> / month</span>
               </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                or <span className="font-semibold text-foreground">$30 / year</span>{" "}
+                <span className="rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-semibold text-white">
+                  Save 17%!
+                </span>
+              </p>
               <p className="mt-1 text-xs text-muted-foreground">Less than one coffee a month. Cancel anytime.</p>
 
               <ul className="mt-6 space-y-2.5 text-sm text-foreground/90">
