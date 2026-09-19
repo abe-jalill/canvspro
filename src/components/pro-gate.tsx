@@ -43,6 +43,8 @@ export function ProGate({ children }: { children: ReactNode }) {
   const { isActive, isLoading } = useSubscription();
 
   if (isFreePath(pathname)) return <>{children}</>;
+  // Fail closed: unlock only on a confirmed active subscription. While the
+  // check is loading we render nothing; if it failed we show the upgrade card.
   if (isLoading) return null;
   if (isActive) return <>{children}</>;
   return <UpgradeCard />;
