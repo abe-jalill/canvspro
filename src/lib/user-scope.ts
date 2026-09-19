@@ -71,6 +71,25 @@ export function purgeScopedStorage(userId: string | null = scope): void {
   }
 }
 
+/**
+ * Account deletion: remove every trace of the account on this device,
+ * including the normally device-local preferences, so nothing can be reused.
+ */
+export function purgeAllScopedStorage(userId: string | null = scope): void {
+  if (typeof window === "undefined") return;
+  const prefix = `cp:${userId ?? "anon"}:`;
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < window.localStorage.length; i += 1) {
+      const k = window.localStorage.key(i);
+      if (k?.startsWith(prefix)) keys.push(k);
+    }
+    for (const k of keys) window.localStorage.removeItem(k);
+  } catch {
+    // ignore
+  }
+}
+
 export function setUserScope(userId: string | null) {
   if (scope === userId) return;
   scope = userId;

@@ -9,6 +9,7 @@ import {
 } from "@/lib/user-profile";
 import { ClassNamesSection } from "@/components/class-names-editor";
 import { HiddenCoursesSection } from "@/components/hidden-courses-editor";
+import { DeleteAccountSection } from "@/components/delete-account";
 import { useSubscription } from "@/lib/subscription";
 import { UpgradeCard } from "@/components/pro-gate";
 
@@ -158,6 +159,13 @@ function SettingsPage() {
         subtitle="Hide classes you don't want anywhere in the app."
       >
         <HiddenCoursesSection />
+      </GlassCard>
+
+      <GlassCard
+        title="Delete account"
+        subtitle="Permanently remove your account and everything saved with it."
+      >
+        <DeleteAccountSection />
       </GlassCard>
     </div>
   );
