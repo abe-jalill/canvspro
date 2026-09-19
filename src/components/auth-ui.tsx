@@ -1,5 +1,4 @@
-import { useState, type ReactNode } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 export function AuthShell({
@@ -49,39 +48,19 @@ export function Field({
   minLength?: number;
   required?: boolean;
 }) {
-  const [revealed, setRevealed] = useState(false);
-  const isPassword = type === "password";
-  const inputType = isPassword && revealed ? "text" : type;
-
   return (
     <label className="flex w-full flex-col gap-1.5">
       <span className="text-xs font-normal uppercase tracking-wide text-muted-foreground">{label}</span>
-      <span className="relative block w-full">
-        <input
-          type={inputType}
-          value={value}
-          required={required}
-          minLength={minLength}
-          autoComplete={autoComplete}
-          placeholder={placeholder}
-          onChange={(e) => onChange(e.target.value)}
-          className={cn(
-            "glass-inset min-h-12 w-full rounded-xl bg-transparent px-4 text-base text-foreground outline-none placeholder:text-muted-foreground/60 focus:ring-1 focus:ring-foreground/20",
-            isPassword && "pr-12",
-          )}
-        />
-        {isPassword && (
-          <button
-            type="button"
-            onClick={() => setRevealed((v) => !v)}
-            aria-label={revealed ? "Hide password" : "Show password"}
-            aria-pressed={revealed}
-            className="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground"
-          >
-            {revealed ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </button>
-        )}
-      </span>
+      <input
+        type={type}
+        value={value}
+        required={required}
+        minLength={minLength}
+        autoComplete={autoComplete}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        className="glass-inset min-h-12 w-full rounded-xl bg-transparent px-4 text-base text-foreground outline-none placeholder:text-muted-foreground/60 focus:ring-1 focus:ring-foreground/20"
+      />
     </label>
   );
 }
