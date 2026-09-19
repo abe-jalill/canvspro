@@ -46,7 +46,15 @@ export const Route = createFileRoute("/")({
       },
       { property: "og:type", content: "website" },
       { property: "og:url", content: "https://canvaspro.app/" },
+      {
+        property: "og:image",
+        content: "https://canvaspro.app/canvaspro-homepage-preview.png",
+      },
       { name: "twitter:card", content: "summary_large_image" },
+      {
+        name: "twitter:image",
+        content: "https://canvaspro.app/canvaspro-homepage-preview.png",
+      },
     ],
     links: [{ rel: "canonical", href: "https://canvaspro.app/" }],
     scripts: [
