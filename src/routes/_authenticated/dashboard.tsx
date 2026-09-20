@@ -139,7 +139,14 @@ function Dashboard() {
   };
 
   return (
-    <div className="w-full min-w-0 space-y-6 pb-12">
+    <div
+      className="w-full min-w-0 space-y-6 pb-12"
+      onPointerDown={handleAreaPointerDown}
+      onPointerUp={clearLongPress}
+      onPointerMove={clearLongPress}
+      onPointerLeave={clearLongPress}
+      onPointerCancel={clearLongPress}
+    >
       <DashboardHero />
 
       {/* Customization Header */}
@@ -198,15 +205,8 @@ function Dashboard() {
         </div>
       )}
 
-      {/* 12-Column Grid Container — long-press empty space (2s) to enter edit mode */}
-      <div
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-5 min-w-0 [grid-auto-flow:dense]"
-        onPointerDown={handleAreaPointerDown}
-        onPointerUp={clearLongPress}
-        onPointerMove={clearLongPress}
-        onPointerLeave={clearLongPress}
-        onPointerCancel={clearLongPress}
-      >
+      {/* 12-Column Grid Container */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-5 min-w-0 [grid-auto-flow:dense]">
         {activeList.map((id) => {
           const meta = WIDGETS[id];
           const hidden = layout.isHidden(id);
