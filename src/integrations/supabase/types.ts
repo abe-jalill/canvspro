@@ -413,6 +413,7 @@ export type Database = {
       user_settings: {
         Row: {
           canvas_api_key: string | null
+          canvas_domain: string | null
           created_at: string
           seen_onboarding: boolean
           updated_at: string
@@ -420,6 +421,7 @@ export type Database = {
         }
         Insert: {
           canvas_api_key?: string | null
+          canvas_domain?: string | null
           created_at?: string
           seen_onboarding?: boolean
           updated_at?: string
@@ -427,6 +429,7 @@ export type Database = {
         }
         Update: {
           canvas_api_key?: string | null
+          canvas_domain?: string | null
           created_at?: string
           seen_onboarding?: boolean
           updated_at?: string

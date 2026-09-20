@@ -3,6 +3,7 @@ import {
   buildAlertsForUser,
   deliver,
   isQuiet,
+  normalizeCanvasDomain,
   SERVER_DEFAULT_PREFS,
   type Alert,
   type ServerPrefs,
@@ -121,9 +122,11 @@ async function clearCanvasKeyStatus(admin: Admin, userId: string): Promise<void>
 
 async function run(): Promise<Response> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const domain = process.env["CANVAS_DOMAIN"];
+  // Global fallback only — each user's own Canvas URL takes priority, so
+  // students from any school can receive alerts.
+  const defaultDomain = normalizeCanvasDomain(process.env["CANVAS_DOMAIN"]);
   const { vapid } = await import("@/lib/vapid.server");
-  if (!domain || !vapid.publicKey || !vapid.privateKey) {
+  if (!vapid.publicKey || !vapid.privateKey) {
     return Response.json({ error: "push not configured" }, { status: 500 });
   }
 
@@ -152,7 +155,7 @@ async function run(): Promise<Response> {
           .maybeSingle(),
         supabaseAdmin
           .from("user_settings")
-          .select("canvas_api_key")
+          .select("canvas_api_key,canvas_domain")
           .eq("user_id", userId)
           .maybeSingle(),
         supabaseAdmin
@@ -173,6 +176,10 @@ async function run(): Promise<Response> {
 
       const token = (settings?.canvas_api_key ?? "").trim();
       if (!token) continue;
+      // The student's own school URL, falling back to the global default for
+      // accounts saved before per-school URLs existed.
+      const userDomain = normalizeCanvasDomain(settings?.canvas_domain) || defaultDomain;
+      if (!userDomain) continue;
 
       const prefs: ServerPrefs = {
         ...SERVER_DEFAULT_PREFS,
@@ -185,7 +192,7 @@ async function run(): Promise<Response> {
       let alerts: Alert[];
       let tonight: TonightItem[];
       try {
-        const built = await buildAlertsForUser(domain, token, prefs, tz, hiddenIds);
+        const built = await buildAlertsForUser(userDomain, token, prefs, tz, hiddenIds);
         alerts = built.alerts;
         tonight = built.tonight;
       } catch (err) {

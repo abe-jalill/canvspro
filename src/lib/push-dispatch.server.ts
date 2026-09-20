@@ -95,6 +95,18 @@ interface CanvasAnnouncement {
 
 
 /**
+ * Normalizes a user-supplied Canvas URL to a bare hostname, e.g.
+ * "https://Yourschool.Instructure.com/" → "yourschool.instructure.com".
+ * Returns "" when the value isn't a plausible hostname. Mirrors the edge fn.
+ */
+export function normalizeCanvasDomain(raw: string | null | undefined): string {
+  let v = (raw ?? "").trim().toLowerCase();
+  if (!v) return "";
+  v = v.replace(/^https?:\/\//, "").split("/")[0]!.split("?")[0]!.trim();
+  return /^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/.test(v) ? v : "";
+}
+
+/**
  * Canvas answers throttling with 403 + "Rate Limit Exceeded" — the same status
  * it uses for a bad token. The body is therefore part of the error message so
  * callers never mistake a throttle for a rejected key. Throttles are retried
