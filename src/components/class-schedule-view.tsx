@@ -10,37 +10,18 @@ import {
   type ClassDay,
   type ClassSession,
 } from "@/lib/class-schedule";
-import {
-  dueClassDay,
-  dueMinutes,
-  type ScheduledAssignment,
-} from "@/lib/scheduled-assignments";
-import { CalendarPlus, X } from "lucide-react";
 
 // Weekly grid bounds
 const DAY_START = 8 * 60; // 8:00
 const DAY_END = 18 * 60; // 6:00 PM
 const PX_PER_MIN = 1.4; // grid density
 
-interface AssignmentBlock {
-  id: string;
-  assignmentId: number;
-  title: string;
-  courseLabel: string;
-  startMinutes: number;
-  timeLabel: string;
-}
-
 export default function ClassScheduleView({
   sessions,
-  assignments = [],
   onEdit,
-  onRemoveAssignment,
 }: {
   sessions: ClassSession[];
-  assignments?: ScheduledAssignment[];
   onEdit?: () => void;
-  onRemoveAssignment?: (assignmentId: number) => void;
 }) {
   const byDay = sessionsByDay(sessions);
   const groups = groupByTitle(sessions);
@@ -55,40 +36,7 @@ export default function ClassScheduleView({
     })),
   );
 
-  // Assignments due within the next week land on their weekday in the grid.
-  const now = Date.now();
-  const weekEnd = now + 7 * 24 * 60 * 60 * 1000;
-  const assignmentsByDay: Record<ClassDay, AssignmentBlock[]> = {
-    M: [],
-    T: [],
-    W: [],
-    R: [],
-    F: [],
-  };
-  for (const a of assignments) {
-    const at = new Date(a.dueAt).getTime();
-    if (Number.isNaN(at) || at < now || at > weekEnd) continue;
-    const day = dueClassDay(a.dueAt);
-    if (!day) continue;
-    const start = dueMinutes(a.dueAt);
-    assignmentsByDay[day].push({
-      id: a.id,
-      assignmentId: a.assignmentId,
-      title: a.title,
-      courseLabel: a.courseLabel,
-      startMinutes: start,
-      timeLabel: minutesToLabel(start),
-    });
-  }
-  for (const d of DAY_ORDER) {
-    assignmentsByDay[d].sort((a, b) => a.startMinutes - b.startMinutes);
-  }
 
-  const upcoming = assignments
-    .filter((a) => new Date(a.dueAt).getTime() >= now)
-    .sort(
-      (a, b) => new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime(),
-    );
 
   return (
     <div className="space-y-6">
@@ -114,9 +62,6 @@ export default function ClassScheduleView({
           {credits > 0 ? (
             <Stat label="Credit Hours" value={String(credits)} />
           ) : null}
-          {upcoming.length > 0 ? (
-            <Stat label="Assignments" value={String(upcoming.length)} />
-          ) : null}
         </div>
         {conflicts.length > 0 ? (
           <div className="glass-inset mt-4 rounded-2xl px-4 py-3 text-xs text-muted-foreground">
@@ -134,71 +79,13 @@ export default function ClassScheduleView({
         ) : null}
       </header>
 
-      <section className="glass-panel p-4 md:p-6">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-sm font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            Weekly view
-          </h2>
-          <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-sm bg-foreground/40" />
-              Classes
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-sm bg-event" />
-              Assignments due
-            </span>
-          </div>
-        </div>
-        <WeeklyGrid byDay={byDay} assignmentsByDay={assignmentsByDay} />
-      </section>
 
-      {upcoming.length > 0 ? (
-        <section className="space-y-3">
-          <h2 className="text-sm font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            Assignments on your schedule
-          </h2>
-          <ul className="space-y-2">
-            {upcoming.map((a) => (
-              <li
-                key={a.id}
-                className="glass-panel flex items-start justify-between gap-3 border-l-2 border-event p-4"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-event">
-                    {a.title}
-                  </p>
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                    {a.courseLabel ? `${a.courseLabel} · ` : ""}
-                    {new Date(a.dueAt).toLocaleString(undefined, {
-                      weekday: "short",
-                      month: "short",
-                      day: "numeric",
-                      hour: "numeric",
-                      minute: "2-digit",
-                    })}
-                  </p>
-                </div>
-                {onRemoveAssignment ? (
-                  <button
-                    type="button"
-                    onClick={() => onRemoveAssignment(a.assignmentId)}
-                    aria-label={`Remove ${a.title} from your schedule`}
-                    className="glass-hover flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-glass-border text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : (
-        <p className="glass-inset flex items-center gap-2 rounded-2xl px-4 py-3 text-xs text-muted-foreground">
-          <CalendarPlus className="h-3.5 w-3.5" />
-          Tap the calendar button on any assignment to add its due date here.
-        </p>
-      )}
+      <section className="glass-panel p-4 md:p-6">
+        <h2 className="mb-4 text-sm font-medium uppercase tracking-[0.18em] text-muted-foreground">
+          Weekly view
+        </h2>
+        <WeeklyGrid byDay={byDay} />
+      </section>
 
       <section className="space-y-3">
         <h2 className="text-sm font-medium uppercase tracking-[0.18em] text-muted-foreground">
@@ -295,26 +182,15 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
-function WeeklyGrid({
-  byDay,
-  assignmentsByDay,
-}: {
-  byDay: Record<ClassDay, ClassSession[]>;
-  assignmentsByDay: Record<ClassDay, AssignmentBlock[]>;
-}) {
+function WeeklyGrid({ byDay }: { byDay: Record<ClassDay, ClassSession[]> }) {
   // Bounds derived from the actual classes so blocks never sit outside the grid.
   const all = DAY_ORDER.flatMap((d) => byDay[d]);
-  const dueTimes = DAY_ORDER.flatMap((d) =>
-    assignmentsByDay[d].map((a) => a.startMinutes),
-  );
-  const earliest = Math.min(
-    ...[...all.map((s) => s.startMinutes), ...dueTimes, DAY_START],
-  );
-  const latest = Math.max(
-    ...[...all.map((s) => s.endMinutes), ...dueTimes.map((m) => m + 45), DAY_END],
-  );
-  const start = Math.floor(earliest / 60) * 60;
-  const end = Math.ceil(latest / 60) * 60;
+  const earliest = all.length
+    ? Math.min(...all.map((s) => s.startMinutes))
+    : DAY_START;
+  const latest = all.length ? Math.max(...all.map((s) => s.endMinutes)) : DAY_END;
+  const start = Math.min(DAY_START, Math.floor(earliest / 60) * 60);
+  const end = Math.max(DAY_END, Math.ceil(latest / 60) * 60);
 
   const height = (end - start) * PX_PER_MIN;
   const hourMarks: number[] = [];
@@ -381,25 +257,6 @@ function WeeklyGrid({
                   </div>
                 );
               })}
-              {assignmentsByDay[d].map((a) => {
-                const top = (a.startMinutes - start) * PX_PER_MIN;
-                return (
-                  <div
-                    key={a.id}
-                    className="absolute left-1 right-1 z-10 overflow-hidden rounded-lg border border-event/50 bg-event/20 p-2 text-[11px] leading-tight backdrop-blur-sm"
-                    style={{ top: `${top}px`, height: "40px" }}
-                    title={`${a.title} due ${a.timeLabel}`}
-                  >
-                    <p className="truncate font-semibold tracking-tight text-event">
-                      {a.title}
-                    </p>
-                    <p className="truncate text-event/80">
-                      Due {a.timeLabel}
-                      {a.courseLabel ? ` · ${a.courseLabel}` : ""}
-                    </p>
-                  </div>
-                );
-              })}
             </div>
           ))}
         </div>
@@ -407,3 +264,4 @@ function WeeklyGrid({
     </div>
   );
 }
+
