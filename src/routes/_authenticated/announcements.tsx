@@ -9,6 +9,10 @@ import { htmlToText } from "@/lib/html-text";
 import { cn } from "@/lib/utils";
 import { useEffect, useMemo, useState } from "react";
 import { useCourseHighlight } from "@/lib/course-highlight";
+import {
+  useAnnouncementWindow,
+  withinAnnouncementWindow,
+} from "@/lib/announcement-window";
 
 const announcementsQO = queryOptions({
   queryKey: ["canvas", "announcements"],
@@ -55,9 +59,16 @@ function AnnouncementsPage() {
   const [expanded, setExpanded] = useState<number[]>([]);
   const [expandedBody, setExpandedBody] = useState<Set<number>>(new Set());
 
+  const announcementWindow = useAnnouncementWindow();
+
   const visible = useMemo(
-    () => (data ?? []).filter((a) => !dismissed.has(a.id)),
-    [data, dismissed],
+    () =>
+      (data ?? []).filter(
+        (a) =>
+          !dismissed.has(a.id) &&
+          withinAnnouncementWindow(a.posted_at, announcementWindow.weeks),
+      ),
+    [data, dismissed, announcementWindow.weeks],
   );
 
   type Group = {
@@ -118,7 +129,7 @@ function AnnouncementsPage() {
       <header className="flex flex-wrap items-end justify-between gap-4 px-1 pt-2">
         <div>
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            Last 30 days
+            {announcementWindow.label}
           </p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">Announcements</h1>
         </div>
@@ -151,7 +162,13 @@ function AnnouncementsPage() {
       )}
       {!isLoading && !isError && groups.length === 0 && (
         <GlassCard>
-          <EmptyState message="No announcements in the last 30 days." />
+          <EmptyState
+            message={
+              announcementWindow.weeks === 1
+                ? "No announcements in the last week."
+                : "No announcements in the last 2 weeks."
+            }
+          />
         </GlassCard>
       )}
 
