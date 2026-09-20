@@ -39,10 +39,18 @@ export function useSaveCanvasKey() {
         { onConflict: "user_id" },
       );
       if (error) throw new Error(error.message);
+      // A newly saved key clears any "Canvas rejected your key" flag the
+      // background alert job left behind.
+      await supabase
+        .from("user_preferences")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("key", "canvas_key_status");
       return key;
     },
     onSuccess: async (key) => {
       toast.success(key ? "Canvas key saved" : "Canvas key cleared");
+      await qc.invalidateQueries({ queryKey: ["user-preferences"] });
       await qc.invalidateQueries({ queryKey: canvasKeyQueryKey });
       await qc.invalidateQueries({ queryKey: ["canvas"] });
     },
