@@ -891,14 +891,6 @@ function LandingPage() {
           </Link>
         </div>
       </section>
-
-      <p className="mx-auto max-w-2xl px-4 pb-4 text-center text-xs text-muted-foreground">
-        CanvasPro is an independent tool and is not affiliated with, endorsed by,
-        sponsored by, or connected in any way to Canvas LMS or Instructure, Inc.
-        &quot;Canvas&quot; and &quot;Canvas LMS&quot; are trademarks of Instructure, Inc.
-      </p>
-
-      <SiteFooter />
     </div>
   );
 }
