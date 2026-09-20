@@ -193,9 +193,22 @@ async function run(): Promise<Response> {
         // Canvas rejecting the stored token is a user-fixable problem, not a
         // server fault: flag it so the app can ask for a fresh key instead of
         // failing silently every 15 minutes.
-        if (/Canvas 40(1|3)/.test(message)) {
+        // Canvas uses 403 both for a bad token AND for throttling
+        // ("Rate Limit Exceeded"), and 403 also appears for courses the
+        // student simply can't read. Only a real authentication rejection
+        // should ask the user for a new key.
+        const authRejected =
+          /Canvas 401/.test(message) ||
+          (/Canvas 403/.test(message) &&
+            /invalid access token|unauthorized|insufficient scopes|revoked|expired/i.test(message));
+        if (authRejected) {
           await setCanvasKeyStatus(supabaseAdmin, userId, message.includes("401") ? 401 : 403);
           console.warn(`[push-dispatch] canvas key rejected user=${userId} (${message})`);
+          continue;
+        }
+        if (/Canvas 4\d\d|Canvas 5\d\d/.test(message)) {
+          // Transient/permission problem — never blame the key.
+          console.warn(`[push-dispatch] canvas request failed user=${userId} (${message})`);
           continue;
         }
         throw err;

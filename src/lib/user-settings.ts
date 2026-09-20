@@ -16,6 +16,22 @@ export async function fetchHasCanvasKey(): Promise<boolean> {
   return data === true;
 }
 
+/**
+ * Removes the "Canvas rejected your key" flag. Called whenever Canvas data
+ * loads successfully, so a stale flag from a failed background run can never
+ * keep warning about a key that clearly works.
+ */
+export async function clearCanvasKeyInvalidFlag(): Promise<void> {
+  const { data: userData } = await supabase.auth.getUser();
+  const user = userData.user;
+  if (!user) return;
+  await supabase
+    .from("user_preferences")
+    .delete()
+    .eq("user_id", user.id)
+    .eq("key", "canvas_key_status");
+}
+
 export function useCanvasKey() {
   return useQuery({
     queryKey: canvasKeyQueryKey,
