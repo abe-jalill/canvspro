@@ -135,7 +135,7 @@ function Dashboard() {
           <p className="mt-0.5 text-xs text-muted-foreground">
             {customizing
               ? "Drag cards or use arrows to arrange. Choose sizes or hide widgets you don't need."
-              : "Customize your layout by clicking Customize."}
+               : ""}
           </p>
         </div>
 
