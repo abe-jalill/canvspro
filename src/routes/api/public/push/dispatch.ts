@@ -3,6 +3,7 @@ import {
   buildAlertsForUser,
   deliver,
   isQuiet,
+  normalizeCanvasDomain,
   SERVER_DEFAULT_PREFS,
   type Alert,
   type ServerPrefs,
@@ -121,9 +122,11 @@ async function clearCanvasKeyStatus(admin: Admin, userId: string): Promise<void>
 
 async function run(): Promise<Response> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const domain = process.env["CANVAS_DOMAIN"];
+  // Global fallback only — each user's own Canvas URL takes priority, so
+  // students from any school can receive alerts.
+  const defaultDomain = normalizeCanvasDomain(process.env["CANVAS_DOMAIN"]);
   const { vapid } = await import("@/lib/vapid.server");
-  if (!domain || !vapid.publicKey || !vapid.privateKey) {
+  if (!vapid.publicKey || !vapid.privateKey) {
     return Response.json({ error: "push not configured" }, { status: 500 });
   }
 
