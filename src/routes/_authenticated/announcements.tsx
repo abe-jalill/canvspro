@@ -59,9 +59,16 @@ function AnnouncementsPage() {
   const [expanded, setExpanded] = useState<number[]>([]);
   const [expandedBody, setExpandedBody] = useState<Set<number>>(new Set());
 
+  const announcementWindow = useAnnouncementWindow();
+
   const visible = useMemo(
-    () => (data ?? []).filter((a) => !dismissed.has(a.id)),
-    [data, dismissed],
+    () =>
+      (data ?? []).filter(
+        (a) =>
+          !dismissed.has(a.id) &&
+          withinAnnouncementWindow(a.posted_at, announcementWindow.weeks),
+      ),
+    [data, dismissed, announcementWindow.weeks],
   );
 
   type Group = {
