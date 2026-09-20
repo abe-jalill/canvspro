@@ -155,7 +155,7 @@ function Dashboard() {
       className="w-full min-w-0 space-y-6 pb-12"
       onPointerDown={handleAreaPointerDown}
       onPointerUp={clearLongPress}
-      onPointerMove={clearLongPress}
+      onPointerMove={handleAreaPointerMove}
       onPointerLeave={clearLongPress}
       onPointerCancel={clearLongPress}
     >
