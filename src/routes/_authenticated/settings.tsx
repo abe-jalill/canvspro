@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
 import { GlassCard } from "@/components/glass-card";
-import { useCanvasKey, useSaveCanvasKey } from "@/lib/user-settings";
+import { useCanvasKey, useCanvasDomain, useSaveCanvasKey } from "@/lib/user-settings";
 import {
   useUserProfile,
   useSaveUserProfile,
@@ -114,13 +114,42 @@ function SettingsPage() {
           <p className="text-xs text-muted-foreground">
             Generate one in Canvas under Account → Settings → New Access Token.
           </p>
+          <label className="flex w-full flex-col gap-1.5">
+            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Canvas URL
+            </span>
+            <input
+              type="text"
+              value={domainValue}
+              onChange={(e) => {
+                setDomainTouched(true);
+                setDomainValue(e.target.value);
+              }}
+              placeholder={
+                domainLoading
+                  ? "Loading…"
+                  : savedDomain ?? "yourschool.instructure.com"
+              }
+              inputMode="url"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              autoComplete="off"
+              className="glass-inset min-h-12 w-full rounded-xl bg-transparent px-4 text-base text-foreground outline-none placeholder:text-muted-foreground/60 focus:ring-1 focus:ring-foreground/20"
+            />
+          </label>
+          <p className="text-xs text-muted-foreground">
+            Your school's Canvas web address — what you type to open Canvas, e.g.{" "}
+            <span className="whitespace-nowrap">yourschool.instructure.com</span>. Each student
+            connects to their own school.
+          </p>
           <div className="flex flex-col gap-2 sm:flex-row">
             <button
               type="submit"
               disabled={save.isPending}
               className="glass-hover min-h-11 w-full rounded-xl bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-60 sm:w-auto"
             >
-              {save.isPending ? "Saving…" : "Save key"}
+              {save.isPending ? "Saving…" : "Save"}
             </button>
             <button
               type="button"
@@ -134,7 +163,10 @@ function SettingsPage() {
           {status && <p className="text-sm text-muted-foreground">{status}</p>}
           {!isLoading && (
             <p className="text-xs text-muted-foreground">
-              Status: {savedKey ? "Key saved" : "No key saved yet"}
+              Status:{" "}
+              {savedKey
+                ? `Key saved${savedDomain ? ` · ${savedDomain}` : ""}`
+                : "No key saved yet"}
             </p>
           )}
         </form>
