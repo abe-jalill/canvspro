@@ -1,6 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Suspense, lazy, useState } from "react";
 import { useClassSchedule } from "@/lib/user-class-schedule";
+import {
+  useRemoveAssignmentFromSchedule,
+  useScheduledAssignments,
+} from "@/lib/scheduled-assignments";
 
 // Both views are lazy so the timetable UI isn't in the shared first-load bundle.
 const ClassScheduleView = lazy(() => import("@/components/class-schedule-view"));
@@ -24,6 +28,8 @@ export const Route = createFileRoute("/_authenticated/class-schedule")({
 
 function ClassSchedulePage() {
   const { data, isLoading, error } = useClassSchedule();
+  const scheduledAssignments = useScheduledAssignments();
+  const removeAssignment = useRemoveAssignmentFromSchedule();
   const [editing, setEditing] = useState(false);
 
   if (isLoading) {
@@ -57,7 +63,12 @@ function ClassSchedulePage() {
 
   return (
     <Suspense fallback={null}>
-      <ClassScheduleView sessions={sessions} onEdit={() => setEditing(true)} />
+      <ClassScheduleView
+        sessions={sessions}
+        assignments={scheduledAssignments.data ?? []}
+        onEdit={() => setEditing(true)}
+        onRemoveAssignment={(id) => removeAssignment.mutate(id)}
+      />
     </Suspense>
   );
 }

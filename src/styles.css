@@ -87,6 +87,8 @@
   --destructive-foreground: 0 0% 98%;
   --status-live: 145 68% 48%;
   --status-warning: 43 92% 55%;
+  /* Assignment due dates on the schedule — blue so they stand out from classes */
+  --event: 212 100% 62%;
 
   --border: 0 0% 100% / 0.1;
   --input: 0 0% 100% / 0.12;
@@ -133,6 +135,7 @@
   --border: 216 30% 20% / 0.1;
   --input: 216 30% 20% / 0.1;
   --ring: 216 55% 30% / 0.35;
+  --event: 214 90% 48%;
 
   --glass: 210 40% 100% / 0.65;
   --glass-strong: 210 40% 100% / 0.8;
@@ -173,6 +176,7 @@
   --color-glass-strong: hsl(var(--glass-strong));
   --color-status-live: hsl(var(--status-live));
   --color-status-warning: hsl(var(--status-warning));
+  --color-event: hsl(var(--event));
 }
 
 @layer base {
