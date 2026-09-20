@@ -2,7 +2,7 @@
 // The Canvas key is stored per-user in `user_settings`; the Edge Function
 // reads it server-side, so the browser never needs to hold it.
 import { supabase } from "@/integrations/supabase/client";
-import { fetchHasCanvasKey } from "@/lib/user-settings";
+import { fetchHasCanvasKey, clearCanvasKeyInvalidFlag } from "@/lib/user-settings";
 import { fetchEntitlement } from "@/lib/subscription";
 
 /**
