@@ -161,6 +161,9 @@ export function fetchCanvasBundle(): Promise<CanvasBundle> {
       // invokeCanvas returns [] when no Canvas key is saved yet.
       if (Array.isArray(raw)) return EMPTY_BUNDLE;
       const b = raw as CanvasBundle;
+      // The key demonstrably works, so drop any stale "Canvas rejected your
+      // key" flag a failed background run may have left behind.
+      if ((b.courses?.length ?? 0) > 0) void clearCanvasKeyInvalidFlag();
       return {
         courses: b.courses ?? [],
         assignments: b.assignments ?? [],
