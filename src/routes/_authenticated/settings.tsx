@@ -201,6 +201,13 @@ function SettingsPage() {
       </GlassCard>
 
       <GlassCard
+        title="Announcements"
+        subtitle="How far back the announcements list reaches."
+      >
+        <AnnouncementWindowSection />
+      </GlassCard>
+
+      <GlassCard
         title="Class names"
         subtitle="Rename your Canvas courses to something friendlier."
       >
