@@ -52,6 +52,12 @@ function SettingsPage() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setStatus(null);
+    // Saving with an empty key field while a key exists would silently wipe
+    // the connection — only the explicit "Clear key" button does that.
+    if (!value.trim() && savedKey) {
+      setStatus("Paste a new key to replace the saved one, or use Clear key to disconnect.");
+      return;
+    }
     try {
       await save.mutateAsync({ key: value, domain: domainValue });
       setStatus(
