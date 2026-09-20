@@ -192,7 +192,7 @@ async function run(): Promise<Response> {
       let alerts: Alert[];
       let tonight: TonightItem[];
       try {
-        const built = await buildAlertsForUser(domain, token, prefs, tz, hiddenIds);
+        const built = await buildAlertsForUser(userDomain, token, prefs, tz, hiddenIds);
         alerts = built.alerts;
         tonight = built.tonight;
       } catch (err) {
