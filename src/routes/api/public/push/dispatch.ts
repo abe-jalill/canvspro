@@ -98,6 +98,27 @@ async function enqueueCountdowns(
   }));
 }
 
+export const CANVAS_KEY_STATUS_PREF = "canvas_key_status";
+
+async function setCanvasKeyStatus(admin: Admin, userId: string, status: number): Promise<void> {
+  await admin.from("user_preferences").upsert(
+    {
+      user_id: userId,
+      key: CANVAS_KEY_STATUS_PREF,
+      value: { invalid: true, status, at: new Date().toISOString() },
+    },
+    { onConflict: "user_id,key" },
+  );
+}
+
+async function clearCanvasKeyStatus(admin: Admin, userId: string): Promise<void> {
+  await admin
+    .from("user_preferences")
+    .delete()
+    .eq("user_id", userId)
+    .eq("key", CANVAS_KEY_STATUS_PREF);
+}
+
 async function run(): Promise<Response> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const domain = process.env["CANVAS_DOMAIN"];
@@ -161,13 +182,25 @@ async function run(): Promise<Response> {
       const tz = prefRow?.timezone_offset_minutes ?? 0;
       if (isQuiet(prefs, tz)) continue;
 
-      const { alerts, tonight } = await buildAlertsForUser(
-        domain,
-        token,
-        prefs,
-        tz,
-        hiddenIds,
-      );
+      let alerts: Alert[];
+      let tonight: TonightItem[];
+      try {
+        const built = await buildAlertsForUser(domain, token, prefs, tz, hiddenIds);
+        alerts = built.alerts;
+        tonight = built.tonight;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        // Canvas rejecting the stored token is a user-fixable problem, not a
+        // server fault: flag it so the app can ask for a fresh key instead of
+        // failing silently every 15 minutes.
+        if (/Canvas 40(1|3)/.test(message)) {
+          await setCanvasKeyStatus(supabaseAdmin, userId, message.includes("401") ? 401 : 403);
+          console.warn(`[push-dispatch] canvas key rejected user=${userId} (${message})`);
+          continue;
+        }
+        throw err;
+      }
+      await clearCanvasKeyStatus(supabaseAdmin, userId);
 
       // Queue exact-time countdown pushes for the next few hours, then collect
       // any queued row whose moment has arrived.
