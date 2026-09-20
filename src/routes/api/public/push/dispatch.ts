@@ -155,7 +155,7 @@ async function run(): Promise<Response> {
           .maybeSingle(),
         supabaseAdmin
           .from("user_settings")
-          .select("canvas_api_key")
+          .select("canvas_api_key,canvas_domain")
           .eq("user_id", userId)
           .maybeSingle(),
         supabaseAdmin
@@ -176,6 +176,10 @@ async function run(): Promise<Response> {
 
       const token = (settings?.canvas_api_key ?? "").trim();
       if (!token) continue;
+      // The student's own school URL, falling back to the global default for
+      // accounts saved before per-school URLs existed.
+      const userDomain = normalizeCanvasDomain(settings?.canvas_domain) || defaultDomain;
+      if (!userDomain) continue;
 
       const prefs: ServerPrefs = {
         ...SERVER_DEFAULT_PREFS,
