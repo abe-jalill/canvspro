@@ -12,6 +12,7 @@ import { HiddenCoursesSection } from "@/components/hidden-courses-editor";
 import { DeleteAccountSection } from "@/components/delete-account";
 import { useSubscription } from "@/lib/subscription";
 import { UpgradeCard } from "@/components/pro-gate";
+import { useAnnouncementWindow } from "@/lib/announcement-window";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
@@ -227,6 +228,42 @@ function SettingsPage() {
       >
         <DeleteAccountSection />
       </GlassCard>
+    </div>
+  );
+}
+
+function AnnouncementWindowSection() {
+  const { weeks, isLoading, ready, set } = useAnnouncementWindow();
+  const options: Array<{ value: 1 | 2; label: string }> = [
+    { value: 1, label: "1 week" },
+    { value: 2, label: "2 weeks" },
+  ];
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap gap-2">
+        {options.map((o) => (
+          <button
+            key={o.value}
+            type="button"
+            onClick={() => set(o.value)}
+            disabled={!ready}
+            aria-pressed={weeks === o.value}
+            className={
+              weeks === o.value
+                ? "glass-hover min-h-11 rounded-xl bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-60"
+                : "glass-hover glass-inset min-h-11 rounded-xl px-4 text-sm font-medium disabled:opacity-50"
+            }
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {isLoading
+          ? "Loading…"
+          : "Announcements older than this are hidden from the list."}
+      </p>
     </div>
   );
 }
