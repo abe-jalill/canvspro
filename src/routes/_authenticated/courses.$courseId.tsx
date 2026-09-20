@@ -150,7 +150,7 @@ function CourseDetailPage() {
         .map(norm)
         .filter((v) => v.length > 0),
     );
-    const session = classSchedule.data?.find((s) => {
+    const matches = (classSchedule.data ?? []).filter((s) => {
       const titles = [s.title, s.displayName].map(norm).filter((v) => v.length > 0);
       const sCode = norm(s.code);
       for (const t of titles) {
