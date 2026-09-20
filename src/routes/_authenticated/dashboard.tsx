@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, type DragEvent } from "react";
-import { ChevronDown, ChevronUp, Eye, EyeOff, GripVertical, Plus, RotateCcw, SlidersHorizontal } from "lucide-react";
+import { useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { ChevronDown, ChevronUp, Eye, EyeOff, GripVertical, Plus, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDashboardLayout, type WidgetId, type WidgetSize } from "@/lib/dashboard-layout";
 import { WIDGETS, LockedWidget } from "@/components/widgets/dashboard-widgets";
@@ -56,6 +56,27 @@ function Dashboard() {
     id: WidgetId;
     position: "before" | "after";
   } | null>(null);
+
+  // Long-press (2s) on empty space in the widgets area enters edit mode.
+  // Pressing on a widget itself never triggers it.
+  const longPressTimer = useRef<number | null>(null);
+
+  const clearLongPress = () => {
+    if (longPressTimer.current !== null) {
+      window.clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  const handleAreaPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (customizing) return;
+    if ((e.target as HTMLElement).closest("[data-widget-card]")) return;
+    clearLongPress();
+    longPressTimer.current = window.setTimeout(() => {
+      longPressTimer.current = null;
+      setCustomizing(true);
+    }, 2000);
+  };
 
   const sizeOf = (id: WidgetId): WidgetSize => layout.sizes[id] ?? WIDGETS[id].defaultSize;
 
@@ -118,7 +139,14 @@ function Dashboard() {
   };
 
   return (
-    <div className="w-full min-w-0 space-y-6 pb-12">
+    <div
+      className="w-full min-w-0 space-y-6 pb-12"
+      onPointerDown={handleAreaPointerDown}
+      onPointerUp={clearLongPress}
+      onPointerMove={clearLongPress}
+      onPointerLeave={clearLongPress}
+      onPointerCancel={clearLongPress}
+    >
       <DashboardHero />
 
       {/* Customization Header */}
@@ -141,28 +169,25 @@ function Dashboard() {
 
         <div className="flex shrink-0 items-center gap-2">
           {customizing && (
-            <button
-              onClick={layout.reset}
-              type="button"
-              className="glass-hover inline-flex min-h-10 items-center gap-1.5 rounded-xl px-3 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <RotateCcw className="h-3.5 w-3.5" />
-              Reset Layout
-            </button>
-          )}
+            <>
+              <button
+                onClick={layout.reset}
+                type="button"
+                className="glass-hover inline-flex min-h-10 items-center gap-1.5 rounded-xl px-3 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                Reset Layout
+              </button>
 
-          <button
-            onClick={() => setCustomizing((v) => !v)}
-            type="button"
-            aria-pressed={customizing}
-            className={cn(
-              "glass-hover inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-4 text-sm font-medium transition",
-              customizing ? "bg-foreground text-background font-semibold" : "glass-inset text-foreground",
-            )}
-          >
-            <SlidersHorizontal className="h-4 w-4" />
-            {customizing ? "Save Layout" : "Customize"}
-          </button>
+              <button
+                onClick={() => setCustomizing(false)}
+                type="button"
+                className="glass-hover inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl bg-foreground px-4 text-sm font-semibold text-background transition"
+              >
+                Save Layout
+              </button>
+            </>
+          )}
         </div>
       </header>
 
@@ -195,6 +220,7 @@ function Dashboard() {
           return (
             <div
               key={id}
+              data-widget-card
               draggable={customizing}
               onDragStart={(e) => handleDragStart(e, id)}
               onDragOver={(e) => handleDragOver(e, id)}
