@@ -45,10 +45,13 @@ function PrivacyPage() {
           Privacy Policy &amp; Data Use Policy
         </h1>
         <p className="mt-4 text-sm text-muted-foreground">
-          CanvasPro is built to give you a clear, personal view of your own Canvas LMS
-          data. This policy explains what we collect, how we use it, and how you can
-          manage your information. By creating an account or providing a Canvas API key,
-          you agree to the practices, limits, and disclaimers below.
+          CanvasPro is an independent, third-party application and is not
+          affiliated with, endorsed by, sponsored by, or connected in any way to
+          Canvas LMS or Instructure, Inc. CanvasPro is built to give you a clear,
+          personal view of your own Canvas LMS data. This policy explains what we
+          collect, how we use it, and how you can manage your information. By
+          creating an account or providing a Canvas API key, you agree to the
+          practices, limits, and disclaimers below.
         </p>
 
         <Section title="1. Non-affiliation with Canvas LMS / Instructure, Inc.">
