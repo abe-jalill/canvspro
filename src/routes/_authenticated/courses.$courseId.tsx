@@ -139,24 +139,42 @@ function CourseDetailPage() {
     const cName = course.name.toLowerCase();
     const cCode = course.course_code.toLowerCase();
 
-    // 1. First check user's saved timetable schedule entries
-    const session = classSchedule.data?.find((s) => {
-      const sTitle = s.title.toLowerCase();
-      const sCode = s.code.toLowerCase();
-      return (
-        sCode === cCode ||
-        sTitle === cName ||
-        (sCode.length > 2 && cCode.includes(sCode)) ||
-        (sTitle.length > 3 && cName.includes(sTitle))
-      );
+    // 1. First check user's saved timetable schedule entries.
+    // Match against the raw Canvas name/code AND the name actually shown on
+    // this page (nickname / cleaned title), so an entry that is identical to
+    // the class name the user sees always matches.
+    const norm = (v: string) =>
+      v.trim().toLowerCase().replace(/\s+/g, " ").replace(/[^a-z0-9 ]/g, "").trim();
+    const candidates = new Set(
+      [course.name, course.course_code, courseName]
+        .map(norm)
+        .filter((v) => v.length > 0),
+    );
+    const matches = (classSchedule.data ?? []).filter((s) => {
+      const titles = [s.title, s.displayName].map(norm).filter((v) => v.length > 0);
+      const sCode = norm(s.code);
+      for (const t of titles) {
+        for (const c of candidates) {
+          if (t === c) return true;
+          if (t.length > 3 && c.includes(t)) return true;
+          if (c.length > 3 && t.includes(c)) return true;
+        }
+      }
+      if (sCode.length > 2 && candidates.has(sCode)) return true;
+      if (sCode.length > 2 && cCode.includes(sCode.toLowerCase())) return true;
+      return false;
     });
 
-    if (session && session.days && session.days.length > 0) {
-      const daysStr = session.days.map((d) => DAY_LABELS[d] ?? d).join(", ");
-      return {
-        text: `${daysStr} • ${session.timeLabel}${session.location ? ` • ${session.location}` : ""}`,
-        hasEntry: true,
-      };
+    const withDays = matches.filter((s) => s.days && s.days.length > 0);
+    if (withDays.length > 0) {
+      // One class can have several entries (per-day times); show them all.
+      const text = withDays
+        .map((s) => {
+          const daysStr = s.days.map((d) => DAY_LABELS[d] ?? d).join(", ");
+          return `${daysStr} • ${s.timeLabel}${s.location ? ` • ${s.location}` : ""}`;
+        })
+        .join("  |  ");
+      return { text, hasEntry: true };
     }
 
     // 2. Check calendar events for this course
