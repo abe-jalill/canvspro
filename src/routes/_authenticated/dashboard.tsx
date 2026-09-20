@@ -198,8 +198,15 @@ function Dashboard() {
         </div>
       )}
 
-      {/* 12-Column Grid Container */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-5 min-w-0 [grid-auto-flow:dense]">
+      {/* 12-Column Grid Container — long-press empty space (2s) to enter edit mode */}
+      <div
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-5 min-w-0 [grid-auto-flow:dense]"
+        onPointerDown={handleAreaPointerDown}
+        onPointerUp={clearLongPress}
+        onPointerMove={clearLongPress}
+        onPointerLeave={clearLongPress}
+        onPointerCancel={clearLongPress}
+      >
         {activeList.map((id) => {
           const meta = WIDGETS[id];
           const hidden = layout.isHidden(id);
@@ -213,6 +220,7 @@ function Dashboard() {
           return (
             <div
               key={id}
+              data-widget-card
               draggable={customizing}
               onDragStart={(e) => handleDragStart(e, id)}
               onDragOver={(e) => handleDragOver(e, id)}
