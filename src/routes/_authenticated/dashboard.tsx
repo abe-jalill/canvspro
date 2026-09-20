@@ -141,28 +141,25 @@ function Dashboard() {
 
         <div className="flex shrink-0 items-center gap-2">
           {customizing && (
-            <button
-              onClick={layout.reset}
-              type="button"
-              className="glass-hover inline-flex min-h-10 items-center gap-1.5 rounded-xl px-3 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <RotateCcw className="h-3.5 w-3.5" />
-              Reset Layout
-            </button>
-          )}
+            <>
+              <button
+                onClick={layout.reset}
+                type="button"
+                className="glass-hover inline-flex min-h-10 items-center gap-1.5 rounded-xl px-3 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                Reset Layout
+              </button>
 
-          <button
-            onClick={() => setCustomizing((v) => !v)}
-            type="button"
-            aria-pressed={customizing}
-            className={cn(
-              "glass-hover inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-4 text-sm font-medium transition",
-              customizing ? "bg-foreground text-background font-semibold" : "glass-inset text-foreground",
-            )}
-          >
-            <SlidersHorizontal className="h-4 w-4" />
-            {customizing ? "Save Layout" : "Customize"}
-          </button>
+              <button
+                onClick={() => setCustomizing(false)}
+                type="button"
+                className="glass-hover inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl bg-foreground px-4 text-sm font-semibold text-background transition"
+              >
+                Save Layout
+              </button>
+            </>
+          )}
         </div>
       </header>
 
