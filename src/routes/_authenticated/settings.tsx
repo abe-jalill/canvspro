@@ -89,7 +89,7 @@ function SettingsPage() {
 
       <ProfileCard />
 
-      <GlassCard title="Canvas API key" subtitle="Used to load your courses, grades, and assignments.">
+      <GlassCard title="Canvas connection" subtitle="Your school's Canvas URL and API key.">
         <form onSubmit={onSubmit} className="flex w-full flex-col gap-4">
           <label className="flex w-full flex-col gap-1.5">
             <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
