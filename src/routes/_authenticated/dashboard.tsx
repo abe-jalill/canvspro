@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, type DragEvent } from "react";
-import { ChevronDown, ChevronUp, Eye, EyeOff, GripVertical, Plus, RotateCcw, SlidersHorizontal } from "lucide-react";
+import { useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { ChevronDown, ChevronUp, Eye, EyeOff, GripVertical, Plus, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDashboardLayout, type WidgetId, type WidgetSize } from "@/lib/dashboard-layout";
 import { WIDGETS, LockedWidget } from "@/components/widgets/dashboard-widgets";
@@ -56,6 +56,27 @@ function Dashboard() {
     id: WidgetId;
     position: "before" | "after";
   } | null>(null);
+
+  // Long-press (2s) on empty space in the widgets area enters edit mode.
+  // Pressing on a widget itself never triggers it.
+  const longPressTimer = useRef<number | null>(null);
+
+  const clearLongPress = () => {
+    if (longPressTimer.current !== null) {
+      window.clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  const handleAreaPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (customizing) return;
+    if ((e.target as HTMLElement).closest("[data-widget-card]")) return;
+    clearLongPress();
+    longPressTimer.current = window.setTimeout(() => {
+      longPressTimer.current = null;
+      setCustomizing(true);
+    }, 2000);
+  };
 
   const sizeOf = (id: WidgetId): WidgetSize => layout.sizes[id] ?? WIDGETS[id].defaultSize;
 
