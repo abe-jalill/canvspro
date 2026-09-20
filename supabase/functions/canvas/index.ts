@@ -404,13 +404,29 @@ Deno.serve(async (req) => {
       includeHidden = url.searchParams.get("includeHidden") === "true";
     }
 
-    // Everything except the free due-date counts requires a paid account.
-    if (resource !== "duedates") await requirePaidAccess(req);
+    // Everything except the free due-date counts and the credential check
+    // requires a paid account — validating your own key must work pre-purchase.
+    if (resource !== "duedates" && resource !== "validate") await requirePaidAccess(req);
 
     const creds = await credsForRequest(req, includeHidden);
 
     let data: unknown;
     switch (resource) {
+      case "validate": {
+        // Verifies a Canvas URL + API key pair against /users/self. With an
+        // override pair supplied, nothing is read from or written to storage.
+        let vCreds: Creds;
+        if (overrideToken) {
+          const d = normalizeDomain(overrideDomain);
+          if (!d) throw new Error("INVALID_DOMAIN");
+          vCreds = { domain: d, token: overrideToken, excluded: new Set<number>() };
+        } else {
+          vCreds = creds;
+        }
+        const me = await canvasFetchRaw<{ name?: string }>(vCreds, "/users/self");
+        data = { ok: true, name: me?.name ?? null };
+        break;
+      }
       case "all": {
         // Single round trip for the whole app: the shared course lookup is
         // deduped by the in-memory canvasFetch cache. One failing section
