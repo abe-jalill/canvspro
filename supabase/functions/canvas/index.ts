@@ -168,13 +168,25 @@ async function credsForRequest(req: Request, includeHidden = false): Promise<Cre
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const apiKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
 
-  const res = await fetch(`${supabaseUrl}/rest/v1/user_settings?select=canvas_api_key&limit=1`, {
-    headers: { apikey: apiKey, Authorization: authHeader },
-  });
+  const res = await fetch(
+    `${supabaseUrl}/rest/v1/user_settings?select=canvas_api_key,canvas_domain&limit=1`,
+    {
+      headers: { apikey: apiKey, Authorization: authHeader },
+    },
+  );
   if (!res.ok) throw new Error("NOT_AUTHENTICATED");
-  const rows = (await res.json()) as Array<{ canvas_api_key: string | null }>;
+  const rows = (await res.json()) as Array<{
+    canvas_api_key: string | null;
+    canvas_domain: string | null;
+  }>;
   const token = rows?.[0]?.canvas_api_key?.trim();
   if (!token) throw new Error("NO_CANVAS_KEY");
+
+  // The caller's own school URL wins; the global default keeps existing
+  // accounts working until they save their own.
+  const domain =
+    normalizeDomain(rows?.[0]?.canvas_domain) || normalizeDomain(Deno.env.get("CANVAS_DOMAIN"));
+  if (!domain) throw new Error("NO_CANVAS_DOMAIN");
 
   let excluded = new Set<number>();
   if (!includeHidden) {
