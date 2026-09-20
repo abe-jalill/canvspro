@@ -436,10 +436,10 @@ Deno.serve(async (req) => {
         // must NOT blank the others, so each settles independently and its
         // error is reported per-section.
         const settled = await Promise.allSettled([
-          handleCourses(creds),
-          handleAssignments(creds),
-          handleAnnouncements(creds, 30),
-          handleCalendar(creds, 14),
+          handleCourses(storedCreds),
+          handleAssignments(storedCreds),
+          handleAnnouncements(storedCreds, 30),
+          handleCalendar(storedCreds, 14),
         ]);
         const names = ["courses", "assignments", "announcements", "calendar"] as const;
         const bundle: Record<string, unknown> = {};
@@ -466,19 +466,19 @@ Deno.serve(async (req) => {
         break;
       }
       case "courses":
-        data = await handleCourses(creds);
+        data = await handleCourses(storedCreds);
         break;
       case "assignments":
-        data = await handleAssignments(creds);
+        data = await handleAssignments(storedCreds);
         break;
       case "announcements":
-        data = await handleAnnouncements(creds, days ?? 30);
+        data = await handleAnnouncements(storedCreds, days ?? 30);
         break;
       case "calendar":
-        data = await handleCalendar(creds, days ?? 14);
+        data = await handleCalendar(storedCreds, days ?? 14);
         break;
       case "duedates":
-        data = await handleDueDates(creds);
+        data = await handleDueDates(storedCreds);
         break;
       default:
         return new Response(JSON.stringify({ error: `Unknown resource: ${resource}` }), {
