@@ -71,7 +71,8 @@ async function invokeCanvas<T>(
 
   if (data && typeof data === "object" && "error" in data && (data as { error?: string }).error) {
     const message = (data as { error: string }).error;
-    if (message === "NO_CANVAS_KEY" || message === "NOT_SUBSCRIBED") return [] as unknown as T;
+    if (message === "NO_CANVAS_KEY" || message === "NO_CANVAS_DOMAIN" || message === "NOT_SUBSCRIBED")
+      return [] as unknown as T;
     throw new Error(message);
   }
   return data as T;
