@@ -165,12 +165,16 @@ function CourseDetailPage() {
       return false;
     });
 
-    if (session && session.days && session.days.length > 0) {
-      const daysStr = session.days.map((d) => DAY_LABELS[d] ?? d).join(", ");
-      return {
-        text: `${daysStr} • ${session.timeLabel}${session.location ? ` • ${session.location}` : ""}`,
-        hasEntry: true,
-      };
+    const withDays = matches.filter((s) => s.days && s.days.length > 0);
+    if (withDays.length > 0) {
+      // One class can have several entries (per-day times); show them all.
+      const text = withDays
+        .map((s) => {
+          const daysStr = s.days.map((d) => DAY_LABELS[d] ?? d).join(", ");
+          return `${daysStr} • ${s.timeLabel}${s.location ? ` • ${s.location}` : ""}`;
+        })
+        .join("  |  ");
+      return { text, hasEntry: true };
     }
 
     // 2. Check calendar events for this course
