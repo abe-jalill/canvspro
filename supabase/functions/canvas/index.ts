@@ -408,21 +408,24 @@ Deno.serve(async (req) => {
     // requires a paid account — validating your own key must work pre-purchase.
     if (resource !== "duedates" && resource !== "validate") await requirePaidAccess(req);
 
-    const creds = await credsForRequest(req, includeHidden);
+    // The stored credentials aren't needed when validating a freshly typed
+    // pair (the caller may not have saved a key yet), so load them lazily.
+    const storedCreds =
+      resource === "validate" && overrideToken ? null : await credsForRequest(req, includeHidden);
 
     let data: unknown;
     switch (resource) {
       case "validate": {
         // Verifies a Canvas URL + API key pair against /users/self. With an
         // override pair supplied, nothing is read from or written to storage.
-        let vCreds: Creds;
-        if (overrideToken) {
-          const d = normalizeDomain(overrideDomain);
-          if (!d) throw new Error("INVALID_DOMAIN");
-          vCreds = { domain: d, token: overrideToken, excluded: new Set<number>() };
-        } else {
-          vCreds = creds;
-        }
+        const vCreds: Creds =
+          overrideToken && storedCreds === null
+            ? (() => {
+                const d = normalizeDomain(overrideDomain);
+                if (!d) throw new Error("INVALID_DOMAIN");
+                return { domain: d, token: overrideToken, excluded: new Set<number>() };
+              })()
+            : storedCreds!;
         const me = await canvasFetchRaw<{ name?: string }>(vCreds, "/users/self");
         data = { ok: true, name: me?.name ?? null };
         break;
