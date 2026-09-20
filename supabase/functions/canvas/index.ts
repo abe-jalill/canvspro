@@ -452,7 +452,12 @@ Deno.serve(async (req) => {
             bundle[name] = [];
             const msg = r.reason instanceof Error ? r.reason.message : String(r.reason);
             // Auth / missing-key problems affect everything: surface them as-is.
-            if (msg === "NOT_AUTHENTICATED" || msg === "NO_CANVAS_KEY") throw r.reason;
+            if (
+              msg === "NOT_AUTHENTICATED" ||
+              msg === "NO_CANVAS_KEY" ||
+              msg === "NO_CANVAS_DOMAIN"
+            )
+              throw r.reason;
             errors[name] = msg;
             console.error(`[canvas] ${name}:`, msg);
           }
@@ -492,9 +497,11 @@ Deno.serve(async (req) => {
         ? 401
         : message === "NOT_SUBSCRIBED"
           ? 402
-          : message === "NO_CANVAS_KEY"
+          : message === "NO_CANVAS_KEY" || message === "NO_CANVAS_DOMAIN"
             ? 428
-            : 500;
+            : message === "INVALID_DOMAIN"
+              ? 400
+              : 500;
     if (status === 500) console.error("[canvas]", message);
     return new Response(JSON.stringify({ error: message }), {
       status,
