@@ -169,19 +169,17 @@ export async function buildAlertsForUser(
   if (courses.length === 0) return { alerts, tonight };
 
   const perCourse = await mapPooled(courses, 4, async (c) => {
-    {
-      try {
-        const list = await canvasFetch<CanvasAssignment[]>(
-          domain,
-          token,
-          `/courses/${c.id}/assignments?include[]=submission&per_page=100&order_by=due_at`,
-        );
-        return list.map((a) => ({ a, course: c }));
-      } catch {
-        return [];
-      }
-    }),
-  );
+    try {
+      const list = await canvasFetch<CanvasAssignment[]>(
+        domain,
+        token,
+        `/courses/${c.id}/assignments?include[]=submission&per_page=100&order_by=due_at`,
+      );
+      return list.map((a) => ({ a, course: c }));
+    } catch {
+      return [] as Array<{ a: CanvasAssignment; course: CanvasCourse }>;
+    }
+  });
 
   for (const { a, course } of perCourse.flat()) {
     // Grades posted in the last day.
