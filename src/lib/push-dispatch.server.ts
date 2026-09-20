@@ -168,8 +168,8 @@ export async function buildAlertsForUser(
   );
   if (courses.length === 0) return { alerts, tonight };
 
-  const perCourse = await Promise.all(
-    courses.map(async (c) => {
+  const perCourse = await mapPooled(courses, 4, async (c) => {
+    {
       try {
         const list = await canvasFetch<CanvasAssignment[]>(
           domain,
