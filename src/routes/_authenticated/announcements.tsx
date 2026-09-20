@@ -9,6 +9,10 @@ import { htmlToText } from "@/lib/html-text";
 import { cn } from "@/lib/utils";
 import { useEffect, useMemo, useState } from "react";
 import { useCourseHighlight } from "@/lib/course-highlight";
+import {
+  useAnnouncementWindow,
+  withinAnnouncementWindow,
+} from "@/lib/announcement-window";
 
 const announcementsQO = queryOptions({
   queryKey: ["canvas", "announcements"],

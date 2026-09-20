@@ -42,6 +42,7 @@ import {
 } from "@/lib/course-highlight";
 import { buildPriorityList, describePriorityList } from "@/lib/priority";
 import { useAssignmentMetaMap } from "@/hooks/use-assignment-meta";
+import { dropStaleOverdue } from "@/lib/assignment-window";
 
 const assignmentsQO = queryOptions({
   queryKey: ["canvas", "assignments"],
@@ -231,12 +232,13 @@ function AssignmentsPage() {
         { name: c.name, course_code: c.course_code },
       ]),
     );
-    return [
+    // Anything due more than a day ago is left out entirely.
+    return dropStaleOverdue([
       ...(data ?? []),
       ...custom.list.map((c) =>
         customToAssignmentItem(c, courseById.get(c.course_id)),
       ),
-    ];
+    ]);
   }, [data, custom.list, courses.data]);
 
 
