@@ -33,8 +33,11 @@ function TermsPage() {
           Terms of Service
         </h1>
         <p className="mt-4 text-sm text-muted-foreground">
-          Please read these terms carefully before using Canvas Pro. By creating
-          an account or using the service, you agree to these terms.
+          CanvasPro is an independent, third-party application and is not
+          affiliated with, endorsed by, sponsored by, or connected in any way to
+          Canvas LMS or Instructure, Inc. Please read these terms carefully before
+          using Canvas Pro. By creating an account or using the service, you agree
+          to these terms.
         </p>
 
         <section className="mt-10">
