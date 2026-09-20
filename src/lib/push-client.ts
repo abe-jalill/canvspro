@@ -81,11 +81,33 @@ export async function syncPrefsToServer(): Promise<void> {
   );
 }
 
+/**
+ * Enabled means the browser has a subscription AND the server still has the
+ * matching row. When a push service rejects a device (403/410) the server row is
+ * deleted, so trusting the browser alone used to leave the switch showing "on"
+ * while no alert could ever arrive again. In that case we drop the dead local
+ * subscription so toggling back on re-registers cleanly.
+ */
 export async function isPushEnabled(): Promise<boolean> {
   if (!pushSupported()) return false;
   const reg = await navigator.serviceWorker.getRegistration("/sw.js");
   const sub = await reg?.pushManager.getSubscription();
-  return Boolean(sub);
+  if (!sub) return false;
+
+  const { data } = await supabase.auth.getUser();
+  if (!data.user) return false;
+
+  const { data: rows, error } = await supabase
+    .from("push_subscriptions")
+    .select("id")
+    .eq("endpoint", sub.endpoint)
+    .limit(1);
+  // On a network/permission error, don't claim the switch is off.
+  if (error) return true;
+  if (rows && rows.length > 0) return true;
+
+  await sub.unsubscribe().catch(() => undefined);
+  return false;
 }
 
 export async function enableBackgroundPush(): Promise<
