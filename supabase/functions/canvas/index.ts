@@ -384,12 +384,18 @@ Deno.serve(async (req) => {
     let resource: string | null = null;
     let days: number | undefined;
     let includeHidden = false;
+    let overrideDomain: string | undefined;
+    let overrideToken: string | undefined;
 
     if (req.method === "POST") {
       const body = await req.json().catch(() => ({}));
       resource = body?.resource ?? null;
       days = typeof body?.days === "number" ? body.days : undefined;
       includeHidden = body?.includeHidden === true;
+      // Used only by the "validate" check when saving credentials: the caller's
+      // own freshly typed key/URL, verified in-memory and never persisted here.
+      overrideDomain = typeof body?.domain === "string" ? body.domain : undefined;
+      overrideToken = typeof body?.token === "string" ? body.token : undefined;
     } else {
       const url = new URL(req.url);
       resource = url.searchParams.get("resource");
