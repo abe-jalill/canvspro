@@ -30,6 +30,16 @@ function corsHeaders(req: Request): Record<string, string> {
 
 const API_VERSION = "/api/v1";
 
+/** Normalizes a user-supplied Canvas URL to a bare hostname, e.g.
+ *  "https://Yourschool.Instructure.com/" → "yourschool.instructure.com".
+ *  Returns "" when the value isn't a plausible hostname. */
+function normalizeDomain(raw: string | null | undefined): string {
+  let v = (raw ?? "").trim().toLowerCase();
+  if (!v) return "";
+  v = v.replace(/^https?:\/\//, "").split("/")[0]!.split("?")[0]!.trim();
+  return /^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/.test(v) ? v : "";
+}
+
 interface CanvasCourse {
   id: number;
   name: string;
@@ -152,9 +162,6 @@ async function canvasFetchRaw<T>(creds: Creds, path: string): Promise<T> {
 // Reads the caller's Canvas API key from `user_settings` using their JWT,
 // so RLS guarantees a user can only ever use their own key.
 async function credsForRequest(req: Request, includeHidden = false): Promise<Creds> {
-  const domain = Deno.env.get("CANVAS_DOMAIN");
-  if (!domain) throw new Error("Canvas domain is not configured.");
-
   const authHeader = req.headers.get("Authorization") ?? "";
   if (!authHeader) throw new Error("NOT_AUTHENTICATED");
 
