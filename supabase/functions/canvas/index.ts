@@ -499,7 +499,7 @@ Deno.serve(async (req) => {
           ? 402
           : message === "NO_CANVAS_KEY" || message === "NO_CANVAS_DOMAIN"
             ? 428
-            : message === "INVALID_DOMAIN"
+            : message === "INVALID_DOMAIN" || /^Canvas API 4\d\d/.test(message)
               ? 400
               : 500;
     if (status === 500) console.error("[canvas]", message);
