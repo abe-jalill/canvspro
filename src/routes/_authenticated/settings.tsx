@@ -35,28 +35,43 @@ export const Route = createFileRoute("/_authenticated/settings")({
 
 function SettingsPage() {
   const { data: savedKey, isLoading } = useCanvasKey();
+  const { data: savedDomain, isLoading: domainLoading } = useCanvasDomain();
   const { isActive: isPro } = useSubscription();
   const save = useSaveCanvasKey();
   const [value, setValue] = useState("");
+  const [domainValue, setDomainValue] = useState("");
+  const [domainTouched, setDomainTouched] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
 
+  // Pre-fill the Canvas URL once the saved value arrives, unless the user
+  // already started typing their own.
+  useEffect(() => {
+    if (!domainTouched) setDomainValue(savedDomain ?? "");
+  }, [savedDomain, domainTouched]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setStatus(null);
     try {
-      await save.mutateAsync(value);
-      setStatus(value.trim() ? "Canvas API key saved." : "Canvas API key cleared.");
+      await save.mutateAsync({ key: value, domain: domainValue });
+      setStatus(
+        value.trim()
+          ? "Canvas connection saved and verified."
+          : "Canvas API key cleared.",
+      );
+      if (value.trim()) setValue("");
     } catch (err) {
-      setStatus(err instanceof Error ? err.message : "Could not save the key.");
+      setStatus(err instanceof Error ? err.message : "Could not save.");
     }
   }
 
   async function onClear() {
     setStatus(null);
     setValue("");
+    setDomainValue("");
+    setDomainTouched(true);
     try {
-      await save.mutateAsync(null);
+      await save.mutateAsync({ key: null, domain: "" });
       setStatus("Canvas API key cleared.");
     } catch (err) {
       setStatus(err instanceof Error ? err.message : "Could not clear the key.");
