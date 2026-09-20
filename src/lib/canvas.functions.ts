@@ -60,8 +60,8 @@ async function invokeCanvas<T>(
           message = body.slice(0, 300);
         }
       }
-      // 428 = no Canvas key yet, 402 = free account (server-enforced paywall).
-      // Both render as empty states, never as an error banner.
+      // 428 = no Canvas key/URL yet, 402 = free account (server-enforced
+      // paywall). Both render as empty states, never as an error banner.
       if (res.status === 428 || res.status === 402) return [] as unknown as T;
     }
     if (/428|402|NO_CANVAS_KEY|NOT_SUBSCRIBED/.test(message)) return [] as unknown as T;
