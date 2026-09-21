@@ -25,6 +25,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+const THREE_WEEKS_MS = 3 * 7 * 24 * 60 * 60 * 1000;
+
 const coursesQO = queryOptions({
   queryKey: ["canvas", "courses"],
   queryFn: () => getCoursesFn(),
@@ -227,6 +229,8 @@ function CourseDetailPage() {
       return t <= cutoff;
     });
   }, [upcomingAssignments]);
+
+  // Graded assignments: has score or workflow_state === 'graded'
   const gradedAssignments = useMemo(() => {
     return courseAssignments
       .filter((a) => a.submission?.score != null || a.submission?.workflow_state === "graded")
