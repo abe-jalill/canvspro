@@ -25,6 +25,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+const THREE_WEEKS_MS = 3 * 7 * 24 * 60 * 60 * 1000;
+
 const coursesQO = queryOptions({
   queryKey: ["canvas", "courses"],
   queryFn: () => getCoursesFn(),
@@ -122,6 +124,8 @@ function CourseDetailPage() {
   const classSchedule = useClassSchedule();
 
   const [activeTab, setActiveTab] = useState<"all" | "upcoming" | "graded" | "announcements">("all");
+  const [showAllUpcoming, setShowAllUpcoming] = useState(false);
+  const [showAllAnnouncements, setShowAllAnnouncements] = useState(false);
 
   const course: CourseSummary | undefined = useMemo(() => {
     return coursesQueryState.data?.find(
@@ -214,6 +218,18 @@ function CourseDetailPage() {
       });
   }, [courseAssignments]);
 
+  // Upcoming assignments due within the next 3 weeks; anything further out
+  // hides behind "View all".
+  const upcomingWithinWindow = useMemo(() => {
+    const cutoff = Date.now() + THREE_WEEKS_MS;
+    return upcomingAssignments.filter((a) => {
+      if (!a.due_at) return true;
+      const t = new Date(a.due_at).getTime();
+      if (Number.isNaN(t)) return true;
+      return t <= cutoff;
+    });
+  }, [upcomingAssignments]);
+
   // Graded assignments: has score or workflow_state === 'graded'
   const gradedAssignments = useMemo(() => {
     return courseAssignments
@@ -232,6 +248,18 @@ function CourseDetailPage() {
       .filter((item: AnnouncementItem) => item.course_id === course.id || item.context_code === `course_${course.id}`)
       .sort((a, b) => new Date(b.posted_at).getTime() - new Date(a.posted_at).getTime());
   }, [course, announcementsQueryState.data]);
+
+  // Announcements posted within the past 3 weeks; older ones hide behind
+  // "View all".
+  const announcementsWithinWindow = useMemo(() => {
+    const cutoff = Date.now() - THREE_WEEKS_MS;
+    return courseAnnouncements.filter((item) => {
+      if (!item.posted_at) return true;
+      const t = new Date(item.posted_at).getTime();
+      if (Number.isNaN(t)) return true;
+      return t >= cutoff;
+    });
+  }, [courseAnnouncements]);
 
   const score = course?.current_score;
   const gradeColor = getGradeColor(score);
@@ -441,14 +469,44 @@ function CourseDetailPage() {
           <h2 className="px-1 text-xs uppercase tracking-widest text-muted-foreground">
             Upcoming
           </h2>
-          {upcomingAssignments.length === 0 ? (
-            <EmptyState
-              icon={<CheckCircle2 className="h-5 w-5" />}
-              message="All caught up! No upcoming assignments due for this class."
-            />
-          ) : (
-            <div className="space-y-2.5">
-              {upcomingAssignments.map((a) => {
+          {(() => {
+            const shown = showAllUpcoming ? upcomingAssignments : upcomingWithinWindow;
+            const hiddenCount = upcomingAssignments.length - upcomingWithinWindow.length;
+            if (upcomingAssignments.length === 0) {
+              return (
+                <EmptyState
+                  icon={<CheckCircle2 className="h-5 w-5" />}
+                  message="All caught up! No upcoming assignments due for this class."
+                />
+              );
+            }
+            return (
+              <div className="space-y-2.5">
+                {!showAllUpcoming && hiddenCount > 0 && (
+                  <p className="px-1 text-[11px] text-muted-foreground">
+                    Only showing for the next 3 weeks ·{" "}
+                    <button
+                      type="button"
+                      onClick={() => setShowAllUpcoming(true)}
+                      className="font-medium text-foreground/80 underline decoration-foreground/30 underline-offset-2 transition-colors hover:text-foreground"
+                    >
+                      View all
+                    </button>
+                  </p>
+                )}
+                {showAllUpcoming && hiddenCount > 0 && (
+                  <p className="px-1 text-[11px] text-muted-foreground">
+                    Showing all {upcomingAssignments.length} ·{" "}
+                    <button
+                      type="button"
+                      onClick={() => setShowAllUpcoming(false)}
+                      className="font-medium text-foreground/80 underline decoration-foreground/30 underline-offset-2 transition-colors hover:text-foreground"
+                    >
+                      Show less
+                    </button>
+                  </p>
+                )}
+                {shown.map((a) => {
                 const dueDate = a.due_at ? new Date(a.due_at) : null;
                 const formattedDate = dueDate
                   ? dueDate.toLocaleDateString(undefined, {
@@ -495,8 +553,9 @@ function CourseDetailPage() {
                   </GlassCard>
                 );
               })}
-            </div>
-          )}
+              </div>
+            );
+          })()}
         </section>
       )}
 
@@ -593,13 +652,39 @@ function CourseDetailPage() {
           <h2 className="px-1 text-xs uppercase tracking-widest text-muted-foreground">
             Announcements
           </h2>
-          {courseAnnouncements.length === 0 ? (
-            <EmptyState
-              message="No announcements posted for this course."
-            />
-          ) : (
-            <div className="space-y-2.5">
-              {courseAnnouncements.map((item) => {
+          {(() => {
+            const shown = showAllAnnouncements ? courseAnnouncements : announcementsWithinWindow;
+            const hiddenCount = courseAnnouncements.length - announcementsWithinWindow.length;
+            if (courseAnnouncements.length === 0) {
+              return <EmptyState message="No announcements posted for this course." />;
+            }
+            return (
+              <div className="space-y-2.5">
+                {!showAllAnnouncements && hiddenCount > 0 && (
+                  <p className="px-1 text-[11px] text-muted-foreground">
+                    Only showing from the past 3 weeks ·{" "}
+                    <button
+                      type="button"
+                      onClick={() => setShowAllAnnouncements(true)}
+                      className="font-medium text-foreground/80 underline decoration-foreground/30 underline-offset-2 transition-colors hover:text-foreground"
+                    >
+                      View all
+                    </button>
+                  </p>
+                )}
+                {showAllAnnouncements && hiddenCount > 0 && (
+                  <p className="px-1 text-[11px] text-muted-foreground">
+                    Showing all {courseAnnouncements.length} ·{" "}
+                    <button
+                      type="button"
+                      onClick={() => setShowAllAnnouncements(false)}
+                      className="font-medium text-foreground/80 underline decoration-foreground/30 underline-offset-2 transition-colors hover:text-foreground"
+                    >
+                      Show less
+                    </button>
+                  </p>
+                )}
+                {shown.map((item) => {
                 const postedDate = new Date(item.posted_at).toLocaleDateString(undefined, {
                   month: "short",
                   day: "numeric",
@@ -640,8 +725,9 @@ function CourseDetailPage() {
                   </GlassCard>
                 );
               })}
-            </div>
-          )}
+              </div>
+            );
+          })()}
         </section>
       )}
     </div>
