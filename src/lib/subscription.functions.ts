@@ -1,5 +1,4 @@
-import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { supabase } from "@/integrations/supabase/client";
 
 export type SubscriptionAccess = {
   status: string;
@@ -8,30 +7,18 @@ export type SubscriptionAccess = {
   cancel_at_period_end: boolean | null;
 } | null;
 
-/**
- * Paid access is resolved only from a server-authenticated, user-owned row in
- * the mode this server decides (never a client-supplied environment value).
- * No email, browser cache, cookie, or device state can grant access.
- */
-export const getSubscriptionAccess = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<SubscriptionAccess> => {
-    const { ENTITLEMENT_ENV } = await import("@/lib/payments-env.server");
-    const { data: authData, error: authError } = await context.supabase.auth.getUser();
-    const verifiedUserId = authData.user?.id;
-    if (authError || !verifiedUserId || verifiedUserId !== context.userId) {
-      throw new Error("Not signed in");
-    }
+export async function getSubscriptionAccess(): Promise<SubscriptionAccess> {
+  const { data, error } = await supabase.functions.invoke(
+    "subscription-access",
+  );
 
-    const { data: subscription, error } = await context.supabase
-      .from("subscriptions")
-      .select("status, price_id, current_period_end, cancel_at_period_end")
-      .eq("user_id", verifiedUserId)
-      .eq("environment", ENTITLEMENT_ENV)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+  if (error) {
+    throw new Error(error.message);
+  }
 
-    if (error) throw new Error(error.message);
-    return subscription ?? null;
-  });
+  if (data?.error) {
+    throw new Error(data.error);
+  }
+
+  return data ?? null;
+}
