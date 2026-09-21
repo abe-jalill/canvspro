@@ -469,14 +469,44 @@ function CourseDetailPage() {
           <h2 className="px-1 text-xs uppercase tracking-widest text-muted-foreground">
             Upcoming
           </h2>
-          {upcomingAssignments.length === 0 ? (
-            <EmptyState
-              icon={<CheckCircle2 className="h-5 w-5" />}
-              message="All caught up! No upcoming assignments due for this class."
-            />
-          ) : (
-            <div className="space-y-2.5">
-              {upcomingAssignments.map((a) => {
+          {(() => {
+            const shown = showAllUpcoming ? upcomingAssignments : upcomingWithinWindow;
+            const hiddenCount = upcomingAssignments.length - upcomingWithinWindow.length;
+            if (upcomingAssignments.length === 0) {
+              return (
+                <EmptyState
+                  icon={<CheckCircle2 className="h-5 w-5" />}
+                  message="All caught up! No upcoming assignments due for this class."
+                />
+              );
+            }
+            return (
+              <div className="space-y-2.5">
+                {!showAllUpcoming && hiddenCount > 0 && (
+                  <p className="px-1 text-[11px] text-muted-foreground">
+                    Only showing for the next 3 weeks ·{" "}
+                    <button
+                      type="button"
+                      onClick={() => setShowAllUpcoming(true)}
+                      className="font-medium text-foreground/80 underline decoration-foreground/30 underline-offset-2 transition-colors hover:text-foreground"
+                    >
+                      View all
+                    </button>
+                  </p>
+                )}
+                {showAllUpcoming && hiddenCount > 0 && (
+                  <p className="px-1 text-[11px] text-muted-foreground">
+                    Showing all {upcomingAssignments.length} ·{" "}
+                    <button
+                      type="button"
+                      onClick={() => setShowAllUpcoming(false)}
+                      className="font-medium text-foreground/80 underline decoration-foreground/30 underline-offset-2 transition-colors hover:text-foreground"
+                    >
+                      Show less
+                    </button>
+                  </p>
+                )}
+                {shown.map((a) => {
                 const dueDate = a.due_at ? new Date(a.due_at) : null;
                 const formattedDate = dueDate
                   ? dueDate.toLocaleDateString(undefined, {
