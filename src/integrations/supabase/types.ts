@@ -266,6 +266,45 @@ export type Database = {
         }
         Relationships: []
       }
+      scheduled_assignments: {
+        Row: {
+          assignment_id: number
+          course_id: number | null
+          course_label: string | null
+          created_at: string
+          due_at: string
+          google_event_id: string | null
+          html_url: string | null
+          id: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          assignment_id: number
+          course_id?: number | null
+          course_label?: string | null
+          created_at?: string
+          due_at: string
+          google_event_id?: string | null
+          html_url?: string | null
+          id?: string
+          title: string
+          user_id?: string
+        }
+        Update: {
+          assignment_id?: number
+          course_id?: number | null
+          course_label?: string | null
+          created_at?: string
+          due_at?: string
+          google_event_id?: string | null
+          html_url?: string | null
+          id?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           cancel_at_period_end: boolean | null
@@ -374,6 +413,7 @@ export type Database = {
       user_settings: {
         Row: {
           canvas_api_key: string | null
+          canvas_domain: string | null
           created_at: string
           seen_onboarding: boolean
           updated_at: string
@@ -381,6 +421,7 @@ export type Database = {
         }
         Insert: {
           canvas_api_key?: string | null
+          canvas_domain?: string | null
           created_at?: string
           seen_onboarding?: boolean
           updated_at?: string
@@ -388,6 +429,7 @@ export type Database = {
         }
         Update: {
           canvas_api_key?: string | null
+          canvas_domain?: string | null
           created_at?: string
           seen_onboarding?: boolean
           updated_at?: string

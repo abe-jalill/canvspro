@@ -3,6 +3,7 @@ import {
   buildAlertsForUser,
   deliver,
   isQuiet,
+  normalizeCanvasDomain,
   SERVER_DEFAULT_PREFS,
   type Alert,
   type ServerPrefs,
@@ -98,11 +99,34 @@ async function enqueueCountdowns(
   }));
 }
 
+export const CANVAS_KEY_STATUS_PREF = "canvas_key_status";
+
+async function setCanvasKeyStatus(admin: Admin, userId: string, status: number): Promise<void> {
+  await admin.from("user_preferences").upsert(
+    {
+      user_id: userId,
+      key: CANVAS_KEY_STATUS_PREF,
+      value: { invalid: true, status, at: new Date().toISOString() },
+    },
+    { onConflict: "user_id,key" },
+  );
+}
+
+async function clearCanvasKeyStatus(admin: Admin, userId: string): Promise<void> {
+  await admin
+    .from("user_preferences")
+    .delete()
+    .eq("user_id", userId)
+    .eq("key", CANVAS_KEY_STATUS_PREF);
+}
+
 async function run(): Promise<Response> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const domain = process.env["CANVAS_DOMAIN"];
+  // Global fallback only — each user's own Canvas URL takes priority, so
+  // students from any school can receive alerts.
+  const defaultDomain = normalizeCanvasDomain(process.env["CANVAS_DOMAIN"]);
   const { vapid } = await import("@/lib/vapid.server");
-  if (!domain || !vapid.publicKey || !vapid.privateKey) {
+  if (!vapid.publicKey || !vapid.privateKey) {
     return Response.json({ error: "push not configured" }, { status: 500 });
   }
 
@@ -131,7 +155,7 @@ async function run(): Promise<Response> {
           .maybeSingle(),
         supabaseAdmin
           .from("user_settings")
-          .select("canvas_api_key")
+          .select("canvas_api_key,canvas_domain")
           .eq("user_id", userId)
           .maybeSingle(),
         supabaseAdmin
@@ -152,6 +176,10 @@ async function run(): Promise<Response> {
 
       const token = (settings?.canvas_api_key ?? "").trim();
       if (!token) continue;
+      // The student's own school URL, falling back to the global default for
+      // accounts saved before per-school URLs existed.
+      const userDomain = normalizeCanvasDomain(settings?.canvas_domain) || defaultDomain;
+      if (!userDomain) continue;
 
       const prefs: ServerPrefs = {
         ...SERVER_DEFAULT_PREFS,
@@ -161,13 +189,38 @@ async function run(): Promise<Response> {
       const tz = prefRow?.timezone_offset_minutes ?? 0;
       if (isQuiet(prefs, tz)) continue;
 
-      const { alerts, tonight } = await buildAlertsForUser(
-        domain,
-        token,
-        prefs,
-        tz,
-        hiddenIds,
-      );
+      let alerts: Alert[];
+      let tonight: TonightItem[];
+      try {
+        const built = await buildAlertsForUser(userDomain, token, prefs, tz, hiddenIds);
+        alerts = built.alerts;
+        tonight = built.tonight;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        // Canvas rejecting the stored token is a user-fixable problem, not a
+        // server fault: flag it so the app can ask for a fresh key instead of
+        // failing silently every 15 minutes.
+        // Canvas uses 403 both for a bad token AND for throttling
+        // ("Rate Limit Exceeded"), and 403 also appears for courses the
+        // student simply can't read. Only a real authentication rejection
+        // should ask the user for a new key.
+        const authRejected =
+          /Canvas 401/.test(message) ||
+          (/Canvas 403/.test(message) &&
+            /invalid access token|unauthorized|insufficient scopes|revoked|expired/i.test(message));
+        if (authRejected) {
+          await setCanvasKeyStatus(supabaseAdmin, userId, message.includes("401") ? 401 : 403);
+          console.warn(`[push-dispatch] canvas key rejected user=${userId} (${message})`);
+          continue;
+        }
+        if (/Canvas 4\d\d|Canvas 5\d\d/.test(message)) {
+          // Transient/permission problem — never blame the key.
+          console.warn(`[push-dispatch] canvas request failed user=${userId} (${message})`);
+          continue;
+        }
+        throw err;
+      }
+      await clearCanvasKeyStatus(supabaseAdmin, userId);
 
       // Queue exact-time countdown pushes for the next few hours, then collect
       // any queued row whose moment has arrived.

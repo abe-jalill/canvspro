@@ -25,6 +25,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+const THREE_WEEKS_MS = 3 * 7 * 24 * 60 * 60 * 1000;
+
 const coursesQO = queryOptions({
   queryKey: ["canvas", "courses"],
   queryFn: () => getCoursesFn(),
@@ -122,6 +124,8 @@ function CourseDetailPage() {
   const classSchedule = useClassSchedule();
 
   const [activeTab, setActiveTab] = useState<"all" | "upcoming" | "graded" | "announcements">("all");
+  const [showAllUpcoming, setShowAllUpcoming] = useState(false);
+  const [showAllAnnouncements, setShowAllAnnouncements] = useState(false);
 
   const course: CourseSummary | undefined = useMemo(() => {
     return coursesQueryState.data?.find(
@@ -139,24 +143,42 @@ function CourseDetailPage() {
     const cName = course.name.toLowerCase();
     const cCode = course.course_code.toLowerCase();
 
-    // 1. First check user's saved timetable schedule entries
-    const session = classSchedule.data?.find((s) => {
-      const sTitle = s.title.toLowerCase();
-      const sCode = s.code.toLowerCase();
-      return (
-        sCode === cCode ||
-        sTitle === cName ||
-        (sCode.length > 2 && cCode.includes(sCode)) ||
-        (sTitle.length > 3 && cName.includes(sTitle))
-      );
+    // 1. First check user's saved timetable schedule entries.
+    // Match against the raw Canvas name/code AND the name actually shown on
+    // this page (nickname / cleaned title), so an entry that is identical to
+    // the class name the user sees always matches.
+    const norm = (v: string) =>
+      v.trim().toLowerCase().replace(/\s+/g, " ").replace(/[^a-z0-9 ]/g, "").trim();
+    const candidates = new Set(
+      [course.name, course.course_code, courseName]
+        .map(norm)
+        .filter((v) => v.length > 0),
+    );
+    const matches = (classSchedule.data ?? []).filter((s) => {
+      const titles = [s.title, s.displayName].map(norm).filter((v) => v.length > 0);
+      const sCode = norm(s.code);
+      for (const t of titles) {
+        for (const c of candidates) {
+          if (t === c) return true;
+          if (t.length > 3 && c.includes(t)) return true;
+          if (c.length > 3 && t.includes(c)) return true;
+        }
+      }
+      if (sCode.length > 2 && candidates.has(sCode)) return true;
+      if (sCode.length > 2 && cCode.includes(sCode.toLowerCase())) return true;
+      return false;
     });
 
-    if (session && session.days && session.days.length > 0) {
-      const daysStr = session.days.map((d) => DAY_LABELS[d] ?? d).join(", ");
-      return {
-        text: `${daysStr} • ${session.timeLabel}${session.location ? ` • ${session.location}` : ""}`,
-        hasEntry: true,
-      };
+    const withDays = matches.filter((s) => s.days && s.days.length > 0);
+    if (withDays.length > 0) {
+      // One class can have several entries (per-day times); show them all.
+      const text = withDays
+        .map((s) => {
+          const daysStr = s.days.map((d) => DAY_LABELS[d] ?? d).join(", ");
+          return `${daysStr} • ${s.timeLabel}${s.location ? ` • ${s.location}` : ""}`;
+        })
+        .join("  |  ");
+      return { text, hasEntry: true };
     }
 
     // 2. Check calendar events for this course
@@ -196,6 +218,18 @@ function CourseDetailPage() {
       });
   }, [courseAssignments]);
 
+  // Upcoming assignments due within the next 3 weeks; anything further out
+  // hides behind "View all".
+  const upcomingWithinWindow = useMemo(() => {
+    const cutoff = Date.now() + THREE_WEEKS_MS;
+    return upcomingAssignments.filter((a) => {
+      if (!a.due_at) return true;
+      const t = new Date(a.due_at).getTime();
+      if (Number.isNaN(t)) return true;
+      return t <= cutoff;
+    });
+  }, [upcomingAssignments]);
+
   // Graded assignments: has score or workflow_state === 'graded'
   const gradedAssignments = useMemo(() => {
     return courseAssignments
@@ -214,6 +248,18 @@ function CourseDetailPage() {
       .filter((item: AnnouncementItem) => item.course_id === course.id || item.context_code === `course_${course.id}`)
       .sort((a, b) => new Date(b.posted_at).getTime() - new Date(a.posted_at).getTime());
   }, [course, announcementsQueryState.data]);
+
+  // Announcements posted within the past 3 weeks; older ones hide behind
+  // "View all".
+  const announcementsWithinWindow = useMemo(() => {
+    const cutoff = Date.now() - THREE_WEEKS_MS;
+    return courseAnnouncements.filter((item) => {
+      if (!item.posted_at) return true;
+      const t = new Date(item.posted_at).getTime();
+      if (Number.isNaN(t)) return true;
+      return t >= cutoff;
+    });
+  }, [courseAnnouncements]);
 
   const score = course?.current_score;
   const gradeColor = getGradeColor(score);
@@ -423,14 +469,44 @@ function CourseDetailPage() {
           <h2 className="px-1 text-xs uppercase tracking-widest text-muted-foreground">
             Upcoming
           </h2>
-          {upcomingAssignments.length === 0 ? (
-            <EmptyState
-              icon={<CheckCircle2 className="h-5 w-5" />}
-              message="All caught up! No upcoming assignments due for this class."
-            />
-          ) : (
-            <div className="space-y-2.5">
-              {upcomingAssignments.map((a) => {
+          {(() => {
+            const shown = showAllUpcoming ? upcomingAssignments : upcomingWithinWindow;
+            const hiddenCount = upcomingAssignments.length - upcomingWithinWindow.length;
+            if (upcomingAssignments.length === 0) {
+              return (
+                <EmptyState
+                  icon={<CheckCircle2 className="h-5 w-5" />}
+                  message="All caught up! No upcoming assignments due for this class."
+                />
+              );
+            }
+            return (
+              <div className="space-y-2.5">
+                {!showAllUpcoming && hiddenCount > 0 && (
+                  <p className="px-1 text-[11px] text-muted-foreground">
+                    Only showing for the next 3 weeks ·{" "}
+                    <button
+                      type="button"
+                      onClick={() => setShowAllUpcoming(true)}
+                      className="font-medium text-foreground/80 underline decoration-foreground/30 underline-offset-2 transition-colors hover:text-foreground"
+                    >
+                      View all
+                    </button>
+                  </p>
+                )}
+                {showAllUpcoming && hiddenCount > 0 && (
+                  <p className="px-1 text-[11px] text-muted-foreground">
+                    Showing all {upcomingAssignments.length} ·{" "}
+                    <button
+                      type="button"
+                      onClick={() => setShowAllUpcoming(false)}
+                      className="font-medium text-foreground/80 underline decoration-foreground/30 underline-offset-2 transition-colors hover:text-foreground"
+                    >
+                      Show less
+                    </button>
+                  </p>
+                )}
+                {shown.map((a) => {
                 const dueDate = a.due_at ? new Date(a.due_at) : null;
                 const formattedDate = dueDate
                   ? dueDate.toLocaleDateString(undefined, {
@@ -477,8 +553,9 @@ function CourseDetailPage() {
                   </GlassCard>
                 );
               })}
-            </div>
-          )}
+              </div>
+            );
+          })()}
         </section>
       )}
 
@@ -575,13 +652,39 @@ function CourseDetailPage() {
           <h2 className="px-1 text-xs uppercase tracking-widest text-muted-foreground">
             Announcements
           </h2>
-          {courseAnnouncements.length === 0 ? (
-            <EmptyState
-              message="No announcements posted for this course."
-            />
-          ) : (
-            <div className="space-y-2.5">
-              {courseAnnouncements.map((item) => {
+          {(() => {
+            const shown = showAllAnnouncements ? courseAnnouncements : announcementsWithinWindow;
+            const hiddenCount = courseAnnouncements.length - announcementsWithinWindow.length;
+            if (courseAnnouncements.length === 0) {
+              return <EmptyState message="No announcements posted for this course." />;
+            }
+            return (
+              <div className="space-y-2.5">
+                {!showAllAnnouncements && hiddenCount > 0 && (
+                  <p className="px-1 text-[11px] text-muted-foreground">
+                    Only showing from the past 3 weeks ·{" "}
+                    <button
+                      type="button"
+                      onClick={() => setShowAllAnnouncements(true)}
+                      className="font-medium text-foreground/80 underline decoration-foreground/30 underline-offset-2 transition-colors hover:text-foreground"
+                    >
+                      View all
+                    </button>
+                  </p>
+                )}
+                {showAllAnnouncements && hiddenCount > 0 && (
+                  <p className="px-1 text-[11px] text-muted-foreground">
+                    Showing all {courseAnnouncements.length} ·{" "}
+                    <button
+                      type="button"
+                      onClick={() => setShowAllAnnouncements(false)}
+                      className="font-medium text-foreground/80 underline decoration-foreground/30 underline-offset-2 transition-colors hover:text-foreground"
+                    >
+                      Show less
+                    </button>
+                  </p>
+                )}
+                {shown.map((item) => {
                 const postedDate = new Date(item.posted_at).toLocaleDateString(undefined, {
                   month: "short",
                   day: "numeric",
@@ -622,8 +725,9 @@ function CourseDetailPage() {
                   </GlassCard>
                 );
               })}
-            </div>
-          )}
+              </div>
+            );
+          })()}
         </section>
       )}
     </div>

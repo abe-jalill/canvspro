@@ -669,7 +669,7 @@ export function LockedWidget({ title, feature }: { title: string; feature: strin
           to="/billing"
           className="glass-hover inline-flex min-h-10 items-center rounded-xl bg-foreground px-4 text-sm font-semibold text-background"
         >
-          Upgrade — $2.99/mo or $30/yr (Save 17%!)
+          Start 10 days free — then $2.99/mo or $30/yr (Save 17%!)
         </Link>
       </div>
     </GlassCard>

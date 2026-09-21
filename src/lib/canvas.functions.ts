@@ -2,7 +2,7 @@
 // The Canvas key is stored per-user in `user_settings`; the Edge Function
 // reads it server-side, so the browser never needs to hold it.
 import { supabase } from "@/integrations/supabase/client";
-import { fetchHasCanvasKey } from "@/lib/user-settings";
+import { fetchHasCanvasKey, clearCanvasKeyInvalidFlag } from "@/lib/user-settings";
 import { fetchEntitlement } from "@/lib/subscription";
 
 /**
@@ -60,17 +60,19 @@ async function invokeCanvas<T>(
           message = body.slice(0, 300);
         }
       }
-      // 428 = no Canvas key yet, 402 = free account (server-enforced paywall).
-      // Both render as empty states, never as an error banner.
+      // 428 = no Canvas key/URL yet, 402 = free account (server-enforced
+      // paywall). Both render as empty states, never as an error banner.
       if (res.status === 428 || res.status === 402) return [] as unknown as T;
     }
-    if (/428|402|NO_CANVAS_KEY|NOT_SUBSCRIBED/.test(message)) return [] as unknown as T;
+    if (/428|402|NO_CANVAS_KEY|NO_CANVAS_DOMAIN|NOT_SUBSCRIBED/.test(message))
+      return [] as unknown as T;
     throw new Error(message);
   }
 
   if (data && typeof data === "object" && "error" in data && (data as { error?: string }).error) {
     const message = (data as { error: string }).error;
-    if (message === "NO_CANVAS_KEY" || message === "NOT_SUBSCRIBED") return [] as unknown as T;
+    if (message === "NO_CANVAS_KEY" || message === "NO_CANVAS_DOMAIN" || message === "NOT_SUBSCRIBED")
+      return [] as unknown as T;
     throw new Error(message);
   }
   return data as T;
@@ -161,6 +163,9 @@ export function fetchCanvasBundle(): Promise<CanvasBundle> {
       // invokeCanvas returns [] when no Canvas key is saved yet.
       if (Array.isArray(raw)) return EMPTY_BUNDLE;
       const b = raw as CanvasBundle;
+      // The key demonstrably works, so drop any stale "Canvas rejected your
+      // key" flag a failed background run may have left behind.
+      if ((b.courses?.length ?? 0) > 0) void clearCanvasKeyInvalidFlag();
       return {
         courses: b.courses ?? [],
         assignments: b.assignments ?? [],
@@ -178,12 +183,22 @@ export function fetchCanvasBundle(): Promise<CanvasBundle> {
 
 // Each getter only fails when ITS OWN section failed, so one bad Canvas
 // endpoint shows an error in that section while the rest render normally.
+/** Turns a raw Canvas error body into a message a student can act on. */
+function friendlySectionError(raw: string): string {
+  if (/Canvas API 40[13]|Revoked access token|Invalid access token/i.test(raw))
+    return "Canvas rejected your saved key — add a new one in Settings.";
+  if (/rate limit/i.test(raw)) return "Canvas is busy right now — try again in a moment.";
+  if (/Canvas API 404|Failed to fetch|NetworkError|fetch failed/i.test(raw))
+    return "Couldn't reach Canvas — check your school's Canvas URL in Settings.";
+  return raw;
+}
+
 async function section<K extends "courses" | "assignments" | "announcements" | "calendar">(
   key: K,
 ): Promise<CanvasBundle[K]> {
   const bundle = await fetchCanvasBundle();
   const err = bundle.errors?.[key];
-  if (err) throw new Error(err);
+  if (err) throw new Error(friendlySectionError(err));
   return bundle[key];
 }
 

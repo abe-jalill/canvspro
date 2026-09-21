@@ -58,10 +58,13 @@ function Dashboard() {
   } | null>(null);
 
   // Long-press (2s) on empty space in the widgets area enters edit mode.
-  // Pressing on a widget itself never triggers it.
+  // Pressing on a widget itself never triggers it. Small finger/mouse jitter is
+  // tolerated — only a real drag (>12px) cancels the hold.
   const longPressTimer = useRef<number | null>(null);
+  const longPressOrigin = useRef<{ x: number; y: number } | null>(null);
 
   const clearLongPress = () => {
+    longPressOrigin.current = null;
     if (longPressTimer.current !== null) {
       window.clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
@@ -72,10 +75,19 @@ function Dashboard() {
     if (customizing) return;
     if ((e.target as HTMLElement).closest("[data-widget-card]")) return;
     clearLongPress();
+    longPressOrigin.current = { x: e.clientX, y: e.clientY };
     longPressTimer.current = window.setTimeout(() => {
       longPressTimer.current = null;
+      longPressOrigin.current = null;
       setCustomizing(true);
     }, 2000);
+  };
+
+  const handleAreaPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const origin = longPressOrigin.current;
+    if (!origin || longPressTimer.current === null) return;
+    const moved = Math.hypot(e.clientX - origin.x, e.clientY - origin.y);
+    if (moved > 12) clearLongPress();
   };
 
   const sizeOf = (id: WidgetId): WidgetSize => layout.sizes[id] ?? WIDGETS[id].defaultSize;
@@ -143,7 +155,7 @@ function Dashboard() {
       className="w-full min-w-0 space-y-6 pb-12"
       onPointerDown={handleAreaPointerDown}
       onPointerUp={clearLongPress}
-      onPointerMove={clearLongPress}
+      onPointerMove={handleAreaPointerMove}
       onPointerLeave={clearLongPress}
       onPointerCancel={clearLongPress}
     >

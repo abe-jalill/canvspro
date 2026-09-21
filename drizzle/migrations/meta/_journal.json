@@ -22,6 +22,13 @@
       "when": 1789846663527,
       "tag": "0002_cron_production_url_and_webhook_ordering",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1789927006587,
+      "tag": "0003_canvas_domain",
+      "breakpoints": true
     }
   ]
 }

@@ -94,12 +94,57 @@ interface CanvasAnnouncement {
 }
 
 
+/**
+ * Normalizes a user-supplied Canvas URL to a bare hostname, e.g.
+ * "https://Yourschool.Instructure.com/" → "yourschool.instructure.com".
+ * Returns "" when the value isn't a plausible hostname. Mirrors the edge fn.
+ */
+export function normalizeCanvasDomain(raw: string | null | undefined): string {
+  let v = (raw ?? "").trim().toLowerCase();
+  if (!v) return "";
+  v = v.replace(/^https?:\/\//, "").split("/")[0]!.split("?")[0]!.trim();
+  return /^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/.test(v) ? v : "";
+}
+
+/**
+ * Canvas answers throttling with 403 + "Rate Limit Exceeded" — the same status
+ * it uses for a bad token. The body is therefore part of the error message so
+ * callers never mistake a throttle for a rejected key. Throttles are retried
+ * with backoff instead of surfacing at all.
+ */
 async function canvasFetch<T>(domain: string, token: string, path: string): Promise<T> {
-  const res = await fetch(`https://${domain}/api/v1${path}`, {
-    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+  let lastMessage = "Canvas request failed";
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const res = await fetch(`https://${domain}/api/v1${path}`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+    });
+    if (res.ok) return (await res.json()) as T;
+    const body = (await res.text().catch(() => "")).slice(0, 200);
+    lastMessage = `Canvas ${res.status}: ${body}`;
+    const throttled = res.status === 429 || /rate limit/i.test(body);
+    if (!throttled) throw new Error(lastMessage);
+    await new Promise((r) => setTimeout(r, 1_000 * (attempt + 1)));
+  }
+  throw new Error(lastMessage);
+}
+
+/** Runs tasks with bounded concurrency so Canvas doesn't throttle us. */
+async function mapPooled<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let next = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    for (;;) {
+      const i = next++;
+      if (i >= items.length) return;
+      out[i] = await fn(items[i]!);
+    }
   });
-  if (!res.ok) throw new Error(`Canvas ${res.status}`);
-  return (await res.json()) as T;
+  await Promise.all(workers);
+  return out;
 }
 
 export interface BuildResult {
@@ -135,20 +180,18 @@ export async function buildAlertsForUser(
   );
   if (courses.length === 0) return { alerts, tonight };
 
-  const perCourse = await Promise.all(
-    courses.map(async (c) => {
-      try {
-        const list = await canvasFetch<CanvasAssignment[]>(
-          domain,
-          token,
-          `/courses/${c.id}/assignments?include[]=submission&per_page=100&order_by=due_at`,
-        );
-        return list.map((a) => ({ a, course: c }));
-      } catch {
-        return [];
-      }
-    }),
-  );
+  const perCourse = await mapPooled(courses, 4, async (c) => {
+    try {
+      const list = await canvasFetch<CanvasAssignment[]>(
+        domain,
+        token,
+        `/courses/${c.id}/assignments?include[]=submission&per_page=100&order_by=due_at`,
+      );
+      return list.map((a) => ({ a, course: c }));
+    } catch {
+      return [] as Array<{ a: CanvasAssignment; course: CanvasCourse }>;
+    }
+  });
 
   for (const { a, course } of perCourse.flat()) {
     // Grades posted in the last day.

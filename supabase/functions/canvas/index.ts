@@ -30,6 +30,16 @@ function corsHeaders(req: Request): Record<string, string> {
 
 const API_VERSION = "/api/v1";
 
+/** Normalizes a user-supplied Canvas URL to a bare hostname, e.g.
+ *  "https://Yourschool.Instructure.com/" → "yourschool.instructure.com".
+ *  Returns "" when the value isn't a plausible hostname. */
+function normalizeDomain(raw: string | null | undefined): string {
+  let v = (raw ?? "").trim().toLowerCase();
+  if (!v) return "";
+  v = v.replace(/^https?:\/\//, "").split("/")[0]!.split("?")[0]!.trim();
+  return /^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/.test(v) ? v : "";
+}
+
 interface CanvasCourse {
   id: number;
   name: string;
@@ -152,22 +162,31 @@ async function canvasFetchRaw<T>(creds: Creds, path: string): Promise<T> {
 // Reads the caller's Canvas API key from `user_settings` using their JWT,
 // so RLS guarantees a user can only ever use their own key.
 async function credsForRequest(req: Request, includeHidden = false): Promise<Creds> {
-  const domain = Deno.env.get("CANVAS_DOMAIN");
-  if (!domain) throw new Error("Canvas domain is not configured.");
-
   const authHeader = req.headers.get("Authorization") ?? "";
   if (!authHeader) throw new Error("NOT_AUTHENTICATED");
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const apiKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
 
-  const res = await fetch(`${supabaseUrl}/rest/v1/user_settings?select=canvas_api_key&limit=1`, {
-    headers: { apikey: apiKey, Authorization: authHeader },
-  });
+  const res = await fetch(
+    `${supabaseUrl}/rest/v1/user_settings?select=canvas_api_key,canvas_domain&limit=1`,
+    {
+      headers: { apikey: apiKey, Authorization: authHeader },
+    },
+  );
   if (!res.ok) throw new Error("NOT_AUTHENTICATED");
-  const rows = (await res.json()) as Array<{ canvas_api_key: string | null }>;
+  const rows = (await res.json()) as Array<{
+    canvas_api_key: string | null;
+    canvas_domain: string | null;
+  }>;
   const token = rows?.[0]?.canvas_api_key?.trim();
   if (!token) throw new Error("NO_CANVAS_KEY");
+
+  // The caller's own school URL wins; the global default keeps existing
+  // accounts working until they save their own.
+  const domain =
+    normalizeDomain(rows?.[0]?.canvas_domain) || normalizeDomain(Deno.env.get("CANVAS_DOMAIN"));
+  if (!domain) throw new Error("NO_CANVAS_DOMAIN");
 
   let excluded = new Set<number>();
   if (!includeHidden) {
@@ -365,12 +384,18 @@ Deno.serve(async (req) => {
     let resource: string | null = null;
     let days: number | undefined;
     let includeHidden = false;
+    let overrideDomain: string | undefined;
+    let overrideToken: string | undefined;
 
     if (req.method === "POST") {
       const body = await req.json().catch(() => ({}));
       resource = body?.resource ?? null;
       days = typeof body?.days === "number" ? body.days : undefined;
       includeHidden = body?.includeHidden === true;
+      // Used only by the "validate" check when saving credentials: the caller's
+      // own freshly typed key/URL, verified in-memory and never persisted here.
+      overrideDomain = typeof body?.domain === "string" ? body.domain : undefined;
+      overrideToken = typeof body?.token === "string" ? body.token : undefined;
     } else {
       const url = new URL(req.url);
       resource = url.searchParams.get("resource");
@@ -379,23 +404,42 @@ Deno.serve(async (req) => {
       includeHidden = url.searchParams.get("includeHidden") === "true";
     }
 
-    // Everything except the free due-date counts requires a paid account.
-    if (resource !== "duedates") await requirePaidAccess(req);
+    // Everything except the free due-date counts and the credential check
+    // requires a paid account — validating your own key must work pre-purchase.
+    if (resource !== "duedates" && resource !== "validate") await requirePaidAccess(req);
 
-    const creds = await credsForRequest(req, includeHidden);
+    // The stored credentials aren't needed when validating a freshly typed
+    // pair (the caller may not have saved a key yet), so load them lazily.
+    const storedCreds =
+      resource === "validate" && overrideToken ? null : await credsForRequest(req, includeHidden);
 
     let data: unknown;
     switch (resource) {
+      case "validate": {
+        // Verifies a Canvas URL + API key pair against /users/self. With an
+        // override pair supplied, nothing is read from or written to storage.
+        const vCreds: Creds =
+          overrideToken && storedCreds === null
+            ? (() => {
+                const d = normalizeDomain(overrideDomain);
+                if (!d) throw new Error("INVALID_DOMAIN");
+                return { domain: d, token: overrideToken, excluded: new Set<number>() };
+              })()
+            : storedCreds!;
+        const me = await canvasFetchRaw<{ name?: string }>(vCreds, "/users/self");
+        data = { ok: true, name: me?.name ?? null };
+        break;
+      }
       case "all": {
         // Single round trip for the whole app: the shared course lookup is
         // deduped by the in-memory canvasFetch cache. One failing section
         // must NOT blank the others, so each settles independently and its
         // error is reported per-section.
         const settled = await Promise.allSettled([
-          handleCourses(creds),
-          handleAssignments(creds),
-          handleAnnouncements(creds, 30),
-          handleCalendar(creds, 14),
+          handleCourses(storedCreds),
+          handleAssignments(storedCreds),
+          handleAnnouncements(storedCreds, 30),
+          handleCalendar(storedCreds, 14),
         ]);
         const names = ["courses", "assignments", "announcements", "calendar"] as const;
         const bundle: Record<string, unknown> = {};
@@ -408,7 +452,12 @@ Deno.serve(async (req) => {
             bundle[name] = [];
             const msg = r.reason instanceof Error ? r.reason.message : String(r.reason);
             // Auth / missing-key problems affect everything: surface them as-is.
-            if (msg === "NOT_AUTHENTICATED" || msg === "NO_CANVAS_KEY") throw r.reason;
+            if (
+              msg === "NOT_AUTHENTICATED" ||
+              msg === "NO_CANVAS_KEY" ||
+              msg === "NO_CANVAS_DOMAIN"
+            )
+              throw r.reason;
             errors[name] = msg;
             console.error(`[canvas] ${name}:`, msg);
           }
@@ -417,19 +466,19 @@ Deno.serve(async (req) => {
         break;
       }
       case "courses":
-        data = await handleCourses(creds);
+        data = await handleCourses(storedCreds);
         break;
       case "assignments":
-        data = await handleAssignments(creds);
+        data = await handleAssignments(storedCreds);
         break;
       case "announcements":
-        data = await handleAnnouncements(creds, days ?? 30);
+        data = await handleAnnouncements(storedCreds, days ?? 30);
         break;
       case "calendar":
-        data = await handleCalendar(creds, days ?? 14);
+        data = await handleCalendar(storedCreds, days ?? 14);
         break;
       case "duedates":
-        data = await handleDueDates(creds);
+        data = await handleDueDates(storedCreds);
         break;
       default:
         return new Response(JSON.stringify({ error: `Unknown resource: ${resource}` }), {
@@ -448,9 +497,11 @@ Deno.serve(async (req) => {
         ? 401
         : message === "NOT_SUBSCRIBED"
           ? 402
-          : message === "NO_CANVAS_KEY"
+          : message === "NO_CANVAS_KEY" || message === "NO_CANVAS_DOMAIN"
             ? 428
-            : 500;
+            : message === "INVALID_DOMAIN" || /^Canvas API 4\d\d/.test(message)
+              ? 400
+              : 500;
     if (status === 500) console.error("[canvas]", message);
     return new Response(JSON.stringify({ error: message }), {
       status,

@@ -5,17 +5,17 @@ import { CANVAS_PRO_PRICE_LABEL, CANVAS_PRO_YEARLY_BADGE } from "@/lib/stripe";
 export const Route = createFileRoute("/pricing")({
   head: () => ({
     meta: [
-      { title: "Pricing — Canvas Pro for $2.99/month or $30/year" },
+      { title: "Pricing — First 10 days free, then $2.99/month or $30/year" },
       {
         name: "description",
         content:
-          "Canvas Pro is $2.99 per month or $30 per year (save 17%): live Canvas grades, assignments, announcements, focus windows, calendar, and smart notifications. Cancel anytime.",
+          "First 10 days free, then Canvas Pro is $2.99 per month or $30 per year (save 17%): live Canvas grades, assignments, announcements, focus windows, calendar, and smart notifications. Cancel anytime.",
       },
-      { property: "og:title", content: "Pricing — Canvas Pro for $2.99/month or $30/year" },
+      { property: "og:title", content: "Pricing — First 10 days free, then $2.99/month or $30/year" },
       {
         property: "og:description",
         content:
-          "One simple plan at $2.99 per month, or $30 per year and save 17%. Cancel anytime.",
+          "Start with 10 days free, then $2.99 per month or $30 per year (save 17%). Cancel anytime.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -58,9 +58,8 @@ function PricingPage() {
           Simple pricing, one plan
         </h1>
         <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground">
-          Start free with the dashboard. Unlock everything else for{" "}
-          {CANVAS_PRO_PRICE_LABEL} — or $30/year ({CANVAS_PRO_YEARLY_BADGE}). Cancel anytime
-          from the billing portal.
+          Your first 10 days of Pro are free. After that it's {CANVAS_PRO_PRICE_LABEL} — or
+          $30/year ({CANVAS_PRO_YEARLY_BADGE}). Cancel anytime from the billing portal.
         </p>
       </header>
 
@@ -100,11 +99,11 @@ function PricingPage() {
             to="/billing"
             className="glass-hover mt-auto inline-flex min-h-11 items-center justify-center rounded-xl bg-foreground px-4 text-sm font-semibold text-background"
           >
-            Checkout
+            Start 10 days free
           </Link>
           <p className="text-xs text-muted-foreground">
-            Sign in first — checkout opens securely on the billing page, where you pick monthly
-            or yearly.
+            First 10 days free, then you're charged automatically. Sign in first — checkout opens
+            securely on the billing page, where you pick monthly or yearly.
           </p>
         </section>
       </div>

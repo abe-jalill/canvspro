@@ -50,7 +50,9 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
         customer: customerId,
         managed_payments: { enabled: true },
         metadata: { userId, managed_payments: "true" },
-        ...(isRecurring && { subscription_data: { metadata: { userId } } }),
+        ...(isRecurring && {
+          subscription_data: { metadata: { userId }, trial_period_days: 10 },
+        }),
       } as Stripe.Checkout.SessionCreateParams);
 
       return { clientSecret: session.client_secret ?? "" };

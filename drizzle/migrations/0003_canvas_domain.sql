@@ -1,0 +1,1 @@
+ALTER TABLE public.user_settings ADD COLUMN canvas_domain TEXT;
