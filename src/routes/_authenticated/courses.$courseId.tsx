@@ -249,6 +249,18 @@ function CourseDetailPage() {
       .sort((a, b) => new Date(b.posted_at).getTime() - new Date(a.posted_at).getTime());
   }, [course, announcementsQueryState.data]);
 
+  // Announcements posted within the past 3 weeks; older ones hide behind
+  // "View all".
+  const announcementsWithinWindow = useMemo(() => {
+    const cutoff = Date.now() - THREE_WEEKS_MS;
+    return courseAnnouncements.filter((item) => {
+      if (!item.posted_at) return true;
+      const t = new Date(item.posted_at).getTime();
+      if (Number.isNaN(t)) return true;
+      return t >= cutoff;
+    });
+  }, [courseAnnouncements]);
+
   const score = course?.current_score;
   const gradeColor = getGradeColor(score);
   const gradeBg = getGradeBg(score);
