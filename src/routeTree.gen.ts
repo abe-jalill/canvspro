@@ -34,6 +34,7 @@ import { Route as AuthenticatedScheduleRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedCheckoutReturnRouteImport } from './routes/_authenticated/checkout.return'
 import { Route as AuthenticatedCoursesCourseIdRouteImport } from './routes/_authenticated/courses.$courseId'
+import { Route as ApiMobileSubscriptionRouteImport } from './routes/api/mobile/subscription'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as ApiPublicPushDispatchRouteImport } from './routes/api/public/push/dispatch'
 import { Route as ApiPublicPushKeyRouteImport } from './routes/api/public/push/key'
@@ -171,6 +172,11 @@ const AuthenticatedCoursesCourseIdRoute =
     path: '/courses/$courseId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiMobileSubscriptionRoute = ApiMobileSubscriptionRouteImport.update({
+  id: '/api/mobile/subscription',
+  path: '/api/mobile/subscription',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicPaymentsWebhookRoute =
   ApiPublicPaymentsWebhookRouteImport.update({
     id: '/api/public/payments/webhook',
@@ -229,6 +235,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AuthenticatedSettingsRoute
   '/checkout/return': typeof AuthenticatedCheckoutReturnRoute
   '/courses/$courseId': typeof AuthenticatedCoursesCourseIdRoute
+  '/api/mobile/subscription': typeof ApiMobileSubscriptionRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/push/dispatch': typeof ApiPublicPushDispatchRoute
   '/api/public/push/key': typeof ApiPublicPushKeyRoute
@@ -261,6 +268,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AuthenticatedSettingsRoute
   '/checkout/return': typeof AuthenticatedCheckoutReturnRoute
   '/courses/$courseId': typeof AuthenticatedCoursesCourseIdRoute
+  '/api/mobile/subscription': typeof ApiMobileSubscriptionRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/push/dispatch': typeof ApiPublicPushDispatchRoute
   '/api/public/push/key': typeof ApiPublicPushKeyRoute
@@ -295,6 +303,7 @@ export interface FileRoutesById {
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/checkout/return': typeof AuthenticatedCheckoutReturnRoute
   '/_authenticated/courses/$courseId': typeof AuthenticatedCoursesCourseIdRoute
+  '/api/mobile/subscription': typeof ApiMobileSubscriptionRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/push/dispatch': typeof ApiPublicPushDispatchRoute
   '/api/public/push/key': typeof ApiPublicPushKeyRoute
@@ -329,6 +338,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/checkout/return'
     | '/courses/$courseId'
+    | '/api/mobile/subscription'
     | '/api/public/payments/webhook'
     | '/api/public/push/dispatch'
     | '/api/public/push/key'
@@ -361,6 +371,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/checkout/return'
     | '/courses/$courseId'
+    | '/api/mobile/subscription'
     | '/api/public/payments/webhook'
     | '/api/public/push/dispatch'
     | '/api/public/push/key'
@@ -394,6 +405,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings'
     | '/_authenticated/checkout/return'
     | '/_authenticated/courses/$courseId'
+    | '/api/mobile/subscription'
     | '/api/public/payments/webhook'
     | '/api/public/push/dispatch'
     | '/api/public/push/key'
@@ -416,6 +428,7 @@ export interface RootRouteChildren {
   SignupRoute: typeof SignupRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermsRoute: typeof TermsRoute
+  ApiMobileSubscriptionRoute: typeof ApiMobileSubscriptionRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
   ApiPublicPushDispatchRoute: typeof ApiPublicPushDispatchRoute
   ApiPublicPushKeyRoute: typeof ApiPublicPushKeyRoute
@@ -601,6 +614,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCoursesCourseIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/mobile/subscription': {
+      id: '/api/mobile/subscription'
+      path: '/api/mobile/subscription'
+      fullPath: '/api/mobile/subscription'
+      preLoaderRoute: typeof ApiMobileSubscriptionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/payments/webhook': {
       id: '/api/public/payments/webhook'
       path: '/api/public/payments/webhook'
@@ -693,6 +713,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignupRoute: SignupRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermsRoute: TermsRoute,
+  ApiMobileSubscriptionRoute: ApiMobileSubscriptionRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
   ApiPublicPushDispatchRoute: ApiPublicPushDispatchRoute,
   ApiPublicPushKeyRoute: ApiPublicPushKeyRoute,

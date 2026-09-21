@@ -8,16 +8,38 @@ export type SubscriptionAccess = {
 } | null;
 
 export async function getSubscriptionAccess(): Promise<SubscriptionAccess> {
-  const { data, error } = await supabase.functions.invoke(
-    "subscription-access",
-  );
+  const {
+    data: { session },
+    error: sessionError,
+  } = await supabase.auth.getSession();
 
-  if (error) {
-    throw new Error(error.message);
+  if (sessionError) {
+    throw new Error(sessionError.message);
   }
 
-  if (data?.error) {
-    throw new Error(data.error);
+  const token = session?.access_token;
+
+  if (!token) {
+    throw new Error("Not signed in");
+  }
+
+  const response = await fetch(
+    "https://canvaspro.app/api/mobile/subscription",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    },
+  );
+
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(
+      data?.error ?? `Subscription check failed (${response.status})`,
+    );
   }
 
   return data ?? null;
