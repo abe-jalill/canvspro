@@ -9,6 +9,10 @@ workflows:
         script: |
           npm install
 
+      - name: Build mobile frontend
+        script: |
+          npm run build:ios
+
       - name: Sync Capacitor
         script: |
           npx cap sync ios

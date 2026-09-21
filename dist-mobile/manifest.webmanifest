@@ -1,0 +1,14 @@
+{
+  "name": "CanvasPro",
+  "short_name": "CanvasPro",
+  "description": "Your Canvas classes, grades, assignments and reminders in one calm dashboard.",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": [
+    { "src": "/favicon.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/favicon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}
