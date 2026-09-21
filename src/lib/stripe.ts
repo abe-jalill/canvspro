@@ -29,6 +29,8 @@ export function getStripeEnvironment(): StripeEnv {
 export const CANVAS_PRO_PRICE_ID = "pro_monthly";
 export const CANVAS_PRO_YEARLY_PRICE_ID = "pro_yearly";
 export const CANVAS_PRO_PRICE_LABEL = "$2.99/month";
+export const CANVAS_PRO_TRIAL_DAYS = 10;
+export const CANVAS_PRO_TRIAL_LABEL = "First 10 days free";
 export const CANVAS_PRO_YEARLY_PRICE_LABEL = "$30/year";
 export const CANVAS_PRO_YEARLY_BADGE = "Save 17%!";
 
