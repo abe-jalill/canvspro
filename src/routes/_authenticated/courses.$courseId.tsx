@@ -652,13 +652,39 @@ function CourseDetailPage() {
           <h2 className="px-1 text-xs uppercase tracking-widest text-muted-foreground">
             Announcements
           </h2>
-          {courseAnnouncements.length === 0 ? (
-            <EmptyState
-              message="No announcements posted for this course."
-            />
-          ) : (
-            <div className="space-y-2.5">
-              {courseAnnouncements.map((item) => {
+          {(() => {
+            const shown = showAllAnnouncements ? courseAnnouncements : announcementsWithinWindow;
+            const hiddenCount = courseAnnouncements.length - announcementsWithinWindow.length;
+            if (courseAnnouncements.length === 0) {
+              return <EmptyState message="No announcements posted for this course." />;
+            }
+            return (
+              <div className="space-y-2.5">
+                {!showAllAnnouncements && hiddenCount > 0 && (
+                  <p className="px-1 text-[11px] text-muted-foreground">
+                    Only showing from the past 3 weeks ·{" "}
+                    <button
+                      type="button"
+                      onClick={() => setShowAllAnnouncements(true)}
+                      className="font-medium text-foreground/80 underline decoration-foreground/30 underline-offset-2 transition-colors hover:text-foreground"
+                    >
+                      View all
+                    </button>
+                  </p>
+                )}
+                {showAllAnnouncements && hiddenCount > 0 && (
+                  <p className="px-1 text-[11px] text-muted-foreground">
+                    Showing all {courseAnnouncements.length} ·{" "}
+                    <button
+                      type="button"
+                      onClick={() => setShowAllAnnouncements(false)}
+                      className="font-medium text-foreground/80 underline decoration-foreground/30 underline-offset-2 transition-colors hover:text-foreground"
+                    >
+                      Show less
+                    </button>
+                  </p>
+                )}
+                {shown.map((item) => {
                 const postedDate = new Date(item.posted_at).toLocaleDateString(undefined, {
                   month: "short",
                   day: "numeric",
