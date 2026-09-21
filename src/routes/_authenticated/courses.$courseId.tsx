@@ -216,7 +216,17 @@ function CourseDetailPage() {
       });
   }, [courseAssignments]);
 
-  // Graded assignments: has score or workflow_state === 'graded'
+  // Upcoming assignments due within the next 3 weeks; anything further out
+  // hides behind "View all".
+  const upcomingWithinWindow = useMemo(() => {
+    const cutoff = Date.now() + THREE_WEEKS_MS;
+    return upcomingAssignments.filter((a) => {
+      if (!a.due_at) return true;
+      const t = new Date(a.due_at).getTime();
+      if (Number.isNaN(t)) return true;
+      return t <= cutoff;
+    });
+  }, [upcomingAssignments]);
   const gradedAssignments = useMemo(() => {
     return courseAssignments
       .filter((a) => a.submission?.score != null || a.submission?.workflow_state === "graded")
