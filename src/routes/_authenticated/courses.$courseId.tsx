@@ -122,6 +122,8 @@ function CourseDetailPage() {
   const classSchedule = useClassSchedule();
 
   const [activeTab, setActiveTab] = useState<"all" | "upcoming" | "graded" | "announcements">("all");
+  const [showAllUpcoming, setShowAllUpcoming] = useState(false);
+  const [showAllAnnouncements, setShowAllAnnouncements] = useState(false);
 
   const course: CourseSummary | undefined = useMemo(() => {
     return coursesQueryState.data?.find(
