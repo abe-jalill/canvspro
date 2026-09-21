@@ -14,13 +14,13 @@ export const Route = createFileRoute("/_authenticated/billing")({
       {
         name: "description",
         content:
-          "Manage your Canvas Pro subscription — $2.99 per month or $30 per year (save 17%) for your full class dashboard.",
+          "Start with 10 days free, then $2.99 per month or $30 per year (save 17%) for your full class dashboard.",
       },
       { property: "og:title", content: "Billing — Canvas Pro" },
       {
         property: "og:description",
         content:
-          "Manage your Canvas Pro subscription — $2.99 per month or $30 per year (save 17%) for your full class dashboard.",
+          "Start with 10 days free, then $2.99 per month or $30 per year (save 17%) for your full class dashboard.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -85,7 +85,7 @@ function BillingPage() {
       <header>
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Billing</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Canvas Pro is $2.99 per month or $30 per year — save 17% yearly. Cancel anytime.
+          First 10 days free, then $2.99 per month or $30 per year — save 17% yearly. Cancel anytime.
         </p>
       </header>
 
@@ -93,7 +93,7 @@ function BillingPage() {
 
       <GlassCard
         title="Canvas Pro"
-        subtitle={isActive ? "Your subscription is active." : "Choose monthly or yearly"}
+        subtitle={isActive ? "Your subscription is active." : "First 10 days free — choose monthly or yearly"}
       >
         <div className="flex w-full flex-col gap-4">
           <ul className="flex flex-col gap-2 text-sm text-muted-foreground">
@@ -163,7 +163,7 @@ function BillingPage() {
                 onClick={() => setShowCheckout(true)}
                 className="glass-hover min-h-11 w-full rounded-xl bg-foreground px-4 text-sm font-semibold text-background sm:w-auto"
               >
-                Subscribe — {selectedPlan.price}{selectedPlan.cadence}
+                Start 10 days free — then {selectedPlan.price}{selectedPlan.cadence}
               </button>
             </div>
           )}
