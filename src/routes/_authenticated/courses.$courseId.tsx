@@ -725,8 +725,9 @@ function CourseDetailPage() {
                   </GlassCard>
                 );
               })}
-            </div>
-          )}
+              </div>
+            );
+          })()}
         </section>
       )}
     </div>
