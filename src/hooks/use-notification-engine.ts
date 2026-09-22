@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useQuery, queryOptions } from "@tanstack/react-query";
 import {
   getAllAssignmentsFn,
@@ -9,7 +9,8 @@ import {
 import { displayCourseName } from "@/lib/course-display";
 import { notify, updateNotification } from "@/lib/notifications";
 import { DUE_WINDOWS, readPrefs } from "@/lib/notification-prefs";
-import { COMPLETED_ASSIGNMENTS_KEY } from "@/lib/local-state";
+import { useUserPreferences } from "@/hooks/use-user-preferences";
+import { completedAssignmentIds } from "@/lib/completion-records";
 import { scopedKey } from "@/lib/user-scope";
 
 const SEEN_GRADES_KEY = "canvas:seen-graded";
@@ -46,10 +47,9 @@ const announcementsQO = queryOptions({
   staleTime: 5 * 60_000,
 });
 
-function runDueChecks(assignments: AssignmentItem[]) {
+function runDueChecks(assignments: AssignmentItem[], completed: Set<string>) {
   const prefs = readPrefs();
   if (!prefs.enabled) return;
-  const completed = readSet(COMPLETED_ASSIGNMENTS_KEY);
   const now = Date.now();
 
   for (const a of assignments) {
@@ -184,16 +184,18 @@ function runAnnouncementChecks(items: AnnouncementItem[]) {
 export function useNotificationEngine(enabled = true) {
   const assignments = useQuery({ ...assignmentsQO, enabled });
   const announcements = useQuery({ ...announcementsQO, enabled });
+  const preferences = useUserPreferences();
+  const completed = useMemo(() => completedAssignmentIds(preferences.data), [preferences.data]);
 
   useEffect(() => {
-    if (!enabled || !assignments.data) return;
+    if (!enabled || !assignments.data || !preferences.ready) return;
     runGradeChecks(assignments.data);
-    runDueChecks(assignments.data);
+    runDueChecks(assignments.data, completed);
     const id = setInterval(() => {
-      if (assignments.data) runDueChecks(assignments.data);
+      if (assignments.data) runDueChecks(assignments.data, completed);
     }, 15 * 60_000);
     return () => clearInterval(id);
-  }, [assignments.data, enabled]);
+  }, [assignments.data, enabled, completed, preferences.ready]);
 
   useEffect(() => {
     if (!enabled || !announcements.data) return;

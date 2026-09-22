@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { completedAssignmentIds } from "@/lib/completion-records";
 import {
   buildAlertsForUser,
   deliver,
@@ -147,7 +148,7 @@ async function run(): Promise<Response> {
   let failures = 0;
   for (const [userId, userSubs] of byUser) {
     try {
-      const [{ data: prefRow }, { data: settings }, { data: hiddenRow }] = await Promise.all([
+      const [{ data: prefRow }, { data: settings }, { data: preferenceRows, error: preferenceError }] = await Promise.all([
         supabaseAdmin
           .from("notification_prefs")
           .select("prefs,timezone_offset_minutes")
@@ -160,11 +161,13 @@ async function run(): Promise<Response> {
           .maybeSingle(),
         supabaseAdmin
           .from("user_preferences")
-          .select("value")
-          .eq("user_id", userId)
-          .eq("key", "hidden_course_ids")
-          .maybeSingle(),
+          .select("key,value")
+          .eq("user_id", userId),
       ]);
+
+      if (preferenceError) throw preferenceError;
+      const userPreferences = Object.fromEntries((preferenceRows ?? []).map((row) => [row.key, row.value]));
+      const hiddenRow = { value: userPreferences.hidden_course_ids };
 
       const hiddenIds = new Set<number>(
         Array.isArray(hiddenRow?.value)
@@ -192,7 +195,7 @@ async function run(): Promise<Response> {
       let alerts: Alert[];
       let tonight: TonightItem[];
       try {
-        const built = await buildAlertsForUser(userDomain, token, prefs, tz, hiddenIds);
+        const built = await buildAlertsForUser(userDomain, token, prefs, tz, hiddenIds, completedAssignmentIds(userPreferences));
         alerts = built.alerts;
         tonight = built.tonight;
       } catch (err) {

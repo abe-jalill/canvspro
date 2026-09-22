@@ -1,8 +1,8 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { getAllAssignmentsFn } from "@/lib/canvas.functions";
-import { COMPLETED_ASSIGNMENTS_KEY } from "@/lib/local-state";
-import { scopedKey } from "@/lib/user-scope";
+import { useUserPreferences } from "@/hooks/use-user-preferences";
+import { completedAssignmentIds } from "@/lib/completion-records";
 import { useNotificationPrefs } from "@/lib/notification-prefs";
 import { clearAppBadge, setAppBadge } from "@/lib/app-badge";
 
@@ -12,20 +12,13 @@ const assignmentsQO = queryOptions({
   staleTime: 5 * 60_000,
 });
 
-function completedIds(): Set<string> {
-  try {
-    const raw = window.localStorage.getItem(scopedKey(COMPLETED_ASSIGNMENTS_KEY));
-    return new Set(raw ? (JSON.parse(raw) as string[]) : []);
-  } catch {
-    return new Set();
-  }
-}
-
 /** Keeps the app-icon badge in sync with what's still due before midnight. */
 export function useDueTodayBadge(enabled = true) {
   const { prefs } = useNotificationPrefs();
   const on = enabled && prefs.enabled && prefs.badge;
   const { data } = useQuery({ ...assignmentsQO, enabled: on });
+  const preferences = useUserPreferences();
+  const done = useMemo(() => completedAssignmentIds(preferences.data), [preferences.data]);
 
   useEffect(() => {
     if (!on) {
@@ -33,7 +26,6 @@ export function useDueTodayBadge(enabled = true) {
       return;
     }
     if (!data) return;
-    const done = completedIds();
     const endOfDay = new Date();
     endOfDay.setHours(23, 59, 59, 999);
     const now = Date.now();
@@ -44,5 +36,5 @@ export function useDueTodayBadge(enabled = true) {
       return due > now && due <= endOfDay.getTime();
     }).length;
     setAppBadge(count);
-  }, [data, on]);
+  }, [data, on, done]);
 }

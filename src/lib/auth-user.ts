@@ -8,6 +8,8 @@
 import { useQuery, type QueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { setUserScope } from "@/lib/user-scope";
+import { restoreQueryCache } from "@/lib/query-persist";
+import { setNicknameLookup, type NicknameLookupRow } from "@/lib/course-display";
 
 export const authUserQueryKey = ["auth-user"] as const;
 
@@ -31,6 +33,9 @@ export function syncAuthIdentity(
   if (activeIdentity === userId) return;
   activeIdentity = userId;
   queryClient.clear();
+  if (userId) restoreQueryCache(queryClient, userId);
+  setNicknameLookup(queryClient.getQueryData<NicknameLookupRow[]>(["class-nicknames"]) ?? []);
+  queryClient.setQueryData(authUserQueryKey, userId);
 }
 
 async function fetchAuthUserId(): Promise<string | null> {
@@ -55,6 +60,7 @@ export function useAuthUserId(): {
     queryKey: authUserQueryKey,
     queryFn: fetchAuthUserId,
     staleTime: 60_000,
+    refetchOnMount: false,
     retry: 1,
   });
   return {

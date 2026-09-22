@@ -70,6 +70,7 @@ export function useUserProfile() {
     queryFn: fetchUserProfile,
     staleTime: 60_000,
     initialData: getLocalProfile,
+    initialDataUpdatedAt: 0,
   });
 }
 

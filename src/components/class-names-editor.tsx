@@ -7,8 +7,8 @@ import {
   useSaveNicknames,
   type ClassNickname,
 } from "@/lib/nicknames";
-import { nicknameLookupVersion } from "@/lib/course-display";
 import { useUserPreferenceKey } from "@/hooks/use-user-preferences";
+import { nicknameLookupVersion } from "@/lib/course-display";
 
 const coursesQuery = {
   queryKey: ["canvas", "courses"] as const,
@@ -170,11 +170,11 @@ export function ClassNamesGate({ children }: { children: ReactNode }) {
   const needsSetup =
     !!key && ready && !skipped && (courses.data ?? []).length > 0 && missing.length > 0;
 
-  if (needsSetup) {
-    return (
-      <div className="mx-auto w-full max-w-2xl">
-        <div className="glass-panel-strong p-5 md:p-7">
-          <h1 className="text-2xl font-semibold tracking-tight">Name your classes</h1>
+  return (
+    <div>
+      {needsSetup && (
+        <details className="glass-panel-strong mb-4 p-5 md:p-7">
+          <summary className="cursor-pointer text-sm font-medium">Personalize your class names (optional)</summary>
           <p className="mt-1 mb-5 text-sm text-muted-foreground">
             Give each Canvas course a friendlier name. You can change these later in
             Settings.
@@ -182,7 +182,7 @@ export function ClassNamesGate({ children }: { children: ReactNode }) {
           <ClassNamesEditor
             courses={courses.data ?? []}
             nicknames={nicknames.data ?? []}
-            ctaLabel="Save and continue"
+            ctaLabel="Save names"
             onSaved={dismiss}
           />
           <button
@@ -192,12 +192,9 @@ export function ClassNamesGate({ children }: { children: ReactNode }) {
           >
             Skip for now
           </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Remount the subtree when nicknames change so every display call site
-  // re-renders with the new names.
-  return <div key={nicknameLookupVersion()}>{children}</div>;
+        </details>
+      )}
+      <div key={nicknameLookupVersion()}>{children}</div>
+    </div>
+  );
 }

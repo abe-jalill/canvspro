@@ -160,6 +160,7 @@ export async function buildAlertsForUser(
   tzOffsetMinutes = 0,
   /** Course ids this account chose to hide. Per-user, never hardcoded. */
   hiddenCourseIds: Set<number> = new Set<number>(),
+  completedIds: Set<string> = new Set<string>(),
 ): Promise<BuildResult> {
   const alerts: Alert[] = [];
   const tonight: TonightItem[] = [];
@@ -215,7 +216,7 @@ export async function buildAlertsForUser(
       }
     }
 
-    if (!a.due_at || a.submission?.submitted_at) continue;
+    if (!a.due_at || a.submission?.submitted_at || completedIds.has(String(a.id))) continue;
     const due = new Date(a.due_at).getTime();
     if (due <= now) continue;
     const hoursLeft = (due - now) / 3_600_000;

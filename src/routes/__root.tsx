@@ -14,7 +14,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from "@/integrations/supabase/client";
 import { purgeScopedStorage } from "@/lib/user-scope";
-import { syncAuthIdentity } from "@/lib/auth-user";
+import { getActiveIdentity, syncAuthIdentity } from "@/lib/auth-user";
 import { SiteFooter } from "@/components/site-footer";
 import { Toaster } from "@/components/ui/sonner";
 
@@ -137,12 +137,13 @@ function RootComponent() {
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
       if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
       const nextId = event === "SIGNED_OUT" ? null : (session?.user?.id ?? null);
+      const identityChanged = getActiveIdentity() !== nextId;
       if (event === "SIGNED_OUT") purgeScopedStorage();
       // Namespaces browser storage per account and drops the whole query
       // cache whenever the identity changes — no data can carry over.
       syncAuthIdentity(queryClient, nextId);
-      router.invalidate();
-      if (nextId) queryClient.invalidateQueries();
+      if (identityChanged) void router.invalidate();
+      if (event === "USER_UPDATED") void queryClient.invalidateQueries({ queryKey: ["user-profile"] });
     });
     return () => data.subscription.unsubscribe();
   }, [router, queryClient]);

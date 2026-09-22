@@ -2,21 +2,19 @@ import { useEffect, useState } from "react";
 import { useQuery, queryOptions } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useUserProfile } from "@/lib/user-profile";
-import { getDueDatesFn, type DueDateItem } from "@/lib/canvas.functions";
+import { getAllAssignmentsFn, type AssignmentItem } from "@/lib/canvas.functions";
 import { COMPLETED_ASSIGNMENTS_KEY, useLocalSet } from "@/lib/local-state";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
-// Counts only. The greeting card runs on the FREE dashboard, so it must never
-// pull the full Pro dataset into a free user's browser.
 const dueDatesQO = queryOptions({
-  queryKey: ["canvas", "duedates"],
-  queryFn: () => getDueDatesFn(),
+  queryKey: ["canvas", "assignments"],
+  queryFn: getAllAssignmentsFn,
   staleTime: 5 * 60_000,
 });
 
 function summarize(
-  assignments: DueDateItem[] | undefined,
+  assignments: AssignmentItem[] | undefined,
   isCompleted: (id: string | number) => boolean,
   now: Date,
 ) {
@@ -35,7 +33,7 @@ function summarize(
   for (const a of assignments) {
     if (!a.due_at) continue;
     if (isCompleted(a.id)) continue;
-    if (a.submitted) continue;
+    if (a.submission?.submitted_at || a.submission?.workflow_state === "graded") continue;
     const due = new Date(a.due_at).getTime();
     if (due < now.getTime()) {
       if (due >= startOfDay.getTime() - 7 * 24 * 3_600_000) overdue += 1;
@@ -62,8 +60,8 @@ export function DashboardHero() {
   }, []);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      const email = data?.user?.email;
+    supabase.auth.getSession().then(({ data }) => {
+      const email = data.session?.user.email;
       if (email) setEmailPrefix(email.split("@")[0]);
     });
   }, []);

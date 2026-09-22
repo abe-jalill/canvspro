@@ -34,9 +34,9 @@ export function useSubscription() {
     enabled: !!userId,
     // The server decides which Stripe mode counts — the client never sends it.
     queryFn: async (): Promise<SubscriptionRow | null> => getSubscriptionAccess(),
-    staleTime: 0,
-    // Never trust a warm cache across a reload for entitlement decisions.
-    refetchOnMount: "always",
+    staleTime: 60_000,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
     retry: 1,
   });
 

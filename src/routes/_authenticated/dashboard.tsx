@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { useDashboardLayout, type WidgetId, type WidgetSize } from "@/lib/dashboard-layout";
 import { WIDGETS } from "@/components/widgets/dashboard-widgets";
 import { DashboardHero } from "@/components/dashboard-hero";
+import { ProductivityOverview } from "@/components/productivity-overview";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
@@ -158,6 +159,7 @@ function Dashboard() {
       onPointerCancel={clearLongPress}
     >
       <DashboardHero />
+      <ProductivityOverview />
 
       {/* Customization Header */}
       <header className="flex flex-wrap items-center justify-between gap-3 px-1">

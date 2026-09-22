@@ -16,22 +16,22 @@ import { syncAuthIdentity } from "@/lib/auth-user";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { useQueryCachePersistence } from "@/lib/query-persist";
 import { useSidebarMode } from "@/lib/sidebar-state";
-import { AppWarmupSplash } from "@/components/app-warmup-splash";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async ({ context }) => {
-    const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) {
+    // Local session gates the UI; APIs still validate the token and enforce RLS.
+    const { data, error } = await supabase.auth.getSession();
+    if (error || !data.session) {
       purgeScopedStorage();
       syncAuthIdentity(context.queryClient, null);
       throw redirect({ to: "/auth" });
     }
     // Scope browser storage to this account and wipe any cache that belonged
     // to a different one BEFORE a single component renders.
-    syncAuthIdentity(context.queryClient, data.user.id);
-    return { user: data.user };
+    syncAuthIdentity(context.queryClient, data.session.user.id);
+    return { user: data.session.user };
   },
   component: AuthenticatedLayout,
 });
@@ -39,30 +39,32 @@ export const Route = createFileRoute("/_authenticated")({
 function AuthenticatedLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [sidebarMode] = useSidebarMode();
-  const mainRef = useRef<HTMLElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
-  // Every page change starts at the top — on desktop the page scrolls inside
-  // <main>, on mobile it scrolls the window, so reset both.
   useEffect(() => {
-    mainRef.current?.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
-    window.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if ("startViewTransition" in document) return;
+    const animation = contentRef.current?.animate(
+      [{ opacity: 0.7, transform: "translateY(4px)" }, { opacity: 1, transform: "translateY(0)" }],
+      { duration: 160, easing: "ease-out" },
+    );
+    return () => animation?.cancel();
   }, [pathname]);
 
 
   useNotificationEngine(true);
   useDueTodayBadge(true);
   useQueryCachePersistence();
-  const warmup = useAppPrefetch(true);
+  useAppPrefetch(true);
   useWelcomeEmail(true);
-
-  if (warmup === "warming") return <AppWarmupSplash />;
 
   return (
     <div className="min-h-screen w-full overflow-x-hidden md:h-screen md:overflow-hidden">
       <AppSidebar />
       <MobileNav />
       <main
-        ref={mainRef}
+        id="app-main"
+        data-scroll-restoration-id="app-main"
         className={cn(
           "transition-[padding] duration-300 ease-in-out md:h-screen md:overflow-y-auto md:py-4 md:pr-4",
           sidebarMode === "full" && "md:pl-64",
@@ -82,7 +84,7 @@ function AuthenticatedLayout() {
           <CanvasKeyGate>
             <ClassNamesGate>
               <PullToRefresh>
-                <div key={pathname} className="page-transition min-w-0">
+                <div ref={contentRef} className="route-content min-w-0">
                   <Outlet />
                 </div>
               </PullToRefresh>
