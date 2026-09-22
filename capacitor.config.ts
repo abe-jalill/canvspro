@@ -4,12 +4,16 @@ const config: CapacitorConfig = {
   appId: 'app.canvaspro.mobile',
   appName: 'CanvasPro',
   webDir: 'dist',
-  ios: {
-    contentInset: 'automatic',
-    preferredContentMode: 'mobile'
-  },
   server: {
+    url: 'https://canvaspro.app',
     cleartext: false
+  },
+  plugins: {
+    SplashScreen: {
+      launchAutoHide: false,
+      backgroundColor: '#090909',
+      showSpinner: false
+    }
   }
 };
 
