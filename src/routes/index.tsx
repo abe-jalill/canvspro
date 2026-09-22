@@ -35,7 +35,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "See every Canvas class, grade, and deadline in one clean dashboard — with notifications tuned to your day. First 10 days of Pro free, then $2.99/month or $30/year (save 17%).",
+          "See every Canvas class, grade, and deadline in one clean dashboard — free for everyone, with no subscription required.",
       },
       { property: "og:type", content: "website" },
       { property: "og:url", content: "https://canvaspro.app/" },
@@ -64,7 +64,7 @@ export const Route = createFileRoute("/")({
             "A customizable student dashboard for Canvas LMS with grades, assignments, announcements, and due-date reminders.",
           offers: {
             "@type": "Offer",
-            price: "2.99",
+            price: "0",
             priceCurrency: "USD",
           },
         }),
@@ -198,14 +198,14 @@ const FAQS = [
       "It takes about 30 seconds: Log in to your school's Canvas website, click 'Account' in the left menu, choose 'Settings', scroll down to 'Approved Integrations', and click '+ New Access Token'. Copy that token into Canvas Pro and your dashboard immediately populates.",
   },
   {
-    question: "What is included in the free tier vs. Pro?",
+    question: "What is included for free?",
     answer:
-      "The Free tier gives you access to the dashboard layout, custom course nicknames, light/dark themes, and our standalone Grade Calculator. Pro (first 10 days free, then $2.99/mo or $30/yr — save 17%!) unlocks live real-time Canvas sync, the final exam predictor, focus due-date windows, workload heatmap, .ics calendar export, and automated notification alerts.",
+      "Everything: live Canvas sync, grades, assignments, focus and study sessions, the final exam predictor, workload heatmap, calendar export, and notifications. No subscription or credit card is required.",
   },
   {
-    question: "Can I cancel my Pro subscription at any time?",
+    question: "What if I have an existing subscription?",
     answer:
-      "Yes, immediately with one click from your billing settings. There are no commitments, hidden cancellation fees, or contracts. When you cancel, you retain access until the end of your billing cycle.",
+      "You can manage or cancel it from Billing after signing in. CanvasPro access stays free even after cancellation.",
   },
   {
     question: "Does Canvas Pro work on mobile phones and tablets?",
@@ -299,7 +299,7 @@ function LandingPage() {
 
         <div className="mt-4 flex flex-wrap items-center justify-center gap-4 text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5">
-            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> Free dashboard tier
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> All features free
           </span>
           <span className="flex items-center gap-1.5">
             <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> 2-minute setup
@@ -721,23 +721,22 @@ function LandingPage() {
         </div>
       </section>
 
-      {/* Free vs Pro Comparison */}
+      {/* Free access */}
       <section className="mt-16">
         <div className="text-center">
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
             Simple Pricing
           </p>
           <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-            Start free. Upgrade for superpowers.
+            Every feature, free for everyone.
           </h2>
         </div>
 
-        <div className="mt-8 grid gap-4 sm:grid-cols-2">
-          {/* Free Tier */}
-          <div className="glass-panel flex flex-col justify-between p-6">
+        <div className="mx-auto mt-8 max-w-xl">
+          <div className="glass-panel-strong flex flex-col justify-between p-6">
             <div>
               <span className="inline-block rounded-md bg-foreground/10 px-2.5 py-1 text-xs font-semibold text-foreground">
-                Free Tier
+                CanvasPro
               </span>
               <p className="mt-3 text-3xl font-bold tracking-tight text-foreground">$0</p>
               <p className="mt-1 text-xs text-muted-foreground">Free forever — no credit card needed</p>
@@ -759,6 +758,14 @@ function LandingPage() {
                   <Check className="h-4 w-4 text-emerald-400" />
                   <span>Standalone Canvas Grade Calculator</span>
                 </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-emerald-400" />
+                  <span>Live Canvas grades, assignments & announcements</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-emerald-400" />
+                  <span>Focus, study sessions, calendar & notifications</span>
+                </li>
               </ul>
             </div>
 
@@ -772,65 +779,6 @@ function LandingPage() {
             </div>
           </div>
 
-          {/* Pro Tier */}
-          <div className="glass-panel-strong relative flex flex-col justify-between border-2 border-foreground/20 p-6 shadow-xl">
-            <div className="absolute -top-3 right-6 rounded-full bg-foreground px-3 py-0.5 text-[11px] font-semibold text-background">
-              Most Popular
-            </div>
-
-            <div>
-              <span className="inline-block rounded-md bg-primary/20 px-2.5 py-1 text-xs font-semibold text-primary">
-                Canvas Pro
-              </span>
-              <p className="mt-3 text-3xl font-bold tracking-tight text-foreground">
-                $2.99
-                <span className="text-sm font-normal text-muted-foreground"> / month</span>
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                or <span className="font-semibold text-foreground">$30 / year</span>{" "}
-                <span className="rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-semibold text-white">
-                  Save 17%!
-                </span>
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">First 10 days free, then less than one coffee a month. Cancel anytime.</p>
-
-              <ul className="mt-6 space-y-2.5 text-sm text-foreground/90">
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-emerald-400" />
-                  <span>Live Canvas grades, assignments & announcements</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-emerald-400" />
-                  <span>Automated final exam score estimator</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-emerald-400" />
-                  <span>Focus view (1-day to 1-week due windows)</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-emerald-400" />
-                  <span>Workload heatmap & syllabus links</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-emerald-400" />
-                  <span>.ics calendar export (Google, Apple, Outlook)</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-emerald-400" />
-                  <span>Smart notifications & daily recap</span>
-                </li>
-              </ul>
-            </div>
-
-            <div className="mt-8">
-              <Link
-                to="/signup"
-                className="glass-hover inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-foreground px-4 text-sm font-semibold text-background"
-              >
-                Start 10 days free — then $2.99/mo or $30/yr (Save 17%!)
-              </Link>
-            </div>
-          </div>
         </div>
       </section>
 

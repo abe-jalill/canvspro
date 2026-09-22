@@ -20,45 +20,7 @@ function isActive(sub: SubscriptionRow | null): boolean {
 }
 
 /**
- * One-off entitlement read for non-React callers, used only to skip Canvas
- * requests the server would refuse anyway (free accounts) so the paywall never
- * surfaces as a 402 error.
- *
- * Returns "unknown" when the lookup could not be completed (no session yet,
- * network hiccup). Callers must NOT treat "unknown" as free: doing that is what
- * made pages render blank right after sign-in, because an empty result got
- * cached for minutes. Only a definite answer is memoised; the server-side
- * paywall stays the real boundary either way.
- */
-export type Entitlement = "paid" | "free" | "unknown";
-
-let paidAt = 0;
-let paidCache: Promise<Entitlement> | null = null;
-const PAID_TTL_MS = 30_000;
-
-export function fetchEntitlement(): Promise<Entitlement> {
-  if (paidCache && Date.now() - paidAt < PAID_TTL_MS) return paidCache;
-  paidAt = Date.now();
-  const pending: Promise<Entitlement> = getSubscriptionAccess()
-    .then((row): Entitlement => (isActive(row ?? null) ? "paid" : "free"))
-    .catch((): Entitlement => {
-      // Don't remember a failure — the next caller should ask again.
-      if (paidCache === pending) resetPaidAccessCache();
-      return "unknown";
-    });
-  paidCache = pending;
-  return pending;
-}
-
-/** Called after sign-out / subscription changes so nothing stale lingers. */
-export function resetPaidAccessCache() {
-  paidCache = null;
-  paidAt = 0;
-}
-
-/**
- * Pro entitlement. Fails CLOSED: while the signed-in user is unknown, while
- * the lookup is in flight, or if the lookup errors, `isActive` is false.
+ * Existing billing status, kept separate from free feature access.
  *
  * The row is read with the user's own session (RLS scopes `subscriptions` to
  * `auth.uid()`), and the query key carries the user id so a different account
@@ -85,7 +47,7 @@ export function useSubscription() {
     ...query,
     isLoading,
     subscription: resolved ? (query.data ?? null) : null,
-    // Fail closed: only an explicitly successful lookup can unlock Pro.
+    // This status is for billing display only; it does not gate features.
     isActive: resolved && !authError && isActive(query.data ?? null),
   };
 }

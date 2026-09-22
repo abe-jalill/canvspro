@@ -3,7 +3,6 @@
 // reads it server-side, so the browser never needs to hold it.
 import { supabase } from "@/integrations/supabase/client";
 import { fetchHasCanvasKey, clearCanvasKeyInvalidFlag } from "@/lib/user-settings";
-import { fetchEntitlement } from "@/lib/subscription";
 
 /**
  * Right after sign-in the session can still be settling. Waiting for it (and
@@ -31,17 +30,6 @@ async function invokeCanvas<T>(
   const hasKey = await fetchHasCanvasKey();
   if (!hasKey) return [] as unknown as T;
 
-  // Free accounts: the server refuses everything but due dates, so don't ask.
-  // Only a DEFINITE "free" skips the request — an unresolved check must not
-  // masquerade as an empty Canvas account.
-  if (resource !== "duedates" && (await fetchEntitlement()) === "free") {
-    return [] as unknown as T;
-  }
-
-
-
-
-
   const { data, error } = await supabase.functions.invoke("canvas", {
     body: { resource, ...(extra ?? {}) },
   });
@@ -60,18 +48,17 @@ async function invokeCanvas<T>(
           message = body.slice(0, 300);
         }
       }
-      // 428 = no Canvas key/URL yet, 402 = free account (server-enforced
-      // paywall). Both render as empty states, never as an error banner.
-      if (res.status === 428 || res.status === 402) return [] as unknown as T;
+      // A missing Canvas key/URL renders the setup state, not an error banner.
+      if (res.status === 428) return [] as unknown as T;
     }
-    if (/428|402|NO_CANVAS_KEY|NO_CANVAS_DOMAIN|NOT_SUBSCRIBED/.test(message))
+    if (/428|NO_CANVAS_KEY|NO_CANVAS_DOMAIN/.test(message))
       return [] as unknown as T;
     throw new Error(message);
   }
 
   if (data && typeof data === "object" && "error" in data && (data as { error?: string }).error) {
     const message = (data as { error: string }).error;
-    if (message === "NO_CANVAS_KEY" || message === "NO_CANVAS_DOMAIN" || message === "NOT_SUBSCRIBED")
+    if (message === "NO_CANVAS_KEY" || message === "NO_CANVAS_DOMAIN")
       return [] as unknown as T;
     throw new Error(message);
   }

@@ -134,6 +134,13 @@ async function subscriptionHandler(request: Request) {
       return Response.json(access, { headers });
     }
 
+    if (action === "checkout") {
+      return Response.json(
+        { error: "CanvasPro is free for everyone. New subscriptions are unavailable." },
+        { status: 410, headers },
+      );
+    }
+
     const { createStripeClient } = await import("@/lib/stripe.server");
     const { resolveStripeEnv } = await import("@/lib/payments-env.server");
     const stripe = createStripeClient(resolveStripeEnv());
@@ -163,41 +170,7 @@ async function subscriptionHandler(request: Request) {
       return Response.json({ url: portal.url }, { headers });
     }
 
-    if (action !== "checkout") {
-      return Response.json({ error: "Invalid billing action" }, { status: 400, headers });
-    }
-
-    if (body.priceId !== "pro_monthly" && body.priceId !== "pro_yearly") {
-      return Response.json({ error: "Invalid subscription plan" }, { status: 400, headers });
-    }
-
-    if (subscription?.stripe_customer_id && grantsAccess(subscription)) {
-      const portal = await stripe.billingPortal.sessions.create({
-        customer: subscription.stripe_customer_id,
-        return_url: returnUrl,
-      });
-      return Response.json({ url: portal.url }, { headers });
-    }
-
-    const prices = await stripe.prices.list({ lookup_keys: [body.priceId] });
-    const price = prices.data[0];
-    if (!price || price.type !== "recurring") {
-      return Response.json({ error: "Subscription plan is unavailable" }, { status: 503, headers });
-    }
-    const { resolveOrCreateCustomer } = await import("@/lib/stripe-customers.server");
-    const email = typeof claimsData.claims.email === "string" ? claimsData.claims.email : undefined;
-    const customerId = await resolveOrCreateCustomer(stripe, { userId, email });
-    const checkout = await stripe.checkout.sessions.create({
-      mode: "subscription",
-      customer: customerId,
-      line_items: [{ price: price.id, quantity: 1 }],
-      success_url: `${returnUrl}?result=success`,
-      cancel_url: `${returnUrl}?result=cancelled`,
-      metadata: { userId },
-      subscription_data: { metadata: { userId }, trial_period_days: 10 },
-    });
-    if (!checkout.url) throw new Error("Stripe did not return a checkout URL");
-    return Response.json({ url: checkout.url }, { headers });
+    return Response.json({ error: "Invalid billing action" }, { status: 400, headers });
   } catch (error) {
     console.error("Mobile subscription API error:", error);
 

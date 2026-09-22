@@ -23,7 +23,6 @@ import { DigestCard } from "@/components/digest-card";
 import { WorkloadHeatmap } from "@/components/workload-heatmap";
 import { GpaCalculator } from "@/components/gpa-calculator";
 import { getCalendarEventsFn } from "@/lib/canvas.functions";
-import { Lock } from "lucide-react";
 import { getGradeColor } from "@/lib/grade-color";
 
 const coursesQO = queryOptions({
@@ -654,26 +653,6 @@ function HeatmapWidget() {
 
 function GpaWidget() {
   return <GpaCalculator />;
-}
-
-/** Shown in place of a Pro-only widget for free-tier accounts. */
-export function LockedWidget({ title, feature }: { title: string; feature: string }) {
-  return (
-    <GlassCard title={title} subtitle="Canvas Pro">
-      <div className="flex flex-col items-start gap-3 p-1">
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Lock className="h-4 w-4" />
-          <p className="text-sm">{feature} is part of Canvas Pro.</p>
-        </div>
-        <Link
-          to="/billing"
-          className="glass-hover inline-flex min-h-10 items-center rounded-xl bg-foreground px-4 text-sm font-semibold text-background"
-        >
-          Start 10 days free — then $2.99/mo or $30/yr (Save 17%!)
-        </Link>
-      </div>
-    </GlassCard>
-  );
 }
 
 export type WidgetSize = "sm" | "md" | "full";

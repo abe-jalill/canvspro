@@ -317,8 +317,8 @@ function CalculatorPage() {
           <p className="text-sm text-muted-foreground">
             Canvas Pro pulls your real scores straight from Canvas and keeps every
             class, assignment, and announcement on one dashboard you arrange
-            yourself — with trend arrows when a grade moves. $2.99/month, or
-            $30/year (save 17%!).
+            yourself — with trend arrows when a grade moves. Every feature is
+            free, with no subscription required.
           </p>
           <div className="flex flex-wrap gap-3">
             <Link

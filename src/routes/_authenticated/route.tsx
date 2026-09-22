@@ -1,13 +1,10 @@
 import { createFileRoute, Outlet, redirect, useRouterState } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppSidebar, MobileNav } from "@/components/app-sidebar";
 import { CanvasKeyBanner } from "@/components/canvas-key-banner";
 import { CanvasKeyGate } from "@/components/canvas-key-gate";
 import { ClassNamesGate } from "@/components/class-names-editor";
-import { ProGate } from "@/components/pro-gate";
-import { useSubscription } from "@/lib/subscription";
 import { NotificationCenter } from "@/components/notification-center";
 import { CanvasLiveStatus } from "@/components/canvas-live-status";
 import { useNotificationEngine } from "@/hooks/use-notification-engine";
@@ -40,10 +37,8 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 function AuthenticatedLayout() {
-  const { isActive: isPro } = useSubscription();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [sidebarMode] = useSidebarMode();
-  const queryClient = useQueryClient();
   const mainRef = useRef<HTMLElement>(null);
 
   // Every page change starts at the top — on desktop the page scrolls inside
@@ -54,14 +49,8 @@ function AuthenticatedLayout() {
   }, [pathname]);
 
 
-  // The moment Pro access is confirmed, drop any Canvas result fetched while it
-  // was still unknown, so nothing stays blank waiting for a stale window.
-  useEffect(() => {
-    if (!isPro) return;
-    void queryClient.invalidateQueries({ queryKey: ["canvas"] });
-  }, [isPro, queryClient]);
-  useNotificationEngine(isPro);
-  useDueTodayBadge(isPro);
+  useNotificationEngine(true);
+  useDueTodayBadge(true);
   useQueryCachePersistence();
   const warmup = useAppPrefetch(true);
   useWelcomeEmail(true);
@@ -85,22 +74,18 @@ function AuthenticatedLayout() {
           <div className="mb-2 flex min-w-0 items-center justify-end gap-2">
             <CanvasLiveStatus />
             {/* Bell already lives in the mobile top bar — avoid a duplicate on phones */}
-            {isPro && (
-              <span className="hidden md:inline-flex">
-                <NotificationCenter />
-              </span>
-            )}
+            <span className="hidden md:inline-flex">
+              <NotificationCenter />
+            </span>
           </div>
           <CanvasKeyBanner />
           <CanvasKeyGate>
             <ClassNamesGate>
-              <ProGate>
-                <PullToRefresh>
-                  <div key={pathname} className="page-transition min-w-0">
-                    <Outlet />
-                  </div>
-                </PullToRefresh>
-              </ProGate>
+              <PullToRefresh>
+                <div key={pathname} className="page-transition min-w-0">
+                  <Outlet />
+                </div>
+              </PullToRefresh>
             </ClassNamesGate>
           </CanvasKeyGate>
         </div>

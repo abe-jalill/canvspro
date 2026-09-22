@@ -11,7 +11,6 @@ import {
   GraduationCap,
   LayoutDashboard,
   ListChecks,
-  Lock,
   LogOut,
   Megaphone,
   Moon,
@@ -27,8 +26,6 @@ import { purgeScopedStorage, useUserScope } from "@/lib/user-scope";
 import { syncAuthIdentity } from "@/lib/auth-user";
 import { NotificationCenter } from "@/components/notification-center";
 import { TrafficLights } from "@/components/traffic-lights";
-import { useSubscription } from "@/lib/subscription";
-import { isFreePath } from "@/components/pro-gate";
 import { getCoursesFn, type CourseSummary } from "@/lib/canvas.functions";
 import { displayCourseNameForCourse } from "@/lib/course-display";
 import { getGradeColor } from "@/lib/grade-color";
@@ -144,7 +141,6 @@ function SignOutButton({ compact = false }: { compact?: boolean }) {
 
 export function AppSidebar() {
   const pathname = useActivePath();
-  const { isActive: isPro } = useSubscription();
   const courses = useQuery(coursesQO);
   const [mode, setMode] = useSidebarMode();
 
@@ -248,7 +244,7 @@ export function AppSidebar() {
                 })}
               </nav>
               <div className="mt-auto flex flex-col items-center gap-2 pt-4">
-                {isPro && <ReminderToggle compact />}
+                <ReminderToggle compact />
                 <ThemeToggle compact />
                 <SignOutButton compact />
               </div>
@@ -297,9 +293,6 @@ export function AppSidebar() {
                         )}
                         <span className="truncate">{item.title}</span>
                       </span>
-                      {!isPro && !isFreePath(item.to) && (
-                        <Lock className="h-3.5 w-3.5 shrink-0 opacity-50" />
-                      )}
                     </span>
                   </Link>
                 ))}
@@ -355,7 +348,7 @@ export function AppSidebar() {
                 </div>
               </nav>
               <div className="mt-auto space-y-2 pt-4">
-                {isPro && <ReminderToggle />}
+                <ReminderToggle />
                 <ThemeToggle />
                 <SignOutButton />
               </div>
@@ -370,7 +363,6 @@ export function AppSidebar() {
 export function MobileNav() {
   const pathname = useActivePath();
   const locationHref = useRouterState({ select: (s) => s.location.href });
-  const { isActive: isPro } = useSubscription();
   const courses = useQuery(coursesQO);
   const [open, setOpen] = useState(false);
 
@@ -400,7 +392,7 @@ export function MobileNav() {
           {current}
         </p>
         <div className="flex items-center gap-2">
-          {isPro && <NotificationCenter />}
+          <NotificationCenter />
           <ThemeToggle compact />
         </div>
       </div>
@@ -439,9 +431,6 @@ export function MobileNav() {
           >
             <span className="flex w-full items-center justify-between gap-2">
               <span className="truncate">{item.title}</span>
-              {!isPro && !isFreePath(item.to) && (
-                <Lock className="h-3.5 w-3.5 shrink-0 opacity-60" />
-              )}
             </span>
           </Link>
         ))}
@@ -494,7 +483,7 @@ export function MobileNav() {
         </div>
 
         <div className="mt-1 grid grid-cols-2 gap-2 pt-2">
-          {isPro && <ReminderToggle />}
+          <ReminderToggle />
           <SignOutButton />
         </div>
       </div>

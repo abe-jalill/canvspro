@@ -13,12 +13,12 @@ export const Route = createFileRoute("/_authenticated/checkout/return")({
       { title: "Order confirmed — Canvas Pro" },
       {
         name: "description",
-        content: "Your Canvas Pro subscription is confirmed. Every feature is now unlocked.",
+        content: "View your existing CanvasPro subscription. Every feature is free for everyone.",
       },
       { property: "og:title", content: "Order confirmed — Canvas Pro" },
       {
         property: "og:description",
-        content: "Your Canvas Pro subscription is confirmed. Every feature is now unlocked.",
+        content: "View your existing CanvasPro subscription. Every feature is free for everyone.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -51,8 +51,8 @@ function CheckoutReturnPage() {
             <>
               <p className="text-sm text-muted-foreground">
                 {isActive
-                  ? "Your subscription is active — every Pro feature is unlocked."
-                  : "Your payment went through. Access unlocks as soon as the confirmation from your bank lands, usually within a few seconds."}
+                  ? "Your subscription is active. CanvasPro features are now free for everyone; you can manage or cancel it in Billing."
+                  : "Check Billing for your subscription status. CanvasPro features are free regardless of payment status."}
               </p>
               <p className="break-all text-xs text-muted-foreground">
                 Reference: {sessionId}
