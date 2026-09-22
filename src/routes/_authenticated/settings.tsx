@@ -10,8 +10,6 @@ import {
 import { ClassNamesSection } from "@/components/class-names-editor";
 import { HiddenCoursesSection } from "@/components/hidden-courses-editor";
 import { DeleteAccountSection } from "@/components/delete-account";
-import { useSubscription } from "@/lib/subscription";
-import { UpgradeCard } from "@/components/pro-gate";
 import { useAnnouncementWindow } from "@/lib/announcement-window";
 
 export const Route = createFileRoute("/_authenticated/settings")({
@@ -37,7 +35,6 @@ export const Route = createFileRoute("/_authenticated/settings")({
 function SettingsPage() {
   const { data: savedKey, isLoading } = useCanvasKey();
   const { data: savedDomain, isLoading: domainLoading } = useCanvasDomain();
-  const { isActive: isPro } = useSubscription();
   const save = useSaveCanvasKey();
   const [value, setValue] = useState("");
   const [domainValue, setDomainValue] = useState("");
@@ -183,8 +180,7 @@ function SettingsPage() {
         title="Notifications"
         subtitle="Choose which alerts you want and when."
       >
-        {isPro ? (
-          <div className="space-y-3">
+        <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
               Full controls — due-date lead times, grade thresholds, browser
               pop-ups, and quiet hours — live on their own page.

@@ -3,7 +3,6 @@
 // reads it server-side, so the browser never needs to hold it.
 import { supabase } from "@/integrations/supabase/client";
 import { fetchHasCanvasKey, clearCanvasKeyInvalidFlag } from "@/lib/user-settings";
-import { fetchEntitlement } from "@/lib/subscription";
 
 /**
  * Right after sign-in the session can still be settling. Waiting for it (and
@@ -31,12 +30,6 @@ async function invokeCanvas<T>(
   const hasKey = await fetchHasCanvasKey();
   if (!hasKey) return [] as unknown as T;
 
-  // Free accounts: the server refuses everything but due dates, so don't ask.
-  // Only a DEFINITE "free" skips the request — an unresolved check must not
-  // masquerade as an empty Canvas account.
-  if (resource !== "duedates" && (await fetchEntitlement()) === "free") {
-    return [] as unknown as T;
-  }
 
 
 

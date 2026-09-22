@@ -15,7 +15,6 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from "@/integrations/supabase/client";
 import { purgeScopedStorage } from "@/lib/user-scope";
 import { syncAuthIdentity } from "@/lib/auth-user";
-import { resetPaidAccessCache } from "@/lib/subscription";
 import { SiteFooter } from "@/components/site-footer";
 import { Toaster } from "@/components/ui/sonner";
 
@@ -67,7 +66,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "description",
         content:
-          "See every Canvas class, grade, and deadline in one clean dashboard — with notifications tuned to your day. First 10 days of Pro free, then $2.99/month or $30/year (save 17%).",
+          "See every Canvas class, grade, and deadline in one clean dashboard — with notifications tuned to your day. Free for every student.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -134,7 +133,6 @@ function RootComponent() {
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
       if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
       const nextId = event === "SIGNED_OUT" ? null : (session?.user?.id ?? null);
-      resetPaidAccessCache();
       if (event === "SIGNED_OUT") purgeScopedStorage();
       // Namespaces browser storage per account and drops the whole query
       // cache whenever the identity changes — no data can carry over.

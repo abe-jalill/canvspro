@@ -4,7 +4,6 @@ import { ChevronDown, ChevronUp, Eye, EyeOff, GripVertical, Plus, RotateCcw } fr
 import { cn } from "@/lib/utils";
 import { useDashboardLayout, type WidgetId, type WidgetSize } from "@/lib/dashboard-layout";
 import { WIDGETS, LockedWidget } from "@/components/widgets/dashboard-widgets";
-import { useSubscription } from "@/lib/subscription";
 import { DashboardHero } from "@/components/dashboard-hero";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -49,7 +48,6 @@ function colSpanClass(size: WidgetSize): string {
 
 function Dashboard() {
   const layout = useDashboardLayout();
-  const { isActive: isPro } = useSubscription();
   const [customizing, setCustomizing] = useState(false);
   const [draggedId, setDraggedId] = useState<WidgetId | null>(null);
   const [dropIndicator, setDropIndicator] = useState<{
@@ -226,8 +224,7 @@ function Dashboard() {
           const isDragging = draggedId === id;
           const isDropTarget = dropIndicator?.id === id;
 
-          const widgetBody =
-            meta.pro && !isPro ? <LockedWidget title={meta.label} feature={meta.label} /> : meta.render();
+          const widgetBody = meta.render();
 
           return (
             <div
