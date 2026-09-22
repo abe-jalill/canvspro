@@ -17,7 +17,7 @@ export function AuthShell({
 }) {
   return (
     <div className="flex min-h-screen w-full items-center justify-center px-4 py-10">
-      <div className={cn("glass-panel-strong w-full max-w-md p-6 sm:p-8", className)}>
+      <div className={cn("auth-shell-panel glass-panel-strong w-full max-w-md p-6 sm:p-8", className)}>
         <div className="mb-6">
           <p className="text-xs font-normal uppercase tracking-[0.18em] text-muted-foreground">Canvas Pro</p>
           <h1 className="mt-2 text-2xl font-normal tracking-tight">{title}</h1>
