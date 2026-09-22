@@ -473,3 +473,21 @@
     animation: none !important;
   }
 }
+
+
+/*
+ * iOS Safari/WKWebView performance guard.
+ * Fixed backgrounds + large backdrop filters are expensive while the software
+ * keyboard is resizing the viewport and can stall controlled form inputs.
+ */
+@supports (-webkit-touch-callout: none) {
+  body {
+    background-attachment: scroll;
+  }
+
+  .auth-shell-panel {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: hsl(var(--glass-strong));
+  }
+}
