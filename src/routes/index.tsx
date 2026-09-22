@@ -169,7 +169,7 @@ const TESTIMONIALS = [
     quote:
       "The built-in final exam calculator alone is worth it. It automatically told me I needed an 81% on my Chem final to keep an A, instead of me guessing with an Excel spreadsheet at 2 AM.",
     author: "Omar S.",
-    school: "UofM - Michigan • Finance ",
+    school: "UofM - Dearborn • Finance ",
     stars: 5,
   },
   {
