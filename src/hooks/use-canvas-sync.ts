@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { resetCanvasBundleRequest } from "@/lib/canvas.functions";
 
 /**
  * Forces a fresh pull of every Canvas query (courses, assignments,
@@ -14,8 +15,8 @@ export function useCanvasSync() {
     if (isSyncing) return;
     setIsSyncing(true);
     try {
+      resetCanvasBundleRequest();
       await queryClient.refetchQueries({ queryKey: ["canvas"], type: "active" });
-      queryClient.invalidateQueries({ queryKey: ["canvas"] });
       toast.success("Sync complete", { description: "Canvas data is up to date." });
     } catch (err) {
       toast.error("Sync failed", {

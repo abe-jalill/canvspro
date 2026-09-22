@@ -5,6 +5,14 @@ import { toast } from "sonner";
 export const canvasKeyQueryKey = ["user-settings", "canvas-key"] as const;
 export const canvasDomainQueryKey = ["user-settings", "canvas-domain"] as const;
 
+let canvasKeyRequest: { userId: string; startedAt: number; promise: Promise<boolean> } | null =
+  null;
+const CANVAS_KEY_DEDUPE_MS = 2_000;
+
+function resetCanvasKeyRequest() {
+  canvasKeyRequest = null;
+}
+
 /**
  * Normalizes a user-supplied Canvas URL to a bare hostname, e.g.
  * "https://Yourschool.Instructure.com/" → "yourschool.instructure.com".
@@ -26,11 +34,27 @@ export function normalizeCanvasDomain(raw: string | null | undefined): string {
  * backend whether one is saved, never for the value itself.
  */
 export async function fetchHasCanvasKey(): Promise<boolean> {
-  const { data: userData } = await supabase.auth.getUser();
-  if (!userData.user) return false;
-  const { data, error } = await supabase.rpc("has_canvas_key");
-  if (error) throw new Error(error.message);
-  return data === true;
+  const { data: sessionData } = await supabase.auth.getSession();
+  const userId = sessionData.session?.user.id;
+  if (!userId) return false;
+  if (
+    canvasKeyRequest?.userId === userId &&
+    Date.now() - canvasKeyRequest.startedAt < CANVAS_KEY_DEDUPE_MS
+  ) {
+    return canvasKeyRequest.promise;
+  }
+  const promise = (async () => {
+    try {
+      const { data, error } = await supabase.rpc("has_canvas_key");
+      if (error) throw new Error(error.message);
+      return data === true;
+    } catch (error) {
+      resetCanvasKeyRequest();
+      throw error;
+    }
+  })();
+  canvasKeyRequest = { userId, startedAt: Date.now(), promise };
+  return promise;
 }
 
 /**
@@ -41,8 +65,8 @@ export function useCanvasDomain() {
   return useQuery({
     queryKey: canvasDomainQueryKey,
     queryFn: async (): Promise<string | null> => {
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user) return null;
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session?.user) return null;
       const { data, error } = await supabase
         .from("user_settings")
         .select("canvas_domain")
@@ -61,8 +85,8 @@ export function useCanvasDomain() {
  * keep warning about a key that clearly works.
  */
 export async function clearCanvasKeyInvalidFlag(): Promise<void> {
-  const { data: userData } = await supabase.auth.getUser();
-  const user = userData.user;
+  const { data: sessionData } = await supabase.auth.getSession();
+  const user = sessionData.session?.user;
   if (!user) return;
   await supabase
     .from("user_preferences")
@@ -173,6 +197,7 @@ export function useSaveCanvasKey() {
       return key;
     },
     onSuccess: async (key) => {
+      resetCanvasKeyRequest();
       toast.success(key ? "Canvas connection saved" : "Canvas key cleared");
       await qc.invalidateQueries({ queryKey: ["user-preferences"] });
       await qc.invalidateQueries({ queryKey: canvasKeyQueryKey });

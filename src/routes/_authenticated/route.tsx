@@ -5,7 +5,7 @@ import {
   useRouter,
   useRouterState,
 } from "@tanstack/react-router";
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppSidebar, MobileNav } from "@/components/app-sidebar";
@@ -25,6 +25,8 @@ import { syncAuthIdentity } from "@/lib/auth-user";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { useQueryCachePersistence } from "@/lib/query-persist";
 import { useSidebarMode } from "@/lib/sidebar-state";
+import { useNicknames } from "@/lib/nicknames";
+import { setNicknameLookup } from "@/lib/course-display";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -56,6 +58,14 @@ function AuthenticatedLayout() {
   const [sidebarMode] = useSidebarMode();
   const queryClient = useQueryClient();
   const mainRef = useRef<HTMLElement>(null);
+  const pageRef = useRef<HTMLDivElement>(null);
+  const initialPage = useRef(true);
+  const priorPro = useRef<boolean | null>(null);
+  // Resolve the display lookup before any sidebar/page child renders. Updating
+  // the parent naturally re-renders descendants while preserving their state;
+  // the old keyed wrapper remounted the entire active route when names loaded.
+  const nicknames = useNicknames();
+  setNicknameLookup(nicknames.data ?? []);
 
   useEffect(() => {
     let active = true;
@@ -83,15 +93,37 @@ function AuthenticatedLayout() {
   // Every page change starts at the top — on desktop the page scrolls inside
   // <main>, on mobile it scrolls the window, so reset both.
   useEffect(() => {
-    mainRef.current?.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
-    window.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
+    if (window.matchMedia("(min-width: 48rem)").matches) {
+      mainRef.current?.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
+    }
+  }, [pathname]);
+
+  // Animate the already-rendered route container instead of keying/remounting
+  // the whole subtree. Starting almost opaque prevents white flashes while a
+  // short translate gives navigation a native iOS sense of continuity.
+  useLayoutEffect(() => {
+    if (initialPage.current) {
+      initialPage.current = false;
+      return;
+    }
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const animation = pageRef.current?.animate(
+      [
+        { opacity: 0.97, transform: "translate3d(0, 3px, 0)" },
+        { opacity: 1, transform: "translate3d(0, 0, 0)" },
+      ],
+      { duration: 160, easing: "cubic-bezier(0.16, 1, 0.3, 1)" },
+    );
+    return () => animation?.cancel();
   }, [pathname]);
 
   // The moment Pro access is confirmed, drop any Canvas result fetched while it
   // was still unknown, so nothing stays blank waiting for a stale window.
   useEffect(() => {
-    if (!isPro) return;
-    void queryClient.invalidateQueries({ queryKey: ["canvas"] });
+    if (priorPro.current === false && isPro) {
+      void queryClient.invalidateQueries({ queryKey: ["canvas"] });
+    }
+    priorPro.current = isPro;
   }, [isPro, queryClient]);
   useNotificationEngine(isPro);
   useDueTodayBadge(isPro);
@@ -127,7 +159,7 @@ function AuthenticatedLayout() {
             <ClassNamesGate>
               <ProGate>
                 <PullToRefresh>
-                  <div key={pathname} className="page-transition min-w-0">
+                  <div ref={pageRef} className="min-w-0">
                     <Outlet />
                   </div>
                 </PullToRefresh>

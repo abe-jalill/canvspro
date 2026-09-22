@@ -62,8 +62,8 @@ export function DashboardHero() {
   }, []);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      const email = data?.user?.email;
+    supabase.auth.getSession().then(({ data }) => {
+      const email = data.session?.user.email;
       if (email) setEmailPrefix(email.split("@")[0]);
     });
   }, []);

@@ -1,7 +1,14 @@
 import { useEffect } from "react";
 import { useRouter } from "@tanstack/react-router";
 
-const ROUTES = ["/focus", "/schedule", "/grades", "/assignments", "/announcements"] as const;
+const ROUTES = [
+  "/focus",
+  "/study-session",
+  "/schedule",
+  "/grades",
+  "/assignments",
+  "/announcements",
+] as const;
 
 /**
  * Warms the most-used route chunks only after the browser is idle. Data is

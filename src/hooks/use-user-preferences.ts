@@ -10,9 +10,9 @@ export const userPreferencesQueryKey = ["user-preferences"] as const;
 type PrefMap = Record<string, unknown>;
 
 export async function fetchUserPreferences(): Promise<PrefMap> {
-  const { data: userData, error: userError } = await supabase.auth.getUser();
-  const user = userData.user;
-  if (userError || !user) throw new Error("Not signed in");
+  const { data: sessionData } = await supabase.auth.getSession();
+  const user = sessionData.session?.user;
+  if (!user) throw new Error("Not signed in");
   const { data, error } = await supabase
     .from("user_preferences")
     .select("key, value")
@@ -25,12 +25,9 @@ export async function fetchUserPreferences(): Promise<PrefMap> {
   return result;
 }
 
-export async function getUserPreference<T>(
-  key: string,
-  defaultValue: T,
-): Promise<T> {
-  const { data: userData } = await supabase.auth.getUser();
-  const user = userData.user;
+export async function getUserPreference<T>(key: string, defaultValue: T): Promise<T> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const user = sessionData.session?.user;
   if (!user) return defaultValue;
   const { data, error } = await supabase
     .from("user_preferences")

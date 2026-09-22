@@ -8,6 +8,7 @@ const RENAME_RULES: Array<{ match: RegExp; name: string }> = [
 // every existing display call site picks them up without an id.
 let nicknameByText = new Map<string, string>();
 let nicknameById = new Map<number, string>();
+let nicknameRows: readonly NicknameLookupRow[] | undefined;
 
 export interface NicknameLookupRow {
   canvas_course_id: number;
@@ -27,7 +28,9 @@ function loose(s: string) {
     .replace(/[^a-z0-9]+/g, "");
 }
 
-export function setNicknameLookup(rows: NicknameLookupRow[]) {
+export function setNicknameLookup(rows: readonly NicknameLookupRow[]) {
+  if (nicknameRows === rows) return;
+  nicknameRows = rows;
   const byText = new Map<string, string>();
   const byId = new Map<number, string>();
   for (const r of rows) {
@@ -45,12 +48,6 @@ export function setNicknameLookup(rows: NicknameLookupRow[]) {
   nicknameById = byId;
 }
 
-export function nicknameLookupVersion() {
-  return Array.from(nicknameById.entries())
-    .sort((a, b) => a[0] - b[0])
-    .map(([id, n]) => `${id}:${n}`)
-    .join("|");
-}
 /**
  * Automatically converts raw all-caps names from university systems (e.g.
  * "UNIVERSITY PHYSICS 1", "PHYSICS 1 LAB", "CE PERSPECTIVES") into clean,
@@ -101,7 +98,21 @@ export function formatCleanTitle(str?: string | null): string {
       "USA",
       "UK",
     ]);
-    const minorWords = new Set(["of", "and", "in", "to", "for", "with", "on", "at", "by", "from", "the", "a", "an"]);
+    const minorWords = new Set([
+      "of",
+      "and",
+      "in",
+      "to",
+      "for",
+      "with",
+      "on",
+      "at",
+      "by",
+      "from",
+      "the",
+      "a",
+      "an",
+    ]);
 
     return trimmed
       .split(/(\s+)/)
@@ -129,7 +140,11 @@ export function nicknameForCourseId(id?: number | null) {
 }
 
 /** Prefer the stable Canvas course id, then fall back to raw name/code matching. */
-export function displayCourseNameForCourse(id?: number | null, name?: string | null, code?: string | null) {
+export function displayCourseNameForCourse(
+  id?: number | null,
+  name?: string | null,
+  code?: string | null,
+) {
   const nick = nicknameForCourseId(id);
   if (nick) return formatCleanTitle(nick);
   return displayCourseName(name, code);

@@ -38,10 +38,6 @@ async function invokeCanvas<T>(
     return [] as unknown as T;
   }
 
-
-
-
-
   const { data, error } = await supabase.functions.invoke("canvas", {
     body: { resource, ...(extra ?? {}) },
   });
@@ -71,7 +67,11 @@ async function invokeCanvas<T>(
 
   if (data && typeof data === "object" && "error" in data && (data as { error?: string }).error) {
     const message = (data as { error: string }).error;
-    if (message === "NO_CANVAS_KEY" || message === "NO_CANVAS_DOMAIN" || message === "NOT_SUBSCRIBED")
+    if (
+      message === "NO_CANVAS_KEY" ||
+      message === "NO_CANVAS_DOMAIN" ||
+      message === "NOT_SUBSCRIBED"
+    )
       return [] as unknown as T;
     throw new Error(message);
   }
@@ -155,6 +155,11 @@ let inflight: Promise<CanvasBundle> | null = null;
 let inflightAt = 0;
 const DEDUPE_MS = 2_000;
 
+export function resetCanvasBundleRequest() {
+  inflight = null;
+  inflightAt = 0;
+}
+
 export function fetchCanvasBundle(): Promise<CanvasBundle> {
   if (inflight && Date.now() - inflightAt < DEDUPE_MS) return inflight;
   inflightAt = Date.now();
@@ -175,7 +180,7 @@ export function fetchCanvasBundle(): Promise<CanvasBundle> {
       };
     })
     .catch((err) => {
-      inflight = null;
+      resetCanvasBundleRequest();
       throw err;
     });
   return inflight;

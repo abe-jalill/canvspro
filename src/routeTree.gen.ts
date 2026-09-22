@@ -16,6 +16,7 @@ import { Route as CanvasDashboardGuideRouteImport } from './routes/canvas-dashbo
 import { Route as CanvasGradeCalculatorRouteImport } from './routes/canvas-grade-calculator'
 import { Route as EmailVerifiedRouteImport } from './routes/email-verified'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as MobileBillingReturnRouteImport } from './routes/mobile-billing-return'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
@@ -75,6 +76,11 @@ const EmailVerifiedRoute = EmailVerifiedRouteImport.update({
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
   id: '/forgot-password',
   path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MobileBillingReturnRoute = MobileBillingReturnRouteImport.update({
+  id: '/mobile-billing-return',
+  path: '/mobile-billing-return',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PricingRoute = PricingRouteImport.update({
@@ -224,6 +230,7 @@ export interface FileRoutesByFullPath {
   '/canvas-grade-calculator': typeof CanvasGradeCalculatorRoute
   '/email-verified': typeof EmailVerifiedRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/mobile-billing-return': typeof MobileBillingReturnRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -258,6 +265,7 @@ export interface FileRoutesByTo {
   '/canvas-grade-calculator': typeof CanvasGradeCalculatorRoute
   '/email-verified': typeof EmailVerifiedRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/mobile-billing-return': typeof MobileBillingReturnRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -294,6 +302,7 @@ export interface FileRoutesById {
   '/canvas-grade-calculator': typeof CanvasGradeCalculatorRoute
   '/email-verified': typeof EmailVerifiedRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/mobile-billing-return': typeof MobileBillingReturnRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -330,6 +339,7 @@ export interface FileRouteTypes {
     | '/canvas-grade-calculator'
     | '/email-verified'
     | '/forgot-password'
+    | '/mobile-billing-return'
     | '/pricing'
     | '/privacy'
     | '/reset-password'
@@ -364,6 +374,7 @@ export interface FileRouteTypes {
     | '/canvas-grade-calculator'
     | '/email-verified'
     | '/forgot-password'
+    | '/mobile-billing-return'
     | '/pricing'
     | '/privacy'
     | '/reset-password'
@@ -399,6 +410,7 @@ export interface FileRouteTypes {
     | '/canvas-grade-calculator'
     | '/email-verified'
     | '/forgot-password'
+    | '/mobile-billing-return'
     | '/pricing'
     | '/privacy'
     | '/reset-password'
@@ -435,6 +447,7 @@ export interface RootRouteChildren {
   CanvasGradeCalculatorRoute: typeof CanvasGradeCalculatorRoute
   EmailVerifiedRoute: typeof EmailVerifiedRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
+  MobileBillingReturnRoute: typeof MobileBillingReturnRoute
   PricingRoute: typeof PricingRoute
   PrivacyRoute: typeof PrivacyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
@@ -499,6 +512,13 @@ declare module '@tanstack/react-router' {
       path: '/forgot-password'
       fullPath: '/forgot-password'
       preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mobile-billing-return': {
+      id: '/mobile-billing-return'
+      path: '/mobile-billing-return'
+      fullPath: '/mobile-billing-return'
+      preLoaderRoute: typeof MobileBillingReturnRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pricing': {
@@ -729,6 +749,7 @@ const rootRouteChildren: RootRouteChildren = {
   CanvasGradeCalculatorRoute: CanvasGradeCalculatorRoute,
   EmailVerifiedRoute: EmailVerifiedRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
+  MobileBillingReturnRoute: MobileBillingReturnRoute,
   PricingRoute: PricingRoute,
   PrivacyRoute: PrivacyRoute,
   ResetPasswordRoute: ResetPasswordRoute,

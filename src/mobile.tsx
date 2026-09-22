@@ -7,7 +7,7 @@ import { routeTree } from "./routeTree.mobile.gen";
 import "./styles.css";
 import { AppLaunchShell } from "./components/app-launch-shell";
 import { supabase } from "./integrations/supabase/client";
-import { syncAuthIdentity } from "./lib/auth-user";
+import { getActiveIdentity, syncAuthIdentity } from "./lib/auth-user";
 import { restoreQueryCache } from "./lib/query-persist";
 
 const queryClient = new QueryClient({
@@ -52,7 +52,21 @@ async function start() {
     // The router will show the signed-out route if session storage is unavailable.
   }
   syncAuthIdentity(queryClient, userId);
-  if (userId) await restoreQueryCache(queryClient).catch(() => undefined);
+  if (userId) {
+    const restoringFor = userId;
+    const restore = restoreQueryCache(queryClient)
+      .then(() => {
+        // If the account changed while a large cache was still parsing, erase
+        // anything it just hydrated so the previous student's data can never
+        // reappear after logout/login.
+        if (getActiveIdentity() !== restoringFor) queryClient.clear();
+      })
+      .catch(() => undefined);
+    // A damaged or oversized WebView cache must never hold the first React
+    // frame hostage. Usually hydration wins this race; otherwise it safely
+    // finishes in the background and React Query reconciles by updatedAt.
+    await Promise.race([restore, new Promise<void>((resolve) => window.setTimeout(resolve, 250))]);
+  }
 
   ReactDOM.createRoot(document.getElementById("root")!).render(
     <React.StrictMode>

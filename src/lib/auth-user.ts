@@ -23,10 +23,7 @@ export function getActiveIdentity(): string | null | undefined {
  * was populated for, the cache is wiped synchronously so no component can
  * observe the previous account's data — not even for a single render.
  */
-export function syncAuthIdentity(
-  queryClient: QueryClient,
-  userId: string | null,
-): void {
+export function syncAuthIdentity(queryClient: QueryClient, userId: string | null): void {
   setUserScope(userId);
   if (activeIdentity === userId) return;
   activeIdentity = userId;
@@ -51,10 +48,14 @@ export function useAuthUserId(): {
   isPending: boolean;
   isError: boolean;
 } {
+  const knownIdentity = getActiveIdentity();
   const query = useQuery({
     queryKey: authUserQueryKey,
     queryFn: fetchAuthUserId,
+    initialData: knownIdentity === undefined ? undefined : knownIdentity,
+    initialDataUpdatedAt: knownIdentity === undefined ? undefined : Date.now(),
     staleTime: 60_000,
+    refetchOnMount: false,
     retry: 1,
   });
   return {
@@ -65,9 +66,6 @@ export function useAuthUserId(): {
 }
 
 /** Query key helper: `userKey(["subscription"], userId)`. */
-export function userKey(
-  base: readonly unknown[],
-  userId: string | null,
-): readonly unknown[] {
+export function userKey(base: readonly unknown[], userId: string | null): readonly unknown[] {
   return [...base, userId ?? "anon"];
 }

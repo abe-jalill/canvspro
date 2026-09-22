@@ -15,7 +15,9 @@ const BUSTER = "v2";
 /** Query keys worth persisting — everything else is cheap or session-only.
  *
  * Deliberately excluded:
- *  - "subscription" / "auth-user": entitlements are never served from a cache.
+ *  - "subscription" / "auth-user": these are not part of the general query
+ *    cache. Subscription UI uses a separate short-lived, account-scoped
+ *    snapshot and always revalidates it against the backend.
  *  - "user-preferences": a restored (possibly stale) copy could become the
  *    basis for a write and overwrite newer data saved on another device.
  */

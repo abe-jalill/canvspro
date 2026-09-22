@@ -8,15 +8,11 @@ function isNewSupabaseApiKey(value: string): boolean {
 function createSupabaseFetch(supabaseKey: string): typeof fetch {
   return (input, init) => {
     const headers = new Headers(
-      typeof Request !== "undefined" && input instanceof Request
-        ? input.headers
-        : undefined,
+      typeof Request !== "undefined" && input instanceof Request ? input.headers : undefined,
     );
 
     if (init?.headers) {
-      new Headers(init.headers).forEach((value, key) =>
-        headers.set(key, value),
-      );
+      new Headers(init.headers).forEach((value, key) => headers.set(key, value));
     }
 
     if (
@@ -45,14 +41,11 @@ function corsHeaders(request: Request) {
     "https://www.canvaspro.app",
   ];
 
-  const allowedOrigin = allowedOrigins.includes(origin)
-    ? origin
-    : "https://canvaspro.app";
+  const allowedOrigin = allowedOrigins.includes(origin) ? origin : "https://canvaspro.app";
 
   return {
     "Access-Control-Allow-Origin": allowedOrigin,
-    "Access-Control-Allow-Headers":
-      "authorization, content-type, apikey, x-client-info",
+    "Access-Control-Allow-Headers": "authorization, content-type, apikey, x-client-info",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     Vary: "Origin",
   };
@@ -65,75 +58,153 @@ async function subscriptionHandler(request: Request) {
     const authHeader = request.headers.get("authorization");
 
     if (!authHeader?.startsWith("Bearer ")) {
-      return Response.json(
-        { error: "Not signed in" },
-        { status: 401, headers },
-      );
+      return Response.json({ error: "Not signed in" }, { status: 401, headers });
     }
 
     const token = authHeader.slice(7);
 
     const SUPABASE_URL = process.env.SUPABASE_URL;
-    const SUPABASE_PUBLISHABLE_KEY =
-      process.env.SUPABASE_PUBLISHABLE_KEY;
+    const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY;
 
     if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
       throw new Error("Supabase configuration missing");
     }
 
-    const supabase = createClient(
-      SUPABASE_URL,
-      SUPABASE_PUBLISHABLE_KEY,
-      {
-        global: {
-          fetch: createSupabaseFetch(SUPABASE_PUBLISHABLE_KEY),
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false,
+    const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+      global: {
+        fetch: createSupabaseFetch(SUPABASE_PUBLISHABLE_KEY),
+        headers: {
+          Authorization: `Bearer ${token}`,
         },
       },
-    );
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    });
 
-    const { data: claimsData, error: claimsError } =
-      await supabase.auth.getClaims(token);
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
 
     const userId = claimsData?.claims?.sub;
 
     if (claimsError || !userId) {
-      return Response.json(
-        { error: "Not signed in" },
-        { status: 401, headers },
-      );
+      return Response.json({ error: "Not signed in" }, { status: 401, headers });
     }
 
-    const { ENTITLEMENT_ENV } =
-      await import("@/lib/payments-env.server");
+    const { ENTITLEMENT_ENV } = await import("@/lib/payments-env.server");
 
-    const { data: subscription, error } = await supabase
+    const body = (await request.json().catch(() => ({}))) as {
+      action?: "status" | "checkout" | "portal";
+      priceId?: string;
+    };
+    const action = body.action ?? "status";
+
+    const { data: subscriptions, error } = await supabase
       .from("subscriptions")
       .select(
-        "status, price_id, current_period_end, cancel_at_period_end",
+        "status, price_id, current_period_end, cancel_at_period_end, stripe_customer_id, stripe_subscription_id",
       )
       .eq("user_id", userId)
       .eq("environment", ENTITLEMENT_ENV)
       .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .limit(20);
 
     if (error) throw error;
 
-    return Response.json(subscription ?? null, {
-      headers,
+    const grantsAccess = (row: (typeof subscriptions)[number] | null | undefined) => {
+      if (!row) return false;
+      const periodEnd = row.current_period_end ? new Date(row.current_period_end).getTime() : 0;
+      if (row.status === "active" || row.status === "trialing") {
+        return !row.current_period_end || periodEnd > Date.now();
+      }
+      return row.status === "canceled" && periodEnd > Date.now();
+    };
+    // Prefer a still-valid entitlement over newer historical rows. This keeps
+    // website and app access correct even if an account accumulated more than
+    // one Stripe subscription before duplicate-checkout protection existed.
+    const subscription = subscriptions?.find(grantsAccess) ?? subscriptions?.[0] ?? null;
+
+    if (action === "status") {
+      if (!subscription) return Response.json(null, { headers });
+      const {
+        stripe_customer_id: _customer,
+        stripe_subscription_id: _subscription,
+        ...access
+      } = subscription;
+      return Response.json(access, { headers });
+    }
+
+    const { createStripeClient } = await import("@/lib/stripe.server");
+    const { resolveStripeEnv } = await import("@/lib/payments-env.server");
+    const stripe = createStripeClient(resolveStripeEnv());
+    const returnUrl = "https://canvaspro.app/mobile-billing-return";
+
+    if (action === "portal") {
+      if (!subscription?.stripe_customer_id || !subscription.stripe_subscription_id) {
+        return Response.json(
+          { error: "No paid subscription found for this account" },
+          { status: 404, headers },
+        );
+      }
+      const stripeSubscription = await stripe.subscriptions.retrieve(
+        subscription.stripe_subscription_id,
+      );
+      const customerId =
+        typeof stripeSubscription.customer === "string"
+          ? stripeSubscription.customer
+          : stripeSubscription.customer.id;
+      if (customerId !== subscription.stripe_customer_id) {
+        return Response.json({ error: "Subscription account mismatch" }, { status: 403, headers });
+      }
+      const portal = await stripe.billingPortal.sessions.create({
+        customer: customerId,
+        return_url: returnUrl,
+      });
+      return Response.json({ url: portal.url }, { headers });
+    }
+
+    if (action !== "checkout") {
+      return Response.json({ error: "Invalid billing action" }, { status: 400, headers });
+    }
+
+    if (body.priceId !== "pro_monthly" && body.priceId !== "pro_yearly") {
+      return Response.json({ error: "Invalid subscription plan" }, { status: 400, headers });
+    }
+
+    if (subscription?.stripe_customer_id && grantsAccess(subscription)) {
+      const portal = await stripe.billingPortal.sessions.create({
+        customer: subscription.stripe_customer_id,
+        return_url: returnUrl,
+      });
+      return Response.json({ url: portal.url }, { headers });
+    }
+
+    const prices = await stripe.prices.list({ lookup_keys: [body.priceId] });
+    const price = prices.data[0];
+    if (!price || price.type !== "recurring") {
+      return Response.json({ error: "Subscription plan is unavailable" }, { status: 503, headers });
+    }
+    const { resolveOrCreateCustomer } = await import("@/lib/stripe-customers.server");
+    const email = typeof claimsData.claims.email === "string" ? claimsData.claims.email : undefined;
+    const customerId = await resolveOrCreateCustomer(stripe, { userId, email });
+    const checkout = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      customer: customerId,
+      line_items: [{ price: price.id, quantity: 1 }],
+      success_url: `${returnUrl}?result=success`,
+      cancel_url: `${returnUrl}?result=cancelled`,
+      metadata: { userId },
+      subscription_data: { metadata: { userId }, trial_period_days: 10 },
     });
+    if (!checkout.url) throw new Error("Stripe did not return a checkout URL");
+    return Response.json({ url: checkout.url }, { headers });
   } catch (error) {
     console.error("Mobile subscription API error:", error);
 
+    const { getStripeErrorMessage } = await import("@/lib/stripe.server");
+
     return Response.json(
-      { error: "Unable to load subscription" },
+      { error: getStripeErrorMessage(error) },
       {
         status: 500,
         headers,
@@ -150,8 +221,7 @@ export const Route = createFileRoute("/api/mobile/subscription")({
           headers: corsHeaders(request),
         }),
 
-      POST: async ({ request }) =>
-        subscriptionHandler(request),
+      POST: async ({ request }) => subscriptionHandler(request),
     },
   },
 });

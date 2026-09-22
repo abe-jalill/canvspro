@@ -47,8 +47,8 @@ export function saveLocalProfile(profile: UserProfile) {
 }
 
 export async function fetchUserProfile(): Promise<UserProfile> {
-  const { data: userData } = await supabase.auth.getUser();
-  const meta = userData.user?.user_metadata ?? {};
+  const { data: sessionData } = await supabase.auth.getSession();
+  const meta = sessionData.session?.user.user_metadata ?? {};
   const local = getLocalProfile();
 
   const profile: UserProfile = {
