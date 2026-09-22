@@ -281,12 +281,17 @@ function Dashboard() {
           const isDragging = draggedId === id;
           const isDropTarget = dropIndicator?.id === id;
 
-          const widgetBody =
+          // Native shows one full-width card at a time. Keep the adjacent card
+          // mounted for a smooth swipe, but don't start every hidden widget's
+          // queries and render work during launch.
+          const shouldRender = !showCarousel || Math.abs(pageIndex - activeWidget) <= 1;
+          const widgetBody = shouldRender ? (
             meta.pro && !isPro ? (
               <LockedWidget title={meta.label} feature={meta.label} />
             ) : (
               meta.render()
-            );
+            )
+          ) : null;
 
           return (
             <div

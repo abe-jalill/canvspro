@@ -1,1 +1,0 @@
-import{t as e}from"./use-user-preferences-CKIhrPQP.js";var t=`announcement_window_weeks`;function n(){let n=e(t,2),r=n.value===1?1:2;return{weeks:r,label:r===1?`Last week`:`Last 2 weeks`,isLoading:n.isLoading,ready:n.ready,set:e=>n.set(e)}}function r(e,t,n=Date.now()){if(!e)return!0;let r=new Date(e).getTime();return Number.isNaN(r)?!0:r>=n-t*7*24*60*60*1e3}export{r as n,n as t};

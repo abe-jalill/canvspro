@@ -1,4 +1,10 @@
-import { createFileRoute, Outlet, redirect, useRouterState } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Outlet,
+  redirect,
+  useRouter,
+  useRouterState,
+} from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,32 +25,60 @@ import { syncAuthIdentity } from "@/lib/auth-user";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { useQueryCachePersistence } from "@/lib/query-persist";
 import { useSidebarMode } from "@/lib/sidebar-state";
-import { AppWarmupSplash } from "@/components/app-warmup-splash";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async ({ context }) => {
-    const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) {
+    // getSession reads the persisted native session and avoids making first
+    // paint wait on a network round trip. The session is verified immediately
+    // after the shell mounts; protected APIs still enforce auth server-side.
+    const { data, error } = await supabase.auth.getSession();
+    const user = data.session?.user;
+    if (error || !user) {
       purgeScopedStorage();
       syncAuthIdentity(context.queryClient, null);
       throw redirect({ to: "/auth" });
     }
     // Scope browser storage to this account and wipe any cache that belonged
     // to a different one BEFORE a single component renders.
-    syncAuthIdentity(context.queryClient, data.user.id);
-    return { user: data.user };
+    syncAuthIdentity(context.queryClient, user.id);
+    return { user };
   },
   component: AuthenticatedLayout,
 });
 
 function AuthenticatedLayout() {
+  const { user } = Route.useRouteContext();
   const { isActive: isPro } = useSubscription();
+  const router = useRouter();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [sidebarMode] = useSidebarMode();
   const queryClient = useQueryClient();
   const mainRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    let active = true;
+    void supabase.auth.getUser().then(({ data, error }) => {
+      if (!active) return;
+      const status = error?.status ?? 0;
+      const definitelyInvalid =
+        (!data.user && (!error || error.name === "AuthSessionMissingError")) ||
+        status === 401 ||
+        status === 403;
+      const identityChanged = !!data.user && data.user.id !== user.id;
+      // A transport failure should not eject an offline student who has a
+      // valid persisted session. Supabase and protected APIs still reject an
+      // expired/invalid token, which is the terminal case handled here.
+      if (!definitelyInvalid && !identityChanged) return;
+      purgeScopedStorage(user.id);
+      syncAuthIdentity(queryClient, null);
+      void router.navigate({ to: "/auth", replace: true });
+    });
+    return () => {
+      active = false;
+    };
+  }, [queryClient, router, user.id]);
 
   // Every page change starts at the top — on desktop the page scrolls inside
   // <main>, on mobile it scrolls the window, so reset both.
@@ -62,10 +96,8 @@ function AuthenticatedLayout() {
   useNotificationEngine(isPro);
   useDueTodayBadge(isPro);
   useQueryCachePersistence();
-  const warmup = useAppPrefetch(true);
+  useAppPrefetch(true);
   useWelcomeEmail(true);
-
-  if (warmup === "warming") return <AppWarmupSplash />;
 
   return (
     <div className="min-h-dvh w-full overflow-x-hidden md:h-screen md:overflow-hidden">

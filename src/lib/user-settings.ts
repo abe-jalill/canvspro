@@ -13,7 +13,11 @@ export const canvasDomainQueryKey = ["user-settings", "canvas-domain"] as const;
 export function normalizeCanvasDomain(raw: string | null | undefined): string {
   let v = (raw ?? "").trim().toLowerCase();
   if (!v) return "";
-  v = v.replace(/^https?:\/\//, "").split("/")[0]!.split("?")[0]!.trim();
+  v = v
+    .replace(/^https?:\/\//, "")
+    .split("/")[0]!
+    .split("?")[0]!
+    .trim();
   return /^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/.test(v) ? v : "";
 }
 
@@ -72,6 +76,7 @@ export function useCanvasKey() {
     queryKey: canvasKeyQueryKey,
     queryFn: fetchHasCanvasKey,
     staleTime: 60_000,
+    refetchOnMount: "always",
   });
 }
 
@@ -143,7 +148,9 @@ export function useSaveCanvasKey() {
         });
         if (vError) throw new Error(friendlyValidateError(await invokeError(vError)));
         if (!vData || (vData as { ok?: boolean }).ok !== true) {
-          throw new Error("Canvas rejected that key at that URL — double-check both and try again.");
+          throw new Error(
+            "Canvas rejected that key at that URL — double-check both and try again.",
+          );
         }
       }
 

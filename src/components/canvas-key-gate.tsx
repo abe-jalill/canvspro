@@ -12,7 +12,14 @@ export function CanvasKeyGate({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
 
   if (pathname.startsWith("/settings")) return <>{children}</>;
-  if (isLoading) return null;
+  if (isLoading) {
+    return (
+      <div className="space-y-4" role="status" aria-label="Opening your dashboard">
+        <div className="h-32 animate-pulse rounded-3xl bg-foreground/[0.06]" />
+        <div className="h-[26rem] animate-pulse rounded-3xl bg-foreground/[0.04]" />
+      </div>
+    );
+  }
   if (key) return <>{children}</>;
 
   return (
@@ -20,12 +27,10 @@ export function CanvasKeyGate({ children }: { children: ReactNode }) {
       <div className="glass-panel-strong flex flex-col items-start gap-4 p-6">
         <KeyRound className="h-5 w-5 text-muted-foreground" />
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">
-            Connect your Canvas account
-          </h1>
+          <h1 className="text-xl font-semibold tracking-tight">Connect your Canvas account</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Add your own Canvas API key to load your courses, grades, and
-            assignments. Nothing is shown until you connect.
+            Add your own Canvas API key to load your courses, grades, and assignments. Nothing is
+            shown until you connect.
           </p>
         </div>
         <Link

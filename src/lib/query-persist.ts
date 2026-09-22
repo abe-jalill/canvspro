@@ -2,7 +2,11 @@
 // reload paints real data instantly and revalidates in the background.
 import { useEffect } from "react";
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
-import { persistQueryClient, type Persister } from "@tanstack/query-persist-client-core";
+import {
+  persistQueryClient,
+  persistQueryClientRestore,
+  type Persister,
+} from "@tanstack/query-persist-client-core";
 import { useUserScope, scopedKey } from "@/lib/user-scope";
 
 const MAX_AGE = 24 * 60 * 60_000;
@@ -17,6 +21,7 @@ const BUSTER = "v2";
  */
 const PERSISTED_ROOTS = new Set([
   "canvas",
+  "user-settings",
   "class-nicknames",
   "class-schedule-entries",
   "user-assignment-meta",
@@ -48,6 +53,19 @@ function makePersister(key: string): Persister {
       }
     },
   };
+}
+
+/** Restore the current account before React mounts on native cold launch. */
+export async function restoreQueryCache(queryClient: QueryClient) {
+  if (typeof window === "undefined") return;
+  await persistQueryClientRestore({
+    queryClient: queryClient as unknown as Parameters<
+      typeof persistQueryClientRestore
+    >[0]["queryClient"],
+    persister: makePersister(scopedKey("query-cache")),
+    maxAge: MAX_AGE,
+    buster: BUSTER,
+  });
 }
 
 function start(queryClient: QueryClient, storageKey: string) {

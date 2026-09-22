@@ -4,7 +4,13 @@ import { Lock } from "lucide-react";
 import { useSubscription } from "@/lib/subscription";
 
 /** Routes available on the free tier. Everything else requires Canvas Pro. */
-export const FREE_PATHS = ["/dashboard", "/billing", "/settings", "/notifications", "/checkout"] as const;
+export const FREE_PATHS = [
+  "/dashboard",
+  "/billing",
+  "/settings",
+  "/notifications",
+  "/checkout",
+] as const;
 
 export function isFreePath(pathname: string): boolean {
   if (pathname === "/") return true;
@@ -21,9 +27,9 @@ export function UpgradeCard({ feature }: { feature?: string }) {
             {feature ? `${feature} is a Pro feature` : "This is a Pro feature"}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            The free tier includes the Dashboard. Unlock Focus, Calendar, Class
-            Schedule, Grades, Assignments, Announcements, and notifications with
-            Canvas Pro — first 10 days free, then $2.99/month or $30/year (save 17%!).
+            The free tier includes the Dashboard. Unlock Focus, Calendar, Class Schedule, Grades,
+            Assignments, Announcements, and notifications with Canvas Pro — first 10 days free, then
+            $2.99/month or $30/year (save 17%!).
           </p>
         </div>
         <Link
@@ -44,8 +50,16 @@ export function ProGate({ children }: { children: ReactNode }) {
 
   if (isFreePath(pathname)) return <>{children}</>;
   // Fail closed: unlock only on a confirmed active subscription. While the
-  // check is loading we render nothing; if it failed we show the upgrade card.
-  if (isLoading) return null;
+  // check is loading, keep the page visually stable with a placeholder.
+  if (isLoading) {
+    return (
+      <div
+        className="h-[26rem] animate-pulse rounded-3xl bg-foreground/[0.05]"
+        role="status"
+        aria-label="Opening this page"
+      />
+    );
+  }
   if (isActive) return <>{children}</>;
   return <UpgradeCard />;
 }
