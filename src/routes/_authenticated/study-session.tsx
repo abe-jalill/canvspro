@@ -22,7 +22,7 @@ import { GlassCard, ErrorState, Skeleton } from "@/components/glass-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { selectionHaptic, successHaptic } from "@/lib/native";
+import { studySelectionFeedback, studySuccessFeedback } from "@/lib/study-session-feedback";
 import { useStudySession } from "@/hooks/use-study-session";
 import {
   createStudySession,
@@ -95,7 +95,7 @@ function StudySessionPage() {
     if (!session || session.status !== "running" || remainingForSession(session, now) > 0) return;
     setSummary(session);
     setSession(null);
-    void successHaptic();
+    void studySuccessFeedback();
     toast.success("Study session complete");
   }, [now, session, setSession]);
 
@@ -132,7 +132,7 @@ function StudySessionPage() {
       },
     ]);
     setManualName("");
-    void selectionHaptic();
+    void studySelectionFeedback();
   }
 
   function start() {
@@ -142,7 +142,7 @@ function StudySessionPage() {
     setSummary(null);
     setSession(createStudySession(selected, boundedDuration));
     setNow(Date.now());
-    void successHaptic();
+    void studySuccessFeedback();
   }
 
   if (!ready) {
@@ -166,7 +166,7 @@ function StudySessionPage() {
         update({ status: "running", endsAt: Date.now() + session.remainingMs });
         setNow(Date.now());
       }
-      void selectionHaptic();
+      void studySelectionFeedback();
     };
     const finishItem = () => {
       if (completed.has(current.id)) return;
@@ -175,14 +175,14 @@ function StudySessionPage() {
         const final = { ...session, completedItemIds };
         setSummary(final);
         setSession(null);
-        void successHaptic();
+        void studySuccessFeedback();
         return;
       }
       update({
         completedItemIds,
         currentIndex: nextUnfinished({ ...session, completedItemIds }, session.currentIndex),
       });
-      void successHaptic();
+      void studySuccessFeedback();
     };
 
     return (
@@ -416,7 +416,7 @@ function StudySessionPage() {
                         disabled={isSelected}
                         onClick={() => {
                           setSelected((items) => [...items, item]);
-                          void selectionHaptic();
+                          void studySelectionFeedback();
                         }}
                         className="glass-inset glass-hover flex min-h-14 w-full items-center gap-3 rounded-xl p-3 text-left disabled:opacity-50"
                       >
