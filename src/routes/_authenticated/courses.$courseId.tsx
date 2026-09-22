@@ -24,6 +24,7 @@ import {
   CalendarPlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { openExternalUrl } from "@/lib/external-link";
 
 const THREE_WEEKS_MS = 3 * 7 * 24 * 60 * 60 * 1000;
 
@@ -543,6 +544,10 @@ function CourseDetailPage() {
                           href={a.html_url}
                           target="_blank"
                           rel="noreferrer"
+                          onClick={(event) => {
+                            event.preventDefault();
+                            void openExternalUrl(a.html_url);
+                          }}
                           className="glass-inset inline-flex shrink-0 items-center gap-1 rounded-xl px-3 py-1.5 text-xs text-foreground transition-transform active:scale-95"
                         >
                           Open
@@ -630,6 +635,10 @@ function CourseDetailPage() {
                             href={a.html_url}
                             target="_blank"
                             rel="noreferrer"
+                            onClick={(event) => {
+                              event.preventDefault();
+                              void openExternalUrl(a.html_url);
+                            }}
                             aria-label="Open in Canvas"
                             className="glass-inset rounded-xl p-2 text-muted-foreground transition-colors hover:text-foreground"
                           >
@@ -716,6 +725,10 @@ function CourseDetailPage() {
                         href={item.html_url}
                         target="_blank"
                         rel="noreferrer"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          void openExternalUrl(item.html_url);
+                        }}
                         className="story-link mt-2.5 inline-flex items-center gap-1 text-xs text-foreground"
                       >
                         Read full announcement on Canvas

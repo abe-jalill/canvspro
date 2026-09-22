@@ -193,6 +193,19 @@
     text-rendering: optimizeLegibility;
     letter-spacing: -0.012em;
     font-feature-settings: "ss01", "cv11";
+    min-width: 0;
+    overflow-x: hidden;
+  }
+
+  #root {
+    min-height: 100dvh;
+    min-width: 0;
+  }
+
+  input,
+  textarea,
+  select {
+    font-size: 16px;
   }
 
   body {
@@ -227,6 +240,17 @@
   h1 {
     letter-spacing: -0.03em;
     font-weight: 500;
+  }
+}
+
+@supports (padding: env(safe-area-inset-top)) {
+  .auth-screen {
+    padding-top: max(1.5rem, env(safe-area-inset-top));
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+  }
+
+  .ios-main-content {
+    padding-bottom: calc(5.75rem + env(safe-area-inset-bottom));
   }
 }
 

@@ -9,6 +9,7 @@ import {
 } from "@/lib/nicknames";
 import { nicknameLookupVersion } from "@/lib/course-display";
 import { useUserPreferenceKey } from "@/hooks/use-user-preferences";
+import { successHaptic } from "@/lib/native";
 
 const coursesQuery = {
   queryKey: ["canvas", "courses"] as const,
@@ -56,6 +57,7 @@ export function ClassNamesEditor({
         })),
       );
       setStatus("Class names saved.");
+      void successHaptic();
       onSaved?.();
     } catch (err) {
       setStatus(err instanceof Error ? err.message : "Could not save names.");
@@ -64,7 +66,7 @@ export function ClassNamesEditor({
 
   return (
     <form onSubmit={onSubmit} className="flex w-full flex-col gap-4">
-      <div className="flex flex-col gap-3">
+      <div className="flex min-w-0 flex-col gap-3">
         {courses.map((c) => (
           <div key={c.id} className="glass-inset flex flex-col gap-2 rounded-xl p-3">
             <div className="min-w-0">
@@ -172,10 +174,10 @@ export function ClassNamesGate({ children }: { children: ReactNode }) {
 
   if (needsSetup) {
     return (
-      <div className="mx-auto w-full max-w-2xl">
-        <div className="glass-panel-strong p-5 md:p-7">
+      <div className="mx-auto flex min-h-[calc(100dvh-12rem)] w-full max-w-2xl items-start pb-[calc(env(safe-area-inset-bottom)+1rem)]">
+        <div className="glass-panel-strong w-full min-w-0 p-4 sm:p-5 md:p-7">
           <h1 className="text-2xl font-semibold tracking-tight">Name your classes</h1>
-          <p className="mt-1 mb-5 text-sm text-muted-foreground">
+          <p className="mt-1 mb-5 break-words text-sm leading-relaxed text-muted-foreground">
             Give each Canvas course a friendlier name. You can change these later in
             Settings.
           </p>

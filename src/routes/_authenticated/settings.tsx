@@ -13,6 +13,7 @@ import { DeleteAccountSection } from "@/components/delete-account";
 import { useSubscription } from "@/lib/subscription";
 import { UpgradeCard } from "@/components/pro-gate";
 import { useAnnouncementWindow } from "@/lib/announcement-window";
+import { successHaptic } from "@/lib/native";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
@@ -67,6 +68,7 @@ function SettingsPage() {
           : "Canvas API key cleared.",
       );
       if (value.trim()) setValue("");
+      if (value.trim()) void successHaptic();
     } catch (err) {
       setStatus(err instanceof Error ? err.message : "Could not save.");
     }
@@ -227,6 +229,16 @@ function SettingsPage() {
         subtitle="Permanently remove your account and everything saved with it."
       >
         <DeleteAccountSection />
+      </GlassCard>
+
+      <GlassCard title="About & legal" subtitle="CanvasPro for iPhone">
+        <div className="space-y-3 text-sm text-muted-foreground">
+          <p>CanvasPro is not affiliated with, endorsed by, or associated with Instructure or Canvas LMS.</p>
+          <div className="flex flex-wrap gap-4">
+            <Link to="/terms" className="min-h-11 content-center underline underline-offset-4">Terms of Service</Link>
+            <Link to="/privacy" className="min-h-11 content-center underline underline-offset-4">Privacy Policy</Link>
+          </div>
+        </div>
       </GlassCard>
     </div>
   );

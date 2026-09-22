@@ -14,6 +14,7 @@ import {
   Lock,
   LogOut,
   Megaphone,
+  Menu,
   Moon,
   Settings,
   Sun,
@@ -344,123 +345,67 @@ export function MobileNav() {
   const pathname = useActivePath();
   const locationHref = useRouterState({ select: (s) => s.location.href });
   const { isActive: isPro } = useSubscription();
-  const courses = useQuery(coursesQO);
   const [open, setOpen] = useState(false);
+  const primary = items.filter((item) =>
+    ["/dashboard", "/assignments", "/grades", "/schedule"].includes(item.to),
+  );
 
-  useEffect(() => {
-    setOpen(false);
-  }, [locationHref]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [open]);
-
-  const current = items.find((i) => isActive(pathname, i.to))?.title ?? "Canvas Pro";
+  useEffect(() => setOpen(false), [locationHref]);
 
   return (
     <div className="md:hidden">
-      <div className="glass-panel-strong sticky top-2 z-40 mx-2 mt-2 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 p-2">
-        <TrafficLights
-          className="shrink-0"
-          onRed={() => setOpen(false)}
-          onYellow={() => setOpen((v) => !v)}
-          onGreen={() => setOpen(true)}
-        />
-        <p className="truncate text-center text-sm font-normal tracking-tight text-foreground">{current}</p>
-        <div className="flex items-center gap-2">
-          {isPro && <NotificationCenter />}
-          <ThemeToggle compact />
-        </div>
-      </div>
-
-      {/* Scrim */}
       <div
         aria-hidden
         onClick={() => setOpen(false)}
         className={cn(
-          "fixed inset-0 z-30 bg-black/20 backdrop-blur-[2px] transition-opacity duration-300",
+          "fixed inset-0 z-40 bg-black/45 backdrop-blur-sm transition-opacity",
           open ? "opacity-100" : "pointer-events-none opacity-0",
         )}
       />
-
-      {/* Collapsible panel — always mounted so it can animate */}
       <div
         className={cn(
-          "glass-panel-strong sticky top-[4.75rem] z-40 mx-2 mt-2 flex flex-col gap-1 overflow-y-auto p-2 transition-all duration-300 ease-in-out",
-          open
-            ? "max-h-[calc(100vh-6rem)] translate-y-0 opacity-100"
-            : "pointer-events-none max-h-0 -translate-y-2 overflow-hidden border-transparent p-0 opacity-0",
+          "fixed inset-x-2 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-50 max-h-[min(70dvh,34rem)] overflow-y-auto rounded-3xl p-3 transition-all glass-panel-strong",
+          open ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-4 opacity-0",
         )}
       >
-        {items.map((item) => (
-          <Link
-            key={item.to}
-            to={item.to}
-            preload="intent"
-            onClick={() => setOpen(false)}
-            className={cn(
-              "press flex min-h-11 items-center rounded-xl px-3 text-sm font-normal",
-              isActive(pathname, item.to)
-                ? "bg-foreground/[0.08] text-foreground font-medium"
-                : "text-muted-foreground",
-            )}
-          >
-            <span className="flex w-full items-center justify-between gap-2">
-              <span className="truncate">{item.title}</span>
-              {!isPro && !isFreePath(item.to) && <Lock className="h-3.5 w-3.5 shrink-0 opacity-60" />}
-            </span>
-          </Link>
-        ))}
-
-        <div className="my-2 flex items-center justify-center">
-          <div className="h-[1px] w-20 rounded-full bg-white/10" />
+        <div className="mb-2 flex items-center justify-between px-2">
+          <p className="text-sm font-medium">More</p>
+          <div className="flex items-center gap-2">
+            {isPro && <NotificationCenter />}
+            <ThemeToggle compact />
+          </div>
         </div>
-
-        <div className="flex flex-col gap-0.5">
-          {courses.data &&
-            courses.data.length > 0 &&
-            courses.data.map((course: CourseSummary) => {
-              const courseName = displayCourseNameForCourse(course.id, course.name, course.course_code);
-              const score = course.current_score;
-              const color = getGradeColor(score);
-              const coursePath = `/courses/${course.id}`;
-              const active = pathname === coursePath;
-
-              return (
-                <Link
-                  key={course.id}
-                  to="/courses/$courseId"
-                  params={{ courseId: String(course.id) }}
-                  preload="intent"
-                  onClick={() => setOpen(false)}
-                  className={cn(
-                    "press flex min-h-10 items-center justify-between rounded-xl px-3 text-sm transition-all",
-                    active ? "bg-foreground/[0.08] text-foreground font-medium" : "text-muted-foreground",
-                  )}
-                >
-                  <span className="flex min-w-0 items-center gap-2">
-                    <span
-                      className="h-2 w-2 shrink-0 rounded-full"
-                      style={{ backgroundColor: color, boxShadow: `0 0 6px ${color}66` }}
-                    />
-                    <span className="truncate">{courseName}</span>
-                  </span>
-                  <span className="shrink-0 text-xs font-normal tabular-nums" style={{ color }}>
-                    {score != null ? `${Math.round(score)}%` : "—"}
-                  </span>
-                </Link>
-              );
-            })}
+        <div className="grid grid-cols-2 gap-2">
+          {items.filter((item) => !primary.includes(item)).map((item) => (
+            <Link key={item.to} to={item.to} className="press glass-inset flex min-h-12 items-center gap-2 rounded-xl px-3 text-sm">
+              <item.icon className="h-4 w-4 shrink-0" />
+              <span className="min-w-0 truncate">{item.title}</span>
+              {!isPro && !isFreePath(item.to) && <Lock className="ml-auto h-3 w-3 shrink-0" />}
+            </Link>
+          ))}
         </div>
-
-        <div className="mt-1 grid grid-cols-2 gap-2 pt-2">
+        <div className="mt-3 grid grid-cols-2 gap-2">
           {isPro && <ReminderToggle />}
           <SignOutButton />
         </div>
       </div>
+      <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-foreground/10 bg-background/85 px-2 pb-[max(.35rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur-2xl">
+        <div className="mx-auto grid max-w-lg grid-cols-5">
+          {primary.map((item) => {
+            const active = isActive(pathname, item.to);
+            return (
+              <Link key={item.to} to={item.to} className={cn("press flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-xl text-[10px]", active ? "text-foreground" : "text-muted-foreground")}>
+                <item.icon className="h-5 w-5" />
+                <span>{item.title === "Calendar" ? "Schedule" : item.title}</span>
+              </Link>
+            );
+          })}
+          <button type="button" onClick={() => setOpen((value) => !value)} className={cn("press flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-xl text-[10px]", open ? "text-foreground" : "text-muted-foreground")} aria-expanded={open}>
+            <Menu className="h-5 w-5" />
+            <span>More</span>
+          </button>
+        </div>
+      </nav>
     </div>
   );
 }

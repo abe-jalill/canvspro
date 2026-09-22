@@ -63,8 +63,8 @@ function SignupPage() {
 
   return (
     <AuthShell
-      title="Create account"
-      subtitle="Start using Canvas Pro"
+      title="Create your CanvasPro account"
+      subtitle="Get your assignments, grades, and schedule organized in one place."
       footer={
         <p className="text-center text-sm text-muted-foreground">
           Already have an account?{" "}

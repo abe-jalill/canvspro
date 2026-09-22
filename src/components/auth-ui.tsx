@@ -16,7 +16,7 @@ export function AuthShell({
   className?: string;
 }) {
   return (
-    <div className="flex min-h-screen w-full items-center justify-center px-4 py-10">
+    <div className="auth-screen flex min-h-dvh w-full items-center justify-center overflow-y-auto px-4 py-8 sm:py-10">
       <div className={cn("glass-panel-strong w-full max-w-md p-6 sm:p-8", className)}>
         <div className="mb-6">
           <p className="text-xs font-normal uppercase tracking-[0.18em] text-muted-foreground">Canvas Pro</p>
@@ -25,6 +25,9 @@ export function AuthShell({
         </div>
         {children}
         {footer && <div className="mt-6">{footer}</div>}
+        <p className="mt-6 text-center text-[11px] leading-relaxed text-muted-foreground/70">
+          CanvasPro is not affiliated with, endorsed by, or associated with Instructure or Canvas LMS.
+        </p>
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
   ArrowRight,
@@ -27,8 +27,14 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
+import { isNativeApp } from "@/lib/native";
 
 export const Route = createFileRoute("/")({
+  beforeLoad: async () => {
+    if (!isNativeApp()) return;
+    const { data } = await supabase.auth.getSession();
+    throw redirect({ to: data.session ? "/dashboard" : "/signup" });
+  },
   head: () => ({
     meta: [
       { title: "Canvas Pro — A Better Canvas Dashboard for Students" },

@@ -41,6 +41,17 @@ export function CanvasLiveStatus() {
   const { sync, isSyncing } = useCanvasSync();
   const [now, setNow] = useState(Date.now());
   const [status, setStatus] = useState(() => readStatus(queryClient));
+  const [online, setOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine);
+
+  useEffect(() => {
+    const update = () => setOnline(navigator.onLine);
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
+    return () => {
+      window.removeEventListener("online", update);
+      window.removeEventListener("offline", update);
+    };
+  }, []);
 
   useEffect(() => {
     // The cache notifies synchronously while other components render, so the
@@ -92,26 +103,30 @@ export function CanvasLiveStatus() {
 
   const label =
     freshness === "live" ? "LIVE" : freshness === "checking" ? "Checking" : elapsedLabel(age);
+  const lastUpdated = status.updatedAt
+    ? new Date(status.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+    : null;
 
   return (
     <button
       type="button"
       onClick={sync}
-      title="Refresh Canvas data"
+      title={online ? "Refresh Canvas data" : `Offline${lastUpdated ? ` · Last updated ${lastUpdated}` : ""}`}
       className="glass-inset glass-hover flex min-h-8 items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase text-muted-foreground transition-colors hover:text-foreground"
-      aria-label={`Canvas data status: ${label}. Tap to refresh.`}
+      aria-label={online ? `Canvas data status: ${label}. Tap to refresh.` : `Offline. ${lastUpdated ? `Last updated ${lastUpdated}.` : "No cached data yet."}`}
     >
       <span
         aria-hidden="true"
         className={cn(
           "h-2 w-2 shrink-0 rounded-full",
-          freshness === "live" && "bg-status-live shadow-status-live",
-          freshness === "recent" && "bg-status-warning",
-          freshness === "stale" && "bg-destructive",
-          freshness === "checking" && "animate-pulse bg-muted-foreground",
+          !online && "bg-status-warning",
+          online && freshness === "live" && "bg-status-live shadow-status-live",
+          online && freshness === "recent" && "bg-status-warning",
+          online && freshness === "stale" && "bg-destructive",
+          online && freshness === "checking" && "animate-pulse bg-muted-foreground",
         )}
       />
-      <span>{isSyncing ? "Syncing" : label}</span>
+      <span>{!online ? `Offline${lastUpdated ? ` · ${lastUpdated}` : ""}` : isSyncing ? "Syncing" : label}</span>
     </button>
   );
 }
