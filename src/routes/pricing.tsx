@@ -11,7 +11,10 @@ export const Route = createFileRoute("/pricing")({
         content:
           "First 10 days free, then Canvas Pro is $2.99 per month or $30 per year (save 17%): live Canvas grades, assignments, announcements, focus windows, calendar, and smart notifications. Cancel anytime.",
       },
-      { property: "og:title", content: "Pricing — First 10 days free, then $2.99/month or $30/year" },
+      {
+        property: "og:title",
+        content: "Pricing — First 10 days free, then $2.99/month or $30/year",
+      },
       {
         property: "og:description",
         content:
@@ -49,7 +52,7 @@ function FeatureList({ items }: { items: string[] }) {
 
 function PricingPage() {
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 py-12 sm:py-16">
+    <div className="mx-auto min-h-dvh w-full max-w-4xl px-4 pb-[max(3rem,env(safe-area-inset-bottom))] pt-[max(3rem,env(safe-area-inset-top))] sm:py-16">
       <header className="text-center">
         <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
           Canvas Pro
@@ -58,8 +61,8 @@ function PricingPage() {
           Simple pricing, one plan
         </h1>
         <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground">
-          Your first 10 days of Pro are free. After that it's {CANVAS_PRO_PRICE_LABEL} — or
-          $30/year ({CANVAS_PRO_YEARLY_BADGE}). Cancel anytime from the billing portal.
+          Your first 10 days of Pro are free. After that it's {CANVAS_PRO_PRICE_LABEL} — or $30/year
+          ({CANVAS_PRO_YEARLY_BADGE}). Cancel anytime from the billing portal.
         </p>
       </header>
 
@@ -89,8 +92,7 @@ function PricingPage() {
               <span className="text-sm font-normal text-muted-foreground"> / month</span>
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              or{" "}
-              <span className="font-semibold text-foreground">$30 / year</span> —{" "}
+              or <span className="font-semibold text-foreground">$30 / year</span> —{" "}
               {CANVAS_PRO_YEARLY_BADGE}
             </p>
           </div>

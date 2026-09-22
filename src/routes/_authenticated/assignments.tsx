@@ -7,39 +7,20 @@ import {
   type AssignmentItem,
   type CourseSummary,
 } from "@/lib/canvas.functions";
-import {
-  GlassCard,
-  Skeleton,
-  ErrorState,
-  EmptyState,
-} from "@/components/glass-card";
+import { GlassCard, Skeleton, ErrorState, EmptyState } from "@/components/glass-card";
 import { cn } from "@/lib/utils";
 import { displayCourseName } from "@/lib/course-display";
 import { useLocalSet, COMPLETED_ASSIGNMENTS_KEY } from "@/lib/local-state";
-import {
-  Search,
-  CalendarPlus,
-  ChevronDown,
-  Sparkles,
-  Plus,
-  Trash2,
-} from "lucide-react";
+import { Search, CalendarPlus, ChevronDown, Sparkles, Plus, Trash2 } from "lucide-react";
 import {
   useCustomAssignments,
   customToAssignmentItem,
   isCustomAssignmentId,
 } from "@/lib/custom-assignments";
 import { CompleteToggle } from "@/components/complete-toggle";
-import {
-  getCountdown,
-  urgencyTextClass,
-  urgencyAccentClass,
-} from "@/lib/countdown";
+import { getCountdown, urgencyTextClass, urgencyAccentClass } from "@/lib/countdown";
 import { buildIcs, downloadIcs, safeFilename } from "@/lib/ics";
-import {
-  useCourseHighlight,
-  validateCourseSearch,
-} from "@/lib/course-highlight";
+import { useCourseHighlight, validateCourseSearch } from "@/lib/course-highlight";
 import { buildPriorityList, describePriorityList } from "@/lib/priority";
 import { useAssignmentMetaMap } from "@/hooks/use-assignment-meta";
 import { dropStaleOverdue } from "@/lib/assignment-window";
@@ -60,9 +41,17 @@ export const Route = createFileRoute("/_authenticated/assignments")({
   head: () => ({
     meta: [
       { title: "Assignments — Canvas Pro" },
-      { name: "description", content: "Every class in one card: current grade, overdue count, what's due soon, and the full assignment list." },
+      {
+        name: "description",
+        content:
+          "Every class in one card: current grade, overdue count, what's due soon, and the full assignment list.",
+      },
       { property: "og:title", content: "Assignments — Canvas Pro" },
-      { property: "og:description", content: "Every class in one card: current grade, overdue count, what's due soon, and the full assignment list." },
+      {
+        property: "og:description",
+        content:
+          "Every class in one card: current grade, overdue count, what's due soon, and the full assignment list.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -178,21 +167,15 @@ function PriorityAssignmentsCard({
                   {p.assignment.name}
                 </p>
                 <p className="truncate text-xs text-muted-foreground">
-                  {displayCourseName(
-                    p.assignment.course_name,
-                    p.assignment.course_code,
-                  )}
+                  {displayCourseName(p.assignment.course_name, p.assignment.course_code)}
                 </p>
               </div>
               <span
                 className={cn(
                   "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide",
-                  p.urgency === "critical" &&
-                    "text-red-400 bg-red-400/10 border-red-400/20",
-                  p.urgency === "high" &&
-                    "text-amber-400 bg-amber-400/10 border-amber-400/20",
-                  p.urgency === "medium" &&
-                    "text-blue-400 bg-blue-400/10 border-blue-400/20",
+                  p.urgency === "critical" && "text-red-400 bg-red-400/10 border-red-400/20",
+                  p.urgency === "high" && "text-amber-400 bg-amber-400/10 border-amber-400/20",
+                  p.urgency === "medium" && "text-blue-400 bg-blue-400/10 border-blue-400/20",
                   p.urgency === "low" &&
                     "text-muted-foreground bg-foreground/5 border-foreground/10",
                 )}
@@ -227,28 +210,18 @@ function AssignmentsPage() {
 
   const allAssignments: AssignmentItem[] = useMemo(() => {
     const courseById = new Map(
-      (courses.data ?? []).map((c) => [
-        c.id,
-        { name: c.name, course_code: c.course_code },
-      ]),
+      (courses.data ?? []).map((c) => [c.id, { name: c.name, course_code: c.course_code }]),
     );
     // Anything due more than a day ago is left out entirely.
     return dropStaleOverdue([
       ...(data ?? []),
-      ...custom.list.map((c) =>
-        customToAssignmentItem(c, courseById.get(c.course_id)),
-      ),
+      ...custom.list.map((c) => customToAssignmentItem(c, courseById.get(c.course_id))),
     ]);
   }, [data, custom.list, courses.data]);
 
-
   const groups: ClassGroup[] = useMemo(() => {
     const map = new Map<number, ClassGroup>();
-    const addCourse = (
-      id: number,
-      label: string,
-      c?: CourseSummary,
-    ): ClassGroup => {
+    const addCourse = (id: number, label: string, c?: CourseSummary): ClassGroup => {
       let g = map.get(id);
       if (!g) {
         g = {
@@ -268,11 +241,7 @@ function AssignmentsPage() {
     const courseById = new Map((courses.data ?? []).map((course) => [course.id, course]));
     allAssignments.forEach((a) => {
       const course = courseById.get(a.course_id);
-      const g = addCourse(
-        a.course_id,
-        displayCourseName(a.course_name, a.course_code),
-        course,
-      );
+      const g = addCourse(a.course_id, displayCourseName(a.course_name, a.course_code), course);
       g.items.push(a);
     });
 
@@ -341,9 +310,7 @@ function AssignmentsPage() {
         <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
           By class
         </p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">
-          Assignments
-        </h1>
+        <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">Assignments</h1>
       </header>
 
       <div className="glass-panel-strong relative flex items-center gap-2 px-4 py-2">
@@ -371,10 +338,7 @@ function AssignmentsPage() {
           title="Your own assignments"
           subtitle="Add anything Canvas doesn't have: due date, points and notes"
         >
-          <AddAssignmentForm
-            courseOptions={courseOptions}
-            onAdd={custom.add}
-          />
+          <AddAssignmentForm courseOptions={courseOptions} onAdd={custom.add} />
         </GlassCard>
       )}
 
@@ -401,144 +365,136 @@ function AssignmentsPage() {
           const open = expanded.has(g.id) || Boolean(q);
           return (
             <div key={g.id} {...highlight(g.label)}>
-            <GlassCard className="p-0 sm:p-0 md:p-0">
-              <button
-                onClick={() => toggle(g.id)}
-                aria-expanded={open}
-                className="glass-hover grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 p-4 text-left sm:p-6"
-              >
-                <div className="min-w-0">
-                  <h2 className="truncate text-base font-semibold tracking-tight sm:text-lg">
-                    {g.label}
-                  </h2>
-                  <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                    <span className={cn(g.overdue > 0 && "font-semibold text-foreground")}>
-                      {g.overdue} overdue
-                    </span>
-                    <span className="opacity-40">·</span>
-                    <span className={cn(g.dueSoon > 0 && "text-foreground/85")}>
-                      {g.dueSoon} due within 3 days
-                    </span>
-                  </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-3">
-                  <div className="text-right">
-                    <p className="text-lg font-semibold tabular-nums tracking-tight">
-                      {formatGrade(g.score, g.grade)}
-                    </p>
-                    <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-                      Grade
+              <GlassCard className="p-0 sm:p-0 md:p-0">
+                <button
+                  onClick={() => toggle(g.id)}
+                  aria-expanded={open}
+                  className="glass-hover grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 p-4 text-left sm:p-6"
+                >
+                  <div className="min-w-0">
+                    <h2 className="truncate text-base font-semibold tracking-tight sm:text-lg">
+                      {g.label}
+                    </h2>
+                    <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                      <span className={cn(g.overdue > 0 && "font-semibold text-foreground")}>
+                        {g.overdue} overdue
+                      </span>
+                      <span className="opacity-40">·</span>
+                      <span className={cn(g.dueSoon > 0 && "text-foreground/85")}>
+                        {g.dueSoon} due within 3 days
+                      </span>
                     </p>
                   </div>
-                  <ChevronDown
-                    className={cn(
-                      "h-4 w-4 text-muted-foreground transition-transform",
-                      open && "rotate-180",
-                    )}
-                  />
-                </div>
-              </button>
+                  <div className="flex shrink-0 items-center gap-3">
+                    <div className="text-right">
+                      <p className="text-lg font-semibold tabular-nums tracking-tight">
+                        {formatGrade(g.score, g.grade)}
+                      </p>
+                      <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                        Grade
+                      </p>
+                    </div>
+                    <ChevronDown
+                      className={cn(
+                        "h-4 w-4 text-muted-foreground transition-transform",
+                        open && "rotate-180",
+                      )}
+                    />
+                  </div>
+                </button>
 
-              {open && (
-                <div className="border-t border-glass-border p-4 sm:p-6">
-                  <ul className="space-y-2">
-                    {g.items.map((a) => {
-                      const done = completed.has(a.id);
-                      const cd = getCountdown(a.due_at, { completed: done });
-                      const mine = isCustomAssignmentId(a.id);
-                      const notes = custom.notesById.get(a.id);
-                      return (
-                        <li
-                          key={a.id}
-                          className={cn(
-                            "glass-inset flex items-start justify-between gap-4 p-3 transition-opacity",
-                            cd ? urgencyAccentClass(cd.urgency) : "",
-                            done && "opacity-60",
-                          )}
-                        >
-                          <div className="flex min-w-0 items-start gap-3">
-                            <CompleteToggle
-                              done={done}
-                              onToggle={() => completed.toggle(a.id)}
-                              label={a.name}
-                              disabled={!completed.ready}
-                              className="mt-0.5 h-5 w-5"
-                            />
-                            <div className="min-w-0">
-                              <p
-                                className={cn(
-                                  "truncate text-sm font-medium",
-                                  done && "line-through",
-                                )}
-                              >
-                                {a.name}
-                              </p>
-                              <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
-                                <span>
-                                  {done
-                                    ? "Completed"
-                                    : mine
-                                      ? "Added by you"
-                                      : statusLabel(a)}
-                                </span>
-                                {a.points_possible != null && (
-                                  <>
-                                    <span className="opacity-40">·</span>
-                                    <span>{a.points_possible} pts</span>
-                                  </>
-                                )}
-                              </p>
-                              {notes && (
-                                <p className="mt-1 whitespace-pre-wrap text-xs text-foreground/70">
-                                  {notes}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex shrink-0 items-start gap-2">
-                            <div className="text-right">
-                              <p
-                                className={cn(
-                                  "text-sm tabular-nums",
-                                  cd
-                                    ? urgencyTextClass(cd.urgency)
-                                    : "text-muted-foreground",
-                                )}
-                              >
-                                {cd ? cd.label : "No due date"}
-                              </p>
-                              {cd && (
-                                <p className="mt-0.5 text-[10px] tabular-nums text-muted-foreground/80">
-                                  {cd.fullDate}
-                                </p>
-                              )}
-                            </div>
-                            {a.due_at && <AddToCalendarButton assignment={a} />}
-                            {mine && (
-                              <button
-                                type="button"
-                                onClick={() => custom.remove(a.id)}
-                                aria-label={`Delete ${a.name}`}
-                                title="Delete"
-                                className="glass-hover flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-glass-border text-muted-foreground hover:text-foreground"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
+                {open && (
+                  <div className="border-t border-glass-border p-4 sm:p-6">
+                    <ul className="space-y-2">
+                      {g.items.map((a) => {
+                        const done = completed.has(a.id);
+                        const cd = getCountdown(a.due_at, { completed: done });
+                        const mine = isCustomAssignmentId(a.id);
+                        const notes = custom.notesById.get(a.id);
+                        return (
+                          <li
+                            key={a.id}
+                            className={cn(
+                              "glass-inset grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 p-3 transition-opacity sm:gap-4",
+                              cd ? urgencyAccentClass(cd.urgency) : "",
+                              done && "opacity-60",
                             )}
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
+                          >
+                            <div className="flex min-w-0 items-start gap-3">
+                              <CompleteToggle
+                                done={done}
+                                onToggle={() => completed.toggle(a.id)}
+                                label={a.name}
+                                disabled={!completed.ready}
+                                className="mt-0.5 h-5 w-5"
+                              />
+                              <div className="min-w-0">
+                                <p
+                                  className={cn(
+                                    "truncate text-sm font-medium",
+                                    done && "line-through",
+                                  )}
+                                >
+                                  {a.name}
+                                </p>
+                                <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+                                  <span>
+                                    {done ? "Completed" : mine ? "Added by you" : statusLabel(a)}
+                                  </span>
+                                  {a.points_possible != null && (
+                                    <>
+                                      <span className="opacity-40">·</span>
+                                      <span>{a.points_possible} pts</span>
+                                    </>
+                                  )}
+                                </p>
+                                {notes && (
+                                  <p className="mt-1 whitespace-pre-wrap text-xs text-foreground/70">
+                                    {notes}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:items-start">
+                              <div className="max-w-24 text-right sm:max-w-none">
+                                <p
+                                  className={cn(
+                                    "text-xs tabular-nums sm:text-sm",
+                                    cd ? urgencyTextClass(cd.urgency) : "text-muted-foreground",
+                                  )}
+                                >
+                                  {cd ? cd.label : "No due date"}
+                                </p>
+                                {cd && (
+                                  <p className="mt-0.5 text-[10px] tabular-nums text-muted-foreground/80">
+                                    {cd.fullDate}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                {a.due_at && <AddToCalendarButton assignment={a} />}
+                                {mine && (
+                                  <button
+                                    type="button"
+                                    onClick={() => custom.remove(a.id)}
+                                    aria-label={`Delete ${a.name}`}
+                                    title="Delete"
+                                    className="glass-hover flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-glass-border text-muted-foreground hover:text-foreground"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
 
-                  <AddAssignmentForm
-                    courseId={g.id}
-                    courseLabel={g.label}
-                    onAdd={custom.add}
-                  />
-                </div>
-              )}
-            </GlassCard>
+                    <AddAssignmentForm courseId={g.id} courseLabel={g.label} onAdd={custom.add} />
+                  </div>
+                )}
+              </GlassCard>
             </div>
           );
         })}
@@ -597,9 +553,7 @@ function AddAssignmentForm({
   const [due, setDue] = useState("");
   const [points, setPoints] = useState("");
   const [notes, setNotes] = useState("");
-  const [selected, setSelected] = useState<string>(
-    courseId != null ? String(courseId) : "",
-  );
+  const [selected, setSelected] = useState<string>(courseId != null ? String(courseId) : "");
 
   const targetId = courseId ?? (selected ? Number(selected) : NaN);
   const canSave = name.trim().length > 0 && Number.isFinite(targetId);

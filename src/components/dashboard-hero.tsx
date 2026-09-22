@@ -86,7 +86,7 @@ export function DashboardHero() {
       <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
         <div className="min-w-0">
           <h1 className="text-xl font-normal tracking-tight text-foreground sm:text-2xl">
-            {displayName ? `${displayName} Returns!` : "Welcome back!"}
+            {displayName ? `Welcome back, ${displayName}` : "Welcome back"}
           </h1>
           <p className="mt-1 text-xs font-normal text-muted-foreground sm:text-sm">
             {loading ? (
@@ -114,17 +114,17 @@ export function DashboardHero() {
         </div>
 
         {/* 3 stats in unified segmented card pill separated by vertical lines */}
-        <div className="glass-inset flex shrink-0 items-stretch divide-x divide-white/10 rounded-2xl border border-white/5 overflow-hidden">
+        <div className="glass-inset grid w-full grid-cols-3 divide-x divide-white/10 overflow-hidden rounded-2xl border border-white/5 md:w-auto">
           <Link
             to="/focus"
             search={{ window: "1" }}
-            className="glass-hover flex items-center gap-2.5 px-4 py-2.5 transition-colors"
+            className="glass-hover flex min-w-0 flex-col items-center justify-center gap-0.5 px-2 py-3 text-center transition-colors sm:flex-row sm:gap-2.5 sm:px-4 sm:text-left"
             title="Assignments due today"
           >
             <span className="text-xl font-normal text-foreground tracking-tight tabular-nums sm:text-2xl">
               {todayCount}
             </span>
-            <span className="text-[11px] font-normal text-muted-foreground leading-tight sm:text-xs">
+            <span className="text-[11px] font-normal leading-tight text-muted-foreground sm:text-xs">
               Due
               <br className="hidden sm:inline" /> Today
             </span>
@@ -133,13 +133,13 @@ export function DashboardHero() {
           <Link
             to="/focus"
             search={{ window: "7" }}
-            className="glass-hover flex items-center gap-2.5 px-4 py-2.5 transition-colors"
+            className="glass-hover flex min-w-0 flex-col items-center justify-center gap-0.5 px-2 py-3 text-center transition-colors sm:flex-row sm:gap-2.5 sm:px-4 sm:text-left"
             title="Assignments due within one week"
           >
             <span className="text-xl font-normal text-foreground tracking-tight tabular-nums sm:text-2xl">
               {weekCount}
             </span>
-            <span className="text-[11px] font-normal text-muted-foreground leading-tight sm:text-xs">
+            <span className="text-[11px] font-normal leading-tight text-muted-foreground sm:text-xs">
               One
               <br className="hidden sm:inline" /> Week
             </span>
@@ -147,7 +147,7 @@ export function DashboardHero() {
 
           <Link
             to="/focus"
-            className="glass-hover flex items-center gap-2.5 px-4 py-2.5 transition-colors"
+            className="glass-hover flex min-w-0 flex-col items-center justify-center gap-0.5 px-2 py-3 text-center transition-colors sm:flex-row sm:gap-2.5 sm:px-4 sm:text-left"
             title="Past due assignments"
           >
             <span

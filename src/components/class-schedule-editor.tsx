@@ -17,10 +17,7 @@ import {
   type ClassSession,
   type ConflictItem,
 } from "@/lib/class-schedule";
-import {
-  useSaveClassSchedule,
-  type ScheduleEntryInput,
-} from "@/lib/user-class-schedule";
+import { useSaveClassSchedule, type ScheduleEntryInput } from "@/lib/user-class-schedule";
 import { getCoursesFn } from "@/lib/canvas.functions";
 import { useCanvasKey } from "@/lib/user-settings";
 import { displayCourseName } from "@/lib/course-display";
@@ -86,9 +83,7 @@ function toDrafts(sessions: ClassSession[]): Draft[] {
       }
     }
     const ordered = DAY_ORDER.filter((d) => days.includes(d));
-    const distinct = new Set(
-      ordered.map((d) => `${dayTimes[d]?.start}-${dayTimes[d]?.end}`),
-    );
+    const distinct = new Set(ordered.map((d) => `${dayTimes[d]?.start}-${dayTimes[d]?.end}`));
     return {
       key: nextKey(),
       title: first.title,
@@ -100,9 +95,7 @@ function toDrafts(sessions: ClassSession[]): Draft[] {
       start: toTimeInput(first.startMinutes),
       end: toTimeInput(first.endMinutes),
       perDay: distinct.size > 1,
-      details: Boolean(
-        first.credits || first.instructor.trim() || first.location.trim(),
-      ),
+      details: Boolean(first.credits || first.instructor.trim() || first.location.trim()),
       dayTimes,
     };
   });
@@ -166,17 +159,12 @@ export default function ClassScheduleEditor({
       return;
     }
     setRows(
-      canvasTitles.length > 0
-        ? canvasTitles.map((t) => emptyDraft(t, true))
-        : [emptyDraft()],
+      canvasTitles.length > 0 ? canvasTitles.map((t) => emptyDraft(t, true)) : [emptyDraft()],
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [firstTime, sessions.length, canvasTitles.join("|")]);
 
-  const conflicts = useMemo(
-    () => findScheduleConflicts(toConflictItems(rows)),
-    [rows],
-  );
+  const conflicts = useMemo(() => findScheduleConflicts(toConflictItems(rows)), [rows]);
   const conflictKeys = useMemo(() => {
     const s = new Set<string>();
     for (const c of conflicts) {
@@ -190,11 +178,7 @@ export default function ClassScheduleEditor({
     setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
   }
 
-  function setDayTime(
-    key: string,
-    day: ClassDay,
-    patch: { start?: string; end?: string },
-  ) {
+  function setDayTime(key: string, day: ClassDay, patch: { start?: string; end?: string }) {
     setRows((prev) =>
       prev.map((r) =>
         r.key === key
@@ -247,9 +231,7 @@ export default function ClassScheduleEditor({
     e.preventDefault();
     setStatus(null);
 
-    const filled = rows.filter(
-      (r) => r.title.trim().length > 0 && r.days.length > 0,
-    );
+    const filled = rows.filter((r) => r.title.trim().length > 0 && r.days.length > 0);
     if (filled.length === 0) {
       setStatus("Add at least one class with a name, days and times.");
       return;
@@ -291,9 +273,7 @@ export default function ClassScheduleEditor({
         const start = parseTimeInput(t.start);
         const end = parseTimeInput(t.end);
         if (start === null || end === null || end <= start) {
-          setStatus(
-            `Check the ${DAY_LABELS[d]} time for "${r.title.trim()}".`,
-          );
+          setStatus(`Check the ${DAY_LABELS[d]} time for "${r.title.trim()}".`);
           return;
         }
         payload.push({
@@ -310,15 +290,13 @@ export default function ClassScheduleEditor({
       setStatus("Schedule saved.");
       onSaved?.();
     } catch (err) {
-      setStatus(
-        err instanceof Error ? err.message : "Could not save your schedule.",
-      );
+      setStatus(err instanceof Error ? err.message : "Could not save your schedule.");
     }
   }
 
   return (
     <form onSubmit={onSubmit} className="space-y-5">
-      <header className="glass-panel-strong p-6">
+      <header className="glass-panel-strong p-4 sm:p-6">
         <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
           {firstTime ? "Add your class times" : "Edit your class schedule"}
         </h1>
@@ -335,18 +313,14 @@ export default function ClassScheduleEditor({
           className="glass-inset rounded-2xl px-4 py-3 text-xs text-muted-foreground"
         >
           <p className="font-medium uppercase tracking-[0.14em]">
-            {conflicts.length === 1
-              ? "1 time conflict"
-              : `${conflicts.length} time conflicts`}
+            {conflicts.length === 1 ? "1 time conflict" : `${conflicts.length} time conflicts`}
           </p>
           <ul className="mt-1.5 space-y-0.5">
             {conflicts.slice(0, 4).map((c, i) => (
               <li key={i}>{conflictLabel(c)}</li>
             ))}
           </ul>
-          <p className="mt-1.5 opacity-70">
-            You can still save — this is just a heads-up.
-          </p>
+          <p className="mt-1.5 opacity-70">You can still save — this is just a heads-up.</p>
         </div>
       ) : null}
 
@@ -361,9 +335,7 @@ export default function ClassScheduleEditor({
               {rows.length > 1 ? (
                 <button
                   type="button"
-                  onClick={() =>
-                    setRows((prev) => prev.filter((x) => x.key !== r.key))
-                  }
+                  onClick={() => setRows((prev) => prev.filter((x) => x.key !== r.key))}
                   className="glass-inset press shrink-0 rounded-full px-3 py-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground"
                 >
                   Remove
@@ -373,13 +345,7 @@ export default function ClassScheduleEditor({
 
             <div className="grid gap-3 sm:grid-cols-2">
               {!r.fromCanvas ? (
-                <Field
-                  label={
-                    hasKey
-                      ? "Class name (optional if it's in Canvas)"
-                      : "Class name"
-                  }
-                >
+                <Field label={hasKey ? "Class name (optional if it's in Canvas)" : "Class name"}>
                   <input
                     value={r.title}
                     onChange={(e) => update(r.key, { title: e.target.value })}
@@ -448,9 +414,7 @@ export default function ClassScheduleEditor({
                     : "glass-inset text-muted-foreground"
                 }`}
               >
-                {r.perDay
-                  ? "Using different times each day"
-                  : "Different times each day"}
+                {r.perDay ? "Using different times each day" : "Different times each day"}
               </button>
               <button
                 type="button"
@@ -493,9 +457,7 @@ export default function ClassScheduleEditor({
                 <Field label="Professor">
                   <input
                     value={r.instructor}
-                    onChange={(e) =>
-                      update(r.key, { instructor: e.target.value })
-                    }
+                    onChange={(e) => update(r.key, { instructor: e.target.value })}
                     placeholder="Prof. name"
                     maxLength={100}
                     className="field"
@@ -525,29 +487,25 @@ export default function ClassScheduleEditor({
                     return (
                       <div
                         key={d}
-                        className="glass-inset flex flex-wrap items-center gap-2 rounded-xl p-3"
+                        className="glass-inset grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded-xl p-3"
                       >
-                        <span className="w-20 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                        <span className="col-span-3 text-[11px] font-medium uppercase tracking-wider text-muted-foreground sm:col-span-1 sm:w-20">
                           {DAY_LABELS[d]}
                         </span>
                         <input
                           type="time"
                           value={t.start}
-                          onChange={(e) =>
-                            setDayTime(r.key, d, { start: e.target.value })
-                          }
+                          onChange={(e) => setDayTime(r.key, d, { start: e.target.value })}
                           aria-label={`${DAY_LABELS[d]} start time`}
-                          className="field w-auto flex-1 min-w-[7rem]"
+                          className="field min-w-0 w-full"
                         />
                         <span className="text-xs text-muted-foreground">to</span>
                         <input
                           type="time"
                           value={t.end}
-                          onChange={(e) =>
-                            setDayTime(r.key, d, { end: e.target.value })
-                          }
+                          onChange={(e) => setDayTime(r.key, d, { end: e.target.value })}
                           aria-label={`${DAY_LABELS[d]} end time`}
-                          className="field w-auto flex-1 min-w-[7rem]"
+                          className="field min-w-0 w-full"
                         />
                       </div>
                     );
@@ -594,13 +552,7 @@ export default function ClassScheduleEditor({
   );
 }
 
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
       <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">

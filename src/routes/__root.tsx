@@ -6,7 +6,7 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -21,7 +21,7 @@ import { isNativeApp } from "@/lib/native";
 
 function NotFoundComponent() {
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
+    <div className="flex min-h-dvh items-center justify-center px-4 py-[max(1rem,env(safe-area-inset-top))]">
       <div className="glass-panel-strong max-w-md p-10 text-center">
         <h1 className="text-6xl font-semibold tracking-tight">404</h1>
         <p className="mt-3 text-sm text-muted-foreground">This page doesn't exist.</p>
@@ -31,7 +31,10 @@ function NotFoundComponent() {
 }
 
 function ErrorComponent({ error, reset }: { error: unknown; reset: () => void }) {
-  const reportedError = error instanceof Error ? error : new Error(String(error));
+  const reportedError = useMemo(
+    () => (error instanceof Error ? error : new Error(String(error))),
+    [error],
+  );
   console.error(reportedError);
   const router = useRouter();
   useEffect(() => {
@@ -39,7 +42,7 @@ function ErrorComponent({ error, reset }: { error: unknown; reset: () => void })
   }, [reportedError]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
+    <div className="flex min-h-dvh items-center justify-center px-4 py-[max(1rem,env(safe-area-inset-top))]">
       <div className="glass-panel-strong max-w-md p-8 text-center">
         <h1 className="text-lg font-semibold tracking-tight">Something went wrong</h1>
         <p className="mt-2 text-sm text-muted-foreground">Try refreshing or return home.</p>
@@ -63,7 +66,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      {
+        name: "viewport",
+        content: "width=device-width, initial-scale=1, viewport-fit=cover",
+      },
       { title: "Canvas Pro — A Better Canvas Dashboard for Students" },
       {
         name: "description",
@@ -85,8 +91,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "icon", href: "/favicon.png", type: "image/png" },
       { rel: "apple-touch-icon", href: "/favicon.png" },
       { rel: "manifest", href: "/manifest.webmanifest" },
-      { rel: "preconnect", href: "https://rsms.me/" },
-      { rel: "stylesheet", href: "https://rsms.me/inter/inter.css" },
     ],
   }),
   shellComponent: RootShell,

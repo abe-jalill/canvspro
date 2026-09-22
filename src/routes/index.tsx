@@ -222,7 +222,9 @@ const FAQS = [
 
 function LandingPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [activeDemoTab, setActiveDemoTab] = useState<"grades" | "assignments" | "calculator">("grades");
+  const [activeDemoTab, setActiveDemoTab] = useState<"grades" | "assignments" | "calculator">(
+    "grades",
+  );
   const [demoFinalTarget, setDemoFinalTarget] = useState<string>("90");
 
   useEffect(() => {
@@ -239,7 +241,7 @@ function LandingPage() {
   }, []);
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-10 sm:py-16">
+    <div className="mx-auto min-h-dvh w-full max-w-5xl px-4 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-[max(2.5rem,env(safe-area-inset-top))] sm:py-16">
       {/* Logged in notification banner */}
       {isLoggedIn && (
         <div className="glass-panel-strong mb-10 flex flex-wrap items-center justify-between gap-4 p-4 sm:p-5">
@@ -249,7 +251,9 @@ function LandingPage() {
             </div>
             <div>
               <p className="text-sm font-semibold text-foreground">Welcome back!</p>
-              <p className="text-xs text-muted-foreground">You are signed in to your Canvas Pro account.</p>
+              <p className="text-xs text-muted-foreground">
+                You are signed in to your Canvas Pro account.
+              </p>
             </div>
           </div>
           <Link
@@ -273,8 +277,8 @@ function LandingPage() {
         </h1>
 
         <p className="mx-auto mt-5 max-w-2xl text-base text-muted-foreground sm:text-lg">
-          Canvas Pro pulls your live grades, upcoming assignments, schedules, and announcements into one
-          customizable home screen. Stop hunting through nested course menus.
+          Canvas Pro pulls your live grades, upcoming assignments, schedules, and announcements into
+          one customizable home screen. Stop hunting through nested course menus.
         </p>
 
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
@@ -379,8 +383,12 @@ function LandingPage() {
               <div>
                 <div className="mb-4 flex items-center justify-between">
                   <div>
-                    <h3 className="text-sm font-semibold tracking-tight text-foreground">Current Course Scores</h3>
-                    <p className="text-xs text-muted-foreground">Real-time sync with trend indicators</p>
+                    <h3 className="text-sm font-semibold tracking-tight text-foreground">
+                      Current Course Scores
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      Real-time sync with trend indicators
+                    </p>
                   </div>
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-400">
                     <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
@@ -401,7 +409,9 @@ function LandingPage() {
                       <div>
                         <div className="flex items-center gap-2">
                           <h4 className="text-sm font-semibold text-foreground">{course.name}</h4>
-                          <span className="text-[11px] font-mono text-muted-foreground">{course.code}</span>
+                          <span className="text-[11px] font-mono text-muted-foreground">
+                            {course.code}
+                          </span>
                         </div>
                         <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
                           <TrendingUp className="h-3 w-3 text-emerald-400" />
@@ -409,8 +419,12 @@ function LandingPage() {
                         </p>
                       </div>
                       <div className="text-right">
-                        <span className="text-lg font-bold tracking-tight text-foreground">{course.score}</span>
-                        <span className={cn("block text-xs font-semibold", course.accent)}>{course.letter}</span>
+                        <span className="text-lg font-bold tracking-tight text-foreground">
+                          {course.score}
+                        </span>
+                        <span className={cn("block text-xs font-semibold", course.accent)}>
+                          {course.letter}
+                        </span>
                       </div>
                     </div>
                   ))}
@@ -422,8 +436,12 @@ function LandingPage() {
               <div>
                 <div className="mb-4 flex items-center justify-between">
                   <div>
-                    <h3 className="text-sm font-semibold tracking-tight text-foreground">Upcoming Deadlines</h3>
-                    <p className="text-xs text-muted-foreground">Countdown badges sorted by urgency</p>
+                    <h3 className="text-sm font-semibold tracking-tight text-foreground">
+                      Upcoming Deadlines
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      Countdown badges sorted by urgency
+                    </p>
                   </div>
                   <span className="text-xs text-muted-foreground">4 items due this week</span>
                 </div>
@@ -447,9 +465,12 @@ function LandingPage() {
                         <span
                           className={cn(
                             "inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium",
-                            item.urgency === "urgent" && "bg-red-500/15 text-red-400 border border-red-500/30",
-                            item.urgency === "warning" && "bg-amber-500/15 text-amber-400 border border-amber-500/30",
-                            item.urgency === "normal" && "bg-foreground/5 text-muted-foreground border border-foreground/10",
+                            item.urgency === "urgent" &&
+                              "bg-red-500/15 text-red-400 border border-red-500/30",
+                            item.urgency === "warning" &&
+                              "bg-amber-500/15 text-amber-400 border border-amber-500/30",
+                            item.urgency === "normal" &&
+                              "bg-foreground/5 text-muted-foreground border border-foreground/10",
                           )}
                         >
                           <Clock className="h-3 w-3" />
@@ -466,8 +487,12 @@ function LandingPage() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-sm font-semibold tracking-tight text-foreground">Final Exam Grade Predictor</h3>
-                    <p className="text-xs text-muted-foreground">Calculates exact score needed on your final exam</p>
+                    <h3 className="text-sm font-semibold tracking-tight text-foreground">
+                      Final Exam Grade Predictor
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      Calculates exact score needed on your final exam
+                    </p>
                   </div>
                   <span className="text-xs font-medium text-purple-400">Physics II (PHY 2049)</span>
                 </div>
@@ -509,10 +534,10 @@ function LandingPage() {
                     {demoFinalTarget === "93"
                       ? "106.8% (Extra credit needed)"
                       : demoFinalTarget === "90"
-                      ? "94.8%"
-                      : demoFinalTarget === "87"
-                      ? "82.8%"
-                      : "54.8%"}
+                        ? "94.8%"
+                        : demoFinalTarget === "87"
+                          ? "82.8%"
+                          : "54.8%"}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     on the final exam to finish with a {demoFinalTarget}% in this course.
@@ -557,32 +582,41 @@ function LandingPage() {
             <LayoutGrid className="h-5 w-5 text-muted-foreground" />
             <h3 className="text-base font-semibold tracking-tight">A homepage you arrange</h3>
             <p className="text-sm text-muted-foreground">
-              Drag widgets for calendar, grades, assignments, announcements, focus, and workload into the order you
-              actually use. Hide the rest.
+              Drag widgets for calendar, grades, assignments, announcements, focus, and workload
+              into the order you actually use. Hide the rest.
             </p>
           </article>
 
           <article className="glass-panel flex flex-col gap-3 p-5">
             <GraduationCap className="h-5 w-5 text-muted-foreground" />
-            <h3 className="text-base font-semibold tracking-tight">Live grades with trend arrows</h3>
+            <h3 className="text-base font-semibold tracking-tight">
+              Live grades with trend arrows
+            </h3>
             <p className="text-sm text-muted-foreground">
-              Every class score in one list, with indicators showing whenever your professor posts new marks.
+              Every class score in one list, with indicators showing whenever your professor posts
+              new marks.
             </p>
           </article>
 
           <article className="glass-panel flex flex-col gap-3 p-5">
             <Calculator className="h-5 w-5 text-muted-foreground" />
-            <h3 className="text-base font-semibold tracking-tight">Grade calculator & finals math</h3>
+            <h3 className="text-base font-semibold tracking-tight">
+              Grade calculator & finals math
+            </h3>
             <p className="text-sm text-muted-foreground">
-              Weighted category calculations and an automated final-exam score estimator — no spreadsheets required.
+              Weighted category calculations and an automated final-exam score estimator — no
+              spreadsheets required.
             </p>
           </article>
 
           <article className="glass-panel flex flex-col gap-3 p-5">
             <ListChecks className="h-5 w-5 text-muted-foreground" />
-            <h3 className="text-base font-semibold tracking-tight">Smart assignments with countdowns</h3>
+            <h3 className="text-base font-semibold tracking-tight">
+              Smart assignments with countdowns
+            </h3>
             <p className="text-sm text-muted-foreground">
-              Grouped by class, sorted by due date, with urgency badges and one-tap completion tracking.
+              Grouped by class, sorted by due date, with urgency badges and one-tap completion
+              tracking.
             </p>
           </article>
 
@@ -590,7 +624,8 @@ function LandingPage() {
             <Timer className="h-5 w-5 text-muted-foreground" />
             <h3 className="text-base font-semibold tracking-tight">Focus windows</h3>
             <p className="text-sm text-muted-foreground">
-              Filter your dashboard to show only what's due in the next 24 hours, 48 hours, 3 days, or this week.
+              Filter your dashboard to show only what's due in the next 24 hours, 48 hours, 3 days,
+              or this week.
             </p>
           </article>
 
@@ -598,16 +633,19 @@ function LandingPage() {
             <BarChart3 className="h-5 w-5 text-muted-foreground" />
             <h3 className="text-base font-semibold tracking-tight">Workload heatmap</h3>
             <p className="text-sm text-muted-foreground">
-              Spot brutal exam and deadline weeks at a single glance so you can prep ahead instead of cramming.
+              Spot brutal exam and deadline weeks at a single glance so you can prep ahead instead
+              of cramming.
             </p>
           </article>
 
           <article className="glass-panel flex flex-col gap-3 p-5">
             <CalendarDays className="h-5 w-5 text-muted-foreground" />
-            <h3 className="text-base font-semibold tracking-tight">Class schedules & .ics export</h3>
+            <h3 className="text-base font-semibold tracking-tight">
+              Class schedules & .ics export
+            </h3>
             <p className="text-sm text-muted-foreground">
-              Sync your due dates and recurring classes directly into Google Calendar, Apple Calendar, or Outlook in one
-              tap.
+              Sync your due dates and recurring classes directly into Google Calendar, Apple
+              Calendar, or Outlook in one tap.
             </p>
           </article>
 
@@ -615,7 +653,9 @@ function LandingPage() {
             <Pencil className="h-5 w-5 text-muted-foreground" />
             <h3 className="text-base font-semibold tracking-tight">Friendly course nicknames</h3>
             <p className="text-sm text-muted-foreground">
-              Rename cryptic departmental course codes like <code className="rounded bg-foreground/10 px-1 py-0.5">PHY1154-04</code> to clean, readable names like <span className="font-semibold">Physics</span>.
+              Rename cryptic departmental course codes like{" "}
+              <code className="rounded bg-foreground/10 px-1 py-0.5">PHY1154-04</code> to clean,
+              readable names like <span className="font-semibold">Physics</span>.
             </p>
           </article>
 
@@ -623,7 +663,8 @@ function LandingPage() {
             <SlidersHorizontal className="h-5 w-5 text-muted-foreground" />
             <h3 className="text-base font-semibold tracking-tight">Notifications you control</h3>
             <p className="text-sm text-muted-foreground">
-              Get notified only about what matters to you: upcoming due windows, newly posted grades, and announcements.
+              Get notified only about what matters to you: upcoming due windows, newly posted
+              grades, and announcements.
             </p>
           </article>
         </div>
@@ -647,7 +688,8 @@ function LandingPage() {
             </div>
             <h3 className="mt-3 text-base font-semibold tracking-tight">Create your account</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              Sign up with email and password, or continue with your Google or Apple account in seconds.
+              Sign up with email and password, or continue with your Google or Apple account in
+              seconds.
             </p>
           </article>
 
@@ -657,7 +699,8 @@ function LandingPage() {
             </div>
             <h3 className="mt-3 text-base font-semibold tracking-tight">Paste your Canvas token</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              Generate a personal read-only access token from your school's Canvas Settings. 3 quick clicks.
+              Generate a personal read-only access token from your school's Canvas Settings. 3 quick
+              clicks.
             </p>
           </article>
 
@@ -667,7 +710,8 @@ function LandingPage() {
             </div>
             <h3 className="mt-3 text-base font-semibold tracking-tight">Customize your view</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              Give your courses friendly nicknames, arrange your widgets, and enjoy a clutter-free semester.
+              Give your courses friendly nicknames, arrange your widgets, and enjoy a clutter-free
+              semester.
             </p>
           </article>
         </div>
@@ -683,7 +727,9 @@ function LandingPage() {
                 Your credentials and student privacy are 100% protected
               </h4>
               <p className="mt-1 text-sm text-muted-foreground">
-                We never ask for your school password. Your Canvas token is stored encrypted write-only and is restricted to read-only access. Canvas Pro cannot edit grades, submit coursework, or modify your school account in any way.
+                We never ask for your school password. Your Canvas token is stored encrypted
+                write-only and is restricted to read-only access. Canvas Pro cannot edit grades,
+                submit coursework, or modify your school account in any way.
               </p>
             </div>
           </div>
@@ -746,7 +792,9 @@ function LandingPage() {
                 Free Tier
               </span>
               <p className="mt-3 text-3xl font-bold tracking-tight text-foreground">$0</p>
-              <p className="mt-1 text-xs text-muted-foreground">Free forever — no credit card needed</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Free forever — no credit card needed
+              </p>
 
               <ul className="mt-6 space-y-2.5 text-sm text-muted-foreground">
                 <li className="flex items-center gap-2">
@@ -798,7 +846,9 @@ function LandingPage() {
                   Save 17%!
                 </span>
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">First 10 days free, then less than one coffee a month. Cancel anytime.</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                First 10 days free, then less than one coffee a month. Cancel anytime.
+              </p>
 
               <ul className="mt-6 space-y-2.5 text-sm text-foreground/90">
                 <li className="flex items-center gap-2">
@@ -873,7 +923,8 @@ function LandingPage() {
           Try our free standalone student tools
         </h2>
         <p className="max-w-xl text-sm text-muted-foreground">
-          No account needed — calculate what you need on your final exam or learn how to customize Canvas.
+          No account needed — calculate what you need on your final exam or learn how to customize
+          Canvas.
         </p>
         <div className="flex flex-wrap justify-center gap-3">
           <Link

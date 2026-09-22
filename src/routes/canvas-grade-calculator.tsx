@@ -122,7 +122,7 @@ function CalculatorPage() {
   }, [rows, target]);
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-12 sm:py-16">
+    <div className="mx-auto min-h-dvh w-full max-w-3xl px-4 pb-[max(3rem,env(safe-area-inset-bottom))] pt-[max(3rem,env(safe-area-inset-top))] sm:py-16">
       <header className="text-center">
         <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
           Free tool
@@ -131,9 +131,9 @@ function CalculatorPage() {
           Canvas grade calculator
         </h1>
         <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground">
-          Enter each assignment group's weight and your score. Leave a score blank
-          for work that isn't graded yet — the calculator shows your grade now, your
-          projected grade, and what you need on what's left.
+          Enter each assignment group's weight and your score. Leave a score blank for work that
+          isn't graded yet — the calculator shows your grade now, your projected grade, and what you
+          need on what's left.
         </p>
       </header>
 
@@ -187,10 +187,7 @@ function CalculatorPage() {
 
         <button
           onClick={() => {
-            setRows((prev) => [
-              ...prev,
-              { id: nextId, name: "", weight: "", score: "" },
-            ]);
+            setRows((prev) => [...prev, { id: nextId, name: "", weight: "", score: "" }]);
             setNextId((n) => n + 1);
           }}
           className="glass-inset glass-hover mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-sm font-medium"
@@ -233,9 +230,7 @@ function CalculatorPage() {
       </section>
 
       <section className="glass-panel-strong mt-6 p-5 sm:p-6">
-        <h2 className="text-lg font-semibold tracking-tight">
-          What do I need on the final?
-        </h2>
+        <h2 className="text-lg font-semibold tracking-tight">What do I need on the final?</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Uses every row above that still has a blank score.
         </p>
@@ -262,9 +257,7 @@ function CalculatorPage() {
               </p>
             ) : (
               <>
-                <p className="text-2xl font-semibold tabular-nums">
-                  {result.needed.toFixed(1)}%
-                </p>
+                <p className="text-2xl font-semibold tabular-nums">{result.needed.toFixed(1)}%</p>
                 <p className="mt-1 text-sm text-muted-foreground">
                   needed across the remaining {result.ungradedWeight}% of your grade
                   {result.needed > 100 && " — not reachable, aim for the next grade down"}
@@ -278,47 +271,41 @@ function CalculatorPage() {
 
       <section className="mt-10 space-y-6">
         <div className="glass-panel p-6">
-          <h2 className="text-xl font-semibold tracking-tight">
-            How Canvas calculates your grade
-          </h2>
+          <h2 className="text-xl font-semibold tracking-tight">How Canvas calculates your grade</h2>
           <div className="mt-3 space-y-3 text-sm leading-relaxed text-muted-foreground">
             <p>
-              Canvas shows two numbers. The <strong className="text-foreground">current
-              grade</strong> counts only graded work, which is what this calculator's
-              "grade now" matches. The <strong className="text-foreground">total
-              grade</strong> counts ungraded assignments as zeros — that's the
-              "projected" figure. Tick "Calculate based only on graded assignments"
-              in the Canvas Grades page to switch between them.
+              Canvas shows two numbers. The{" "}
+              <strong className="text-foreground">current grade</strong> counts only graded work,
+              which is what this calculator's "grade now" matches. The{" "}
+              <strong className="text-foreground">total grade</strong> counts ungraded assignments
+              as zeros — that's the "projected" figure. Tick "Calculate based only on graded
+              assignments" in the Canvas Grades page to switch between them.
             </p>
             <p>
-              When a course uses assignment groups with weights, each group is
-              averaged on its own and then multiplied by its weight. A 95% in a
-              group worth 10% moves your grade far less than an 80% in a group
-              worth 40%. If weights don't total 100%, Canvas scales them
+              When a course uses assignment groups with weights, each group is averaged on its own
+              and then multiplied by its weight. A 95% in a group worth 10% moves your grade far
+              less than an 80% in a group worth 40%. If weights don't total 100%, Canvas scales them
               proportionally.
             </p>
             <p>
-              Dropped scores are applied inside the group before weighting, so a
-              "lowest quiz dropped" rule changes that group's average only. Excused
-              work is removed from the calculation entirely, unlike a zero.
+              Dropped scores are applied inside the group before weighting, so a "lowest quiz
+              dropped" rule changes that group's average only. Excused work is removed from the
+              calculation entirely, unlike a zero.
             </p>
             <p>
-              Your instructor may also hide totals or leave grades unposted, in
-              which case Canvas shows nothing even though scores exist. That's a
-              posting policy, not a calculation error.
+              Your instructor may also hide totals or leave grades unposted, in which case Canvas
+              shows nothing even though scores exist. That's a posting policy, not a calculation
+              error.
             </p>
           </div>
         </div>
 
         <div className="glass-panel-strong flex flex-col items-start gap-4 p-6">
-          <h2 className="text-xl font-semibold tracking-tight">
-            Stop doing this by hand
-          </h2>
+          <h2 className="text-xl font-semibold tracking-tight">Stop doing this by hand</h2>
           <p className="text-sm text-muted-foreground">
-            Canvas Pro pulls your real scores straight from Canvas and keeps every
-            class, assignment, and announcement on one dashboard you arrange
-            yourself — with trend arrows when a grade moves. $2.99/month, or
-            $30/year (save 17%!).
+            Canvas Pro pulls your real scores straight from Canvas and keeps every class,
+            assignment, and announcement on one dashboard you arrange yourself — with trend arrows
+            when a grade moves. $2.99/month, or $30/year (save 17%!).
           </p>
           <div className="flex flex-wrap gap-3">
             <Link

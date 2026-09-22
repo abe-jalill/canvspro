@@ -26,7 +26,7 @@ export function SyllabusModal({ title, html, onClose }: SyllabusModalProps) {
   // unaffected by any ancestor transforms (e.g. pull-to-refresh).
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))]"
       role="dialog"
       aria-modal="true"
       aria-label={`${title} syllabus`}
@@ -36,15 +36,13 @@ export function SyllabusModal({ title, html, onClose }: SyllabusModalProps) {
         aria-label="Close syllabus"
         className="absolute inset-0 bg-background/60 backdrop-blur-md"
       />
-      <div className="glass-panel-strong relative z-10 flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden p-0">
-        <header className="flex items-center justify-between gap-4 border-b border-glass-border px-6 py-4">
+      <div className="glass-panel-strong relative z-10 flex max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem)] w-full max-w-3xl flex-col overflow-hidden p-0 sm:max-h-[85dvh]">
+        <header className="flex items-center justify-between gap-4 border-b border-glass-border px-4 py-4 sm:px-6">
           <div className="min-w-0">
             <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
               Syllabus
             </p>
-            <h2 className="mt-0.5 truncate text-lg font-semibold tracking-tight">
-              {title}
-            </h2>
+            <h2 className="mt-0.5 truncate text-lg font-semibold tracking-tight">{title}</h2>
           </div>
           <button
             onClick={onClose}
@@ -54,7 +52,7 @@ export function SyllabusModal({ title, html, onClose }: SyllabusModalProps) {
             <X className="h-4 w-4" />
           </button>
         </header>
-        <div className="syllabus-body overflow-y-auto px-6 py-5 text-sm leading-relaxed">
+        <div className="syllabus-body overflow-y-auto px-4 py-5 text-sm leading-relaxed sm:px-6">
           <div
             // Canvas returns sanitized HTML; render as-is inside a scoped container.
             dangerouslySetInnerHTML={{ __html: html }}

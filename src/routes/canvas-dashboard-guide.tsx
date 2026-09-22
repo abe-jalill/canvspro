@@ -44,9 +44,7 @@ function Section({
   return (
     <section id={id} className="glass-panel p-6">
       <h2 className="text-xl font-semibold tracking-tight">{heading}</h2>
-      <div className="mt-3 space-y-3 text-sm leading-relaxed text-muted-foreground">
-        {children}
-      </div>
+      <div className="mt-3 space-y-3 text-sm leading-relaxed text-muted-foreground">{children}</div>
     </section>
   );
 }
@@ -63,15 +61,15 @@ function Steps({ items }: { items: string[] }) {
 
 function GuidePage() {
   return (
-    <article className="mx-auto w-full max-w-3xl px-4 py-12 sm:py-16">
+    <article className="mx-auto min-h-dvh w-full max-w-3xl px-4 pb-[max(3rem,env(safe-area-inset-bottom))] pt-[max(3rem,env(safe-area-inset-top))] sm:py-16">
       <header className="text-center">
         <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
           Guide
         </p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">{TITLE}</h1>
         <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground">
-          The Canvas dashboard hides most of what you need. Here is how to make it
-          show grades, use names you recognize, and drop the classes you finished.
+          The Canvas dashboard hides most of what you need. Here is how to make it show grades, use
+          names you recognize, and drop the classes you finished.
         </p>
       </header>
 
@@ -111,8 +109,8 @@ function GuidePage() {
       <div className="mt-8 space-y-6">
         <Section id="grades" heading="Show grades on Canvas dashboard cards">
           <p>
-            Course cards can display your current score, but the option is off by
-            default and lives on the card itself, not in settings.
+            Course cards can display your current score, but the option is off by default and lives
+            on the card itself, not in settings.
           </p>
           <Steps
             items={[
@@ -123,16 +121,15 @@ function GuidePage() {
             ]}
           />
           <p>
-            If you don't see the option, your instructor has hidden totals for
-            that course, or grades are muted while grading is in progress. No
-            dashboard setting overrides that.
+            If you don't see the option, your instructor has hidden totals for that course, or
+            grades are muted while grading is in progress. No dashboard setting overrides that.
           </p>
         </Section>
 
         <Section id="nicknames" heading="Rename and color-code your courses">
           <p>
-            Canvas shows the official course name, like "PHY1154-04 FA26". You can
-            replace that with a nickname only you see.
+            Canvas shows the official course name, like "PHY1154-04 FA26". You can replace that with
+            a nickname only you see.
           </p>
           <Steps
             items={[
@@ -146,8 +143,8 @@ function GuidePage() {
 
         <Section id="remove" heading="Remove a class from your dashboard">
           <p>
-            You cannot delete a course, but you can stop it from appearing as a
-            card by unfavoriting it.
+            You cannot delete a course, but you can stop it from appearing as a card by unfavoriting
+            it.
           </p>
           <Steps
             items={[
@@ -158,41 +155,43 @@ function GuidePage() {
             ]}
           />
           <p>
-            If no course is starred, Canvas falls back to showing all active
-            courses, so star the ones you want rather than unstarring everything.
+            If no course is starred, Canvas falls back to showing all active courses, so star the
+            ones you want rather than unstarring everything.
           </p>
         </Section>
 
         <Section id="views" heading="Switch between Card, List, and Recent Activity">
           <p>
-            The three-dot menu at the top right of the dashboard switches views.
-            Card view is the grid of course cards. List view is a single to-do
-            list of upcoming work across every class — usually the most useful of
-            the three during a busy week. Recent Activity is a feed of
-            announcements, grades, and discussion posts.
+            The three-dot menu at the top right of the dashboard switches views. Card view is the
+            grid of course cards. List view is a single to-do list of upcoming work across every
+            class — usually the most useful of the three during a busy week. Recent Activity is a
+            feed of announcements, grades, and discussion posts.
           </p>
         </Section>
 
         <Section id="limits" heading="What Canvas still won't let you change">
           <ul className="ml-4 list-disc space-y-2">
             <li>You cannot reorder course cards by dragging them into your own priority order.</li>
-            <li>You cannot combine grades, upcoming assignments, and announcements onto a single screen.</li>
-            <li>You cannot set your own due-date windows, like "only show me the next two days".</li>
+            <li>
+              You cannot combine grades, upcoming assignments, and announcements onto a single
+              screen.
+            </li>
+            <li>
+              You cannot set your own due-date windows, like "only show me the next two days".
+            </li>
             <li>You cannot get reminders on a schedule you choose.</li>
           </ul>
         </Section>
       </div>
 
       <section className="glass-panel-strong mt-10 flex flex-col items-start gap-4 p-6">
-        <h2 className="text-xl font-semibold tracking-tight">
-          Or skip the settings entirely
-        </h2>
+        <h2 className="text-xl font-semibold tracking-tight">Or skip the settings entirely</h2>
         <p className="text-sm text-muted-foreground">
-          Canvas Pro reads the same Canvas data through your own access key and
-          gives you a dashboard you actually arrange: drag widgets for grades,
-          assignments, announcements, class calendar, and focus windows, hide the
-          ones you don't need, rename every class once, and get reminders on your
-          schedule. First 10 days free, then $2.99/month or $30/year (save 17%!), cancel anytime.
+          Canvas Pro reads the same Canvas data through your own access key and gives you a
+          dashboard you actually arrange: drag widgets for grades, assignments, announcements, class
+          calendar, and focus windows, hide the ones you don't need, rename every class once, and
+          get reminders on your schedule. First 10 days free, then $2.99/month or $30/year (save
+          17%!), cancel anytime.
         </p>
         <div className="flex flex-wrap gap-3">
           <Link

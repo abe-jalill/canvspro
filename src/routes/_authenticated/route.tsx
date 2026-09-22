@@ -53,7 +53,6 @@ function AuthenticatedLayout() {
     window.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
   }, [pathname]);
 
-
   // The moment Pro access is confirmed, drop any Canvas result fetched while it
   // was still unknown, so nothing stays blank waiting for a stale window.
   useEffect(() => {
@@ -69,7 +68,7 @@ function AuthenticatedLayout() {
   if (warmup === "warming") return <AppWarmupSplash />;
 
   return (
-    <div className="min-h-screen w-full overflow-x-hidden md:h-screen md:overflow-hidden">
+    <div className="min-h-dvh w-full overflow-x-hidden md:h-screen md:overflow-hidden">
       <AppSidebar />
       <MobileNav />
       <main
@@ -81,7 +80,7 @@ function AuthenticatedLayout() {
           sidebarMode === "hidden" && "md:pl-4",
         )}
       >
-          <div className="ios-main-content mx-auto w-full min-w-0 max-w-6xl px-3 py-4 sm:px-4 md:p-6">
+        <div className="ios-main-content mx-auto w-full min-w-0 max-w-6xl px-3 py-4 sm:px-4 md:p-6">
           <div className="mb-2 flex min-w-0 items-center justify-end gap-2">
             <CanvasLiveStatus />
             {/* Bell already lives in the mobile top bar — avoid a duplicate on phones */}
