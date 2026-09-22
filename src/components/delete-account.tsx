@@ -43,8 +43,7 @@ export function DeleteAccountSection() {
   return (
     <div className="flex w-full flex-col gap-3">
       <p className="text-sm text-muted-foreground">
-        Deleting your account cancels any active subscription and permanently
-        removes your Canvas key, class names, schedule, notes, and every other
+        Deleting your account permanently removes your Canvas key, class names, schedule, notes, and every other
         saved item. This cannot be undone.
       </p>
 

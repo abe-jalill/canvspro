@@ -170,11 +170,6 @@ function PrivacyPage() {
             PostgreSQL with encrypted token storage and JWT authentication.
           </p>
           <p>
-            <strong className="text-foreground">Payments.</strong> Stripe, Inc. processes card
-            data directly. Canvas Pro never captures or stores your full card number or bank
-            credentials.
-          </p>
-          <p>
             <strong className="text-foreground">Notifications.</strong> Apple Push Notification
             service, Google Firebase Cloud Messaging, and standard Web Push protocols.
           </p>

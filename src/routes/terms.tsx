@@ -100,15 +100,13 @@ function TermsPage() {
 
         <section className="mt-10">
           <h2 className="text-lg font-semibold tracking-tight">
-            Subscription terms
+            Pricing
           </h2>
           <p className="mt-4 text-sm text-muted-foreground">
-            CanvasPro offers a paid Pro subscription with a free 10-day trial, after which it renews automatically at $2.99 per month or $30
-            per year (save 17%). Subscriptions renew automatically until
-            canceled. You can cancel anytime from the billing portal, and you
-            keep access until the end of the paid period. Refunds are issued at
-            our discretion; when a payment is refunded in full, Pro access ends
-            immediately.
+            CanvasPro is currently free to use, with every feature unlocked for
+            all accounts. There is no subscription, no payment, and no card
+            required. If paid plans are introduced later, we will announce the
+            change before it takes effect.
           </p>
         </section>
 

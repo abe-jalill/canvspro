@@ -17,32 +17,7 @@ export const deleteMyAccount = createServerFn({ method: "POST" })
     }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { ENTITLEMENT_ENV } = await import("@/lib/payments-env.server");
 
-    // 1. Stop billing. Failure here must not block deletion, but is logged.
-    try {
-      const { data: subs } = await supabaseAdmin
-        .from("subscriptions")
-        .select("stripe_subscription_id, status")
-        .eq("user_id", userId)
-        .eq("environment", ENTITLEMENT_ENV);
-      const cancelable = (subs ?? []).filter((s: any) =>
-        ["active", "trialing", "past_due"].includes(String(s.status)),
-      );
-      if (cancelable.length > 0) {
-        const { createStripeClient } = await import("@/lib/stripe.server");
-        const stripe = createStripeClient(ENTITLEMENT_ENV);
-        for (const sub of cancelable) {
-          try {
-            await stripe.subscriptions.cancel(String(sub.stripe_subscription_id));
-          } catch (error) {
-            console.error("Account deletion: cancel failed", sub.stripe_subscription_id, error);
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Account deletion: subscription cleanup failed", error);
-    }
 
     // 2. Remove owned rows everywhere.
     const tables = [

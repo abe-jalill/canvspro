@@ -192,7 +192,7 @@ function GuidePage() {
           gives you a dashboard you actually arrange: drag widgets for grades,
           assignments, announcements, class calendar, and focus windows, hide the
           ones you don't need, rename every class once, and get reminders on your
-          schedule. First 10 days free, then $2.99/month or $30/year (save 17%!), cancel anytime.
+          schedule. Free to use — no card required.
         </p>
         <div className="flex flex-wrap gap-3">
           <Link

@@ -6,8 +6,6 @@ import {
   NotificationMasterSwitch,
   NotificationTriggers,
 } from "@/components/notification-settings";
-import { useSubscription } from "@/lib/subscription";
-import { UpgradeCard } from "@/components/pro-gate";
 
 export const Route = createFileRoute("/_authenticated/notifications")({
   head: () => ({
@@ -32,8 +30,6 @@ export const Route = createFileRoute("/_authenticated/notifications")({
 });
 
 function NotificationsSettingsPage() {
-  const { isActive: isPro } = useSubscription();
-
   return (
     <div className="w-full min-w-0 space-y-6">
       <header className="px-1 pt-2">
@@ -49,8 +45,7 @@ function NotificationsSettingsPage() {
         </p>
       </header>
 
-      {isPro ? (
-        <>
+      <>
           <GlassCard strong title="Notifications" subtitle="One switch for everything below.">
             <NotificationMasterSwitch />
           </GlassCard>
@@ -83,10 +78,7 @@ function NotificationsSettingsPage() {
             </Link>
             .
           </p>
-        </>
-      ) : (
-        <UpgradeCard feature="Notifications" />
-      )}
+      </>
     </div>
   );
 }

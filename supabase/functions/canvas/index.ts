@@ -212,36 +212,6 @@ async function credsForRequest(req: Request, includeHidden = false): Promise<Cre
   return { domain, token, excluded };
 }
 
-// Paid access is decided HERE, server-side, before any Canvas data leaves the
-// function — a client-side route guard is UX only. The caller's own JWT reads
-// their `subscriptions` row (RLS scopes it to auth.uid()), and only rows in the
-// live Stripe mode count: test-mode checkouts are free for anyone.
-async function requirePaidAccess(req: Request): Promise<void> {
-  const authHeader = req.headers.get("Authorization") ?? "";
-  if (!authHeader) throw new Error("NOT_AUTHENTICATED");
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const apiKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
-
-  const res = await fetch(
-    `${supabaseUrl}/rest/v1/subscriptions?select=status,current_period_end` +
-      `&environment=eq.live&order=created_at.desc&limit=1`,
-    { headers: { apikey: apiKey, Authorization: authHeader } },
-  );
-  if (!res.ok) throw new Error("NOT_AUTHENTICATED");
-  const rows = (await res.json()) as Array<{
-    status: string;
-    current_period_end: string | null;
-  }>;
-  const sub = rows?.[0];
-  if (!sub) throw new Error("NOT_SUBSCRIBED");
-
-  const end = sub.current_period_end ? new Date(sub.current_period_end).getTime() : null;
-  const future = end === null || end > Date.now();
-  const paid =
-    (["active", "trialing"].includes(sub.status) && future) ||
-    (sub.status === "canceled" && end !== null && end > Date.now());
-  if (!paid) throw new Error("NOT_SUBSCRIBED");
-}
 
 function isActive(c: CanvasCourse, excluded: Set<number>) {
   if (excluded.has(c.id)) return false;
@@ -404,9 +374,6 @@ Deno.serve(async (req) => {
       includeHidden = url.searchParams.get("includeHidden") === "true";
     }
 
-    // Everything except the free due-date counts and the credential check
-    // requires a paid account — validating your own key must work pre-purchase.
-    if (resource !== "duedates" && resource !== "validate") await requirePaidAccess(req);
 
     // The stored credentials aren't needed when validating a freshly typed
     // pair (the caller may not have saved a key yet), so load them lazily.
@@ -495,13 +462,11 @@ Deno.serve(async (req) => {
     const status =
       message === "NOT_AUTHENTICATED"
         ? 401
-        : message === "NOT_SUBSCRIBED"
-          ? 402
-          : message === "NO_CANVAS_KEY" || message === "NO_CANVAS_DOMAIN"
-            ? 428
-            : message === "INVALID_DOMAIN" || /^Canvas API 4\d\d/.test(message)
-              ? 400
-              : 500;
+        : message === "NO_CANVAS_KEY" || message === "NO_CANVAS_DOMAIN"
+          ? 428
+          : message === "INVALID_DOMAIN" || /^Canvas API 4\d\d/.test(message)
+            ? 400
+            : 500;
     if (status === 500) console.error("[canvas]", message);
     return new Response(JSON.stringify({ error: message }), {
       status,

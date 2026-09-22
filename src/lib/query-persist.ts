@@ -11,7 +11,7 @@ const BUSTER = "v2";
 /** Query keys worth persisting — everything else is cheap or session-only.
  *
  * Deliberately excluded:
- *  - "subscription" / "auth-user": entitlements are never served from a cache.
+ *  - "auth-user": identity is never served from a cache.
  *  - "user-preferences": a restored (possibly stale) copy could become the
  *    basis for a write and overwrite newer data saved on another device.
  */

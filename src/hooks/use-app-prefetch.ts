@@ -17,7 +17,6 @@ const ROUTES = [
   "/grades",
   "/assignments",
   "/announcements",
-  "/billing",
   "/notifications",
   "/settings",
 ] as const;
