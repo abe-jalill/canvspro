@@ -809,12 +809,6 @@ function LandingPage() {
           >
             Customize Canvas guide
           </Link>
-          <Link
-            to="/pricing"
-            className="glass-inset glass-hover inline-flex min-h-11 items-center justify-center rounded-xl px-4 text-sm font-medium"
-          >
-            Full pricing details
-          </Link>
         </div>
       </section>
     </div>
