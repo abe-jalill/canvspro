@@ -18,6 +18,7 @@ import {
   Moon,
   Settings,
   Sun,
+  TimerReset,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/lib/theme";
@@ -38,6 +39,7 @@ import { disableBackgroundPush } from "@/lib/push-client";
 const items = [
   { title: "Dashboard", to: "/dashboard" as const, icon: LayoutDashboard },
   { title: "Focus", to: "/focus" as const, icon: Crosshair },
+  { title: "Study Session", to: "/study-session" as const, icon: TimerReset },
   { title: "Calendar", to: "/schedule" as const, icon: CalendarDays },
   { title: "Class Schedule", to: "/class-schedule" as const, icon: CalendarClock },
   { title: "Grades", to: "/grades" as const, icon: GraduationCap },
@@ -76,7 +78,11 @@ function ReminderToggle({ compact = false }: { compact?: boolean }) {
       title={enabled ? "Reminders on (9 AM – 9 PM)" : "Reminders off"}
     >
       {enabled ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
-      {!compact && <span className="ml-2 text-xs font-medium">{enabled ? "Reminders on" : "Reminders off"}</span>}
+      {!compact && (
+        <span className="ml-2 text-xs font-medium">
+          {enabled ? "Reminders on" : "Reminders off"}
+        </span>
+      )}
     </button>
   );
 }
@@ -96,7 +102,9 @@ function ThemeToggle({ compact = false }: { compact?: boolean }) {
       title={isDark ? "Light mode" : "Dark mode"}
     >
       {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-      {!compact && <span className="ml-2 text-xs font-medium">{isDark ? "Light mode" : "Dark mode"}</span>}
+      {!compact && (
+        <span className="ml-2 text-xs font-medium">{isDark ? "Light mode" : "Dark mode"}</span>
+      )}
     </button>
   );
 }
@@ -212,7 +220,11 @@ export function AppSidebar() {
                 })}
                 <div className="my-2 h-[1px] w-6 rounded-full bg-white/10" />
                 {courses.data?.map((course: CourseSummary) => {
-                  const courseName = displayCourseNameForCourse(course.id, course.name, course.course_code);
+                  const courseName = displayCourseNameForCourse(
+                    course.id,
+                    course.name,
+                    course.course_code,
+                  );
                   const color = getGradeColor(course.current_score);
                   const coursePath = `/courses/${course.id}`;
                   return (
@@ -254,8 +266,12 @@ export function AppSidebar() {
                   className="block min-w-0 flex-1 px-2 press transition-opacity hover:opacity-80"
                   aria-label="Go to homepage"
                 >
-                  <span className="block text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">{"\n"}</span>
-                  <span className="mt-1 block truncate text-base font-normal tracking-tight text-foreground">CanvasPro</span>
+                  <span className="block text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                    {"\n"}
+                  </span>
+                  <span className="mt-1 block truncate text-base font-normal tracking-tight text-foreground">
+                    CanvasPro
+                  </span>
                 </Link>
                 <TrafficLights
                   className="relative z-10 shrink-0"
@@ -279,10 +295,14 @@ export function AppSidebar() {
                   >
                     <span className="flex items-center justify-between gap-2">
                       <span className="flex min-w-0 items-center gap-2">
-                        {isActive(pathname, item.to) && <span className="h-1 w-1 shrink-0 rounded-full bg-primary" />}
+                        {isActive(pathname, item.to) && (
+                          <span className="h-1 w-1 shrink-0 rounded-full bg-primary" />
+                        )}
                         <span className="truncate">{item.title}</span>
                       </span>
-                      {!isPro && !isFreePath(item.to) && <Lock className="h-3.5 w-3.5 shrink-0 opacity-50" />}
+                      {!isPro && !isFreePath(item.to) && (
+                        <Lock className="h-3.5 w-3.5 shrink-0 opacity-50" />
+                      )}
                     </span>
                   </Link>
                 ))}
@@ -295,7 +315,11 @@ export function AppSidebar() {
                   {courses.data &&
                     courses.data.length > 0 &&
                     courses.data.map((course: CourseSummary) => {
-                      const courseName = displayCourseNameForCourse(course.id, course.name, course.course_code);
+                      const courseName = displayCourseNameForCourse(
+                        course.id,
+                        course.name,
+                        course.course_code,
+                      );
                       const score = course.current_score;
                       const color = getGradeColor(score);
                       const coursePath = `/courses/${course.id}`;
@@ -322,7 +346,10 @@ export function AppSidebar() {
                             />
                             <span className="truncate">{courseName}</span>
                           </span>
-                          <span className="shrink-0 text-[11px] font-normal tabular-nums" style={{ color }}>
+                          <span
+                            className="shrink-0 text-[11px] font-normal tabular-nums"
+                            style={{ color }}
+                          >
                             {score != null ? `${Math.round(score)}%` : "—"}
                           </span>
                         </Link>
@@ -349,7 +376,7 @@ export function MobileNav() {
   const { isActive: isPro } = useSubscription();
   const [open, setOpen] = useState(false);
   const primary = items.filter((item) =>
-    ["/dashboard", "/assignments", "/grades", "/schedule"].includes(item.to),
+    ["/dashboard", "/assignments", "/study-session", "/grades"].includes(item.to),
   );
 
   useEffect(() => setOpen(false), [locationHref]);
@@ -378,13 +405,19 @@ export function MobileNav() {
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2">
-          {items.filter((item) => !primary.includes(item)).map((item) => (
-            <Link key={item.to} to={item.to} className="press glass-inset flex min-h-12 items-center gap-2 rounded-xl px-3 text-sm">
-              <item.icon className="h-4 w-4 shrink-0" />
-              <span className="min-w-0 truncate">{item.title}</span>
-              {!isPro && !isFreePath(item.to) && <Lock className="ml-auto h-3 w-3 shrink-0" />}
-            </Link>
-          ))}
+          {items
+            .filter((item) => !primary.includes(item))
+            .map((item) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                className="press glass-inset flex min-h-12 items-center gap-2 rounded-xl px-3 text-sm"
+              >
+                <item.icon className="h-4 w-4 shrink-0" />
+                <span className="min-w-0 truncate">{item.title}</span>
+                {!isPro && !isFreePath(item.to) && <Lock className="ml-auto h-3 w-3 shrink-0" />}
+              </Link>
+            ))}
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2">
           {isPro && <ReminderToggle />}
@@ -396,13 +429,28 @@ export function MobileNav() {
           {primary.map((item) => {
             const active = isActive(pathname, item.to);
             return (
-              <Link key={item.to} to={item.to} className={cn("press flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-xl text-[10px]", active ? "text-foreground" : "text-muted-foreground")}>
+              <Link
+                key={item.to}
+                to={item.to}
+                className={cn(
+                  "press flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-xl text-[10px]",
+                  active ? "text-foreground" : "text-muted-foreground",
+                )}
+              >
                 <item.icon className="h-5 w-5" />
-                <span>{item.title === "Calendar" ? "Schedule" : item.title}</span>
+                <span>{item.title === "Study Session" ? "Study" : item.title}</span>
               </Link>
             );
           })}
-          <button type="button" onClick={() => setOpen((value) => !value)} className={cn("press flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-xl text-[10px]", open ? "text-foreground" : "text-muted-foreground")} aria-expanded={open}>
+          <button
+            type="button"
+            onClick={() => setOpen((value) => !value)}
+            className={cn(
+              "press flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-xl text-[10px]",
+              open ? "text-foreground" : "text-muted-foreground",
+            )}
+            aria-expanded={open}
+          >
             <Menu className="h-5 w-5" />
             <span>More</span>
           </button>

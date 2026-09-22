@@ -32,6 +32,7 @@ import { Route as AuthenticatedGradesRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
 import { Route as AuthenticatedScheduleRouteImport } from './routes/_authenticated/schedule'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedStudySessionRouteImport } from './routes/_authenticated/study-session'
 import { Route as AuthenticatedCheckoutReturnRouteImport } from './routes/_authenticated/checkout.return'
 import { Route as AuthenticatedCoursesCourseIdRouteImport } from './routes/_authenticated/courses.$courseId'
 import { Route as ApiMobileSubscriptionRouteImport } from './routes/api/mobile/subscription'
@@ -160,6 +161,12 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedStudySessionRoute =
+  AuthenticatedStudySessionRouteImport.update({
+    id: '/study-session',
+    path: '/study-session',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedCheckoutReturnRoute =
   AuthenticatedCheckoutReturnRouteImport.update({
     id: '/checkout/return',
@@ -233,6 +240,7 @@ export interface FileRoutesByFullPath {
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/schedule': typeof AuthenticatedScheduleRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/study-session': typeof AuthenticatedStudySessionRoute
   '/checkout/return': typeof AuthenticatedCheckoutReturnRoute
   '/courses/$courseId': typeof AuthenticatedCoursesCourseIdRoute
   '/api/mobile/subscription': typeof ApiMobileSubscriptionRoute
@@ -266,6 +274,7 @@ export interface FileRoutesByTo {
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/schedule': typeof AuthenticatedScheduleRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/study-session': typeof AuthenticatedStudySessionRoute
   '/checkout/return': typeof AuthenticatedCheckoutReturnRoute
   '/courses/$courseId': typeof AuthenticatedCoursesCourseIdRoute
   '/api/mobile/subscription': typeof ApiMobileSubscriptionRoute
@@ -301,6 +310,7 @@ export interface FileRoutesById {
   '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
   '/_authenticated/schedule': typeof AuthenticatedScheduleRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/study-session': typeof AuthenticatedStudySessionRoute
   '/_authenticated/checkout/return': typeof AuthenticatedCheckoutReturnRoute
   '/_authenticated/courses/$courseId': typeof AuthenticatedCoursesCourseIdRoute
   '/api/mobile/subscription': typeof ApiMobileSubscriptionRoute
@@ -336,6 +346,7 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/schedule'
     | '/settings'
+    | '/study-session'
     | '/checkout/return'
     | '/courses/$courseId'
     | '/api/mobile/subscription'
@@ -369,6 +380,7 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/schedule'
     | '/settings'
+    | '/study-session'
     | '/checkout/return'
     | '/courses/$courseId'
     | '/api/mobile/subscription'
@@ -403,6 +415,7 @@ export interface FileRouteTypes {
     | '/_authenticated/notifications'
     | '/_authenticated/schedule'
     | '/_authenticated/settings'
+    | '/_authenticated/study-session'
     | '/_authenticated/checkout/return'
     | '/_authenticated/courses/$courseId'
     | '/api/mobile/subscription'
@@ -600,6 +613,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/study-session': {
+      id: '/_authenticated/study-session'
+      path: '/study-session'
+      fullPath: '/study-session'
+      preLoaderRoute: typeof AuthenticatedStudySessionRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/checkout/return': {
       id: '/_authenticated/checkout/return'
       path: '/checkout/return'
@@ -677,6 +697,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
   AuthenticatedScheduleRoute: typeof AuthenticatedScheduleRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedStudySessionRoute: typeof AuthenticatedStudySessionRoute
   AuthenticatedCheckoutReturnRoute: typeof AuthenticatedCheckoutReturnRoute
   AuthenticatedCoursesCourseIdRoute: typeof AuthenticatedCoursesCourseIdRoute
 }
@@ -692,6 +713,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
   AuthenticatedScheduleRoute: AuthenticatedScheduleRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedStudySessionRoute: AuthenticatedStudySessionRoute,
   AuthenticatedCheckoutReturnRoute: AuthenticatedCheckoutReturnRoute,
   AuthenticatedCoursesCourseIdRoute: AuthenticatedCoursesCourseIdRoute,
 }
