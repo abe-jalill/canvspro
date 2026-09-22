@@ -53,6 +53,7 @@ export const deleteMyAccount = createServerFn({ method: "POST" })
       "push_scheduled_alerts",
       "push_sent_log",
       "push_subscriptions",
+      "native_push_tokens",
       "subscriptions",
       "user_assignment_meta",
       "user_preferences",

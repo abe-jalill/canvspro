@@ -16,7 +16,9 @@ import {
   needsHomeScreenInstall,
   pushSupported,
   syncPrefsToServer,
+  pushDispatchUrl,
 } from "@/lib/push-client";
+import { isNativeApp } from "@/lib/native";
 import { clearAppBadge } from "@/lib/app-badge";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -257,7 +259,9 @@ export function NotificationDelivery() {
   const [testing, setTesting] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && "Notification" in window) {
+    if (isNativeApp()) {
+      setPermission("granted");
+    } else if (typeof window !== "undefined" && "Notification" in window) {
       setPermission(Notification.permission);
     }
     void isPushEnabled().then(setBackground);
@@ -307,7 +311,7 @@ export function NotificationDelivery() {
         toast.error("Please sign in again and retry.");
         return;
       }
-      const response = await fetch("/api/public/push/dispatch", {
+      const response = await fetch(pushDispatchUrl(), {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ action: "test" }),
@@ -328,8 +332,8 @@ export function NotificationDelivery() {
     <div className="flex flex-col gap-6">
       <div className="space-y-2">
         <Toggle
-          label="Browser pop-ups"
-          description="Off keeps alerts inside the bell menu only"
+          label={isNativeApp() ? "Push notifications" : "Browser pop-ups"}
+          description={isNativeApp() ? "Allow assignment, grade, and announcement alerts" : "Off keeps alerts inside the bell menu only"}
           checked={prefs.browserPush}
           disabled={off}
           onChange={() => toggle("browserPush")}
@@ -338,7 +342,7 @@ export function NotificationDelivery() {
           label="Alerts when CanvasPro is closed"
           description={
             background
-              ? "This device gets pushed alerts even with the site closed"
+              ? `This device gets pushed alerts even with the ${isNativeApp() ? "app" : "site"} closed`
               : needsHomeScreenInstall()
                 ? "iPhone/iPad: add CanvasPro to your Home Screen first"
                 : "Turn on to keep getting alerts with the browser closed"
@@ -417,7 +421,7 @@ export function NotificationDelivery() {
         )}
       </div>
 
-      {permission !== "granted" && (
+      {!isNativeApp() && permission !== "granted" && (
         <div className="glass-inset flex flex-col gap-2 rounded-xl p-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-muted-foreground">
             {permission === "denied"

@@ -33,6 +33,7 @@ import { getCoursesFn, type CourseSummary } from "@/lib/canvas.functions";
 import { displayCourseNameForCourse } from "@/lib/course-display";
 import { getGradeColor } from "@/lib/grade-color";
 import { useSidebarMode } from "@/lib/sidebar-state";
+import { disableBackgroundPush } from "@/lib/push-client";
 
 const items = [
   { title: "Dashboard", to: "/dashboard" as const, icon: LayoutDashboard },
@@ -105,6 +106,7 @@ function useSignOut() {
   const queryClient = useQueryClient();
   const scope = useUserScope();
   return async function signOut() {
+    await disableBackgroundPush().catch(() => undefined);
     await queryClient.cancelQueries();
     queryClient.clear();
     purgeScopedStorage(scope);

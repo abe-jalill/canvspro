@@ -15,6 +15,7 @@ import {
   type ScheduleRow,
   type TonightItem,
 } from "@/lib/countdown-alerts.server";
+import { apnsConfigFromEnv, deliverApns, type NativePushToken } from "@/lib/apns.server";
 
 interface SubRow {
   id: string;
@@ -134,7 +135,11 @@ async function run(): Promise<Response> {
     .from("push_subscriptions")
     .select("id,user_id,endpoint,p256dh,auth,failure_count");
   const rows = (subs ?? []) as SubRow[];
-  if (rows.length === 0) return Response.json({ users: 0, sent: 0 });
+  const { data: nativeRowsRaw } = await supabaseAdmin
+    .from("native_push_tokens")
+    .select("id,user_id,token,environment,failure_count");
+  const nativeRows = (nativeRowsRaw ?? []) as Array<NativePushToken & { user_id: string; failure_count: number }>;
+  if (rows.length === 0 && nativeRows.length === 0) return Response.json({ users: 0, sent: 0 });
 
   const byUser = new Map<string, SubRow[]>();
   for (const r of rows) {
@@ -142,6 +147,14 @@ async function run(): Promise<Response> {
     list.push(r);
     byUser.set(r.user_id, list);
   }
+  const nativeByUser = new Map<string, Array<NativePushToken & { failure_count: number }>>();
+  for (const row of nativeRows) {
+    const list = nativeByUser.get(row.user_id) ?? [];
+    list.push(row);
+    nativeByUser.set(row.user_id, list);
+    if (!byUser.has(row.user_id)) byUser.set(row.user_id, []);
+  }
+  const apns = apnsConfigFromEnv();
 
   let sent = 0;
   let failures = 0;
@@ -241,17 +254,23 @@ async function run(): Promise<Response> {
       if (fresh.length === 0) continue;
 
       const dead = new Set<string>();
+      const deadNative = new Set<string>();
       const failedSubs = new Set<string>();
       const okSubs = new Set<string>();
       const loggable: typeof fresh = [];
       for (const alert of fresh) {
         const targets = userSubs.filter((s) => !dead.has(s.id));
-        if (targets.length === 0) break;
-        const report = await deliver(targets, alert, vapid);
+        const nativeTargets = (nativeByUser.get(userId) ?? []).filter((s) => !deadNative.has(s.id));
+        if (targets.length === 0 && nativeTargets.length === 0) break;
+        const report = targets.length ? await deliver(targets, alert, vapid) : { dead: [], failed: [], delivered: [] };
+        const nativeReport = apns && nativeTargets.length
+          ? await deliverApns(nativeTargets, alert, apns)
+          : { dead: [], failed: [], delivered: [] };
         report.dead.forEach((id) => dead.add(id));
+        nativeReport.dead.forEach((id) => deadNative.add(id));
         report.failed.forEach((id) => failedSubs.add(id));
         report.delivered.forEach((id) => okSubs.add(id));
-        if (report.delivered.length > 0) {
+        if (report.delivered.length > 0 || nativeReport.delivered.length > 0) {
           loggable.push(alert);
           sent += 1;
         } else {
@@ -274,6 +293,9 @@ async function run(): Promise<Response> {
           `[push-dispatch] removing ${dead.size} expired subscription(s) user=${userId}`,
         );
         await supabaseAdmin.from("push_subscriptions").delete().in("id", Array.from(dead));
+      }
+      if (deadNative.size > 0) {
+        await supabaseAdmin.from("native_push_tokens").delete().in("id", Array.from(deadNative));
       }
       if (okSubs.size > 0) {
         await supabaseAdmin
@@ -317,7 +339,12 @@ async function runTest(accessToken: string): Promise<Response> {
     return Response.json({ ok: false, message: "Couldn't read your devices." });
   }
   const subs = (data ?? []) as Array<{ id: string; endpoint: string; p256dh: string; auth: string }>;
-  if (subs.length === 0) {
+  const { data: nativeData } = await supabaseAdmin
+    .from("native_push_tokens")
+    .select("id,token,environment")
+    .eq("user_id", user.id);
+  const nativeTokens = (nativeData ?? []) as NativePushToken[];
+  if (subs.length === 0 && nativeTokens.length === 0) {
     return Response.json({
       ok: false,
       message: "No device registered yet — turn on “Alerts when CanvasPro is closed” first.",
@@ -348,6 +375,18 @@ async function runTest(accessToken: string): Promise<Response> {
       else if (res.expired) dead.push(s.id);
     }),
   );
+  const apns = apnsConfigFromEnv();
+  if (apns && nativeTokens.length > 0) {
+    const nativeReport = await deliverApns(nativeTokens, {
+      title: "CanvasPro test notification",
+      body: "Native push delivery is working on this iPhone.",
+      to: "/notifications",
+    }, apns);
+    delivered += nativeReport.delivered.length;
+    if (nativeReport.dead.length > 0) {
+      await supabaseAdmin.from("native_push_tokens").delete().in("id", nativeReport.dead);
+    }
+  }
   if (dead.length > 0) {
     console.warn(`[push-test] removing ${dead.length} expired subscription(s) user=${user.id}`);
     await supabaseAdmin.from("push_subscriptions").delete().in("id", dead);
@@ -357,7 +396,7 @@ async function runTest(accessToken: string): Promise<Response> {
   return Response.json({
     ok: delivered > 0,
     delivered,
-    devices: subs.length,
+    devices: subs.length + nativeTokens.length,
     message:
       delivered > 0
         ? `Test notification sent to ${delivered} device${delivered === 1 ? "" : "s"}.`

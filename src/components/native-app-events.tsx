@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { App } from "@capacitor/app";
 import { Network } from "@capacitor/network";
+import { PushNotifications } from "@capacitor/push-notifications";
 import { isNativeApp } from "@/lib/native";
 
 const STALE_AFTER = 10 * 60_000;
@@ -36,6 +37,13 @@ export function NativeAppEvents() {
     void Network.addListener("networkStatusChange", ({ connected }) => {
       if (connected && wasOffline) refreshStale();
       wasOffline = !connected;
+    }).then((handle) => handles.push(handle));
+    void PushNotifications.addListener("pushNotificationActionPerformed", ({ notification }) => {
+      const path = String(notification.data?.to ?? "/dashboard");
+      if (path.startsWith("/") && !path.startsWith("//")) {
+        window.history.pushState({}, "", path);
+        window.dispatchEvent(new PopStateEvent("popstate"));
+      }
     }).then((handle) => handles.push(handle));
 
     return () => {

@@ -1,5 +1,14 @@
 import { supabase } from "@/integrations/supabase/client";
 import { readPrefs } from "@/lib/notification-prefs";
+import { PushNotifications } from "@capacitor/push-notifications";
+import { isNativeApp } from "@/lib/native";
+import { scopedKey } from "@/lib/user-scope";
+
+const NATIVE_TOKEN_KEY = "native-push-token";
+export const pushDispatchUrl = () =>
+  isNativeApp()
+    ? "https://canvaspro.app/api/public/push/dispatch"
+    : "/api/public/push/dispatch";
 
 /**
  * The application-server public key comes from the server itself, so the key a
@@ -37,6 +46,7 @@ export function inEditorPreview(): boolean {
 }
 
 export function pushSupported(): boolean {
+  if (isNativeApp()) return true;
   return (
     typeof window !== "undefined" &&
     "serviceWorker" in navigator &&
@@ -89,6 +99,16 @@ export async function syncPrefsToServer(): Promise<void> {
  * subscription so toggling back on re-registers cleanly.
  */
 export async function isPushEnabled(): Promise<boolean> {
+  if (isNativeApp()) {
+    const token = window.localStorage.getItem(scopedKey(NATIVE_TOKEN_KEY));
+    if (!token) return false;
+    const { data, error } = await supabase
+      .from("native_push_tokens")
+      .select("id")
+      .eq("token", token)
+      .limit(1);
+    return error ? true : !!data?.length;
+  }
   if (!pushSupported()) return false;
   const reg = await navigator.serviceWorker.getRegistration("/sw.js");
   const sub = await reg?.pushManager.getSubscription();
@@ -113,6 +133,49 @@ export async function isPushEnabled(): Promise<boolean> {
 export async function enableBackgroundPush(): Promise<
   { ok: true } | { ok: false; reason: string }
 > {
+  if (isNativeApp()) {
+    const permission = await PushNotifications.requestPermissions();
+    if (permission.receive !== "granted") {
+      return { ok: false, reason: "Notification permission was denied in iOS Settings." };
+    }
+    const token = await new Promise<string>((resolve, reject) => {
+      let settled = false;
+      const timeout = window.setTimeout(() => {
+        if (!settled) reject(new Error("Apple Push Notification registration timed out."));
+      }, 15_000);
+      void PushNotifications.addListener("registration", (result) => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timeout);
+        resolve(result.value);
+      });
+      void PushNotifications.addListener("registrationError", (error) => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timeout);
+        reject(new Error(error.error));
+      });
+      void PushNotifications.register();
+    }).catch((error) => {
+      throw error;
+    });
+    const { data } = await supabase.auth.getUser();
+    if (!data.user) return { ok: false, reason: "You need to be signed in." };
+    const { error } = await supabase.from("native_push_tokens").upsert(
+      {
+        user_id: data.user.id,
+        token,
+        platform: "ios",
+        environment: import.meta.env.DEV ? "sandbox" : "production",
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "token" },
+    );
+    if (error) return { ok: false, reason: error.message };
+    window.localStorage.setItem(scopedKey(NATIVE_TOKEN_KEY), token);
+    await syncPrefsToServer();
+    return { ok: true };
+  }
   if (inEditorPreview()) {
     return {
       ok: false,
@@ -180,6 +243,13 @@ export async function enableBackgroundPush(): Promise<
 }
 
 export async function disableBackgroundPush(): Promise<void> {
+  if (isNativeApp()) {
+    const token = window.localStorage.getItem(scopedKey(NATIVE_TOKEN_KEY));
+    if (token) await supabase.from("native_push_tokens").delete().eq("token", token);
+    window.localStorage.removeItem(scopedKey(NATIVE_TOKEN_KEY));
+    await PushNotifications.unregister().catch(() => undefined);
+    return;
+  }
   if (!pushSupported()) return;
   const reg = await navigator.serviceWorker.getRegistration("/sw.js");
   const sub = await reg?.pushManager.getSubscription();
