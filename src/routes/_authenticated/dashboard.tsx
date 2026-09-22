@@ -1,11 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type DragEvent,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { ChevronDown, ChevronUp, Eye, EyeOff, GripVertical, Plus, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDashboardLayout, type WidgetId, type WidgetSize } from "@/lib/dashboard-layout";
 import { WIDGETS, LockedWidget } from "@/components/widgets/dashboard-widgets";
 import { useSubscription } from "@/lib/subscription";
 import { DashboardHero } from "@/components/dashboard-hero";
+import { isNativeApp } from "@/lib/native";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
@@ -50,7 +57,10 @@ function colSpanClass(size: WidgetSize): string {
 function Dashboard() {
   const layout = useDashboardLayout();
   const { isActive: isPro } = useSubscription();
+  const nativeApp = isNativeApp();
   const [customizing, setCustomizing] = useState(false);
+  const [activeWidget, setActiveWidget] = useState(0);
+  const carouselRef = useRef<HTMLDivElement | null>(null);
   const [draggedId, setDraggedId] = useState<WidgetId | null>(null);
   const [dropIndicator, setDropIndicator] = useState<{
     id: WidgetId;
@@ -95,6 +105,38 @@ function Dashboard() {
   const visible = layout.order.filter((id) => !layout.isHidden(id));
   const activeList = customizing ? layout.order : visible;
   const hiddenWidgets = layout.order.filter((id) => layout.isHidden(id));
+  const showCarousel = nativeApp && !customizing;
+
+  useEffect(() => {
+    setActiveWidget((current) => Math.min(current, Math.max(activeList.length - 1, 0)));
+  }, [activeList.length]);
+
+  const handleCarouselScroll = () => {
+    const carousel = carouselRef.current;
+    if (!carousel) return;
+
+    const slides = Array.from(carousel.querySelectorAll<HTMLElement>("[data-widget-slide]"));
+    if (slides.length === 0) return;
+
+    const firstOffset = slides[0]?.offsetLeft ?? 0;
+    const nearest = slides.reduce(
+      (best, slide, index) => {
+        const distance = Math.abs(slide.offsetLeft - firstOffset - carousel.scrollLeft);
+        return distance < best.distance ? { index, distance } : best;
+      },
+      { index: 0, distance: Number.POSITIVE_INFINITY },
+    );
+    setActiveWidget(nearest.index);
+  };
+
+  const goToWidget = (index: number) => {
+    const carousel = carouselRef.current;
+    const slides = carousel?.querySelectorAll<HTMLElement>("[data-widget-slide]");
+    const slide = slides?.[index];
+    const firstSlide = slides?.[0];
+    if (!carousel || !slide || !firstSlide) return;
+    carousel.scrollTo({ left: slide.offsetLeft - firstSlide.offsetLeft, behavior: "smooth" });
+  };
 
   const handleDragStart = (e: DragEvent<HTMLDivElement>, id: WidgetId) => {
     setDraggedId(id);
@@ -165,7 +207,9 @@ function Dashboard() {
       <header className="flex flex-wrap items-center justify-between gap-3 px-1">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">Your Widgets</h2>
+            <h2 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+              Your Widgets
+            </h2>
             {customizing && (
               <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
                 Edit Mode
@@ -175,7 +219,7 @@ function Dashboard() {
           <p className="mt-0.5 text-xs text-muted-foreground">
             {customizing
               ? "Drag cards or use arrows to arrange. Choose sizes or hide widgets you don't need."
-               : ""}
+              : ""}
           </p>
         </div>
 
@@ -209,17 +253,28 @@ function Dashboard() {
           <div className="flex items-center gap-2">
             <GripVertical className="h-4 w-4 text-primary" />
             <span>
-              <strong className="text-foreground">Drag by the handle</strong> to move widgets, or tap{" "}
-              <strong className="text-foreground">↑ / ↓</strong> arrows to reorder.
+              <strong className="text-foreground">Drag by the handle</strong> to move widgets, or
+              tap <strong className="text-foreground">↑ / ↓</strong> arrows to reorder.
             </span>
           </div>
           <span className="text-muted-foreground">Changes save automatically to your account.</span>
         </div>
       )}
 
-      {/* 12-Column Grid Container */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-5 min-w-0 [grid-auto-flow:dense]">
-        {activeList.map((id) => {
+      {/* The native app uses an iOS-style pager; web keeps the customizable grid. */}
+      <div
+        ref={carouselRef}
+        onScroll={showCarousel ? handleCarouselScroll : undefined}
+        role={showCarousel ? "region" : undefined}
+        aria-label={showCarousel ? "Dashboard widgets" : undefined}
+        aria-roledescription={showCarousel ? "carousel" : undefined}
+        className={cn(
+          showCarousel
+            ? "no-scrollbar -mx-3 flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain px-3 pb-2 scroll-smooth"
+            : "grid min-w-0 grid-cols-1 gap-5 [grid-auto-flow:dense] md:grid-cols-2 lg:grid-cols-12",
+        )}
+      >
+        {activeList.map((id, pageIndex) => {
           const meta = WIDGETS[id];
           const hidden = layout.isHidden(id);
           const index = layout.order.indexOf(id);
@@ -227,7 +282,11 @@ function Dashboard() {
           const isDropTarget = dropIndicator?.id === id;
 
           const widgetBody =
-            meta.pro && !isPro ? <LockedWidget title={meta.label} feature={meta.label} /> : meta.render();
+            meta.pro && !isPro ? (
+              <LockedWidget title={meta.label} feature={meta.label} />
+            ) : (
+              meta.render()
+            );
 
           return (
             <div
@@ -239,8 +298,14 @@ function Dashboard() {
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, id)}
               onDragEnd={handleDragEnd}
+              data-widget-slide={showCarousel ? true : undefined}
+              role={showCarousel ? "group" : undefined}
+              aria-label={
+                showCarousel ? `${meta.label}, ${pageIndex + 1} of ${activeList.length}` : undefined
+              }
+              aria-roledescription={showCarousel ? "slide" : undefined}
               className={cn(
-                colSpanClass(sizeOf(id)),
+                showCarousel ? "h-[26rem] w-full shrink-0 snap-center" : colSpanClass(sizeOf(id)),
                 "min-w-0 transition-all duration-200 relative group",
                 customizing && "rounded-2xl ring-1 ring-foreground/15 hover:ring-foreground/30",
                 isDragging && "opacity-40 scale-[0.98] ring-2 ring-primary shadow-2xl",
@@ -260,7 +325,9 @@ function Dashboard() {
                     <span className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground">
                       <GripVertical className="h-4 w-4 shrink-0" />
                     </span>
-                    <span className="truncate text-xs font-semibold text-foreground">{meta.label}</span>
+                    <span className="truncate text-xs font-semibold text-foreground">
+                      {meta.label}
+                    </span>
                   </div>
 
                   {/* Controls */}
@@ -321,27 +388,65 @@ function Dashboard() {
                           : "text-foreground hover:bg-foreground/5",
                       )}
                     >
-                      {hidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                      {hidden ? (
+                        <EyeOff className="h-3.5 w-3.5" />
+                      ) : (
+                        <Eye className="h-3.5 w-3.5" />
+                      )}
                     </button>
                   </div>
                 </div>
               )}
 
               {/* Widget Content */}
-              <div className={cn(customizing && "p-1 pointer-events-none")}>{widgetBody}</div>
+              <div
+                className={cn(
+                  customizing && "p-1 pointer-events-none",
+                  showCarousel &&
+                    "no-scrollbar h-full overflow-y-auto overscroll-y-contain [&>*]:min-h-full",
+                )}
+              >
+                {widgetBody}
+              </div>
             </div>
           );
         })}
       </div>
+
+      {showCarousel && activeList.length > 1 && (
+        <div className="!mt-0.5 flex min-h-6 items-center justify-center" aria-label="Widget pages">
+          {activeList.map((id, index) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => goToWidget(index)}
+              aria-label={`Show ${WIDGETS[id].label}`}
+              aria-current={activeWidget === index ? "page" : undefined}
+              className="flex h-6 w-6 items-center justify-center rounded-full"
+            >
+              <span
+                className={cn(
+                  "h-2 w-2 rounded-full transition-all duration-200",
+                  activeWidget === index ? "scale-110 bg-foreground" : "bg-foreground/25",
+                )}
+              />
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Hidden Widgets Restore Tray */}
       {customizing && hiddenWidgets.length > 0 && (
         <section className="glass-panel-strong mt-8 p-5">
           <div className="flex items-center gap-2">
             <EyeOff className="h-4 w-4 text-muted-foreground" />
-            <h3 className="text-sm font-semibold text-foreground">Hidden Widgets ({hiddenWidgets.length})</h3>
+            <h3 className="text-sm font-semibold text-foreground">
+              Hidden Widgets ({hiddenWidgets.length})
+            </h3>
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">Click any widget below to add it back to your dashboard.</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Click any widget below to add it back to your dashboard.
+          </p>
 
           <div className="mt-3 flex flex-wrap gap-2">
             {hiddenWidgets.map((hid) => {
