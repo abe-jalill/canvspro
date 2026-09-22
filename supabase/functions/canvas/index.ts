@@ -212,36 +212,6 @@ async function credsForRequest(req: Request, includeHidden = false): Promise<Cre
   return { domain, token, excluded };
 }
 
-// Paid access is decided HERE, server-side, before any Canvas data leaves the
-// function — a client-side route guard is UX only. The caller's own JWT reads
-// their `subscriptions` row (RLS scopes it to auth.uid()), and only rows in the
-// live Stripe mode count: test-mode checkouts are free for anyone.
-async function requirePaidAccess(req: Request): Promise<void> {
-  const authHeader = req.headers.get("Authorization") ?? "";
-  if (!authHeader) throw new Error("NOT_AUTHENTICATED");
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const apiKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
-
-  const res = await fetch(
-    `${supabaseUrl}/rest/v1/subscriptions?select=status,current_period_end` +
-      `&environment=eq.live&order=created_at.desc&limit=1`,
-    { headers: { apikey: apiKey, Authorization: authHeader } },
-  );
-  if (!res.ok) throw new Error("NOT_AUTHENTICATED");
-  const rows = (await res.json()) as Array<{
-    status: string;
-    current_period_end: string | null;
-  }>;
-  const sub = rows?.[0];
-  if (!sub) throw new Error("NOT_SUBSCRIBED");
-
-  const end = sub.current_period_end ? new Date(sub.current_period_end).getTime() : null;
-  const future = end === null || end > Date.now();
-  const paid =
-    (["active", "trialing"].includes(sub.status) && future) ||
-    (sub.status === "canceled" && end !== null && end > Date.now());
-  if (!paid) throw new Error("NOT_SUBSCRIBED");
-}
 
 function isActive(c: CanvasCourse, excluded: Set<number>) {
   if (excluded.has(c.id)) return false;
