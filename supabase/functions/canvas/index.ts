@@ -404,9 +404,6 @@ Deno.serve(async (req) => {
       includeHidden = url.searchParams.get("includeHidden") === "true";
     }
 
-    // Everything except the free due-date counts and the credential check
-    // requires a paid account — validating your own key must work pre-purchase.
-    if (resource !== "duedates" && resource !== "validate") await requirePaidAccess(req);
 
     // The stored credentials aren't needed when validating a freshly typed
     // pair (the caller may not have saved a key yet), so load them lazily.
