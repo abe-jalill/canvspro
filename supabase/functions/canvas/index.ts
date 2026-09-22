@@ -462,13 +462,11 @@ Deno.serve(async (req) => {
     const status =
       message === "NOT_AUTHENTICATED"
         ? 401
-        : message === "NOT_SUBSCRIBED"
-          ? 402
-          : message === "NO_CANVAS_KEY" || message === "NO_CANVAS_DOMAIN"
-            ? 428
-            : message === "INVALID_DOMAIN" || /^Canvas API 4\d\d/.test(message)
-              ? 400
-              : 500;
+        : message === "NO_CANVAS_KEY" || message === "NO_CANVAS_DOMAIN"
+          ? 428
+          : message === "INVALID_DOMAIN" || /^Canvas API 4\d\d/.test(message)
+            ? 400
+            : 500;
     if (status === 500) console.error("[canvas]", message);
     return new Response(JSON.stringify({ error: message }), {
       status,
