@@ -3,7 +3,7 @@ import { useRef, useState, type DragEvent, type PointerEvent as ReactPointerEven
 import { ChevronDown, ChevronUp, Eye, EyeOff, GripVertical, Plus, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDashboardLayout, type WidgetId, type WidgetSize } from "@/lib/dashboard-layout";
-import { WIDGETS, LockedWidget } from "@/components/widgets/dashboard-widgets";
+import { WIDGETS } from "@/components/widgets/dashboard-widgets";
 import { DashboardHero } from "@/components/dashboard-hero";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({

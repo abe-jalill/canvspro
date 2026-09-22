@@ -191,10 +191,7 @@ function SettingsPage() {
             >
               Open notification settings
             </Link>
-          </div>
-        ) : (
-          <UpgradeCard feature="Notifications" />
-        )}
+        </div>
       </GlassCard>
 
       <GlassCard

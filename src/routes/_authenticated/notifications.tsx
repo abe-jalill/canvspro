@@ -78,10 +78,7 @@ function NotificationsSettingsPage() {
             </Link>
             .
           </p>
-        </>
-      ) : (
-        <UpgradeCard feature="Notifications" />
-      )}
+      </>
     </div>
   );
 }
