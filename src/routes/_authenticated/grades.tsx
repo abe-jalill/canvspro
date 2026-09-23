@@ -83,22 +83,26 @@ function GradesPage() {
     return map;
   }, [snapshots.data]);
 
-  // Compute trend by comparing current score to the most recent stored snapshot.
+  // Trend = direction of the most recent grade change. Compare the current score
+  // to the newest stored snapshot that differs from it, so the arrow persists
+  // after the current score is itself recorded as the latest snapshot.
   const trends = useMemo(() => {
     const map = new Map<number, "up" | "down" | null>();
+    const snaps = snapshots.data ?? []; // newest first
     (courses.data ?? []).forEach((c) => {
-      if (c.current_score == null) {
+      const cur = c.current_score;
+      if (cur == null) {
         map.set(c.id, null);
         return;
       }
-      const prev = latestByCourse.get(c.id);
+      const prev = snaps.find(
+        (s) => s.courseId === c.id && Math.abs(s.score - cur) > 0.05,
+      )?.score;
       if (prev == null) map.set(c.id, null);
-      else if (c.current_score > prev + 0.05) map.set(c.id, "up");
-      else if (c.current_score < prev - 0.05) map.set(c.id, "down");
-      else map.set(c.id, null);
+      else map.set(c.id, cur > prev ? "up" : "down");
     });
     return map;
-  }, [courses.data, latestByCourse]);
+  }, [courses.data, snapshots.data]);
 
   // Record snapshots for any course whose current score differs from latest.
   useEffect(() => {
