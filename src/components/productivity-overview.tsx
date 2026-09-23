@@ -31,7 +31,7 @@ interface Metric {
   accent: string;
 }
 
-export function ProductivityOverview() {
+export function ProductivityOverview({ showLink = true }: { showLink?: boolean } = {}) {
   const assignments = useQuery({
     queryKey: ["canvas", "assignments"],
     queryFn: getAllAssignmentsFn,
@@ -109,13 +109,15 @@ export function ProductivityOverview() {
             Momentum, at a glance.
           </h2>
         </div>
-        <Link
-          to="/assignments"
-          className="press group inline-flex min-h-10 w-fit items-center gap-2 rounded-full border border-foreground/10 bg-foreground/[0.04] px-4 text-xs font-medium text-muted-foreground transition-colors hover:bg-foreground/[0.08] hover:text-foreground"
-        >
-          View assignments
-          <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-        </Link>
+        {showLink && (
+          <Link
+            to="/assignments"
+            className="press group inline-flex min-h-10 w-fit items-center gap-2 rounded-full border border-foreground/10 bg-foreground/[0.04] px-4 text-xs font-medium text-muted-foreground transition-colors hover:bg-foreground/[0.08] hover:text-foreground"
+          >
+            View assignments
+            <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+          </Link>
+        )}
       </div>
 
       <div className="mt-5 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
