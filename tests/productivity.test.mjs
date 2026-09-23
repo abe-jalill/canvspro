@@ -22,12 +22,21 @@ test("counts dated completions once and does not invent dates for legacy checkma
   assert.equal(summary.upcoming, 1);
 });
 
-test("next week is Monday through Sunday, excludes completed work and handles ties", () => {
+test("busiest upcoming day uses the next seven days, excludes completed work and handles ties", () => {
   const summary = summarizeProductivity([
     assignment(1, date(27)), assignment(2, date(28)), assignment(3, date(28)),
     assignment(4, date(29)), assignment(5, date(29)), assignment(6, date(28)),
   ], new Set(["6"]), {}, new Map(), now);
   assert.deepEqual(summary.busiest, { date: "2026-09-28", count: 2 });
+});
+
+test("coming-up and busiest-day metrics share the Focus one-week boundary", () => {
+  const summary = summarizeProductivity([
+    assignment(1, new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString()),
+    assignment(2, new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000 + 1).toISOString()),
+  ], new Set(), {}, new Map(), now);
+  assert.equal(summary.upcoming, 1);
+  assert.deepEqual(summary.busiest, { date: "2026-09-29", count: 1 });
 });
 
 test("detects major-task collisions and crowded days, suggesting no date in the past", () => {

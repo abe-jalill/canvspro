@@ -28,6 +28,7 @@ import { WorkloadHeatmap } from "@/components/workload-heatmap";
 import { GpaCalculator } from "@/components/gpa-calculator";
 import { getCalendarEventsFn } from "@/lib/canvas.functions";
 import { getGradeColor } from "@/lib/grade-color";
+import { isInFocusWindow } from "@/lib/focus-window";
 
 const coursesQO = queryOptions({
   queryKey: ["canvas", "courses"],
@@ -571,12 +572,7 @@ function FocusWidget() {
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
 
   const soon = (data ?? [])
-    .filter((a) => {
-      if (!a.due_at || completed.has(a.id)) return false;
-      const due = new Date(a.due_at).getTime();
-      const now = Date.now();
-      return due >= now && due <= now + 48 * 60 * 60 * 1000;
-    })
+    .filter((a) => isInFocusWindow(a, "2", Date.now(), completed.has(a.id)))
     .sort(
       (a, b) => new Date(a.due_at as string).getTime() - new Date(b.due_at as string).getTime(),
     );
@@ -588,6 +584,7 @@ function FocusWidget() {
       action={
         <Link
           to="/focus"
+          search={{ window: "2" }}
           className="glass-hover rounded-lg px-2.5 py-1 text-xs font-medium text-muted-foreground"
         >
           Open

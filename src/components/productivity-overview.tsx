@@ -84,8 +84,8 @@ export function ProductivityOverview() {
       label: "Busiest day",
       value: summary.busiest ? dateLabel(summary.busiest.date) : "Clear",
       detail: summary.busiest
-        ? `${summary.busiest.count} due next week`
-        : "nothing unfinished next week",
+        ? `${summary.busiest.count} due in the next 7 days`
+        : "nothing due in the next 7 days",
       icon: CalendarClock,
       accent: "text-amber-400 bg-amber-400/10",
     },
@@ -121,11 +121,8 @@ export function ProductivityOverview() {
       <div className="mt-5 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         {metrics.map((metric, index) => {
           const Icon = metric.icon;
-          return (
-            <div
-              key={metric.label}
-              className="group flex min-h-36 flex-col justify-between rounded-[1.35rem] border border-foreground/[0.08] bg-background/25 p-4 transition-colors hover:bg-foreground/[0.04] sm:p-5"
-            >
+          const card = (
+            <>
               <div className="flex items-center justify-between gap-3">
                 <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
                   {metric.label}
@@ -154,6 +151,30 @@ export function ProductivityOverview() {
                 )}
                 <p className="mt-1 text-xs leading-snug text-muted-foreground">{metric.detail}</p>
               </div>
+            </>
+          );
+          const className =
+            "group flex min-h-36 flex-col justify-between rounded-[1.35rem] border border-foreground/[0.08] bg-background/25 p-4 transition-colors hover:bg-foreground/[0.04] sm:p-5";
+          return index === 2 || index === 3 ? (
+            <Link
+              key={metric.label}
+              to="/focus"
+              search={{ window: "7" }}
+              aria-label={
+                index === 2
+                  ? `${metric.value} due in the next 7 days`
+                  : `View the busiest day in the next 7 days: ${metric.value}`
+              }
+              className={cn(
+                className,
+                "press focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground",
+              )}
+            >
+              {card}
+            </Link>
+          ) : (
+            <div key={metric.label} className={className}>
+              {card}
             </div>
           );
         })}
@@ -195,7 +216,7 @@ export function ProductivityOverview() {
         <p>
           {assignments.isError || prefs.isError
             ? "Some data could not refresh. Use Sync above to try again."
-            : "Based on Canvas submission dates and your CanvasPro checkmarks. Next week runs Monday–Sunday."}
+            : "Based on Canvas submission dates and your CanvasPro checkmarks. Planning alerts use Monday–Sunday weeks."}
         </p>
       </div>
     </section>

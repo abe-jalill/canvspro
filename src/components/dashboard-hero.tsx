@@ -7,6 +7,7 @@ import { getAllAssignmentsFn, type AssignmentItem } from "@/lib/canvas.functions
 import { COMPLETED_ASSIGNMENTS_KEY, useLocalSet } from "@/lib/local-state";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { isInFocusWindow } from "@/lib/focus-window";
 
 const dueDatesQO = queryOptions({
   queryKey: ["canvas", "assignments"],
@@ -20,26 +21,15 @@ function summarize(
   now: Date,
 ) {
   if (!assignments) return null;
-  const startOfDay = new Date(now);
-  startOfDay.setHours(0, 0, 0, 0);
-  const endOfToday = startOfDay.getTime() + 24 * 3_600_000;
-  const inAWeek = startOfDay.getTime() + 7 * 24 * 3_600_000;
-
   let week = 0;
   let today = 0;
   let overdue = 0;
 
   for (const assignment of assignments) {
-    if (!assignment.due_at || isCompleted(assignment.id)) continue;
-    if (assignment.submission?.submitted_at || assignment.submission?.workflow_state === "graded")
-      continue;
-    const due = new Date(assignment.due_at).getTime();
-    if (due < now.getTime()) {
-      if (due >= startOfDay.getTime() - 7 * 24 * 3_600_000) overdue += 1;
-      continue;
-    }
-    if (due <= inAWeek) week += 1;
-    if (due < endOfToday) today += 1;
+    const completed = isCompleted(assignment.id);
+    if (isInFocusWindow(assignment, "overdue", now.getTime(), completed)) overdue += 1;
+    if (isInFocusWindow(assignment, "7", now.getTime(), completed)) week += 1;
+    if (isInFocusWindow(assignment, "1", now.getTime(), completed)) today += 1;
   }
 
   return { week, today, overdue };
@@ -97,7 +87,7 @@ export function DashboardHero() {
     : overdueCount > 0
       ? `${overdueCount} past-due item${overdueCount === 1 ? " needs" : "s need"} attention, with ${weekCount} ahead this week.`
       : todayCount > 0
-        ? `${todayCount} assignment${todayCount === 1 ? " is" : "s are"} due today. Everything else can wait.`
+        ? `${todayCount} assignment${todayCount === 1 ? " is" : "s are"} due in the next 24 hours. Everything else can wait.`
         : weekCount > 0
           ? `Today is clear. ${weekCount} item${weekCount === 1 ? " is" : "s are"} coming up over the next seven days.`
           : "Your next seven days are clear. Take the win.";
@@ -132,6 +122,7 @@ export function DashboardHero() {
 
           <Link
             to="/focus"
+            search={{ window: "7" }}
             className="press group inline-flex min-h-10 w-fit items-center gap-2 rounded-full border border-foreground/10 bg-foreground/[0.055] px-4 text-xs font-medium text-foreground transition-colors hover:bg-foreground/[0.09]"
           >
             Open focus view
@@ -170,11 +161,12 @@ export function DashboardHero() {
                 <p className="text-2xl font-medium tracking-[-0.05em] tabular-nums">
                   {loading ? "—" : todayCount}
                 </p>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">Due today</p>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">Next 24 hours</p>
               </div>
             </Link>
             <Link
               to="/focus"
+              search={{ window: "overdue" }}
               className="press flex min-h-28 flex-col justify-between rounded-[1.2rem] border border-foreground/10 bg-foreground/[0.025] p-4 transition-colors hover:bg-foreground/[0.06]"
             >
               <AlertTriangle
@@ -193,7 +185,7 @@ export function DashboardHero() {
                 >
                   {loading ? "—" : overdueCount}
                 </p>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">Past due</p>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">Overdue</p>
               </div>
             </Link>
           </div>

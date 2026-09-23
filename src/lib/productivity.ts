@@ -1,5 +1,6 @@
 import type { AssignmentItem } from "./canvas.functions";
 import type { CompletionRecord } from "./completion-records";
+import { isInFocusWindow } from "./focus-window.ts";
 
 function timestamp(value: string | null | undefined) {
   const time = value ? Date.parse(value) : NaN;
@@ -23,7 +24,6 @@ export function summarizeProductivity(
   now = new Date(),
 ) {
   const since = day(now, -6).getTime();
-  const upcomingEnd = day(now, 7).getTime();
   const nextMonday = day(now, 8 - (now.getDay() || 7));
   const nextWeekEnd = day(nextMonday, 7).getTime();
   const completed = new Map<string, { at: number; due: number | null }>();
@@ -38,15 +38,17 @@ export function summarizeProductivity(
     if (!completedIds.has(String(a.id)) && submitted === null && a.submission?.workflow_state !== "graded") remaining.push(a);
   }
   const recent = [...completed.values()].filter((r) => r.at >= since && r.at <= now.getTime());
-  const nextWeek = new Map<string, number>();
+  const upcomingByDay = new Map<string, number>();
   const crowded = new Map<string, AssignmentItem[]>();
   let upcoming = 0;
   for (const a of remaining) {
     const due = timestamp(a.due_at);
     if (due === null || due < now.getTime()) continue;
-    if (due < upcomingEnd) upcoming++;
     const key = dayKey(new Date(due));
-    if (due >= nextMonday.getTime() && due < nextWeekEnd) nextWeek.set(key, (nextWeek.get(key) ?? 0) + 1);
+    if (isInFocusWindow(a, "7", now.getTime(), false)) {
+      upcoming++;
+      upcomingByDay.set(key, (upcomingByDay.get(key) ?? 0) + 1);
+    }
     if (due < nextWeekEnd) crowded.set(key, [...(crowded.get(key) ?? []), a]);
   }
   const major = (a: AssignmentItem) => (estimates.get(a.id) ?? 0) >= 90 || /\b(exam|final|midterm|project|paper|presentation)\b/i.test(a.name);
@@ -58,7 +60,7 @@ export function summarizeProductivity(
       const start = day(new Date(`${date}T12:00:00`), -2);
       return { date, count: items.length, majorCount: candidates.length, suggested, start: start < day(now) ? day(now) : start };
     });
-  const busiest = [...nextWeek.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0];
+  const busiest = [...upcomingByDay.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0];
   return {
     completed: recent.length,
     overdueCleared: recent.filter((r) => r.due !== null && r.at > r.due).length,
