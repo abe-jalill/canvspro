@@ -14,7 +14,6 @@ import { fetchUserPreferences, userPreferencesQueryKey } from "@/hooks/use-user-
 import { fetchUserProfile } from "@/lib/user-profile";
 import { useUserScope } from "@/lib/user-scope";
 import { userKey } from "@/lib/auth-user";
-import { getSubscriptionAccess } from "@/lib/subscription.functions";
 
 const PRIMARY_ROUTES = ["/dashboard", "/assignments", "/focus", "/schedule", "/grades"] as const;
 
@@ -22,7 +21,6 @@ const SECONDARY_ROUTES = [
   "/study-session",
   "/announcements",
   "/class-schedule",
-  "/billing",
   "/notifications",
   "/settings",
 ] as const;
@@ -80,12 +78,6 @@ export function useAppPrefetch(enabled = true): AppStartupStatus {
       client.ensureQueryData({
         queryKey: ["user-profile"],
         queryFn: fetchUserProfile,
-        staleTime: 60_000,
-        revalidateIfStale: true,
-      }),
-      client.ensureQueryData({
-        queryKey: userKey(["subscription"], scope),
-        queryFn: getSubscriptionAccess,
         staleTime: 60_000,
         revalidateIfStale: true,
       }),

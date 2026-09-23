@@ -7,7 +7,6 @@ import {
   BellOff,
   CalendarClock,
   CalendarDays,
-  CreditCard,
   Crosshair,
   GraduationCap,
   LayoutDashboard,
@@ -41,7 +40,6 @@ const items = [
   { title: "Grades", to: "/grades" as const, icon: GraduationCap },
   { title: "Assignments", to: "/assignments" as const, icon: ListChecks },
   { title: "Announcements", to: "/announcements" as const, icon: Megaphone },
-  { title: "Billing", to: "/billing" as const, icon: CreditCard },
   { title: "Notifications", to: "/notifications" as const, icon: Bell },
   { title: "Settings", to: "/settings" as const, icon: Settings },
 ];
