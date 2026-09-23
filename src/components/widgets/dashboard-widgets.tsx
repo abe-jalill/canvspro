@@ -14,7 +14,11 @@ import { htmlToText } from "@/lib/html-text";
 import type { WidgetId } from "@/lib/dashboard-layout";
 import { displayCourseName } from "@/lib/course-display";
 import { courseSlug } from "@/lib/course-highlight";
-import { useLocalSet, DISMISSED_ANNOUNCEMENTS_KEY, COMPLETED_ASSIGNMENTS_KEY } from "@/lib/local-state";
+import {
+  useLocalSet,
+  DISMISSED_ANNOUNCEMENTS_KEY,
+  COMPLETED_ASSIGNMENTS_KEY,
+} from "@/lib/local-state";
 import { Check, X, CalendarPlus, FileText, ChevronDown } from "lucide-react";
 import { getCountdown, urgencyTextClass, urgencyAccentClass } from "@/lib/countdown";
 import { buildIcs, downloadIcs, safeFilename } from "@/lib/ics";
@@ -65,8 +69,23 @@ function DigestWidget() {
   const courses = useQuery(coursesQO);
   const assignments = useQuery(assignmentsQO);
   const announcements = useQuery(announcementsQO);
-  if (!courses.data || !assignments.data || !announcements.data) return null;
-  return <DigestCard courses={courses.data} assignments={assignments.data} announcements={announcements.data} />;
+  if (!courses.data || !assignments.data || !announcements.data) {
+    return (
+      <GlassCard title="Since your last visit">
+        <div role="status" aria-label="Loading recent updates" className="space-y-3">
+          <Skeleton className="h-4 w-2/5" />
+          <Skeleton className="h-14 rounded-xl" />
+        </div>
+      </GlassCard>
+    );
+  }
+  return (
+    <DigestCard
+      courses={courses.data}
+      assignments={assignments.data}
+      announcements={announcements.data}
+    />
+  );
 }
 
 function CoursesWidget() {
@@ -79,7 +98,10 @@ function CoursesWidget() {
         title="Classes & Grades"
         subtitle="Active enrollments"
         action={
-          <Link to="/grades" className="glass-hover rounded-lg px-2.5 py-1 text-xs font-normal text-muted-foreground">
+          <Link
+            to="/grades"
+            className="glass-hover rounded-lg px-2.5 py-1 text-xs font-normal text-muted-foreground"
+          >
             View all
           </Link>
         }
@@ -138,7 +160,10 @@ function CoursesWidget() {
                         Syllabus
                       </button>
                     )}
-                    <span className="whitespace-nowrap text-xs font-normal tabular-nums" style={{ color }}>
+                    <span
+                      className="whitespace-nowrap text-xs font-normal tabular-nums"
+                      style={{ color }}
+                    >
                       {formatScore(c.current_score, c.current_grade)}
                     </span>
                   </div>
@@ -246,7 +271,9 @@ function UpcomingWidget() {
                 <button
                   type="button"
                   onClick={() =>
-                    setExpanded((prev) => (prev.includes(g.id) ? prev.filter((x) => x !== g.id) : [...prev, g.id]))
+                    setExpanded((prev) =>
+                      prev.includes(g.id) ? prev.filter((x) => x !== g.id) : [...prev, g.id],
+                    )
                   }
                   aria-expanded={isOpen}
                   className="glass-hover flex min-h-11 w-full items-center gap-3 rounded-xl px-1.5 text-left"
@@ -292,7 +319,11 @@ function UpcomingWidget() {
                           )}
                         >
                           <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
-                            <CompleteButton done={done} onClick={() => completed.toggle(a.id)} label={a.name} />
+                            <CompleteButton
+                              done={done}
+                              onClick={() => completed.toggle(a.id)}
+                              label={a.name}
+                            />
                             <p
                               className={cn(
                                 "min-w-0 flex-1 truncate text-sm font-medium",
@@ -326,7 +357,9 @@ function UpcomingWidget() {
                   </ul>
                 )}
                 {isOpen && g.items.length === 0 && (
-                  <p className="px-2 py-3 text-xs text-muted-foreground/80">No upcoming assignments</p>
+                  <p className="px-2 py-3 text-xs text-muted-foreground/80">
+                    No upcoming assignments
+                  </p>
                 )}
               </div>
             );
@@ -359,7 +392,9 @@ function AnnouncementsWidget() {
   });
   const groups = Array.from(groupMap.values())
     .filter((group) => group.items.length > 0)
-    .sort((a, b) => displayCourseName(a.name, a.code).localeCompare(displayCourseName(b.name, b.code)));
+    .sort((a, b) =>
+      displayCourseName(a.name, a.code).localeCompare(displayCourseName(b.name, b.code)),
+    );
 
   return (
     <GlassCard
@@ -395,7 +430,9 @@ function AnnouncementsWidget() {
                 <button
                   type="button"
                   onClick={() =>
-                    setExpanded((prev) => (prev.includes(g.id) ? prev.filter((id) => id !== g.id) : [...prev, g.id]))
+                    setExpanded((prev) =>
+                      prev.includes(g.id) ? prev.filter((id) => id !== g.id) : [...prev, g.id],
+                    )
                   }
                   aria-expanded={isOpen}
                   className="glass-hover flex min-h-11 w-full items-center gap-3 rounded-xl px-1.5 text-left"
@@ -416,7 +453,10 @@ function AnnouncementsWidget() {
                 {isOpen && (
                   <ul className="mt-2 space-y-2">
                     {g.items.slice(0, 4).map((a) => (
-                      <li key={a.id} className="glass-inset glass-hover flex items-start gap-2 p-3 sm:p-4">
+                      <li
+                        key={a.id}
+                        className="glass-inset glass-hover flex items-start gap-2 p-3 sm:p-4"
+                      >
                         <Link
                           to="/announcements"
                           search={{
@@ -435,7 +475,11 @@ function AnnouncementsWidget() {
                             {stripHtml(a.message)}
                           </p>
                         </Link>
-                        <DismissButton stopPropagation onClick={() => dismissed.add(a.id)} label={a.title} />
+                        <DismissButton
+                          stopPropagation
+                          onClick={() => dismissed.add(a.id)}
+                          label={a.title}
+                        />
                       </li>
                     ))}
                   </ul>
@@ -449,7 +493,15 @@ function AnnouncementsWidget() {
   );
 }
 
-function CompleteButton({ done, onClick, label }: { done: boolean; onClick: () => void; label: string }) {
+function CompleteButton({
+  done,
+  onClick,
+  label,
+}: {
+  done: boolean;
+  onClick: () => void;
+  label: string;
+}) {
   return (
     <button
       onClick={onClick}
@@ -525,14 +577,19 @@ function FocusWidget() {
       const now = Date.now();
       return due >= now && due <= now + 48 * 60 * 60 * 1000;
     })
-    .sort((a, b) => new Date(a.due_at as string).getTime() - new Date(b.due_at as string).getTime());
+    .sort(
+      (a, b) => new Date(a.due_at as string).getTime() - new Date(b.due_at as string).getTime(),
+    );
 
   return (
     <GlassCard
       title="Focus"
       subtitle="Due within 48 hours"
       action={
-        <Link to="/focus" className="glass-hover rounded-lg px-2.5 py-1 text-xs font-medium text-muted-foreground">
+        <Link
+          to="/focus"
+          className="glass-hover rounded-lg px-2.5 py-1 text-xs font-medium text-muted-foreground"
+        >
           Open
         </Link>
       }
@@ -593,7 +650,9 @@ function CalendarWidget() {
       const now = Date.now();
       return t >= now && t <= now + 7 * 24 * 60 * 60 * 1000;
     })
-    .sort((a, b) => new Date(a.start_at as string).getTime() - new Date(b.start_at as string).getTime())
+    .sort(
+      (a, b) => new Date(a.start_at as string).getTime() - new Date(b.start_at as string).getTime(),
+    )
     .slice(0, 8);
 
   return (
@@ -601,7 +660,10 @@ function CalendarWidget() {
       title="Calendar"
       subtitle="Next 7 days"
       action={
-        <Link to="/schedule" className="glass-hover rounded-lg px-2.5 py-1 text-xs font-medium text-muted-foreground">
+        <Link
+          to="/schedule"
+          className="glass-hover rounded-lg px-2.5 py-1 text-xs font-medium text-muted-foreground"
+        >
           View all
         </Link>
       }
@@ -620,10 +682,15 @@ function CalendarWidget() {
       {upcoming.length > 0 && (
         <ul className="space-y-2">
           {upcoming.map((e) => (
-            <li key={String(e.id)} className="glass-inset glass-hover flex items-center justify-between gap-3 p-3">
+            <li
+              key={String(e.id)}
+              className="glass-inset glass-hover flex items-center justify-between gap-3 p-3"
+            >
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium">{e.title}</p>
-                {e.context_name && <p className="mt-0.5 truncate text-xs text-muted-foreground">{e.context_name}</p>}
+                {e.context_name && (
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">{e.context_name}</p>
+                )}
               </div>
               <span className="shrink-0 whitespace-nowrap text-xs tabular-nums text-muted-foreground">
                 {new Date(e.start_at as string).toLocaleString(undefined, {
@@ -665,12 +732,37 @@ export interface WidgetMeta {
 }
 
 export const WIDGETS: Record<WidgetId, WidgetMeta> = {
-  digest: { pro: true, label: "Since your last visit", defaultSize: "full", render: () => <DigestWidget /> },
-  classes: { pro: true, label: "Classes & Grades", defaultSize: "md", render: () => <CoursesWidget /> },
-  upcoming: { pro: true, label: "Upcoming Assignments", defaultSize: "md", render: () => <UpcomingWidget /> },
+  digest: {
+    pro: true,
+    label: "Since your last visit",
+    defaultSize: "full",
+    render: () => <DigestWidget />,
+  },
+  classes: {
+    pro: true,
+    label: "Classes & Grades",
+    defaultSize: "md",
+    render: () => <CoursesWidget />,
+  },
+  upcoming: {
+    pro: true,
+    label: "Upcoming Assignments",
+    defaultSize: "md",
+    render: () => <UpcomingWidget />,
+  },
   focus: { label: "Focus", pro: true, defaultSize: "md", render: () => <FocusWidget /> },
   calendar: { label: "Calendar", pro: true, defaultSize: "md", render: () => <CalendarWidget /> },
-  announcements: { pro: true, label: "Announcements", defaultSize: "md", render: () => <AnnouncementsWidget /> },
+  announcements: {
+    pro: true,
+    label: "Announcements",
+    defaultSize: "md",
+    render: () => <AnnouncementsWidget />,
+  },
   gpa: { pro: true, label: "GPA", defaultSize: "md", render: () => <GpaWidget /> },
-  heatmap: { label: "Workload heatmap", pro: true, defaultSize: "full", render: () => <HeatmapWidget /> },
+  heatmap: {
+    label: "Workload heatmap",
+    pro: true,
+    defaultSize: "full",
+    render: () => <HeatmapWidget />,
+  },
 };

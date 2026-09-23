@@ -2,11 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
 import { GlassCard } from "@/components/glass-card";
 import { useCanvasKey, useCanvasDomain, useSaveCanvasKey } from "@/lib/user-settings";
-import {
-  useUserProfile,
-  useSaveUserProfile,
-  type UserProfile,
-} from "@/lib/user-profile";
+import { useUserProfile, useSaveUserProfile, type UserProfile } from "@/lib/user-profile";
 import { ClassNamesSection } from "@/components/class-names-editor";
 import { HiddenCoursesSection } from "@/components/hidden-courses-editor";
 import { DeleteAccountSection } from "@/components/delete-account";
@@ -58,11 +54,7 @@ function SettingsPage() {
     }
     try {
       await save.mutateAsync({ key: value, domain: domainValue });
-      setStatus(
-        value.trim()
-          ? "Canvas connection saved and verified."
-          : "Canvas API key cleared.",
-      );
+      setStatus(value.trim() ? "Canvas connection saved and verified." : "Canvas API key cleared.");
       if (value.trim()) setValue("");
     } catch (err) {
       setStatus(err instanceof Error ? err.message : "Could not save.");
@@ -130,9 +122,7 @@ function SettingsPage() {
                 setDomainValue(e.target.value);
               }}
               placeholder={
-                domainLoading
-                  ? "Loading…"
-                  : savedDomain ?? "yourschool.instructure.com"
+                domainLoading ? "Loading…" : (savedDomain ?? "yourschool.instructure.com")
               }
               inputMode="url"
               autoCapitalize="none"
@@ -151,7 +141,7 @@ function SettingsPage() {
             <button
               type="submit"
               disabled={save.isPending}
-              className="glass-hover min-h-11 w-full rounded-xl bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-60 sm:w-auto"
+              className="glass-hover min-h-11 w-full rounded-xl bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-60 sm:w-auto sm:min-w-24"
             >
               {save.isPending ? "Saving…" : "Save"}
             </button>
@@ -168,43 +158,32 @@ function SettingsPage() {
           {!isLoading && (
             <p className="text-xs text-muted-foreground">
               Status:{" "}
-              {savedKey
-                ? `Key saved${savedDomain ? ` · ${savedDomain}` : ""}`
-                : "No key saved yet"}
+              {savedKey ? `Key saved${savedDomain ? ` · ${savedDomain}` : ""}` : "No key saved yet"}
             </p>
           )}
         </form>
       </GlassCard>
 
-      <GlassCard
-        title="Notifications"
-        subtitle="Choose which alerts you want and when."
-      >
+      <GlassCard title="Notifications" subtitle="Choose which alerts you want and when.">
         <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Full controls — due-date lead times, grade thresholds, browser
-              pop-ups, and quiet hours — live on their own page.
-            </p>
-            <Link
-              to="/notifications"
-              className="glass-hover inline-flex min-h-11 items-center rounded-xl bg-foreground px-4 text-sm font-semibold text-background"
-            >
-              Open notification settings
-            </Link>
+          <p className="text-sm text-muted-foreground">
+            Full controls — due-date lead times, grade thresholds, browser pop-ups, and quiet hours
+            — live on their own page.
+          </p>
+          <Link
+            to="/notifications"
+            className="glass-hover inline-flex min-h-11 items-center rounded-xl bg-foreground px-4 text-sm font-semibold text-background"
+          >
+            Open notification settings
+          </Link>
         </div>
       </GlassCard>
 
-      <GlassCard
-        title="Announcements"
-        subtitle="How far back the announcements list reaches."
-      >
+      <GlassCard title="Announcements" subtitle="How far back the announcements list reaches.">
         <AnnouncementWindowSection />
       </GlassCard>
 
-      <GlassCard
-        title="Class names"
-        subtitle="Rename your Canvas courses to something friendlier."
-      >
+      <GlassCard title="Class names" subtitle="Rename your Canvas courses to something friendlier.">
         <ClassNamesSection />
       </GlassCard>
 
@@ -253,9 +232,7 @@ function AnnouncementWindowSection() {
         ))}
       </div>
       <p className="text-xs text-muted-foreground">
-        {isLoading
-          ? "Loading…"
-          : "Announcements older than this are hidden from the list."}
+        {isLoading ? "Loading…" : "Announcements older than this are hidden from the list."}
       </p>
     </div>
   );
@@ -325,7 +302,7 @@ function ProfileCard() {
           <button
             type="submit"
             disabled={save.isPending || (!dirty && isLoading)}
-            className="glass-hover min-h-11 w-full rounded-xl bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-60 sm:w-auto"
+            className="glass-hover min-h-11 w-full rounded-xl bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-60 sm:w-auto sm:min-w-32"
           >
             {save.isPending ? "Saving…" : "Save profile"}
           </button>

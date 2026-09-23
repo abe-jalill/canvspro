@@ -64,7 +64,7 @@ function AuthenticatedLayout() {
   useWelcomeEmail(true);
 
   return (
-    <div className="min-h-screen w-full overflow-x-hidden md:h-screen md:overflow-hidden">
+    <div className="min-h-svh w-full overflow-x-hidden md:h-svh md:overflow-hidden">
       <AppStartupWelcome ready={startup === "ready"} user={user} />
       <RouteProgress />
       <AppSidebar />
@@ -73,7 +73,7 @@ function AuthenticatedLayout() {
         id="app-main"
         data-scroll-restoration-id="app-main"
         className={cn(
-          "transition-[padding] duration-300 ease-in-out md:h-screen md:overflow-y-auto md:py-4 md:pr-4",
+          "transition-[padding] duration-300 ease-in-out md:h-svh md:overflow-y-auto md:py-4 md:pr-4",
           sidebarMode === "full" && "md:pl-64",
           sidebarMode === "rail" && "md:pl-[4.5rem]",
           sidebarMode === "hidden" && "md:pl-4",

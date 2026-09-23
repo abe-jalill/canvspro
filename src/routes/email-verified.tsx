@@ -15,7 +15,7 @@ export const Route = createFileRoute("/email-verified")({
 
 function EmailVerifiedPage() {
   return (
-    <div className="flex min-h-screen w-full items-center justify-center px-4">
+    <div className="flex min-h-svh w-full items-center justify-center px-4">
       <div className="flex flex-col items-center text-center">
         <CheckCircle2 className="h-12 w-12 text-foreground/80" />
         <h1 className="mt-4 text-2xl font-normal tracking-tight">Email verified!</h1>

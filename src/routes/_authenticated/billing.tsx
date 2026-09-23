@@ -8,7 +8,10 @@ export const Route = createFileRoute("/_authenticated/billing")({
   head: () => ({
     meta: [
       { title: "Billing — Canvas Pro" },
-      { name: "description", content: "CanvasPro is free for everyone. Manage an existing subscription here." },
+      {
+        name: "description",
+        content: "CanvasPro is free for everyone. Manage an existing subscription here.",
+      },
     ],
   }),
   component: BillingPage,
@@ -73,7 +76,7 @@ function BillingPage() {
                 type="button"
                 onClick={openPortal}
                 disabled={busy}
-                className="glass-hover min-h-11 w-full rounded-xl bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-60 sm:w-auto"
+                className="glass-hover min-h-11 w-full rounded-xl bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-60 sm:w-auto sm:min-w-56"
               >
                 {busy ? "Opening…" : "Manage or cancel subscription"}
               </button>

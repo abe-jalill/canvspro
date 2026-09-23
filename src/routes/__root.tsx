@@ -3,6 +3,7 @@ import {
   Outlet,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -18,9 +19,11 @@ import { getActiveIdentity, syncAuthIdentity } from "@/lib/auth-user";
 import { SiteFooter } from "@/components/site-footer";
 import { Toaster } from "@/components/ui/sonner";
 
+const themeBootScript = `try{var t=localStorage.getItem("canvas:theme");document.documentElement.classList.add(t==="light"?"light":"dark")}catch(e){document.documentElement.classList.add("dark")}`;
+
 function NotFoundComponent() {
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
+    <div className="flex min-h-svh items-center justify-center px-4">
       <div className="glass-panel-strong max-w-md p-10 text-center">
         <h1 className="text-6xl font-semibold tracking-tight">404</h1>
         <p className="mt-3 text-sm text-muted-foreground">This page doesn't exist.</p>
@@ -41,7 +44,7 @@ function ErrorComponent({ error, reset }: { error: unknown; reset: () => void })
   }, [reportedError]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
+    <div className="flex min-h-svh items-center justify-center px-4">
       <div className="glass-panel-strong max-w-md p-8 text-center">
         <h1 className="text-lg font-semibold tracking-tight">Something went wrong</h1>
         <p className="mt-2 text-sm text-muted-foreground">Try refreshing or return home.</p>
@@ -87,8 +90,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "icon", href: "/favicon.png", type: "image/png" },
       { rel: "apple-touch-icon", href: "/favicon.png" },
       { rel: "manifest", href: "/manifest.webmanifest" },
-      { rel: "preconnect", href: "https://rsms.me/" },
-      { rel: "stylesheet", href: "https://rsms.me/inter/inter.css" },
     ],
   }),
   shellComponent: RootShell,
@@ -99,9 +100,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
+        <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
       </head>
       <body>
         {children}
@@ -114,6 +116,9 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
+  const showFooter = useRouterState({
+    select: (state) => !state.matches.some((match) => match.routeId === "/_authenticated"),
+  });
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
@@ -166,8 +171,12 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
-      <SiteFooter />
+      <div className="site-shell">
+        <div className="site-content">
+          <Outlet />
+        </div>
+        {showFooter && <SiteFooter />}
+      </div>
       <Toaster position="top-center" richColors closeButton />
     </QueryClientProvider>
   );
