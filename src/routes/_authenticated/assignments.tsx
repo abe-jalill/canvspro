@@ -25,6 +25,10 @@ import { useCourseHighlight, validateCourseSearch } from "@/lib/course-highlight
 import { buildPriorityList, describePriorityList } from "@/lib/priority";
 import { useAssignmentMetaMap } from "@/hooks/use-assignment-meta";
 import { dropStaleOverdue } from "@/lib/assignment-window";
+import { ProductivityOverview } from "@/components/productivity-overview";
+import { useLocalNumber } from "@/lib/local-value";
+
+const ASSIGNMENTS_PULSE_HIDDEN_KEY = "canvas:assignments-pulse-hidden";
 
 const assignmentsQO = queryOptions({
   queryKey: ["canvas", "assignments"],
@@ -270,6 +274,7 @@ function AssignmentsPage() {
       .sort((a, b) => a.label.localeCompare(b.label));
   }, [courses.data, allAssignments, completed]);
 
+  const pulseHidden = useLocalNumber(ASSIGNMENTS_PULSE_HIDDEN_KEY, 0);
   const metaMap = useAssignmentMetaMap();
   const priorityGroups = useMemo(() => {
     const estimates: Record<number, number | null> = {};
