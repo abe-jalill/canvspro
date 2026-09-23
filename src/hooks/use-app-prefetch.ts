@@ -6,6 +6,7 @@ import {
   getAllAssignmentsFn,
   getAnnouncementsFn,
   getCalendarEventsFn,
+  type CourseSummary,
 } from "@/lib/canvas.functions";
 import { canvasKeyQueryKey, fetchHasCanvasKey } from "@/lib/user-settings";
 import { fetchUserPreferences, userPreferencesQueryKey } from "@/hooks/use-user-preferences";
@@ -14,7 +15,7 @@ import { useUserScope } from "@/lib/user-scope";
 import { userKey } from "@/lib/auth-user";
 import { getSubscriptionAccess } from "@/lib/subscription.functions";
 
-const ROUTES = [
+const APP_ROUTES = [
   "/dashboard",
   "/assignments",
   "/focus",
@@ -23,6 +24,9 @@ const ROUTES = [
   "/grades",
   "/announcements",
   "/class-schedule",
+  "/billing",
+  "/notifications",
+  "/settings",
 ] as const;
 
 const MINIMUM_WELCOME_MS = 900;
@@ -86,29 +90,52 @@ export function useAppPrefetch(enabled = true): AppStartupStatus {
       }),
     ]);
 
-    void Promise.all([
+    const launchReady = Promise.all([
       delay(MINIMUM_WELCOME_MS),
       Promise.race([critical, delay(CRITICAL_CAP_MS)]),
-    ]).then(() => {
-      if (!cancelled) setStatus("ready");
-    });
+    ]);
 
-    // Secondary data and likely-next route chunks never hold the welcome screen.
-    const timer = window.setTimeout(() => {
-      void Promise.allSettled([
-        client.prefetchQuery({
-          queryKey: ["canvas", "announcements"],
-          queryFn: getAnnouncementsFn,
-          staleTime: 5 * 60_000,
-        }),
-        client.prefetchQuery({
-          queryKey: userKey(userPreferencesQueryKey, scope),
-          queryFn: ({ signal }) => fetchUserPreferences(signal),
-          staleTime: 60_000,
-        }),
-        ...ROUTES.map((to) => router.preloadRoute({ to }).catch(() => undefined)),
-      ]);
-    }, 350);
+    let cancelIdle = () => undefined;
+    void launchReady.then(() => {
+      if (cancelled) return;
+      setStatus("ready");
+
+      // Wait until the browser has painted the dashboard before fetching
+      // speculative chunks. Every primary destination then stays memory-hot.
+      const warmSecondary = () => {
+        if (cancelled) return;
+        const courses = client.getQueryData<CourseSummary[]>(["canvas", "courses"]) ?? [];
+        void Promise.allSettled([
+          client.prefetchQuery({
+            queryKey: ["canvas", "announcements"],
+            queryFn: getAnnouncementsFn,
+            staleTime: 5 * 60_000,
+          }),
+          client.prefetchQuery({
+            queryKey: userKey(userPreferencesQueryKey, scope),
+            queryFn: ({ signal }) => fetchUserPreferences(signal),
+            staleTime: 60_000,
+          }),
+          ...APP_ROUTES.map((to) => router.preloadRoute({ to }).catch(() => undefined)),
+          ...courses.map((course) =>
+            router
+              .preloadRoute({
+                to: "/courses/$courseId",
+                params: { courseId: String(course.id) },
+              })
+              .catch(() => undefined),
+          ),
+        ]);
+      };
+
+      if ("requestIdleCallback" in window) {
+        const idleId = window.requestIdleCallback(warmSecondary, { timeout: 1_500 });
+        cancelIdle = () => window.cancelIdleCallback(idleId);
+      } else {
+        const timer = window.setTimeout(warmSecondary, 500);
+        cancelIdle = () => window.clearTimeout(timer);
+      }
+    });
     const refresh = () => {
       if (document.visibilityState !== "visible" || !navigator.onLine) return;
       void client.refetchQueries(
@@ -121,7 +148,7 @@ export function useAppPrefetch(enabled = true): AppStartupStatus {
     document.addEventListener("visibilitychange", refresh);
     return () => {
       cancelled = true;
-      clearTimeout(timer);
+      cancelIdle();
       clearInterval(interval);
       window.removeEventListener("online", refresh);
       document.removeEventListener("visibilitychange", refresh);

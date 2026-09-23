@@ -26,13 +26,19 @@ export const getRouter = () => {
     defaultPreloadStaleTime: 30_000,
     defaultStaleTime: 5 * 60_000,
     defaultGcTime: 30 * 60_000,
-    defaultPendingMs: 150,
+    // Keep the current screen in place through brief cold-chunk loads. The
+    // progress hairline handles the rare longer wait; skeletons are reserved
+    // for a genuinely uncached destination.
+    defaultPendingMs: 500,
     defaultPendingMinMs: 0,
     defaultPendingComponent: () => (
-      <div role="status" className="mx-auto w-full max-w-6xl space-y-4 p-6">
-        <p className="text-sm text-muted-foreground">Opening your workspace…</p>
-        <div className="h-5 w-48 rounded bg-foreground/5 motion-safe:animate-pulse" />
-        <div className="h-48 rounded-2xl bg-foreground/5 motion-safe:animate-pulse" />
+      <div
+        role="status"
+        aria-label="Opening page"
+        className="mx-auto w-full max-w-6xl space-y-4 p-6"
+      >
+        <div className="skeleton-shimmer h-5 w-44" />
+        <div className="skeleton-shimmer h-48 rounded-2xl" />
       </div>
     ),
   });
@@ -41,14 +47,20 @@ export const getRouter = () => {
   // a fast second click can reject them even when the route commit succeeds.
   let activeTransition: ViewTransition | undefined;
   router.startViewTransition = (commit) => {
-    if (typeof document === "undefined" || !document.startViewTransition ||
-        window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
-        !document.querySelector(".route-content")) return commit();
+    if (
+      typeof document === "undefined" ||
+      !document.startViewTransition ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
+      !document.querySelector(".route-content")
+    )
+      return commit();
     activeTransition?.skipTransition();
     const transition = document.startViewTransition(commit);
     activeTransition = transition;
     void transition.ready.catch(() => undefined);
-    const finished = () => { if (activeTransition === transition) activeTransition = undefined; };
+    const finished = () => {
+      if (activeTransition === transition) activeTransition = undefined;
+    };
     void transition.finished.then(finished, finished);
     // Route failures still reach the router error boundary.
     return transition.updateCallbackDone;

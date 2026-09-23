@@ -197,7 +197,7 @@ export function AppSidebar() {
                     <Link
                       key={item.to}
                       to={item.to}
-                      preload="intent"
+                      preload="viewport"
                       title={item.title}
                       aria-label={item.title}
                       className={cn(
@@ -278,7 +278,7 @@ export function AppSidebar() {
                   <Link
                     key={item.to}
                     to={item.to}
-                    preload="intent"
+                    preload="viewport"
                     className={cn(
                       "press rounded-xl px-3 py-2 text-sm transition-all",
                       isActive(pathname, item.to)
@@ -420,7 +420,7 @@ export function MobileNav() {
           <Link
             key={item.to}
             to={item.to}
-            preload="intent"
+            preload="viewport"
             onClick={() => setOpen(false)}
             className={cn(
               "press flex min-h-11 items-center rounded-xl px-3 text-sm font-normal",

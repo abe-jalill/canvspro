@@ -18,6 +18,7 @@ import { useQueryCachePersistence } from "@/lib/query-persist";
 import { useSidebarMode } from "@/lib/sidebar-state";
 import { cn } from "@/lib/utils";
 import { AppStartupWelcome } from "@/components/app-startup-welcome";
+import { RouteProgress } from "@/components/route-progress";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -48,10 +49,10 @@ function AuthenticatedLayout() {
     if ("startViewTransition" in document) return;
     const animation = contentRef.current?.animate(
       [
-        { opacity: 0.7, transform: "translateY(4px)" },
-        { opacity: 1, transform: "translateY(0)" },
+        { opacity: 0, transform: "translateY(8px) scale(0.995)" },
+        { opacity: 1, transform: "translateY(0) scale(1)" },
       ],
-      { duration: 160, easing: "ease-out" },
+      { duration: 220, easing: "cubic-bezier(0.16, 1, 0.3, 1)" },
     );
     return () => animation?.cancel();
   }, [pathname]);
@@ -65,6 +66,7 @@ function AuthenticatedLayout() {
   return (
     <div className="min-h-screen w-full overflow-x-hidden md:h-screen md:overflow-hidden">
       <AppStartupWelcome ready={startup === "ready"} user={user} />
+      <RouteProgress />
       <AppSidebar />
       <MobileNav />
       <main
