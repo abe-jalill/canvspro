@@ -1,5 +1,5 @@
-import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { Capacitor } from "@capacitor/core";
+import { supabase } from "@/integrations/supabase/client";
 
 export type SubscriptionAccess = {
   status: string;
@@ -9,30 +9,57 @@ export type SubscriptionAccess = {
   stripe_subscription_id: string;
 } | null;
 
+let accessRequest: Promise<SubscriptionAccess> | null = null;
+
 /**
- * Paid access is resolved only from a server-authenticated, user-owned row in
- * the mode this server decides (never a client-supplied environment value).
- * No email, browser cache, cookie, or device state can grant access.
+ * Reads billing status through the authenticated mobile API. Native builds
+ * must use the production origin because their UI is served from the bundled
+ * Capacitor origin; browsers keep the request same-origin for local preview.
  */
-export const getSubscriptionAccess = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<SubscriptionAccess> => {
-    const { ENTITLEMENT_ENV } = await import("@/lib/payments-env.server");
-    const { data: authData, error: authError } = await context.supabase.auth.getUser();
-    const verifiedUserId = authData.user?.id;
-    if (authError || !verifiedUserId || verifiedUserId !== context.userId) {
-      throw new Error("Not signed in");
-    }
+export function getSubscriptionAccess(): Promise<SubscriptionAccess> {
+  if (accessRequest) return accessRequest;
 
-    const { data: subscription, error } = await context.supabase
-      .from("subscriptions")
-      .select("status, price_id, current_period_end, cancel_at_period_end, stripe_subscription_id")
-      .eq("user_id", verifiedUserId)
-      .eq("environment", ENTITLEMENT_ENV)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
+  accessRequest = (async () => {
+    const { data, error } = await supabase.auth.getSession();
     if (error) throw new Error(error.message);
-    return subscription ?? null;
+    if (!data.session?.access_token) throw new Error("Not signed in");
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 8_000);
+    try {
+      const endpoint = Capacitor.isNativePlatform()
+        ? "https://canvaspro.app/api/mobile/subscription"
+        : "/api/mobile/subscription";
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${data.session.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action: "status" }),
+        signal: controller.signal,
+      });
+      const result = (await response.json().catch(() => null)) as
+        SubscriptionAccess | { error?: string };
+      if (!response.ok) {
+        throw new Error(
+          result && typeof result === "object" && "error" in result && result.error
+            ? result.error
+            : `Account request failed (${response.status})`,
+        );
+      }
+      return result as SubscriptionAccess;
+    } catch (requestError) {
+      if (requestError instanceof DOMException && requestError.name === "AbortError") {
+        throw new Error("CanvasPro took too long to respond.");
+      }
+      throw requestError;
+    } finally {
+      window.clearTimeout(timeout);
+    }
+  })().finally(() => {
+    accessRequest = null;
   });
+
+  return accessRequest;
+}

@@ -17,6 +17,7 @@ import { PullToRefresh } from "@/components/pull-to-refresh";
 import { useQueryCachePersistence } from "@/lib/query-persist";
 import { useSidebarMode } from "@/lib/sidebar-state";
 import { cn } from "@/lib/utils";
+import { AppStartupWelcome } from "@/components/app-startup-welcome";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -37,6 +38,7 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 function AuthenticatedLayout() {
+  const { user } = Route.useRouteContext();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [sidebarMode] = useSidebarMode();
   const contentRef = useRef<HTMLDivElement>(null);
@@ -45,21 +47,24 @@ function AuthenticatedLayout() {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     if ("startViewTransition" in document) return;
     const animation = contentRef.current?.animate(
-      [{ opacity: 0.7, transform: "translateY(4px)" }, { opacity: 1, transform: "translateY(0)" }],
+      [
+        { opacity: 0.7, transform: "translateY(4px)" },
+        { opacity: 1, transform: "translateY(0)" },
+      ],
       { duration: 160, easing: "ease-out" },
     );
     return () => animation?.cancel();
   }, [pathname]);
 
-
   useNotificationEngine(true);
   useDueTodayBadge(true);
   useQueryCachePersistence();
-  useAppPrefetch(true);
+  const startup = useAppPrefetch(true);
   useWelcomeEmail(true);
 
   return (
     <div className="min-h-screen w-full overflow-x-hidden md:h-screen md:overflow-hidden">
+      <AppStartupWelcome ready={startup === "ready"} user={user} />
       <AppSidebar />
       <MobileNav />
       <main

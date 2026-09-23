@@ -118,18 +118,33 @@ function RootComponent() {
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
 
-    // Keep the native launch screen covering the WebView until React has
-    // mounted and the first UI frame is ready, avoiding a blank startup gap.
+    // Keep the native launch screen in place until the personalized startup
+    // UI is mounted. Signed-out routes use the short fallback below.
     let secondFrame = 0;
-    const firstFrame = requestAnimationFrame(() => {
-      secondFrame = requestAnimationFrame(() => {
-        void SplashScreen.hide();
+    let firstFrame = 0;
+    let hidden = false;
+    const hide = () => {
+      if (hidden) return;
+      hidden = true;
+      firstFrame = requestAnimationFrame(() => {
+        secondFrame = requestAnimationFrame(() => {
+          void SplashScreen.hide();
+        });
       });
-    });
+    };
+    window.addEventListener("canvaspro:launch-ui-ready", hide, { once: true });
+    const fallback = window.setTimeout(() => {
+      hide();
+    }, 1_200);
 
     return () => {
+      window.removeEventListener("canvaspro:launch-ui-ready", hide);
+      window.clearTimeout(fallback);
       cancelAnimationFrame(firstFrame);
       if (secondFrame) cancelAnimationFrame(secondFrame);
+      if (!hidden) {
+        void SplashScreen.hide();
+      }
     };
   }, []);
 
@@ -143,7 +158,8 @@ function RootComponent() {
       // cache whenever the identity changes — no data can carry over.
       syncAuthIdentity(queryClient, nextId);
       if (identityChanged) void router.invalidate();
-      if (event === "USER_UPDATED") void queryClient.invalidateQueries({ queryKey: ["user-profile"] });
+      if (event === "USER_UPDATED")
+        void queryClient.invalidateQueries({ queryKey: ["user-profile"] });
     });
     return () => data.subscription.unsubscribe();
   }, [router, queryClient]);

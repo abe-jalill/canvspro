@@ -126,11 +126,7 @@ async function subscriptionHandler(request: Request) {
 
     if (action === "status") {
       if (!subscription) return Response.json(null, { headers });
-      const {
-        stripe_customer_id: _customer,
-        stripe_subscription_id: _subscription,
-        ...access
-      } = subscription;
+      const { stripe_customer_id: _customer, ...access } = subscription;
       return Response.json(access, { headers });
     }
 
