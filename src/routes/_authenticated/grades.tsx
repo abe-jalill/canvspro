@@ -162,7 +162,6 @@ function GradesPage() {
       {!loading &&
         !error &&
         filteredCourses.map((c) => {
-          const trend = trends.get(c.id);
           const expanded = expandedCourses.has(c.id);
           const score = c.current_score;
           const color = getGradeColor(score);
