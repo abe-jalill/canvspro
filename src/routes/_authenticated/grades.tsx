@@ -6,7 +6,8 @@ import { getCoursesFn, getAllAssignmentsFn } from "@/lib/canvas.functions";
 import { CANVAS_DATA_GC_MS, CANVAS_DATA_STALE_MS } from "@/lib/query-policy";
 import { GlassCard, Skeleton, ErrorState, EmptyState } from "@/components/glass-card";
 import { displayCourseName } from "@/lib/course-display";
-import { Search, ArrowUp, ArrowDown, Minus } from "lucide-react";
+import { Search, ArrowUp, ArrowDown, Minus, ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useCourseHighlight, validateCourseSearch } from "@/lib/course-highlight";
 import { useGradeSnapshots, useRecordGradeSnapshots } from "@/hooks/use-grade-snapshots";
 
@@ -59,6 +60,16 @@ function GradesPage() {
   const snapshots = useGradeSnapshots();
   const record = useRecordGradeSnapshots();
   const highlight = useCourseHighlight();
+
+  // Classes start collapsed (final grade only); the arrow expands the full list.
+  const [expandedCourses, setExpandedCourses] = useState<Set<number>>(() => new Set());
+  const toggleExpanded = (id: number) =>
+    setExpandedCourses((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   const loading = courses.isLoading || assignments.isLoading || snapshots.isLoading;
   const error = courses.error || assignments.error || snapshots.error;
@@ -197,53 +208,74 @@ function GradesPage() {
                   </Link>
                 }
                 action={
-                  <span
-                    className="flex items-center gap-1.5 text-base font-normal tabular-nums"
-                    style={{ color }}
-                  >
-                    {trend === "up" && (
-                      <ArrowUp className="h-4 w-4" style={{ color }} aria-label="Grade up" />
-                    )}
-                    {trend === "down" && (
-                      <ArrowDown
-                        className="h-4 w-4 opacity-70"
-                        style={{ color }}
-                        aria-label="Grade down"
+                  <span className="flex items-center gap-1.5">
+                    <span
+                      className="flex items-center gap-1.5 text-base font-normal tabular-nums"
+                      style={{ color }}
+                    >
+                      {trend === "up" && (
+                        <ArrowUp className="h-4 w-4" style={{ color }} aria-label="Grade up" />
+                      )}
+                      {trend === "down" && (
+                        <ArrowDown
+                          className="h-4 w-4 opacity-70"
+                          style={{ color }}
+                          aria-label="Grade down"
+                        />
+                      )}
+                      {trend == null && (
+                        <Minus
+                          className="h-4 w-4 text-muted-foreground"
+                          aria-label="No grade change"
+                        />
+                      )}
+                      {fmt(c.current_score)}
+                      {c.current_grade ? (
+                        <span className="ml-1.5 text-sm font-normal opacity-85" style={{ color }}>
+                          {c.current_grade}
+                        </span>
+                      ) : null}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => toggleExpanded(c.id)}
+                      aria-expanded={expanded}
+                      aria-label={
+                        expanded
+                          ? `Hide grades for ${displayCourseName(c.name, c.course_code)}`
+                          : `Show grades for ${displayCourseName(c.name, c.course_code)}`
+                      }
+                      className="glass-hover flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"
+                    >
+                      <ChevronDown
+                        className={cn(
+                          "h-4 w-4 transition-transform duration-200",
+                          !expanded && "-rotate-90",
+                        )}
                       />
-                    )}
-                    {trend == null && (
-                      <Minus
-                        className="h-4 w-4 text-muted-foreground"
-                        aria-label="No grade change"
-                      />
-                    )}
-                    {fmt(c.current_score)}
-                    {c.current_grade ? (
-                      <span className="ml-1.5 text-sm font-normal opacity-85" style={{ color }}>
-                        {c.current_grade}
-                      </span>
-                    ) : null}
+                    </button>
                   </span>
                 }
               >
-                {items.length === 0 ? (
-                  <EmptyState message="No graded assignments yet." />
-                ) : (
-                  <ul className="divide-y divide-foreground/10">
-                    {items.map((a) => (
-                      <li key={a.id} className="flex items-center justify-between gap-3 py-2.5">
-                        <p className="min-w-0 truncate text-sm">{a.name}</p>
-                        <div className="whitespace-nowrap text-sm tabular-nums">
-                          <span className="font-semibold">{a.submission?.score ?? "—"}</span>
-                          <span className="text-muted-foreground">
-                            {" / "}
-                            {a.points_possible ?? "—"}
-                          </span>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                {expanded &&
+                  (items.length === 0 ? (
+                    <EmptyState message="No graded assignments yet." />
+                  ) : (
+                    <ul className="divide-y divide-foreground/10">
+                      {items.map((a) => (
+                        <li key={a.id} className="flex items-center justify-between gap-3 py-2.5">
+                          <p className="min-w-0 truncate text-sm">{a.name}</p>
+                          <div className="whitespace-nowrap text-sm tabular-nums">
+                            <span className="font-semibold">{a.submission?.score ?? "—"}</span>
+                            <span className="text-muted-foreground">
+                              {" / "}
+                              {a.points_possible ?? "—"}
+                            </span>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  ))}
               </GlassCard>
             </div>
           );
