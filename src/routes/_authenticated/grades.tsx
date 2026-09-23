@@ -6,7 +6,7 @@ import { getCoursesFn, getAllAssignmentsFn } from "@/lib/canvas.functions";
 import { CANVAS_DATA_GC_MS, CANVAS_DATA_STALE_MS } from "@/lib/query-policy";
 import { GlassCard, Skeleton, ErrorState, EmptyState } from "@/components/glass-card";
 import { displayCourseName } from "@/lib/course-display";
-import { Search, ArrowUp, ArrowDown, Minus, ChevronDown } from "lucide-react";
+import { Search, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCourseHighlight, validateCourseSearch } from "@/lib/course-highlight";
 import { useGradeSnapshots, useRecordGradeSnapshots } from "@/hooks/use-grade-snapshots";
@@ -83,22 +83,6 @@ function GradesPage() {
     return map;
   }, [snapshots.data]);
 
-  // Compute trend by comparing current score to the most recent stored snapshot.
-  const trends = useMemo(() => {
-    const map = new Map<number, "up" | "down" | null>();
-    (courses.data ?? []).forEach((c) => {
-      if (c.current_score == null) {
-        map.set(c.id, null);
-        return;
-      }
-      const prev = latestByCourse.get(c.id);
-      if (prev == null) map.set(c.id, null);
-      else if (c.current_score > prev + 0.05) map.set(c.id, "up");
-      else if (c.current_score < prev - 0.05) map.set(c.id, "down");
-      else map.set(c.id, null);
-    });
-    return map;
-  }, [courses.data, latestByCourse]);
 
   // Record snapshots for any course whose current score differs from latest.
   useEffect(() => {
@@ -178,7 +162,6 @@ function GradesPage() {
       {!loading &&
         !error &&
         filteredCourses.map((c) => {
-          const trend = trends.get(c.id);
           const expanded = expandedCourses.has(c.id);
           const score = c.current_score;
           const color = getGradeColor(score);
@@ -211,25 +194,9 @@ function GradesPage() {
                 action={
                   <span className="flex items-center gap-1.5">
                     <span
-                      className="flex items-center gap-1.5 text-base font-normal tabular-nums"
+                      className="text-base font-normal tabular-nums"
                       style={{ color }}
                     >
-                      {trend === "up" && (
-                        <ArrowUp className="h-4 w-4" style={{ color }} aria-label="Grade up" />
-                      )}
-                      {trend === "down" && (
-                        <ArrowDown
-                          className="h-4 w-4 opacity-70"
-                          style={{ color }}
-                          aria-label="Grade down"
-                        />
-                      )}
-                      {trend == null && (
-                        <Minus
-                          className="h-4 w-4 text-muted-foreground"
-                          aria-label="No grade change"
-                        />
-                      )}
                       {fmt(c.current_score)}
                       {c.current_grade ? (
                         <span className="ml-1.5 text-sm font-normal opacity-85" style={{ color }}>
