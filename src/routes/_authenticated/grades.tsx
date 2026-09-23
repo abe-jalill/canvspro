@@ -200,10 +200,25 @@ function GradesPage() {
                   </Link>
                 }
                 action={
-                  <span
-                    className="flex items-center gap-1.5 text-base font-normal tabular-nums"
-                    style={{ color }}
-                  >
+                  <span className="flex items-center gap-3">
+                    <select
+                      value={viewMode[c.id] ?? "final"}
+                      onChange={(e) =>
+                        setViewMode((prev) => ({
+                          ...prev,
+                          [c.id]: e.target.value as "final" | "all",
+                        }))
+                      }
+                      aria-label={`Grade view for ${displayCourseName(c.name, c.course_code)}`}
+                      className="glass-inset cursor-pointer rounded-lg px-2 py-1 text-xs text-muted-foreground outline-none"
+                    >
+                      <option value="final">Final grade only</option>
+                      <option value="all">All assignments</option>
+                    </select>
+                    <span
+                      className="flex items-center gap-1.5 text-base font-normal tabular-nums"
+                      style={{ color }}
+                    >
                     {trend === "up" && (
                       <ArrowUp className="h-4 w-4" style={{ color }} aria-label="Grade up" />
                     )}
