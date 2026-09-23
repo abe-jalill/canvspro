@@ -56,6 +56,9 @@ function GradesPage() {
   const courses = useQuery(coursesQO);
   const assignments = useQuery(assignmentsQO);
   const [search, setSearch] = useState("");
+  // Per-course view mode: "final" shows only the overall grade,
+  // "all" expands the full list of graded assignments.
+  const [viewMode, setViewMode] = useState<Record<number, "final" | "all">>({});
   const snapshots = useGradeSnapshots();
   const record = useRecordGradeSnapshots();
   const highlight = useCourseHighlight();
