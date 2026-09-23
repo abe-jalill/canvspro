@@ -8,6 +8,7 @@ import {
   getCalendarEventsFn,
   type CourseSummary,
 } from "@/lib/canvas.functions";
+import { CANVAS_DATA_GC_MS, CANVAS_DATA_STALE_MS } from "@/lib/query-policy";
 import { canvasKeyQueryKey, fetchHasCanvasKey } from "@/lib/user-settings";
 import { fetchUserPreferences, userPreferencesQueryKey } from "@/hooks/use-user-preferences";
 import { fetchUserProfile } from "@/lib/user-profile";
@@ -15,13 +16,10 @@ import { useUserScope } from "@/lib/user-scope";
 import { userKey } from "@/lib/auth-user";
 import { getSubscriptionAccess } from "@/lib/subscription.functions";
 
-const APP_ROUTES = [
-  "/dashboard",
-  "/assignments",
-  "/focus",
+const PRIMARY_ROUTES = ["/dashboard", "/assignments", "/focus", "/schedule", "/grades"] as const;
+
+const SECONDARY_ROUTES = [
   "/study-session",
-  "/schedule",
-  "/grades",
   "/announcements",
   "/class-schedule",
   "/billing",
@@ -55,19 +53,22 @@ export function useAppPrefetch(enabled = true): AppStartupStatus {
       client.ensureQueryData({
         queryKey: ["canvas", "courses"],
         queryFn: getCoursesFn,
-        staleTime: 5 * 60_000,
+        staleTime: CANVAS_DATA_STALE_MS,
+        gcTime: CANVAS_DATA_GC_MS,
         revalidateIfStale: true,
       }),
       client.ensureQueryData({
         queryKey: ["canvas", "assignments"],
         queryFn: getAllAssignmentsFn,
-        staleTime: 5 * 60_000,
+        staleTime: CANVAS_DATA_STALE_MS,
+        gcTime: CANVAS_DATA_GC_MS,
         revalidateIfStale: true,
       }),
       client.ensureQueryData({
         queryKey: ["canvas", "calendar"],
         queryFn: getCalendarEventsFn,
-        staleTime: 5 * 60_000,
+        staleTime: CANVAS_DATA_STALE_MS,
+        gcTime: CANVAS_DATA_GC_MS,
         revalidateIfStale: true,
       }),
       client.ensureQueryData({
@@ -100,8 +101,15 @@ export function useAppPrefetch(enabled = true): AppStartupStatus {
       if (cancelled) return;
       setStatus("ready");
 
+      // These five destinations make up the app's primary navigation loop.
+      // Their code is requested as soon as launch-critical data is ready, but
+      // it never delays the dashboard becoming interactive.
+      void Promise.allSettled(
+        PRIMARY_ROUTES.map((to) => router.preloadRoute({ to }).catch(() => undefined)),
+      );
+
       // Wait until the browser has painted the dashboard before fetching
-      // speculative chunks. Every primary destination then stays memory-hot.
+      // lower-priority data and chunks.
       const warmSecondary = () => {
         if (cancelled) return;
         const courses = client.getQueryData<CourseSummary[]>(["canvas", "courses"]) ?? [];
@@ -109,14 +117,15 @@ export function useAppPrefetch(enabled = true): AppStartupStatus {
           client.prefetchQuery({
             queryKey: ["canvas", "announcements"],
             queryFn: getAnnouncementsFn,
-            staleTime: 5 * 60_000,
+            staleTime: CANVAS_DATA_STALE_MS,
+            gcTime: CANVAS_DATA_GC_MS,
           }),
           client.prefetchQuery({
             queryKey: userKey(userPreferencesQueryKey, scope),
             queryFn: ({ signal }) => fetchUserPreferences(signal),
             staleTime: 60_000,
           }),
-          ...APP_ROUTES.map((to) => router.preloadRoute({ to }).catch(() => undefined)),
+          ...SECONDARY_ROUTES.map((to) => router.preloadRoute({ to }).catch(() => undefined)),
           ...courses.map((course) =>
             router
               .preloadRoute({

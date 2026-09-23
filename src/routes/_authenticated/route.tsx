@@ -19,6 +19,7 @@ import { useSidebarMode } from "@/lib/sidebar-state";
 import { cn } from "@/lib/utils";
 import { AppStartupWelcome } from "@/components/app-startup-welcome";
 import { RouteProgress } from "@/components/route-progress";
+import { ProfileCompletionDialog } from "@/components/profile-completion-dialog";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -66,6 +67,7 @@ function AuthenticatedLayout() {
   return (
     <div className="min-h-svh w-full overflow-x-hidden md:h-svh md:overflow-hidden">
       <AppStartupWelcome ready={startup === "ready"} user={user} />
+      <ProfileCompletionDialog user={user} />
       <RouteProgress />
       <AppSidebar />
       <MobileNav />

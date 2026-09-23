@@ -3,6 +3,7 @@ import { getGradeColor } from "@/lib/grade-color";
 import { useQuery, queryOptions } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { getCoursesFn, getAllAssignmentsFn } from "@/lib/canvas.functions";
+import { CANVAS_DATA_GC_MS, CANVAS_DATA_STALE_MS } from "@/lib/query-policy";
 import { GlassCard, Skeleton, ErrorState, EmptyState } from "@/components/glass-card";
 import { displayCourseName } from "@/lib/course-display";
 import { Search, ArrowUp, ArrowDown, Minus } from "lucide-react";
@@ -12,13 +13,15 @@ import { useGradeSnapshots, useRecordGradeSnapshots } from "@/hooks/use-grade-sn
 const coursesQO = queryOptions({
   queryKey: ["canvas", "courses"],
   queryFn: () => getCoursesFn(),
-  staleTime: 5 * 60_000,
+  staleTime: CANVAS_DATA_STALE_MS,
+  gcTime: CANVAS_DATA_GC_MS,
 });
 
 const assignmentsQO = queryOptions({
   queryKey: ["canvas", "assignments"],
   queryFn: () => getAllAssignmentsFn(),
-  staleTime: 5 * 60_000,
+  staleTime: CANVAS_DATA_STALE_MS,
+  gcTime: CANVAS_DATA_GC_MS,
 });
 
 export const Route = createFileRoute("/_authenticated/grades")({
@@ -27,12 +30,14 @@ export const Route = createFileRoute("/_authenticated/grades")({
       { title: "Grades — Canvas Pro" },
       {
         name: "description",
-        content: "Per-course grade breakdown across your Canvas assignments, with trends over time.",
+        content:
+          "Per-course grade breakdown across your Canvas assignments, with trends over time.",
       },
       { property: "og:title", content: "Grades — Canvas Pro" },
       {
         property: "og:description",
-        content: "Per-course grade breakdown across your Canvas assignments, with trends over time.",
+        content:
+          "Per-course grade breakdown across your Canvas assignments, with trends over time.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -116,7 +121,9 @@ function GradesPage() {
   return (
     <div className="space-y-6">
       <header className="px-1 pt-2">
-        <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Per course</p>
+        <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+          Per course
+        </p>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">Grades</h1>
       </header>
 
@@ -163,7 +170,9 @@ function GradesPage() {
           const trend = trends.get(c.id);
           const score = c.current_score;
           const color = getGradeColor(score);
-          let items = (byCourse.get(c.id) ?? []).filter((a) => a.submission?.score != null || a.submission?.grade);
+          let items = (byCourse.get(c.id) ?? []).filter(
+            (a) => a.submission?.score != null || a.submission?.grade,
+          );
           if (q) items = items.filter((a) => a.name.toLowerCase().includes(q));
 
           return (
@@ -182,16 +191,32 @@ function GradesPage() {
                         boxShadow: `0 0 8px ${color}66`,
                       }}
                     />
-                    <span className="font-normal text-foreground">{displayCourseName(c.name, c.course_code)}</span>
+                    <span className="font-normal text-foreground">
+                      {displayCourseName(c.name, c.course_code)}
+                    </span>
                   </Link>
                 }
                 action={
-                  <span className="flex items-center gap-1.5 text-base font-normal tabular-nums" style={{ color }}>
-                    {trend === "up" && <ArrowUp className="h-4 w-4" style={{ color }} aria-label="Grade up" />}
-                    {trend === "down" && (
-                      <ArrowDown className="h-4 w-4 opacity-70" style={{ color }} aria-label="Grade down" />
+                  <span
+                    className="flex items-center gap-1.5 text-base font-normal tabular-nums"
+                    style={{ color }}
+                  >
+                    {trend === "up" && (
+                      <ArrowUp className="h-4 w-4" style={{ color }} aria-label="Grade up" />
                     )}
-                    {trend == null && <Minus className="h-4 w-4 text-muted-foreground" aria-label="No grade change" />}
+                    {trend === "down" && (
+                      <ArrowDown
+                        className="h-4 w-4 opacity-70"
+                        style={{ color }}
+                        aria-label="Grade down"
+                      />
+                    )}
+                    {trend == null && (
+                      <Minus
+                        className="h-4 w-4 text-muted-foreground"
+                        aria-label="No grade change"
+                      />
+                    )}
                     {fmt(c.current_score)}
                     {c.current_grade ? (
                       <span className="ml-1.5 text-sm font-normal opacity-85" style={{ color }}>

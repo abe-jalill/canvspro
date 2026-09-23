@@ -50,10 +50,12 @@ export async function fetchUserProfile(): Promise<UserProfile> {
   const { data: userData } = await supabase.auth.getUser();
   const meta = userData.user?.user_metadata ?? {};
   const local = getLocalProfile();
+  const fullName = typeof meta.full_name === "string" ? meta.full_name.trim() : "";
+  const [fullNameFirst = "", ...fullNameRest] = fullName.split(/\s+/).filter(Boolean);
 
   const profile: UserProfile = {
-    firstName: meta.first_name || meta.firstName || local.firstName || "",
-    lastName: meta.last_name || meta.lastName || local.lastName || "",
+    firstName: meta.first_name || meta.firstName || local.firstName || fullNameFirst,
+    lastName: meta.last_name || meta.lastName || local.lastName || fullNameRest.join(" "),
     nickname: meta.nickname || local.nickname || "",
     school: meta.school || local.school || "",
     major: meta.major || local.major || "",
@@ -90,6 +92,8 @@ export function useSaveUserProfile() {
           major: profile.major.trim(),
           class_of: profile.classOf.trim(),
           full_name: fullName,
+          profile_setup_prompted: true,
+          profile_setup_completed: Boolean(profile.firstName.trim() && profile.lastName.trim()),
         },
       });
 

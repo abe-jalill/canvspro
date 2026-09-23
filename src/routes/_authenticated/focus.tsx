@@ -2,16 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, queryOptions } from "@tanstack/react-query";
 import { useState } from "react";
 import { Check } from "lucide-react";
-import {
-  getAllAssignmentsFn,
-  getCoursesFn,
-  type AssignmentItem,
-} from "@/lib/canvas.functions";
-import {
-  GlassCard,
-  Skeleton,
-  ErrorState,
-} from "@/components/glass-card";
+import { getAllAssignmentsFn, getCoursesFn, type AssignmentItem } from "@/lib/canvas.functions";
+import { CANVAS_DATA_GC_MS, CANVAS_DATA_STALE_MS } from "@/lib/query-policy";
+import { GlassCard, Skeleton, ErrorState } from "@/components/glass-card";
 import { Segmented } from "@/components/segmented";
 import { cn } from "@/lib/utils";
 import { displayCourseName } from "@/lib/course-display";
@@ -20,31 +13,37 @@ import {
   COMPLETED_ASSIGNMENTS_KEY,
   DISMISSED_ANNOUNCEMENTS_KEY,
 } from "@/lib/local-state";
-import {
-  getCountdown,
-  urgencyAccentClass,
-  urgencyTextClass,
-} from "@/lib/countdown";
+import { getCountdown, urgencyAccentClass, urgencyTextClass } from "@/lib/countdown";
 
 const assignmentsQO = queryOptions({
   queryKey: ["canvas", "assignments"],
   queryFn: () => getAllAssignmentsFn(),
-  staleTime: 5 * 60_000,
+  staleTime: CANVAS_DATA_STALE_MS,
+  gcTime: CANVAS_DATA_GC_MS,
 });
 
 const coursesQO = queryOptions({
   queryKey: ["canvas", "courses"],
   queryFn: () => getCoursesFn(),
-  staleTime: 5 * 60_000,
+  staleTime: CANVAS_DATA_STALE_MS,
+  gcTime: CANVAS_DATA_GC_MS,
 });
 
 export const Route = createFileRoute("/_authenticated/focus")({
   head: () => ({
     meta: [
       { title: "Focus — Canvas Pro" },
-      { name: "description", content: "Everything due within the next day, two days, three days, or week, grouped by class." },
+      {
+        name: "description",
+        content:
+          "Everything due within the next day, two days, three days, or week, grouped by class.",
+      },
       { property: "og:title", content: "Focus — Canvas Pro" },
-      { property: "og:description", content: "Everything due within the next day, two days, three days, or week, grouped by class." },
+      {
+        property: "og:description",
+        content:
+          "Everything due within the next day, two days, three days, or week, grouped by class.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -100,19 +99,14 @@ function FocusPage() {
   const groups = Array.from(groupMap.values())
     .filter((g) => g.items.length > 0)
     .sort((a, b) =>
-      displayCourseName(a.name, a.code).localeCompare(
-        displayCourseName(b.name, b.code),
-      ),
+      displayCourseName(a.name, a.code).localeCompare(displayCourseName(b.name, b.code)),
     );
   groups.forEach((g) => {
     g.items.sort((a, b) => {
       const ac = completed.has(a.id) ? 1 : 0;
       const bc = completed.has(b.id) ? 1 : 0;
       if (ac !== bc) return ac - bc;
-      return (
-        new Date(a.due_at as string).getTime() -
-        new Date(b.due_at as string).getTime()
-      );
+      return new Date(a.due_at as string).getTime() - new Date(b.due_at as string).getTime();
     });
   });
 
@@ -162,23 +156,17 @@ function FocusPage() {
             <p className="text-lg font-semibold tracking-tight">
               You're clear for the next {WINDOW_LABELS[win]}.
             </p>
-            <p className="text-sm text-muted-foreground">
-              Nothing due. Breathe.
-            </p>
+            <p className="text-sm text-muted-foreground">Nothing due. Breathe.</p>
           </div>
         </GlassCard>
       ) : (
         <>
           <div className="px-1 text-xs text-muted-foreground">
-            {remaining} remaining across {groups.length}{" "}
-            {groups.length === 1 ? "class" : "classes"}
+            {remaining} remaining across {groups.length} {groups.length === 1 ? "class" : "classes"}
           </div>
           <div className="space-y-5">
             {groups.map((g) => {
-              const total = g.items.reduce(
-                (s, a) => s + (a.points_possible ?? 0),
-                0,
-              );
+              const total = g.items.reduce((s, a) => s + (a.points_possible ?? 0), 0);
               return (
                 <GlassCard key={g.id}>
                   <div className="mb-3 flex items-baseline justify-between px-1">
@@ -186,8 +174,8 @@ function FocusPage() {
                       {displayCourseName(g.name, g.code)}
                     </h2>
                     <span className="text-xs text-muted-foreground">
-                      {g.items.length}{" "}
-                      {g.items.length === 1 ? "item" : "items"} · {Math.round(total)} pt
+                      {g.items.length} {g.items.length === 1 ? "item" : "items"} ·{" "}
+                      {Math.round(total)} pt
                     </span>
                   </div>
                   <ul className="space-y-2">
@@ -207,9 +195,7 @@ function FocusPage() {
                             <button
                               onClick={() => completed.toggle(a.id)}
                               aria-label={
-                                done
-                                  ? `Mark ${a.name} incomplete`
-                                  : `Mark ${a.name} complete`
+                                done ? `Mark ${a.name} incomplete` : `Mark ${a.name} complete`
                               }
                               aria-pressed={done}
                               className={cn(
@@ -219,9 +205,7 @@ function FocusPage() {
                                   : "border-foreground/30 hover:border-foreground/60",
                               )}
                             >
-                              {done && (
-                                <Check className="h-3.5 w-3.5" strokeWidth={3} />
-                              )}
+                              {done && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
                             </button>
                             <div className="min-w-0">
                               <p
@@ -243,9 +227,7 @@ function FocusPage() {
                             <p
                               className={cn(
                                 "whitespace-nowrap text-sm tabular-nums",
-                                cd
-                                  ? urgencyTextClass(cd.urgency)
-                                  : "text-muted-foreground",
+                                cd ? urgencyTextClass(cd.urgency) : "text-muted-foreground",
                               )}
                             >
                               {cd ? cd.label : "—"}
