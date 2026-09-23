@@ -104,7 +104,7 @@ export function useAppPrefetch(enabled = true): AppStartupStatus {
       // These five destinations make up the app's primary navigation loop.
       // Their code is requested as soon as launch-critical data is ready, but
       // it never delays the dashboard becoming interactive.
-      void Promise.allSettled(
+      const primaryWarm = Promise.allSettled(
         PRIMARY_ROUTES.map((to) => router.preloadRoute({ to }).catch(() => undefined)),
       );
 
@@ -137,13 +137,16 @@ export function useAppPrefetch(enabled = true): AppStartupStatus {
         ]);
       };
 
-      if ("requestIdleCallback" in window) {
-        const idleId = window.requestIdleCallback(warmSecondary, { timeout: 1_500 });
-        cancelIdle = () => window.cancelIdleCallback(idleId);
-      } else {
-        const timer = window.setTimeout(warmSecondary, 500);
-        cancelIdle = () => window.clearTimeout(timer);
-      }
+      void primaryWarm.then(() => {
+        if (cancelled) return;
+        if ("requestIdleCallback" in window) {
+          const idleId = window.requestIdleCallback(warmSecondary, { timeout: 1_500 });
+          cancelIdle = () => window.cancelIdleCallback(idleId);
+        } else {
+          const timer = window.setTimeout(warmSecondary, 500);
+          cancelIdle = () => window.clearTimeout(timer);
+        }
+      });
     });
     const refresh = () => {
       if (document.visibilityState !== "visible" || !navigator.onLine) return;

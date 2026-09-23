@@ -1,5 +1,4 @@
 import { createFileRoute, Outlet, redirect, useRouterState } from "@tanstack/react-router";
-import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppSidebar, MobileNav } from "@/components/app-sidebar";
 import { CanvasKeyBanner } from "@/components/canvas-key-banner";
@@ -43,20 +42,8 @@ function AuthenticatedLayout() {
   const { user } = Route.useRouteContext();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [sidebarMode] = useSidebarMode();
-  const contentRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    if ("startViewTransition" in document) return;
-    const animation = contentRef.current?.animate(
-      [
-        { opacity: 0, transform: "translateY(8px) scale(0.995)" },
-        { opacity: 1, transform: "translateY(0) scale(1)" },
-      ],
-      { duration: 220, easing: "cubic-bezier(0.16, 1, 0.3, 1)" },
-    );
-    return () => animation?.cancel();
-  }, [pathname]);
+  const needsFallbackTransition =
+    typeof document !== "undefined" && typeof document.startViewTransition !== "function";
 
   useNotificationEngine(true);
   useDueTodayBadge(true);
@@ -93,7 +80,13 @@ function AuthenticatedLayout() {
           <CanvasKeyGate>
             <ClassNamesGate>
               <PullToRefresh>
-                <div ref={contentRef} className="route-content min-w-0">
+                <div
+                  key={needsFallbackTransition ? pathname : "native-transition"}
+                  className={cn(
+                    "route-content min-w-0",
+                    needsFallbackTransition && "route-content-fallback",
+                  )}
+                >
                   <Outlet />
                 </div>
               </PullToRefresh>

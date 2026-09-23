@@ -24,6 +24,7 @@ export const getRouter = () => {
     scrollToTopSelectors: ["#app-main"],
     defaultPreload: "intent",
     defaultPreloadDelay: 30,
+    defaultViewTransition: true,
     defaultPreloadStaleTime: 15 * 60_000,
     defaultStaleTime: 15 * 60_000,
     defaultGcTime: 6 * 60 * 60_000,
@@ -43,29 +44,6 @@ export const getRouter = () => {
       </div>
     ),
   });
-
-  // Native transitions expose separate ready/finished promises. A redirect or
-  // a fast second click can reject them even when the route commit succeeds.
-  let activeTransition: ViewTransition | undefined;
-  router.startViewTransition = (commit) => {
-    if (
-      typeof document === "undefined" ||
-      !document.startViewTransition ||
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
-      !document.querySelector(".route-content")
-    )
-      return commit();
-    activeTransition?.skipTransition();
-    const transition = document.startViewTransition(commit);
-    activeTransition = transition;
-    void transition.ready.catch(() => undefined);
-    const finished = () => {
-      if (activeTransition === transition) activeTransition = undefined;
-    };
-    void transition.finished.then(finished, finished);
-    // Route failures still reach the router error boundary.
-    return transition.updateCallbackDone;
-  };
 
   return router;
 };

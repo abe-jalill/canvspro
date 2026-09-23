@@ -197,7 +197,7 @@ export function AppSidebar() {
                     <Link
                       key={item.to}
                       to={item.to}
-                      preload="viewport"
+                      preload="intent"
                       title={item.title}
                       aria-label={item.title}
                       className={cn(
@@ -278,7 +278,7 @@ export function AppSidebar() {
                   <Link
                     key={item.to}
                     to={item.to}
-                    preload="viewport"
+                    preload="intent"
                     className={cn(
                       "press rounded-xl px-3 py-2 text-sm transition-all",
                       isActive(pathname, item.to)
@@ -288,9 +288,15 @@ export function AppSidebar() {
                   >
                     <span className="flex items-center justify-between gap-2">
                       <span className="flex min-w-0 items-center gap-2">
-                        {isActive(pathname, item.to) && (
-                          <span className="h-1 w-1 shrink-0 rounded-full bg-primary" />
-                        )}
+                        <span
+                          aria-hidden="true"
+                          className={cn(
+                            "h-1 w-1 shrink-0 rounded-full bg-primary transition-[opacity,transform] duration-200",
+                            isActive(pathname, item.to)
+                              ? "scale-100 opacity-100"
+                              : "scale-50 opacity-0",
+                          )}
+                        />
                         <span className="truncate">{item.title}</span>
                       </span>
                     </span>
@@ -420,7 +426,7 @@ export function MobileNav() {
           <Link
             key={item.to}
             to={item.to}
-            preload="viewport"
+            preload="intent"
             onClick={() => setOpen(false)}
             className={cn(
               "press flex min-h-11 items-center rounded-xl px-3 text-sm font-normal",
