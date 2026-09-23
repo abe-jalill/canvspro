@@ -93,7 +93,7 @@ export function ProductivityOverview({ showLink = true }: { showLink?: boolean }
 
   return (
     <section
-      className="relative overflow-hidden rounded-[2rem] border border-foreground/10 bg-foreground/[0.025] p-4 shadow-glass sm:p-6"
+      className="relative overflow-hidden rounded-[2rem] border border-foreground/10 bg-glass p-4 shadow-glass sm:p-6"
       aria-labelledby="weekly-summary"
       aria-busy={!ready}
     >

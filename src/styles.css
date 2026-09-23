@@ -69,7 +69,7 @@
   --background: 0 0% 4%;
   --foreground: 0 0% 97%;
 
-  --card: 0 0% 10% / 0.6;
+  --card: 225 7% 20% / 0.6;
   --card-foreground: 0 0% 97%;
 
   --popover: 0 0% 8% / 0.95;
@@ -97,8 +97,8 @@
   --ring: 0 0% 100% / 0.35;
 
   /* Glass tokens — translucent charcoal */
-  --glass: 0 0% 12% / 0.6;
-  --glass-strong: 0 0% 15% / 0.75;
+  --glass: 225 7% 20% / 0.6;
+  --glass-strong: 225 7% 18% / 0.75;
   --glass-border: 0 0% 100% / 0.1;
 
   --sidebar: 0 0% 9% / 0.7;
@@ -117,7 +117,7 @@
   --background: 210 40% 97%;
   --foreground: 216 55% 12%;
 
-  --card: 210 40% 100% / 0.7;
+  --card: 216 24% 93% / 0.7;
   --card-foreground: 216 55% 12%;
 
   --popover: 210 40% 100% / 0.95;
@@ -139,8 +139,8 @@
   --input: 216 30% 20% / 0.1;
   --ring: 216 55% 30% / 0.35;
 
-  --glass: 210 40% 100% / 0.65;
-  --glass-strong: 210 40% 100% / 0.8;
+  --glass: 216 24% 93% / 0.65;
+  --glass-strong: 216 24% 93% / 0.8;
   --glass-border: 216 30% 20% / 0.1;
 
   --sidebar: 210 40% 100% / 0.65;
