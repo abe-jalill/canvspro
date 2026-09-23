@@ -10,13 +10,13 @@ import {
 export const Route = createFileRoute("/_authenticated/notifications")({
   head: () => ({
     meta: [
-      { title: "Notification Settings — Canvas Pro" },
+      { title: "Notification Settings — CanvasPro" },
       {
         name: "description",
         content:
           "Choose exactly which Canvas events trigger alerts: due-date lead times, grade thresholds, announcements, browser pop-ups, and quiet hours.",
       },
-      { property: "og:title", content: "Notification Settings — Canvas Pro" },
+      { property: "og:title", content: "Notification Settings — CanvasPro" },
       {
         property: "og:description",
         content:

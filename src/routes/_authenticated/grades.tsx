@@ -27,13 +27,13 @@ const assignmentsQO = queryOptions({
 export const Route = createFileRoute("/_authenticated/grades")({
   head: () => ({
     meta: [
-      { title: "Grades — Canvas Pro" },
+      { title: "Grades — CanvasPro" },
       {
         name: "description",
         content:
           "Per-course grade breakdown across your Canvas assignments, with trends over time.",
       },
-      { property: "og:title", content: "Grades — Canvas Pro" },
+      { property: "og:title", content: "Grades — CanvasPro" },
       {
         property: "og:description",
         content:

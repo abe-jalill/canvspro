@@ -31,7 +31,7 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Canvas Pro — A Better Canvas Dashboard for Students" },
+      { title: "CanvasPro — A Better Canvas Dashboard for Students" },
       {
         name: "description",
         content:
@@ -56,7 +56,7 @@ export const Route = createFileRoute("/")({
         children: JSON.stringify({
           "@context": "https://schema.org",
           "@type": "SoftwareApplication",
-          name: "Canvas Pro",
+          name: "CanvasPro",
           applicationCategory: "EducationalApplication",
           operatingSystem: "Web",
           url: "https://canvaspro.app/",
@@ -183,19 +183,19 @@ const TESTIMONIALS = [
 
 const FAQS = [
   {
-    question: "Is Canvas Pro allowed by my school or university?",
+    question: "Is CanvasPro allowed by my school or university?",
     answer:
-      "Yes. Canvas Pro uses your personal Canvas Access Token, an official feature provided directly by Instructure Canvas for third-party student tools. It operates strictly within your existing student permissions.",
+      "Yes. CanvasPro uses your personal Canvas Access Token, an official feature provided directly by Instructure Canvas for third-party student tools. It operates strictly within your existing student permissions.",
   },
   {
-    question: "Can Canvas Pro see my Canvas password or change my grades?",
+    question: "Can CanvasPro see my Canvas password or change my grades?",
     answer:
-      "No, never. You never enter your school password or institutional credentials. Canvas Pro only receives a read-only access token. It cannot alter grades, submit assignments, post announcements, or make any changes to your Canvas account.",
+      "No, never. You never enter your school password or institutional credentials. CanvasPro only receives a read-only access token. It cannot alter grades, submit assignments, post announcements, or make any changes to your Canvas account.",
   },
   {
     question: "How do I get my Canvas Access Token?",
     answer:
-      "It takes about 30 seconds: Log in to your school's Canvas website, click 'Account' in the left menu, choose 'Settings', scroll down to 'Approved Integrations', and click '+ New Access Token'. Copy that token into Canvas Pro and your dashboard immediately populates.",
+      "It takes about 30 seconds: Log in to your school's Canvas website, click 'Account' in the left menu, choose 'Settings', scroll down to 'Approved Integrations', and click '+ New Access Token'. Copy that token into CanvasPro and your dashboard immediately populates.",
   },
   {
     question: "What is included for free?",
@@ -208,9 +208,9 @@ const FAQS = [
       "You can manage or cancel it from Billing after signing in. CanvasPro access stays free even after cancellation.",
   },
   {
-    question: "Does Canvas Pro work on mobile phones and tablets?",
+    question: "Does CanvasPro work on mobile phones and tablets?",
     answer:
-      "Yes! Canvas Pro is built as a progressive, fully responsive web application that runs smoothly in Safari, Chrome, iOS, and Android. You can even add it directly to your home screen like an app.",
+      "Yes! CanvasPro is built as a progressive, fully responsive web application that runs smoothly in Safari, Chrome, iOS, and Android. You can even add it directly to your home screen like an app.",
   },
 ];
 
@@ -243,7 +243,7 @@ function LandingPage() {
             </div>
             <div>
               <p className="text-sm font-semibold text-foreground">Welcome back!</p>
-              <p className="text-xs text-muted-foreground">You are signed in to your Canvas Pro account.</p>
+              <p className="text-xs text-muted-foreground">You are signed in to your CanvasPro account.</p>
             </div>
           </div>
           <Link
@@ -267,7 +267,7 @@ function LandingPage() {
         </h1>
 
         <p className="mx-auto mt-5 max-w-2xl text-base text-muted-foreground sm:text-lg">
-          Canvas Pro pulls your live grades, upcoming assignments, schedules, and announcements into one
+          CanvasPro pulls your live grades, upcoming assignments, schedules, and announcements into one
           customizable home screen. Stop hunting through nested course menus.
         </p>
 
@@ -630,7 +630,7 @@ function LandingPage() {
             3-minute setup
           </p>
           <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-            How Canvas Pro works
+            How CanvasPro works
           </h2>
         </div>
 
@@ -677,7 +677,7 @@ function LandingPage() {
                 Your credentials and student privacy are 100% protected
               </h4>
               <p className="mt-1 text-sm text-muted-foreground">
-                We never ask for your school password. Your Canvas token is stored encrypted write-only and is restricted to read-only access. Canvas Pro cannot edit grades, submit coursework, or modify your school account in any way.
+                We never ask for your school password. Your Canvas token is stored encrypted write-only and is restricted to read-only access. CanvasPro cannot edit grades, submit coursework, or modify your school account in any way.
               </p>
             </div>
           </div>

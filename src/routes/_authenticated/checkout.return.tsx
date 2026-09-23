@@ -10,12 +10,12 @@ export const Route = createFileRoute("/_authenticated/checkout/return")({
   }),
   head: () => ({
     meta: [
-      { title: "Order confirmed — Canvas Pro" },
+      { title: "Order confirmed — CanvasPro" },
       {
         name: "description",
         content: "View your existing CanvasPro subscription. Every feature is free for everyone.",
       },
-      { property: "og:title", content: "Order confirmed — Canvas Pro" },
+      { property: "og:title", content: "Order confirmed — CanvasPro" },
       {
         property: "og:description",
         content: "View your existing CanvasPro subscription. Every feature is free for everyone.",
@@ -42,7 +42,7 @@ function CheckoutReturnPage() {
         title={sessionId ? "Payment complete" : "Checkout status"}
         subtitle={
           sessionId
-            ? "Thanks for subscribing to Canvas Pro."
+            ? "Thanks for subscribing to CanvasPro."
             : "We couldn't find your checkout session."
         }
       >

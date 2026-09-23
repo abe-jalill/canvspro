@@ -96,7 +96,7 @@ export function useAppPrefetch(enabled = true): AppStartupStatus {
       Promise.race([critical, delay(CRITICAL_CAP_MS)]),
     ]);
 
-    let cancelIdle = () => undefined;
+    let cancelIdle: () => void = () => {};
     void launchReady.then(() => {
       if (cancelled) return;
       setStatus("ready");
@@ -139,8 +139,11 @@ export function useAppPrefetch(enabled = true): AppStartupStatus {
 
       void primaryWarm.then(() => {
         if (cancelled) return;
-        if ("requestIdleCallback" in window) {
-          const idleId = window.requestIdleCallback(warmSecondary, { timeout: 1_500 });
+        const idleCallback = (window as unknown as {
+          requestIdleCallback?: Window["requestIdleCallback"];
+        }).requestIdleCallback;
+        if (idleCallback) {
+          const idleId = idleCallback.call(window, warmSecondary, { timeout: 1_500 });
           cancelIdle = () => window.cancelIdleCallback(idleId);
         } else {
           const timer = window.setTimeout(warmSecondary, 500);
@@ -154,15 +157,27 @@ export function useAppPrefetch(enabled = true): AppStartupStatus {
         { queryKey: ["canvas"], type: "active", stale: true },
         { cancelRefetch: false },
       );
+      // Changes made on another device should appear when this one becomes
+      // active again. Keep existing cache visible while these refresh.
+      void Promise.allSettled([
+        client.invalidateQueries({ queryKey: ["user-preferences"], refetchType: "active" }),
+        client.invalidateQueries({ queryKey: ["user-profile"], refetchType: "active" }),
+        client.invalidateQueries({ queryKey: ["user-settings"], refetchType: "active" }),
+        client.invalidateQueries({ queryKey: ["class-nicknames"], refetchType: "active" }),
+        client.invalidateQueries({ queryKey: ["class-schedule-entries"], refetchType: "active" }),
+        client.invalidateQueries({ queryKey: ["user-assignment-meta"], refetchType: "active" }),
+      ]);
     };
-    const interval = setInterval(refresh, 5 * 60_000);
+    const interval = setInterval(refresh, 60_000);
     window.addEventListener("online", refresh);
+    window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);
     return () => {
       cancelled = true;
       cancelIdle();
       clearInterval(interval);
       window.removeEventListener("online", refresh);
+      window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", refresh);
     };
   }, [enabled, scope, router, client]);

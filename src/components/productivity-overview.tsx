@@ -136,7 +136,7 @@ export function ProductivityOverview() {
                     metric.accent,
                   )}
                 >
-                  <Icon className="h-4 w-4" aria-hidden="true" />
+                  <Icon className="h-4 w-4" aria-hidden={true} />
                 </span>
               </div>
               <div>

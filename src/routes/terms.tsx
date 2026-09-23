@@ -3,17 +3,17 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 export const Route = createFileRoute("/terms")({
   head: () => ({
     meta: [
-      { title: "Terms of Service — Canvas Pro" },
+      { title: "Terms of Service — CanvasPro" },
       {
         name: "description",
         content:
-          "Canvas Pro's Terms of Service describe the rules and responsibilities for using the service.",
+          "CanvasPro's Terms of Service describe the rules and responsibilities for using the service.",
       },
-      { property: "og:title", content: "Terms of Service — Canvas Pro" },
+      { property: "og:title", content: "Terms of Service — CanvasPro" },
       {
         property: "og:description",
         content:
-          "Canvas Pro's Terms of Service describe the rules and responsibilities for using the service.",
+          "CanvasPro's Terms of Service describe the rules and responsibilities for using the service.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -33,16 +33,16 @@ function TermsPage() {
         <p className="mt-4 text-sm text-muted-foreground">
           CanvasPro is an independent, third-party application and is not affiliated with, endorsed
           by, sponsored by, or connected in any way to Canvas LMS or Instructure, Inc. Please read
-          these terms carefully before using Canvas Pro. By creating an account or using the
+          these terms carefully before using CanvasPro. By creating an account or using the
           service, you agree to these terms.
         </p>
 
         <section className="mt-10">
           <h2 className="text-lg font-semibold tracking-tight">Description of the service</h2>
           <p className="mt-4 text-sm text-muted-foreground">
-            Canvas Pro is a personal companion dashboard for the Canvas LMS. It displays your own
+            CanvasPro is a personal companion dashboard for the Canvas LMS. It displays your own
             Canvas data — including courses, assignments, grades, announcements, and schedule — in
-            one place. You provide your Canvas API key, and Canvas Pro fetches that data on your
+            one place. You provide your Canvas API key, and CanvasPro fetches that data on your
             behalf.
           </p>
         </section>
@@ -60,7 +60,7 @@ function TermsPage() {
         <section className="mt-10">
           <h2 className="text-lg font-semibold tracking-tight">Acceptable use</h2>
           <p className="mt-4 text-sm text-muted-foreground">
-            Canvas Pro is for personal, non-commercial use to view your own academic data. You may
+            CanvasPro is for personal, non-commercial use to view your own academic data. You may
             not use it to attempt to access another user's data, abuse the Canvas API, interfere
             with the service's operation, or use it for any illegal purpose.
           </p>
@@ -70,13 +70,13 @@ function TermsPage() {
           <h2 className="text-lg font-semibold tracking-tight">Disclaimers</h2>
           <div className="mt-4 space-y-3 text-sm text-muted-foreground">
             <p>
-              <strong className="text-foreground">Independence.</strong> Canvas Pro is an
+              <strong className="text-foreground">Independence.</strong> CanvasPro is an
               independent tool and is not affiliated with, endorsed by, or officially connected to
               Instructure or Canvas LMS.
             </p>
             <p>
               <strong className="text-foreground">Data accuracy.</strong> The accuracy of the
-              information shown in Canvas Pro depends on Canvas's own systems. Canvas Pro is not
+              information shown in CanvasPro depends on Canvas's own systems. CanvasPro is not
               responsible for errors, delays, or missing information originating from Canvas.
             </p>
             <p>
@@ -100,7 +100,7 @@ function TermsPage() {
         <section className="mt-10">
           <h2 className="text-lg font-semibold tracking-tight">Limitation of liability</h2>
           <p className="mt-4 text-sm text-muted-foreground">
-            Canvas Pro is provided as-is. To the extent permitted by law, we are not liable for
+            CanvasPro is provided as-is. To the extent permitted by law, we are not liable for
             service interruptions, data loss, missed notifications, or any decisions you make based
             on information shown in the dashboard. Use your official Canvas account as the final
             source of truth for grades, deadlines, and academic records.
@@ -139,7 +139,7 @@ function TermsPage() {
 
         <div className="mt-12 border-t border-border/30 pt-6">
           <Link to="/" className="text-sm font-medium text-foreground underline underline-offset-4">
-            Back to Canvas Pro
+            Back to CanvasPro
           </Link>
         </div>
       </div>

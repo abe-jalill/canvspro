@@ -22,7 +22,7 @@ export function AuthShell({
       >
         <div className="mb-6">
           <p className="text-xs font-normal uppercase tracking-[0.18em] text-muted-foreground">
-            Canvas Pro
+            CanvasPro
           </p>
           <h1 className="mt-2 text-2xl font-normal tracking-tight">{title}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>

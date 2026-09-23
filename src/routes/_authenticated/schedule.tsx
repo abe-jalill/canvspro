@@ -25,12 +25,12 @@ const assignmentsQO = queryOptions({
 export const Route = createFileRoute("/_authenticated/schedule")({
   head: () => ({
     meta: [
-      { title: "Calendar — Canvas Pro" },
+      { title: "Calendar — CanvasPro" },
       {
         name: "description",
         content: "Your upcoming Canvas due dates and events.",
       },
-      { property: "og:title", content: "Calendar — Canvas Pro" },
+      { property: "og:title", content: "Calendar — CanvasPro" },
       {
         property: "og:description",
         content: "Your upcoming Canvas due dates and events.",

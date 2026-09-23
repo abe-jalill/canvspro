@@ -5,7 +5,7 @@ export const Route = createFileRoute("/email-verified")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Email verified — Canvas Pro" },
+      { title: "Email verified — CanvasPro" },
       { name: "description", content: "Your email address has been verified." },
       { name: "robots", content: "noindex" },
     ],

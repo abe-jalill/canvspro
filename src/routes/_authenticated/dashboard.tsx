@@ -10,13 +10,13 @@ import { ProductivityOverview } from "@/components/productivity-overview";
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
     meta: [
-      { title: "Dashboard — Canvas Pro" },
+      { title: "Dashboard — CanvasPro" },
       {
         name: "description",
         content:
           "Your customizable Canvas home: class calendar, grades, assignments, announcements, and focus widgets in one place.",
       },
-      { property: "og:title", content: "Dashboard — Canvas Pro" },
+      { property: "og:title", content: "Dashboard — CanvasPro" },
       {
         property: "og:description",
         content:

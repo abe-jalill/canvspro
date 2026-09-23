@@ -3,17 +3,17 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 export const Route = createFileRoute("/privacy")({
   head: () => ({
     meta: [
-      { title: "Privacy Policy — Canvas Pro" },
+      { title: "Privacy Policy — CanvasPro" },
       {
         name: "description",
         content:
-          "Canvas Pro's Privacy Policy explains what data we collect, how we use it, and your rights.",
+          "CanvasPro's Privacy Policy explains what data we collect, how we use it, and your rights.",
       },
-      { property: "og:title", content: "Privacy Policy — Canvas Pro" },
+      { property: "og:title", content: "Privacy Policy — CanvasPro" },
       {
         property: "og:description",
         content:
-          "Canvas Pro's Privacy Policy explains what data we collect, how we use it, and your rights.",
+          "CanvasPro's Privacy Policy explains what data we collect, how we use it, and your rights.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -55,11 +55,11 @@ function PrivacyPage() {
 
         <Section title="1. Non-affiliation with Canvas LMS / Instructure, Inc.">
           <p>
-            Canvas Pro is an independent, third-party companion application created and operated by
+            CanvasPro is an independent, third-party companion application created and operated by
             an independent software developer.
           </p>
           <p>
-            <strong className="text-foreground">Non-affiliation.</strong> Canvas Pro is not
+            <strong className="text-foreground">Non-affiliation.</strong> CanvasPro is not
             affiliated with, sponsored by, endorsed by, authorized by, or officially connected to
             Instructure, Inc., Canvas™, Canvas LMS™, or any of their parent corporations,
             subsidiaries, or affiliates.
@@ -73,14 +73,14 @@ function PrivacyPage() {
           <p>
             <strong className="text-foreground">No institutional endorsement.</strong> Your school,
             college, university, or district does not endorse, review, sponsor, administer, or
-            assume responsibility for Canvas Pro.
+            assume responsibility for CanvasPro.
           </p>
         </Section>
 
         <Section title="2. Fair use, anti-abuse, and sync limits">
           <p>
             Every synchronization retrieves data from external Canvas servers and consumes cloud
-            compute, bandwidth, and memory, which carries real cost to the operator. Canvas Pro is
+            compute, bandwidth, and memory, which carries real cost to the operator. CanvasPro is
             offered strictly for personal, interactive student productivity, and you agree to the
             following:
           </p>
@@ -90,7 +90,7 @@ function PrivacyPage() {
           </p>
           <p>
             2. No scrapers, automated scripts, bots, cron jobs, headless browsers, or command-line
-            loops polling Canvas Pro endpoints.
+            loops polling CanvasPro endpoints.
           </p>
           <p>
             3. No intentional or reckless attempts to inflate the operator's hosting, compute,
@@ -148,12 +148,12 @@ function PrivacyPage() {
 
         <Section title="5. FERPA and educational privacy">
           <p>
-            Under FERPA (20 U.S.C. § 1232g) and comparable frameworks, Canvas Pro acts solely as a
+            Under FERPA (20 U.S.C. § 1232g) and comparable frameworks, CanvasPro acts solely as a
             private software interface operated at the voluntary direction of the individual
             student.
           </p>
           <p>
-            Canvas Pro is not an official vendor, institutional contractor, or designated "school
+            CanvasPro is not an official vendor, institutional contractor, or designated "school
             official" of your institution.
           </p>
           <p>
@@ -170,7 +170,7 @@ function PrivacyPage() {
           </p>
           <p>
             <strong className="text-foreground">Payments.</strong> Stripe, Inc. processes card data
-            directly. Canvas Pro never captures or stores your full card number or bank credentials.
+            directly. CanvasPro never captures or stores your full card number or bank credentials.
           </p>
           <p>
             <strong className="text-foreground">Notifications.</strong> Apple Push Notification
@@ -210,7 +210,7 @@ function PrivacyPage() {
             courses, due dates, grades, and academic standing.
           </p>
           <p>
-            <strong className="text-foreground">Provided "as is".</strong> Canvas Pro is provided
+            <strong className="text-foreground">Provided "as is".</strong> CanvasPro is provided
             without warranties of any kind. We do not guarantee error-free operation, uninterrupted
             uptime, or instant notification delivery; Canvas outages or university firewall changes
             may interrupt service.
@@ -238,7 +238,7 @@ function PrivacyPage() {
 
         <div className="mt-12 border-t border-border/30 pt-6">
           <Link to="/" className="text-sm font-medium text-foreground underline underline-offset-4">
-            Back to Canvas Pro
+            Back to CanvasPro
           </Link>
         </div>
       </div>

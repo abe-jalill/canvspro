@@ -40,7 +40,7 @@ const assignmentsQO = queryOptions({
 const PRESETS = [15, 25, 45, 60];
 
 export const Route = createFileRoute("/_authenticated/study-session")({
-  head: () => ({ meta: [{ title: "Study Session — Canvas Pro" }] }),
+  head: () => ({ meta: [{ title: "Study Session — CanvasPro" }] }),
   component: StudySessionPage,
 });
 

@@ -11,15 +11,15 @@ import { useAnnouncementWindow } from "@/lib/announcement-window";
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
     meta: [
-      { title: "Settings — Canvas Pro" },
+      { title: "Settings — CanvasPro" },
       {
         name: "description",
-        content: "Save the Canvas API key used to load your courses in Canvas Pro.",
+        content: "Save the Canvas API key used to load your courses in CanvasPro.",
       },
-      { property: "og:title", content: "Settings — Canvas Pro" },
+      { property: "og:title", content: "Settings — CanvasPro" },
       {
         property: "og:description",
-        content: "Save the Canvas API key used to load your courses in Canvas Pro.",
+        content: "Save the Canvas API key used to load your courses in CanvasPro.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

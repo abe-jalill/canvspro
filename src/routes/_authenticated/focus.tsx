@@ -32,13 +32,13 @@ const coursesQO = queryOptions({
 export const Route = createFileRoute("/_authenticated/focus")({
   head: () => ({
     meta: [
-      { title: "Focus — Canvas Pro" },
+      { title: "Focus — CanvasPro" },
       {
         name: "description",
         content:
           "Everything due within the next day, two days, three days, or week, grouped by class.",
       },
-      { property: "og:title", content: "Focus — Canvas Pro" },
+      { property: "og:title", content: "Focus — CanvasPro" },
       {
         property: "og:description",
         content:

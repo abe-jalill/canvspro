@@ -8,15 +8,15 @@ export const Route = createFileRoute("/signup")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Create account — Canvas Pro" },
+      { title: "Create account — CanvasPro" },
       {
         name: "description",
-        content: "Create a Canvas Pro account to track your classes, grades, and assignments.",
+        content: "Create a CanvasPro account to track your classes, grades, and assignments.",
       },
-      { property: "og:title", content: "Create account — Canvas Pro" },
+      { property: "og:title", content: "Create account — CanvasPro" },
       {
         property: "og:description",
-        content: "Create a Canvas Pro account to track your classes, grades, and assignments.",
+        content: "Create a CanvasPro account to track your classes, grades, and assignments.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

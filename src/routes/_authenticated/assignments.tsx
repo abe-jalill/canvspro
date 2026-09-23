@@ -43,13 +43,13 @@ const coursesQO = queryOptions({
 export const Route = createFileRoute("/_authenticated/assignments")({
   head: () => ({
     meta: [
-      { title: "Assignments — Canvas Pro" },
+      { title: "Assignments — CanvasPro" },
       {
         name: "description",
         content:
           "Every class in one card: current grade, overdue count, what's due soon, and the full assignment list.",
       },
-      { property: "og:title", content: "Assignments — Canvas Pro" },
+      { property: "og:title", content: "Assignments — CanvasPro" },
       {
         property: "og:description",
         content:

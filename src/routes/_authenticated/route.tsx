@@ -52,7 +52,7 @@ function AuthenticatedLayout() {
   useWelcomeEmail(true);
 
   return (
-    <div className="min-h-svh w-full overflow-x-hidden md:h-svh md:overflow-hidden">
+    <div className="min-h-svh w-full overflow-x-clip md:h-svh md:overflow-hidden">
       <AppStartupWelcome ready={startup === "ready"} user={user} />
       <ProfileCompletionDialog user={user} />
       <RouteProgress />

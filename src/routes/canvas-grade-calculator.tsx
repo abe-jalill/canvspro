@@ -315,7 +315,7 @@ function CalculatorPage() {
             Stop doing this by hand
           </h2>
           <p className="text-sm text-muted-foreground">
-            Canvas Pro pulls your real scores straight from Canvas and keeps every
+            CanvasPro pulls your real scores straight from Canvas and keeps every
             class, assignment, and announcement on one dashboard you arrange
             yourself — with trend arrows when a grade moves. Every feature is
             free, with no subscription required.
@@ -325,7 +325,7 @@ function CalculatorPage() {
               to="/signup"
               className="glass-hover inline-flex min-h-11 items-center justify-center rounded-xl bg-foreground px-4 text-sm font-semibold text-background"
             >
-              Try Canvas Pro
+              Try CanvasPro
             </Link>
             <Link
               to="/canvas-dashboard-guide"

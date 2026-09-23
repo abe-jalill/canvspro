@@ -42,7 +42,7 @@ export function buildIcs(ev: IcsEvent): string {
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Canvas Pro//Assignments//EN",
+    "PRODID:-//CanvasPro//Assignments//EN",
     "CALSCALE:GREGORIAN",
     "BEGIN:VEVENT",
     `UID:${ev.uid}`,

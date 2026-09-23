@@ -7,7 +7,7 @@ import { createPortalSession } from "@/utils/payments.functions";
 export const Route = createFileRoute("/_authenticated/billing")({
   head: () => ({
     meta: [
-      { title: "Billing — Canvas Pro" },
+      { title: "Billing — CanvasPro" },
       {
         name: "description",
         content: "CanvasPro is free for everyone. Manage an existing subscription here.",

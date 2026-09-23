@@ -1,6 +1,7 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery, useQueryClient, queryOptions } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import {
   Bell,
   BellOff,
@@ -110,9 +111,13 @@ function useSignOut() {
   const scope = useUserScope();
   return async function signOut() {
     await queryClient.cancelQueries();
+    const { error } = await supabase.auth.signOut({ scope: "local" });
+    if (error) {
+      toast.error("Could not sign out", { description: error.message });
+      return;
+    }
     queryClient.clear();
     purgeScopedStorage(scope);
-    await supabase.auth.signOut();
     syncAuthIdentity(queryClient, null);
     // The cache persister flushes once more after clear(); drop that too so
     // nothing of this account is left behind on the device.
@@ -383,11 +388,11 @@ export function MobileNav() {
     return () => document.removeEventListener("keydown", onKey);
   }, [open]);
 
-  const current = items.find((i) => isActive(pathname, i.to))?.title ?? "Canvas Pro";
+  const current = items.find((i) => isActive(pathname, i.to))?.title ?? "CanvasPro";
 
   return (
-    <div className="md:hidden">
-      <div className="glass-panel-strong sticky top-2 z-40 mx-2 mt-2 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 p-2">
+    <div className="sticky top-0 z-40 md:hidden">
+      <div className="glass-panel-strong relative z-40 mx-2 mt-2 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 p-2">
         <TrafficLights
           className="shrink-0"
           onRed={() => setOpen(false)}
@@ -416,10 +421,10 @@ export function MobileNav() {
       {/* Collapsible panel — always mounted so it can animate */}
       <div
         className={cn(
-          "glass-panel-strong sticky top-[4.75rem] z-40 mx-2 mt-2 flex flex-col gap-1 overflow-y-auto p-2 transition-all duration-300 ease-in-out",
+          "glass-panel-strong relative z-40 mx-2 flex flex-col gap-1 overflow-y-auto p-2 transition-all duration-300 ease-in-out",
           open
-            ? "max-h-[calc(100vh-6rem)] translate-y-0 opacity-100"
-            : "pointer-events-none max-h-0 -translate-y-2 overflow-hidden border-transparent p-0 opacity-0",
+            ? "mt-2 max-h-[calc(100dvh-6rem)] translate-y-0 opacity-100"
+            : "pointer-events-none mt-0 max-h-0 -translate-y-2 overflow-hidden border-transparent p-0 opacity-0",
         )}
       >
         {items.map((item) => (
