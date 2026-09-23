@@ -313,8 +313,28 @@ function AssignmentsPage() {
         <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
           By class
         </p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">Assignments</h1>
+        <div className="mt-1 flex items-center gap-2">
+          <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">Assignments</h1>
+          <button
+            type="button"
+            onClick={() => pulseHidden.set(pulseHidden.value ? 0 : 1)}
+            aria-expanded={!pulseHidden.value}
+            aria-label={pulseHidden.value ? "Show weekly pulse" : "Hide weekly pulse"}
+            title={pulseHidden.value ? "Show weekly pulse" : "Hide weekly pulse"}
+            className="press flex h-8 w-8 items-center justify-center rounded-full border border-foreground/10 bg-foreground/[0.04] text-muted-foreground transition-colors hover:bg-foreground/[0.08] hover:text-foreground"
+          >
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 transition-transform",
+                pulseHidden.value ? "-rotate-90" : "",
+              )}
+            />
+          </button>
+        </div>
       </header>
+
+      {!pulseHidden.value && <ProductivityOverview showLink={false} />}
+
 
       <div className="glass-panel-strong relative flex items-center gap-2 px-4 py-2">
         <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
