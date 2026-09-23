@@ -241,10 +241,11 @@ function GradesPage() {
                         {c.current_grade}
                       </span>
                     ) : null}
+                    </span>
                   </span>
                 }
               >
-                {items.length === 0 ? (
+                {(viewMode[c.id] ?? "final") === "final" ? null : items.length === 0 ? (
                   <EmptyState message="No graded assignments yet." />
                 ) : (
                   <ul className="divide-y divide-foreground/10">
