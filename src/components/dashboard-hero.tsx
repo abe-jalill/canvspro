@@ -102,7 +102,7 @@ export function DashboardHero() {
           </div>
 
           <div className="dashboard-hero__greeting-wrap relative my-8 max-w-2xl">
-            <h1 className="dashboard-hero__greeting relative text-balance text-[clamp(2rem,4vw,3.5rem)] font-medium leading-[1.02] tracking-[-0.045em] text-foreground">
+            <h1 className="dashboard-hero__greeting relative text-balance text-[clamp(2rem,4vw,3.5rem)] font-medium leading-[1.04] tracking-[-0.035em] text-foreground">
               {greeting}
               {displayName ? `, ${displayName}.` : "."}
             </h1>
