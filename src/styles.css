@@ -575,3 +575,166 @@
     background: hsl(var(--glass-strong));
   }
 }
+
+/* Dashboard hero: a shared soft light source across the greeting and three cards. */
+.dashboard-hero {
+  border: 1px solid rgb(255 255 255 / 0.12);
+  background:
+    radial-gradient(ellipse 42% 85% at 23% 47%, rgb(248 222 192 / 0.12), transparent 75%),
+    radial-gradient(ellipse 50% 95% at 92% -10%, rgb(195 209 229 / 0.11), transparent 75%),
+    linear-gradient(128deg, #25262a 0%, #202126 52%, #191a1e 100%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.1),
+    0 28px 60px -30px rgb(0 0 0 / 0.7),
+    0 8px 24px -14px rgb(0 0 0 / 0.45);
+}
+
+.dashboard-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgb(255 255 255 / 0.065), transparent 38%);
+}
+
+.dashboard-hero__greeting-wrap::before {
+  content: "";
+  position: absolute;
+  inset: -42px -20px -30px -28px;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 35% 42%, rgb(255 235 209 / 0.17), transparent 68%);
+  filter: blur(18px);
+}
+
+.dashboard-hero__greeting {
+  text-shadow: 0 0 22px rgb(255 243 226 / 0.26), 0 0 62px rgb(255 237 213 / 0.14);
+}
+
+.dashboard-hero__cta {
+  border: 1px solid rgb(255 255 255 / 0.4);
+  background: linear-gradient(145deg, rgb(255 255 255 / 0.13), rgb(255 255 255 / 0.045));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.19),
+    0 5px 14px rgb(0 0 0 / 0.18),
+    0 0 18px rgb(255 255 255 / 0.06);
+  transition: border-color 250ms ease, box-shadow 250ms ease, transform 250ms ease;
+}
+
+.dashboard-hero__stat-shell {
+  border: 1px solid rgb(255 255 255 / 0.11);
+  background: linear-gradient(145deg, rgb(255 255 255 / 0.1), rgb(255 255 255 / 0.025) 55%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 12px 28px rgb(0 0 0 / 0.18);
+}
+
+.dashboard-hero__stat-card {
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 0.15);
+  background:
+    radial-gradient(ellipse 85% 100% at 8% 0%, rgb(194 212 239 / 0.18), transparent 72%),
+    linear-gradient(145deg, #303239 0%, #25262c 52%, #1e1f24 100%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.13),
+    0 11px 21px -10px rgb(0 0 0 / 0.5),
+    0 3px 7px rgb(0 0 0 / 0.16);
+  transition: border-color 250ms ease, box-shadow 250ms ease, transform 250ms ease;
+}
+
+.dashboard-hero__stat-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(110deg, transparent 16%, rgb(255 255 255 / 0.11) 48%, transparent 79%);
+  opacity: 0;
+  transform: translateX(-24%);
+  transition: opacity 350ms ease, transform 450ms ease;
+}
+
+.dashboard-hero__stat-number {
+  text-shadow: 0 0 22px rgb(255 255 255 / 0.12);
+}
+
+@media (hover: hover) {
+  .dashboard-hero__cta:hover {
+    border-color: rgb(255 255 255 / 0.65);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.25), 0 7px 20px rgb(0 0 0 / 0.24);
+  }
+
+  .dashboard-hero__stat-card:hover {
+    border-color: rgb(255 255 255 / 0.3);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.2),
+      0 16px 26px -10px rgb(0 0 0 / 0.54),
+      0 0 25px rgb(203 221 248 / 0.09);
+    transform: translateY(-2px);
+  }
+
+  .dashboard-hero__stat-card:hover::before {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.light .dashboard-hero {
+  border-color: rgb(31 47 69 / 0.12);
+  background:
+    radial-gradient(ellipse 50% 90% at 20% 44%, rgb(251 224 193 / 0.48), transparent 76%),
+    radial-gradient(ellipse 50% 90% at 92% -10%, rgb(196 215 241 / 0.5), transparent 74%),
+    linear-gradient(130deg, #f8f9fb, #e9edf3);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.9), 0 24px 56px -30px rgb(28 45 72 / 0.28);
+}
+
+.light .dashboard-hero__greeting-wrap::before {
+  background: radial-gradient(ellipse at 35% 42%, rgb(255 255 255 / 0.75), transparent 70%);
+}
+
+.light .dashboard-hero__greeting,
+.light .dashboard-hero__stat-number {
+  text-shadow: 0 0 28px rgb(255 255 255 / 0.8);
+}
+
+.light .dashboard-hero__cta {
+  border-color: rgb(37 55 80 / 0.28);
+  background: linear-gradient(145deg, rgb(255 255 255 / 0.95), rgb(255 255 255 / 0.55));
+  box-shadow: inset 0 1px 0 white, 0 5px 14px rgb(34 54 82 / 0.11);
+}
+
+.light .dashboard-hero__stat-shell {
+  border-color: rgb(31 47 69 / 0.1);
+  background: linear-gradient(145deg, rgb(255 255 255 / 0.68), rgb(220 229 241 / 0.34));
+  box-shadow: inset 0 1px 0 white, 0 12px 28px rgb(31 47 69 / 0.1);
+}
+
+.light .dashboard-hero__stat-card {
+  border-color: rgb(31 47 69 / 0.13);
+  background:
+    radial-gradient(ellipse 85% 100% at 8% 0%, rgb(255 255 255 / 0.95), transparent 72%),
+    linear-gradient(145deg, #f4f7fb, #e7ecf4);
+  box-shadow: inset 0 1px 0 white, 0 10px 20px -10px rgb(31 47 69 / 0.25);
+}
+
+.light .dashboard-hero__stat-card::before {
+  background: linear-gradient(110deg, transparent 16%, rgb(255 255 255 / 0.65) 48%, transparent 79%);
+}
+
+@media (hover: hover) {
+  .light .dashboard-hero__cta:hover {
+    border-color: rgb(37 55 80 / 0.42);
+    box-shadow: inset 0 1px 0 white, 0 8px 20px rgb(34 54 82 / 0.15);
+  }
+
+  .light .dashboard-hero__stat-card:hover {
+    border-color: rgb(31 47 69 / 0.23);
+    box-shadow: inset 0 1px 0 white, 0 15px 28px -10px rgb(31 47 69 / 0.29);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-hero__cta,
+  .dashboard-hero__stat-card,
+  .dashboard-hero__stat-card::before {
+    transition: none;
+  }
+}

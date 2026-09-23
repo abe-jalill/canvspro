@@ -39,7 +39,7 @@ function StatValue({ loading, children }: { loading: boolean; children: ReactNod
   return loading ? (
     <span className="skeleton-shimmer block h-9 w-10" />
   ) : (
-    <span className="text-3xl font-medium tracking-[-0.06em] tabular-nums text-foreground">
+    <span className="dashboard-hero__stat-number text-3xl font-medium tracking-[-0.06em] tabular-nums text-foreground">
       {children}
     </span>
   );
@@ -93,16 +93,7 @@ export function DashboardHero() {
           : "Your next seven days are clear. Take the win.";
 
   return (
-    <section className="relative isolate overflow-hidden rounded-[2rem] border border-foreground/10 bg-[linear-gradient(135deg,hsl(var(--glass-strong)),hsl(var(--glass)))] shadow-glass-lg">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -left-24 -top-32 h-80 w-80 rounded-full bg-white/[0.035] blur-3xl"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -bottom-32 right-1/4 h-64 w-64 rounded-full bg-blue-400/[0.055] blur-3xl"
-      />
-
+    <section className="dashboard-hero relative isolate overflow-hidden rounded-[2rem]">
       <div className="relative grid gap-4 p-4 sm:p-5 lg:grid-cols-[minmax(0,1.25fr)_minmax(21rem,0.75fr)] lg:gap-5 lg:p-6">
         <div className="flex min-h-56 flex-col justify-between px-2 py-3 sm:px-3 sm:py-4 lg:min-h-64 lg:px-5">
           <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
@@ -110,12 +101,12 @@ export function DashboardHero() {
             <span>{date}</span>
           </div>
 
-          <div className="my-8 max-w-2xl">
-            <h1 className="text-balance text-[clamp(2rem,4vw,3.5rem)] font-medium leading-[1.02] tracking-[-0.045em] text-foreground">
+          <div className="dashboard-hero__greeting-wrap relative my-8 max-w-2xl">
+            <h1 className="dashboard-hero__greeting relative text-balance text-[clamp(2rem,4vw,3.5rem)] font-medium leading-[1.02] tracking-[-0.045em] text-foreground">
               {greeting}
               {displayName ? `, ${displayName}.` : "."}
             </h1>
-            <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+            <p className="relative mt-4 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
               {message}
             </p>
           </div>
@@ -123,26 +114,26 @@ export function DashboardHero() {
           <Link
             to="/focus"
             search={{ window: "7" }}
-            className="press group inline-flex min-h-10 w-fit items-center gap-2 rounded-full border border-foreground/10 bg-foreground/[0.055] px-4 text-xs font-medium text-foreground transition-colors hover:bg-foreground/[0.09]"
+            className="dashboard-hero__cta press group inline-flex min-h-10 w-fit items-center gap-2 rounded-full px-4 text-xs font-medium text-foreground"
           >
             Open focus view
             <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
           </Link>
         </div>
 
-        <div className="rounded-[1.6rem] border border-foreground/10 bg-background/25 p-2 backdrop-blur-md">
+        <div className="dashboard-hero__stat-shell rounded-[1.6rem] p-2 backdrop-blur-md">
           <Link
             to="/focus"
             search={{ window: "7" }}
-            className="press group flex min-h-36 flex-col justify-between rounded-[1.2rem] border border-foreground/10 bg-foreground/[0.045] p-5 transition-colors hover:bg-foreground/[0.075]"
+            className="dashboard-hero__stat-card press group relative flex min-h-36 flex-col justify-between rounded-[1.2rem] p-5"
           >
             <div className="flex items-center justify-between gap-3">
-              <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              <span className="relative z-10 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
                 Next seven days
               </span>
-              <ArrowUpRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-foreground" />
+              <ArrowUpRight className="relative z-10 h-4 w-4 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-foreground" />
             </div>
-            <div className="flex items-end justify-between gap-4">
+            <div className="relative z-10 flex items-end justify-between gap-4">
               <StatValue loading={loading}>{weekCount}</StatValue>
               <span className="max-w-28 pb-1 text-right text-xs leading-snug text-muted-foreground">
                 {weekCount === 1 ? "item on your radar" : "items on your radar"}
@@ -154,39 +145,39 @@ export function DashboardHero() {
             <Link
               to="/focus"
               search={{ window: "1" }}
-              className="press flex min-h-28 flex-col justify-between rounded-[1.2rem] border border-foreground/10 bg-foreground/[0.025] p-4 transition-colors hover:bg-foreground/[0.06]"
+              className="dashboard-hero__stat-card press group relative flex min-h-28 flex-col justify-between rounded-[1.2rem] p-4"
             >
-              <Clock3 className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-              <div>
-                <p className="text-2xl font-medium tracking-[-0.05em] tabular-nums">
+              <div className="relative z-10 flex items-center justify-between gap-3">
+                <Clock3 className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+                <p className="dashboard-hero__stat-number text-2xl font-medium tracking-[-0.05em] tabular-nums">
                   {loading ? "—" : todayCount}
                 </p>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">Next 24 hours</p>
               </div>
+              <p className="relative z-10 text-[11px] text-muted-foreground">Next 24 hours</p>
             </Link>
             <Link
               to="/focus"
               search={{ window: "overdue" }}
-              className="press flex min-h-28 flex-col justify-between rounded-[1.2rem] border border-foreground/10 bg-foreground/[0.025] p-4 transition-colors hover:bg-foreground/[0.06]"
+              className="dashboard-hero__stat-card press group relative flex min-h-28 flex-col justify-between rounded-[1.2rem] p-4"
             >
-              <AlertTriangle
-                className={cn(
-                  "h-4 w-4",
-                  overdueCount > 0 ? "text-rose-400" : "text-muted-foreground",
-                )}
-                aria-hidden="true"
-              />
-              <div>
+              <div className="relative z-10 flex items-center justify-between gap-3">
+                <AlertTriangle
+                  className={cn(
+                    "h-5 w-5",
+                    overdueCount > 0 ? "text-rose-400" : "text-muted-foreground",
+                  )}
+                  aria-hidden="true"
+                />
                 <p
                   className={cn(
-                    "text-2xl font-medium tracking-[-0.05em] tabular-nums",
+                    "dashboard-hero__stat-number text-2xl font-medium tracking-[-0.05em] tabular-nums",
                     overdueCount > 0 && "text-rose-400",
                   )}
                 >
                   {loading ? "—" : overdueCount}
                 </p>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">Overdue</p>
               </div>
+              <p className="relative z-10 text-[11px] text-muted-foreground">Overdue</p>
             </Link>
           </div>
         </div>
