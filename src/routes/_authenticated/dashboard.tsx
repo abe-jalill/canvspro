@@ -166,7 +166,7 @@ function Dashboard() {
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
-              Your Widgets
+              {"\n"}
             </h2>
             {customizing && (
               <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
