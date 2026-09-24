@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { Camera, Check, LoaderCircle, Trash2, UserRound, X } from "lucide-react";
@@ -48,6 +48,14 @@ function SettingsPage() {
   const [domainValue, setDomainValue] = useState("");
   const [domainTouched, setDomainTouched] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  const hash = useRouterState({ select: (s) => s.location.hash });
+
+  // Arriving from the profile button in the top bars scrolls to the profile card.
+  useEffect(() => {
+    if (hash === "profile") {
+      document.getElementById("profile")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [hash]);
 
   // Pre-fill the Canvas URL once the saved value arrives, unless the user
   // already started typing their own.
@@ -95,7 +103,9 @@ function SettingsPage() {
         </p>
       </header>
 
-      <ProfileCard />
+      <div id="profile" className="scroll-mt-4">
+        <ProfileCard />
+      </div>
 
       <GlassCard title="Canvas connection" subtitle="Your school's Canvas URL and API key.">
         <form onSubmit={onSubmit} className="flex w-full flex-col gap-4">
