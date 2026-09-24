@@ -2,8 +2,9 @@
 // The Canvas key is stored per-user in `user_settings`; the Edge Function
 // reads it server-side, so the browser never needs to hold it.
 import { supabase } from "@/integrations/supabase/client";
-import { fetchHasCanvasKey, clearCanvasKeyInvalidFlag } from "@/lib/user-settings";
-import { fetchEntitlement } from "@/lib/subscription";
+import { clearCanvasKeyInvalidFlag } from "@/lib/user-settings";
+import { getUserScope } from "@/lib/user-scope";
+import { createRequestCache } from "@/lib/request-cache";
 
 /**
  * Right after sign-in the session can still be settling. Waiting for it (and
@@ -27,21 +28,6 @@ async function invokeCanvas<T>(
 ): Promise<T> {
   await waitForSession();
 
-  // No key saved yet → render blank states instead of erroring.
-  const hasKey = await fetchHasCanvasKey();
-  if (!hasKey) return [] as unknown as T;
-
-  // Free accounts: the server refuses everything but due dates, so don't ask.
-  // Only a DEFINITE "free" skips the request — an unresolved check must not
-  // masquerade as an empty Canvas account.
-  if (resource !== "duedates" && (await fetchEntitlement()) === "free") {
-    return [] as unknown as T;
-  }
-
-
-
-
-
   const { data, error } = await supabase.functions.invoke("canvas", {
     body: { resource, ...(extra ?? {}) },
   });
@@ -60,18 +46,17 @@ async function invokeCanvas<T>(
           message = body.slice(0, 300);
         }
       }
-      // 428 = no Canvas key/URL yet, 402 = free account (server-enforced
-      // paywall). Both render as empty states, never as an error banner.
-      if (res.status === 428 || res.status === 402) return [] as unknown as T;
+      // A missing Canvas key/URL renders the setup state, not an error banner.
+      if (res.status === 428) return [] as unknown as T;
     }
-    if (/428|402|NO_CANVAS_KEY|NO_CANVAS_DOMAIN|NOT_SUBSCRIBED/.test(message))
+    if (/428|NO_CANVAS_KEY|NO_CANVAS_DOMAIN/.test(message))
       return [] as unknown as T;
     throw new Error(message);
   }
 
   if (data && typeof data === "object" && "error" in data && (data as { error?: string }).error) {
     const message = (data as { error: string }).error;
-    if (message === "NO_CANVAS_KEY" || message === "NO_CANVAS_DOMAIN" || message === "NOT_SUBSCRIBED")
+    if (message === "NO_CANVAS_KEY" || message === "NO_CANVAS_DOMAIN")
       return [] as unknown as T;
     throw new Error(message);
   }
@@ -151,15 +136,17 @@ const EMPTY_BUNDLE: CanvasBundle = {
 // All four Canvas datasets come back in ONE request. Concurrent callers
 // (the four page queries, prefetch, sync) share a single in-flight promise,
 // so a full app load hits the network once instead of four times.
-let inflight: Promise<CanvasBundle> | null = null;
-let inflightAt = 0;
-const DEDUPE_MS = 2_000;
+const bundleRequests = createRequestCache<CanvasBundle>();
+
+export function resetCanvasBundle() {
+  bundleRequests.clear();
+}
 
 export function fetchCanvasBundle(): Promise<CanvasBundle> {
-  if (inflight && Date.now() - inflightAt < DEDUPE_MS) return inflight;
-  inflightAt = Date.now();
-  inflight = invokeCanvas<CanvasBundle | unknown[]>("all")
+  const scope = getUserScope();
+  return bundleRequests.get(scope, () => invokeCanvas<CanvasBundle | unknown[]>("all")
     .then((raw) => {
+      if (getUserScope() !== scope) throw new Error("Session changed — please retry.");
       // invokeCanvas returns [] when no Canvas key is saved yet.
       if (Array.isArray(raw)) return EMPTY_BUNDLE;
       const b = raw as CanvasBundle;
@@ -173,12 +160,7 @@ export function fetchCanvasBundle(): Promise<CanvasBundle> {
         calendar: b.calendar ?? [],
         errors: b.errors,
       };
-    })
-    .catch((err) => {
-      inflight = null;
-      throw err;
-    });
-  return inflight;
+    }));
 }
 
 // Each getter only fails when ITS OWN section failed, so one bad Canvas
@@ -221,8 +203,10 @@ export interface DueDateItem {
 }
 
 export async function getDueDatesFn(): Promise<DueDateItem[]> {
-  const raw = await invokeCanvas<DueDateItem[]>("duedates");
-  return Array.isArray(raw) ? raw : [];
+  return (await getAllAssignmentsFn()).map((a) => ({
+    id: a.id, course_id: a.course_id, due_at: a.due_at,
+    submitted: !!a.submission?.submitted_at || a.submission?.workflow_state === "graded",
+  }));
 }
 export const getAnnouncementsFn = () => section("announcements");
 export const getCalendarEventsFn = () => section("calendar");

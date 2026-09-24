@@ -1,7 +1,12 @@
 import { useCallback, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAuthUserId, userKey } from "@/lib/auth-user";
+import { completedAssignmentIds, COMPLETION_PREFIX } from "@/lib/completion-records";
+import type { AssignmentItem } from "@/lib/canvas.functions";
 import {
   useUserPreferenceKey,
   useSetUserPreference,
+  useUserPreferences, userPreferencesQueryKey, type PrefMap,
 } from "@/hooks/use-user-preferences";
 
 export const DISMISSED_ANNOUNCEMENTS_KEY = "dismissed-announcements";
@@ -20,56 +25,47 @@ function readSet(value: unknown): Set<string> {
  * empty default and wipe everything saved on another device.
  */
 export function useSyncedSet(baseKey: string) {
+  const qc = useQueryClient();
+  const { userId } = useAuthUserId();
+  const preferences = useUserPreferences();
+  const save = useSetUserPreference();
   const { value, isLoading, ready, set } = useUserPreferenceKey<string[]>(
     baseKey,
     [],
   );
 
-  const setMemo = useMemo(() => readSet(value), [value]);
+  const setMemo = useMemo(() => baseKey === COMPLETED_ASSIGNMENTS_KEY
+    ? completedAssignmentIds(preferences.data) : readSet(value), [baseKey, preferences.data, value]);
 
-  const setValue = useCallback(
-    (next: Set<string>) => {
-      if (!ready) return;
-      set(Array.from(next));
-    },
-    [ready, set],
-  );
+  const change = useCallback((id: string | number, operation: "add" | "remove" | "toggle") => {
+    if (!ready) return;
+    const current = qc.getQueryData<PrefMap>(userKey(userPreferencesQueryKey, userId));
+    const ids = baseKey === COMPLETED_ASSIGNMENTS_KEY ? completedAssignmentIds(current) : readSet(current?.[baseKey]);
+    const k = String(id);
+    const completed = operation === "add" || (operation === "toggle" && !ids.has(k));
+    if (baseKey === COMPLETED_ASSIGNMENTS_KEY) {
+      const assignment = qc.getQueryData<AssignmentItem[]>(["canvas", "assignments"])?.find((a) => String(a.id) === k);
+      save.mutate({ key: `${COMPLETION_PREFIX}${k}`, value: {
+        completed, completedAt: completed ? new Date().toISOString() : null,
+        dueAt: assignment?.due_at ?? null,
+      } });
+    } else {
+      if (completed) ids.add(k); else ids.delete(k);
+      set(Array.from(ids));
+    }
+  }, [ready, qc, userId, baseKey, save, set]);
 
   const has = useCallback(
     (id: string | number) => setMemo.has(String(id)),
     [setMemo],
   );
 
-  const add = useCallback(
-    (id: string | number) => {
-      const next = new Set(setMemo);
-      next.add(String(id));
-      setValue(next);
-    },
-    [setMemo, setValue],
-  );
-
-  const remove = useCallback(
-    (id: string | number) => {
-      const next = new Set(setMemo);
-      next.delete(String(id));
-      setValue(next);
-    },
-    [setMemo, setValue],
-  );
-
-  const toggle = useCallback(
-    (id: string | number) => {
-      const next = new Set(setMemo);
-      const k = String(id);
-      if (next.has(k)) next.delete(k);
-      else next.add(k);
-      setValue(next);
-    },
-    [setMemo, setValue],
-  );
-
-  return { has, add, remove, toggle, size: setMemo.size, isLoading, ready };
+  return {
+    has, add: (id: string | number) => change(id, "add"),
+    remove: (id: string | number) => change(id, "remove"),
+    toggle: (id: string | number) => change(id, "toggle"),
+    size: setMemo.size, isLoading, ready,
+  };
 }
 
 /** Merge a localStorage-backed set into the synced preference on first sign-in. */

@@ -3,20 +3,19 @@ import { useRef, useState, type DragEvent, type PointerEvent as ReactPointerEven
 import { ChevronDown, ChevronUp, Eye, EyeOff, GripVertical, Plus, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDashboardLayout, type WidgetId, type WidgetSize } from "@/lib/dashboard-layout";
-import { WIDGETS, LockedWidget } from "@/components/widgets/dashboard-widgets";
-import { useSubscription } from "@/lib/subscription";
+import { WIDGETS } from "@/components/widgets/dashboard-widgets";
 import { DashboardHero } from "@/components/dashboard-hero";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
     meta: [
-      { title: "Dashboard — Canvas Pro" },
+      { title: "Dashboard — CanvasPro" },
       {
         name: "description",
         content:
           "Your customizable Canvas home: class calendar, grades, assignments, announcements, and focus widgets in one place.",
       },
-      { property: "og:title", content: "Dashboard — Canvas Pro" },
+      { property: "og:title", content: "Dashboard — CanvasPro" },
       {
         property: "og:description",
         content:
@@ -49,7 +48,6 @@ function colSpanClass(size: WidgetSize): string {
 
 function Dashboard() {
   const layout = useDashboardLayout();
-  const { isActive: isPro } = useSubscription();
   const [customizing, setCustomizing] = useState(false);
   const [draggedId, setDraggedId] = useState<WidgetId | null>(null);
   const [dropIndicator, setDropIndicator] = useState<{
@@ -152,7 +150,7 @@ function Dashboard() {
 
   return (
     <div
-      className="w-full min-w-0 space-y-6 pb-12"
+      className="w-full min-w-0 space-y-4 pb-12 sm:space-y-5"
       onPointerDown={handleAreaPointerDown}
       onPointerUp={clearLongPress}
       onPointerMove={handleAreaPointerMove}
@@ -165,7 +163,9 @@ function Dashboard() {
       <header className="flex flex-wrap items-center justify-between gap-3 px-1">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">Your Widgets</h2>
+            <h2 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+              {"\n"}
+            </h2>
             {customizing && (
               <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
                 Edit Mode
@@ -175,7 +175,7 @@ function Dashboard() {
           <p className="mt-0.5 text-xs text-muted-foreground">
             {customizing
               ? "Drag cards or use arrows to arrange. Choose sizes or hide widgets you don't need."
-               : ""}
+              : ""}
           </p>
         </div>
 
@@ -209,8 +209,8 @@ function Dashboard() {
           <div className="flex items-center gap-2">
             <GripVertical className="h-4 w-4 text-primary" />
             <span>
-              <strong className="text-foreground">Drag by the handle</strong> to move widgets, or tap{" "}
-              <strong className="text-foreground">↑ / ↓</strong> arrows to reorder.
+              <strong className="text-foreground">Drag by the handle</strong> to move widgets, or
+              tap <strong className="text-foreground">↑ / ↓</strong> arrows to reorder.
             </span>
           </div>
           <span className="text-muted-foreground">Changes save automatically to your account.</span>
@@ -226,8 +226,7 @@ function Dashboard() {
           const isDragging = draggedId === id;
           const isDropTarget = dropIndicator?.id === id;
 
-          const widgetBody =
-            meta.pro && !isPro ? <LockedWidget title={meta.label} feature={meta.label} /> : meta.render();
+          const widgetBody = meta.render();
 
           return (
             <div
@@ -260,7 +259,9 @@ function Dashboard() {
                     <span className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground">
                       <GripVertical className="h-4 w-4 shrink-0" />
                     </span>
-                    <span className="truncate text-xs font-semibold text-foreground">{meta.label}</span>
+                    <span className="truncate text-xs font-semibold text-foreground">
+                      {meta.label}
+                    </span>
                   </div>
 
                   {/* Controls */}
@@ -321,7 +322,11 @@ function Dashboard() {
                           : "text-foreground hover:bg-foreground/5",
                       )}
                     >
-                      {hidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                      {hidden ? (
+                        <EyeOff className="h-3.5 w-3.5" />
+                      ) : (
+                        <Eye className="h-3.5 w-3.5" />
+                      )}
                     </button>
                   </div>
                 </div>
@@ -339,9 +344,13 @@ function Dashboard() {
         <section className="glass-panel-strong mt-8 p-5">
           <div className="flex items-center gap-2">
             <EyeOff className="h-4 w-4 text-muted-foreground" />
-            <h3 className="text-sm font-semibold text-foreground">Hidden Widgets ({hiddenWidgets.length})</h3>
+            <h3 className="text-sm font-semibold text-foreground">
+              Hidden Widgets ({hiddenWidgets.length})
+            </h3>
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">Click any widget below to add it back to your dashboard.</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Click any widget below to add it back to your dashboard.
+          </p>
 
           <div className="mt-3 flex flex-wrap gap-2">
             {hiddenWidgets.map((hid) => {

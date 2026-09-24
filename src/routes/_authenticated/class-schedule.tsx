@@ -4,17 +4,30 @@ import { useClassSchedule } from "@/lib/user-class-schedule";
 
 // Both views are lazy so the timetable UI isn't in the shared first-load bundle.
 const ClassScheduleView = lazy(() => import("@/components/class-schedule-view"));
-const ClassScheduleEditor = lazy(
-  () => import("@/components/class-schedule-editor"),
-);
+const ClassScheduleEditor = lazy(() => import("@/components/class-schedule-editor"));
+
+function ScheduleSkeleton() {
+  return (
+    <div role="status" aria-label="Loading class schedule" className="glass-panel space-y-4 p-6">
+      <div className="skeleton-shimmer h-6 w-40" />
+      <div className="skeleton-shimmer h-32 w-full rounded-2xl" />
+    </div>
+  );
+}
 
 export const Route = createFileRoute("/_authenticated/class-schedule")({
   head: () => ({
     meta: [
-      { title: "Class Schedule — Canvas Pro" },
-      { name: "description", content: "Add your recurring class meeting times and see them as a clean weekly timetable." },
-      { property: "og:title", content: "Class Schedule — Canvas Pro" },
-      { property: "og:description", content: "Add your recurring class meeting times and see them as a clean weekly timetable." },
+      { title: "Class Schedule — CanvasPro" },
+      {
+        name: "description",
+        content: "Add your recurring class meeting times and see them as a clean weekly timetable.",
+      },
+      { property: "og:title", content: "Class Schedule — CanvasPro" },
+      {
+        property: "og:description",
+        content: "Add your recurring class meeting times and see them as a clean weekly timetable.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -27,7 +40,7 @@ function ClassSchedulePage() {
   const [editing, setEditing] = useState(false);
 
   if (isLoading) {
-    return <div className="glass-panel skeleton-shimmer h-40 rounded-2xl" />;
+    return <ScheduleSkeleton />;
   }
 
   if (error) {
@@ -45,7 +58,7 @@ function ClassSchedulePage() {
 
   if (editing || sessions.length === 0) {
     return (
-      <Suspense fallback={null}>
+      <Suspense fallback={<ScheduleSkeleton />}>
         <ClassScheduleEditor
           sessions={sessions}
           onSaved={() => setEditing(false)}
@@ -56,7 +69,7 @@ function ClassSchedulePage() {
   }
 
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<ScheduleSkeleton />}>
       <ClassScheduleView sessions={sessions} onEdit={() => setEditing(true)} />
     </Suspense>
   );

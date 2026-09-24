@@ -31,11 +31,11 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Canvas Pro — A Better Canvas Dashboard for Students" },
+      { title: "CanvasPro — A Better Canvas Dashboard for Students" },
       {
         name: "description",
         content:
-          "See every Canvas class, grade, and deadline in one clean dashboard — with notifications tuned to your day. First 10 days of Pro free, then $2.99/month or $30/year (save 17%).",
+          "See every Canvas class, grade, and deadline in one clean dashboard — free for everyone, with no subscription required.",
       },
       { property: "og:type", content: "website" },
       { property: "og:url", content: "https://canvaspro.app/" },
@@ -56,7 +56,7 @@ export const Route = createFileRoute("/")({
         children: JSON.stringify({
           "@context": "https://schema.org",
           "@type": "SoftwareApplication",
-          name: "Canvas Pro",
+          name: "CanvasPro",
           applicationCategory: "EducationalApplication",
           operatingSystem: "Web",
           url: "https://canvaspro.app/",
@@ -64,7 +64,7 @@ export const Route = createFileRoute("/")({
             "A customizable student dashboard for Canvas LMS with grades, assignments, announcements, and due-date reminders.",
           offers: {
             "@type": "Offer",
-            price: "2.99",
+            price: "0",
             priceCurrency: "USD",
           },
         }),
@@ -169,7 +169,7 @@ const TESTIMONIALS = [
     quote:
       "The built-in final exam calculator alone is worth it. It automatically told me I needed an 81% on my Chem final to keep an A, instead of me guessing with an Excel spreadsheet at 2 AM.",
     author: "Omar S.",
-    school: "UofM - Michigan • Finance ",
+    school: "UofM - Dearborn • Finance ",
     stars: 5,
   },
   {
@@ -183,34 +183,34 @@ const TESTIMONIALS = [
 
 const FAQS = [
   {
-    question: "Is Canvas Pro allowed by my school or university?",
+    question: "Is CanvasPro allowed by my school or university?",
     answer:
-      "Yes. Canvas Pro uses your personal Canvas Access Token, an official feature provided directly by Instructure Canvas for third-party student tools. It operates strictly within your existing student permissions.",
+      "Yes. CanvasPro uses your personal Canvas Access Token, an official feature provided directly by Instructure Canvas for third-party student tools. It operates strictly within your existing student permissions.",
   },
   {
-    question: "Can Canvas Pro see my Canvas password or change my grades?",
+    question: "Can CanvasPro see my Canvas password or change my grades?",
     answer:
-      "No, never. You never enter your school password or institutional credentials. Canvas Pro only receives a read-only access token. It cannot alter grades, submit assignments, post announcements, or make any changes to your Canvas account.",
+      "No, never. You never enter your school password or institutional credentials. CanvasPro only receives a read-only access token. It cannot alter grades, submit assignments, post announcements, or make any changes to your Canvas account.",
   },
   {
     question: "How do I get my Canvas Access Token?",
     answer:
-      "It takes about 30 seconds: Log in to your school's Canvas website, click 'Account' in the left menu, choose 'Settings', scroll down to 'Approved Integrations', and click '+ New Access Token'. Copy that token into Canvas Pro and your dashboard immediately populates.",
+      "It takes about 30 seconds: Log in to your school's Canvas website, click 'Account' in the left menu, choose 'Settings', scroll down to 'Approved Integrations', and click '+ New Access Token'. Copy that token into CanvasPro and your dashboard immediately populates.",
   },
   {
-    question: "What is included in the free tier vs. Pro?",
+    question: "What is included for free?",
     answer:
-      "The Free tier gives you access to the dashboard layout, custom course nicknames, light/dark themes, and our standalone Grade Calculator. Pro (first 10 days free, then $2.99/mo or $30/yr — save 17%!) unlocks live real-time Canvas sync, the final exam predictor, focus due-date windows, workload heatmap, .ics calendar export, and automated notification alerts.",
+      "Everything: live Canvas sync, grades, assignments, focus and study sessions, the final exam predictor, workload heatmap, calendar export, and notifications. No subscription or credit card is required.",
   },
   {
-    question: "Can I cancel my Pro subscription at any time?",
+    question: "What if I have an existing subscription?",
     answer:
-      "Yes, immediately with one click from your billing settings. There are no commitments, hidden cancellation fees, or contracts. When you cancel, you retain access until the end of your billing cycle.",
+      "You can manage or cancel it from Billing after signing in. CanvasPro access stays free even after cancellation.",
   },
   {
-    question: "Does Canvas Pro work on mobile phones and tablets?",
+    question: "Does CanvasPro work on mobile phones and tablets?",
     answer:
-      "Yes! Canvas Pro is built as a progressive, fully responsive web application that runs smoothly in Safari, Chrome, iOS, and Android. You can even add it directly to your home screen like an app.",
+      "Yes! CanvasPro is built as a progressive, fully responsive web application that runs smoothly in Safari, Chrome, iOS, and Android. You can even add it directly to your home screen like an app.",
   },
 ];
 
@@ -243,7 +243,7 @@ function LandingPage() {
             </div>
             <div>
               <p className="text-sm font-semibold text-foreground">Welcome back!</p>
-              <p className="text-xs text-muted-foreground">You are signed in to your Canvas Pro account.</p>
+              <p className="text-xs text-muted-foreground">You are signed in to your CanvasPro account.</p>
             </div>
           </div>
           <Link
@@ -267,7 +267,7 @@ function LandingPage() {
         </h1>
 
         <p className="mx-auto mt-5 max-w-2xl text-base text-muted-foreground sm:text-lg">
-          Canvas Pro pulls your live grades, upcoming assignments, schedules, and announcements into one
+          CanvasPro pulls your live grades, upcoming assignments, schedules, and announcements into one
           customizable home screen. Stop hunting through nested course menus.
         </p>
 
@@ -299,7 +299,7 @@ function LandingPage() {
 
         <div className="mt-4 flex flex-wrap items-center justify-center gap-4 text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5">
-            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> Free dashboard tier
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> All features free
           </span>
           <span className="flex items-center gap-1.5">
             <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> 2-minute setup
@@ -630,7 +630,7 @@ function LandingPage() {
             3-minute setup
           </p>
           <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-            How Canvas Pro works
+            How CanvasPro works
           </h2>
         </div>
 
@@ -677,7 +677,7 @@ function LandingPage() {
                 Your credentials and student privacy are 100% protected
               </h4>
               <p className="mt-1 text-sm text-muted-foreground">
-                We never ask for your school password. Your Canvas token is stored encrypted write-only and is restricted to read-only access. Canvas Pro cannot edit grades, submit coursework, or modify your school account in any way.
+                We never ask for your school password. Your Canvas token is stored encrypted write-only and is restricted to read-only access. CanvasPro cannot edit grades, submit coursework, or modify your school account in any way.
               </p>
             </div>
           </div>
@@ -721,23 +721,22 @@ function LandingPage() {
         </div>
       </section>
 
-      {/* Free vs Pro Comparison */}
+      {/* Free access */}
       <section className="mt-16">
         <div className="text-center">
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
             Simple Pricing
           </p>
           <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-            Start free. Upgrade for superpowers.
+            Every feature, free for everyone.
           </h2>
         </div>
 
-        <div className="mt-8 grid gap-4 sm:grid-cols-2">
-          {/* Free Tier */}
-          <div className="glass-panel flex flex-col justify-between p-6">
+        <div className="mx-auto mt-8 max-w-xl">
+          <div className="glass-panel-strong flex flex-col justify-between p-6">
             <div>
               <span className="inline-block rounded-md bg-foreground/10 px-2.5 py-1 text-xs font-semibold text-foreground">
-                Free Tier
+                CanvasPro
               </span>
               <p className="mt-3 text-3xl font-bold tracking-tight text-foreground">$0</p>
               <p className="mt-1 text-xs text-muted-foreground">Free forever — no credit card needed</p>
@@ -759,6 +758,14 @@ function LandingPage() {
                   <Check className="h-4 w-4 text-emerald-400" />
                   <span>Standalone Canvas Grade Calculator</span>
                 </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-emerald-400" />
+                  <span>Live Canvas grades, assignments & announcements</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-emerald-400" />
+                  <span>Focus, study sessions, calendar & notifications</span>
+                </li>
               </ul>
             </div>
 
@@ -772,65 +779,6 @@ function LandingPage() {
             </div>
           </div>
 
-          {/* Pro Tier */}
-          <div className="glass-panel-strong relative flex flex-col justify-between border-2 border-foreground/20 p-6 shadow-xl">
-            <div className="absolute -top-3 right-6 rounded-full bg-foreground px-3 py-0.5 text-[11px] font-semibold text-background">
-              Most Popular
-            </div>
-
-            <div>
-              <span className="inline-block rounded-md bg-primary/20 px-2.5 py-1 text-xs font-semibold text-primary">
-                Canvas Pro
-              </span>
-              <p className="mt-3 text-3xl font-bold tracking-tight text-foreground">
-                $2.99
-                <span className="text-sm font-normal text-muted-foreground"> / month</span>
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                or <span className="font-semibold text-foreground">$30 / year</span>{" "}
-                <span className="rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-semibold text-white">
-                  Save 17%!
-                </span>
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">First 10 days free, then less than one coffee a month. Cancel anytime.</p>
-
-              <ul className="mt-6 space-y-2.5 text-sm text-foreground/90">
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-emerald-400" />
-                  <span>Live Canvas grades, assignments & announcements</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-emerald-400" />
-                  <span>Automated final exam score estimator</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-emerald-400" />
-                  <span>Focus view (1-day to 1-week due windows)</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-emerald-400" />
-                  <span>Workload heatmap & syllabus links</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-emerald-400" />
-                  <span>.ics calendar export (Google, Apple, Outlook)</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-emerald-400" />
-                  <span>Smart notifications & daily recap</span>
-                </li>
-              </ul>
-            </div>
-
-            <div className="mt-8">
-              <Link
-                to="/signup"
-                className="glass-hover inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-foreground px-4 text-sm font-semibold text-background"
-              >
-                Start 10 days free — then $2.99/mo or $30/yr (Save 17%!)
-              </Link>
-            </div>
-          </div>
         </div>
       </section>
 
@@ -881,12 +829,6 @@ function LandingPage() {
             className="glass-inset glass-hover inline-flex min-h-11 items-center justify-center rounded-xl px-4 text-sm font-medium"
           >
             Customize Canvas guide
-          </Link>
-          <Link
-            to="/pricing"
-            className="glass-inset glass-hover inline-flex min-h-11 items-center justify-center rounded-xl px-4 text-sm font-medium"
-          >
-            Full pricing details
           </Link>
         </div>
       </section>

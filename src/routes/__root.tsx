@@ -3,23 +3,28 @@ import {
   Outlet,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
+import { Capacitor } from "@capacitor/core";
+import { SplashScreen } from "@capacitor/splash-screen";
 
 import appCss from "../styles.css?url";
+import dmSansLatin from "@fontsource-variable/dm-sans/files/dm-sans-latin-wght-normal.woff2?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from "@/integrations/supabase/client";
 import { purgeScopedStorage } from "@/lib/user-scope";
-import { syncAuthIdentity } from "@/lib/auth-user";
-import { resetPaidAccessCache } from "@/lib/subscription";
+import { getActiveIdentity, syncAuthIdentity } from "@/lib/auth-user";
 import { SiteFooter } from "@/components/site-footer";
 import { Toaster } from "@/components/ui/sonner";
 
+const themeBootScript = `try{var t=localStorage.getItem("canvas:theme");document.documentElement.classList.add(t==="light"?"light":"dark")}catch(e){document.documentElement.classList.add("dark")}`;
+
 function NotFoundComponent() {
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
+    <div className="flex min-h-svh items-center justify-center px-4">
       <div className="glass-panel-strong max-w-md p-10 text-center">
         <h1 className="text-6xl font-semibold tracking-tight">404</h1>
         <p className="mt-3 text-sm text-muted-foreground">This page doesn't exist.</p>
@@ -29,16 +34,18 @@ function NotFoundComponent() {
 }
 
 function ErrorComponent({ error, reset }: { error: unknown; reset: () => void }) {
-  console.error(error);
+  const reportedError = useMemo(
+    () => (error instanceof Error ? error : new Error(String(error))),
+    [error],
+  );
+  console.error(reportedError);
   const router = useRouter();
   useEffect(() => {
-    reportLovableError(error instanceof Error ? error : new Error(String(error)), {
-      boundary: "tanstack_root_error_component",
-    });
-  }, [error]);
+    reportLovableError(reportedError, { boundary: "tanstack_root_error_component" });
+  }, [reportedError]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
+    <div className="flex min-h-svh items-center justify-center px-4">
       <div className="glass-panel-strong max-w-md p-8 text-center">
         <h1 className="text-lg font-semibold tracking-tight">Something went wrong</h1>
         <p className="mt-2 text-sm text-muted-foreground">Try refreshing or return home.</p>
@@ -63,11 +70,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Canvas Pro — A Better Canvas Dashboard for Students" },
+      { title: "CanvasPro — A Better Canvas Dashboard for Students" },
       {
         name: "description",
         content:
-          "See every Canvas class, grade, and deadline in one clean dashboard — with notifications tuned to your day. First 10 days of Pro free, then $2.99/month or $30/year (save 17%).",
+          "See every Canvas class, grade, and deadline in one clean dashboard — free for everyone, with no subscription required.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -80,12 +87,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "apple-mobile-web-app-title", content: "CanvasPro" },
     ],
     links: [
+      { rel: "preload", href: dmSansLatin, as: "font", type: "font/woff2", crossOrigin: "anonymous" },
       { rel: "stylesheet", href: appCss },
       { rel: "icon", href: "/favicon.png", type: "image/png" },
       { rel: "apple-touch-icon", href: "/favicon.png" },
       { rel: "manifest", href: "/manifest.webmanifest" },
-      { rel: "preconnect", href: "https://rsms.me/" },
-      { rel: "stylesheet", href: "https://rsms.me/inter/inter.css" },
     ],
   }),
   shellComponent: RootShell,
@@ -96,9 +102,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
+        <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
       </head>
       <body>
         {children}
@@ -111,26 +118,67 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
+  const showFooter = useRouterState({
+    select: (state) => !state.matches.some((match) => match.routeId === "/_authenticated"),
+  });
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    // Keep the native launch screen in place until the personalized startup
+    // UI is mounted. Signed-out routes use the short fallback below.
+    let secondFrame = 0;
+    let firstFrame = 0;
+    let hidden = false;
+    const hide = () => {
+      if (hidden) return;
+      hidden = true;
+      firstFrame = requestAnimationFrame(() => {
+        secondFrame = requestAnimationFrame(() => {
+          void SplashScreen.hide();
+        });
+      });
+    };
+    window.addEventListener("canvaspro:launch-ui-ready", hide, { once: true });
+    const fallback = window.setTimeout(() => {
+      hide();
+    }, 1_200);
+
+    return () => {
+      window.removeEventListener("canvaspro:launch-ui-ready", hide);
+      window.clearTimeout(fallback);
+      cancelAnimationFrame(firstFrame);
+      if (secondFrame) cancelAnimationFrame(secondFrame);
+      if (!hidden) {
+        void SplashScreen.hide();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
       if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
       const nextId = event === "SIGNED_OUT" ? null : (session?.user?.id ?? null);
-      resetPaidAccessCache();
+      const identityChanged = getActiveIdentity() !== nextId;
       if (event === "SIGNED_OUT") purgeScopedStorage();
       // Namespaces browser storage per account and drops the whole query
       // cache whenever the identity changes — no data can carry over.
       syncAuthIdentity(queryClient, nextId);
-      router.invalidate();
-      if (nextId) queryClient.invalidateQueries();
+      if (identityChanged) void router.invalidate();
+      if (event === "USER_UPDATED")
+        void queryClient.invalidateQueries({ queryKey: ["user-profile"] });
     });
     return () => data.subscription.unsubscribe();
   }, [router, queryClient]);
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
-      <SiteFooter />
+      <div className="site-shell">
+        <div className="site-content">
+          <Outlet />
+        </div>
+        {showFooter && <SiteFooter />}
+      </div>
       <Toaster position="top-center" richColors closeButton />
     </QueryClientProvider>
   );

@@ -1,55 +1,38 @@
-import { defineConfig, type Plugin } from "vite";
 import path from "node:path";
-import { rename } from "node:fs/promises";
-import react from "@vitejs/plugin-react";
-import tailwindcss from "@tailwindcss/vite";
-import { tanstackRouter } from "@tanstack/router-plugin/vite";
+import { loadEnv } from "vite";
+import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
-function capacitorIndexHtml(): Plugin {
-  return {
-    name: "capacitor-index-html",
-    async closeBundle() {
-      await rename(
-        path.resolve(import.meta.dirname, "dist-mobile/mobile.html"),
-        path.resolve(import.meta.dirname, "dist-mobile/index.html"),
-      );
-    },
-  };
-}
+Object.assign(process.env, loadEnv(process.env["NODE_ENV"] ?? "development", process.cwd(), ""));
 
 export default defineConfig({
-  plugins: [
-    tailwindcss(),
-    tanstackRouter({
-      target: "react",
-      autoCodeSplitting: true,
-      routesDirectory: "./src/routes",
-      generatedRouteTree: "./src/routeTree.mobile.gen.ts",
-      routeFileIgnorePattern: "(api|lovable)",
-    }),
-    react(),
-    capacitorIndexHtml(),
-  ],
-
-  resolve: {
-    tsconfigPaths: true,
-    alias: {
-      "@/lib/account.functions": path.resolve(
-        import.meta.dirname,
-        "src/mobile-stubs/account.functions.ts",
-      ),
-      "@/utils/payments.functions": path.resolve(
-        import.meta.dirname,
-        "src/mobile-stubs/payments.functions.ts",
-      ),
+  tanstackStart: {
+    server: { entry: "server" },
+    spa: {
+      enabled: true,
+      prerender: { outputPath: "/index" },
     },
   },
-
-  build: {
-    outDir: "dist-mobile",
-    emptyOutDir: true,
-    rollupOptions: {
-      input: "mobile.html",
+  nitro: {
+    preset: "cloudflare-module",
+    output: {
+      dir: ".output-mobile",
+      publicDir: "dist-mobile",
+      serverDir: ".output-mobile/server",
+    },
+  },
+  vite: {
+    resolve: {
+      alias: {
+        "entities/lib/decode.js": path.resolve(
+          import.meta.dirname,
+          "node_modules/entities/lib/decode.js",
+        ),
+        "entities/lib/encode.js": path.resolve(
+          import.meta.dirname,
+          "node_modules/entities/lib/encode.js",
+        ),
+        entities: path.resolve(import.meta.dirname, "node_modules/entities"),
+      },
     },
   },
 });

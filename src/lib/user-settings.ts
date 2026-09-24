@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { resetCanvasBundle } from "@/lib/canvas.functions";
 
 export const canvasKeyQueryKey = ["user-settings", "canvas-key"] as const;
 export const canvasDomainQueryKey = ["user-settings", "canvas-domain"] as const;
@@ -30,8 +31,6 @@ export function normalizeCanvasDomain(raw: string | null | undefined): string {
  * backend whether one is saved, never for the value itself.
  */
 export async function fetchHasCanvasKey(): Promise<boolean> {
-  const { data: userData } = await supabase.auth.getUser();
-  if (!userData.user) return false;
   const { data, error } = await supabase.rpc("has_canvas_key");
   if (error) throw new Error(error.message);
   return data === true;
@@ -177,10 +176,15 @@ export function useSaveCanvasKey() {
     },
     onSuccess: async (key) => {
       toast.success(key ? "Canvas connection saved" : "Canvas key cleared");
-      await qc.invalidateQueries({ queryKey: ["user-preferences"] });
-      await qc.invalidateQueries({ queryKey: canvasKeyQueryKey });
-      await qc.invalidateQueries({ queryKey: canvasDomainQueryKey });
-      await qc.invalidateQueries({ queryKey: ["canvas"] });
+      resetCanvasBundle();
+      await qc.cancelQueries({ queryKey: ["canvas"] });
+      if (!key) qc.removeQueries({ queryKey: ["canvas"] });
+      qc.setQueryData(canvasKeyQueryKey, !!key);
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["user-preferences"] }),
+        qc.invalidateQueries({ queryKey: canvasDomainQueryKey }),
+        qc.invalidateQueries({ queryKey: ["canvas"] }),
+      ]);
     },
     onError: (err: Error) => toast.error("Could not save", { description: err.message }),
   });

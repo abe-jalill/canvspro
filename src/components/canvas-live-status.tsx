@@ -98,7 +98,7 @@ export function CanvasLiveStatus() {
       type="button"
       onClick={sync}
       title="Refresh Canvas data"
-      className="glass-inset glass-hover flex min-h-8 items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase text-muted-foreground transition-colors hover:text-foreground"
+      className="glass-inset glass-hover flex min-h-8 min-w-[5.5rem] items-center justify-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase text-muted-foreground transition-colors hover:text-foreground"
       aria-label={`Canvas data status: ${label}. Tap to refresh.`}
     >
       <span

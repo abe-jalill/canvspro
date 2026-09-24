@@ -1,22 +1,22 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery, useQueryClient, queryOptions } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import {
   Bell,
   BellOff,
   CalendarClock,
   CalendarDays,
-  CreditCard,
   Crosshair,
   GraduationCap,
   LayoutDashboard,
   ListChecks,
-  Lock,
   LogOut,
   Megaphone,
   Moon,
   Settings,
   Sun,
+  TimerReset,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/lib/theme";
@@ -25,9 +25,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { purgeScopedStorage, useUserScope } from "@/lib/user-scope";
 import { syncAuthIdentity } from "@/lib/auth-user";
 import { NotificationCenter } from "@/components/notification-center";
+import { ProfileButton } from "@/components/profile-button";
 import { TrafficLights } from "@/components/traffic-lights";
-import { useSubscription } from "@/lib/subscription";
-import { isFreePath } from "@/components/pro-gate";
 import { getCoursesFn, type CourseSummary } from "@/lib/canvas.functions";
 import { displayCourseNameForCourse } from "@/lib/course-display";
 import { getGradeColor } from "@/lib/grade-color";
@@ -36,12 +35,12 @@ import { useSidebarMode } from "@/lib/sidebar-state";
 const items = [
   { title: "Dashboard", to: "/dashboard" as const, icon: LayoutDashboard },
   { title: "Focus", to: "/focus" as const, icon: Crosshair },
+  { title: "Study Session", to: "/study-session" as const, icon: TimerReset },
   { title: "Calendar", to: "/schedule" as const, icon: CalendarDays },
   { title: "Class Schedule", to: "/class-schedule" as const, icon: CalendarClock },
   { title: "Grades", to: "/grades" as const, icon: GraduationCap },
   { title: "Assignments", to: "/assignments" as const, icon: ListChecks },
   { title: "Announcements", to: "/announcements" as const, icon: Megaphone },
-  { title: "Billing", to: "/billing" as const, icon: CreditCard },
   { title: "Notifications", to: "/notifications" as const, icon: Bell },
   { title: "Settings", to: "/settings" as const, icon: Settings },
 ];
@@ -74,7 +73,11 @@ function ReminderToggle({ compact = false }: { compact?: boolean }) {
       title={enabled ? "Reminders on (9 AM – 9 PM)" : "Reminders off"}
     >
       {enabled ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
-      {!compact && <span className="ml-2 text-xs font-medium">{enabled ? "Reminders on" : "Reminders off"}</span>}
+      {!compact && (
+        <span className="ml-2 text-xs font-medium">
+          {enabled ? "Reminders on" : "Reminders off"}
+        </span>
+      )}
     </button>
   );
 }
@@ -94,7 +97,9 @@ function ThemeToggle({ compact = false }: { compact?: boolean }) {
       title={isDark ? "Light mode" : "Dark mode"}
     >
       {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-      {!compact && <span className="ml-2 text-xs font-medium">{isDark ? "Light mode" : "Dark mode"}</span>}
+      {!compact && (
+        <span className="ml-2 text-xs font-medium">{isDark ? "Light mode" : "Dark mode"}</span>
+      )}
     </button>
   );
 }
@@ -105,9 +110,13 @@ function useSignOut() {
   const scope = useUserScope();
   return async function signOut() {
     await queryClient.cancelQueries();
+    const { error } = await supabase.auth.signOut({ scope: "local" });
+    if (error) {
+      toast.error("Could not sign out", { description: error.message });
+      return;
+    }
     queryClient.clear();
     purgeScopedStorage(scope);
-    await supabase.auth.signOut();
     syncAuthIdentity(queryClient, null);
     // The cache persister flushes once more after clear(); drop that too so
     // nothing of this account is left behind on the device.
@@ -136,7 +145,6 @@ function SignOutButton({ compact = false }: { compact?: boolean }) {
 
 export function AppSidebar() {
   const pathname = useActivePath();
-  const { isActive: isPro } = useSubscription();
   const courses = useQuery(coursesQO);
   const [mode, setMode] = useSidebarMode();
 
@@ -209,7 +217,11 @@ export function AppSidebar() {
                 })}
                 <div className="my-2 h-[1px] w-6 rounded-full bg-white/10" />
                 {courses.data?.map((course: CourseSummary) => {
-                  const courseName = displayCourseNameForCourse(course.id, course.name, course.course_code);
+                  const courseName = displayCourseNameForCourse(
+                    course.id,
+                    course.name,
+                    course.course_code,
+                  );
                   const color = getGradeColor(course.current_score);
                   const coursePath = `/courses/${course.id}`;
                   return (
@@ -236,7 +248,7 @@ export function AppSidebar() {
                 })}
               </nav>
               <div className="mt-auto flex flex-col items-center gap-2 pt-4">
-                {isPro && <ReminderToggle compact />}
+                <ReminderToggle compact />
                 <ThemeToggle compact />
                 <SignOutButton compact />
               </div>
@@ -251,8 +263,12 @@ export function AppSidebar() {
                   className="block min-w-0 flex-1 px-2 press transition-opacity hover:opacity-80"
                   aria-label="Go to homepage"
                 >
-                  <span className="block text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">{"\n"}</span>
-                  <span className="mt-1 block truncate text-base font-normal tracking-tight text-foreground">CanvasPro</span>
+                  <span className="block text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                    {"\n"}
+                  </span>
+                  <span className="mt-1 block truncate text-base font-normal tracking-tight text-foreground">
+                    CanvasPro
+                  </span>
                 </Link>
                 <TrafficLights
                   className="relative z-10 shrink-0"
@@ -276,10 +292,17 @@ export function AppSidebar() {
                   >
                     <span className="flex items-center justify-between gap-2">
                       <span className="flex min-w-0 items-center gap-2">
-                        {isActive(pathname, item.to) && <span className="h-1 w-1 shrink-0 rounded-full bg-primary" />}
+                        <span
+                          aria-hidden="true"
+                          className={cn(
+                            "h-1 w-1 shrink-0 rounded-full bg-primary transition-[opacity,transform] duration-200",
+                            isActive(pathname, item.to)
+                              ? "scale-100 opacity-100"
+                              : "scale-50 opacity-0",
+                          )}
+                        />
                         <span className="truncate">{item.title}</span>
                       </span>
-                      {!isPro && !isFreePath(item.to) && <Lock className="h-3.5 w-3.5 shrink-0 opacity-50" />}
                     </span>
                   </Link>
                 ))}
@@ -292,7 +315,11 @@ export function AppSidebar() {
                   {courses.data &&
                     courses.data.length > 0 &&
                     courses.data.map((course: CourseSummary) => {
-                      const courseName = displayCourseNameForCourse(course.id, course.name, course.course_code);
+                      const courseName = displayCourseNameForCourse(
+                        course.id,
+                        course.name,
+                        course.course_code,
+                      );
                       const score = course.current_score;
                       const color = getGradeColor(score);
                       const coursePath = `/courses/${course.id}`;
@@ -319,7 +346,10 @@ export function AppSidebar() {
                             />
                             <span className="truncate">{courseName}</span>
                           </span>
-                          <span className="shrink-0 text-[11px] font-normal tabular-nums" style={{ color }}>
+                          <span
+                            className="shrink-0 text-[11px] font-normal tabular-nums"
+                            style={{ color }}
+                          >
                             {score != null ? `${Math.round(score)}%` : "—"}
                           </span>
                         </Link>
@@ -328,7 +358,7 @@ export function AppSidebar() {
                 </div>
               </nav>
               <div className="mt-auto space-y-2 pt-4">
-                {isPro && <ReminderToggle />}
+                <ReminderToggle />
                 <ThemeToggle />
                 <SignOutButton />
               </div>
@@ -343,7 +373,6 @@ export function AppSidebar() {
 export function MobileNav() {
   const pathname = useActivePath();
   const locationHref = useRouterState({ select: (s) => s.location.href });
-  const { isActive: isPro } = useSubscription();
   const courses = useQuery(coursesQO);
   const [open, setOpen] = useState(false);
 
@@ -358,20 +387,23 @@ export function MobileNav() {
     return () => document.removeEventListener("keydown", onKey);
   }, [open]);
 
-  const current = items.find((i) => isActive(pathname, i.to))?.title ?? "Canvas Pro";
+  const current = items.find((i) => isActive(pathname, i.to))?.title ?? "CanvasPro";
 
   return (
-    <div className="md:hidden">
-      <div className="glass-panel-strong sticky top-2 z-40 mx-2 mt-2 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 p-2">
+    <div className="sticky top-0 z-40 md:hidden">
+      <div className="glass-panel-strong relative z-40 mx-2 mt-2 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 p-2">
         <TrafficLights
           className="shrink-0"
           onRed={() => setOpen(false)}
           onYellow={() => setOpen((v) => !v)}
           onGreen={() => setOpen(true)}
         />
-        <p className="truncate text-center text-sm font-normal tracking-tight text-foreground">{current}</p>
+        <p className="truncate text-center text-sm font-normal tracking-tight text-foreground">
+          {current}
+        </p>
         <div className="flex items-center gap-2">
-          {isPro && <NotificationCenter />}
+          <NotificationCenter />
+          <ProfileButton />
           <ThemeToggle compact />
         </div>
       </div>
@@ -389,10 +421,10 @@ export function MobileNav() {
       {/* Collapsible panel — always mounted so it can animate */}
       <div
         className={cn(
-          "glass-panel-strong sticky top-[4.75rem] z-40 mx-2 mt-2 flex flex-col gap-1 overflow-y-auto p-2 transition-all duration-300 ease-in-out",
+          "glass-panel-strong relative z-40 mx-2 flex flex-col gap-1 overflow-y-auto p-2 transition-all duration-300 ease-in-out",
           open
-            ? "max-h-[calc(100vh-6rem)] translate-y-0 opacity-100"
-            : "pointer-events-none max-h-0 -translate-y-2 overflow-hidden border-transparent p-0 opacity-0",
+            ? "mt-2 max-h-[calc(100dvh-6rem)] translate-y-0 opacity-100"
+            : "pointer-events-none mt-0 max-h-0 -translate-y-2 overflow-hidden border-transparent p-0 opacity-0",
         )}
       >
         {items.map((item) => (
@@ -410,7 +442,6 @@ export function MobileNav() {
           >
             <span className="flex w-full items-center justify-between gap-2">
               <span className="truncate">{item.title}</span>
-              {!isPro && !isFreePath(item.to) && <Lock className="h-3.5 w-3.5 shrink-0 opacity-60" />}
             </span>
           </Link>
         ))}
@@ -423,7 +454,11 @@ export function MobileNav() {
           {courses.data &&
             courses.data.length > 0 &&
             courses.data.map((course: CourseSummary) => {
-              const courseName = displayCourseNameForCourse(course.id, course.name, course.course_code);
+              const courseName = displayCourseNameForCourse(
+                course.id,
+                course.name,
+                course.course_code,
+              );
               const score = course.current_score;
               const color = getGradeColor(score);
               const coursePath = `/courses/${course.id}`;
@@ -438,7 +473,9 @@ export function MobileNav() {
                   onClick={() => setOpen(false)}
                   className={cn(
                     "press flex min-h-10 items-center justify-between rounded-xl px-3 text-sm transition-all",
-                    active ? "bg-foreground/[0.08] text-foreground font-medium" : "text-muted-foreground",
+                    active
+                      ? "bg-foreground/[0.08] text-foreground font-medium"
+                      : "text-muted-foreground",
                   )}
                 >
                   <span className="flex min-w-0 items-center gap-2">
@@ -457,7 +494,7 @@ export function MobileNav() {
         </div>
 
         <div className="mt-1 grid grid-cols-2 gap-2 pt-2">
-          {isPro && <ReminderToggle />}
+          <ReminderToggle />
           <SignOutButton />
         </div>
       </div>

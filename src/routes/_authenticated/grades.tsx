@@ -3,36 +3,42 @@ import { getGradeColor } from "@/lib/grade-color";
 import { useQuery, queryOptions } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { getCoursesFn, getAllAssignmentsFn } from "@/lib/canvas.functions";
+import { CANVAS_DATA_GC_MS, CANVAS_DATA_STALE_MS } from "@/lib/query-policy";
 import { GlassCard, Skeleton, ErrorState, EmptyState } from "@/components/glass-card";
 import { displayCourseName } from "@/lib/course-display";
-import { Search, ArrowUp, ArrowDown, Minus } from "lucide-react";
+import { Search, ArrowUp, ArrowDown, Minus, ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useCourseHighlight, validateCourseSearch } from "@/lib/course-highlight";
 import { useGradeSnapshots, useRecordGradeSnapshots } from "@/hooks/use-grade-snapshots";
 
 const coursesQO = queryOptions({
   queryKey: ["canvas", "courses"],
   queryFn: () => getCoursesFn(),
-  staleTime: 5 * 60_000,
+  staleTime: CANVAS_DATA_STALE_MS,
+  gcTime: CANVAS_DATA_GC_MS,
 });
 
 const assignmentsQO = queryOptions({
   queryKey: ["canvas", "assignments"],
   queryFn: () => getAllAssignmentsFn(),
-  staleTime: 5 * 60_000,
+  staleTime: CANVAS_DATA_STALE_MS,
+  gcTime: CANVAS_DATA_GC_MS,
 });
 
 export const Route = createFileRoute("/_authenticated/grades")({
   head: () => ({
     meta: [
-      { title: "Grades — Canvas Pro" },
+      { title: "Grades — CanvasPro" },
       {
         name: "description",
-        content: "Per-course grade breakdown across your Canvas assignments, with trends over time.",
+        content:
+          "Per-course grade breakdown across your Canvas assignments, with trends over time.",
       },
-      { property: "og:title", content: "Grades — Canvas Pro" },
+      { property: "og:title", content: "Grades — CanvasPro" },
       {
         property: "og:description",
-        content: "Per-course grade breakdown across your Canvas assignments, with trends over time.",
+        content:
+          "Per-course grade breakdown across your Canvas assignments, with trends over time.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -55,6 +61,16 @@ function GradesPage() {
   const record = useRecordGradeSnapshots();
   const highlight = useCourseHighlight();
 
+  // Classes start collapsed (final grade only); the arrow expands the full list.
+  const [expandedCourses, setExpandedCourses] = useState<Set<number>>(() => new Set());
+  const toggleExpanded = (id: number) =>
+    setExpandedCourses((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
   const loading = courses.isLoading || assignments.isLoading || snapshots.isLoading;
   const error = courses.error || assignments.error || snapshots.error;
 
@@ -67,22 +83,26 @@ function GradesPage() {
     return map;
   }, [snapshots.data]);
 
-  // Compute trend by comparing current score to the most recent stored snapshot.
+  // Trend = direction of the most recent grade change. Compare the current score
+  // to the newest stored snapshot that differs from it, so the arrow persists
+  // after the current score is itself recorded as the latest snapshot.
   const trends = useMemo(() => {
-    const map = new Map<number, "up" | "down" | null>();
+    const map = new Map<number, { dir: "up" | "down"; prev: number } | null>();
+    const snaps = snapshots.data ?? []; // newest first
     (courses.data ?? []).forEach((c) => {
-      if (c.current_score == null) {
+      const cur = c.current_score;
+      if (cur == null) {
         map.set(c.id, null);
         return;
       }
-      const prev = latestByCourse.get(c.id);
+      const prev = snaps.find(
+        (s) => s.courseId === c.id && Math.abs(s.score - cur) > 0.05,
+      )?.score;
       if (prev == null) map.set(c.id, null);
-      else if (c.current_score > prev + 0.05) map.set(c.id, "up");
-      else if (c.current_score < prev - 0.05) map.set(c.id, "down");
-      else map.set(c.id, null);
+      else map.set(c.id, { dir: cur > prev ? "up" : "down", prev });
     });
     return map;
-  }, [courses.data, latestByCourse]);
+  }, [courses.data, snapshots.data]);
 
   // Record snapshots for any course whose current score differs from latest.
   useEffect(() => {
@@ -116,7 +136,9 @@ function GradesPage() {
   return (
     <div className="space-y-6">
       <header className="px-1 pt-2">
-        <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Per course</p>
+        <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+          Per course
+        </p>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">Grades</h1>
       </header>
 
@@ -161,9 +183,12 @@ function GradesPage() {
         !error &&
         filteredCourses.map((c) => {
           const trend = trends.get(c.id);
+          const expanded = expandedCourses.has(c.id);
           const score = c.current_score;
           const color = getGradeColor(score);
-          let items = (byCourse.get(c.id) ?? []).filter((a) => a.submission?.score != null || a.submission?.grade);
+          let items = (byCourse.get(c.id) ?? []).filter(
+            (a) => a.submission?.score != null || a.submission?.grade,
+          );
           if (q) items = items.filter((a) => a.name.toLowerCase().includes(q));
 
           return (
@@ -182,43 +207,84 @@ function GradesPage() {
                         boxShadow: `0 0 8px ${color}66`,
                       }}
                     />
-                    <span className="font-normal text-foreground">{displayCourseName(c.name, c.course_code)}</span>
+                    <span className="font-normal text-foreground">
+                      {displayCourseName(c.name, c.course_code)}
+                    </span>
                   </Link>
                 }
                 action={
-                  <span className="flex items-center gap-1.5 text-base font-normal tabular-nums" style={{ color }}>
-                    {trend === "up" && <ArrowUp className="h-4 w-4" style={{ color }} aria-label="Grade up" />}
-                    {trend === "down" && (
-                      <ArrowDown className="h-4 w-4 opacity-70" style={{ color }} aria-label="Grade down" />
-                    )}
-                    {trend == null && <Minus className="h-4 w-4 text-muted-foreground" aria-label="No grade change" />}
-                    {fmt(c.current_score)}
-                    {c.current_grade ? (
-                      <span className="ml-1.5 text-sm font-normal opacity-85" style={{ color }}>
-                        {c.current_grade}
-                      </span>
-                    ) : null}
+                  <span className="flex items-center gap-1.5">
+                    <span
+                      className="flex items-center gap-1.5 text-base font-normal tabular-nums"
+                      style={{ color }}
+                    >
+                      {trend?.dir === "up" && (
+                        <span title={`Previously ${trend.prev.toFixed(1)}%`} className="flex">
+                          <ArrowUp className="h-4 w-4" style={{ color }} aria-label="Grade up" />
+                        </span>
+                      )}
+                      {trend?.dir === "down" && (
+                        <span title={`Previously ${trend.prev.toFixed(1)}%`} className="flex">
+                          <ArrowDown
+                            className="h-4 w-4 opacity-70"
+                            style={{ color }}
+                            aria-label="Grade down"
+                          />
+                        </span>
+                      )}
+                      {trend == null && (
+                        <Minus
+                          className="h-4 w-4 text-muted-foreground"
+                          aria-label="No grade change"
+                        />
+                      )}
+                      {fmt(c.current_score)}
+                      {c.current_grade ? (
+                        <span className="ml-1.5 text-sm font-normal opacity-85" style={{ color }}>
+                          {c.current_grade}
+                        </span>
+                      ) : null}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => toggleExpanded(c.id)}
+                      aria-expanded={expanded}
+                      aria-label={
+                        expanded
+                          ? `Hide grades for ${displayCourseName(c.name, c.course_code)}`
+                          : `Show grades for ${displayCourseName(c.name, c.course_code)}`
+                      }
+                      className="glass-hover flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"
+                    >
+                      <ChevronDown
+                        className={cn(
+                          "h-4 w-4 transition-transform duration-200",
+                          !expanded && "-rotate-90",
+                        )}
+                      />
+                    </button>
                   </span>
                 }
               >
-                {items.length === 0 ? (
-                  <EmptyState message="No graded assignments yet." />
-                ) : (
-                  <ul className="divide-y divide-foreground/10">
-                    {items.map((a) => (
-                      <li key={a.id} className="flex items-center justify-between gap-3 py-2.5">
-                        <p className="min-w-0 truncate text-sm">{a.name}</p>
-                        <div className="whitespace-nowrap text-sm tabular-nums">
-                          <span className="font-semibold">{a.submission?.score ?? "—"}</span>
-                          <span className="text-muted-foreground">
-                            {" / "}
-                            {a.points_possible ?? "—"}
-                          </span>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                {expanded &&
+                  (items.length === 0 ? (
+                    <EmptyState message="No graded assignments yet." />
+                  ) : (
+                    <ul className="divide-y divide-foreground/10">
+                      {items.map((a) => (
+                        <li key={a.id} className="flex items-center justify-between gap-3 py-2.5">
+                          <p className="min-w-0 truncate text-sm">{a.name}</p>
+                          <div className="whitespace-nowrap text-sm tabular-nums">
+                            <span className="font-semibold">{a.submission?.score ?? "—"}</span>
+                            <span className="text-muted-foreground">
+                              {" / "}
+                              {a.points_possible ?? "—"}
+                            </span>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  ))}
               </GlassCard>
             </div>
           );

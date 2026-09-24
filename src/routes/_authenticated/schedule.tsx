@@ -1,16 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, queryOptions } from "@tanstack/react-query";
 import { useState } from "react";
-import {
-  getCalendarEventsFn,
-  getAllAssignmentsFn,
-} from "@/lib/canvas.functions";
-import {
-  GlassCard,
-  Skeleton,
-  ErrorState,
-  EmptyState,
-} from "@/components/glass-card";
+import { getCalendarEventsFn, getAllAssignmentsFn } from "@/lib/canvas.functions";
+import { CANVAS_DATA_GC_MS, CANVAS_DATA_STALE_MS } from "@/lib/query-policy";
+import { GlassCard, Skeleton, ErrorState, EmptyState } from "@/components/glass-card";
 import { displayCourseName } from "@/lib/course-display";
 import { Segmented } from "@/components/segmented";
 import { WorkloadHeatmap } from "@/components/workload-heatmap";
@@ -18,24 +11,26 @@ import { WorkloadHeatmap } from "@/components/workload-heatmap";
 const eventsQO = queryOptions({
   queryKey: ["canvas", "calendar"],
   queryFn: () => getCalendarEventsFn(),
-  staleTime: 5 * 60_000,
+  staleTime: CANVAS_DATA_STALE_MS,
+  gcTime: CANVAS_DATA_GC_MS,
 });
 
 const assignmentsQO = queryOptions({
   queryKey: ["canvas", "assignments"],
   queryFn: () => getAllAssignmentsFn(),
-  staleTime: 5 * 60_000,
+  staleTime: CANVAS_DATA_STALE_MS,
+  gcTime: CANVAS_DATA_GC_MS,
 });
 
 export const Route = createFileRoute("/_authenticated/schedule")({
   head: () => ({
     meta: [
-      { title: "Calendar — Canvas Pro" },
+      { title: "Calendar — CanvasPro" },
       {
         name: "description",
         content: "Your upcoming Canvas due dates and events.",
       },
-      { property: "og:title", content: "Calendar — Canvas Pro" },
+      { property: "og:title", content: "Calendar — CanvasPro" },
       {
         property: "og:description",
         content: "Your upcoming Canvas due dates and events.",
@@ -61,10 +56,7 @@ function SchedulePage() {
   const [range, setRange] = useState<Range>("week");
 
   const now = Date.now();
-  const rangeEnd =
-    range === "week"
-      ? now + 7 * 24 * 60 * 60 * 1000
-      : Number.POSITIVE_INFINITY;
+  const rangeEnd = range === "week" ? now + 7 * 24 * 60 * 60 * 1000 : Number.POSITIVE_INFINITY;
 
   const items: AgendaItem[] = [];
   (events.data ?? []).forEach((e) => {
@@ -77,7 +69,7 @@ function SchedulePage() {
       when: new Date(e.start_at),
       context: e.context_name
         ? displayCourseName(e.context_name, undefined)
-        : e.location_name ?? undefined,
+        : (e.location_name ?? undefined),
       kind: "event",
     });
   });
@@ -114,9 +106,7 @@ function SchedulePage() {
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
             {range === "week" ? "Next 7 days" : "Full semester"}
           </p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">
-            Calendar
-          </h1>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">Calendar</h1>
         </div>
         <Segmented<Range>
           value={range}
@@ -163,8 +153,7 @@ function SchedulePage() {
                     })}
                   </h3>
                   <span className="text-xs text-muted-foreground">
-                    {dayItems.length}{" "}
-                    {dayItems.length === 1 ? "item" : "items"}
+                    {dayItems.length} {dayItems.length === 1 ? "item" : "items"}
                   </span>
                 </div>
                 <ul className="space-y-2">
@@ -174,9 +163,7 @@ function SchedulePage() {
                       className="glass-inset glass-hover flex items-start justify-between gap-3 p-3"
                     >
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">
-                          {it.title}
-                        </p>
+                        <p className="truncate text-sm font-medium">{it.title}</p>
                         {it.context && (
                           <p className="mt-0.5 truncate text-xs text-muted-foreground">
                             {it.context}

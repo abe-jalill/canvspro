@@ -7,7 +7,7 @@ export const DESCRIPTION =
 export const Route = createFileRoute("/canvas-dashboard-guide")({
   head: () => ({
     meta: [
-      { title: "How to Customize Your Canvas Dashboard — Canvas Pro" },
+      { title: "How to Customize Your Canvas Dashboard — CanvasPro" },
       { name: "description", content: DESCRIPTION },
       { property: "og:title", content: TITLE },
       { property: "og:description", content: DESCRIPTION },
@@ -188,18 +188,18 @@ function GuidePage() {
           Or skip the settings entirely
         </h2>
         <p className="text-sm text-muted-foreground">
-          Canvas Pro reads the same Canvas data through your own access key and
+          CanvasPro reads the same Canvas data through your own access key and
           gives you a dashboard you actually arrange: drag widgets for grades,
           assignments, announcements, class calendar, and focus windows, hide the
           ones you don't need, rename every class once, and get reminders on your
-          schedule. First 10 days free, then $2.99/month or $30/year (save 17%!), cancel anytime.
+          schedule. Every CanvasPro feature is free, with no subscription required.
         </p>
         <div className="flex flex-wrap gap-3">
           <Link
             to="/signup"
             className="glass-hover inline-flex min-h-11 items-center justify-center rounded-xl bg-foreground px-4 text-sm font-semibold text-background"
           >
-            Try Canvas Pro
+            Try CanvasPro
           </Link>
           <Link
             to="/canvas-grade-calculator"

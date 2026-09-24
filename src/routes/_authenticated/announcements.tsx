@@ -23,12 +23,12 @@ const announcementsQO = queryOptions({
 export const Route = createFileRoute("/_authenticated/announcements")({
   head: () => ({
     meta: [
-      { title: "Announcements — Canvas Pro" },
+      { title: "Announcements — CanvasPro" },
       {
         name: "description",
         content: "Recent announcements from all of your Canvas courses, grouped by class.",
       },
-      { property: "og:title", content: "Announcements — Canvas Pro" },
+      { property: "og:title", content: "Announcements — CanvasPro" },
       {
         property: "og:description",
         content: "Recent announcements from all of your Canvas courses, grouped by class.",

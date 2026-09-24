@@ -16,10 +16,14 @@ export function AuthShell({
   className?: string;
 }) {
   return (
-    <div className="flex min-h-screen w-full items-center justify-center px-4 py-10">
-      <div className={cn("glass-panel-strong w-full max-w-md p-6 sm:p-8", className)}>
+    <div className="flex min-h-svh w-full items-center justify-center px-4 py-10">
+      <div
+        className={cn("auth-shell-panel glass-panel-strong w-full max-w-md p-6 sm:p-8", className)}
+      >
         <div className="mb-6">
-          <p className="text-xs font-normal uppercase tracking-[0.18em] text-muted-foreground">Canvas Pro</p>
+          <p className="text-xs font-normal uppercase tracking-[0.18em] text-muted-foreground">
+            CanvasPro
+          </p>
           <h1 className="mt-2 text-2xl font-normal tracking-tight">{title}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
         </div>
@@ -55,7 +59,9 @@ export function Field({
 
   return (
     <label className="flex w-full flex-col gap-1.5">
-      <span className="text-xs font-normal uppercase tracking-wide text-muted-foreground">{label}</span>
+      <span className="text-xs font-normal uppercase tracking-wide text-muted-foreground">
+        {label}
+      </span>
       <div className="relative">
         <input
           type={inputType}

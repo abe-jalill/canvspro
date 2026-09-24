@@ -1,8 +1,16 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState, type FormEvent } from "react";
+import { createFileRoute, Link, useRouterState } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { Camera, Check, LoaderCircle, Trash2, UserRound, X } from "lucide-react";
 import { GlassCard } from "@/components/glass-card";
 import { useCanvasKey, useCanvasDomain, useSaveCanvasKey } from "@/lib/user-settings";
 import {
+  isUsernameAvailable,
+  normalizeUsername,
+  removeProfileAvatar,
+  saveLocalProfile,
+  uploadProfileAvatar,
+  usernameValidationMessage,
   useUserProfile,
   useSaveUserProfile,
   type UserProfile,
@@ -10,22 +18,20 @@ import {
 import { ClassNamesSection } from "@/components/class-names-editor";
 import { HiddenCoursesSection } from "@/components/hidden-courses-editor";
 import { DeleteAccountSection } from "@/components/delete-account";
-import { useSubscription } from "@/lib/subscription";
-import { UpgradeCard } from "@/components/pro-gate";
 import { useAnnouncementWindow } from "@/lib/announcement-window";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
     meta: [
-      { title: "Settings — Canvas Pro" },
+      { title: "Settings — CanvasPro" },
       {
         name: "description",
-        content: "Save the Canvas API key used to load your courses in Canvas Pro.",
+        content: "Save the Canvas API key used to load your courses in CanvasPro.",
       },
-      { property: "og:title", content: "Settings — Canvas Pro" },
+      { property: "og:title", content: "Settings — CanvasPro" },
       {
         property: "og:description",
-        content: "Save the Canvas API key used to load your courses in Canvas Pro.",
+        content: "Save the Canvas API key used to load your courses in CanvasPro.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -37,12 +43,19 @@ export const Route = createFileRoute("/_authenticated/settings")({
 function SettingsPage() {
   const { data: savedKey, isLoading } = useCanvasKey();
   const { data: savedDomain, isLoading: domainLoading } = useCanvasDomain();
-  const { isActive: isPro } = useSubscription();
   const save = useSaveCanvasKey();
   const [value, setValue] = useState("");
   const [domainValue, setDomainValue] = useState("");
   const [domainTouched, setDomainTouched] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  const hash = useRouterState({ select: (s) => s.location.hash });
+
+  // Arriving from the profile button in the top bars scrolls to the profile card.
+  useEffect(() => {
+    if (hash === "profile") {
+      document.getElementById("profile")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [hash]);
 
   // Pre-fill the Canvas URL once the saved value arrives, unless the user
   // already started typing their own.
@@ -61,11 +74,7 @@ function SettingsPage() {
     }
     try {
       await save.mutateAsync({ key: value, domain: domainValue });
-      setStatus(
-        value.trim()
-          ? "Canvas connection saved and verified."
-          : "Canvas API key cleared.",
-      );
+      setStatus(value.trim() ? "Canvas connection saved and verified." : "Canvas API key cleared.");
       if (value.trim()) setValue("");
     } catch (err) {
       setStatus(err instanceof Error ? err.message : "Could not save.");
@@ -94,7 +103,9 @@ function SettingsPage() {
         </p>
       </header>
 
-      <ProfileCard />
+      <div id="profile" className="scroll-mt-4">
+        <ProfileCard />
+      </div>
 
       <GlassCard title="Canvas connection" subtitle="Your school's Canvas URL and API key.">
         <form onSubmit={onSubmit} className="flex w-full flex-col gap-4">
@@ -133,9 +144,7 @@ function SettingsPage() {
                 setDomainValue(e.target.value);
               }}
               placeholder={
-                domainLoading
-                  ? "Loading…"
-                  : savedDomain ?? "yourschool.instructure.com"
+                domainLoading ? "Loading…" : (savedDomain ?? "yourschool.instructure.com")
               }
               inputMode="url"
               autoCapitalize="none"
@@ -154,7 +163,7 @@ function SettingsPage() {
             <button
               type="submit"
               disabled={save.isPending}
-              className="glass-hover min-h-11 w-full rounded-xl bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-60 sm:w-auto"
+              className="glass-hover min-h-11 w-full rounded-xl bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-60 sm:w-auto sm:min-w-24"
             >
               {save.isPending ? "Saving…" : "Save"}
             </button>
@@ -171,47 +180,32 @@ function SettingsPage() {
           {!isLoading && (
             <p className="text-xs text-muted-foreground">
               Status:{" "}
-              {savedKey
-                ? `Key saved${savedDomain ? ` · ${savedDomain}` : ""}`
-                : "No key saved yet"}
+              {savedKey ? `Key saved${savedDomain ? ` · ${savedDomain}` : ""}` : "No key saved yet"}
             </p>
           )}
         </form>
       </GlassCard>
 
-      <GlassCard
-        title="Notifications"
-        subtitle="Choose which alerts you want and when."
-      >
-        {isPro ? (
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Full controls — due-date lead times, grade thresholds, browser
-              pop-ups, and quiet hours — live on their own page.
-            </p>
-            <Link
-              to="/notifications"
-              className="glass-hover inline-flex min-h-11 items-center rounded-xl bg-foreground px-4 text-sm font-semibold text-background"
-            >
-              Open notification settings
-            </Link>
-          </div>
-        ) : (
-          <UpgradeCard feature="Notifications" />
-        )}
+      <GlassCard title="Notifications" subtitle="Choose which alerts you want and when.">
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Full controls — due-date lead times, grade thresholds, browser pop-ups, and quiet hours
+            — live on their own page.
+          </p>
+          <Link
+            to="/notifications"
+            className="glass-hover inline-flex min-h-11 items-center rounded-xl bg-foreground px-4 text-sm font-semibold text-background"
+          >
+            Open notification settings
+          </Link>
+        </div>
       </GlassCard>
 
-      <GlassCard
-        title="Announcements"
-        subtitle="How far back the announcements list reaches."
-      >
+      <GlassCard title="Announcements" subtitle="How far back the announcements list reaches.">
         <AnnouncementWindowSection />
       </GlassCard>
 
-      <GlassCard
-        title="Class names"
-        subtitle="Rename your Canvas courses to something friendlier."
-      >
+      <GlassCard title="Class names" subtitle="Rename your Canvas courses to something friendlier.">
         <ClassNamesSection />
       </GlassCard>
 
@@ -260,9 +254,7 @@ function AnnouncementWindowSection() {
         ))}
       </div>
       <p className="text-xs text-muted-foreground">
-        {isLoading
-          ? "Loading…"
-          : "Announcements older than this are hidden from the list."}
+        {isLoading ? "Loading…" : "Announcements older than this are hidden from the list."}
       </p>
     </div>
   );
@@ -275,18 +267,56 @@ const EMPTY_PROFILE: UserProfile = {
   school: "",
   major: "",
   classOf: "",
+  username: "",
+  avatarPath: "",
+  avatarUrl: "",
 };
 
 function ProfileCard() {
+  const queryClient = useQueryClient();
   const { data: profile, isLoading } = useUserProfile();
   const save = useSaveUserProfile();
   const [form, setForm] = useState<UserProfile>(EMPTY_PROFILE);
   const [dirty, setDirty] = useState(false);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [usernameState, setUsernameState] = useState<
+    "idle" | "checking" | "available" | "taken" | "invalid"
+  >("idle");
+  const fileInput = useRef<HTMLInputElement>(null);
 
   // Pre-fill once the saved profile arrives, unless the user already typed.
   useEffect(() => {
     if (profile && !dirty) setForm(profile);
   }, [profile, dirty]);
+
+  useEffect(() => {
+    const username = normalizeUsername(form.username);
+    if (!username) {
+      setUsernameState("idle");
+      return;
+    }
+    if (usernameValidationMessage(username)) {
+      setUsernameState("invalid");
+      return;
+    }
+
+    let active = true;
+    setUsernameState("checking");
+    const timeout = window.setTimeout(() => {
+      void isUsernameAvailable(username)
+        .then((available) => {
+          if (active) setUsernameState(available ? "available" : "taken");
+        })
+        .catch(() => {
+          if (active) setUsernameState("idle");
+        });
+    }, 350);
+    return () => {
+      active = false;
+      window.clearTimeout(timeout);
+    };
+  }, [form.username]);
 
   function set<K extends keyof UserProfile>(key: K, value: string) {
     setDirty(true);
@@ -295,15 +325,153 @@ function ProfileCard() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
+    if (usernameState === "taken" || usernameState === "invalid") return;
     await save.mutateAsync(form);
+    setDirty(false);
+  }
+
+  async function onAvatarSelected(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setAvatarBusy(true);
+    setAvatarError(null);
+    try {
+      const avatar = await uploadProfileAvatar(file);
+      setForm((current) => {
+        const next = { ...current, avatarPath: avatar.path, avatarUrl: avatar.url };
+        saveLocalProfile(next);
+        queryClient.setQueryData(["user-profile"], next);
+        return next;
+      });
+    } catch (error) {
+      setAvatarError(error instanceof Error ? error.message : "Could not upload that picture.");
+    } finally {
+      setAvatarBusy(false);
+    }
+  }
+
+  async function removeAvatar() {
+    setAvatarBusy(true);
+    setAvatarError(null);
+    try {
+      await removeProfileAvatar(form.avatarPath);
+      setForm((current) => {
+        const next = { ...current, avatarPath: "", avatarUrl: "" };
+        saveLocalProfile(next);
+        queryClient.setQueryData(["user-profile"], next);
+        return next;
+      });
+    } catch (error) {
+      setAvatarError(error instanceof Error ? error.message : "Could not remove the picture.");
+    } finally {
+      setAvatarBusy(false);
+    }
   }
 
   return (
     <GlassCard
       title="Profile"
-      subtitle="Your name and school — saved to your account and used to greet you."
+      subtitle="Your photo, username, name, and school — synced securely across your devices."
     >
       <form onSubmit={onSubmit} className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="flex flex-col gap-4 sm:col-span-2 sm:flex-row sm:items-center">
+          <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-full border border-foreground/15 bg-foreground/[0.06] shadow-glass">
+            {form.avatarUrl ? (
+              <img
+                src={form.avatarUrl}
+                alt="Profile"
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <span className="flex h-full w-full items-center justify-center text-muted-foreground">
+                <UserRound className="h-10 w-10" aria-hidden="true" />
+              </span>
+            )}
+            {avatarBusy && (
+              <span className="absolute inset-0 flex items-center justify-center bg-background/65">
+                <LoaderCircle className="h-6 w-6 animate-spin" aria-label="Uploading" />
+              </span>
+            )}
+          </div>
+          <div className="min-w-0 space-y-2">
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => fileInput.current?.click()}
+                disabled={avatarBusy}
+                className="glass-inset glass-hover inline-flex min-h-10 items-center gap-2 rounded-xl px-3 text-sm disabled:opacity-50"
+              >
+                <Camera className="h-4 w-4" />
+                {form.avatarPath ? "Change photo" : "Add photo"}
+              </button>
+              {form.avatarPath && (
+                <button
+                  type="button"
+                  onClick={removeAvatar}
+                  disabled={avatarBusy}
+                  className="glass-inset glass-hover inline-flex min-h-10 items-center gap-2 rounded-xl px-3 text-sm text-muted-foreground disabled:opacity-50"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Remove
+                </button>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">JPEG, PNG, WebP, or GIF. Maximum 5 MB.</p>
+            {avatarError && <p className="text-xs text-red-400">{avatarError}</p>}
+            <input
+              ref={fileInput}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              onChange={onAvatarSelected}
+              className="sr-only"
+            />
+          </div>
+        </div>
+
+        <label className="flex flex-col gap-1.5 sm:col-span-2">
+          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Username
+          </span>
+          <div className="relative">
+            <input
+              type="text"
+              value={form.username}
+              onChange={(e) => set("username", e.target.value.toLowerCase())}
+              placeholder={isLoading ? "Loading…" : "Choose a unique username"}
+              autoComplete="username"
+              maxLength={24}
+              aria-describedby="username-status"
+              className="glass-inset min-h-11 w-full rounded-xl bg-transparent px-4 pr-11 text-base text-foreground outline-none placeholder:text-muted-foreground/60 focus:ring-1 focus:ring-foreground/20"
+            />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2">
+              {usernameState === "checking" && <LoaderCircle className="h-4 w-4 animate-spin" />}
+              {usernameState === "available" && <Check className="h-4 w-4 text-emerald-400" />}
+              {(usernameState === "taken" || usernameState === "invalid") && (
+                <X className="h-4 w-4 text-red-400" />
+              )}
+            </span>
+          </div>
+          <p
+            id="username-status"
+            className={
+              usernameState === "taken" || usernameState === "invalid"
+                ? "text-xs text-red-400"
+                : usernameState === "available"
+                  ? "text-xs text-emerald-400"
+                  : "text-xs text-muted-foreground"
+            }
+          >
+            {usernameState === "taken"
+              ? "That username is already taken."
+              : usernameState === "invalid"
+                ? usernameValidationMessage(form.username)
+                : usernameState === "available"
+                  ? "Username is available. You can use it to sign in."
+                  : "3–24 characters: lowercase letters, numbers, and underscores."}
+          </p>
+        </label>
+
         {(
           [
             ["firstName", "First name", "Your first name"],
@@ -331,8 +499,14 @@ function ProfileCard() {
         <div className="sm:col-span-2">
           <button
             type="submit"
-            disabled={save.isPending || (!dirty && isLoading)}
-            className="glass-hover min-h-11 w-full rounded-xl bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-60 sm:w-auto"
+            disabled={
+              save.isPending ||
+              usernameState === "checking" ||
+              usernameState === "taken" ||
+              usernameState === "invalid" ||
+              (!dirty && isLoading)
+            }
+            className="glass-hover min-h-11 w-full rounded-xl bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-60 sm:w-auto sm:min-w-32"
           >
             {save.isPending ? "Saving…" : "Save profile"}
           </button>

@@ -54,7 +54,7 @@ const eventsQO = queryOptions({
 export const Route = createFileRoute("/_authenticated/courses/$courseId")({
   head: () => ({
     meta: [
-      { title: "Class Details — Canvas Pro" },
+      { title: "Class Details — CanvasPro" },
       { name: "description", content: "Individual course overview, grades, assignments, and announcements." },
     ],
   }),

@@ -2,13 +2,9 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getCoursesFn, type CourseSummary } from "@/lib/canvas.functions";
 import { useCanvasKey } from "@/lib/user-settings";
-import {
-  useNicknames,
-  useSaveNicknames,
-  type ClassNickname,
-} from "@/lib/nicknames";
-import { nicknameLookupVersion } from "@/lib/course-display";
+import { useNicknames, useSaveNicknames, type ClassNickname } from "@/lib/nicknames";
 import { useUserPreferenceKey } from "@/hooks/use-user-preferences";
+import { nicknameLookupVersion } from "@/lib/course-display";
 
 const coursesQuery = {
   queryKey: ["canvas", "courses"] as const,
@@ -36,8 +32,7 @@ export function ClassNamesEditor({
   useEffect(() => {
     const next: Record<number, string> = {};
     courses.forEach((c) => {
-      next[c.id] =
-        nicknames.find((n) => n.canvas_course_id === c.id)?.custom_name ?? "";
+      next[c.id] = nicknames.find((n) => n.canvas_course_id === c.id)?.custom_name ?? "";
     });
     setValues(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -76,9 +71,7 @@ export function ClassNamesEditor({
             <input
               type="text"
               value={values[c.id] ?? ""}
-              onChange={(e) =>
-                setValues((v) => ({ ...v, [c.id]: e.target.value }))
-              }
+              onChange={(e) => setValues((v) => ({ ...v, [c.id]: e.target.value }))}
               placeholder="Your name for this class (optional)"
               className="glass-inset min-h-11 w-full rounded-xl bg-transparent px-3 text-base text-foreground outline-none placeholder:text-muted-foreground/60 focus:ring-1 focus:ring-foreground/20"
             />
@@ -91,7 +84,7 @@ export function ClassNamesEditor({
       <button
         type="submit"
         disabled={save.isPending}
-        className="glass-hover min-h-11 w-full rounded-xl bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-60 sm:w-auto sm:self-start"
+        className="glass-hover min-h-11 w-full rounded-xl bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-60 sm:w-auto sm:min-w-32 sm:self-start"
       >
         {save.isPending ? "Saving…" : ctaLabel}
       </button>
@@ -117,11 +110,7 @@ export function ClassNamesSection() {
     return <p className="text-sm text-muted-foreground">Loading your classes…</p>;
   }
   if (courses.isError) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        {(courses.error as Error).message}
-      </p>
-    );
+    return <p className="text-sm text-muted-foreground">{(courses.error as Error).message}</p>;
   }
   if ((courses.data ?? []).length === 0) {
     return <p className="text-sm text-muted-foreground">No active courses found.</p>;
@@ -153,9 +142,7 @@ export function ClassNamesGate({ children }: { children: ReactNode }) {
     const list = courses.data ?? [];
     const named = new Set((nicknames.data ?? []).map((n) => n.canvas_course_id));
     const acknowledged = new Set(seen.value ?? []);
-    return list.filter(
-      (c) => !named.has(c.id) && !acknowledged.has(String(c.id)),
-    );
+    return list.filter((c) => !named.has(c.id) && !acknowledged.has(String(c.id)));
   }, [courses.data, nicknames.data, seen.value]);
 
   const dismiss = () => {
@@ -165,24 +152,24 @@ export function ClassNamesGate({ children }: { children: ReactNode }) {
     setSkipped(true);
   };
 
-  const ready =
-    !key || (!nicknames.isLoading && !courses.isLoading && !seen.isLoading);
+  const ready = !key || (!nicknames.isLoading && !courses.isLoading && !seen.isLoading);
   const needsSetup =
     !!key && ready && !skipped && (courses.data ?? []).length > 0 && missing.length > 0;
 
-  if (needsSetup) {
-    return (
-      <div className="mx-auto w-full max-w-2xl">
-        <div className="glass-panel-strong p-5 md:p-7">
-          <h1 className="text-2xl font-semibold tracking-tight">Name your classes</h1>
+  return (
+    <div>
+      {needsSetup && (
+        <details className="glass-panel-strong mb-4 p-5 md:p-7">
+          <summary className="cursor-pointer text-sm font-medium">
+            Personalize your class names (optional)
+          </summary>
           <p className="mt-1 mb-5 text-sm text-muted-foreground">
-            Give each Canvas course a friendlier name. You can change these later in
-            Settings.
+            Give each Canvas course a friendlier name. You can change these later in Settings.
           </p>
           <ClassNamesEditor
             courses={courses.data ?? []}
             nicknames={nicknames.data ?? []}
-            ctaLabel="Save and continue"
+            ctaLabel="Save names"
             onSaved={dismiss}
           />
           <button
@@ -192,12 +179,9 @@ export function ClassNamesGate({ children }: { children: ReactNode }) {
           >
             Skip for now
           </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Remount the subtree when nicknames change so every display call site
-  // re-renders with the new names.
-  return <div key={nicknameLookupVersion()}>{children}</div>;
+        </details>
+      )}
+      <div key={nicknameLookupVersion()}>{children}</div>
+    </div>
+  );
 }

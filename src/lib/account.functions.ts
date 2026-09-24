@@ -2,8 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 /**
- * Permanently deletes the signed-in account: cancels any live subscription so
- * no further money is taken, removes every row this account owns, then deletes
+ * Permanently deletes the signed-in account: removes every row this account owns, then deletes
  * the auth user itself. Row deletion is explicit (not only FK cascade) so a
  * later account can never inherit anything, and it is awaited and checked.
  */
@@ -17,37 +16,10 @@ export const deleteMyAccount = createServerFn({ method: "POST" })
     }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { ENTITLEMENT_ENV } = await import("@/lib/payments-env.server");
-
-    // 1. Stop billing before removing the account. If Stripe is unavailable,
-    // fail the deletion safely; deleting identity/billing rows while a live
-    // subscription keeps charging would leave the customer no recovery path.
-    try {
-      const { data: subs, error: subscriptionError } = await supabaseAdmin
-        .from("subscriptions")
-        .select("stripe_subscription_id, status")
-        .eq("user_id", userId)
-        .eq("environment", ENTITLEMENT_ENV);
-      if (subscriptionError) throw subscriptionError;
-      const cancelable = (subs ?? []).filter((s) =>
-        ["active", "trialing", "past_due"].includes(String(s.status)),
-      );
-      if (cancelable.length > 0) {
-        const { createStripeClient } = await import("@/lib/stripe.server");
-        const stripe = createStripeClient(ENTITLEMENT_ENV);
-        for (const sub of cancelable) {
-          await stripe.subscriptions.cancel(String(sub.stripe_subscription_id));
-        }
-      }
-    } catch (error) {
-      console.error("Account deletion: subscription cleanup failed", error);
-      throw new Error(
-        "We could not cancel your subscription, so your account was not deleted. Please try again.",
-      );
-    }
 
     // 2. Remove owned rows everywhere.
     const tables = [
+      "account_profiles",
       "class_nicknames",
       "class_schedule_entries",
       "grade_snapshots",
@@ -63,6 +35,21 @@ export const deleteMyAccount = createServerFn({ method: "POST" })
     for (const table of tables) {
       const { error } = await supabaseAdmin.from(table).delete().eq("user_id", userId);
       if (error) throw new Error(`Could not delete ${table}: ${error.message}`);
+    }
+
+    const { data: avatarFiles, error: avatarListError } = await supabaseAdmin.storage
+      .from("profile-avatars")
+      .list(userId);
+    if (avatarListError && avatarListError.message !== "Bucket not found") {
+      throw new Error(`Could not inspect profile pictures: ${avatarListError.message}`);
+    }
+    if (avatarFiles?.length) {
+      const { error: avatarDeleteError } = await supabaseAdmin.storage
+        .from("profile-avatars")
+        .remove(avatarFiles.map((file) => `${userId}/${file.name}`));
+      if (avatarDeleteError) {
+        throw new Error(`Could not delete profile pictures: ${avatarDeleteError.message}`);
+      }
     }
 
     // 3. Delete the auth user last, so a failure above leaves a recoverable state.

@@ -8,12 +8,21 @@ import { useCanvasKey } from "@/lib/user-settings";
  * own Canvas API key, so no other account's data is ever rendered.
  */
 export function CanvasKeyGate({ children }: { children: ReactNode }) {
-  const { data: key, isLoading } = useCanvasKey();
+  const { data: key, isLoading, isError, refetch } = useCanvasKey();
   const { pathname } = useLocation();
 
-  if (pathname.startsWith("/settings")) return <>{children}</>;
-  if (isLoading) return null;
+  if (["/settings", "/study-session", "/notifications"].some((path) => pathname.startsWith(path))) return <>{children}</>;
+  if (isLoading) return (
+    <div role="status" className="glass-panel min-h-48 space-y-4 p-6">
+      <p className="text-sm text-muted-foreground">Loading your workspace…</p>
+      <div className="h-4 w-2/3 rounded bg-foreground/5 motion-safe:animate-pulse" />
+      <div className="h-24 rounded-xl bg-foreground/5 motion-safe:animate-pulse" />
+    </div>
+  );
   if (key) return <>{children}</>;
+  if (isError) return <div role="status" className="glass-panel p-6 text-sm">
+    Could not check your Canvas connection. <button type="button" onClick={() => void refetch()} className="underline">Try again</button>
+  </div>;
 
   return (
     <div className="mx-auto w-full max-w-xl">
