@@ -5,6 +5,7 @@ import { CanvasKeyBanner } from "@/components/canvas-key-banner";
 import { CanvasKeyGate } from "@/components/canvas-key-gate";
 import { ClassNamesGate } from "@/components/class-names-editor";
 import { NotificationCenter } from "@/components/notification-center";
+import { ProfileButton } from "@/components/profile-button";
 import { CanvasLiveStatus } from "@/components/canvas-live-status";
 import { useNotificationEngine } from "@/hooks/use-notification-engine";
 import { useDueTodayBadge } from "@/hooks/use-due-today-badge";
@@ -71,9 +72,10 @@ function AuthenticatedLayout() {
         <div className="mx-auto w-full min-w-0 max-w-6xl px-3 py-4 sm:px-4 md:p-6">
           <div className="mb-2 flex min-w-0 items-center justify-end gap-2">
             <CanvasLiveStatus />
-            {/* Bell already lives in the mobile top bar — avoid a duplicate on phones */}
-            <span className="hidden md:inline-flex">
+            {/* Bell and profile already live in the mobile top bar — avoid duplicates on phones */}
+            <span className="hidden items-center gap-2 md:inline-flex">
               <NotificationCenter />
+              <ProfileButton />
             </span>
           </div>
           <CanvasKeyBanner />
