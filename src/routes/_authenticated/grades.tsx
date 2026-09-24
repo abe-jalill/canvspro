@@ -219,20 +219,18 @@ function GradesPage() {
                       style={{ color }}
                     >
                       {trend?.dir === "up" && (
-                        <ArrowUp
-                          className="h-4 w-4"
-                          style={{ color }}
-                          aria-label="Grade up"
-                          title={`Previously ${trend.prev.toFixed(1)}%`}
-                        />
+                        <span title={`Previously ${trend.prev.toFixed(1)}%`} className="flex">
+                          <ArrowUp className="h-4 w-4" style={{ color }} aria-label="Grade up" />
+                        </span>
                       )}
                       {trend?.dir === "down" && (
-                        <ArrowDown
-                          className="h-4 w-4 opacity-70"
-                          style={{ color }}
-                          aria-label="Grade down"
-                          title={`Previously ${trend.prev.toFixed(1)}%`}
-                        />
+                        <span title={`Previously ${trend.prev.toFixed(1)}%`} className="flex">
+                          <ArrowDown
+                            className="h-4 w-4 opacity-70"
+                            style={{ color }}
+                            aria-label="Grade down"
+                          />
+                        </span>
                       )}
                       {trend == null && (
                         <Minus
