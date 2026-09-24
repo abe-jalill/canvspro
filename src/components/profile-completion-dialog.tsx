@@ -19,6 +19,9 @@ const EMPTY_PROFILE: UserProfile = {
   school: "",
   major: "",
   classOf: "",
+  username: "",
+  avatarPath: "",
+  avatarUrl: "",
 };
 
 const inputClass =

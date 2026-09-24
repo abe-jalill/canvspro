@@ -107,9 +107,9 @@ function PrivacyPage() {
         <Section title="3. Information we collect">
           <p>
             <strong className="text-foreground">Account and student profile.</strong> First name,
-            last name, nickname, email address, school, major or field of study, and graduation
-            year. Authentication uses salted, hashed passwords or third-party identity tokens
-            (Google or Apple).
+            last name, nickname, username, optional profile picture, email address, school, major or
+            field of study, and graduation year. Authentication uses salted, hashed passwords or
+            third-party identity tokens (Google or Apple).
           </p>
           <p>
             <strong className="text-foreground">Canvas API access token.</strong> Your personal
@@ -199,7 +199,8 @@ function PrivacyPage() {
           </p>
           <p>
             <strong className="text-foreground">Profile editing.</strong> You may update your name,
-            nickname, school, major, and class year at any time in Settings.
+            nickname, username, profile picture, school, major, and class year at any time in
+            Settings.
           </p>
         </Section>
 

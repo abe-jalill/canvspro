@@ -3,6 +3,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AuthShell, Field } from "@/components/auth-ui";
 import { SocialAuthButtons } from "@/components/social-auth-buttons";
+import { signInWithUsername } from "@/lib/username-auth.functions";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
@@ -27,7 +28,7 @@ export const Route = createFileRoute("/auth")({
 
 function LoginPage() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -42,13 +43,31 @@ function LoginPage() {
     e.preventDefault();
     setError(null);
     setBusy(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
+    const cleanIdentifier = identifier.trim();
+    let signInError: Error | null = null;
+    if (cleanIdentifier.includes("@")) {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: cleanIdentifier,
+        password,
+      });
+      signInError = error;
+    } else {
+      try {
+        const session = await signInWithUsername({
+          data: { username: cleanIdentifier, password },
+        });
+        const { error } = await supabase.auth.setSession({
+          access_token: session.accessToken,
+          refresh_token: session.refreshToken,
+        });
+        signInError = error;
+      } catch (usernameError) {
+        signInError = usernameError instanceof Error ? usernameError : new Error("Sign-in failed.");
+      }
+    }
     setBusy(false);
-    if (error) {
-      setError(error.message);
+    if (signInError) {
+      setError(signInError.message);
       return;
     }
     navigate({ to: "/dashboard", replace: true });
@@ -69,12 +88,12 @@ function LoginPage() {
     >
       <form onSubmit={onSubmit} className="flex w-full flex-col gap-4">
         <Field
-          label="Email"
-          type="email"
-          value={email}
-          onChange={setEmail}
-          autoComplete="email"
-          placeholder="you@school.edu"
+          label="Email or username"
+          type="text"
+          value={identifier}
+          onChange={setIdentifier}
+          autoComplete="username"
+          placeholder="you@school.edu or username"
         />
         <Field
           label="Password"

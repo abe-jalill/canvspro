@@ -19,6 +19,7 @@ export const deleteMyAccount = createServerFn({ method: "POST" })
 
     // 2. Remove owned rows everywhere.
     const tables = [
+      "account_profiles",
       "class_nicknames",
       "class_schedule_entries",
       "grade_snapshots",
@@ -36,8 +37,23 @@ export const deleteMyAccount = createServerFn({ method: "POST" })
       if (error) throw new Error(`Could not delete ${table}: ${error.message}`);
     }
 
+    const { data: avatarFiles, error: avatarListError } = await supabaseAdmin.storage
+      .from("profile-avatars")
+      .list(userId);
+    if (avatarListError && avatarListError.message !== "Bucket not found") {
+      throw new Error(`Could not inspect profile pictures: ${avatarListError.message}`);
+    }
+    if (avatarFiles?.length) {
+      const { error: avatarDeleteError } = await supabaseAdmin.storage
+        .from("profile-avatars")
+        .remove(avatarFiles.map((file) => `${userId}/${file.name}`));
+      if (avatarDeleteError) {
+        throw new Error(`Could not delete profile pictures: ${avatarDeleteError.message}`);
+      }
+    }
+
     // 3. Delete the auth user last, so a failure above leaves a recoverable state.
-    const { error: deleteError } = await (supabaseAdmin.auth as any).admin.deleteUser(userId);
+    const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
     if (deleteError) throw new Error(deleteError.message ?? "Could not delete the account");
 
     return { deleted: true };
