@@ -11,7 +11,7 @@ export function CanvasKeyGate({ children }: { children: ReactNode }) {
   const { data: key, isLoading, isError, refetch } = useCanvasKey();
   const { pathname } = useLocation();
 
-  if (["/settings", "/study-session", "/notifications"].some((path) => pathname.startsWith(path))) return <>{children}</>;
+  if (["/settings", "/study-session", "/notifications", "/admin"].some((path) => pathname.startsWith(path))) return <>{children}</>;
   if (isLoading) return (
     <div role="status" className="glass-panel min-h-48 space-y-4 p-6">
       <p className="text-sm text-muted-foreground">Loading your workspace…</p>

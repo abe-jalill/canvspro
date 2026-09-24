@@ -3,6 +3,7 @@ import { useQuery, useQueryClient, queryOptions } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
+  BarChart3,
   Bell,
   BellOff,
   CalendarClock,
@@ -31,6 +32,7 @@ import { getCoursesFn, type CourseSummary } from "@/lib/canvas.functions";
 import { displayCourseNameForCourse } from "@/lib/course-display";
 import { getGradeColor } from "@/lib/grade-color";
 import { useSidebarMode } from "@/lib/sidebar-state";
+import { useIsAdmin } from "@/hooks/use-is-admin";
 
 const items = [
   { title: "Dashboard", to: "/dashboard" as const, icon: LayoutDashboard },
@@ -44,6 +46,14 @@ const items = [
   { title: "Notifications", to: "/notifications" as const, icon: Bell },
   { title: "Settings", to: "/settings" as const, icon: Settings },
 ];
+
+const adminItem = { title: "Usage", to: "/admin" as const, icon: BarChart3 };
+
+/** Nav entries for this account — the usage screen only exists for the owner. */
+function useNavItems() {
+  const { isAdmin } = useIsAdmin();
+  return isAdmin ? [...items, adminItem] : items;
+}
 
 const coursesQO = queryOptions({
   queryKey: ["canvas", "courses"],
@@ -145,6 +155,7 @@ function SignOutButton({ compact = false }: { compact?: boolean }) {
 
 export function AppSidebar() {
   const pathname = useActivePath();
+  const navItems = useNavItems();
   const courses = useQuery(coursesQO);
   const [mode, setMode] = useSidebarMode();
 
@@ -195,7 +206,7 @@ export function AppSidebar() {
                 />
               </div>
               <nav className="flex w-full flex-col items-center gap-1">
-                {items.map((item) => {
+                {navItems.map((item) => {
                   const Icon = item.icon;
                   return (
                     <Link
@@ -278,7 +289,7 @@ export function AppSidebar() {
                 />
               </div>
               <nav className="flex flex-col gap-0.5">
-                {items.map((item) => (
+                {navItems.map((item) => (
                   <Link
                     key={item.to}
                     to={item.to}
@@ -372,6 +383,7 @@ export function AppSidebar() {
 
 export function MobileNav() {
   const pathname = useActivePath();
+  const navItems = useNavItems();
   const locationHref = useRouterState({ select: (s) => s.location.href });
   const courses = useQuery(coursesQO);
   const [open, setOpen] = useState(false);
@@ -387,7 +399,7 @@ export function MobileNav() {
     return () => document.removeEventListener("keydown", onKey);
   }, [open]);
 
-  const current = items.find((i) => isActive(pathname, i.to))?.title ?? "CanvasPro";
+  const current = navItems.find((i) => isActive(pathname, i.to))?.title ?? "CanvasPro";
 
   return (
     <div className="sticky top-0 z-40 md:hidden">
@@ -427,7 +439,7 @@ export function MobileNav() {
             : "pointer-events-none mt-0 max-h-0 -translate-y-2 overflow-hidden border-transparent p-0 opacity-0",
         )}
       >
-        {items.map((item) => (
+        {navItems.map((item) => (
           <Link
             key={item.to}
             to={item.to}

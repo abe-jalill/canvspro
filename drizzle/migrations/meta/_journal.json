@@ -29,6 +29,13 @@
       "when": 1789927006587,
       "tag": "0003_canvas_domain",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790282242740,
+      "tag": "0004_create_user_activity_daily",
+      "breakpoints": true
     }
   ]
 }
