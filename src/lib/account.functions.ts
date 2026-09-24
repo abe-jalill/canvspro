@@ -19,29 +19,31 @@ export const deleteMyAccount = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { ENTITLEMENT_ENV } = await import("@/lib/payments-env.server");
 
-    // 1. Stop billing. Failure here must not block deletion, but is logged.
+    // 1. Stop billing before removing the account. If Stripe is unavailable,
+    // fail the deletion safely; deleting identity/billing rows while a live
+    // subscription keeps charging would leave the customer no recovery path.
     try {
-      const { data: subs } = await supabaseAdmin
+      const { data: subs, error: subscriptionError } = await supabaseAdmin
         .from("subscriptions")
         .select("stripe_subscription_id, status")
         .eq("user_id", userId)
         .eq("environment", ENTITLEMENT_ENV);
-      const cancelable = (subs ?? []).filter((s: any) =>
+      if (subscriptionError) throw subscriptionError;
+      const cancelable = (subs ?? []).filter((s) =>
         ["active", "trialing", "past_due"].includes(String(s.status)),
       );
       if (cancelable.length > 0) {
         const { createStripeClient } = await import("@/lib/stripe.server");
         const stripe = createStripeClient(ENTITLEMENT_ENV);
         for (const sub of cancelable) {
-          try {
-            await stripe.subscriptions.cancel(String(sub.stripe_subscription_id));
-          } catch (error) {
-            console.error("Account deletion: cancel failed", sub.stripe_subscription_id, error);
-          }
+          await stripe.subscriptions.cancel(String(sub.stripe_subscription_id));
         }
       }
     } catch (error) {
       console.error("Account deletion: subscription cleanup failed", error);
+      throw new Error(
+        "We could not cancel your subscription, so your account was not deleted. Please try again.",
+      );
     }
 
     // 2. Remove owned rows everywhere.
@@ -64,7 +66,7 @@ export const deleteMyAccount = createServerFn({ method: "POST" })
     }
 
     // 3. Delete the auth user last, so a failure above leaves a recoverable state.
-    const { error: deleteError } = await (supabaseAdmin.auth as any).admin.deleteUser(userId);
+    const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
     if (deleteError) throw new Error(deleteError.message ?? "Could not delete the account");
 
     return { deleted: true };

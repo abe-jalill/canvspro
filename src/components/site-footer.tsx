@@ -29,7 +29,7 @@ export function SiteFooter() {
             Privacy Policy
           </Link>
           <Link to="/terms" className="transition-colors hover:text-foreground">
-             Terms of Service         I
+            Terms of Service
           </Link>
           <a
             href="https://forms.gle/7bttezmTW3ji3zFU9"

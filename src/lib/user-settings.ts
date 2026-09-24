@@ -13,8 +13,16 @@ export const canvasDomainQueryKey = ["user-settings", "canvas-domain"] as const;
 export function normalizeCanvasDomain(raw: string | null | undefined): string {
   let v = (raw ?? "").trim().toLowerCase();
   if (!v) return "";
-  v = v.replace(/^https?:\/\//, "").split("/")[0]!.split("?")[0]!.trim();
-  return /^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/.test(v) ? v : "";
+  v = v
+    .replace(/^https?:\/\//, "")
+    .split("/")[0]!
+    .split("?")[0]!
+    .trim();
+  if (!/^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/.test(v)) return "";
+  const labels = v.split(".");
+  if (labels.some((label) => !label || label.startsWith("-") || label.endsWith("-"))) return "";
+  const forbidden = new Set(["local", "localhost", "internal", "home", "lan"]);
+  return labels.some((label) => forbidden.has(label)) ? "" : v;
 }
 
 /**
@@ -143,7 +151,9 @@ export function useSaveCanvasKey() {
         });
         if (vError) throw new Error(friendlyValidateError(await invokeError(vError)));
         if (!vData || (vData as { ok?: boolean }).ok !== true) {
-          throw new Error("Canvas rejected that key at that URL — double-check both and try again.");
+          throw new Error(
+            "Canvas rejected that key at that URL — double-check both and try again.",
+          );
         }
       }
 

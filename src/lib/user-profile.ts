@@ -77,8 +77,6 @@ export function useSaveUserProfile() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (profile: UserProfile) => {
-      saveLocalProfile(profile);
-
       const fullName = `${profile.firstName.trim()} ${profile.lastName.trim()}`.trim();
       const { error } = await supabase.auth.updateUser({
         data: {
@@ -93,8 +91,9 @@ export function useSaveUserProfile() {
       });
 
       if (error) {
-        console.warn("Could not sync profile to auth metadata, saved locally:", error);
+        throw new Error(error.message);
       }
+      saveLocalProfile(profile);
       return profile;
     },
     onSuccess: (profile) => {

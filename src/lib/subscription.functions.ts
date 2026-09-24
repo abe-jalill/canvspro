@@ -23,23 +23,25 @@ export async function getSubscriptionAccess(): Promise<SubscriptionAccess> {
     throw new Error("Not signed in");
   }
 
-  const response = await fetch(
-    "https://canvaspro.app/api/mobile/subscription",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+  const isWebOrigin =
+    typeof window !== "undefined" &&
+    (window.location.protocol === "https:" || window.location.protocol === "http:");
+  const endpoint = isWebOrigin
+    ? `${window.location.origin}/api/mobile/subscription`
+    : "https://canvaspro.app/api/mobile/subscription";
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
     },
-  );
+  });
 
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new Error(
-      data?.error ?? `Subscription check failed (${response.status})`,
-    );
+    throw new Error(data?.error ?? `Subscription check failed (${response.status})`);
   }
 
   return data ?? null;

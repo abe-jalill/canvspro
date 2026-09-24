@@ -1,13 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 import { type StripeEnv, verifyWebhook } from "@/lib/stripe.server";
+import { isAllowedProPriceKey } from "@/lib/payment-plans";
 
 let _supabase: ReturnType<typeof createClient> | null = null;
 function getSupabase() {
   if (!_supabase) {
     _supabase = createClient(
-      process.env['SUPABASE_URL']!,
-      process.env['SUPABASE_SERVICE_ROLE_KEY']!,
+      process.env["SUPABASE_URL"]!,
+      process.env["SUPABASE_SERVICE_ROLE_KEY"]!,
     );
   }
   return _supabase;
@@ -27,11 +28,11 @@ function notStale(eventAt: string) {
 }
 
 function priceIdOf(item: any): string {
-  return (
-    item?.price?.lookup_key ||
-    item?.price?.metadata?.lovable_external_id ||
-    item?.price?.id
-  );
+  return item?.price?.lookup_key || item?.price?.metadata?.lovable_external_id || item?.price?.id;
+}
+
+function entitlementStatus(subscription: any, item: any): string {
+  return isAllowedProPriceKey(priceIdOf(item)) ? String(subscription.status) : "ineligible";
 }
 
 function isoOrNull(seconds: number | null | undefined) {
@@ -40,18 +41,16 @@ function isoOrNull(seconds: number | null | undefined) {
 
 /** Some Stripe flows don't copy checkout metadata onto the subscription;
  *  fall back to the customer id we already recorded for this account. */
-async function userIdForCustomer(
-  customerId: string,
-  env: StripeEnv,
-): Promise<string | null> {
+async function userIdForCustomer(customerId: string, env: StripeEnv): Promise<string | null> {
   if (!customerId) return null;
-  const { data } = await subscriptionsTable()
+  const { data, error } = await subscriptionsTable()
     .select("user_id")
     .eq("stripe_customer_id", customerId)
     .eq("environment", env)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
+  if (error) throw error;
   return (data?.user_id as string | undefined) ?? null;
 }
 
@@ -59,15 +58,12 @@ async function handleSubscriptionCreated(
   subscription: any,
   env: StripeEnv,
   eventAt: string,
+  sendReceiptEmail = true,
 ) {
   const userId =
-    subscription.metadata?.userId ??
-    (await userIdForCustomer(subscription.customer, env));
+    subscription.metadata?.userId ?? (await userIdForCustomer(subscription.customer, env));
   if (!userId) {
-    console.error(
-      "No userId in subscription metadata and no matching customer:",
-      subscription.id,
-    );
+    console.error("No userId in subscription metadata and no matching customer:", subscription.id);
     return;
   }
   const item = subscription.items?.data?.[0];
@@ -84,33 +80,31 @@ async function handleSubscriptionCreated(
     return;
   }
 
-  await subscriptionsTable()
-    .upsert(
-      {
-        user_id: userId,
-        stripe_subscription_id: subscription.id,
-        stripe_customer_id: subscription.customer,
-        product_id: item?.price?.product,
-        price_id: priceIdOf(item),
-        status: subscription.status,
-        current_period_start: isoOrNull(periodStart),
-        current_period_end: isoOrNull(periodEnd),
-        cancel_at_period_end: subscription.cancel_at_period_end || false,
-        environment: env,
-        stripe_event_at: eventAt,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "stripe_subscription_id" },
-    );
+  const { error } = await subscriptionsTable().upsert(
+    {
+      user_id: userId,
+      stripe_subscription_id: subscription.id,
+      stripe_customer_id: subscription.customer,
+      product_id: item?.price?.product,
+      price_id: priceIdOf(item),
+      status: entitlementStatus(subscription, item),
+      current_period_start: isoOrNull(periodStart),
+      current_period_end: isoOrNull(periodEnd),
+      cancel_at_period_end: subscription.cancel_at_period_end || false,
+      environment: env,
+      stripe_event_at: eventAt,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "stripe_subscription_id" },
+  );
+  if (error) throw error;
 
-  await sendReceipt(userId, item, periodEnd);
+  if (sendReceiptEmail && isAllowedProPriceKey(priceIdOf(item))) {
+    await sendReceipt(userId, item, periodEnd);
+  }
 }
 
-async function sendReceipt(
-  userId: string,
-  item: any,
-  periodEnd: number | null | undefined,
-) {
+async function sendReceipt(userId: string, item: any, periodEnd: number | null | undefined) {
   try {
     const { data } = await (getSupabase().auth as any).admin.getUserById(userId);
     const email = data?.user?.email as string | undefined;
@@ -139,18 +133,14 @@ async function sendReceipt(
   }
 }
 
-async function handleSubscriptionUpdated(
-  subscription: any,
-  env: StripeEnv,
-  eventAt: string,
-) {
+async function handleSubscriptionUpdated(subscription: any, env: StripeEnv, eventAt: string) {
   const item = subscription.items?.data?.[0];
   const periodStart = item?.current_period_start ?? subscription.current_period_start;
   const periodEnd = item?.current_period_end ?? subscription.current_period_end;
 
-  await subscriptionsTable()
+  const { data, error } = await subscriptionsTable()
     .update({
-      status: subscription.status,
+      status: entitlementStatus(subscription, item),
       product_id: item?.price?.product,
       price_id: priceIdOf(item),
       current_period_start: isoOrNull(periodStart),
@@ -161,15 +151,18 @@ async function handleSubscriptionUpdated(
     })
     .eq("stripe_subscription_id", subscription.id)
     .eq("environment", env)
-    .or(notStale(eventAt));
+    .or(notStale(eventAt))
+    .select("id");
+  if (error) throw error;
+  // Stripe can deliver updated before created. Build the row from the signed
+  // event instead of silently dropping the user's paid entitlement.
+  if (!data?.length) {
+    await handleSubscriptionCreated(subscription, env, eventAt, false);
+  }
 }
 
-async function handleSubscriptionDeleted(
-  subscription: any,
-  env: StripeEnv,
-  eventAt: string,
-) {
-  await subscriptionsTable()
+async function handleSubscriptionDeleted(subscription: any, env: StripeEnv, eventAt: string) {
+  const { error } = await subscriptionsTable()
     .update({
       status: "canceled",
       stripe_event_at: eventAt,
@@ -178,6 +171,7 @@ async function handleSubscriptionDeleted(
     .eq("stripe_subscription_id", subscription.id)
     .eq("environment", env)
     .or(notStale(eventAt));
+  if (error) throw error;
 }
 
 /** A full refund revokes Pro immediately — access must not linger until the

@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { isAllowedProPriceKey } from "@/lib/payment-plans";
 import type Stripe from "stripe";
 
 type CheckoutSessionResult = { clientSecret: string } | { error: string };
@@ -7,18 +8,16 @@ type PortalSessionResult = { url: string } | { error: string };
 
 export const createCheckoutSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
-    (data: { priceId: string; returnUrl: string }) => {
-      if (!/^[a-zA-Z0-9_-]+$/.test(data.priceId)) throw new Error("Invalid priceId");
-      return data;
-    },
-  )
+  .validator((data: { priceId: string; returnUrl: string }) => {
+    if (!isAllowedProPriceKey(data.priceId)) {
+      throw new Error("Invalid priceId");
+    }
+    return data;
+  })
   // Checkout keeps the {CHECKOUT_SESSION_ID} placeholder, so the URL is
   // validated inside the handler where the helper can be imported server-side.
   .handler(async ({ data, context }): Promise<CheckoutSessionResult> => {
-    const { createStripeClient, getStripeErrorMessage } = await import(
-      "@/lib/stripe.server"
-    );
+    const { createStripeClient, getStripeErrorMessage } = await import("@/lib/stripe.server");
     const { resolveOrCreateCustomer } = await import("@/lib/stripe-customers.server");
     const { assertSafeReturnUrl } = await import("@/lib/return-url.server");
     const { resolveStripeEnv } = await import("@/lib/payments-env.server");
@@ -35,7 +34,9 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
       const prices = await stripe.prices.list({ lookup_keys: [data.priceId] });
       if (!prices.data.length) throw new Error("Price not found");
       const stripePrice = prices.data[0];
-      const isRecurring = stripePrice.type === "recurring";
+      if (!stripePrice.active || stripePrice.type !== "recurring") {
+        throw new Error("Price is not an active subscription plan");
+      }
 
       const customerId = await resolveOrCreateCustomer(stripe, {
         email: user?.email ?? undefined,
@@ -44,35 +45,30 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
 
       const session = await stripe.checkout.sessions.create({
         line_items: [{ price: stripePrice.id, quantity: 1 }],
-        mode: isRecurring ? "subscription" : "payment",
+        mode: "subscription",
         ui_mode: "embedded_page",
         return_url: returnUrl,
         customer: customerId,
         managed_payments: { enabled: true },
         metadata: { userId, managed_payments: "true" },
-        ...(isRecurring && {
-          subscription_data: { metadata: { userId }, trial_period_days: 10 },
-        }),
+        subscription_data: { metadata: { userId }, trial_period_days: 10 },
       } as Stripe.Checkout.SessionCreateParams);
 
       return { clientSecret: session.client_secret ?? "" };
     } catch (error) {
-      return { error: getStripeErrorMessage(error) };
+      console.error("Checkout session creation failed:", getStripeErrorMessage(error));
+      return { error: "Unable to start checkout. Please try again." };
     }
   });
 
 export const createPortalSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { returnUrl?: string }) => data)
+  .validator((data: { returnUrl?: string }) => data)
   .handler(async ({ data, context }): Promise<PortalSessionResult> => {
     try {
-      const { createStripeClient, getStripeErrorMessage } = await import(
-        "@/lib/stripe.server"
-      );
+      const { createStripeClient, getStripeErrorMessage } = await import("@/lib/stripe.server");
       const { assertSafeReturnUrl } = await import("@/lib/return-url.server");
-      const { resolveStripeEnv, ENTITLEMENT_ENV } = await import(
-        "@/lib/payments-env.server"
-      );
+      const { ENTITLEMENT_ENV } = await import("@/lib/payments-env.server");
       const returnUrl = data.returnUrl ? assertSafeReturnUrl(data.returnUrl) : undefined;
       const { supabase, userId } = context;
 
@@ -94,7 +90,9 @@ export const createPortalSession = createServerFn({ method: "POST" })
         return { error: "No paid subscription found for this account" };
       }
 
-      const stripe = createStripeClient(resolveStripeEnv());
+      // The selected row is always a live entitlement, so the portal must use
+      // the same Stripe account even if a deployment's public key is wrong.
+      const stripe = createStripeClient(ENTITLEMENT_ENV);
       const stripeSubscription = await stripe.subscriptions.retrieve(
         sub.stripe_subscription_id as string,
       );
@@ -108,10 +106,7 @@ export const createPortalSession = createServerFn({ method: "POST" })
           ? null
           : stripeCustomer.metadata?.userId;
       const ownerUserId = stripeSubscription.metadata?.userId ?? customerUserId;
-      if (
-        ownerUserId !== userId ||
-        stripeCustomerId !== sub.stripe_customer_id
-      ) {
+      if (ownerUserId !== userId || stripeCustomerId !== sub.stripe_customer_id) {
         return { error: "This subscription does not belong to the signed-in account" };
       }
 
@@ -122,6 +117,7 @@ export const createPortalSession = createServerFn({ method: "POST" })
       return { url: portal.url };
     } catch (error) {
       const { getStripeErrorMessage } = await import("@/lib/stripe.server");
-      return { error: getStripeErrorMessage(error) };
+      console.error("Billing portal creation failed:", getStripeErrorMessage(error));
+      return { error: "Unable to open the billing portal. Please try again." };
     }
   });
