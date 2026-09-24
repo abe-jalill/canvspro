@@ -11,6 +11,7 @@ import { useNotificationEngine } from "@/hooks/use-notification-engine";
 import { useDueTodayBadge } from "@/hooks/use-due-today-badge";
 import { useAppPrefetch } from "@/hooks/use-app-prefetch";
 import { useWelcomeEmail } from "@/hooks/use-welcome-email";
+import { useActivityHeartbeat } from "@/hooks/use-activity-heartbeat";
 import { purgeScopedStorage } from "@/lib/user-scope";
 import { syncAuthIdentity } from "@/lib/auth-user";
 import { PullToRefresh } from "@/components/pull-to-refresh";
@@ -51,6 +52,7 @@ function AuthenticatedLayout() {
   useQueryCachePersistence();
   const startup = useAppPrefetch(true);
   useWelcomeEmail(true);
+  useActivityHeartbeat(true);
 
   return (
     <div className="min-h-svh w-full overflow-x-clip md:h-svh md:overflow-hidden">
