@@ -14,30 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      account_profiles: {
-        Row: {
-          avatar_path: string | null
-          created_at: string
-          updated_at: string
-          user_id: string
-          username: string | null
-        }
-        Insert: {
-          avatar_path?: string | null
-          created_at?: string
-          updated_at?: string
-          user_id: string
-          username?: string | null
-        }
-        Update: {
-          avatar_path?: string | null
-          created_at?: string
-          updated_at?: string
-          user_id?: string
-          username?: string | null
-        }
-        Relationships: []
-      }
       class_nicknames: {
         Row: {
           canvas_course_id: number
@@ -471,9 +447,6 @@ export type Database = {
         Returns: boolean
       }
       has_canvas_key: { Args: never; Returns: boolean }
-      set_avatar_path: { Args: { requested_path: string | null }; Returns: string | null }
-      set_username: { Args: { requested_username: string }; Returns: string | null }
-      username_available: { Args: { requested_username: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
