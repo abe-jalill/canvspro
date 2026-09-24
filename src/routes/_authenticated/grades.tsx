@@ -87,7 +87,7 @@ function GradesPage() {
   // to the newest stored snapshot that differs from it, so the arrow persists
   // after the current score is itself recorded as the latest snapshot.
   const trends = useMemo(() => {
-    const map = new Map<number, "up" | "down" | null>();
+    const map = new Map<number, { dir: "up" | "down"; prev: number } | null>();
     const snaps = snapshots.data ?? []; // newest first
     (courses.data ?? []).forEach((c) => {
       const cur = c.current_score;
@@ -99,7 +99,7 @@ function GradesPage() {
         (s) => s.courseId === c.id && Math.abs(s.score - cur) > 0.05,
       )?.score;
       if (prev == null) map.set(c.id, null);
-      else map.set(c.id, cur > prev ? "up" : "down");
+      else map.set(c.id, { dir: cur > prev ? "up" : "down", prev });
     });
     return map;
   }, [courses.data, snapshots.data]);
@@ -218,15 +218,19 @@ function GradesPage() {
                       className="flex items-center gap-1.5 text-base font-normal tabular-nums"
                       style={{ color }}
                     >
-                      {trend === "up" && (
-                        <ArrowUp className="h-4 w-4" style={{ color }} aria-label="Grade up" />
+                      {trend?.dir === "up" && (
+                        <span title={`Previously ${trend.prev.toFixed(1)}%`} className="flex">
+                          <ArrowUp className="h-4 w-4" style={{ color }} aria-label="Grade up" />
+                        </span>
                       )}
-                      {trend === "down" && (
-                        <ArrowDown
-                          className="h-4 w-4 opacity-70"
-                          style={{ color }}
-                          aria-label="Grade down"
-                        />
+                      {trend?.dir === "down" && (
+                        <span title={`Previously ${trend.prev.toFixed(1)}%`} className="flex">
+                          <ArrowDown
+                            className="h-4 w-4 opacity-70"
+                            style={{ color }}
+                            aria-label="Grade down"
+                          />
+                        </span>
                       )}
                       {trend == null && (
                         <Minus

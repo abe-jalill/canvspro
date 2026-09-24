@@ -209,7 +209,9 @@ export async function removeProfileAvatar(path: string): Promise<void> {
     const { error } = await supabase.storage.from("profile-avatars").remove([path]);
     if (error) throw error;
   }
-  const { error: pathError } = await supabase.rpc("set_avatar_path", { requested_path: null });
+  const { error: pathError } = await supabase.rpc("set_avatar_path", {
+    requested_path: null as unknown as string,
+  });
   if (pathError) throw pathError;
   const { error: metadataError } = await supabase.auth.updateUser({ data: { avatar_path: null } });
   if (metadataError) throw metadataError;
