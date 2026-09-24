@@ -25,6 +25,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { purgeScopedStorage, useUserScope } from "@/lib/user-scope";
 import { syncAuthIdentity } from "@/lib/auth-user";
 import { NotificationCenter } from "@/components/notification-center";
+import { ProfileButton } from "@/components/profile-button";
 import { TrafficLights } from "@/components/traffic-lights";
 import { getCoursesFn, type CourseSummary } from "@/lib/canvas.functions";
 import { displayCourseNameForCourse } from "@/lib/course-display";
@@ -402,6 +403,7 @@ export function MobileNav() {
         </p>
         <div className="flex items-center gap-2">
           <NotificationCenter />
+          <ProfileButton />
           <ThemeToggle compact />
         </div>
       </div>
