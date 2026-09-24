@@ -87,7 +87,7 @@ function GradesPage() {
   // to the newest stored snapshot that differs from it, so the arrow persists
   // after the current score is itself recorded as the latest snapshot.
   const trends = useMemo(() => {
-    const map = new Map<number, "up" | "down" | null>();
+    const map = new Map<number, { dir: "up" | "down"; prev: number } | null>();
     const snaps = snapshots.data ?? []; // newest first
     (courses.data ?? []).forEach((c) => {
       const cur = c.current_score;
@@ -99,7 +99,7 @@ function GradesPage() {
         (s) => s.courseId === c.id && Math.abs(s.score - cur) > 0.05,
       )?.score;
       if (prev == null) map.set(c.id, null);
-      else map.set(c.id, cur > prev ? "up" : "down");
+      else map.set(c.id, { dir: cur > prev ? "up" : "down", prev });
     });
     return map;
   }, [courses.data, snapshots.data]);
