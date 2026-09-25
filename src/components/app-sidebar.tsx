@@ -54,7 +54,7 @@ const adminItem = { title: "Usage", to: "/admin" as const, icon: BarChart3 };
 /** Nav entries for this account — the usage screen only exists for the owner. */
 function useNavItems() {
   const { isAdmin } = useIsAdmin();
-  return isAdmin ? items : items; //BISECT
+  return isAdmin ? [...items, adminItem] : items;
 }
 
 const coursesQO = queryOptions({
