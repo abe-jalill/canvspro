@@ -31,6 +31,18 @@ function dueTime(assignment: AssignmentItem): number | null {
   return Number.isFinite(due) ? due : null;
 }
 
+export function filterAssignmentsForUpcomingWindow(
+  assignments: AssignmentItem[],
+  now: number,
+  days: 7 | 14,
+): AssignmentItem[] {
+  const end = now + days * DAY;
+  return assignments.filter((assignment) => {
+    const due = dueTime(assignment);
+    return due != null && due >= now && due <= end;
+  });
+}
+
 export function assignmentIsComplete(
   assignment: AssignmentItem,
   completed: (id: string | number) => boolean,

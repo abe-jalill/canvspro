@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   buildTodayPlan,
+  filterAssignmentsForUpcomingWindow,
   rankGetItDoneAssignments,
 } from "../src/lib/get-it-done.ts";
 
@@ -60,4 +61,23 @@ test("today plan respects manual order and keeps workload realistic", () => {
 
   assert.deepEqual(plan.map((item) => item.assignment.id), [3, 1, 2]);
   assert.equal(plan.reduce((sum, item) => sum + item.plannedMinutes, 0), 135);
+});
+
+test("upcoming window defaults to one week and can expand to two weeks", () => {
+  const assignments = [
+    assignment(1, hours(-1), "Overdue"),
+    assignment(2, hours(24), "Tomorrow"),
+    assignment(3, hours(24 * 8), "Next week plus one"),
+    assignment(4, hours(24 * 15), "Too far"),
+    assignment(5, null, "No date"),
+  ];
+
+  assert.deepEqual(
+    filterAssignmentsForUpcomingWindow(assignments, now, 7).map((item) => item.id),
+    [2],
+  );
+  assert.deepEqual(
+    filterAssignmentsForUpcomingWindow(assignments, now, 14).map((item) => item.id),
+    [2, 3],
+  );
 });

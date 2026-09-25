@@ -21,6 +21,7 @@ import {
 import { CANVAS_DATA_GC_MS, CANVAS_DATA_STALE_MS } from "@/lib/query-policy";
 import { GlassCard, Skeleton, ErrorState, EmptyState } from "@/components/glass-card";
 import { CompleteToggle } from "@/components/complete-toggle";
+import { Segmented } from "@/components/segmented";
 import { cn } from "@/lib/utils";
 import { displayCourseName } from "@/lib/course-display";
 import { useLocalSet, COMPLETED_ASSIGNMENTS_KEY } from "@/lib/local-state";
@@ -33,6 +34,7 @@ import {
   buildTodayPlan,
   rankGetItDoneAssignments,
   defaultEstimateMinutes,
+  filterAssignmentsForUpcomingWindow,
   type PlanItem,
   type RankedAssignment,
 } from "@/lib/get-it-done";
@@ -43,6 +45,7 @@ import {
 import { useScopedKey } from "@/lib/user-scope";
 
 const GET_IT_DONE_PREFS_KEY = "canvas:get-it-done";
+type AssignmentWindow = "7" | "14";
 
 const assignmentsQO = queryOptions({
   queryKey: ["canvas", "assignments"],
@@ -61,10 +64,20 @@ const coursesQO = queryOptions({
 interface GetItDonePrefs {
   skipped: string[];
   planOrder: string[];
+  windowDays: AssignmentWindow;
   version: number;
 }
 
-const EMPTY_PREFS: GetItDonePrefs = { skipped: [], planOrder: [], version: 1 };
+const EMPTY_PREFS: GetItDonePrefs = { skipped: [], planOrder: [], windowDays: "7", version: 1 };
+
+function normalizePrefs(value: Partial<GetItDonePrefs>): GetItDonePrefs {
+  return {
+    skipped: Array.isArray(value.skipped) ? value.skipped : EMPTY_PREFS.skipped,
+    planOrder: Array.isArray(value.planOrder) ? value.planOrder : EMPTY_PREFS.planOrder,
+    windowDays: value.windowDays === "14" ? "14" : "7",
+    version: typeof value.version === "number" ? value.version : EMPTY_PREFS.version,
+  };
+}
 
 export const Route = createFileRoute("/_authenticated/get-it-done")({
   head: () => ({
@@ -96,7 +109,7 @@ function useStoredPrefs() {
     if (typeof window === "undefined") return;
     try {
       const raw = window.localStorage.getItem(key);
-      setPrefs(raw ? { ...EMPTY_PREFS, ...(JSON.parse(raw) as Partial<GetItDonePrefs>) } : EMPTY_PREFS);
+      setPrefs(raw ? normalizePrefs(JSON.parse(raw) as Partial<GetItDonePrefs>) : EMPTY_PREFS);
     } catch {
       setPrefs(EMPTY_PREFS);
     }
@@ -154,6 +167,10 @@ function formatMinutes(minutes: number | null) {
   return rest ? `${hours}h ${rest}m` : `${hours}h`;
 }
 
+function numericWindowDays(windowDays: AssignmentWindow): 7 | 14 {
+  return windowDays === "14" ? 14 : 7;
+}
+
 function GetItDonePage() {
   const assignments = useQuery(assignmentsQO);
   const courses = useQuery(coursesQO);
@@ -163,6 +180,8 @@ function GetItDonePage() {
   const setEstimate = useSetAssignmentEstimate();
   const [prefs, setPrefs] = useStoredPrefs();
   const [choiceOffset, setChoiceOffset] = useState(0);
+  const now = useMemo(() => Date.now(), [prefs.windowDays, prefs.version]);
+  const windowDays = numericWindowDays(prefs.windowDays);
 
   const courseById = useMemo(
     () =>
@@ -182,6 +201,11 @@ function GetItDonePage() {
     ]);
   }, [assignments.data, custom.list, courseById]);
 
+  const visibleAssignments = useMemo(
+    () => filterAssignmentsForUpcomingWindow(allAssignments, now, windowDays),
+    [allAssignments, now, windowDays],
+  );
+
   const estimates = useMemo(() => {
     const map = new Map<number, number | null>();
     for (const [id, meta] of metaMap.entries()) map.set(id, meta.estimatedMinutes);
@@ -192,12 +216,12 @@ function GetItDonePage() {
   const ranked = useMemo(
     () =>
       rankGetItDoneAssignments({
-        assignments: allAssignments,
+        assignments: visibleAssignments,
         completed: completed.has,
         estimates,
         skipped,
       }),
-    [allAssignments, completed.has, estimates, skipped],
+    [visibleAssignments, completed.has, estimates, skipped],
   );
 
   const recommendation = ranked[choiceOffset] ?? ranked[0] ?? null;
@@ -205,13 +229,13 @@ function GetItDonePage() {
   const plan = useMemo(
     () =>
       buildTodayPlan({
-        assignments: allAssignments,
+        assignments: visibleAssignments,
         completed: completed.has,
         estimates,
         skipped,
         manualOrder: prefs.planOrder,
       }),
-    [allAssignments, completed.has, estimates, skipped, prefs.planOrder],
+    [visibleAssignments, completed.has, estimates, skipped, prefs.planOrder],
   );
 
   const totalMinutes = plan.reduce((sum, item) => sum + item.plannedMinutes, 0);
@@ -241,7 +265,29 @@ function GetItDonePage() {
 
   function regeneratePlan() {
     setChoiceOffset(0);
-    setPrefs({ ...EMPTY_PREFS, version: Date.now() });
+    setPrefs((current) => ({
+      ...EMPTY_PREFS,
+      windowDays: current.windowDays,
+      version: Date.now(),
+    }));
+  }
+
+  function setWindowDays(nextWindowDays: AssignmentWindow) {
+    setChoiceOffset(0);
+    const nextVisible = filterAssignmentsForUpcomingWindow(
+      allAssignments,
+      Date.now(),
+      numericWindowDays(nextWindowDays),
+    );
+    setPrefs((current) => ({
+      ...current,
+      windowDays: nextWindowDays,
+      planOrder: [],
+      skipped: current.skipped.filter((id) =>
+        nextVisible.some((assignment) => String(assignment.id) === id),
+      ),
+      version: Date.now(),
+    }));
   }
 
   function movePlanItem(id: number, direction: -1 | 1) {
@@ -258,7 +304,7 @@ function GetItDonePage() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <Header />
+        <Header windowDays={prefs.windowDays} onWindowDaysChange={setWindowDays} />
         <GlassCard strong>
           <div className="space-y-4">
             <Skeleton className="h-5 w-40" />
@@ -281,7 +327,7 @@ function GetItDonePage() {
   if (error) {
     return (
       <div className="space-y-6">
-        <Header />
+        <Header windowDays={prefs.windowDays} onWindowDaysChange={setWindowDays} />
         <GlassCard>
           <ErrorState message={error.message} />
         </GlassCard>
@@ -291,7 +337,7 @@ function GetItDonePage() {
 
   return (
     <div className="space-y-6 pb-10">
-      <Header />
+      <Header windowDays={prefs.windowDays} onWindowDaysChange={setWindowDays} />
 
       {recommendation ? (
         <RecommendationCard
@@ -306,7 +352,7 @@ function GetItDonePage() {
         <GlassCard strong title="What Should I Do Now?">
           <EmptyState
             title="Nothing needs your attention right now."
-            message="CanvasPro will recommend a task here when an unfinished Canvas assignment is available."
+            message={`CanvasPro will recommend a task here when an unfinished Canvas assignment is due in the next ${prefs.windowDays === "7" ? "week" : "two weeks"}.`}
             icon={<CheckCircle2 className="h-5 w-5" />}
           />
         </GlassCard>
@@ -330,13 +376,29 @@ function GetItDonePage() {
   );
 }
 
-function Header() {
+function Header({
+  windowDays,
+  onWindowDaysChange,
+}: {
+  windowDays: AssignmentWindow;
+  onWindowDaysChange: (days: AssignmentWindow) => void;
+}) {
   return (
-    <header className="px-1 pt-2">
-      <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-        Get It Done
-      </p>
-      <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">Get It Done</h1>
+    <header className="flex flex-wrap items-end justify-between gap-4 px-1 pt-2">
+      <div>
+        <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+          Get It Done
+        </p>
+        <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">Get It Done</h1>
+      </div>
+      <Segmented<AssignmentWindow>
+        value={windowDays}
+        onChange={onWindowDaysChange}
+        options={[
+          { id: "7", label: "1 week" },
+          { id: "14", label: "2 weeks" },
+        ]}
+      />
     </header>
   );
 }
