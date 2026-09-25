@@ -175,7 +175,7 @@ function RootComponent() {
       // Namespaces browser storage per account and drops the whole query
       // cache whenever the identity changes — no data can carry over.
       syncAuthIdentity(queryClient, nextId);
-      if (identityChanged) void router.invalidate();
+      if (identityChanged) { console.log("RTR invalidate identity"); void router.invalidate(); }
       if (event === "USER_UPDATED")
         void queryClient.invalidateQueries({ queryKey: ["user-profile"] });
     });
