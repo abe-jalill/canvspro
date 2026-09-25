@@ -22,9 +22,9 @@ function corsHeaders(req: Request): Record<string, string> {
   return {
     "Access-Control-Allow-Origin": allow,
     Vary: "Origin",
-    "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Cache-Control": "private, no-store",
   };
 }
 
@@ -36,8 +36,16 @@ const API_VERSION = "/api/v1";
 function normalizeDomain(raw: string | null | undefined): string {
   let v = (raw ?? "").trim().toLowerCase();
   if (!v) return "";
-  v = v.replace(/^https?:\/\//, "").split("/")[0]!.split("?")[0]!.trim();
-  return /^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/.test(v) ? v : "";
+  v = v
+    .replace(/^https?:\/\//, "")
+    .split("/")[0]!
+    .split("?")[0]!
+    .trim();
+  if (!/^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/.test(v)) return "";
+  const labels = v.split(".");
+  if (labels.some((label) => !label || label.startsWith("-") || label.endsWith("-"))) return "";
+  const forbidden = new Set(["local", "localhost", "internal", "home", "lan"]);
+  return labels.some((label) => forbidden.has(label)) ? "" : v;
 }
 
 interface CanvasCourse {
@@ -97,6 +105,8 @@ interface CanvasCalendarEvent {
 interface Creds {
   domain: string;
   token: string;
+  /** Non-secret cache namespace derived from the complete token. */
+  cacheScope: string;
   /** Course ids this account chose to hide. Per-user, never hardcoded. */
   excluded: Set<number>;
 }
@@ -107,7 +117,12 @@ const cache = new Map<string, { at: number; value: unknown }>();
 const inflight = new Map<string, Promise<unknown>>();
 
 function cacheKey(creds: Creds, path: string) {
-  return `${creds.domain}|${creds.token.slice(-10)}|${path}`;
+  return `${creds.domain}|${creds.cacheScope}|${path}`;
+}
+
+async function tokenFingerprint(token: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 /** Expired entries are evicted, plus a hard ceiling, so the cache can't grow
@@ -151,6 +166,7 @@ async function canvasFetchRaw<T>(creds: Creds, path: string): Promise<T> {
       Authorization: `Bearer ${creds.token}`,
       Accept: "application/json",
     },
+    signal: AbortSignal.timeout(15_000),
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
@@ -163,18 +179,36 @@ async function canvasFetchRaw<T>(creds: Creds, path: string): Promise<T> {
 // so RLS guarantees a user can only ever use their own key.
 async function credsForRequest(req: Request, includeHidden = false): Promise<Creds> {
   const authHeader = req.headers.get("Authorization") ?? "";
-  if (!authHeader) throw new Error("NOT_AUTHENTICATED");
+  if (!authHeader.startsWith("Bearer ")) throw new Error("NOT_AUTHENTICATED");
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const apiKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
+  const publicKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!serviceKey) throw new Error("SERVER_CONFIGURATION_ERROR");
+
+  // Resolve the user from the signed token first, then perform the credential
+  // read with the service role and an explicit user filter. Browser clients no
+  // longer need SELECT permission on the secret canvas_api_key column.
+  const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: { apikey: publicKey, Authorization: authHeader },
+  });
+  if (!userRes.ok) throw new Error("NOT_AUTHENTICATED");
+  const user = (await userRes.json()) as { id?: string };
+  if (!user.id) throw new Error("NOT_AUTHENTICATED");
+
+  const adminHeaders: Record<string, string> = { apikey: serviceKey };
+  if (!serviceKey.startsWith("sb_secret_")) {
+    adminHeaders.Authorization = `Bearer ${serviceKey}`;
+  }
 
   const res = await fetch(
-    `${supabaseUrl}/rest/v1/user_settings?select=canvas_api_key,canvas_domain&limit=1`,
+    `${supabaseUrl}/rest/v1/user_settings?select=canvas_api_key,canvas_domain` +
+      `&user_id=eq.${encodeURIComponent(user.id)}&limit=1`,
     {
-      headers: { apikey: apiKey, Authorization: authHeader },
+      headers: adminHeaders,
     },
   );
-  if (!res.ok) throw new Error("NOT_AUTHENTICATED");
+  if (!res.ok) throw new Error("SERVER_CONFIGURATION_ERROR");
   const rows = (await res.json()) as Array<{
     canvas_api_key: string | null;
     canvas_domain: string | null;
@@ -192,16 +226,15 @@ async function credsForRequest(req: Request, includeHidden = false): Promise<Cre
   if (!includeHidden) {
     try {
       const prefRes = await fetch(
-        `${supabaseUrl}/rest/v1/user_preferences?select=value&key=eq.hidden_course_ids&limit=1`,
-        { headers: { apikey: apiKey, Authorization: authHeader } },
+        `${supabaseUrl}/rest/v1/user_preferences?select=value` +
+          `&user_id=eq.${encodeURIComponent(user.id)}&key=eq.hidden_course_ids&limit=1`,
+        { headers: adminHeaders },
       );
       if (prefRes.ok) {
         const prefRows = (await prefRes.json()) as Array<{ value: unknown }>;
         const value = prefRows?.[0]?.value;
         if (Array.isArray(value)) {
-          excluded = new Set(
-            value.map((v) => Number(v)).filter((n) => Number.isFinite(n)),
-          );
+          excluded = new Set(value.map((v) => Number(v)).filter((n) => Number.isFinite(n)));
         }
       }
     } catch {
@@ -209,7 +242,7 @@ async function credsForRequest(req: Request, includeHidden = false): Promise<Cre
     }
   }
 
-  return { domain, token, excluded };
+  return { domain, token, cacheScope: await tokenFingerprint(token), excluded };
 }
 
 function isActive(c: CanvasCourse, excluded: Set<number>) {
@@ -358,7 +391,7 @@ Deno.serve(async (req) => {
     if (req.method === "POST") {
       const body = await req.json().catch(() => ({}));
       resource = body?.resource ?? null;
-      days = typeof body?.days === "number" ? body.days : undefined;
+      days = typeof body?.days === "number" ? Math.min(90, Math.max(1, body.days)) : undefined;
       includeHidden = body?.includeHidden === true;
       // Used only by the "validate" check when saving credentials: the caller's
       // own freshly typed key/URL, verified in-memory and never persisted here.
@@ -368,7 +401,7 @@ Deno.serve(async (req) => {
       const url = new URL(req.url);
       resource = url.searchParams.get("resource");
       const d = url.searchParams.get("days");
-      if (d) days = Number(d);
+      if (d && Number.isFinite(Number(d))) days = Math.min(90, Math.max(1, Number(d)));
       includeHidden = url.searchParams.get("includeHidden") === "true";
     }
 
@@ -387,7 +420,12 @@ Deno.serve(async (req) => {
             ? (() => {
                 const d = normalizeDomain(overrideDomain);
                 if (!d) throw new Error("INVALID_DOMAIN");
-                return { domain: d, token: overrideToken, excluded: new Set<number>() };
+                return {
+                  domain: d,
+                  token: overrideToken,
+                  cacheScope: "validation",
+                  excluded: new Set<number>(),
+                };
               })()
             : storedCreds!;
         const me = await canvasFetchRaw<{ name?: string }>(vCreds, "/users/self");

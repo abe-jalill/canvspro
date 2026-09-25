@@ -1,6 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import DOMPurify from "dompurify";
 
 interface SyllabusModalProps {
   title: string;
@@ -9,6 +10,19 @@ interface SyllabusModalProps {
 }
 
 export function SyllabusModal({ title, html, onClose }: SyllabusModalProps) {
+  // Canvas content is remote, user/course-authored input. Sanitize it locally
+  // as a second trust boundary before handing it to React's raw-HTML escape
+  // hatch; never rely on an upstream service to remain perfectly sanitized.
+  const safeHtml = useMemo(
+    () =>
+      DOMPurify.sanitize(html, {
+        USE_PROFILES: { html: true },
+        FORBID_TAGS: ["form", "input", "button", "textarea", "select", "option"],
+        FORBID_ATTR: ["style"],
+      }),
+    [html],
+  );
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -42,9 +56,7 @@ export function SyllabusModal({ title, html, onClose }: SyllabusModalProps) {
             <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
               Syllabus
             </p>
-            <h2 className="mt-0.5 truncate text-lg font-semibold tracking-tight">
-              {title}
-            </h2>
+            <h2 className="mt-0.5 truncate text-lg font-semibold tracking-tight">{title}</h2>
           </div>
           <button
             onClick={onClose}
@@ -55,10 +67,7 @@ export function SyllabusModal({ title, html, onClose }: SyllabusModalProps) {
           </button>
         </header>
         <div className="syllabus-body overflow-y-auto px-6 py-5 text-sm leading-relaxed">
-          <div
-            // Canvas returns sanitized HTML; render as-is inside a scoped container.
-            dangerouslySetInnerHTML={{ __html: html }}
-          />
+          <div dangerouslySetInnerHTML={{ __html: safeHtml }} />
         </div>
       </div>
     </div>,

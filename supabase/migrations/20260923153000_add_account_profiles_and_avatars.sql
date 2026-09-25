@@ -13,6 +13,9 @@ create unique index if not exists account_profiles_username_unique
   on public.account_profiles (lower(username))
   where username is not null;
 
+grant select, insert, update on public.account_profiles to authenticated;
+grant all on public.account_profiles to service_role;
+
 alter table public.account_profiles enable row level security;
 
 create policy "Users can read their own account profile"

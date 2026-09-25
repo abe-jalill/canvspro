@@ -2,3 +2,6 @@ project_id = "vqmzhzvugzhmtprklzfm"
 
 [functions.canvas]
 verify_jwt = true
+
+[functions.subscription-access]
+verify_jwt = true

@@ -199,7 +199,7 @@ function CourseDetailPage() {
     }
 
     return null;
-  }, [course, classSchedule.data, calendarQueryState.data]);
+  }, [course, courseName, classSchedule.data, calendarQueryState.data]);
 
   // Filter assignments for this course
   const courseAssignments = useMemo(() => {

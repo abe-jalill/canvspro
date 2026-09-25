@@ -5,11 +5,13 @@ import { CanvasKeyBanner } from "@/components/canvas-key-banner";
 import { CanvasKeyGate } from "@/components/canvas-key-gate";
 import { ClassNamesGate } from "@/components/class-names-editor";
 import { NotificationCenter } from "@/components/notification-center";
+import { ProfileButton } from "@/components/profile-button";
 import { CanvasLiveStatus } from "@/components/canvas-live-status";
 import { useNotificationEngine } from "@/hooks/use-notification-engine";
 import { useDueTodayBadge } from "@/hooks/use-due-today-badge";
 import { useAppPrefetch } from "@/hooks/use-app-prefetch";
 import { useWelcomeEmail } from "@/hooks/use-welcome-email";
+import { useActivityHeartbeat } from "@/hooks/use-activity-heartbeat";
 import { purgeScopedStorage } from "@/lib/user-scope";
 import { syncAuthIdentity } from "@/lib/auth-user";
 import { PullToRefresh } from "@/components/pull-to-refresh";
@@ -50,6 +52,7 @@ function AuthenticatedLayout() {
   useQueryCachePersistence();
   const startup = useAppPrefetch(true);
   useWelcomeEmail(true);
+  useActivityHeartbeat(true);
 
   return (
     <div className="min-h-svh w-full overflow-x-clip md:h-svh md:overflow-hidden">
@@ -71,9 +74,10 @@ function AuthenticatedLayout() {
         <div className="mx-auto w-full min-w-0 max-w-6xl px-3 py-4 sm:px-4 md:p-6">
           <div className="mb-2 flex min-w-0 items-center justify-end gap-2">
             <CanvasLiveStatus />
-            {/* Bell already lives in the mobile top bar — avoid a duplicate on phones */}
-            <span className="hidden md:inline-flex">
+            {/* Bell and profile already live in the mobile top bar — avoid duplicates on phones */}
+            <span className="hidden items-center gap-2 md:inline-flex">
               <NotificationCenter />
+              <ProfileButton />
             </span>
           </div>
           <CanvasKeyBanner />

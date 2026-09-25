@@ -73,35 +73,43 @@ export function useSaveClassSchedule() {
       const user = userData.user;
       if (!user) throw new Error("You must be signed in.");
 
-      const { error: delError } = await supabase
-        .from("class_schedule_entries")
-        .delete()
-        .eq("user_id", user.id);
-      if (delError) throw new Error(delError.message);
-
       const keep = rows.filter((r) => r.title.trim().length > 0);
+      const savedIds: string[] = [];
       if (keep.length > 0) {
-        const { error } = await supabase.from("class_schedule_entries").insert(
-          keep.map((r) => ({
-            user_id: user.id,
-            code: r.code.trim(),
-            section: r.section.trim(),
-            title: r.title.trim(),
-            crn: r.crn.trim(),
-            credits: Number.isFinite(r.credits) ? r.credits : 0,
-            instructor: r.instructor.trim(),
-            location: r.location.trim(),
-            campus: r.campus.trim(),
-            schedule_type: r.scheduleType.trim() || "Lecture",
-            days: r.days,
-            start_minutes: r.startMinutes,
-            end_minutes: r.endMinutes,
-            term: r.term.trim(),
-            date_range: r.dateRange.trim(),
-          })),
-        );
+        // Upsert the replacement first. If validation/networking fails, the
+        // old schedule remains intact instead of being erased halfway through.
+        const { data, error } = await supabase
+          .from("class_schedule_entries")
+          .upsert(
+            keep.map((r) => ({
+              ...(r.id && !r.id.startsWith("optimistic-") ? { id: r.id } : {}),
+              user_id: user.id,
+              code: r.code.trim(),
+              section: r.section.trim(),
+              title: r.title.trim(),
+              crn: r.crn.trim(),
+              credits: Number.isFinite(r.credits) ? r.credits : 0,
+              instructor: r.instructor.trim(),
+              location: r.location.trim(),
+              campus: r.campus.trim(),
+              schedule_type: r.scheduleType.trim() || "Lecture",
+              days: r.days,
+              start_minutes: r.startMinutes,
+              end_minutes: r.endMinutes,
+              term: r.term.trim(),
+              date_range: r.dateRange.trim(),
+            })),
+            { onConflict: "id" },
+          )
+          .select("id");
         if (error) throw new Error(error.message);
+        savedIds.push(...(data ?? []).map((row) => String(row.id)));
       }
+
+      let deleteQuery = supabase.from("class_schedule_entries").delete().eq("user_id", user.id);
+      if (savedIds.length > 0) deleteQuery = deleteQuery.not("id", "in", `(${savedIds.join(",")})`);
+      const { error: delError } = await deleteQuery;
+      if (delError) throw new Error(delError.message);
       return keep.length;
     },
     // Paint the new schedule right away; roll back if the save fails.
