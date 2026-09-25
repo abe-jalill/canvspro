@@ -45,5 +45,6 @@ export const getRouter = () => {
     ),
   });
 
+  if (typeof window !== "undefined") (window as any).__R = router; //DBG
   return router;
 };
