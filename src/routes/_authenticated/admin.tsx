@@ -37,11 +37,20 @@ function weekdayLabel(date: string): string {
   return d.toLocaleDateString(undefined, { weekday: "short", timeZone: "UTC" });
 }
 
-function Stat({ label, value }: { label: string; value: number }) {
+function Stat({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: number;
+  detail?: string;
+}) {
   return (
     <div className="glass-inset rounded-2xl px-4 py-5">
       <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
       <p className="mt-2 text-3xl font-semibold tabular-nums tracking-tight sm:text-4xl">{value}</p>
+      {detail && <p className="mt-1 text-xs text-muted-foreground">{detail}</p>}
     </div>
   );
 }
@@ -57,7 +66,7 @@ function ActivityChart({ daily, days }: { daily: UsageStats["daily"]; days: numb
             {d.users > 0 ? d.users : ""}
           </span>
           <div
-            title={`${d.date}: ${d.users} active`}
+            title={`${d.date}: ${d.users} active, ${d.interactions} visits`}
             className={cn(
               "w-full rounded-t-md bg-foreground/70 transition-all",
               d.users === 0 && "bg-foreground/10",
@@ -121,13 +130,29 @@ function AdminUsagePage() {
       {stats.data && (
         <>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Stat label="Active today" value={stats.data.activeToday} />
-            <Stat label="Last 7 days" value={stats.data.activeThisWeek} />
-            <Stat label="Last 30 days" value={stats.data.activeThisMonth} />
+            <Stat
+              label="Today"
+              value={stats.data.today.users}
+              detail={`${stats.data.today.interactions} visits`}
+            />
+            <Stat
+              label="This week"
+              value={stats.data.week.users}
+              detail={`${stats.data.week.interactions} visits`}
+            />
+            <Stat
+              label="This month"
+              value={stats.data.month.users}
+              detail={`${stats.data.month.interactions} visits`}
+            />
             <Stat label="Accounts" value={stats.data.totalAccounts} />
           </div>
 
-          <GlassCard strong title="Last 7 days" subtitle="People who used the app each day.">
+          <GlassCard
+            strong
+            title="Last 7 days"
+            subtitle="People who used the app each day. Hover a bar for visits."
+          >
             <ActivityChart daily={stats.data.daily} days={7} />
           </GlassCard>
 

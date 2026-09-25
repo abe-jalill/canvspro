@@ -1,24 +1,28 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { isAdminEmail } from "@/lib/admin";
+import {
+  summarizeUsageActivity,
+  utcDate,
+  utcMonthStart,
+  type ActivityRow,
+  type UsagePeriod,
+  type DailyCount,
+} from "@/lib/usage-stats";
 
-export type DailyCount = { date: string; users: number; interactions: number };
 export type RecentUser = { label: string; lastSeenAt: string; interactions: number };
 
 export type UsageStats = {
   activeToday: number;
   activeThisWeek: number;
   activeThisMonth: number;
+  today: UsagePeriod;
+  week: UsagePeriod;
+  month: UsagePeriod;
   totalAccounts: number;
   daily: DailyCount[];
   recent: RecentUser[];
 };
-
-function utcDate(offsetDays = 0): string {
-  const d = new Date();
-  d.setUTCDate(d.getUTCDate() + offsetDays);
-  return d.toISOString().slice(0, 10);
-}
 
 export const getUsageStatsFn = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -31,7 +35,10 @@ export const getUsageStatsFn = createServerFn({ method: "GET" })
       throw new Error("Forbidden");
     }
 
-    const since = utcDate(-29);
+    const now = new Date();
+    const chartSince = utcDate(now, -29);
+    const monthSince = utcMonthStart(now);
+    const since = chartSince < monthSince ? chartSince : monthSince;
     const { data: rows, error } = await supabaseAdmin
       .from("user_activity_daily")
       .select("user_id, activity_date, last_seen_at, interactions")
@@ -39,18 +46,11 @@ export const getUsageStatsFn = createServerFn({ method: "GET" })
       .order("last_seen_at", { ascending: false });
     if (error) throw new Error(error.message);
 
-    const activity = rows ?? [];
-    const today = utcDate();
-    const weekStart = utcDate(-6);
-    const byDate = new Map<string, { users: Set<string>; interactions: number }>();
+    const activity = (rows ?? []) as ActivityRow[];
     const latest = new Map<string, { lastSeenAt: string; interactions: number }>();
+    const summary = summarizeUsageActivity(activity, now);
 
     for (const row of activity) {
-      const bucket = byDate.get(row.activity_date) ?? { users: new Set<string>(), interactions: 0 };
-      bucket.users.add(row.user_id);
-      bucket.interactions += row.interactions;
-      byDate.set(row.activity_date, bucket);
-
       const existing = latest.get(row.user_id);
       if (!existing || existing.lastSeenAt < row.last_seen_at) {
         latest.set(row.user_id, {
@@ -60,13 +60,6 @@ export const getUsageStatsFn = createServerFn({ method: "GET" })
       } else {
         existing.interactions += row.interactions;
       }
-    }
-
-    const daily: DailyCount[] = [];
-    for (let i = 29; i >= 0; i--) {
-      const date = utcDate(-i);
-      const bucket = byDate.get(date);
-      daily.push({ date, users: bucket?.users.size ?? 0, interactions: bucket?.interactions ?? 0 });
     }
 
     const { data: userList } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
@@ -83,13 +76,14 @@ export const getUsageStatsFn = createServerFn({ method: "GET" })
       }));
 
     return {
-      activeToday: byDate.get(today)?.users.size ?? 0,
-      activeThisWeek: new Set(
-        activity.filter((r) => r.activity_date >= weekStart).map((r) => r.user_id),
-      ).size,
-      activeThisMonth: new Set(activity.map((r) => r.user_id)).size,
+      activeToday: summary.today.users,
+      activeThisWeek: summary.week.users,
+      activeThisMonth: summary.month.users,
+      today: summary.today,
+      week: summary.week,
+      month: summary.month,
       totalAccounts: userList?.users.length ?? 0,
-      daily,
+      daily: summary.daily,
       recent,
     };
   });
