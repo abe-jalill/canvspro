@@ -49,7 +49,7 @@ const items = [
   { title: "Settings", to: "/settings" as const, icon: Settings },
 ];
 
-const adminItem = { title: "Usage", to: "/zzz" as string as "/settings", icon: BarChart3 };
+const adminItem = { title: "Usage", to: "/admin" as const, icon: BarChart3 };
 
 /** Nav entries for this account — the usage screen only exists for the owner. */
 function useNavItems() {
