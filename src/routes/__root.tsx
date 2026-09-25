@@ -6,7 +6,6 @@ import {
   useRouterState,
   HeadContent,
   Scripts,
-  useHydrated,
 } from "@tanstack/react-router";
 import { useEffect, useMemo, type ReactNode } from "react";
 import { Capacitor } from "@capacitor/core";
@@ -122,7 +121,6 @@ function RootComponent() {
   // Decide from the URL (identical on server and client) instead of route
   // matches — the signed-in area is client-only, so matches differ during
   // hydration and caused a mismatch that blanked the page.
-  const hydrated = useHydrated();
   const showFooter = useRouterState({
     select: (state) => {
       const first = state.location.pathname.split("/")[1] ?? "";
@@ -175,7 +173,7 @@ function RootComponent() {
       // Namespaces browser storage per account and drops the whole query
       // cache whenever the identity changes — no data can carry over.
       syncAuthIdentity(queryClient, nextId);
-      if (identityChanged) { console.log("RTR invalidate identity"); void router.invalidate(); }
+      if (identityChanged) void router.invalidate();
       if (event === "USER_UPDATED")
         void queryClient.invalidateQueries({ queryKey: ["user-profile"] });
     });
@@ -188,7 +186,7 @@ function RootComponent() {
         <div className="site-content">
           <Outlet />
         </div>
-        {hydrated && showFooter && <SiteFooter />}
+        {showFooter && <SiteFooter />}
       </div>
       <Toaster position="top-center" richColors closeButton />
     </QueryClientProvider>
