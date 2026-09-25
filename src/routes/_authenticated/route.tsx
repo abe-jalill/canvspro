@@ -52,7 +52,7 @@ function AuthenticatedLayout() {
   useQueryCachePersistence();
   const startup = useAppPrefetch(true);
   useWelcomeEmail(true);
-  useActivityHeartbeat(true);
+  //BISECT useActivityHeartbeat(true);
 
   return (
     <div className="min-h-svh w-full overflow-x-clip md:h-svh md:overflow-hidden">
