@@ -124,7 +124,10 @@ function RootComponent() {
   const showFooter = useRouterState({
     select: (state) => {
       const first = state.location.pathname.split("/")[1] ?? "";
-      return !APP_SECTIONS.has(first);
+      return ![
+        "admin", "announcements", "assignments", "class-schedule", "courses", "dashboard",
+        "focus", "get-it-done", "grades", "notifications", "schedule", "settings", "study-session",
+      ].includes(first);
     },
   });
 
