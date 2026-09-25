@@ -7,6 +7,7 @@ import {
   BellOff,
   CalendarClock,
   CalendarDays,
+  ClipboardCheck,
   Crosshair,
   GraduationCap,
   LayoutDashboard,
@@ -33,6 +34,7 @@ import { useSidebarMode } from "@/lib/sidebar-state";
 
 const items = [
   { title: "Dashboard", to: "/dashboard" as const, icon: LayoutDashboard },
+  { title: "Get It Done", to: "/get-it-done" as const, icon: ClipboardCheck },
   { title: "Focus", to: "/focus" as const, icon: Crosshair },
   { title: "Study Session", to: "/study-session" as const, icon: TimerReset },
   { title: "Calendar", to: "/schedule" as const, icon: CalendarDays },
