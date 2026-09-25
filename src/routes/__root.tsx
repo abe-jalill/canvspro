@@ -169,7 +169,6 @@ function RootComponent() {
       if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
       const nextId = event === "SIGNED_OUT" ? null : (session?.user?.id ?? null);
       const identityChanged = getActiveIdentity() !== nextId;
-      console.log("RTR auth", event, identityChanged, router.state.status); //DBG
       if (event === "SIGNED_OUT") purgeScopedStorage();
       // Namespaces browser storage per account and drops the whole query
       // cache whenever the identity changes — no data can carry over.
