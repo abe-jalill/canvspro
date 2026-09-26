@@ -61,7 +61,7 @@ test("cache restore is synchronous, scoped, expiring, and excludes auth/preferen
   assert.doesNotThrow(() => restoreQueryCache(expired, "a"));
   raw = JSON.stringify({ buster: "v2", timestamp: Date.now(), clientState: saved.state });
   restoreQueryCache(expired, "a");
-  assert.deepEqual(expired.getQueryData(["canvas", "courses"]), [{ id: 42 }]);
+  assert.equal(expired.getQueryData(["canvas", "courses"]), undefined);
   source.clear(); restored.clear(); wrongUser.clear(); oldVersion.clear(); expired.clear();
   delete globalThis.window; delete globalThis.localStorage;
 });

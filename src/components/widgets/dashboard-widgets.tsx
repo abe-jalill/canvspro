@@ -29,6 +29,7 @@ import { GpaCalculator } from "@/components/gpa-calculator";
 import { getCalendarEventsFn } from "@/lib/canvas.functions";
 import { getGradeColor } from "@/lib/grade-color";
 import { isInFocusWindow } from "@/lib/focus-window";
+import { customToAssignmentItem, useCustomAssignments } from "@/lib/custom-assignments";
 
 const coursesQO = queryOptions({
   queryKey: ["canvas", "courses"],
@@ -188,15 +189,13 @@ function UpcomingWidget() {
   const { data, isLoading, isError, error } = useQuery(assignmentsQO);
   const courses = useQuery(coursesQO);
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
+  const custom = useCustomAssignments();
   const [expanded, setExpanded] = useState<number[]>([]);
 
-  const inWindow = (data ?? []).filter((a) => {
-    if (!a.due_at) return false;
-    const due = new Date(a.due_at).getTime();
-    const now = Date.now();
-    const week = now + 7 * 24 * 60 * 60 * 1000;
-    return due >= now && due <= week;
-  });
+  const courseById = new Map((courses.data ?? []).map((course) => [course.id, course]));
+  const inWindow = [...(data ?? []), ...custom.list.map((item) => customToAssignmentItem(item, courseById.get(item.course_id)))].filter((a) =>
+    isInFocusWindow(a, "7", Date.now(), completed.has(a.id)),
+  );
 
   // Group by course, keyed by course_id. We show one section per active
   // course (even if empty) so the widget makes per-class expectations clear.

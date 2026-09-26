@@ -16,10 +16,9 @@ export function restoreQueryCache(client: QueryClient, userId: string) {
     const raw = localStorage.getItem(`cp:${userId}:query-cache`);
     if (!raw) return;
     const saved = JSON.parse(raw);
-    const legacy = saved.buster === "v2";
-    const savedAt = legacy ? saved.timestamp : saved.savedAt;
-    const state = legacy ? saved.clientState : saved.state;
-    if ((!legacy && (saved.version !== VERSION || saved.userId !== userId)) ||
+    const savedAt = saved.savedAt;
+    const state = saved.state;
+    if ((saved.version !== VERSION || saved.userId !== userId) ||
         !Number.isFinite(savedAt) || Date.now() - savedAt > MAX_AGE || savedAt > Date.now()) return;
     if (!Array.isArray(state?.queries)) return;
     hydrate(client, { mutations: [], queries: state.queries.filter((q: { queryKey?: unknown[] }) =>

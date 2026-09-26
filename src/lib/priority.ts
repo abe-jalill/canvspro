@@ -1,4 +1,5 @@
 import type { AssignmentItem } from "@/lib/canvas.functions";
+import { isAssignmentComplete } from "./assignment-window.ts";
 
 export interface PriorityAssignment {
   assignment: AssignmentItem;
@@ -85,11 +86,10 @@ export function buildPriorityList(
 ): CourseGroup[] {
   const byCourse = new Map<number, AssignmentItem[]>();
   for (const a of assignments) {
-    if (isCompleted instanceof Set) {
-      if (isCompleted.has(a.id) || isCompleted.has(String(a.id))) continue;
-    } else if (isCompleted(a.id)) {
-      continue;
-    }
+    const manual = isCompleted instanceof Set
+      ? isCompleted.has(a.id) || isCompleted.has(String(a.id))
+      : isCompleted(a.id);
+    if (isAssignmentComplete(a, manual)) continue;
     const arr = byCourse.get(a.course_id) ?? [];
     arr.push(a);
     byCourse.set(a.course_id, arr);
@@ -127,15 +127,6 @@ export function buildPriorityList(
   });
 
   return groups;
-}
-
-function isDone(
-  a: AssignmentItem,
-  completedIds: Set<string | number>,
-): boolean {
-  if (completedIds.has(a.id) || completedIds.has(String(a.id))) return true;
-  const s = a.submission;
-  return Boolean(s?.submitted_at) || s?.workflow_state === "graded";
 }
 
 export function describePriorityList(groups: CourseGroup[]): string {

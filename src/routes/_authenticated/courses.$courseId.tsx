@@ -237,7 +237,7 @@ function CourseDetailPage() {
   // Graded assignments: has score or workflow_state === 'graded'
   const gradedAssignments = useMemo(() => {
     return courseAssignments
-      .filter((a) => a.submission?.score != null || a.submission?.workflow_state === "graded")
+      .filter((a) => a.submission?.score != null || Boolean(a.submission?.grade))
       .sort((a, b) => {
         const dateA = a.submission?.submitted_at ?? a.due_at ?? "";
         const dateB = b.submission?.submitted_at ?? b.due_at ?? "";

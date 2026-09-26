@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, queryOptions } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Check } from "lucide-react";
+import { Check, ExternalLink } from "lucide-react";
 import { getAllAssignmentsFn, getCoursesFn, type AssignmentItem } from "@/lib/canvas.functions";
 import { CANVAS_DATA_GC_MS, CANVAS_DATA_STALE_MS } from "@/lib/query-policy";
 import { GlassCard, Skeleton, ErrorState } from "@/components/glass-card";
@@ -10,7 +10,10 @@ import { cn } from "@/lib/utils";
 import { displayCourseName } from "@/lib/course-display";
 import { useLocalSet, COMPLETED_ASSIGNMENTS_KEY } from "@/lib/local-state";
 import { getCountdown, urgencyAccentClass, urgencyTextClass } from "@/lib/countdown";
-import { isFocusWindow, isInFocusWindow, type FocusWindow } from "@/lib/focus-window";
+import { isFocusWindow, isDueInFocusWindow, type FocusWindow } from "@/lib/focus-window";
+import { isAssignmentComplete } from "@/lib/assignment-window";
+import { customToAssignmentItem, useCustomAssignments } from "@/lib/custom-assignments";
+import { toast } from "sonner";
 
 const assignmentsQO = queryOptions({
   queryKey: ["canvas", "assignments"],
@@ -52,6 +55,7 @@ export const Route = createFileRoute("/_authenticated/focus")({
 });
 
 const WINDOW_LABELS: Record<FocusWindow, string> = {
+  all: "All dates",
   "1": "1 day",
   "2": "2 days",
   "3": "3 days",
@@ -65,6 +69,8 @@ function FocusPage() {
   const assignments = useQuery(assignmentsQO);
   const courses = useQuery(coursesQO);
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
+  const custom = useCustomAssignments();
+  const [showCompleted, setShowCompleted] = useState(false);
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -72,9 +78,24 @@ function FocusPage() {
     return () => window.clearInterval(timer);
   }, []);
 
-  const inWindow = (assignments.data ?? []).filter((a) =>
-    isInFocusWindow(a, win, now, completed.has(a.id)),
-  );
+  const courseById = new Map((courses.data ?? []).map((course) => [course.id, course]));
+  const allAssignments = [
+    ...(assignments.data ?? []),
+    ...custom.list.map((item) => customToAssignmentItem(item, courseById.get(item.course_id))),
+  ];
+  const dueInWindow = allAssignments.filter((a) => isDueInFocusWindow(a, win, now));
+  const unfinished = dueInWindow.filter((a) => !isAssignmentComplete(a, completed.has(a.id)));
+  const hiddenCompleteCount = dueInWindow.length - unfinished.length;
+  const inWindow = showCompleted ? dueInWindow : unfinished;
+
+  function toggleComplete(assignment: AssignmentItem) {
+    const wasComplete = completed.has(assignment.id);
+    completed.toggle(assignment.id);
+    if (!wasComplete) toast.success("Marked complete", {
+      description: assignment.name,
+      action: { label: "Undo", onClick: () => completed.remove(assignment.id) },
+    });
+  }
 
   type Group = { id: number; name: string; code: string; items: AssignmentItem[] };
   const groupMap = new Map<number, Group>();
@@ -103,11 +124,12 @@ function FocusPage() {
     );
   groups.forEach((g) => {
     g.items.sort(
-      (a, b) => new Date(a.due_at as string).getTime() - new Date(b.due_at as string).getTime(),
+      (a, b) => (a.due_at ? Date.parse(a.due_at) : Infinity) -
+        (b.due_at ? Date.parse(b.due_at) : Infinity),
     );
   });
 
-  const remaining = inWindow.length;
+  const remaining = unfinished.length;
 
   return (
     <div className="space-y-6">
@@ -117,7 +139,7 @@ function FocusPage() {
             Focus
           </p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">
-            {win === "overdue" ? "Overdue assignments" : `Due within ${WINDOW_LABELS[win]}`}
+            {win === "all" ? "All assignments" : win === "overdue" ? "Overdue assignments" : `Due within ${WINDOW_LABELS[win]}`}
           </h1>
         </div>
         <Segmented<FocusWindow>
@@ -127,6 +149,7 @@ function FocusPage() {
           }
           className="max-w-full overflow-x-auto"
           options={[
+            { id: "all", label: "All dates" },
             { id: "7", label: "1 week" },
             { id: "overdue", label: "Overdue" },
             { id: "3", label: "3 days" },
@@ -136,7 +159,15 @@ function FocusPage() {
         />
       </header>
 
-      {assignments.isLoading || courses.isLoading ? (
+      <div className="flex flex-wrap items-center justify-between gap-3 px-1 text-xs text-muted-foreground">
+        <span>{hiddenCompleteCount > 0 ? `${hiddenCompleteCount} completed or submitted in this window` : "Showing unfinished assignments"}</span>
+        <label className="flex cursor-pointer items-center gap-2">
+          <input type="checkbox" checked={showCompleted} onChange={(event) => setShowCompleted(event.target.checked)} />
+          Show completed
+        </label>
+      </div>
+
+      {assignments.isLoading || courses.isLoading || completed.isLoading || custom.isLoading ? (
         <GlassCard>
           <div className="space-y-3">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -155,13 +186,19 @@ function FocusPage() {
               <Check className="h-6 w-6" />
             </div>
             <p className="text-lg font-semibold tracking-tight">
-              {win === "overdue"
+              {win === "all" ? "No assignments to show."
+                : win === "overdue"
                 ? "You're all caught up."
                 : win === "1"
                   ? "You're clear for the next 24 hours."
                 : `You're clear for the next ${WINDOW_LABELS[win]}.`}
             </p>
-            <p className="text-sm text-muted-foreground">No unfinished assignments in this window.</p>
+            <p className="text-sm text-muted-foreground">
+              {hiddenCompleteCount > 0 && !showCompleted
+                ? "Turn on Show completed to review them or undo a CanvasPro completion."
+                : win === "all" ? "Refresh Canvas data to check for new assignments."
+                  : "No assignments match this view. Choose All dates to check other deadlines."}
+            </p>
           </div>
         </GlassCard>
       ) : (
@@ -185,7 +222,9 @@ function FocusPage() {
                   </div>
                   <ul className="space-y-2">
                     {g.items.map((a) => {
-                      const cd = getCountdown(a.due_at);
+                      const done = isAssignmentComplete(a, completed.has(a.id));
+                      const cd = getCountdown(a.due_at, { completed: done });
+                      const canvasDone = isAssignmentComplete(a, false);
                       return (
                         <li
                           key={a.id}
@@ -196,17 +235,22 @@ function FocusPage() {
                         >
                           <div className="flex min-w-0 items-center gap-3">
                             <button
-                              onClick={() => completed.add(a.id)}
-                              aria-label={`Mark ${a.name} complete`}
+                              onClick={() => toggleComplete(a)}
+                              disabled={!completed.ready || canvasDone}
+                              aria-label={`Mark ${a.name} ${done ? "incomplete" : "complete"}`}
+                              aria-pressed={done}
                               className="group flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-foreground/30 transition-colors hover:border-foreground/60"
                             >
                               <Check
-                                className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-100"
+                                className={cn("h-3.5 w-3.5 transition-opacity group-hover:opacity-100", done ? "opacity-100" : "opacity-0")}
                                 aria-hidden="true"
                               />
                             </button>
                             <div className="min-w-0">
-                              <p className="truncate text-sm font-medium">{a.name}</p>
+                              <p className={cn("truncate text-sm font-medium", done && "line-through opacity-60")}>{a.name}</p>
+                              {done && <p className="text-xs text-muted-foreground">{canvasDone ? "Completed in Canvas" : "Marked complete in CanvasPro"}</p>}
+                              {!done && a.submission?.missing && <p className="text-xs text-rose-400">Missing in Canvas</p>}
+                              {a.html_url && <a href={a.html_url} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">Open in Canvas <ExternalLink className="h-3 w-3" /></a>}
                               {a.points_possible != null && (
                                 <p className="mt-0.5 text-[11px] text-muted-foreground">
                                   {a.points_possible} pt
@@ -221,7 +265,7 @@ function FocusPage() {
                                 cd ? urgencyTextClass(cd.urgency) : "text-muted-foreground",
                               )}
                             >
-                              {cd ? cd.label : "—"}
+                              {cd ? cd.label : "No due date"}
                             </p>
                             {cd && (
                               <p className="mt-0.5 whitespace-nowrap text-[10px] tabular-nums text-muted-foreground/80">

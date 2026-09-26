@@ -12,8 +12,8 @@ const assignment = (due, submission = {}) => ({
   submission,
 });
 
-test("accepts only the five Focus windows", () => {
-  for (const value of ["7", "overdue", "3", "2", "1"]) assert.equal(isFocusWindow(value), true);
+test("accepts the Focus windows including all dates", () => {
+  for (const value of ["all", "7", "overdue", "3", "2", "1"]) assert.equal(isFocusWindow(value), true);
   for (const value of ["today", "8", "", undefined]) assert.equal(isFocusWindow(value), false);
 });
 
@@ -48,8 +48,8 @@ test("completed and submitted work never appears in Focus counts", () => {
     ),
     false,
   );
-  assert.equal(isInFocusWindow(assignment(now + day, { workflow_state: "graded" }), "7", now, false), false);
-  assert.equal(isInFocusWindow(assignment(now + day, { score: 0 }), "7", now, false), false);
+  assert.equal(isInFocusWindow(assignment(now + day, { workflow_state: "graded", score: 10 }), "7", now, false), false);
+  assert.equal(isInFocusWindow(assignment(now + day, { score: 0 }), "7", now, false), true);
   assert.equal(isInFocusWindow({ ...due, due_at: null }, "7", now, false), false);
 });
 

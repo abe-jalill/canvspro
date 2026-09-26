@@ -11,8 +11,17 @@ export function endOfUpcomingDay(now: number, days: number): number {
 }
 
 export function isAssignmentComplete(a: AssignmentItem, manuallyCompleted: boolean): boolean {
-  return manuallyCompleted || Boolean(a.submission?.submitted_at) ||
-    a.submission?.workflow_state === "graded" || a.submission?.score != null;
+  if (manuallyCompleted) return true;
+  const submission = a.submission;
+  if (!submission) return false;
+  if (submission.excused) return true;
+  // Missing work can have an automatic zero. Canvas can also retain the
+  // graded state after a grade is cleared; neither means the student is done.
+  if (submission.missing) return false;
+  if (submission.submitted_at || submission.workflow_state === "submitted" ||
+      submission.workflow_state === "pending_review") return true;
+  return submission.workflow_state === "graded" &&
+    (submission.score != null || (submission.grade != null && submission.grade !== ""));
 }
 
 /**

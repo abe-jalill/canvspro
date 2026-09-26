@@ -15,6 +15,7 @@ import { summarizeProductivity } from "@/lib/productivity";
 import { useUserPreferences } from "@/hooks/use-user-preferences";
 import { useAssignmentMeta } from "@/hooks/use-assignment-meta";
 import { cn } from "@/lib/utils";
+import { customToAssignmentItem, useCustomAssignments } from "@/lib/custom-assignments";
 
 const dateLabel = (value: string) =>
   new Date(`${value}T12:00:00`).toLocaleDateString(undefined, {
@@ -38,6 +39,7 @@ export function ProductivityOverview({ showLink = true }: { showLink?: boolean }
     staleTime: 5 * 60_000,
   });
   const prefs = useUserPreferences();
+  const custom = useCustomAssignments();
   const meta = useAssignmentMeta();
   const [now, setNow] = useState(() => new Date());
 
@@ -49,13 +51,13 @@ export function ProductivityOverview({ showLink = true }: { showLink?: boolean }
   const summary = useMemo(
     () =>
       summarizeProductivity(
-        assignments.data ?? [],
+        [...(assignments.data ?? []), ...custom.list.map((item) => customToAssignmentItem(item, undefined))],
         completedAssignmentIds(prefs.data),
         completionRecords(prefs.data),
         new Map((meta.data ?? []).map((item) => [item.assignmentId, item.estimatedMinutes])),
         now,
       ),
-    [assignments.data, prefs.data, meta.data, now],
+    [assignments.data, custom.list, prefs.data, meta.data, now],
   );
   const ready = assignments.data !== undefined && prefs.ready;
   const metrics: Metric[] = [

@@ -26,6 +26,7 @@ import { buildPriorityList, describePriorityList } from "@/lib/priority";
 import { useAssignmentMetaMap } from "@/hooks/use-assignment-meta";
 import { ProductivityOverview } from "@/components/productivity-overview";
 import { useLocalNumber } from "@/lib/local-value";
+import { isAssignmentComplete } from "@/lib/assignment-window";
 
 const ASSIGNMENTS_PULSE_HIDDEN_KEY = "canvas:assignments-pulse-hidden";
 
@@ -76,9 +77,7 @@ function statusLabel(a: AssignmentItem) {
 }
 
 function isDone(a: AssignmentItem, completedHas: boolean) {
-  if (completedHas) return true;
-  const s = a.submission;
-  return Boolean(s?.submitted_at) || s?.workflow_state === "graded";
+  return isAssignmentComplete(a, completedHas);
 }
 
 function formatGrade(score: number | null, grade: string | null) {
@@ -299,7 +298,7 @@ function AssignmentsPage() {
     ? groups
         .map((g) => ({
           ...g,
-          items: g.items.filter((a) => a.name.toLowerCase().includes(q)),
+          items: g.items.filter((a) => `${g.label} ${a.name} ${a.course_code}`.toLowerCase().includes(q)),
         }))
         .filter((g) => g.items.length > 0)
     : groups.filter((g) => g.items.length > 0);

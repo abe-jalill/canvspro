@@ -7,6 +7,7 @@ import { GlassCard, Skeleton, ErrorState, EmptyState } from "@/components/glass-
 import { displayCourseName } from "@/lib/course-display";
 import { Segmented } from "@/components/segmented";
 import { WorkloadHeatmap } from "@/components/workload-heatmap";
+import { endOfUpcomingDay } from "@/lib/assignment-window";
 
 const eventsQO = queryOptions({
   queryKey: ["canvas", "calendar"],
@@ -56,13 +57,13 @@ function SchedulePage() {
   const [range, setRange] = useState<Range>("week");
 
   const now = Date.now();
-  const rangeEnd = range === "week" ? now + 7 * 24 * 60 * 60 * 1000 : Number.POSITIVE_INFINITY;
+  const rangeEnd = range === "week" ? endOfUpcomingDay(now, 7) : Number.POSITIVE_INFINITY;
 
   const items: AgendaItem[] = [];
   (events.data ?? []).forEach((e) => {
     if (!e.start_at) return;
     const when = new Date(e.start_at).getTime();
-    if (when < now || when > rangeEnd) return;
+    if (!Number.isFinite(when) || when < now || when > rangeEnd) return;
     items.push({
       key: `e-${e.id}`,
       title: e.title,
@@ -76,7 +77,7 @@ function SchedulePage() {
   (assignments.data ?? []).forEach((a) => {
     if (!a.due_at) return;
     const when = new Date(a.due_at).getTime();
-    if (when < now || when > rangeEnd) return;
+    if (!Number.isFinite(when) || when < now || when > rangeEnd) return;
     items.push({
       key: `a-${a.id}`,
       title: a.name,

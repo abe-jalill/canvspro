@@ -8,6 +8,7 @@ import { COMPLETED_ASSIGNMENTS_KEY, useLocalSet } from "@/lib/local-state";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { isInFocusWindow } from "@/lib/focus-window";
+import { customToAssignmentItem, useCustomAssignments } from "@/lib/custom-assignments";
 
 const dueDatesQO = queryOptions({
   queryKey: ["canvas", "assignments"],
@@ -50,6 +51,7 @@ export function DashboardHero() {
   const [emailPrefix, setEmailPrefix] = useState<string | null>(null);
   const assignments = useQuery(dueDatesQO);
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
+  const custom = useCustomAssignments();
   const { data: profile } = useUserProfile();
 
   useEffect(() => {
@@ -76,13 +78,18 @@ export function DashboardHero() {
     day: "numeric",
   });
 
-  const summary = summarize(assignments.data, completed.has, now);
-  const loading = assignments.isLoading;
+  const summary = summarize([
+    ...(assignments.data ?? []),
+    ...custom.list.map((item) => customToAssignmentItem(item, undefined)),
+  ], completed.has, now);
+  const loading = assignments.isLoading || completed.isLoading || custom.isLoading;
   const todayCount = summary?.today ?? 0;
   const weekCount = summary?.week ?? 0;
   const overdueCount = summary?.overdue ?? 0;
 
-  const message = loading
+  const message = assignments.isError
+    ? "Couldn't load your assignments. Refresh Canvas to try again."
+    : loading
     ? "Bringing your Canvas schedule into focus."
     : overdueCount > 0
       ? `${overdueCount} past-due item${overdueCount === 1 ? " needs" : "s need"} attention, with ${weekCount} ahead this week.`
@@ -134,7 +141,7 @@ export function DashboardHero() {
               <ArrowUpRight className="relative z-10 h-4 w-4 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-foreground" />
             </div>
             <div className="relative z-10 flex items-end justify-between gap-4">
-              <StatValue loading={loading}>{weekCount}</StatValue>
+              <StatValue loading={loading}>{assignments.isError ? "—" : weekCount}</StatValue>
               <span className="max-w-28 pb-1 text-right text-xs leading-snug text-muted-foreground">
                 {weekCount === 1 ? "item on your radar" : "items on your radar"}
               </span>
@@ -150,7 +157,7 @@ export function DashboardHero() {
               <div className="relative z-10 flex items-center justify-between gap-3">
                 <Clock3 className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
                 <p className="dashboard-hero__stat-number text-2xl font-medium tracking-[-0.05em] tabular-nums">
-                  {loading ? "—" : todayCount}
+                  {loading || assignments.isError ? "—" : todayCount}
                 </p>
               </div>
               <p className="relative z-10 text-[11px] text-muted-foreground">Next 24 hours</p>
@@ -174,7 +181,7 @@ export function DashboardHero() {
                     overdueCount > 0 && "text-rose-400",
                   )}
                 >
-                  {loading ? "—" : overdueCount}
+                  {loading || assignments.isError ? "—" : overdueCount}
                 </p>
               </div>
               <p className="relative z-10 text-[11px] text-muted-foreground">Overdue</p>

@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { studySelectionFeedback, studySuccessFeedback } from "@/lib/study-session-feedback";
 import { useStudySession } from "@/hooks/use-study-session";
+import { isAssignmentComplete } from "@/lib/assignment-window";
 import {
   createStudySession,
   remainingForSession,
@@ -103,8 +104,7 @@ function StudySessionPage() {
     const needle = search.trim().toLowerCase();
     return (assignments.data ?? [])
       .filter((item) => {
-        const submitted =
-          Boolean(item.submission?.submitted_at) || item.submission?.workflow_state === "graded";
+        const submitted = isAssignmentComplete(item, false);
         if (!showCompleted && submitted) return false;
         if (!needle) return true;
         return `${item.name} ${item.course_name} ${item.course_code}`

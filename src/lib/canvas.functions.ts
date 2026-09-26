@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { clearCanvasKeyInvalidFlag } from "@/lib/user-settings";
 import { getUserScope } from "@/lib/user-scope";
 import { createRequestCache } from "@/lib/request-cache";
+import { isAssignmentComplete } from "@/lib/assignment-window";
 
 /**
  * Right after sign-in the session can still be settling. Waiting for it (and
@@ -89,6 +90,7 @@ export interface AssignmentItem {
     graded_at?: string | null;
     grade?: string | null;
     missing?: boolean;
+    excused?: boolean;
     late?: boolean;
   };
 }
@@ -205,7 +207,7 @@ export interface DueDateItem {
 export async function getDueDatesFn(): Promise<DueDateItem[]> {
   return (await getAllAssignmentsFn()).map((a) => ({
     id: a.id, course_id: a.course_id, due_at: a.due_at,
-    submitted: !!a.submission?.submitted_at || a.submission?.workflow_state === "graded",
+    submitted: isAssignmentComplete(a, false),
   }));
 }
 export const getAnnouncementsFn = () => section("announcements");
