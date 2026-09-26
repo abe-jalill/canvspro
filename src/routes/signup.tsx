@@ -2,7 +2,6 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AuthShell, Field } from "@/components/auth-ui";
-import { SocialAuthButtons } from "@/components/social-auth-buttons";
 
 export const Route = createFileRoute("/signup")({
   ssr: false,
@@ -182,9 +181,6 @@ function SignupPage() {
         </Link>
         .
       </p>
-      <div className="mt-5">
-        <SocialAuthButtons />
-      </div>
     </AuthShell>
   );
 }
