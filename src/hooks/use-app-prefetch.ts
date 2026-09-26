@@ -89,15 +89,36 @@ export function useAppPrefetch(enabled = true): AppStartupStatus {
     ]);
 
     let cancelIdle: () => void = () => {};
-    void launchReady.then(() => {
+    // Never preload while the router is still resolving the page on screen:
+    // a preload of the same route clears its pending promise and the page
+    // crashes with "Uncaught undefined". Also skip the page already open.
+    const routerIdle = () =>
+      new Promise<void>((resolve) => {
+        const check = () => router.state.status === "idle" && !router.state.isLoading;
+        if (check()) return resolve();
+        const iv = window.setInterval(() => {
+          if (cancelled || check()) {
+            window.clearInterval(iv);
+            resolve();
+          }
+        }, 100);
+      });
+    const warmRoute = (to: string) =>
+      router.state.location.pathname === to
+        ? Promise.resolve(undefined)
+        : router.preloadRoute({ to } as never).catch(() => undefined);
+
+    void launchReady.then(async () => {
       if (cancelled) return;
       setStatus("ready");
+      await routerIdle();
+      if (cancelled) return;
 
       // These five destinations make up the app's primary navigation loop.
       // Their code is requested as soon as launch-critical data is ready, but
       // it never delays the dashboard becoming interactive.
       const primaryWarm = Promise.allSettled(
-        PRIMARY_ROUTES.map((to) => router.preloadRoute({ to }).catch(() => undefined)),
+        PRIMARY_ROUTES.map(warmRoute),
       );
 
       // Wait until the browser has painted the dashboard before fetching
@@ -117,7 +138,7 @@ export function useAppPrefetch(enabled = true): AppStartupStatus {
             queryFn: ({ signal }) => fetchUserPreferences(signal),
             staleTime: 60_000,
           }),
-          ...SECONDARY_ROUTES.map((to) => router.preloadRoute({ to }).catch(() => undefined)),
+          ...SECONDARY_ROUTES.map(warmRoute),
           ...courses.map((course) =>
             router
               .preloadRoute({

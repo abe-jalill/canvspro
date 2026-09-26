@@ -11,8 +11,8 @@ export function useIsAdmin(): { isAdmin: boolean; isPending: boolean } {
     enabled: !!userId,
     staleTime: 10 * 60_000,
     queryFn: async () => {
-      const { data } = await supabase.auth.getUser();
-      return isAdminEmail(data.user?.email);
+      const { data } = await supabase.auth.getSession();
+      return isAdminEmail(data.session?.user?.email);
     },
   });
   return { isAdmin: query.data === true, isPending: query.isPending };

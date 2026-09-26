@@ -118,8 +118,17 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
+  // Decide from the URL (identical on server and client) instead of route
+  // matches — the signed-in area is client-only, so matches differ during
+  // hydration and caused a mismatch that blanked the page.
   const showFooter = useRouterState({
-    select: (state) => !state.matches.some((match) => match.routeId === "/_authenticated"),
+    select: (state) => {
+      const first = state.location.pathname.split("/")[1] ?? "";
+      return ![
+        "admin", "announcements", "assignments", "class-schedule", "courses", "dashboard",
+        "focus", "get-it-done", "grades", "notifications", "schedule", "settings", "study-session",
+      ].includes(first);
+    },
   });
 
   useEffect(() => {
