@@ -36,7 +36,13 @@ export function filterAssignmentsForUpcomingWindow(
   now: number,
   days: 7 | 14,
 ): AssignmentItem[] {
-  const end = now + days * DAY;
+  // "Next week" is a calendar window in the student's local time. A rolling
+  // 168-hour cutoff at noon would incorrectly hide work due later on the
+  // seventh day (Canvas assignments commonly use 11:59 PM deadlines).
+  const endDate = new Date(now);
+  endDate.setDate(endDate.getDate() + days);
+  endDate.setHours(23, 59, 59, 999);
+  const end = endDate.getTime();
   return assignments.filter((assignment) => {
     const due = dueTime(assignment);
     return due != null && due >= now && due <= end;

@@ -43,9 +43,15 @@ import {
   useCustomAssignments,
 } from "@/lib/custom-assignments";
 import { useScopedKey } from "@/lib/user-scope";
+import {
+  emptyGetItDonePrefs,
+  localPlanDateKey,
+  normalizeGetItDonePrefs,
+  type AssignmentWindow,
+  type GetItDonePrefs,
+} from "@/lib/get-it-done-prefs";
 
 const GET_IT_DONE_PREFS_KEY = "canvas:get-it-done";
-type AssignmentWindow = "7" | "14";
 
 const assignmentsQO = queryOptions({
   queryKey: ["canvas", "assignments"],
@@ -60,24 +66,6 @@ const coursesQO = queryOptions({
   staleTime: CANVAS_DATA_STALE_MS,
   gcTime: CANVAS_DATA_GC_MS,
 });
-
-interface GetItDonePrefs {
-  skipped: string[];
-  planOrder: string[];
-  windowDays: AssignmentWindow;
-  version: number;
-}
-
-const EMPTY_PREFS: GetItDonePrefs = { skipped: [], planOrder: [], windowDays: "7", version: 1 };
-
-function normalizePrefs(value: Partial<GetItDonePrefs>): GetItDonePrefs {
-  return {
-    skipped: Array.isArray(value.skipped) ? value.skipped : EMPTY_PREFS.skipped,
-    planOrder: Array.isArray(value.planOrder) ? value.planOrder : EMPTY_PREFS.planOrder,
-    windowDays: value.windowDays === "14" ? "14" : "7",
-    version: typeof value.version === "number" ? value.version : EMPTY_PREFS.version,
-  };
-}
 
 export const Route = createFileRoute("/_authenticated/get-it-done")({
   head: () => ({
@@ -103,15 +91,19 @@ export const Route = createFileRoute("/_authenticated/get-it-done")({
 
 function useStoredPrefs() {
   const key = useScopedKey(GET_IT_DONE_PREFS_KEY);
-  const [prefs, setPrefs] = useState<GetItDonePrefs>(EMPTY_PREFS);
+  const [prefs, setPrefs] = useState<GetItDonePrefs>(() => emptyGetItDonePrefs());
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
       const raw = window.localStorage.getItem(key);
-      setPrefs(raw ? normalizePrefs(JSON.parse(raw) as Partial<GetItDonePrefs>) : EMPTY_PREFS);
+      setPrefs(
+        raw
+          ? normalizeGetItDonePrefs(JSON.parse(raw) as Partial<GetItDonePrefs>)
+          : emptyGetItDonePrefs(),
+      );
     } catch {
-      setPrefs(EMPTY_PREFS);
+      setPrefs(emptyGetItDonePrefs());
     }
   }, [key]);
 
@@ -253,6 +245,7 @@ function GetItDonePage() {
       ...current,
       skipped: Array.from(new Set([...current.skipped, String(id)])),
       planOrder: current.planOrder.filter((item) => item !== String(id)),
+      planDate: localPlanDateKey(),
     }));
   }
 
@@ -266,7 +259,7 @@ function GetItDonePage() {
   function regeneratePlan() {
     setChoiceOffset(0);
     setPrefs((current) => ({
-      ...EMPTY_PREFS,
+      ...emptyGetItDonePrefs(),
       windowDays: current.windowDays,
       version: Date.now(),
     }));
@@ -286,6 +279,7 @@ function GetItDonePage() {
       skipped: current.skipped.filter((id) =>
         nextVisible.some((assignment) => String(assignment.id) === id),
       ),
+      planDate: localPlanDateKey(),
       version: Date.now(),
     }));
   }
@@ -298,7 +292,7 @@ function GetItDonePage() {
     const next = [...ids];
     const [item] = next.splice(index, 1);
     next.splice(target, 0, item);
-    setPrefs((current) => ({ ...current, planOrder: next }));
+    setPrefs((current) => ({ ...current, planOrder: next, planDate: localPlanDateKey() }));
   }
 
   if (isLoading) {

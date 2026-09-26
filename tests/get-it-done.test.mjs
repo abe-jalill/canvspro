@@ -5,6 +5,7 @@ import {
   filterAssignmentsForUpcomingWindow,
   rankGetItDoneAssignments,
 } from "../src/lib/get-it-done.ts";
+import { normalizeGetItDonePrefs } from "../src/lib/get-it-done-prefs.ts";
 
 const now = Date.parse("2026-09-25T12:00:00.000Z");
 const hours = (n) => new Date(now + n * 60 * 60 * 1000).toISOString();
@@ -80,4 +81,34 @@ test("upcoming window defaults to one week and can expand to two weeks", () => {
     filterAssignmentsForUpcomingWindow(assignments, now, 14).map((item) => item.id),
     [2, 3],
   );
+});
+
+test("one-week window includes assignments due later on the seventh calendar day", () => {
+  const localNow = new Date(2026, 8, 25, 12, 0, 0).getTime();
+  const seventhDayLate = new Date(2026, 9, 2, 23, 59, 0).toISOString();
+  const followingDay = new Date(2026, 9, 3, 0, 0, 0).toISOString();
+
+  assert.deepEqual(
+    filterAssignmentsForUpcomingWindow(
+      [assignment(1, seventhDayLate), assignment(2, followingDay)],
+      localNow,
+      7,
+    ).map((item) => item.id),
+    [1],
+  );
+});
+
+test("skip-today choices expire instead of hiding assignments forever", () => {
+  const yesterday = {
+    skipped: ["1", "2", "3"],
+    planOrder: ["3", "2", "1"],
+    windowDays: "7",
+    planDate: "2026-09-24",
+    version: 1,
+  };
+
+  const normalized = normalizeGetItDonePrefs(yesterday, new Date(2026, 8, 25, 9));
+  assert.deepEqual(normalized.skipped, []);
+  assert.deepEqual(normalized.planOrder, []);
+  assert.equal(normalized.planDate, "2026-09-25");
 });
