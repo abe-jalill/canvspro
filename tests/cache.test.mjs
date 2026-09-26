@@ -37,7 +37,7 @@ test("cache restore is synchronous, scoped, expiring, and excludes auth/preferen
   source.setQueryData(["canvas", "courses"], [{ id: 42 }]);
   source.setQueryData(["auth-user"], "a");
   source.setQueryData(["user-preferences", "a"], { stale: true });
-  const saved = { version: 3, userId: "a", savedAt: Date.now(), state: dehydrate(source) };
+  const saved = { version: 4, userId: "a", savedAt: Date.now(), state: dehydrate(source) };
   let raw = JSON.stringify(saved);
   globalThis.window = {};
   globalThis.localStorage = { getItem: () => raw };
@@ -49,6 +49,10 @@ test("cache restore is synchronous, scoped, expiring, and excludes auth/preferen
   const wrongUser = new QueryClient();
   restoreQueryCache(wrongUser, "b");
   assert.equal(wrongUser.getQueryCache().getAll().length, 0);
+  raw = JSON.stringify({ ...saved, version: 3 });
+  const oldVersion = new QueryClient();
+  restoreQueryCache(oldVersion, "a");
+  assert.equal(oldVersion.getQueryCache().getAll().length, 0);
   raw = JSON.stringify({ ...saved, savedAt: Date.now() - 25 * 60 * 60_000 });
   const expired = new QueryClient();
   restoreQueryCache(expired, "a");
@@ -58,6 +62,6 @@ test("cache restore is synchronous, scoped, expiring, and excludes auth/preferen
   raw = JSON.stringify({ buster: "v2", timestamp: Date.now(), clientState: saved.state });
   restoreQueryCache(expired, "a");
   assert.deepEqual(expired.getQueryData(["canvas", "courses"]), [{ id: 42 }]);
-  source.clear(); restored.clear(); wrongUser.clear(); expired.clear();
+  source.clear(); restored.clear(); wrongUser.clear(); oldVersion.clear(); expired.clear();
   delete globalThis.window; delete globalThis.localStorage;
 });

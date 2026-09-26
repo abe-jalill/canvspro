@@ -3,7 +3,9 @@ import { dehydrate, hydrate, useQueryClient, type QueryClient } from "@tanstack/
 import { getUserScope, useUserScope } from "./user-scope.ts";
 
 const MAX_AGE = 24 * 60 * 60_000;
-const VERSION = 3;
+// Version 4 drops assignment bundles that may have been cached before the
+// Canvas proxy followed pagination (those bundles could be falsely empty).
+const VERSION = 4;
 // Never persist credentials, auth, or writable preference snapshots.
 const ROOTS = new Set(["canvas", "user-profile", "user-settings", "class-nicknames", "class-schedule-entries", "user-assignment-meta", "grade-snapshots"]);
 

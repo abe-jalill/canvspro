@@ -2,6 +2,8 @@
 // Canvas API key, stored per-user in the `user_settings` table. The key never
 // reaches the browser: the function reads it with the caller's JWT.
 
+import { nextCanvasPagePath } from "./pagination.ts";
+
 const ALLOWED_ORIGINS = [
   "https://canvaspro.app",
   "https://www.canvaspro.app",
@@ -142,14 +144,22 @@ function evictExpired() {
 }
 
 async function canvasFetch<T>(creds: Creds, path: string): Promise<T> {
-  const key = cacheKey(creds, path);
+  return cachedCanvasRequest(creds, path, () => canvasFetchRaw<T>(creds, path));
+}
+
+async function cachedCanvasRequest<T>(
+  creds: Creds,
+  requestKey: string,
+  load: () => Promise<T>,
+): Promise<T> {
+  const key = cacheKey(creds, requestKey);
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.value as T;
   if (hit) cache.delete(key);
   evictExpired();
   const pending = inflight.get(key);
   if (pending) return (await pending) as T;
-  const p = canvasFetchRaw<T>(creds, path)
+  const p = load()
     .then((v) => {
       cache.set(key, { at: Date.now(), value: v });
       return v;
@@ -159,7 +169,10 @@ async function canvasFetch<T>(creds: Creds, path: string): Promise<T> {
   return p;
 }
 
-async function canvasFetchRaw<T>(creds: Creds, path: string): Promise<T> {
+async function canvasFetchPageRaw<T>(
+  creds: Creds,
+  path: string,
+): Promise<{ data: T; nextPath: string | null }> {
   const url = `https://${creds.domain}${API_VERSION}${path}`;
   const res = await fetch(url, {
     headers: {
@@ -172,7 +185,36 @@ async function canvasFetchRaw<T>(creds: Creds, path: string): Promise<T> {
     const text = await res.text().catch(() => "");
     throw new Error(`Canvas API ${res.status}: ${text.slice(0, 200)}`);
   }
-  return (await res.json()) as T;
+  return {
+    data: (await res.json()) as T,
+    nextPath: nextCanvasPagePath(res.headers.get("Link"), creds.domain),
+  };
+}
+
+async function canvasFetchRaw<T>(creds: Creds, path: string): Promise<T> {
+  return (await canvasFetchPageRaw<T>(creds, path)).data;
+}
+
+/** Fetch every Canvas page, rather than silently losing everything after the
+ * first 100 records. The aggregate is cached and shared like a normal call. */
+async function canvasFetchAll<T>(creds: Creds, path: string): Promise<T[]> {
+  return cachedCanvasRequest(creds, `all-pages:${path}`, async () => {
+    const all: T[] = [];
+    let nextPath: string | null = path;
+    let pageCount = 0;
+
+    while (nextPath) {
+      pageCount += 1;
+      if (pageCount > 100) throw new Error("Canvas pagination exceeded 100 pages");
+      const page: { data: T[]; nextPath: string | null } =
+        await canvasFetchPageRaw<T[]>(creds, nextPath);
+      if (!Array.isArray(page.data)) throw new Error("Canvas returned an invalid paginated response");
+      all.push(...page.data);
+      nextPath = page.nextPath;
+    }
+
+    return all;
+  });
 }
 
 // Reads the caller's Canvas API key from `user_settings` using their JWT,
@@ -253,7 +295,7 @@ function isActive(c: CanvasCourse, excluded: Set<number>) {
 }
 
 async function fetchActiveCourses(creds: Creds): Promise<CanvasCourse[]> {
-  const courses = await canvasFetch<CanvasCourse[]>(
+  const courses = await canvasFetchAll<CanvasCourse>(
     creds,
     "/courses?enrollment_state=active&include[]=total_scores&include[]=syllabus_body&per_page=100",
   );
@@ -292,24 +334,37 @@ async function handleCourses(creds: Creds) {
 
 async function handleAssignments(creds: Creds) {
   const courses = await fetchActiveCourses(creds);
-  const results = await Promise.all(
+  const results = await Promise.allSettled(
     courses.map(async (c) => {
-      try {
-        const assignments = await canvasFetch<CanvasAssignment[]>(
-          creds,
-          `/courses/${c.id}/assignments?include[]=submission&per_page=100&order_by=due_at`,
-        );
-        return assignments.map((a) => ({
-          ...a,
-          course_name: c.name,
-          course_code: c.course_code,
-        }));
-      } catch {
-        return [];
-      }
+      const assignments = await canvasFetchAll<CanvasAssignment>(
+        creds,
+        `/courses/${c.id}/assignments?include[]=submission&per_page=100&order_by=due_at`,
+      );
+      return assignments.map((a) => ({
+        ...a,
+        course_name: c.name,
+        course_code: c.course_code,
+      }));
     }),
   );
-  return results.flat().filter((a) => !creds.excluded.has(a.course_id));
+  const failures = results.filter((result) => result.status === "rejected");
+  if (courses.length > 0 && failures.length === courses.length) {
+    const reason = failures[0].reason;
+    throw reason instanceof Error ? reason : new Error(String(reason));
+  }
+  for (const failure of failures) {
+    console.error(
+      "[canvas] assignment course fetch failed:",
+      failure.reason instanceof Error ? failure.reason.message : String(failure.reason),
+    );
+  }
+  return results
+    .filter((result): result is PromiseFulfilledResult<(CanvasAssignment & {
+      course_name: string;
+      course_code: string;
+    })[]> => result.status === "fulfilled")
+    .flatMap((result) => result.value)
+    .filter((a) => !creds.excluded.has(a.course_id));
 }
 
 async function handleAnnouncements(creds: Creds, days = 30) {
@@ -321,7 +376,10 @@ async function handleAnnouncements(creds: Creds, days = 30) {
   start.setDate(start.getDate() - days);
   params.set("start_date", start.toISOString());
   params.set("per_page", "50");
-  const raw = await canvasFetch<CanvasAnnouncement[]>(creds, `/announcements?${params.toString()}`);
+  const raw = await canvasFetchAll<CanvasAnnouncement>(
+    creds,
+    `/announcements?${params.toString()}`,
+  );
   const courseById = new Map(courses.map((c) => [c.id, c]));
   return raw
     .map((a) => {
@@ -353,7 +411,7 @@ async function handleCalendar(creds: Creds, daysAhead = 14) {
   // Only fetch real calendar events here. Assignment due dates are merged
   // client-side from the assignments endpoint, so fetching type=assignment
   // would duplicate every assignment on the schedule page.
-  const events = await canvasFetch<CanvasCalendarEvent[]>(
+  const events = await canvasFetchAll<CanvasCalendarEvent>(
     creds,
     `/calendar_events?${params.toString()}`,
   );
