@@ -34,6 +34,11 @@ import {
   coursesQueryOptions as coursesQO,
   assignmentsQueryOptions as assignmentsQO,
 } from "@/lib/canvas.queries";
+import {
+  AssignmentGroupSkeleton,
+  AssignmentRowSkeleton,
+  SkeletonBlock,
+} from "@/components/skeletons/dashboard-skeletons";
 
 export const Route = createFileRoute("/_authenticated/assignments")({
   head: () => ({
@@ -110,11 +115,17 @@ function PriorityAssignmentsCard({
 }) {
   if (loading) {
     return (
-      <GlassCard title="Priority Assignments">
+      <GlassCard
+        title="Priority Assignments"
+        subtitle="Smart ordering by deadline and weight"
+        className="overflow-hidden"
+      >
         <div className="space-y-3">
-          <Skeleton className="h-4 w-3/4" />
-          <Skeleton className="h-12" />
-          <Skeleton className="h-12" />
+          <SkeletonBlock className="h-4 w-3/4 max-w-sm" />
+          <div className="space-y-2 pt-1">
+            <AssignmentRowSkeleton index={0} showCalendarBtn={false} />
+            <AssignmentRowSkeleton index={1} showCalendarBtn={false} />
+          </div>
         </div>
       </GlassCard>
     );
@@ -367,9 +378,9 @@ function AssignmentsPage() {
       )}
 
       {isLoading && (
-        <div className="space-y-3">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-24 rounded-2xl" />
+        <div className="space-y-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <AssignmentGroupSkeleton key={i} index={i} />
           ))}
         </div>
       )}

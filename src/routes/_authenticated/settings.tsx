@@ -1,9 +1,11 @@
 import { createFileRoute, Link, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
-import { Camera, Check, LoaderCircle, Trash2, UserRound, X } from "lucide-react";
+import { Camera, Check, ExternalLink, LoaderCircle, Sparkles, Trash2, UserRound, X } from "lucide-react";
 import { GlassCard } from "@/components/glass-card";
-import { useCanvasKey, useCanvasDomain, useSaveCanvasKey } from "@/lib/user-settings";
+import { useCanvasKey, useCanvasDomain, useSaveCanvasKey, normalizeCanvasDomain } from "@/lib/user-settings";
+import { CanvasTokenModal } from "@/components/canvas-token-modal";
+import { getCanvasTokenSettingsUrl } from "@/lib/school-domains";
 import {
   isUsernameAvailable,
   normalizeUsername,
@@ -107,7 +109,23 @@ function SettingsPage() {
         <ProfileCard />
       </div>
 
-      <GlassCard title="Canvas connection" subtitle="Your school's Canvas URL and API key.">
+      <GlassCard
+        title="Canvas connection"
+        subtitle="Your school's Canvas URL and API key."
+        action={
+          <CanvasTokenModal
+            trigger={
+              <button
+                type="button"
+                className="glass-inset glass-hover inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium text-foreground transition"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-primary" />
+                <span>3-Step Visual Guide</span>
+              </button>
+            }
+          />
+        }
+      >
         <form onSubmit={onSubmit} className="flex w-full flex-col gap-4">
           <label className="flex w-full flex-col gap-1.5">
             <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -129,9 +147,20 @@ function SettingsPage() {
               className="glass-inset min-h-12 w-full rounded-xl bg-transparent px-4 text-base text-foreground outline-none placeholder:text-muted-foreground/60 focus:ring-1 focus:ring-foreground/20"
             />
           </label>
-          <p className="text-xs text-muted-foreground">
-            Generate one in Canvas under Account → Settings → New Access Token.
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+            <p>Generate one in Canvas under Account → Settings → New Access Token.</p>
+            {domainValue.trim() && (
+              <a
+                href={getCanvasTokenSettingsUrl(domainValue)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-primary hover:underline font-medium"
+              >
+                <span>Open {normalizeCanvasDomain(domainValue) || "Canvas"} Token Page</span>
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
+          </div>
           <label className="flex w-full flex-col gap-1.5">
             <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Canvas URL

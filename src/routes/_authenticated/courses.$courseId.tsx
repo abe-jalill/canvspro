@@ -35,6 +35,7 @@ import {
   announcementsQueryOptions as announcementsQO,
   calendarQueryOptions as eventsQO,
 } from "@/lib/canvas.queries";
+import { SkeletonBlock, AssignmentRowSkeleton } from "@/components/skeletons/dashboard-skeletons";
 
 export const Route = createFileRoute("/_authenticated/courses/$courseId")({
   head: () => ({
@@ -263,21 +264,41 @@ function CourseDetailPage() {
 
   if (loading && !course) {
     return (
-      <div className="mx-auto w-full max-w-4xl space-y-4 px-4 py-6 sm:px-6">
-        <GlassCard className="p-6">
-          <Skeleton className="mb-4 h-5 w-32" />
-          <Skeleton className="mb-2 h-8 w-64" />
-          <Skeleton className="h-4 w-48" />
+      <div className="mx-auto w-full max-w-4xl space-y-5 px-4 py-6 sm:px-6">
+        {/* Top Header & Back Navigation */}
+        <div className="flex items-center justify-between gap-3">
+          <SkeletonBlock className="h-5 w-24" />
+          <SkeletonBlock className="h-7 w-36 rounded-full" />
+        </div>
+
+        {/* Hero Class Card */}
+        <GlassCard strong className="p-6 sm:p-8 space-y-4">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-3 min-w-0">
+              <SkeletonBlock className="h-4 w-20 rounded-full" />
+              <SkeletonBlock className="h-8 w-64 sm:w-80" />
+              <SkeletonBlock className="h-4 w-40" />
+            </div>
+            <div className="flex items-baseline gap-3 shrink-0">
+              <SkeletonBlock className="h-12 w-24" />
+              <SkeletonBlock className="h-7 w-10 rounded-lg" />
+            </div>
+          </div>
         </GlassCard>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <GlassCard className="p-5">
-            <Skeleton className="mb-3 h-4 w-24" />
-            <Skeleton className="h-6 w-full" />
-          </GlassCard>
-          <GlassCard className="p-5">
-            <Skeleton className="mb-3 h-4 w-24" />
-            <Skeleton className="h-6 w-full" />
-          </GlassCard>
+
+        {/* Tabs Bar Skeleton */}
+        <div className="flex gap-2">
+          <SkeletonBlock className="h-9 w-16 rounded-xl" />
+          <SkeletonBlock className="h-9 w-24 rounded-xl" />
+          <SkeletonBlock className="h-9 w-20 rounded-xl" />
+          <SkeletonBlock className="h-9 w-28 rounded-xl" />
+        </div>
+
+        {/* Assignment Skeletons */}
+        <div className="space-y-3">
+          <AssignmentRowSkeleton index={0} />
+          <AssignmentRowSkeleton index={1} />
+          <AssignmentRowSkeleton index={2} />
         </div>
       </div>
     );

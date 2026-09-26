@@ -19,6 +19,7 @@ import {
   coursesQueryOptions as coursesQO,
   assignmentsQueryOptions as assignmentsQO,
 } from "@/lib/canvas.queries";
+import { AssignmentRowSkeleton, SkeletonBlock } from "@/components/skeletons/dashboard-skeletons";
 
 export const Route = createFileRoute("/_authenticated/focus")({
   head: () => ({
@@ -165,13 +166,20 @@ function FocusPage() {
       </div>
 
       {assignments.isLoading || courses.isLoading || completed.isLoading || custom.isLoading ? (
-        <GlassCard>
-          <div className="space-y-3">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-14" />
-            ))}
-          </div>
-        </GlassCard>
+        <div className="space-y-5">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <GlassCard key={i}>
+              <div className="mb-3 flex items-baseline justify-between px-1">
+                <SkeletonBlock className="h-5 w-40 sm:w-56" />
+                <SkeletonBlock className="h-3 w-20" />
+              </div>
+              <div className="space-y-2">
+                <AssignmentRowSkeleton index={i * 2} />
+                <AssignmentRowSkeleton index={i * 2 + 1} />
+              </div>
+            </GlassCard>
+          ))}
+        </div>
       ) : assignments.isError ? (
         <GlassCard>
           <ErrorState message={(assignments.error as Error).message} />

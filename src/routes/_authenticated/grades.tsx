@@ -15,6 +15,7 @@ import {
   coursesQueryOptions as coursesQO,
   assignmentsQueryOptions as assignmentsQO,
 } from "@/lib/canvas.queries";
+import { CourseGradeCardSkeleton } from "@/components/skeletons/dashboard-skeletons";
 
 export const Route = createFileRoute("/_authenticated/grades")({
   head: () => ({
@@ -152,13 +153,11 @@ function GradesPage() {
       </div>
 
       {loading && (
-        <GlassCard>
-          <div className="space-y-3">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-16" />
-            ))}
-          </div>
-        </GlassCard>
+        <div className="space-y-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <CourseGradeCardSkeleton key={i} index={i} />
+          ))}
+        </div>
       )}
       {error && (
         <GlassCard>

@@ -13,6 +13,7 @@ import {
   calendarQueryOptions as eventsQO,
   assignmentsQueryOptions as assignmentsQO,
 } from "@/lib/canvas.queries";
+import { SkeletonBlock, WorkloadHeatmapSkeleton } from "@/components/skeletons/dashboard-skeletons";
 
 export const Route = createFileRoute("/_authenticated/schedule")({
   head: () => ({
@@ -116,15 +117,40 @@ function SchedulePage() {
         />
       </header>
 
-      <GlassCard>
-        <WorkloadHeatmap assignments={assignments.data ?? []} />
+      <GlassCard title="Workload" subtitle="Assignment density by week">
+        {assignments.isLoading ? (
+          <WorkloadHeatmapSkeleton />
+        ) : (
+          <WorkloadHeatmap assignments={assignments.data ?? []} />
+        )}
       </GlassCard>
 
       <GlassCard>
         {loading && (
-          <div className="space-y-3">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-14" />
+          <div className="space-y-6">
+            {Array.from({ length: 2 }).map((_, dayIdx) => (
+              <div key={dayIdx} className="space-y-2">
+                <div className="mb-2 flex items-baseline justify-between border-b border-foreground/10 pb-2">
+                  <SkeletonBlock className="h-4 w-32" />
+                  <SkeletonBlock className="h-3 w-12" />
+                </div>
+                <div className="space-y-2">
+                  <div className="glass-inset flex items-center justify-between gap-3 p-3">
+                    <div className="space-y-1.5 min-w-0">
+                      <SkeletonBlock className="h-4 w-48 sm:w-64" />
+                      <SkeletonBlock className="h-2.5 w-24" />
+                    </div>
+                    <SkeletonBlock className="h-3.5 w-16" />
+                  </div>
+                  <div className="glass-inset flex items-center justify-between gap-3 p-3">
+                    <div className="space-y-1.5 min-w-0">
+                      <SkeletonBlock className="h-4 w-36 sm:w-48" />
+                      <SkeletonBlock className="h-2.5 w-20" />
+                    </div>
+                    <SkeletonBlock className="h-3.5 w-16" />
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
         )}
