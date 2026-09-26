@@ -14,11 +14,7 @@ import {
   withinAnnouncementWindow,
 } from "@/lib/announcement-window";
 
-const announcementsQO = queryOptions({
-  queryKey: ["canvas", "announcements"],
-  queryFn: () => getAnnouncementsFn(),
-  staleTime: 5 * 60_000,
-});
+import { announcementsQueryOptions as announcementsQO } from "@/lib/canvas.queries";
 
 export const Route = createFileRoute("/_authenticated/announcements")({
   head: () => ({
@@ -41,6 +37,11 @@ export const Route = createFileRoute("/_authenticated/announcements")({
     ...(typeof search?.course === "string" ? { course: search.course } : {}),
     ...(typeof search?.expand === "string" ? { expand: search.expand } : {}),
   }),
+  loader: ({ context }) => {
+    if (context?.queryClient) {
+      void context.queryClient.ensureQueryData(announcementsQO);
+    }
+  },
   component: AnnouncementsPage,
 });
 

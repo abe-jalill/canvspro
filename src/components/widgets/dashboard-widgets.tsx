@@ -31,29 +31,12 @@ import { getGradeColor } from "@/lib/grade-color";
 import { isInFocusWindow } from "@/lib/focus-window";
 import { customToAssignmentItem, useCustomAssignments } from "@/lib/custom-assignments";
 
-const coursesQO = queryOptions({
-  queryKey: ["canvas", "courses"],
-  queryFn: () => getCoursesFn(),
-  staleTime: 5 * 60_000,
-});
-
-const assignmentsQO = queryOptions({
-  queryKey: ["canvas", "assignments"],
-  queryFn: () => getAllAssignmentsFn(),
-  staleTime: 5 * 60_000,
-});
-
-const eventsQO = queryOptions({
-  queryKey: ["canvas", "calendar"],
-  queryFn: () => getCalendarEventsFn(),
-  staleTime: 5 * 60_000,
-});
-
-const announcementsQO = queryOptions({
-  queryKey: ["canvas", "announcements"],
-  queryFn: () => getAnnouncementsFn(),
-  staleTime: 5 * 60_000,
-});
+import {
+  coursesQueryOptions as coursesQO,
+  assignmentsQueryOptions as assignmentsQO,
+  calendarQueryOptions as eventsQO,
+  announcementsQueryOptions as announcementsQO,
+} from "@/lib/canvas.queries";
 
 function formatScore(score: number | null, grade: string | null) {
   if (score == null && !grade) return "—";
@@ -102,6 +85,7 @@ function CoursesWidget() {
         action={
           <Link
             to="/grades"
+            preload="intent"
             className="glass-hover rounded-lg px-2.5 py-1 text-xs font-normal text-muted-foreground"
           >
             View all
@@ -135,6 +119,7 @@ function CoursesWidget() {
                   <Link
                     to="/courses/$courseId"
                     params={{ courseId: String(c.id) }}
+                    preload="intent"
                     className="flex min-w-0 flex-1 items-center gap-2.5"
                     title={`View ${courseName} details`}
                   >
@@ -244,6 +229,7 @@ function UpcomingWidget() {
       action={
         <Link
           to="/assignments"
+          preload="intent"
           className="glass-hover rounded-lg px-2.5 py-1 text-xs font-medium text-muted-foreground"
         >
           View all
@@ -403,6 +389,7 @@ function AnnouncementsWidget() {
       action={
         <Link
           to="/announcements"
+          preload="intent"
           className="glass-hover rounded-lg px-2.5 py-1 text-xs font-medium text-muted-foreground"
         >
           View all
@@ -463,6 +450,7 @@ function AnnouncementsWidget() {
                             course: courseSlug(displayCourseName(g.name, g.code)),
                             expand: String(a.id),
                           }}
+                          preload="intent"
                           className="min-w-0 flex-1"
                         >
                           <div className="flex items-start justify-between gap-2">
@@ -584,6 +572,7 @@ function FocusWidget() {
         <Link
           to="/focus"
           search={{ window: "2" }}
+          preload="intent"
           className="glass-hover rounded-lg px-2.5 py-1 text-xs font-medium text-muted-foreground"
         >
           Open
@@ -658,6 +647,7 @@ function CalendarWidget() {
       action={
         <Link
           to="/schedule"
+          preload="intent"
           className="glass-hover rounded-lg px-2.5 py-1 text-xs font-medium text-muted-foreground"
         >
           View all

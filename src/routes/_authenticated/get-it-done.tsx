@@ -52,19 +52,10 @@ import {
 
 const GET_IT_DONE_PREFS_KEY = "canvas:get-it-done";
 
-const assignmentsQO = queryOptions({
-  queryKey: ["canvas", "assignments"],
-  queryFn: () => getAllAssignmentsFn(),
-  staleTime: CANVAS_DATA_STALE_MS,
-  gcTime: CANVAS_DATA_GC_MS,
-});
-
-const coursesQO = queryOptions({
-  queryKey: ["canvas", "courses"],
-  queryFn: () => getCoursesFn(),
-  staleTime: CANVAS_DATA_STALE_MS,
-  gcTime: CANVAS_DATA_GC_MS,
-});
+import {
+  coursesQueryOptions as coursesQO,
+  assignmentsQueryOptions as assignmentsQO,
+} from "@/lib/canvas.queries";
 
 export const Route = createFileRoute("/_authenticated/get-it-done")({
   head: () => ({
@@ -85,6 +76,12 @@ export const Route = createFileRoute("/_authenticated/get-it-done")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
+  loader: ({ context }) => {
+    if (context?.queryClient) {
+      void context.queryClient.ensureQueryData(assignmentsQO);
+      void context.queryClient.ensureQueryData(coursesQO);
+    }
+  },
   component: GetItDonePage,
 });
 

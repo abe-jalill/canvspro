@@ -11,19 +11,10 @@ import { cn } from "@/lib/utils";
 import { useCourseHighlight, validateCourseSearch } from "@/lib/course-highlight";
 import { useGradeSnapshots, useRecordGradeSnapshots } from "@/hooks/use-grade-snapshots";
 
-const coursesQO = queryOptions({
-  queryKey: ["canvas", "courses"],
-  queryFn: () => getCoursesFn(),
-  staleTime: CANVAS_DATA_STALE_MS,
-  gcTime: CANVAS_DATA_GC_MS,
-});
-
-const assignmentsQO = queryOptions({
-  queryKey: ["canvas", "assignments"],
-  queryFn: () => getAllAssignmentsFn(),
-  staleTime: CANVAS_DATA_STALE_MS,
-  gcTime: CANVAS_DATA_GC_MS,
-});
+import {
+  coursesQueryOptions as coursesQO,
+  assignmentsQueryOptions as assignmentsQO,
+} from "@/lib/canvas.queries";
 
 export const Route = createFileRoute("/_authenticated/grades")({
   head: () => ({
@@ -45,6 +36,12 @@ export const Route = createFileRoute("/_authenticated/grades")({
     ],
   }),
   validateSearch: validateCourseSearch,
+  loader: ({ context }) => {
+    if (context?.queryClient) {
+      void context.queryClient.ensureQueryData(coursesQO);
+      void context.queryClient.ensureQueryData(assignmentsQO);
+    }
+  },
   component: GradesPage,
 });
 

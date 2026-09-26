@@ -15,19 +15,10 @@ import { isAssignmentComplete } from "@/lib/assignment-window";
 import { customToAssignmentItem, useCustomAssignments } from "@/lib/custom-assignments";
 import { toast } from "sonner";
 
-const assignmentsQO = queryOptions({
-  queryKey: ["canvas", "assignments"],
-  queryFn: () => getAllAssignmentsFn(),
-  staleTime: CANVAS_DATA_STALE_MS,
-  gcTime: CANVAS_DATA_GC_MS,
-});
-
-const coursesQO = queryOptions({
-  queryKey: ["canvas", "courses"],
-  queryFn: () => getCoursesFn(),
-  staleTime: CANVAS_DATA_STALE_MS,
-  gcTime: CANVAS_DATA_GC_MS,
-});
+import {
+  coursesQueryOptions as coursesQO,
+  assignmentsQueryOptions as assignmentsQO,
+} from "@/lib/canvas.queries";
 
 export const Route = createFileRoute("/_authenticated/focus")({
   head: () => ({
@@ -51,6 +42,12 @@ export const Route = createFileRoute("/_authenticated/focus")({
   validateSearch: (search: Record<string, unknown>): { window: FocusWindow } => ({
     window: isFocusWindow(search.window) ? search.window : "7",
   }),
+  loader: ({ context }) => {
+    if (context?.queryClient) {
+      void context.queryClient.ensureQueryData(assignmentsQO);
+      void context.queryClient.ensureQueryData(coursesQO);
+    }
+  },
   component: FocusPage,
 });
 

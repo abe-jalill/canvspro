@@ -10,11 +10,7 @@ import { cn } from "@/lib/utils";
 import { isInFocusWindow } from "@/lib/focus-window";
 import { customToAssignmentItem, useCustomAssignments } from "@/lib/custom-assignments";
 
-const dueDatesQO = queryOptions({
-  queryKey: ["canvas", "assignments"],
-  queryFn: getAllAssignmentsFn,
-  staleTime: 5 * 60_000,
-});
+import { assignmentsQueryOptions as dueDatesQO } from "@/lib/canvas.queries";
 
 function summarize(
   assignments: AssignmentItem[] | undefined,
@@ -121,6 +117,7 @@ export function DashboardHero() {
           <Link
             to="/focus"
             search={{ window: "7" }}
+            preload="intent"
             className="dashboard-hero__cta press group inline-flex min-h-10 w-fit items-center gap-2 rounded-full px-4 text-xs font-medium text-foreground"
           >
             Open focus view
@@ -132,6 +129,7 @@ export function DashboardHero() {
           <Link
             to="/focus"
             search={{ window: "7" }}
+            preload="intent"
             className="dashboard-hero__stat-card press group relative flex min-h-36 flex-col justify-between rounded-[1.2rem] p-5"
           >
             <div className="flex items-center justify-between gap-3">
@@ -152,6 +150,7 @@ export function DashboardHero() {
             <Link
               to="/focus"
               search={{ window: "1" }}
+              preload="intent"
               className="dashboard-hero__stat-card press group relative flex min-h-28 flex-col justify-between rounded-[1.2rem] p-4"
             >
               <div className="relative z-10 flex items-center justify-between gap-3">
@@ -165,6 +164,7 @@ export function DashboardHero() {
             <Link
               to="/focus"
               search={{ window: "overdue" }}
+              preload="intent"
               className="dashboard-hero__stat-card press group relative flex min-h-28 flex-col justify-between rounded-[1.2rem] p-4"
             >
               <div className="relative z-10 flex items-center justify-between gap-3">

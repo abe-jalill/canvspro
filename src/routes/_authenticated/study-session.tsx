@@ -32,16 +32,17 @@ import {
   type StudySessionSnapshot,
 } from "@/lib/study-session";
 
-const assignmentsQO = queryOptions({
-  queryKey: ["canvas", "assignments"],
-  queryFn: () => getAllAssignmentsFn(),
-  staleTime: 5 * 60_000,
-});
+import { assignmentsQueryOptions as assignmentsQO } from "@/lib/canvas.queries";
 
 const PRESETS = [15, 25, 45, 60];
 
 export const Route = createFileRoute("/_authenticated/study-session")({
   head: () => ({ meta: [{ title: "Study Session — CanvasPro" }] }),
+  loader: ({ context }) => {
+    if (context?.queryClient) {
+      void context.queryClient.ensureQueryData(assignmentsQO);
+    }
+  },
   component: StudySessionPage,
 });
 

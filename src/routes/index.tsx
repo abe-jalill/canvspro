@@ -216,7 +216,7 @@ const FAQS = [
 
 function LandingPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [activeDemoTab, setActiveDemoTab] = useState<"grades" | "assignments" | "calculator">("grades");
+  const [activeDemoTab, setActiveDemoTab] = useState<"grades" | "assignments" | "calculator" | "preview">("grades");
   const [demoFinalTarget, setDemoFinalTarget] = useState<string>("90");
 
   useEffect(() => {
@@ -248,6 +248,7 @@ function LandingPage() {
           </div>
           <Link
             to="/dashboard"
+            preload="intent"
             className="glass-hover inline-flex min-h-10 items-center justify-center rounded-xl bg-foreground px-5 text-xs font-semibold text-background"
           >
             Go to my dashboard <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
@@ -275,6 +276,7 @@ function LandingPage() {
           {isLoggedIn ? (
             <Link
               to="/dashboard"
+              preload="intent"
               className="glass-hover inline-flex min-h-12 items-center justify-center rounded-xl bg-foreground px-7 text-sm font-semibold text-background"
             >
               Open Dashboard <ArrowRight className="ml-2 h-4 w-4" />
@@ -283,12 +285,14 @@ function LandingPage() {
             <>
               <Link
                 to="/signup"
+                preload="intent"
                 className="glass-hover inline-flex min-h-12 items-center justify-center rounded-xl bg-foreground px-7 text-sm font-semibold text-background"
               >
                 Get started free <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
               <Link
                 to="/auth"
+                preload="intent"
                 className="glass-inset glass-hover inline-flex min-h-12 items-center justify-center rounded-xl px-6 text-sm font-medium"
               >
                 Sign in
@@ -363,6 +367,18 @@ function LandingPage() {
                 )}
               >
                 Finals Calculator
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveDemoTab("preview")}
+                className={cn(
+                  "rounded-lg px-3 py-1 text-xs font-medium transition",
+                  activeDemoTab === "preview"
+                    ? "bg-foreground/15 text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                App Preview
               </button>
             </div>
           </div>
@@ -511,6 +527,50 @@ function LandingPage() {
                   <p className="mt-1 text-xs text-muted-foreground">
                     on the final exam to finish with a {demoFinalTarget}% in this course.
                   </p>
+                </div>
+              </div>
+            )}
+
+            {activeDemoTab === "preview" && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-semibold tracking-tight text-foreground">
+                      Liquid Glass Interface
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      Optimized for speed and readability with next-gen image compression
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-400">
+                    AVIF / WebP Optimized
+                  </span>
+                </div>
+
+                <div className="overflow-hidden rounded-2xl border border-foreground/15 bg-black/40 shadow-2xl">
+                  <picture>
+                    <source
+                      type="image/avif"
+                      srcSet="/canvaspro-preview-640.avif 640w, /canvaspro-preview-1280.avif 1280w"
+                      sizes="(max-width: 640px) 100vw, 1024px"
+                    />
+                    <source
+                      type="image/webp"
+                      srcSet="/canvaspro-preview-640.webp 640w, /canvaspro-preview-1280.webp 1280w"
+                      sizes="(max-width: 640px) 100vw, 1024px"
+                    />
+                    <img
+                      src="/canvaspro-preview-1280.png"
+                      srcSet="/canvaspro-preview-640.png 640w, /canvaspro-preview-1280.png 1280w"
+                      sizes="(max-width: 640px) 100vw, 1024px"
+                      alt="CanvasPro student dashboard preview"
+                      loading="lazy"
+                      decoding="async"
+                      width={1280}
+                      height={1800}
+                      className="h-auto w-full object-contain"
+                    />
+                  </picture>
                 </div>
               </div>
             )}
@@ -772,6 +832,7 @@ function LandingPage() {
             <div className="mt-8">
               <Link
                 to="/signup"
+                preload="intent"
                 className="glass-inset glass-hover inline-flex min-h-11 w-full items-center justify-center rounded-xl px-4 text-sm font-medium"
               >
                 Create free account
@@ -820,12 +881,14 @@ function LandingPage() {
         <div className="flex flex-wrap justify-center gap-3">
           <Link
             to="/canvas-grade-calculator"
+            preload="intent"
             className="glass-inset glass-hover inline-flex min-h-11 items-center justify-center rounded-xl px-4 text-sm font-medium"
           >
             Canvas grade calculator
           </Link>
           <Link
             to="/canvas-dashboard-guide"
+            preload="intent"
             className="glass-inset glass-hover inline-flex min-h-11 items-center justify-center rounded-xl px-4 text-sm font-medium"
           >
             Customize Canvas guide

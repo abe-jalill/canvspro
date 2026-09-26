@@ -9,19 +9,10 @@ import { Segmented } from "@/components/segmented";
 import { WorkloadHeatmap } from "@/components/workload-heatmap";
 import { endOfUpcomingDay } from "@/lib/assignment-window";
 
-const eventsQO = queryOptions({
-  queryKey: ["canvas", "calendar"],
-  queryFn: () => getCalendarEventsFn(),
-  staleTime: CANVAS_DATA_STALE_MS,
-  gcTime: CANVAS_DATA_GC_MS,
-});
-
-const assignmentsQO = queryOptions({
-  queryKey: ["canvas", "assignments"],
-  queryFn: () => getAllAssignmentsFn(),
-  staleTime: CANVAS_DATA_STALE_MS,
-  gcTime: CANVAS_DATA_GC_MS,
-});
+import {
+  calendarQueryOptions as eventsQO,
+  assignmentsQueryOptions as assignmentsQO,
+} from "@/lib/canvas.queries";
 
 export const Route = createFileRoute("/_authenticated/schedule")({
   head: () => ({
@@ -38,6 +29,12 @@ export const Route = createFileRoute("/_authenticated/schedule")({
       },
     ],
   }),
+  loader: ({ context }) => {
+    if (context?.queryClient) {
+      void context.queryClient.ensureQueryData(eventsQO);
+      void context.queryClient.ensureQueryData(assignmentsQO);
+    }
+  },
   component: SchedulePage,
 });
 

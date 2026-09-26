@@ -29,29 +29,12 @@ import { isAssignmentComplete } from "@/lib/assignment-window";
 
 const THREE_WEEKS_MS = 3 * 7 * 24 * 60 * 60 * 1000;
 
-const coursesQO = queryOptions({
-  queryKey: ["canvas", "courses"],
-  queryFn: () => getCoursesFn(),
-  staleTime: 5 * 60_000,
-});
-
-const assignmentsQO = queryOptions({
-  queryKey: ["canvas", "assignments"],
-  queryFn: () => getAllAssignmentsFn(),
-  staleTime: 5 * 60_000,
-});
-
-const announcementsQO = queryOptions({
-  queryKey: ["canvas", "announcements"],
-  queryFn: () => getAnnouncementsFn(),
-  staleTime: 5 * 60_000,
-});
-
-const eventsQO = queryOptions({
-  queryKey: ["canvas", "calendar"],
-  queryFn: () => getCalendarEventsFn(),
-  staleTime: 5 * 60_000,
-});
+import {
+  coursesQueryOptions as coursesQO,
+  assignmentsQueryOptions as assignmentsQO,
+  announcementsQueryOptions as announcementsQO,
+  calendarQueryOptions as eventsQO,
+} from "@/lib/canvas.queries";
 
 export const Route = createFileRoute("/_authenticated/courses/$courseId")({
   head: () => ({
@@ -60,6 +43,12 @@ export const Route = createFileRoute("/_authenticated/courses/$courseId")({
       { name: "description", content: "Individual course overview, grades, assignments, and announcements." },
     ],
   }),
+  loader: ({ context }) => {
+    if (context?.queryClient) {
+      void context.queryClient.ensureQueryData(coursesQO);
+      void context.queryClient.ensureQueryData(assignmentsQO);
+    }
+  },
   component: CourseDetailPage,
 });
 

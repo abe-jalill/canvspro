@@ -57,11 +57,7 @@ function useNavItems() {
   return isAdmin ? [...items, adminItem] : items;
 }
 
-const coursesQO = queryOptions({
-  queryKey: ["canvas", "courses"],
-  queryFn: () => getCoursesFn(),
-  staleTime: 5 * 60_000,
-});
+import { coursesQueryOptions as coursesQO, prefetchRouteQueries } from "@/lib/canvas.queries";
 
 function useActivePath() {
   return useRouterState({ select: (s) => s.location.pathname });
@@ -156,6 +152,7 @@ function SignOutButton({ compact = false }: { compact?: boolean }) {
 }
 
 export function AppSidebar() {
+  const queryClient = useQueryClient();
   const pathname = useActivePath();
   const navItems = useNavItems();
   const courses = useQuery(coursesQO);
@@ -215,6 +212,8 @@ export function AppSidebar() {
                       key={item.to}
                       to={item.to}
                       preload="intent"
+                      onMouseEnter={() => prefetchRouteQueries(queryClient, item.to)}
+                      onFocus={() => prefetchRouteQueries(queryClient, item.to)}
                       title={item.title}
                       aria-label={item.title}
                       className={cn(
@@ -243,6 +242,8 @@ export function AppSidebar() {
                       to="/courses/$courseId"
                       params={{ courseId: String(course.id) }}
                       preload="intent"
+                      onMouseEnter={() => prefetchRouteQueries(queryClient, coursePath)}
+                      onFocus={() => prefetchRouteQueries(queryClient, coursePath)}
                       title={courseName}
                       aria-label={courseName}
                       className={cn(
@@ -296,6 +297,8 @@ export function AppSidebar() {
                     key={item.to}
                     to={item.to}
                     preload="intent"
+                    onMouseEnter={() => prefetchRouteQueries(queryClient, item.to)}
+                    onFocus={() => prefetchRouteQueries(queryClient, item.to)}
                     className={cn(
                       "press rounded-xl px-3 py-2 text-sm transition-all",
                       isActive(pathname, item.to)
@@ -344,6 +347,8 @@ export function AppSidebar() {
                           to="/courses/$courseId"
                           params={{ courseId: String(course.id) }}
                           preload="intent"
+                          onMouseEnter={() => prefetchRouteQueries(queryClient, coursePath)}
+                          onFocus={() => prefetchRouteQueries(queryClient, coursePath)}
                           title={`${courseName} (${score != null ? score.toFixed(1) + "%" : "No grade"})`}
                           className={cn(
                             "press flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-sm transition-all group",
@@ -384,6 +389,7 @@ export function AppSidebar() {
 }
 
 export function MobileNav() {
+  const queryClient = useQueryClient();
   const pathname = useActivePath();
   const navItems = useNavItems();
   const locationHref = useRouterState({ select: (s) => s.location.href });
@@ -446,6 +452,8 @@ export function MobileNav() {
             key={item.to}
             to={item.to}
             preload="intent"
+            onMouseEnter={() => prefetchRouteQueries(queryClient, item.to)}
+            onFocus={() => prefetchRouteQueries(queryClient, item.to)}
             onClick={() => setOpen(false)}
             className={cn(
               "press flex min-h-11 items-center rounded-xl px-3 text-sm font-normal",
@@ -484,6 +492,8 @@ export function MobileNav() {
                   to="/courses/$courseId"
                   params={{ courseId: String(course.id) }}
                   preload="intent"
+                  onMouseEnter={() => prefetchRouteQueries(queryClient, coursePath)}
+                  onFocus={() => prefetchRouteQueries(queryClient, coursePath)}
                   onClick={() => setOpen(false)}
                   className={cn(
                     "press flex min-h-10 items-center justify-between rounded-xl px-3 text-sm transition-all",

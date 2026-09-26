@@ -30,19 +30,10 @@ import { isAssignmentComplete } from "@/lib/assignment-window";
 
 const ASSIGNMENTS_PULSE_HIDDEN_KEY = "canvas:assignments-pulse-hidden";
 
-const assignmentsQO = queryOptions({
-  queryKey: ["canvas", "assignments"],
-  queryFn: () => getAllAssignmentsFn(),
-  staleTime: CANVAS_DATA_STALE_MS,
-  gcTime: CANVAS_DATA_GC_MS,
-});
-
-const coursesQO = queryOptions({
-  queryKey: ["canvas", "courses"],
-  queryFn: () => getCoursesFn(),
-  staleTime: CANVAS_DATA_STALE_MS,
-  gcTime: CANVAS_DATA_GC_MS,
-});
+import {
+  coursesQueryOptions as coursesQO,
+  assignmentsQueryOptions as assignmentsQO,
+} from "@/lib/canvas.queries";
 
 export const Route = createFileRoute("/_authenticated/assignments")({
   head: () => ({
@@ -64,6 +55,12 @@ export const Route = createFileRoute("/_authenticated/assignments")({
     ],
   }),
   validateSearch: validateCourseSearch,
+  loader: ({ context }) => {
+    if (context?.queryClient) {
+      void context.queryClient.ensureQueryData(assignmentsQO);
+      void context.queryClient.ensureQueryData(coursesQO);
+    }
+  },
   component: AssignmentsPage,
 });
 

@@ -152,7 +152,7 @@ export function DigestCard({ announcements, assignments, courses }: Props) {
           emptyText="No new posts"
         >
           {newAnnouncements.map((a) => (
-            <Link key={a.id} to="/announcements" className="glass-inset glass-hover block p-2.5">
+            <Link key={a.id} to="/announcements" preload="intent" className="glass-inset glass-hover block p-2.5">
               <p className="truncate text-xs font-medium">{a.title}</p>
               <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
                 {courseName(a.course_id, a.course_name, a.course_code)}
@@ -168,7 +168,7 @@ export function DigestCard({ announcements, assignments, courses }: Props) {
           emptyText="No new grades"
         >
           {gradeChanges.map(({ a, prev, next }) => (
-            <Link key={a.id} to="/grades" className="glass-inset glass-hover block p-2.5">
+            <Link key={a.id} to="/grades" preload="intent" className="glass-inset glass-hover block p-2.5">
               <p className="truncate text-xs font-medium">{a.name}</p>
               <div className="mt-0.5 flex items-baseline justify-between gap-2">
                 <p className="truncate text-[10px] text-muted-foreground">
@@ -192,7 +192,7 @@ export function DigestCard({ announcements, assignments, courses }: Props) {
           emptyText="Nothing new due soon"
         >
           {newlyUrgent.map(({ a, urgency }) => (
-            <Link key={a.id} to="/assignments" className="glass-inset glass-hover block p-2.5">
+            <Link key={a.id} to="/assignments" preload="intent" className="glass-inset glass-hover block p-2.5">
               <p className="truncate text-xs font-medium">{a.name}</p>
               <div className="mt-0.5 flex items-baseline justify-between gap-2">
                 <p className="truncate text-[10px] text-muted-foreground">
