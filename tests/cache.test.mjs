@@ -37,7 +37,7 @@ test("cache restore is synchronous, scoped, expiring, and excludes auth/preferen
   source.setQueryData(["canvas", "courses"], [{ id: 42 }]);
   source.setQueryData(["auth-user"], "a");
   source.setQueryData(["user-preferences", "a"], { stale: true });
-  const saved = { version: 4, userId: "a", savedAt: Date.now(), state: dehydrate(source) };
+  const saved = { version: 5, userId: "a", savedAt: Date.now(), state: dehydrate(source) };
   let raw = JSON.stringify(saved);
   globalThis.window = {};
   globalThis.localStorage = { getItem: () => raw };
@@ -49,7 +49,7 @@ test("cache restore is synchronous, scoped, expiring, and excludes auth/preferen
   const wrongUser = new QueryClient();
   restoreQueryCache(wrongUser, "b");
   assert.equal(wrongUser.getQueryCache().getAll().length, 0);
-  raw = JSON.stringify({ ...saved, version: 3 });
+  raw = JSON.stringify({ ...saved, version: 4 });
   const oldVersion = new QueryClient();
   restoreQueryCache(oldVersion, "a");
   assert.equal(oldVersion.getQueryCache().getAll().length, 0);

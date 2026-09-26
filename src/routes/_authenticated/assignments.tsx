@@ -24,7 +24,6 @@ import { buildIcs, downloadIcs, safeFilename } from "@/lib/ics";
 import { useCourseHighlight, validateCourseSearch } from "@/lib/course-highlight";
 import { buildPriorityList, describePriorityList } from "@/lib/priority";
 import { useAssignmentMetaMap } from "@/hooks/use-assignment-meta";
-import { dropStaleOverdue } from "@/lib/assignment-window";
 import { ProductivityOverview } from "@/components/productivity-overview";
 import { useLocalNumber } from "@/lib/local-value";
 
@@ -219,11 +218,12 @@ function AssignmentsPage() {
     const courseById = new Map(
       (courses.data ?? []).map((c) => [c.id, { name: c.name, course_code: c.course_code }]),
     );
-    // Anything due more than a day ago is left out entirely.
-    return dropStaleOverdue([
+    // This is the complete Assignments page. Time limits used by Get It Done,
+    // Focus, Schedule, or a course page must never narrow this source list.
+    return [
       ...(data ?? []),
       ...custom.list.map((c) => customToAssignmentItem(c, courseById.get(c.course_id))),
-    ]);
+    ];
   }, [data, custom.list, courses.data]);
 
   const groups: ClassGroup[] = useMemo(() => {

@@ -29,7 +29,6 @@ import {
   useAssignmentMetaMap,
   useSetAssignmentEstimate,
 } from "@/hooks/use-assignment-meta";
-import { dropStaleOverdue } from "@/lib/assignment-window";
 import {
   buildTodayPlan,
   rankGetItDoneAssignments,
@@ -172,7 +171,7 @@ function GetItDonePage() {
   const setEstimate = useSetAssignmentEstimate();
   const [prefs, setPrefs] = useStoredPrefs();
   const [choiceOffset, setChoiceOffset] = useState(0);
-  const now = useMemo(() => Date.now(), [prefs.windowDays, prefs.version]);
+  const now = Date.now();
   const windowDays = numericWindowDays(prefs.windowDays);
 
   const courseById = useMemo(
@@ -187,10 +186,12 @@ function GetItDonePage() {
   );
 
   const allAssignments = useMemo(() => {
-    return dropStaleOverdue([
+    // Keep the canonical feed intact. The 7/14-day rule is applied only by
+    // visibleAssignments below and is never written back to the shared query.
+    return [
       ...(assignments.data ?? []),
       ...custom.list.map((item) => customToAssignmentItem(item, courseById.get(item.course_id))),
-    ]);
+    ];
   }, [assignments.data, custom.list, courseById]);
 
   const visibleAssignments = useMemo(
@@ -346,7 +347,13 @@ function GetItDonePage() {
         <GlassCard strong title="What Should I Do Now?">
           <EmptyState
             title="Nothing needs your attention right now."
-            message={`CanvasPro will recommend a task here when an unfinished Canvas assignment is due in the next ${prefs.windowDays === "7" ? "week" : "two weeks"}.`}
+            message={
+              allAssignments.length === 0
+                ? "Canvas did not return any assignments. Refresh Canvas data or check your Canvas connection in Settings."
+                : visibleAssignments.length === 0
+                  ? `${allAssignments.length} assignment${allAssignments.length === 1 ? " is" : "s are"} loaded, but none are due in the next ${prefs.windowDays === "7" ? "week" : "two weeks"}.`
+                  : `${visibleAssignments.length} assignment${visibleAssignments.length === 1 ? " is" : "s are"} due in this window, but all are completed or skipped for today.`
+            }
             icon={<CheckCircle2 className="h-5 w-5" />}
           />
         </GlassCard>

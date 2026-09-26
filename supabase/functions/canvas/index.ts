@@ -3,6 +3,7 @@
 // reaches the browser: the function reads it with the caller's JWT.
 
 import { nextCanvasPagePath } from "./pagination.ts";
+import { isCanvasCourseVisible } from "./course-visibility.ts";
 
 const ALLOWED_ORIGINS = [
   "https://canvaspro.app",
@@ -287,19 +288,14 @@ async function credsForRequest(req: Request, includeHidden = false): Promise<Cre
   return { domain, token, cacheScope: await tokenFingerprint(token), excluded };
 }
 
-function isActive(c: CanvasCourse, excluded: Set<number>) {
-  if (excluded.has(c.id)) return false;
-  if (c.access_restricted_by_date) return false;
-  if (c.workflow_state && c.workflow_state !== "available") return false;
-  return true;
-}
-
 async function fetchActiveCourses(creds: Creds): Promise<CanvasCourse[]> {
   const courses = await canvasFetchAll<CanvasCourse>(
     creds,
     "/courses?enrollment_state=active&include[]=total_scores&include[]=syllabus_body&per_page=100",
   );
-  return courses.filter((c) => isActive(c, creds.excluded));
+  // enrollment_state=active is Canvas's source of truth. Do not let a page's
+  // date window (or a redundant local workflow-state check) shrink this feed.
+  return courses.filter((course) => isCanvasCourseVisible(course, creds.excluded));
 }
 
 async function handleCourses(creds: Creds) {
@@ -338,7 +334,7 @@ async function handleAssignments(creds: Creds) {
     courses.map(async (c) => {
       const assignments = await canvasFetchAll<CanvasAssignment>(
         creds,
-        `/courses/${c.id}/assignments?include[]=submission&per_page=100&order_by=due_at`,
+        `/courses/${c.id}/assignments?include[]=submission&override_assignment_dates=true&per_page=100&order_by=due_at`,
       );
       return assignments.map((a) => ({
         ...a,
