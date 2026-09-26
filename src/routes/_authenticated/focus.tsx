@@ -161,7 +161,7 @@ function FocusPage() {
                   ? "You're clear for the next 24 hours."
                 : `You're clear for the next ${WINDOW_LABELS[win]}.`}
             </p>
-            <p className="text-sm text-muted-foreground">Nothing due. Breathe.</p>
+            <p className="text-sm text-muted-foreground">No unfinished assignments in this window.</p>
           </div>
         </GlassCard>
       ) : (

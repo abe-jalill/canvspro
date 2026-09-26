@@ -24,6 +24,8 @@ import {
   CalendarPlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { COMPLETED_ASSIGNMENTS_KEY, useLocalSet } from "@/lib/local-state";
+import { isAssignmentComplete } from "@/lib/assignment-window";
 
 const THREE_WEEKS_MS = 3 * 7 * 24 * 60 * 60 * 1000;
 
@@ -122,6 +124,7 @@ function CourseDetailPage() {
   const announcementsQueryState = useQuery(announcementsQO);
   const calendarQueryState = useQuery(eventsQO);
   const classSchedule = useClassSchedule();
+  const { has: isCompleted } = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
 
   const [activeTab, setActiveTab] = useState<"all" | "upcoming" | "graded" | "announcements">("all");
   const [showAllUpcoming, setShowAllUpcoming] = useState(false);
@@ -207,16 +210,17 @@ function CourseDetailPage() {
     return assignmentsQueryState.data.filter((a) => a.course_id === course.id);
   }, [course, assignmentsQueryState.data]);
 
-  // Upcoming assignments: not submitted yet and not graded
+  // Use the same completion rule as Focus, so a class cannot call a manually
+  // completed or graded task upcoming while Focus correctly excludes it.
   const upcomingAssignments = useMemo(() => {
     return courseAssignments
-      .filter((a) => !a.submission?.submitted_at && a.submission?.score == null)
+      .filter((a) => !isAssignmentComplete(a, isCompleted(a.id)))
       .sort((a, b) => {
         if (!a.due_at) return 1;
         if (!b.due_at) return -1;
         return new Date(a.due_at).getTime() - new Date(b.due_at).getTime();
       });
-  }, [courseAssignments]);
+  }, [courseAssignments, isCompleted]);
 
   // Upcoming assignments due within the next 3 weeks; anything further out
   // hides behind "View all".

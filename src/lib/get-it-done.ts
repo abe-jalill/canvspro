@@ -1,4 +1,5 @@
 import type { AssignmentItem } from "@/lib/canvas.functions";
+import { endOfUpcomingDay, isAssignmentComplete } from "./assignment-window.ts";
 
 export interface PlanInput {
   assignments: AssignmentItem[];
@@ -39,10 +40,7 @@ export function filterAssignmentsForUpcomingWindow(
   // "Next week" is a calendar window in the student's local time. A rolling
   // 168-hour cutoff at noon would incorrectly hide work due later on the
   // seventh day (Canvas assignments commonly use 11:59 PM deadlines).
-  const endDate = new Date(now);
-  endDate.setDate(endDate.getDate() + days);
-  endDate.setHours(23, 59, 59, 999);
-  const end = endDate.getTime();
+  const end = endOfUpcomingDay(now, days);
   return assignments.filter((assignment) => {
     const due = dueTime(assignment);
     return due != null && due >= now && due <= end;
@@ -53,9 +51,7 @@ export function assignmentIsComplete(
   assignment: AssignmentItem,
   completed: (id: string | number) => boolean,
 ) {
-  if (completed(assignment.id)) return true;
-  const submission = assignment.submission;
-  return Boolean(submission?.submitted_at) || submission?.workflow_state === "graded";
+  return isAssignmentComplete(assignment, completed(assignment.id));
 }
 
 export function defaultEstimateMinutes(assignment: AssignmentItem): number {

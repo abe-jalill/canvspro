@@ -1,4 +1,5 @@
 import type { AssignmentItem } from "./canvas.functions.ts";
+import { endOfUpcomingDay, isAssignmentComplete } from "./assignment-window.ts";
 
 export type FocusWindow = "7" | "overdue" | "3" | "2" | "1";
 
@@ -15,14 +16,10 @@ export function isInFocusWindow(
   now: number,
   completed: boolean,
 ): boolean {
-  if (
-    completed ||
-    assignment.submission?.submitted_at ||
-    assignment.submission?.workflow_state === "graded"
-  )
-    return false;
+  if (isAssignmentComplete(assignment, completed)) return false;
   const due = assignment.due_at ? Date.parse(assignment.due_at) : NaN;
   if (!Number.isFinite(due)) return false;
   if (window === "overdue") return due < now;
+  if (window === "7") return due >= now && due <= endOfUpcomingDay(now, 7);
   return due >= now && due <= now + Number(window) * DAY_MS;
 }

@@ -35,8 +35,8 @@ test("coming-up and busiest-day metrics share the Focus one-week boundary", () =
     assignment(1, new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString()),
     assignment(2, new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000 + 1).toISOString()),
   ], new Set(), {}, new Map(), now);
-  assert.equal(summary.upcoming, 1);
-  assert.deepEqual(summary.busiest, { date: "2026-09-29", count: 1 });
+  assert.equal(summary.upcoming, 2);
+  assert.deepEqual(summary.busiest, { date: "2026-09-29", count: 2 });
 });
 
 test("detects major-task collisions and crowded days, suggesting no date in the past", () => {
