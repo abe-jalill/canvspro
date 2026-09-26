@@ -130,8 +130,6 @@ function LoginPage() {
         </Link>
         .
       </p>
-      <div className="mt-5">
-      </div>
     </AuthShell>
   );
 }

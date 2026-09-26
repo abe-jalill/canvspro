@@ -181,8 +181,6 @@ function SignupPage() {
         </Link>
         .
       </p>
-      <div className="mt-5">
-      </div>
     </AuthShell>
   );
 }
