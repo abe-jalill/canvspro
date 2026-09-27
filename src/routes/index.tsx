@@ -30,7 +30,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Turn your Canvas classes, assignments, grades, and deadlines into one clear plan. CanvasPro is free for students.",
+          "Turn Canvas classes, assignments, grades, and deadlines into one clear plan. Find your next task with Focus, then work through it in a Study Session. Free for students.",
       },
       { property: "og:type", content: "website" },
       { property: "og:url", content: "https://canvaspro.app/" },
@@ -56,7 +56,7 @@ export const Route = createFileRoute("/")({
           operatingSystem: "Web",
           url: "https://canvaspro.app/",
           description:
-            "A student dashboard for Canvas LMS with assignments, grades, schedules, and a daily plan.",
+            "A student dashboard for Canvas LMS with assignments, grades, schedules, Focus, Study Sessions, and a daily plan.",
           offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
         }),
       },
@@ -104,6 +104,10 @@ function useStoryMotion() {
   const sequenceRef = useRef<HTMLElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLElement>(null);
+  const focusRef = useRef<HTMLElement>(null);
+  const focusStageRef = useRef<HTMLDivElement>(null);
+  const studyRef = useRef<HTMLElement>(null);
+  const studyStageRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -131,45 +135,67 @@ function useStoryMotion() {
         const shift = (progress - 0.5) * depth * (window.innerWidth <= 760 ? 0.5 : 1);
         element.style.setProperty("--parallax-y", shift.toFixed(1) + "px");
       });
-      if (!sequence || !stage) return;
-      const rect = sequence.getBoundingClientRect();
-      if (rect.top > window.innerHeight || rect.bottom < 0) return;
-      const distance = Math.max(1, sequence.offsetHeight - window.innerHeight);
-      const progress = Math.min(1, Math.max(0, -rect.top / distance));
-      const tidy = Math.min(1, Math.max(0, (progress - 0.19) / 0.53));
-      const eased = tidy * tidy * (3 - 2 * tidy);
-      const chaos = 1 - Math.min(1, Math.max(0, (progress - 0.31) / 0.12));
-      const clarity = Math.min(1, Math.max(0, (progress - 0.52) / 0.16));
-      stage.style.setProperty("--story-tidy", eased.toFixed(3));
-      stage.style.setProperty("--story-chaos", chaos.toFixed(3));
-      stage.style.setProperty("--story-clarity", clarity.toFixed(3));
-      stage.style.setProperty("--story-progress", progress.toFixed(3));
-      const positions =
-        window.innerWidth <= 760
-          ? [
-              [-25, -28, -7],
-              [27, -9, 6],
-              [-25, 12, -5],
-              [22, 28, 5],
-            ]
-          : [
-              [-90, -82, -13],
-              [120, -42, 11],
-              [-115, 83, -8],
-              [110, 138, 9],
-            ];
-      stage.querySelectorAll<HTMLElement>("[data-scatter-card]").forEach((card, index) => {
-        const [x, y, rotation] = positions[index];
-        const remaining = 1 - eased;
-        card.style.transform =
-          "translate3d(" +
-          (x * remaining).toFixed(1) +
-          "px," +
-          (y * remaining).toFixed(1) +
-          "px,0) rotate(" +
-          (rotation * remaining).toFixed(1) +
-          "deg)";
-      });
+      if (sequence && stage) {
+        const rect = sequence.getBoundingClientRect();
+        if (rect.top <= window.innerHeight && rect.bottom >= 0) {
+          const distance = Math.max(1, sequence.offsetHeight - window.innerHeight);
+          const progress = Math.min(1, Math.max(0, -rect.top / distance));
+          const tidy = Math.min(1, Math.max(0, (progress - 0.19) / 0.53));
+          const eased = tidy * tidy * (3 - 2 * tidy);
+          const chaos = 1 - Math.min(1, Math.max(0, (progress - 0.31) / 0.12));
+          const clarity = Math.min(1, Math.max(0, (progress - 0.52) / 0.16));
+          stage.style.setProperty("--story-tidy", eased.toFixed(3));
+          stage.style.setProperty("--story-chaos", chaos.toFixed(3));
+          stage.style.setProperty("--story-clarity", clarity.toFixed(3));
+          stage.style.setProperty("--story-progress", progress.toFixed(3));
+          const positions =
+            window.innerWidth <= 760
+              ? [
+                  [-25, -28, -7],
+                  [27, -9, 6],
+                  [-25, 12, -5],
+                  [22, 28, 5],
+                ]
+              : [
+                  [-90, -82, -13],
+                  [120, -42, 11],
+                  [-115, 83, -8],
+                  [110, 138, 9],
+                ];
+          stage.querySelectorAll<HTMLElement>("[data-scatter-card]").forEach((card, index) => {
+            const [x, y, rotation] = positions[index];
+            const remaining = 1 - eased;
+            card.style.transform = `translate3d(${(x * remaining).toFixed(1)}px,${(y * remaining).toFixed(1)}px,0) rotate(${(rotation * remaining).toFixed(1)}deg)`;
+          });
+        }
+      }
+      const updateScene = (
+        section: HTMLElement | null,
+        surface: HTMLDivElement | null,
+        name: string,
+      ) => {
+        if (!section || !surface) return;
+        const rect = section.getBoundingClientRect();
+        if (rect.top > window.innerHeight || rect.bottom < 0) return;
+        const distance = Math.max(1, section.offsetHeight - window.innerHeight);
+        const progress = Math.min(1, Math.max(0, -rect.top / distance));
+        const change = Math.min(1, Math.max(0, (progress - 0.16) / 0.65));
+        const eased = change * change * (3 - 2 * change);
+        surface.style.setProperty(`--${name}-progress`, progress.toFixed(3));
+        surface.style.setProperty(`--${name}-change`, eased.toFixed(3));
+        if (name === "study") {
+          surface.style.setProperty("--study-ring", `${Math.round(eased * 238)}deg`);
+          const time = surface.querySelector<HTMLElement>("[data-study-time]");
+          if (time) {
+            const seconds = Math.round(25 * 60 - eased * 12 * 60);
+            time.textContent = `${Math.floor(seconds / 60)
+              .toString()
+              .padStart(2, "0")}:${(seconds % 60).toString().padStart(2, "0")}`;
+          }
+        }
+      };
+      updateScene(focusRef.current, focusStageRef.current, "focus");
+      updateScene(studyRef.current, studyStageRef.current, "study");
     };
     const request = () => {
       if (!frame) frame = window.requestAnimationFrame(update);
@@ -184,7 +210,7 @@ function useStoryMotion() {
     };
   }, []);
 
-  return { sequenceRef, stageRef, heroRef };
+  return { sequenceRef, stageRef, heroRef, focusRef, focusStageRef, studyRef, studyStageRef };
 }
 
 function useReveal() {
@@ -238,7 +264,8 @@ function LandingPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [targetGrade, setTargetGrade] = useState("90");
   const [view, setView] = useState<"week" | "grades">("week");
-  const { sequenceRef, stageRef, heroRef } = useStoryMotion();
+  const { sequenceRef, stageRef, heroRef, focusRef, focusStageRef, studyRef, studyStageRef } =
+    useStoryMotion();
   useReveal();
 
   useEffect(() => {
@@ -292,7 +319,11 @@ function LandingPage() {
           </Link>
         </nav>
         <div className="cp-nav__actions">
-          <Link to={isLoggedIn ? "/dashboard" : "/auth"} preload="intent" className="cp-nav__signin">
+          <Link
+            to={isLoggedIn ? "/dashboard" : "/auth"}
+            preload="intent"
+            className="cp-nav__signin"
+          >
             {isLoggedIn ? "Dashboard" : "Sign in"}
           </Link>
           <Link to={cta} preload="intent" className="cp-button cp-button--nav">
@@ -494,9 +525,141 @@ function LandingPage() {
           </div>
         </section>
 
+        <section className="cp-focus-story" ref={focusRef} aria-labelledby="cp-focus-title">
+          <div className="cp-focus-story__stage" ref={focusStageRef}>
+            <div className="cp-feature-copy cp-feature-copy--focus">
+              <span className="cp-kicker">04 / FOCUS</span>
+              <h2 id="cp-focus-title">
+                A whole week.
+                <br />
+                <em>One clear place to start.</em>
+              </h2>
+              <p>
+                Filter the noise by due date, see each class together, and find the assignment that
+                needs your attention now.
+              </p>
+              <Link
+                to={isLoggedIn ? "/focus" : "/signup"}
+                preload="intent"
+                className="cp-feature-link"
+              >
+                Open Focus <ArrowRight size={18} />
+              </Link>
+            </div>
+            <div
+              className="cp-focus-demo"
+              aria-label="Focus preview: a week of assignments narrows to one urgent physics assignment"
+            >
+              <div className="cp-focus-demo__header">
+                <span>FOCUS / ASSIGNMENTS</span>
+                <span className="cp-focus-demo__live">
+                  SYNCED WITH CANVAS <i />
+                </span>
+              </div>
+              <div className="cp-focus-demo__filters" aria-hidden="true">
+                <span className="cp-focus-demo__week">1 WEEK</span>
+                <span className="cp-focus-demo__day">1 DAY</span>
+                <span>BY CLASS</span>
+              </div>
+              <div className="cp-focus-demo__list" aria-hidden="true">
+                <div className="cp-focus-task cp-focus-task--one">
+                  <small>
+                    PHYSICS 101 <b>TONIGHT</b>
+                  </small>
+                  <strong>Newton’s Laws Homework</strong>
+                  <span>Due 11:59 PM · 30 min</span>
+                </div>
+                <div className="cp-focus-task cp-focus-task--two">
+                  <small>
+                    DESIGN STUDIO <b>TOMORROW</b>
+                  </small>
+                  <strong>CAD Assignment</strong>
+                  <span>Due 5:00 PM · 45 min</span>
+                </div>
+                <div className="cp-focus-task cp-focus-task--three">
+                  <small>
+                    ENGLISH 202 <b>FRIDAY</b>
+                  </small>
+                  <strong>Reading Response</strong>
+                  <span>Due 2:00 PM · 25 min</span>
+                </div>
+                <div className="cp-focus-task cp-focus-task--four">
+                  <small>
+                    CALCULUS II <b>SUNDAY</b>
+                  </small>
+                  <strong>Integration Practice</strong>
+                  <span>Due 11:59 PM · 40 min</span>
+                </div>
+              </div>
+              <div className="cp-focus-demo__answer" aria-hidden="true">
+                ONE TASK IN VIEW <ArrowRight size={18} />
+              </div>
+            </div>
+            <span className="cp-feature-index" aria-hidden="true">
+              04 — FOCUS
+            </span>
+          </div>
+        </section>
+
+        <section className="cp-study-story" ref={studyRef} aria-labelledby="cp-study-title">
+          <div className="cp-study-story__stage" ref={studyStageRef}>
+            <div className="cp-feature-copy cp-feature-copy--study">
+              <span className="cp-kicker">05 / STUDY SESSION</span>
+              <h2 id="cp-study-title">
+                Now give it
+                <br />
+                <em>your full attention.</em>
+              </h2>
+              <p>
+                Choose your assignments, set a time for each, and move through the session one task
+                at a time.
+              </p>
+              <Link
+                to={isLoggedIn ? "/study-session" : "/signup"}
+                preload="intent"
+                className="cp-feature-link"
+              >
+                Start a Study Session <ArrowRight size={18} />
+              </Link>
+            </div>
+            <div
+              className="cp-study-demo"
+              aria-label="Study Session preview: selected assignments become a 25-minute focus timer"
+            >
+              <div className="cp-study-demo__selection" aria-hidden="true">
+                <span>YOUR SESSION</span>
+                <div>
+                  <Check size={16} /> Newton’s Laws Homework <small>25 MIN</small>
+                </div>
+                <div>
+                  <Check size={16} /> CAD Assignment <small>45 MIN</small>
+                </div>
+                <div>
+                  <Check size={16} /> Reading Response <small>15 MIN</small>
+                </div>
+              </div>
+              <div className="cp-study-demo__timer" aria-hidden="true">
+                <span className="cp-study-demo__eyebrow">SESSION IN PROGRESS</span>
+                <div className="cp-study-demo__ring">
+                  <div>
+                    <strong data-study-time>25:00</strong>
+                    <small>PHYSICS 101</small>
+                  </div>
+                </div>
+                <strong className="cp-study-demo__task">Newton’s Laws Homework</strong>
+                <span className="cp-study-demo__next">UP NEXT / CAD ASSIGNMENT</span>
+              </div>
+              <div className="cp-study-demo__halo" aria-hidden="true" />
+            </div>
+            <span className="cp-feature-index" aria-hidden="true">
+              05 — STAY WITH IT
+            </span>
+          </div>
+        </section>
+
         <section className="cp-workspace" aria-labelledby="cp-workspace-title">
           <div className="cp-workspace__intro" data-reveal>
-            <span className="cp-kicker">04 / THE WHOLE PICTURE</span>
+            <span className="cp-kicker">06 / THE WHOLE PICTURE</span>
             <h2 id="cp-workspace-title">
               Clarity is a<br />
               <em>powerful feeling.</em>
@@ -649,7 +812,7 @@ function LandingPage() {
             </div>
           </div>
           <div className="cp-calculator__copy" data-reveal>
-            <span className="cp-kicker cp-kicker--dark">05 / KNOW WHERE YOU STAND</span>
+            <span className="cp-kicker cp-kicker--dark">07 / KNOW WHERE YOU STAND</span>
             <h2 id="cp-calculator-title">
               No more
               <br />
@@ -681,7 +844,7 @@ function LandingPage() {
 
         <section className="cp-steps" id="how-it-works" aria-labelledby="cp-steps-title">
           <div className="cp-steps__heading" data-reveal>
-            <span className="cp-kicker">06 / BEGIN SIMPLY</span>
+            <span className="cp-kicker">08 / BEGIN SIMPLY</span>
             <h2 id="cp-steps-title">
               Three small steps.
               <br />
