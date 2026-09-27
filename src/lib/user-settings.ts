@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { resetCanvasBundle } from "@/lib/canvas.functions";
+import { friendlyCanvasTransportError, invokeCanvasEdge } from "@/lib/canvas-edge-client";
 
 export const canvasKeyQueryKey = ["user-settings", "canvas-key"] as const;
 export const canvasDomainQueryKey = ["user-settings", "canvas-domain"] as const;
@@ -96,7 +97,7 @@ async function invokeError(err: unknown): Promise<string> {
       }
     }
   }
-  return err instanceof Error ? err.message : "Request failed";
+  return friendlyCanvasTransportError(err instanceof Error ? err.message : "Request failed");
 }
 
 /** Turns a raw validation failure into a message a student can act on. */
@@ -145,8 +146,10 @@ export function useSaveCanvasKey() {
       // this runs through the backend, so the browser never calls Canvas
       // directly and the pair can't be saved in a silently broken state.
       if (key) {
-        const { data: vData, error: vError } = await supabase.functions.invoke("canvas", {
-          body: { resource: "validate", domain, token: key },
+        const { data: vData, error: vError } = await invokeCanvasEdge<{ ok?: boolean }>({
+          resource: "validate",
+          domain,
+          token: key,
         });
         if (vError) throw new Error(friendlyValidateError(await invokeError(vError)));
         if (!vData || (vData as { ok?: boolean }).ok !== true) {
@@ -200,21 +203,30 @@ export function useSaveCanvasDomain() {
       if (!user) throw new Error("You must be signed in.");
       const domain = normalizeCanvasDomain(raw);
       if (!domain) {
-        throw new Error("That Canvas URL doesn't look right — enter it like yourschool.instructure.com.");
+        throw new Error(
+          "That Canvas URL doesn't look right — enter it like yourschool.instructure.com.",
+        );
       }
-      const { data: vData, error: vError } = await supabase.functions.invoke("canvas", {
-        body: { resource: "validate", domain },
+      const { data: vData, error: vError } = await invokeCanvasEdge<{ ok?: boolean }>({
+        resource: "validate",
+        domain,
       });
       if (vError) throw new Error(friendlyValidateError(await invokeError(vError)));
       if (!vData || (vData as { ok?: boolean }).ok !== true) {
-        throw new Error("Your saved key doesn't work at that URL — double-check it, or save a new key.");
+        throw new Error(
+          "Your saved key doesn't work at that URL — double-check it, or save a new key.",
+        );
       }
       const { error } = await supabase
         .from("user_settings")
         .update({ canvas_domain: domain })
         .eq("user_id", user.id);
       if (error) throw new Error(error.message);
-      await supabase.from("user_preferences").delete().eq("user_id", user.id).eq("key", "canvas_key_status");
+      await supabase
+        .from("user_preferences")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("key", "canvas_key_status");
     },
     onSuccess: async () => {
       toast.success("Canvas URL saved");

@@ -19,8 +19,9 @@ import { purgeScopedStorage } from "@/lib/user-scope";
 import { getActiveIdentity, syncAuthIdentity } from "@/lib/auth-user";
 import { SiteFooter } from "@/components/site-footer";
 import { Toaster } from "@/components/ui/sonner";
+import { ThemeProvider } from "@/lib/theme";
 
-const themeBootScript = `try{var t=localStorage.getItem("canvas:theme");document.documentElement.classList.add(t==="light"?"light":"dark")}catch(e){document.documentElement.classList.add("dark")}`;
+const themeBootScript = `try{var t=localStorage.getItem("canvas:theme"),p=localStorage.getItem("canvas:palette");document.documentElement.classList.add(t==="dark"||t!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.palette=["forest","blue","violet","rose","neutral"].includes(p)?p:"forest"}catch(e){document.documentElement.classList.add("light");document.documentElement.dataset.palette="forest"}`;
 
 function NotFoundComponent() {
   return (
@@ -87,7 +88,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "apple-mobile-web-app-title", content: "CanvasPro" },
     ],
     links: [
-      { rel: "preload", href: dmSansLatin, as: "font", type: "font/woff2", crossOrigin: "anonymous" },
+      {
+        rel: "preload",
+        href: dmSansLatin,
+        as: "font",
+        type: "font/woff2",
+        crossOrigin: "anonymous",
+      },
       { rel: "stylesheet", href: appCss },
       { rel: "icon", href: "/favicon.png", type: "image/png" },
       { rel: "apple-touch-icon", href: "/favicon.png" },
@@ -125,8 +132,19 @@ function RootComponent() {
     select: (state) => {
       const first = state.location.pathname.split("/")[1] ?? "";
       return ![
-        "admin", "announcements", "assignments", "class-schedule", "courses", "dashboard",
-        "focus", "get-it-done", "grades", "notifications", "schedule", "settings", "study-session",
+        "admin",
+        "announcements",
+        "assignments",
+        "class-schedule",
+        "courses",
+        "dashboard",
+        "focus",
+        "get-it-done",
+        "grades",
+        "notifications",
+        "schedule",
+        "settings",
+        "study-session",
       ].includes(first);
     },
   });
@@ -182,13 +200,15 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="site-shell">
-        <div className="site-content">
-          <Outlet />
+      <ThemeProvider>
+        <div className="site-shell">
+          <div className="site-content">
+            <Outlet />
+          </div>
+          {showFooter && <SiteFooter />}
         </div>
-        {showFooter && <SiteFooter />}
-      </div>
-      <Toaster position="top-center" richColors closeButton />
+        <Toaster position="top-center" richColors closeButton />
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

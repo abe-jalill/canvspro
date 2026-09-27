@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, queryOptions } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
@@ -12,12 +12,9 @@ import {
   Shuffle,
   SkipForward,
   Sparkles,
+  TimerReset,
 } from "lucide-react";
-import {
-  getAllAssignmentsFn,
-  getCoursesFn,
-  type AssignmentItem,
-} from "@/lib/canvas.functions";
+import { getAllAssignmentsFn, getCoursesFn, type AssignmentItem } from "@/lib/canvas.functions";
 import { CANVAS_DATA_GC_MS, CANVAS_DATA_STALE_MS } from "@/lib/query-policy";
 import { GlassCard, Skeleton, ErrorState, EmptyState } from "@/components/glass-card";
 import { CompleteToggle } from "@/components/complete-toggle";
@@ -25,10 +22,7 @@ import { Segmented } from "@/components/segmented";
 import { cn } from "@/lib/utils";
 import { displayCourseName } from "@/lib/course-display";
 import { useLocalSet, COMPLETED_ASSIGNMENTS_KEY } from "@/lib/local-state";
-import {
-  useAssignmentMetaMap,
-  useSetAssignmentEstimate,
-} from "@/hooks/use-assignment-meta";
+import { useAssignmentMetaMap, useSetAssignmentEstimate } from "@/hooks/use-assignment-meta";
 import {
   buildTodayPlan,
   rankGetItDoneAssignments,
@@ -37,10 +31,7 @@ import {
   type PlanItem,
   type RankedAssignment,
 } from "@/lib/get-it-done";
-import {
-  customToAssignmentItem,
-  useCustomAssignments,
-} from "@/lib/custom-assignments";
+import { customToAssignmentItem, useCustomAssignments } from "@/lib/custom-assignments";
 import { useScopedKey } from "@/lib/user-scope";
 import {
   emptyGetItDonePrefs,
@@ -298,22 +289,7 @@ function GetItDonePage() {
     return (
       <div className="space-y-6">
         <Header windowDays={prefs.windowDays} onWindowDaysChange={setWindowDays} />
-        {/* RecommendationCard Skeleton */}
-        <GlassCard strong className="p-6 sm:p-7 space-y-4">
-          <div className="flex items-center gap-2">
-            <SkeletonBlock className="h-5 w-36 rounded-full" />
-          </div>
-          <div className="space-y-2">
-            <SkeletonBlock className="h-7 w-2/3" />
-            <SkeletonBlock className="h-4 w-1/3" />
-          </div>
-          <div className="flex flex-wrap gap-2 pt-2">
-            <SkeletonBlock className="h-11 w-36 rounded-xl" />
-            <SkeletonBlock className="h-11 w-24 rounded-xl" />
-          </div>
-        </GlassCard>
-
-        {/* TodayPlanCard Skeleton */}
+        {/* Keep the final hierarchy while Canvas data loads so the page never jumps. */}
         <GlassCard className="p-6 space-y-4">
           <div className="flex items-center justify-between border-b border-foreground/10 pb-3">
             <SkeletonBlock className="h-5 w-32" />
@@ -329,6 +305,17 @@ function GetItDonePage() {
                 <SkeletonBlock className="h-6 w-16 rounded-md" />
               </div>
             ))}
+          </div>
+        </GlassCard>
+        <GlassCard strong className="space-y-4 p-6 sm:p-7">
+          <SkeletonBlock className="h-5 w-44 rounded-full" />
+          <div className="space-y-2">
+            <SkeletonBlock className="h-7 w-2/3" />
+            <SkeletonBlock className="h-4 w-1/3" />
+          </div>
+          <div className="flex flex-wrap gap-2 pt-2">
+            <SkeletonBlock className="h-11 w-44 rounded-xl" />
+            <SkeletonBlock className="h-11 w-28 rounded-xl" />
           </div>
         </GlassCard>
       </div>
@@ -350,6 +337,25 @@ function GetItDonePage() {
     <div className="space-y-6 pb-10">
       <Header windowDays={prefs.windowDays} onWindowDaysChange={setWindowDays} />
 
+      <TodayPlanCard
+        plan={plan}
+        totalMinutes={totalMinutes}
+        completeCount={completeCount}
+        completed={completed}
+        onStart={openAssignment}
+        onSkip={skipAssignment}
+        onMove={movePlanItem}
+        onRegenerate={regeneratePlan}
+        onEstimate={(assignment, minutes) =>
+          setEstimate.mutate({
+            assignmentId: assignment.id,
+            courseId: assignment.course_id,
+            minutes,
+          })
+        }
+        estimatePending={setEstimate.isPending}
+      />
+
       {recommendation ? (
         <RecommendationCard
           item={recommendation}
@@ -357,7 +363,6 @@ function GetItDonePage() {
           onComplete={() => completed.toggle(recommendation.assignment.id)}
           onSkip={() => skipAssignment(recommendation.assignment.id)}
           onChooseAnother={chooseAnother}
-          onStart={() => openAssignment(recommendation.assignment)}
         />
       ) : (
         <GlassCard strong title="What Should I Do Now?">
@@ -374,21 +379,6 @@ function GetItDonePage() {
           />
         </GlassCard>
       )}
-
-      <TodayPlanCard
-        plan={plan}
-        totalMinutes={totalMinutes}
-        completeCount={completeCount}
-        completed={completed}
-        onStart={openAssignment}
-        onSkip={skipAssignment}
-        onMove={movePlanItem}
-        onRegenerate={regeneratePlan}
-        onEstimate={(assignment, minutes) =>
-          setEstimate.mutate({ assignmentId: assignment.id, courseId: assignment.course_id, minutes })
-        }
-        estimatePending={setEstimate.isPending}
-      />
     </div>
   );
 }
@@ -426,14 +416,12 @@ function RecommendationCard({
   onComplete,
   onSkip,
   onChooseAnother,
-  onStart,
 }: {
   item: RankedAssignment;
   completed: boolean;
   onComplete: () => void;
   onSkip: () => void;
   onChooseAnother: () => void;
-  onStart: () => void;
 }) {
   const assignment = item.assignment;
   const estimate = item.estimatedMinutes;
@@ -442,8 +430,8 @@ function RecommendationCard({
     <GlassCard
       strong
       title="What Should I Do Now?"
-      subtitle="CanvasPro ranked your unfinished assignments by deadline, workload, priority, and nearby due dates."
-      className="relative"
+      subtitle="One clear next step, chosen from deadlines, workload, priority, and the rest of your week."
+      className="get-it-done-next relative"
       action={
         <div className="glass-inset flex h-9 w-9 items-center justify-center rounded-xl">
           <Sparkles className="h-4 w-4" />
@@ -482,15 +470,24 @@ function RecommendationCard({
         </div>
 
         <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
-          <button
-            type="button"
-            onClick={onStart}
-            disabled={!assignment.html_url}
+          <Link
+            to="/study-session"
+            search={{ assignment: assignment.id }}
             className="glass-hover inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-foreground px-4 text-sm font-semibold text-background transition disabled:opacity-50"
           >
-            <ExternalLink className="h-4 w-4" />
-            Start Now
-          </button>
+            <TimerReset className="h-4 w-4" />
+            Open study session
+          </Link>
+          {assignment.html_url && (
+            <button
+              type="button"
+              onClick={() => window.open(assignment.html_url!, "_blank", "noopener,noreferrer")}
+              className="glass-hover inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-glass-border px-4 text-sm font-medium"
+            >
+              <ExternalLink className="h-4 w-4" />
+              Open in Canvas
+            </button>
+          )}
           <button
             type="button"
             onClick={onChooseAnother}

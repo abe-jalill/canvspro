@@ -17,11 +17,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSaveCanvasKey, useCanvasDomain, normalizeCanvasDomain } from "@/lib/user-settings";
-import {
-  detectCanvasDomainFromEmail,
-  getCanvasTokenSettingsUrl,
-  KNOWN_SCHOOLS,
-} from "@/lib/school-domains";
+import { detectCanvasDomainFromEmail, getCanvasTokenSettingsUrl } from "@/lib/school-domains";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -60,9 +56,7 @@ export function CanvasTokenWalkthrough({
         const detected = detectCanvasDomainFromEmail(email);
         if (detected) {
           setDetectedSchoolName(detected.schoolName);
-          if (!schoolDomain) {
-            setSchoolDomain(detected.canvasDomain);
-          }
+          setSchoolDomain((current) => current || detected.canvasDomain);
         }
       }
     });
@@ -70,9 +64,7 @@ export function CanvasTokenWalkthrough({
 
   // 2. Pre-fill saved domain if present
   useEffect(() => {
-    if (savedDomain && !schoolDomain) {
-      setSchoolDomain(savedDomain);
-    }
+    if (savedDomain) setSchoolDomain((current) => current || savedDomain);
   }, [savedDomain]);
 
   const activeCanvasUrl = schoolDomain.trim()
@@ -89,7 +81,9 @@ export function CanvasTokenWalkthrough({
     const cleanDomain = normalizeCanvasDomain(schoolDomain);
 
     if (!cleanDomain) {
-      setErrorMessage("Please specify your school's Canvas URL first (e.g. yourschool.instructure.com).");
+      setErrorMessage(
+        "Please specify your school's Canvas URL first (e.g. yourschool.instructure.com).",
+      );
       setStep(1);
       return;
     }
@@ -100,7 +94,9 @@ export function CanvasTokenWalkthrough({
     }
 
     if (cleanToken.startsWith("http://") || cleanToken.startsWith("https://")) {
-      setErrorMessage("That looks like a web URL instead of an API token. Canvas tokens look like 7~xxxxxxxx or alphanumeric strings.");
+      setErrorMessage(
+        "That looks like a web URL instead of an API token. Canvas tokens look like 7~xxxxxxxx or alphanumeric strings.",
+      );
       return;
     }
 
@@ -138,9 +134,7 @@ export function CanvasTokenWalkthrough({
             <Sparkles className="h-3.5 w-3.5" />
             <span>3-Click Canvas Setup</span>
           </div>
-          <span className="text-xs font-medium text-muted-foreground">
-            Step {step} of 3
-          </span>
+          <span className="text-xs font-medium text-muted-foreground">Step {step} of 3</span>
         </div>
 
         <h2 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
@@ -149,9 +143,12 @@ export function CanvasTokenWalkthrough({
           {step === 3 && "Paste & Connect"}
         </h2>
         <p className="text-sm text-muted-foreground">
-          {step === 1 && "Confirm your university web address so we can route you directly to token creation."}
-          {step === 2 && "Create a personal access token in Canvas to sync your classes, grades, and due dates."}
-          {step === 3 && "Paste your token here. We test the connection immediately to make sure it works."}
+          {step === 1 &&
+            "Confirm your university web address so we can route you directly to token creation."}
+          {step === 2 &&
+            "Create a personal access token in Canvas to sync your classes, grades, and due dates."}
+          {step === 3 &&
+            "Paste your token here. We test the connection immediately to make sure it works."}
         </p>
       </div>
 
@@ -167,7 +164,9 @@ export function CanvasTokenWalkthrough({
             <div
               className={cn(
                 "h-1.5 w-full rounded-full transition-all duration-300",
-                step >= s ? "bg-primary shadow-status-live" : "bg-foreground/10 group-hover:bg-foreground/20",
+                step >= s
+                  ? "bg-primary shadow-status-live"
+                  : "bg-foreground/10 group-hover:bg-foreground/20",
               )}
             />
             <span
@@ -211,31 +210,6 @@ export function CanvasTokenWalkthrough({
                 </span>
               </div>
             )}
-
-            {/* Popular school quick chips */}
-            <div className="space-y-1.5 pt-1">
-              <span className="text-[11px] text-muted-foreground">Popular institutions:</span>
-              <div className="flex flex-wrap gap-1.5">
-                {KNOWN_SCHOOLS.slice(0, 6).map((sch) => (
-                  <button
-                    key={sch.emailDomain}
-                    type="button"
-                    onClick={() => {
-                      setSchoolDomain(sch.canvasDomain);
-                      setDetectedSchoolName(sch.name);
-                    }}
-                    className={cn(
-                      "rounded-lg px-2.5 py-1 text-xs transition-colors",
-                      schoolDomain === sch.canvasDomain
-                        ? "bg-foreground text-background font-medium"
-                        : "glass-inset text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    {sch.name.split(" ")[0]}
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
 
           {/* Interactive Visual Canvas Mockup for Step 1 */}
@@ -253,7 +227,9 @@ export function CanvasTokenWalkthrough({
                   <div className="h-9 w-9 rounded-full bg-primary/20 border-2 border-primary flex items-center justify-center ring-4 ring-primary/30 animate-pulse">
                     <KeyRound className="h-4 w-4 text-primary" />
                   </div>
-                  <span className="text-[10px] block text-center mt-1 font-semibold text-primary">Account</span>
+                  <span className="text-[10px] block text-center mt-1 font-semibold text-primary">
+                    Account
+                  </span>
                   {/* Visual callout arrow */}
                   <div className="absolute -top-1 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
                     1
@@ -277,7 +253,9 @@ export function CanvasTokenWalkthrough({
                   <div className="px-2 py-1 rounded bg-white/5 opacity-60">Profile</div>
                   <div className="px-2 py-1.5 rounded-lg bg-primary/20 border border-primary/40 font-semibold text-white flex items-center justify-between">
                     <span>Settings</span>
-                    <span className="rounded bg-primary px-1.5 py-0.5 text-[10px] text-primary-foreground">Click here</span>
+                    <span className="rounded bg-primary px-1.5 py-0.5 text-[10px] text-primary-foreground">
+                      Click here
+                    </span>
                   </div>
                 </div>
               </div>
@@ -317,11 +295,21 @@ export function CanvasTokenWalkthrough({
               <span>In Canvas Settings:</span>
             </div>
             <ol className="list-decimal list-inside space-y-1.5 pl-1">
-              <li>Scroll down to the <strong>Approved Integrations</strong> section.</li>
-              <li>Click the blue <strong>+ New Access Token</strong> button.</li>
-              <li>Under Purpose, type <strong>CanvasPro</strong>.</li>
-              <li>Leave the <em>Expires</em> field blank (so your connection stays active).</li>
-              <li>Click <strong>Generate Token</strong> and copy the revealed token string.</li>
+              <li>
+                Scroll down to the <strong>Approved Integrations</strong> section.
+              </li>
+              <li>
+                Click the blue <strong>+ New Access Token</strong> button.
+              </li>
+              <li>
+                Under Purpose, type <strong>CanvasPro</strong>.
+              </li>
+              <li>
+                Leave the <em>Expires</em> field blank (so your connection stays active).
+              </li>
+              <li>
+                Click <strong>Generate Token</strong> and copy the revealed token string.
+              </li>
             </ol>
           </div>
 
@@ -417,7 +405,9 @@ export function CanvasTokenWalkthrough({
             </label>
 
             <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>Connecting to: <strong>{activeCanvasUrl}</strong></span>
+              <span>
+                Connecting to: <strong>{activeCanvasUrl}</strong>
+              </span>
               <button
                 type="button"
                 onClick={() => setStep(1)}
@@ -506,13 +496,18 @@ export function CanvasTokenWalkthrough({
         {showSecurityFaq && (
           <div className="mt-3 rounded-2xl bg-foreground/[0.03] border border-foreground/10 p-4 text-xs text-muted-foreground space-y-2">
             <p>
-              <strong>🔒 Official Instructure Feature:</strong> Personal Access Tokens are standard Canvas functionality designed specifically for third-party student companion apps.
+              <strong>🔒 Official Instructure Feature:</strong> Personal Access Tokens are standard
+              Canvas functionality designed specifically for third-party student companion apps.
             </p>
             <p>
-              <strong>🛡️ Zero Password Access:</strong> CanvasPro never sees or stores your university password. The token only grants access to what your student account is already authorized to view.
+              <strong>🛡️ Zero Password Access:</strong> CanvasPro never sees or stores your
+              university password. The token only grants access to what your student account is
+              already authorized to view.
             </p>
             <p>
-              <strong>🔑 You Stay in Control:</strong> Your token is encrypted at rest in your personal database row scoped by Row Level Security. You can revoke it at any second in Canvas under <em>Settings → Approved Integrations → Delete</em>.
+              <strong>🔑 You Stay in Control:</strong> Your token is encrypted at rest in your
+              personal database row scoped by Row Level Security. You can revoke it at any second in
+              Canvas under <em>Settings → Approved Integrations → Delete</em>.
             </p>
           </div>
         )}

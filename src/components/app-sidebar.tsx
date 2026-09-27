@@ -277,11 +277,13 @@ export function AppSidebar() {
                   className="block min-w-0 flex-1 px-2 press transition-opacity hover:opacity-80"
                   aria-label="Go to homepage"
                 >
-                  <span className="block text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                    {"\n"}
-                  </span>
-                  <span className="mt-1 block truncate text-base font-normal tracking-tight text-foreground">
-                    CanvasPro
+                  <span className="app-brand">
+                    <span className="app-brand__mark" aria-hidden="true">
+                      <i />
+                      <i />
+                      <i />
+                    </span>
+                    canvaspro.
                   </span>
                 </Link>
                 <TrafficLights

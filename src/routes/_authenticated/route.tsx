@@ -1,4 +1,5 @@
 import { createFileRoute, Outlet, redirect, useRouterState } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppSidebar, MobileNav } from "@/components/app-sidebar";
 import { CanvasKeyBanner } from "@/components/canvas-key-banner";
@@ -21,6 +22,8 @@ import { cn } from "@/lib/utils";
 import { AppStartupWelcome } from "@/components/app-startup-welcome";
 import { RouteProgress } from "@/components/route-progress";
 import { ProfileCompletionDialog } from "@/components/profile-completion-dialog";
+import { CanvasTrademarkNotice } from "@/components/canvas-trademark-notice";
+import { maintainBackgroundPush } from "@/lib/push-client";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -53,6 +56,10 @@ function AuthenticatedLayout() {
   const startup = useAppPrefetch(true);
   useWelcomeEmail(true);
   useActivityHeartbeat(true);
+
+  useEffect(() => {
+    void maintainBackgroundPush();
+  }, []);
 
   return (
     <div className="min-h-svh w-full overflow-x-clip md:h-svh md:overflow-hidden">
@@ -96,6 +103,7 @@ function AuthenticatedLayout() {
               </PullToRefresh>
             </ClassNamesGate>
           </CanvasKeyGate>
+          <CanvasTrademarkNotice className="mx-auto mt-10 max-w-3xl border-t border-border/30 px-4 pt-5" />
         </div>
       </main>
     </div>

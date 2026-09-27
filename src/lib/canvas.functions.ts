@@ -6,6 +6,7 @@ import { clearCanvasKeyInvalidFlag } from "@/lib/user-settings";
 import { getUserScope } from "@/lib/user-scope";
 import { createRequestCache } from "@/lib/request-cache";
 import { isAssignmentComplete } from "@/lib/assignment-window";
+import { friendlyCanvasTransportError, invokeCanvasEdge } from "@/lib/canvas-edge-client";
 
 /**
  * Right after sign-in the session can still be settling. Waiting for it (and
@@ -29,13 +30,11 @@ async function invokeCanvas<T>(
 ): Promise<T> {
   await waitForSession();
 
-  const { data, error } = await supabase.functions.invoke("canvas", {
-    body: { resource, ...(extra ?? {}) },
-  });
+  const { data, error } = await invokeCanvasEdge<T>({ resource, ...(extra ?? {}) });
   if (error) {
     // supabase-js hides the real reason behind "non-2xx status code";
     // read the response body for the actual server message.
-    let message = error.message ?? "Request failed";
+    let message = friendlyCanvasTransportError(error.message ?? "Request failed");
     const res = (error as { context?: Response }).context;
     if (res && typeof res.text === "function") {
       const body = await res.text().catch(() => "");
@@ -50,15 +49,13 @@ async function invokeCanvas<T>(
       // A missing Canvas key/URL renders the setup state, not an error banner.
       if (res.status === 428) return [] as unknown as T;
     }
-    if (/428|NO_CANVAS_KEY|NO_CANVAS_DOMAIN/.test(message))
-      return [] as unknown as T;
+    if (/428|NO_CANVAS_KEY|NO_CANVAS_DOMAIN/.test(message)) return [] as unknown as T;
     throw new Error(message);
   }
 
   if (data && typeof data === "object" && "error" in data && (data as { error?: string }).error) {
     const message = (data as { error: string }).error;
-    if (message === "NO_CANVAS_KEY" || message === "NO_CANVAS_DOMAIN")
-      return [] as unknown as T;
+    if (message === "NO_CANVAS_KEY" || message === "NO_CANVAS_DOMAIN") return [] as unknown as T;
     throw new Error(message);
   }
   return data as T;
@@ -148,8 +145,8 @@ export * from "./canvas.queries";
 
 export function fetchCanvasBundle(): Promise<CanvasBundle> {
   const scope = getUserScope();
-  return bundleRequests.get(scope, () => invokeCanvas<CanvasBundle | unknown[]>("all")
-    .then((raw) => {
+  return bundleRequests.get(scope, () =>
+    invokeCanvas<CanvasBundle | unknown[]>("all").then((raw) => {
       if (getUserScope() !== scope) throw new Error("Session changed — please retry.");
       // invokeCanvas returns [] when no Canvas key is saved yet.
       if (Array.isArray(raw)) return EMPTY_BUNDLE;
@@ -164,7 +161,8 @@ export function fetchCanvasBundle(): Promise<CanvasBundle> {
         calendar: b.calendar ?? [],
         errors: b.errors,
       };
-    }));
+    }),
+  );
 }
 
 // Each getter only fails when ITS OWN section failed, so one bad Canvas
@@ -208,7 +206,9 @@ export interface DueDateItem {
 
 export async function getDueDatesFn(): Promise<DueDateItem[]> {
   return (await getAllAssignmentsFn()).map((a) => ({
-    id: a.id, course_id: a.course_id, due_at: a.due_at,
+    id: a.id,
+    course_id: a.course_id,
+    due_at: a.due_at,
     submitted: isAssignmentComplete(a, false),
   }));
 }

@@ -4,32 +4,7 @@
 
 import { nextCanvasPagePath } from "./pagination.ts";
 import { isCanvasCourseVisible } from "./course-visibility.ts";
-
-const ALLOWED_ORIGINS = [
-  "https://canvaspro.app",
-  "https://www.canvaspro.app",
-  "https://canvaspremium.lovable.app",
-];
-
-function corsHeaders(req: Request): Record<string, string> {
-  const origin = req.headers.get("Origin") ?? "";
-  let allow = ALLOWED_ORIGINS[0];
-  if (
-    ALLOWED_ORIGINS.includes(origin) ||
-    /^https:\/\/[a-z0-9-]+\.lovable\.app$/.test(origin) ||
-    /^https:\/\/[a-z0-9-]+\.lovableproject\.com$/.test(origin) ||
-    /^http:\/\/localhost(:\d+)?$/.test(origin)
-  ) {
-    allow = origin;
-  }
-  return {
-    "Access-Control-Allow-Origin": allow,
-    Vary: "Origin",
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Cache-Control": "private, no-store",
-  };
-}
+import { corsHeaders } from "./cors.ts";
 
 const API_VERSION = "/api/v1";
 
@@ -207,9 +182,12 @@ async function canvasFetchAll<T>(creds: Creds, path: string): Promise<T[]> {
     while (nextPath) {
       pageCount += 1;
       if (pageCount > 100) throw new Error("Canvas pagination exceeded 100 pages");
-      const page: { data: T[]; nextPath: string | null } =
-        await canvasFetchPageRaw<T[]>(creds, nextPath);
-      if (!Array.isArray(page.data)) throw new Error("Canvas returned an invalid paginated response");
+      const page: { data: T[]; nextPath: string | null } = await canvasFetchPageRaw<T[]>(
+        creds,
+        nextPath,
+      );
+      if (!Array.isArray(page.data))
+        throw new Error("Canvas returned an invalid paginated response");
       all.push(...page.data);
       nextPath = page.nextPath;
     }
@@ -355,10 +333,16 @@ async function handleAssignments(creds: Creds) {
     );
   }
   const list = results
-    .filter((result): result is PromiseFulfilledResult<(CanvasAssignment & {
-      course_name: string;
-      course_code: string;
-    })[]> => result.status === "fulfilled")
+    .filter(
+      (
+        result,
+      ): result is PromiseFulfilledResult<
+        (CanvasAssignment & {
+          course_name: string;
+          course_code: string;
+        })[]
+      > => result.status === "fulfilled",
+    )
     .flatMap((result) => result.value)
     .filter((a) => !creds.excluded.has(a.course_id));
 
@@ -374,7 +358,12 @@ async function handleAssignments(creds: Creds) {
       `/planner/items?start_date=${encodeURIComponent(start)}&end_date=${encodeURIComponent(end)}&per_page=100`,
     );
     const seen = new Set(list.map((a) => a.id));
-    const typeCode: Record<string, number> = { quiz: 1, discussion_topic: 2, wiki_page: 3, sub_assignment: 4 };
+    const typeCode: Record<string, number> = {
+      quiz: 1,
+      discussion_topic: 2,
+      wiki_page: 3,
+      sub_assignment: 4,
+    };
     for (const it of items) {
       const course = it.course_id ? courseById.get(it.course_id) : undefined;
       if (!course || creds.excluded.has(course.id)) continue;
@@ -390,7 +379,9 @@ async function handleAssignments(creds: Creds) {
         id,
         name: p.title ?? p.name ?? "Untitled",
         due_at: p.due_at ?? p.todo_date ?? it.plannable_date ?? null,
-        html_url: it.html_url ? `https://${creds.domain}${it.html_url.startsWith("/") ? "" : "/"}${it.html_url}` : `https://${creds.domain}/courses/${course.id}`,
+        html_url: it.html_url
+          ? `https://${creds.domain}${it.html_url.startsWith("/") ? "" : "/"}${it.html_url}`
+          : `https://${creds.domain}/courses/${course.id}`,
         points_possible: p.points_possible ?? null,
         course_id: course.id,
         course_name: course.name,
@@ -409,7 +400,10 @@ async function handleAssignments(creds: Creds) {
       } as unknown as (typeof list)[number]);
     }
   } catch (err) {
-    console.error("[canvas] planner merge failed:", err instanceof Error ? err.message : String(err));
+    console.error(
+      "[canvas] planner merge failed:",
+      err instanceof Error ? err.message : String(err),
+    );
   }
   return list;
 }
@@ -421,10 +415,22 @@ interface PlannerItem {
   plannable_date?: string;
   html_url?: string;
   plannable?: {
-    title?: string; name?: string; due_at?: string | null; todo_date?: string | null;
-    points_possible?: number | null; assignment_id?: number;
+    title?: string;
+    name?: string;
+    due_at?: string | null;
+    todo_date?: string | null;
+    points_possible?: number | null;
+    assignment_id?: number;
   };
-  submissions?: false | { submitted?: boolean; graded?: boolean; missing?: boolean; excused?: boolean; late?: boolean };
+  submissions?:
+    | false
+    | {
+        submitted?: boolean;
+        graded?: boolean;
+        missing?: boolean;
+        excused?: boolean;
+        late?: boolean;
+      };
   planner_override?: { marked_complete?: boolean } | null;
 }
 
@@ -624,10 +630,10 @@ Deno.serve(async (req) => {
       message === "NOT_AUTHENTICATED"
         ? 401
         : message === "NO_CANVAS_KEY" || message === "NO_CANVAS_DOMAIN"
-            ? 428
-            : message === "INVALID_DOMAIN" || /^Canvas API 4\d\d/.test(message)
-              ? 400
-              : 500;
+          ? 428
+          : message === "INVALID_DOMAIN" || /^Canvas API 4\d\d/.test(message)
+            ? 400
+            : 500;
     if (status === 500) console.error("[canvas]", message);
     return new Response(JSON.stringify({ error: message }), {
       status,

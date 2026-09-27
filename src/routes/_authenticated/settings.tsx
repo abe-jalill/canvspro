@@ -1,9 +1,24 @@
 import { createFileRoute, Link, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
-import { Camera, Check, ExternalLink, LoaderCircle, Sparkles, Trash2, UserRound, X } from "lucide-react";
+import {
+  Camera,
+  Check,
+  ExternalLink,
+  LoaderCircle,
+  Sparkles,
+  Trash2,
+  UserRound,
+  X,
+} from "lucide-react";
 import { GlassCard } from "@/components/glass-card";
-import { useCanvasKey, useCanvasDomain, useSaveCanvasKey, useSaveCanvasDomain, normalizeCanvasDomain } from "@/lib/user-settings";
+import {
+  useCanvasKey,
+  useCanvasDomain,
+  useSaveCanvasKey,
+  useSaveCanvasDomain,
+  normalizeCanvasDomain,
+} from "@/lib/user-settings";
 import { CanvasTokenModal } from "@/components/canvas-token-modal";
 import { getCanvasTokenSettingsUrl } from "@/lib/school-domains";
 import {
@@ -21,6 +36,7 @@ import { ClassNamesSection } from "@/components/class-names-editor";
 import { HiddenCoursesSection } from "@/components/hidden-courses-editor";
 import { DeleteAccountSection } from "@/components/delete-account";
 import { useAnnouncementWindow } from "@/lib/announcement-window";
+import { AppearanceSettings } from "@/components/appearance-settings";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
@@ -52,11 +68,9 @@ function SettingsPage() {
   const [status, setStatus] = useState<string | null>(null);
   const hash = useRouterState({ select: (s) => s.location.hash });
 
-  // Arriving from the profile button in the top bars scrolls to the profile card.
   useEffect(() => {
-    if (hash === "profile") {
-      document.getElementById("profile")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
+    if (!hash) return;
+    document.getElementById(hash)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [hash]);
 
   // Pre-fill the Canvas URL once the saved value arrives, unless the user
@@ -106,160 +120,193 @@ function SettingsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Settings</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Your Canvas API key is stored securely on your account.
+    <div className="mx-auto flex max-w-6xl flex-col gap-6 pb-10">
+      <header className="px-1">
+        <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+          Your account
+        </p>
+        <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">Settings</h1>
+        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+          Personalize CanvasPro, manage your Canvas connection, and control what the app can do.
         </p>
       </header>
 
-      <div id="profile" className="scroll-mt-4">
-        <ProfileCard />
-      </div>
+      <div className="settings-layout">
+        <nav className="settings-nav" aria-label="Settings sections">
+          <a href="#appearance">Appearance</a>
+          <a href="#profile">Profile</a>
+          <a href="#canvas">Canvas</a>
+          <a href="#notifications">Notifications</a>
+          <a href="#courses">Courses</a>
+          <a href="#account">Account</a>
+        </nav>
 
-      <GlassCard
-        title="Canvas connection"
-        subtitle="Your school's Canvas URL and API key."
-        action={
-          <CanvasTokenModal
-            trigger={
-              <button
-                type="button"
-                className="glass-inset glass-hover inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium text-foreground transition"
-              >
-                <Sparkles className="h-3.5 w-3.5 text-primary" />
-                <span>3-Step Visual Guide</span>
-              </button>
-            }
-          />
-        }
-      >
-        <form onSubmit={onSubmit} className="flex w-full flex-col gap-4">
-          <label className="flex w-full flex-col gap-1.5">
-            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              API key
-            </span>
-            <input
-              type="password"
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              placeholder={
-                isLoading
-                  ? "Loading…"
-                  : savedKey
-                    ? "A key is saved — paste a new one to replace it"
-                    : "Paste your Canvas access token"
+        <div className="min-w-0 space-y-5">
+          <section id="appearance" className="scroll-mt-5">
+            <AppearanceSettings />
+          </section>
+          <section id="profile" className="scroll-mt-5">
+            <ProfileCard />
+          </section>
+
+          <section id="canvas" className="scroll-mt-5">
+            <GlassCard
+              title="Canvas connection"
+              subtitle="Your school's Canvas URL and API key."
+              action={
+                <CanvasTokenModal
+                  trigger={
+                    <button
+                      type="button"
+                      className="glass-inset glass-hover inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium text-foreground transition"
+                    >
+                      <Sparkles className="h-3.5 w-3.5 text-primary" />
+                      <span>3-Step Visual Guide</span>
+                    </button>
+                  }
+                />
               }
-
-              autoComplete="off"
-              className="glass-inset min-h-12 w-full rounded-xl bg-transparent px-4 text-base text-foreground outline-none placeholder:text-muted-foreground/60 focus:ring-1 focus:ring-foreground/20"
-            />
-          </label>
-          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-            <p>Generate one in Canvas under Account → Settings → New Access Token.</p>
-            {domainValue.trim() && (
-              <a
-                href={getCanvasTokenSettingsUrl(domainValue)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-primary hover:underline font-medium"
-              >
-                <span>Open {normalizeCanvasDomain(domainValue) || "Canvas"} Token Page</span>
-                <ExternalLink className="h-3 w-3" />
-              </a>
-            )}
-          </div>
-          <label className="flex w-full flex-col gap-1.5">
-            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Canvas URL
-            </span>
-            <input
-              type="text"
-              value={domainValue}
-              onChange={(e) => {
-                setDomainTouched(true);
-                setDomainValue(e.target.value);
-              }}
-              placeholder={
-                domainLoading ? "Loading…" : (savedDomain ?? "yourschool.instructure.com")
-              }
-              inputMode="url"
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-              autoComplete="off"
-              className="glass-inset min-h-12 w-full rounded-xl bg-transparent px-4 text-base text-foreground outline-none placeholder:text-muted-foreground/60 focus:ring-1 focus:ring-foreground/20"
-            />
-          </label>
-          <p className="text-xs text-muted-foreground">
-            Your school's Canvas web address — what you type to open Canvas, e.g.{" "}
-            <span className="whitespace-nowrap">yourschool.instructure.com</span>. Each student
-            connects to their own school.
-          </p>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <button
-              type="submit"
-              disabled={save.isPending}
-              className="glass-hover min-h-11 w-full rounded-xl bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-60 sm:w-auto sm:min-w-24"
             >
-              {save.isPending ? "Saving…" : "Save"}
-            </button>
-            <button
-              type="button"
-              onClick={onClear}
-              disabled={save.isPending || (!savedKey && !value)}
-              className="glass-hover glass-inset min-h-11 w-full rounded-xl px-4 text-sm font-medium disabled:opacity-50 sm:w-auto"
-            >
-              Clear key
-            </button>
-          </div>
-          {status && <p className="text-sm text-muted-foreground">{status}</p>}
-          {!isLoading && (
-            <p className="text-xs text-muted-foreground">
-              Status:{" "}
-              {savedKey ? `Key saved${savedDomain ? ` · ${savedDomain}` : ""}` : "No key saved yet"}
-            </p>
-          )}
-        </form>
-      </GlassCard>
+              <form onSubmit={onSubmit} className="flex w-full flex-col gap-4">
+                <label className="flex w-full flex-col gap-1.5">
+                  <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    API key
+                  </span>
+                  <input
+                    type="password"
+                    value={value}
+                    onChange={(e) => setValue(e.target.value)}
+                    placeholder={
+                      isLoading
+                        ? "Loading…"
+                        : savedKey
+                          ? "A key is saved — paste a new one to replace it"
+                          : "Paste your Canvas access token"
+                    }
 
-      <GlassCard title="Notifications" subtitle="Choose which alerts you want and when.">
-        <div className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            Full controls — due-date lead times, grade thresholds, browser pop-ups, and quiet hours
-            — live on their own page.
-          </p>
-          <Link
-            to="/notifications"
-            className="glass-hover inline-flex min-h-11 items-center rounded-xl bg-foreground px-4 text-sm font-semibold text-background"
-          >
-            Open notification settings
-          </Link>
+                    autoComplete="off"
+                    className="glass-inset min-h-12 w-full rounded-xl bg-transparent px-4 text-base text-foreground outline-none placeholder:text-muted-foreground/60 focus:ring-1 focus:ring-foreground/20"
+                  />
+                </label>
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                  <p>Generate one in Canvas under Account → Settings → New Access Token.</p>
+                  {domainValue.trim() && (
+                    <a
+                      href={getCanvasTokenSettingsUrl(domainValue)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-primary hover:underline font-medium"
+                    >
+                      <span>Open {normalizeCanvasDomain(domainValue) || "Canvas"} Token Page</span>
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  )}
+                </div>
+                <label className="flex w-full flex-col gap-1.5">
+                  <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Canvas URL
+                  </span>
+                  <input
+                    type="text"
+                    value={domainValue}
+                    onChange={(e) => {
+                      setDomainTouched(true);
+                      setDomainValue(e.target.value);
+                    }}
+                    placeholder={
+                      domainLoading ? "Loading…" : (savedDomain ?? "yourschool.instructure.com")
+                    }
+                    inputMode="url"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    autoComplete="off"
+                    className="glass-inset min-h-12 w-full rounded-xl bg-transparent px-4 text-base text-foreground outline-none placeholder:text-muted-foreground/60 focus:ring-1 focus:ring-foreground/20"
+                  />
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  Your school's Canvas web address — what you type to open Canvas, e.g.{" "}
+                  <span className="whitespace-nowrap">yourschool.instructure.com</span>. Each
+                  student connects to their own school.
+                </p>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <button
+                    type="submit"
+                    disabled={save.isPending}
+                    className="glass-hover min-h-11 w-full rounded-xl bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-60 sm:w-auto sm:min-w-24"
+                  >
+                    {save.isPending ? "Saving…" : "Save"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onClear}
+                    disabled={save.isPending || (!savedKey && !value)}
+                    className="glass-hover glass-inset min-h-11 w-full rounded-xl px-4 text-sm font-medium disabled:opacity-50 sm:w-auto"
+                  >
+                    Clear key
+                  </button>
+                </div>
+                {status && <p className="text-sm text-muted-foreground">{status}</p>}
+                {!isLoading && (
+                  <p className="text-xs text-muted-foreground">
+                    Status:{" "}
+                    {savedKey
+                      ? `Key saved${savedDomain ? ` · ${savedDomain}` : ""}`
+                      : "No key saved yet"}
+                  </p>
+                )}
+              </form>
+            </GlassCard>
+          </section>
+
+          <section id="notifications" className="scroll-mt-5">
+            <GlassCard title="Notifications" subtitle="Choose which alerts you want and when.">
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Full controls — due-date lead times, grade thresholds, browser pop-ups, and quiet
+                  hours — live on their own page.
+                </p>
+                <Link
+                  to="/notifications"
+                  className="glass-hover inline-flex min-h-11 items-center rounded-xl bg-foreground px-4 text-sm font-semibold text-background"
+                >
+                  Open notification settings
+                </Link>
+              </div>
+            </GlassCard>
+          </section>
+
+          <section id="courses" className="scroll-mt-5 space-y-5">
+            <GlassCard
+              title="Announcements"
+              subtitle="How far back the announcements list reaches."
+            >
+              <AnnouncementWindowSection />
+            </GlassCard>
+            <GlassCard
+              title="Class names"
+              subtitle="Rename your Canvas courses to something friendlier."
+            >
+              <ClassNamesSection />
+            </GlassCard>
+            <GlassCard
+              title="Which classes to show"
+              subtitle="Hide classes you don't want anywhere in the app."
+            >
+              <HiddenCoursesSection />
+            </GlassCard>
+          </section>
+
+          <section id="account" className="scroll-mt-5">
+            <GlassCard
+              title="Delete account"
+              subtitle="Permanently remove your account and everything saved with it."
+            >
+              <DeleteAccountSection />
+            </GlassCard>
+          </section>
         </div>
-      </GlassCard>
-
-      <GlassCard title="Announcements" subtitle="How far back the announcements list reaches.">
-        <AnnouncementWindowSection />
-      </GlassCard>
-
-      <GlassCard title="Class names" subtitle="Rename your Canvas courses to something friendlier.">
-        <ClassNamesSection />
-      </GlassCard>
-
-      <GlassCard
-        title="Which classes to show"
-        subtitle="Hide classes you don't want anywhere in the app."
-      >
-        <HiddenCoursesSection />
-      </GlassCard>
-
-      <GlassCard
-        title="Delete account"
-        subtitle="Permanently remove your account and everything saved with it."
-      >
-        <DeleteAccountSection />
-      </GlassCard>
+      </div>
     </div>
   );
 }
@@ -416,11 +463,7 @@ function ProfileCard() {
         <div className="flex flex-col gap-4 sm:col-span-2 sm:flex-row sm:items-center">
           <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-full border border-foreground/15 bg-foreground/[0.06] shadow-glass">
             {form.avatarUrl ? (
-              <img
-                src={form.avatarUrl}
-                alt="Profile"
-                className="h-full w-full object-cover"
-              />
+              <img src={form.avatarUrl} alt="Profile" className="h-full w-full object-cover" />
             ) : (
               <span className="flex h-full w-full items-center justify-center text-muted-foreground">
                 <UserRound className="h-10 w-10" aria-hidden="true" />
