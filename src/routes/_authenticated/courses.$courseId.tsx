@@ -29,29 +29,13 @@ import { isAssignmentComplete } from "@/lib/assignment-window";
 
 const THREE_WEEKS_MS = 3 * 7 * 24 * 60 * 60 * 1000;
 
-const coursesQO = queryOptions({
-  queryKey: ["canvas", "courses"],
-  queryFn: () => getCoursesFn(),
-  staleTime: 5 * 60_000,
-});
-
-const assignmentsQO = queryOptions({
-  queryKey: ["canvas", "assignments"],
-  queryFn: () => getAllAssignmentsFn(),
-  staleTime: 5 * 60_000,
-});
-
-const announcementsQO = queryOptions({
-  queryKey: ["canvas", "announcements"],
-  queryFn: () => getAnnouncementsFn(),
-  staleTime: 5 * 60_000,
-});
-
-const eventsQO = queryOptions({
-  queryKey: ["canvas", "calendar"],
-  queryFn: () => getCalendarEventsFn(),
-  staleTime: 5 * 60_000,
-});
+import {
+  coursesQueryOptions as coursesQO,
+  assignmentsQueryOptions as assignmentsQO,
+  announcementsQueryOptions as announcementsQO,
+  calendarQueryOptions as eventsQO,
+} from "@/lib/canvas.queries";
+import { SkeletonBlock, AssignmentRowSkeleton } from "@/components/skeletons/dashboard-skeletons";
 
 export const Route = createFileRoute("/_authenticated/courses/$courseId")({
   head: () => ({
@@ -60,6 +44,12 @@ export const Route = createFileRoute("/_authenticated/courses/$courseId")({
       { name: "description", content: "Individual course overview, grades, assignments, and announcements." },
     ],
   }),
+  loader: ({ context }) => {
+    if (context?.queryClient) {
+      void context.queryClient.ensureQueryData(coursesQO);
+      void context.queryClient.ensureQueryData(assignmentsQO);
+    }
+  },
   component: CourseDetailPage,
 });
 
@@ -274,21 +264,41 @@ function CourseDetailPage() {
 
   if (loading && !course) {
     return (
-      <div className="mx-auto w-full max-w-4xl space-y-4 px-4 py-6 sm:px-6">
-        <GlassCard className="p-6">
-          <Skeleton className="mb-4 h-5 w-32" />
-          <Skeleton className="mb-2 h-8 w-64" />
-          <Skeleton className="h-4 w-48" />
+      <div className="mx-auto w-full max-w-4xl space-y-5 px-4 py-6 sm:px-6">
+        {/* Top Header & Back Navigation */}
+        <div className="flex items-center justify-between gap-3">
+          <SkeletonBlock className="h-5 w-24" />
+          <SkeletonBlock className="h-7 w-36 rounded-full" />
+        </div>
+
+        {/* Hero Class Card */}
+        <GlassCard strong className="p-6 sm:p-8 space-y-4">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-3 min-w-0">
+              <SkeletonBlock className="h-4 w-20 rounded-full" />
+              <SkeletonBlock className="h-8 w-64 sm:w-80" />
+              <SkeletonBlock className="h-4 w-40" />
+            </div>
+            <div className="flex items-baseline gap-3 shrink-0">
+              <SkeletonBlock className="h-12 w-24" />
+              <SkeletonBlock className="h-7 w-10 rounded-lg" />
+            </div>
+          </div>
         </GlassCard>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <GlassCard className="p-5">
-            <Skeleton className="mb-3 h-4 w-24" />
-            <Skeleton className="h-6 w-full" />
-          </GlassCard>
-          <GlassCard className="p-5">
-            <Skeleton className="mb-3 h-4 w-24" />
-            <Skeleton className="h-6 w-full" />
-          </GlassCard>
+
+        {/* Tabs Bar Skeleton */}
+        <div className="flex gap-2">
+          <SkeletonBlock className="h-9 w-16 rounded-xl" />
+          <SkeletonBlock className="h-9 w-24 rounded-xl" />
+          <SkeletonBlock className="h-9 w-20 rounded-xl" />
+          <SkeletonBlock className="h-9 w-28 rounded-xl" />
+        </div>
+
+        {/* Assignment Skeletons */}
+        <div className="space-y-3">
+          <AssignmentRowSkeleton index={0} />
+          <AssignmentRowSkeleton index={1} />
+          <AssignmentRowSkeleton index={2} />
         </div>
       </div>
     );

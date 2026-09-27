@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <radialGradient id="bg" cx=".52" cy="1" r=".85">
+      <stop offset="0" stop-color="#51427f"/>
+      <stop offset=".48" stop-color="#262744"/>
+      <stop offset="1" stop-color="#12152b"/>
+    </radialGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#ece8f5"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-40%" width="160%" height="190%">
+      <feDropShadow dx="0" dy="25" stdDeviation="20" flood-color="#050618" flood-opacity=".4"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <g opacity=".13" stroke="#d8d1ff" stroke-width="1">
+    <path d="M0 145H1200M0 275H1200M0 405H1200M0 535H1200"/>
+    <path d="M130 0V630M300 0V630M470 0V630M640 0V630M810 0V630M980 0V630M1150 0V630"/>
+  </g>
+  <circle cx="862" cy="320" r="320" fill="#a78af3" opacity=".08"/>
+  <g font-family="Arial, Helvetica, sans-serif">
+    <g transform="translate(74 47) rotate(-17)">
+      <rect x="0" y="12" width="8" height="17" rx="3" fill="#b9a8f5"/>
+      <rect x="14" y="0" width="8" height="29" rx="3" fill="#e6ddff"/>
+      <rect x="28" y="7" width="8" height="22" rx="3" fill="#b7e7d5"/>
+    </g>
+    <text x="122" y="76" fill="#ffffff" font-size="29" font-weight="700" letter-spacing="-1.5">canvaspro<tspan fill="#b9a8f5">.</tspan></text>
+    <text x="76" y="172" fill="#cfc4fa" font-size="16" font-weight="700" letter-spacing="4">THE STUDENT DAY, REIMAGINED</text>
+    <text x="70" y="278" fill="#ffffff" font-size="83" font-weight="600" letter-spacing="-5">A clearer day</text>
+    <text x="70" y="370" fill="#ffffff" font-size="83" font-weight="600" letter-spacing="-5">starts <tspan fill="#c5b5fb">here.</tspan></text>
+    <text x="76" y="439" fill="#d7d2e7" font-size="24">Every class. Every deadline. One place to see</text>
+    <text x="76" y="471" fill="#d7d2e7" font-size="24">what matters and move forward.</text>
+    <rect x="75" y="520" width="215" height="58" rx="29" fill="#f6f4fb"/>
+    <text x="102" y="556" fill="#23243b" font-size="18" font-weight="700">Get started free</text>
+    <path d="M253 549h14m-5-6 6 6-6 6" fill="none" stroke="#23243b" stroke-width="2"/>
+  </g>
+  <g transform="translate(790 131) rotate(6 185 175)" filter="url(#shadow)" font-family="Arial, Helvetica, sans-serif">
+    <rect x="0" y="0" width="370" height="350" rx="24" fill="url(#card)"/>
+    <text x="27" y="44" fill="#7b67af" font-size="12" font-weight="700" letter-spacing="2">TODAY'S PLAN</text>
+    <text x="27" y="87" fill="#24243b" font-size="27" font-weight="700">One thing at a time.</text>
+    <path d="M27 109H342" stroke="#dbd6e7"/>
+    <g font-size="17" fill="#323148" font-weight="600">
+      <rect x="27" y="132" width="9" height="47" rx="4" fill="#ae96ed"/>
+      <text x="55" y="153">Physics Homework</text>
+      <text x="55" y="174" fill="#87819a" font-size="13" font-weight="400">Due tonight</text>
+      <text x="291" y="164" fill="#7765a8" font-size="14">30 min</text>
+      <path d="M27 194H342" stroke="#e5e1eb"/>
+      <rect x="27" y="208" width="9" height="47" rx="4" fill="#93d7bf"/>
+      <text x="55" y="229">CAD Assignment</text>
+      <text x="55" y="250" fill="#87819a" font-size="13" font-weight="400">Tomorrow</text>
+      <text x="291" y="240" fill="#7765a8" font-size="14">45 min</text>
+      <path d="M27 270H342" stroke="#e5e1eb"/>
+      <rect x="27" y="283" width="9" height="43" rx="4" fill="#efbbaa"/>
+      <text x="55" y="305">English Reading</text>
+      <text x="291" y="305" fill="#7765a8" font-size="14">25 min</text>
+    </g>
+  </g>
+</svg>

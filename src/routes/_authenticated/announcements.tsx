@@ -14,11 +14,8 @@ import {
   withinAnnouncementWindow,
 } from "@/lib/announcement-window";
 
-const announcementsQO = queryOptions({
-  queryKey: ["canvas", "announcements"],
-  queryFn: () => getAnnouncementsFn(),
-  staleTime: 5 * 60_000,
-});
+import { announcementsQueryOptions as announcementsQO } from "@/lib/canvas.queries";
+import { SkeletonBlock } from "@/components/skeletons/dashboard-skeletons";
 
 export const Route = createFileRoute("/_authenticated/announcements")({
   head: () => ({
@@ -41,6 +38,11 @@ export const Route = createFileRoute("/_authenticated/announcements")({
     ...(typeof search?.course === "string" ? { course: search.course } : {}),
     ...(typeof search?.expand === "string" ? { expand: search.expand } : {}),
   }),
+  loader: ({ context }) => {
+    if (context?.queryClient) {
+      void context.queryClient.ensureQueryData(announcementsQO);
+    }
+  },
   component: AnnouncementsPage,
 });
 
@@ -147,13 +149,21 @@ function AnnouncementsPage() {
       </header>
 
       {isLoading && (
-        <GlassCard>
-          <div className="space-y-3">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-20" />
-            ))}
-          </div>
-        </GlassCard>
+        <div className="space-y-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <GlassCard key={i} className="p-0 sm:p-0 md:p-0">
+              <div className="p-4 sm:p-6 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1.5">
+                    <SkeletonBlock className="h-5 w-44 sm:w-60" />
+                    <SkeletonBlock className="h-3 w-28" />
+                  </div>
+                  <SkeletonBlock className="h-6 w-6 rounded-full" />
+                </div>
+              </div>
+            </GlassCard>
+          ))}
+        </div>
       )}
       {isError && (
         <GlassCard>

@@ -52,19 +52,11 @@ import {
 
 const GET_IT_DONE_PREFS_KEY = "canvas:get-it-done";
 
-const assignmentsQO = queryOptions({
-  queryKey: ["canvas", "assignments"],
-  queryFn: () => getAllAssignmentsFn(),
-  staleTime: CANVAS_DATA_STALE_MS,
-  gcTime: CANVAS_DATA_GC_MS,
-});
-
-const coursesQO = queryOptions({
-  queryKey: ["canvas", "courses"],
-  queryFn: () => getCoursesFn(),
-  staleTime: CANVAS_DATA_STALE_MS,
-  gcTime: CANVAS_DATA_GC_MS,
-});
+import {
+  coursesQueryOptions as coursesQO,
+  assignmentsQueryOptions as assignmentsQO,
+} from "@/lib/canvas.queries";
+import { SkeletonBlock } from "@/components/skeletons/dashboard-skeletons";
 
 export const Route = createFileRoute("/_authenticated/get-it-done")({
   head: () => ({
@@ -85,6 +77,12 @@ export const Route = createFileRoute("/_authenticated/get-it-done")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
+  loader: ({ context }) => {
+    if (context?.queryClient) {
+      void context.queryClient.ensureQueryData(assignmentsQO);
+      void context.queryClient.ensureQueryData(coursesQO);
+    }
+  },
   component: GetItDonePage,
 });
 
@@ -300,18 +298,36 @@ function GetItDonePage() {
     return (
       <div className="space-y-6">
         <Header windowDays={prefs.windowDays} onWindowDaysChange={setWindowDays} />
-        <GlassCard strong>
-          <div className="space-y-4">
-            <Skeleton className="h-5 w-40" />
-            <Skeleton className="h-10 w-3/4" />
-            <Skeleton className="h-24" />
+        {/* RecommendationCard Skeleton */}
+        <GlassCard strong className="p-6 sm:p-7 space-y-4">
+          <div className="flex items-center gap-2">
+            <SkeletonBlock className="h-5 w-36 rounded-full" />
+          </div>
+          <div className="space-y-2">
+            <SkeletonBlock className="h-7 w-2/3" />
+            <SkeletonBlock className="h-4 w-1/3" />
+          </div>
+          <div className="flex flex-wrap gap-2 pt-2">
+            <SkeletonBlock className="h-11 w-36 rounded-xl" />
+            <SkeletonBlock className="h-11 w-24 rounded-xl" />
           </div>
         </GlassCard>
-        <GlassCard>
-          <div className="space-y-3">
-            <Skeleton className="h-5 w-36" />
+
+        {/* TodayPlanCard Skeleton */}
+        <GlassCard className="p-6 space-y-4">
+          <div className="flex items-center justify-between border-b border-foreground/10 pb-3">
+            <SkeletonBlock className="h-5 w-32" />
+            <SkeletonBlock className="h-4 w-24" />
+          </div>
+          <div className="space-y-2.5">
             {Array.from({ length: 3 }).map((_, index) => (
-              <Skeleton key={index} className="h-16" />
+              <div key={index} className="glass-inset flex items-center justify-between p-3.5">
+                <div className="space-y-1.5 min-w-0">
+                  <SkeletonBlock className="h-4 w-44 sm:w-60" />
+                  <SkeletonBlock className="h-3 w-28" />
+                </div>
+                <SkeletonBlock className="h-6 w-16 rounded-md" />
+              </div>
             ))}
           </div>
         </GlassCard>

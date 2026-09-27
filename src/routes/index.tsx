@@ -279,11 +279,12 @@ function LandingPage() {
           <a href="#questions" onClick={() => setMenuOpen(false)}>
             Questions
           </a>
-          <Link to="/canvas-grade-calculator" onClick={() => setMenuOpen(false)}>
+          <Link to="/canvas-grade-calculator" preload="intent" onClick={() => setMenuOpen(false)}>
             Grade calculator
           </Link>
           <Link
             to={isLoggedIn ? "/dashboard" : "/auth"}
+            preload="intent"
             className="cp-nav__mobile-signin"
             onClick={() => setMenuOpen(false)}
           >
@@ -291,10 +292,10 @@ function LandingPage() {
           </Link>
         </nav>
         <div className="cp-nav__actions">
-          <Link to={isLoggedIn ? "/dashboard" : "/auth"} className="cp-nav__signin">
+          <Link to={isLoggedIn ? "/dashboard" : "/auth"} preload="intent" className="cp-nav__signin">
             {isLoggedIn ? "Dashboard" : "Sign in"}
           </Link>
-          <Link to={cta} className="cp-button cp-button--nav">
+          <Link to={cta} preload="intent" className="cp-button cp-button--nav">
             {isLoggedIn ? "Open app" : "Get started"} <ArrowRight size={15} aria-hidden="true" />
           </Link>
           <button
@@ -325,7 +326,7 @@ function LandingPage() {
             Every class. Every deadline. One place to see what matters and move forward.
           </p>
           <div className="cp-hero__actions">
-            <Link to={cta} className="cp-button cp-button--light">
+            <Link to={cta} preload="intent" className="cp-button cp-button--light">
               {isLoggedIn ? "Open your dashboard" : "Make your day easier"}{" "}
               <ArrowRight size={18} aria-hidden="true" />
             </Link>
@@ -432,7 +433,7 @@ function LandingPage() {
                 Start with one recommended assignment. Then follow a realistic plan for the rest of
                 today, with time estimates and room to adjust.
               </p>
-              <Link to={cta} className="cp-inline-link">
+              <Link to={cta} preload="intent" className="cp-inline-link">
                 See what to do next <ArrowRight size={18} />
               </Link>
             </div>
@@ -672,7 +673,7 @@ function LandingPage() {
             <small className="cp-calculator__note">
               Example: 88.4% current grade, final worth 25%.
             </small>
-            <Link to="/canvas-grade-calculator" className="cp-inline-link">
+            <Link to="/canvas-grade-calculator" preload="intent" className="cp-inline-link">
               Open the full grade calculator <ArrowRight size={18} />
             </Link>
           </div>
@@ -748,7 +749,7 @@ function LandingPage() {
               More <em>living.</em>
             </h2>
             <p>A place for your coursework to make sense. Free for every student.</p>
-            <Link to={cta} className="cp-button cp-button--light">
+            <Link to={cta} preload="intent" className="cp-button cp-button--light">
               {isLoggedIn ? "Open your dashboard" : "Get started for free"} <ArrowRight size={18} />
             </Link>
             <span className="cp-finale__fineprint">

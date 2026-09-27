@@ -354,13 +354,78 @@ async function handleAssignments(creds: Creds) {
       failure.reason instanceof Error ? failure.reason.message : String(failure.reason),
     );
   }
-  return results
+  const list = results
     .filter((result): result is PromiseFulfilledResult<(CanvasAssignment & {
       course_name: string;
       course_code: string;
     })[]> => result.status === "fulfilled")
     .flatMap((result) => result.value)
     .filter((a) => !creds.excluded.has(a.course_id));
+
+  // Canvas's own "Upcoming"/To-Do list comes from the planner, which also
+  // includes ungraded quizzes, discussions and pages with to-do dates that the
+  // assignments endpoint never returns. Merge those in (deduped).
+  try {
+    const courseById = new Map(courses.map((c) => [c.id, c]));
+    const start = new Date(Date.now() - 2 * 86_400_000).toISOString();
+    const end = new Date(Date.now() + 60 * 86_400_000).toISOString();
+    const items = await canvasFetchAll<PlannerItem>(
+      creds,
+      `/planner/items?start_date=${encodeURIComponent(start)}&end_date=${encodeURIComponent(end)}&per_page=100`,
+    );
+    const seen = new Set(list.map((a) => a.id));
+    const typeCode: Record<string, number> = { quiz: 1, discussion_topic: 2, wiki_page: 3, sub_assignment: 4 };
+    for (const it of items) {
+      const course = it.course_id ? courseById.get(it.course_id) : undefined;
+      if (!course || creds.excluded.has(course.id)) continue;
+      const p = it.plannable ?? {};
+      const assignmentId = it.plannable_type === "assignment" ? it.plannable_id : p.assignment_id;
+      if (assignmentId && seen.has(assignmentId)) continue;
+      const code = typeCode[it.plannable_type];
+      if (!assignmentId && !code) continue; // skip notes, events, announcements
+      const id = assignmentId ?? -(it.plannable_id * 10 + code);
+      seen.add(id);
+      const sub = typeof it.submissions === "object" && it.submissions ? it.submissions : null;
+      list.push({
+        id,
+        name: p.title ?? p.name ?? "Untitled",
+        due_at: p.due_at ?? p.todo_date ?? it.plannable_date ?? null,
+        html_url: it.html_url ? `https://${creds.domain}${it.html_url.startsWith("/") ? "" : "/"}${it.html_url}` : `https://${creds.domain}/courses/${course.id}`,
+        points_possible: p.points_possible ?? null,
+        course_id: course.id,
+        course_name: course.name,
+        course_code: course.course_code,
+        submission: sub
+          ? {
+              submitted_at: sub.submitted ? new Date().toISOString() : null,
+              workflow_state: sub.graded ? "graded" : sub.submitted ? "submitted" : "unsubmitted",
+              missing: !!sub.missing,
+              excused: !!sub.excused,
+              late: !!sub.late,
+            }
+          : it.planner_override?.marked_complete
+            ? { workflow_state: "submitted", submitted_at: new Date().toISOString() }
+            : undefined,
+      } as unknown as (typeof list)[number]);
+    }
+  } catch (err) {
+    console.error("[canvas] planner merge failed:", err instanceof Error ? err.message : String(err));
+  }
+  return list;
+}
+
+interface PlannerItem {
+  course_id?: number;
+  plannable_id: number;
+  plannable_type: string;
+  plannable_date?: string;
+  html_url?: string;
+  plannable?: {
+    title?: string; name?: string; due_at?: string | null; todo_date?: string | null;
+    points_possible?: number | null; assignment_id?: number;
+  };
+  submissions?: false | { submitted?: boolean; graded?: boolean; missing?: boolean; excused?: boolean; late?: boolean };
+  planner_override?: { marked_complete?: boolean } | null;
 }
 
 async function handleAnnouncements(creds: Creds, days = 30) {

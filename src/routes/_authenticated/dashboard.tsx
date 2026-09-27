@@ -6,6 +6,12 @@ import { useDashboardLayout, type WidgetId, type WidgetSize } from "@/lib/dashbo
 import { WIDGETS } from "@/components/widgets/dashboard-widgets";
 import { DashboardHero } from "@/components/dashboard-hero";
 
+import {
+  coursesQueryOptions,
+  assignmentsQueryOptions,
+  calendarQueryOptions,
+} from "@/lib/canvas.queries";
+
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
     meta: [
@@ -25,6 +31,13 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
+  loader: ({ context }) => {
+    if (context?.queryClient) {
+      void context.queryClient.ensureQueryData(coursesQueryOptions);
+      void context.queryClient.ensureQueryData(assignmentsQueryOptions);
+      void context.queryClient.ensureQueryData(calendarQueryOptions);
+    }
+  },
   component: Dashboard,
 });
 

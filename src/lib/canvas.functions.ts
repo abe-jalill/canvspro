@@ -138,11 +138,13 @@ const EMPTY_BUNDLE: CanvasBundle = {
 // All four Canvas datasets come back in ONE request. Concurrent callers
 // (the four page queries, prefetch, sync) share a single in-flight promise,
 // so a full app load hits the network once instead of four times.
-const bundleRequests = createRequestCache<CanvasBundle>();
+const bundleRequests = createRequestCache<CanvasBundle>(10_000);
 
 export function resetCanvasBundle() {
   bundleRequests.clear();
 }
+
+export * from "./canvas.queries";
 
 export function fetchCanvasBundle(): Promise<CanvasBundle> {
   const scope = getUserScope();

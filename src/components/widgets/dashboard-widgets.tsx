@@ -31,29 +31,21 @@ import { getGradeColor } from "@/lib/grade-color";
 import { isInFocusWindow } from "@/lib/focus-window";
 import { customToAssignmentItem, useCustomAssignments } from "@/lib/custom-assignments";
 
-const coursesQO = queryOptions({
-  queryKey: ["canvas", "courses"],
-  queryFn: () => getCoursesFn(),
-  staleTime: 5 * 60_000,
-});
-
-const assignmentsQO = queryOptions({
-  queryKey: ["canvas", "assignments"],
-  queryFn: () => getAllAssignmentsFn(),
-  staleTime: 5 * 60_000,
-});
-
-const eventsQO = queryOptions({
-  queryKey: ["canvas", "calendar"],
-  queryFn: () => getCalendarEventsFn(),
-  staleTime: 5 * 60_000,
-});
-
-const announcementsQO = queryOptions({
-  queryKey: ["canvas", "announcements"],
-  queryFn: () => getAnnouncementsFn(),
-  staleTime: 5 * 60_000,
-});
+import {
+  coursesQueryOptions as coursesQO,
+  assignmentsQueryOptions as assignmentsQO,
+  calendarQueryOptions as eventsQO,
+  announcementsQueryOptions as announcementsQO,
+} from "@/lib/canvas.queries";
+import {
+  ClassesWidgetSkeleton,
+  UpcomingWidgetSkeleton,
+  AnnouncementsWidgetSkeleton,
+  CalendarWidgetSkeleton,
+  DigestWidgetSkeleton,
+  WorkloadHeatmapSkeleton,
+  AssignmentRowSkeleton,
+} from "@/components/skeletons/dashboard-skeletons";
 
 function formatScore(score: number | null, grade: string | null) {
   if (score == null && !grade) return "—";
@@ -72,14 +64,7 @@ function DigestWidget() {
   const assignments = useQuery(assignmentsQO);
   const announcements = useQuery(announcementsQO);
   if (!courses.data || !assignments.data || !announcements.data) {
-    return (
-      <GlassCard title="Since your last visit">
-        <div role="status" aria-label="Loading recent updates" className="space-y-3">
-          <Skeleton className="h-4 w-2/5" />
-          <Skeleton className="h-14 rounded-xl" />
-        </div>
-      </GlassCard>
-    );
+    return <DigestWidgetSkeleton />;
   }
   return (
     <DigestCard
@@ -102,22 +87,14 @@ function CoursesWidget() {
         action={
           <Link
             to="/grades"
+            preload="intent"
             className="glass-hover rounded-lg px-2.5 py-1 text-xs font-normal text-muted-foreground"
           >
             View all
           </Link>
         }
       >
-        {isLoading && (
-          <div className="space-y-3">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="glass-inset p-3">
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="mt-2 h-3 w-1/3" />
-              </div>
-            ))}
-          </div>
-        )}
+        {isLoading && <ClassesWidgetSkeleton count={4} />}
         {isError && <ErrorState message={(error as Error).message} />}
         {data && data.length === 0 && <EmptyState message="No active courses." />}
         {data && data.length > 0 && (
@@ -135,6 +112,7 @@ function CoursesWidget() {
                   <Link
                     to="/courses/$courseId"
                     params={{ courseId: String(c.id) }}
+                    preload="intent"
                     className="flex min-w-0 flex-1 items-center gap-2.5"
                     title={`View ${courseName} details`}
                   >
@@ -244,22 +222,14 @@ function UpcomingWidget() {
       action={
         <Link
           to="/assignments"
+          preload="intent"
           className="glass-hover rounded-lg px-2.5 py-1 text-xs font-medium text-muted-foreground"
         >
           View all
         </Link>
       }
     >
-      {isLoading && (
-        <div className="space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="glass-inset p-3">
-              <Skeleton className="h-4 w-2/3" />
-              <Skeleton className="mt-2 h-3 w-1/2" />
-            </div>
-          ))}
-        </div>
-      )}
+      {isLoading && <UpcomingWidgetSkeleton groupCount={3} />}
       {isError && <ErrorState message={(error as Error).message} />}
       {data && groups.length === 0 && <EmptyState message="No active courses." />}
       {groups.length > 0 && (
@@ -403,22 +373,14 @@ function AnnouncementsWidget() {
       action={
         <Link
           to="/announcements"
+          preload="intent"
           className="glass-hover rounded-lg px-2.5 py-1 text-xs font-medium text-muted-foreground"
         >
           View all
         </Link>
       }
     >
-      {isLoading && (
-        <div className="space-y-2">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="glass-inset p-4">
-              <Skeleton className="h-4 w-3/5" />
-              <Skeleton className="mt-2 h-3 w-full" />
-            </div>
-          ))}
-        </div>
-      )}
+      {isLoading && <AnnouncementsWidgetSkeleton count={3} />}
       {isError && <ErrorState message={(error as Error).message} />}
       {data && groups.length === 0 && <EmptyState message="No new announcements." />}
       {groups.length > 0 && (
@@ -463,6 +425,7 @@ function AnnouncementsWidget() {
                             course: courseSlug(displayCourseName(g.name, g.code)),
                             expand: String(a.id),
                           }}
+                          preload="intent"
                           className="min-w-0 flex-1"
                         >
                           <div className="flex items-start justify-between gap-2">
@@ -584,6 +547,7 @@ function FocusWidget() {
         <Link
           to="/focus"
           search={{ window: "2" }}
+          preload="intent"
           className="glass-hover rounded-lg px-2.5 py-1 text-xs font-medium text-muted-foreground"
         >
           Open
@@ -593,9 +557,7 @@ function FocusWidget() {
       {isLoading && (
         <div className="space-y-2">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="glass-inset p-3">
-              <Skeleton className="h-4 w-2/3" />
-            </div>
+            <AssignmentRowSkeleton key={i} index={i} showCalendarBtn={false} />
           ))}
         </div>
       )}
@@ -658,21 +620,14 @@ function CalendarWidget() {
       action={
         <Link
           to="/schedule"
+          preload="intent"
           className="glass-hover rounded-lg px-2.5 py-1 text-xs font-medium text-muted-foreground"
         >
           View all
         </Link>
       }
     >
-      {isLoading && (
-        <div className="space-y-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="glass-inset p-3">
-              <Skeleton className="h-4 w-2/3" />
-            </div>
-          ))}
-        </div>
-      )}
+      {isLoading && <CalendarWidgetSkeleton count={4} />}
       {isError && <ErrorState message={(error as Error).message} />}
       {data && upcoming.length === 0 && <EmptyState message="No calendar events this week." />}
       {upcoming.length > 0 && (
@@ -707,7 +662,7 @@ function HeatmapWidget() {
   const { data, isLoading, isError, error } = useQuery(assignmentsQO);
   return (
     <GlassCard title="Workload" subtitle="Assignment density by week">
-      {isLoading && <Skeleton className="h-24 w-full" />}
+      {isLoading && <WorkloadHeatmapSkeleton />}
       {isError && <ErrorState message={(error as Error).message} />}
       {data && <WorkloadHeatmap assignments={data} />}
     </GlassCard>
