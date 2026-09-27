@@ -210,7 +210,7 @@ async function run(): Promise<Response> {
         const authRejected =
           /Canvas 401/.test(message) ||
           (/Canvas 403/.test(message) &&
-            /invalid access token|unauthorized|insufficient scopes|revoked|expired/i.test(message));
+            /invalid access token|unauthori[sz]ed|not authori[sz]ed|valid user id|insufficient scopes|revoked|expired/i.test(message));
         if (authRejected) {
           await setCanvasKeyStatus(supabaseAdmin, userId, message.includes("401") ? 401 : 403);
           console.warn(`[push-dispatch] canvas key rejected user=${userId} (${message})`);

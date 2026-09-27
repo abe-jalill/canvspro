@@ -189,3 +189,42 @@ export function useSaveCanvasKey() {
     onError: (err: Error) => toast.error("Could not save", { description: err.message }),
   });
 }
+
+/** Updates only the Canvas URL, verifying it with the already-saved key. */
+export function useSaveCanvasDomain() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (raw: string) => {
+      const { data: userData } = await supabase.auth.getUser();
+      const user = userData.user;
+      if (!user) throw new Error("You must be signed in.");
+      const domain = normalizeCanvasDomain(raw);
+      if (!domain) {
+        throw new Error("That Canvas URL doesn't look right — enter it like yourschool.instructure.com.");
+      }
+      const { data: vData, error: vError } = await supabase.functions.invoke("canvas", {
+        body: { resource: "validate", domain },
+      });
+      if (vError) throw new Error(friendlyValidateError(await invokeError(vError)));
+      if (!vData || (vData as { ok?: boolean }).ok !== true) {
+        throw new Error("Your saved key doesn't work at that URL — double-check it, or save a new key.");
+      }
+      const { error } = await supabase
+        .from("user_settings")
+        .update({ canvas_domain: domain })
+        .eq("user_id", user.id);
+      if (error) throw new Error(error.message);
+      await supabase.from("user_preferences").delete().eq("user_id", user.id).eq("key", "canvas_key_status");
+    },
+    onSuccess: async () => {
+      toast.success("Canvas URL saved");
+      resetCanvasBundle();
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["user-preferences"] }),
+        qc.invalidateQueries({ queryKey: canvasDomainQueryKey }),
+        qc.invalidateQueries({ queryKey: ["canvas"] }),
+      ]);
+    },
+    onError: (err: Error) => toast.error("Could not save", { description: err.message }),
+  });
+}
