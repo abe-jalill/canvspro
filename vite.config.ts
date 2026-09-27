@@ -11,6 +11,19 @@ import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 // Load non-VITE_ env vars into process.env for server routes only (never into the client bundle).
 Object.assign(process.env, loadEnv(process.env["NODE_ENV"] ?? "development", process.cwd(), ""));
 
+// Public (publishable) backend config fallback: publish builds run without .env,
+// which blanked the live site. These values are safe to ship to the browser.
+const PUBLIC_BACKEND: Record<string, string> = {
+  VITE_SUPABASE_PROJECT_ID: "vqmzhzvugzhmtprklzfm",
+  VITE_SUPABASE_URL: "https://vqmzhzvugzhmtprklzfm.supabase.co",
+  VITE_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_CG0S1Gz01JTdr_8PO2DTtg_GCmSY5Sx",
+};
+for (const [k, v] of Object.entries(PUBLIC_BACKEND)) {
+  if (!process.env[k]) process.env[k] = v;
+  const serverKey = k.replace(/^VITE_/, "");
+  if (!process.env[serverKey]) process.env[serverKey] = v;
+}
+
 export default defineConfig({
   tanstackStart: {
  
