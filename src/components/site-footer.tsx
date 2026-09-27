@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 
 export function SiteFooter() {
   return (
-    <footer className="mt-auto w-full shrink-0 border-t border-border/30 px-4 py-6 sm:px-6 lg:px-8">
+    <footer className="site-footer mt-auto w-full shrink-0 border-t border-border/30 px-4 py-6 sm:px-6 lg:px-8">
       <p className="mx-auto max-w-6xl px-4 pb-4 text-center text-xs text-muted-foreground sm:px-6">
         CanvasPro is an independent tool and is not affiliated with, endorsed by, sponsored by, or
         connected in any way to Canvas LMS or Instructure, Inc.

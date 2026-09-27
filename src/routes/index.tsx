@@ -1,23 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
+  ArrowDown,
   ArrowRight,
-  BarChart3,
+  Bell,
   CalendarDays,
   Check,
   CheckCircle2,
-  Clock,
+  ChevronRight,
   GraduationCap,
-  LayoutGrid,
-  ListChecks,
-  Pencil,
-  ShieldCheck,
-  SlidersHorizontal,
+  LockKeyhole,
+  Menu,
   Sparkles,
-  Star,
-  Timer,
-  TrendingUp,
-  Calculator,
+  X,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -26,16 +21,16 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { cn } from "@/lib/utils";
+import "./landing.css";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "CanvasPro — A Better Canvas Dashboard for Students" },
+      { title: "CanvasPro — Make room for what matters" },
       {
         name: "description",
         content:
-          "See every Canvas class, grade, and deadline in one clean dashboard — free for everyone, with no subscription required.",
+          "Turn your Canvas classes, assignments, grades, and deadlines into one clear plan. CanvasPro is free for students.",
       },
       { property: "og:type", content: "website" },
       { property: "og:url", content: "https://canvaspro.app/" },
@@ -61,12 +56,8 @@ export const Route = createFileRoute("/")({
           operatingSystem: "Web",
           url: "https://canvaspro.app/",
           description:
-            "A customizable student dashboard for Canvas LMS with grades, assignments, announcements, and due-date reminders.",
-          offers: {
-            "@type": "Offer",
-            price: "0",
-            priceCurrency: "USD",
-          },
+            "A student dashboard for Canvas LMS with assignments, grades, schedules, and a daily plan.",
+          offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
         }),
       },
     ],
@@ -74,764 +65,701 @@ export const Route = createFileRoute("/")({
   component: LandingPage,
 });
 
-const DEMO_COURSES = [
+const tasks = [
+  { course: "PHYSICS", title: "Newton's laws", due: "Tonight · 11:59 PM", tone: "lilac" },
+  { course: "DESIGN", title: "CAD assignment", due: "Tomorrow · 5:00 PM", tone: "mint" },
+  { course: "ENGLISH", title: "Reading response", due: "Friday · 2:00 PM", tone: "peach" },
+  { course: "CALCULUS", title: "Integration practice", due: "Sunday · 11:59 PM", tone: "blue" },
+];
+
+const faq = [
   {
-    name: "Physics II",
-    code: "PHY 2049",
-    score: "94.2%",
-    letter: "A",
-    trend: "+1.8%",
-    trendUp: true,
-    color: "from-blue-500/20 to-blue-500/5",
-    accent: "text-blue-400",
+    question: "What does CanvasPro bring together?",
+    answer:
+      "Your Canvas courses, assignments, grades, announcements, and deadlines appear in one place. Focus and Get It Done help you decide what to work on next.",
   },
   {
-    name: "Calculus III",
-    code: "MAC 2313",
-    score: "88.7%",
-    letter: "B+",
-    trend: "+0.4%",
-    trendUp: true,
-    color: "from-emerald-500/20 to-emerald-500/5",
-    accent: "text-emerald-400",
+    question: "Is CanvasPro free?",
+    answer:
+      "Yes. CanvasPro's dashboard, planning tools, grade calculator, and notifications are available without a subscription or credit card.",
   },
   {
-    name: "Computer Science I",
-    code: "COP 3502",
-    score: "97.5%",
-    letter: "A+",
-    trend: "Stable",
-    trendUp: true,
-    color: "from-purple-500/20 to-purple-500/5",
-    accent: "text-purple-400",
+    question: "How do I connect my Canvas account?",
+    answer:
+      "Create a CanvasPro account, generate a personal access token in your school's Canvas settings, and add it in CanvasPro. You never enter your school password into CanvasPro.",
   },
   {
-    name: "Organic Chemistry",
-    code: "CHM 2210",
-    score: "85.0%",
-    letter: "B",
-    trend: "-0.9%",
-    trendUp: false,
-    color: "from-amber-500/20 to-amber-500/5",
-    accent: "text-amber-400",
+    question: "Can I use it on my phone?",
+    answer:
+      "Yes. The website adapts to smaller screens, and CanvasPro is also available as an iOS app.",
+  },
+  {
+    question: "What happens to an existing subscription?",
+    answer:
+      "You can manage or cancel it from Billing after signing in. CanvasPro access remains free after cancellation.",
   },
 ];
 
-const DEMO_ASSIGNMENTS = [
-  {
-    title: "Problem Set 4: Binary Trees",
-    course: "Computer Science I",
-    due: "Due in 3 hours",
-    urgency: "urgent",
-  },
-  {
-    title: "Electromagnetism Lab Report",
-    course: "Physics II",
-    due: "Due tomorrow, 11:59 PM",
-    urgency: "warning",
-  },
-  {
-    title: "Triple Integrals Practice Set",
-    course: "Calculus III",
-    due: "Due Friday, 5:00 PM",
-    urgency: "normal",
-  },
-  {
-    title: "Mechanism Synthesis Quiz",
-    course: "Organic Chemistry",
-    due: "Due Sunday, 11:59 PM",
-    urgency: "normal",
-  },
-];
+function useStoryMotion() {
+  const sequenceRef = useRef<HTMLElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const heroRef = useRef<HTMLElement>(null);
 
-const UNIVERSITIES = [
-  "University of Florida",
-  "Penn State",
-  "Ohio State",
-  "Arizona State",
-  "UC Berkeley",
-  "UT Austin",
-  "Purdue",
-  "UW Madison",
-  "Rutgers",
-  "1,000+ Canvas Schools",
-];
+  useEffect(() => {
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (reduce.matches) return;
 
-const TESTIMONIALS = [
-  {
-    quote:
-      "I used to keep 10+ Canvas tabs open every Sunday night trying to piece together what was due. Having every deadline, class score, and countdown on one screen cut my weekly planning time to 2 minutes.",
-    author: "Anonymous",
-    school: "LTU '29 • Civil Engineering",
-    stars: 5,
-  },
-  {
-    quote:
-      "The built-in final exam calculator alone is worth it. It automatically told me I needed an 81% on my Chem final to keep an A, instead of me guessing with an Excel spreadsheet at 2 AM.",
-    author: "Omar S.",
-    school: "UofM - Dearborn • Finance ",
-    stars: 5,
-  },
-  {
-    quote:
-      "Being able to rename cryptic codes like 'MAC2313-004-FA26' to just 'Calc 3' and dragging widgets in the order I want is what Canvas should have been all along.",
-    author: "Liam D.",
-    school: "ASU '28 • Business",
-    stars: 5,
-  },
-];
+    let frame = 0;
+    const parallax = document.querySelectorAll<HTMLElement>(".cp-story [data-parallax]");
+    const update = () => {
+      frame = 0;
+      const sequence = sequenceRef.current;
+      const stage = stageRef.current;
+      const hero = heroRef.current;
+      if (hero) {
+        const progress = Math.min(
+          1,
+          Math.max(0, -hero.getBoundingClientRect().top / Math.max(hero.offsetHeight, 1)),
+        );
+        hero.style.setProperty("--hero-scroll", progress.toFixed(3));
+      }
+      parallax.forEach((element) => {
+        const bounds = element.getBoundingClientRect();
+        if (bounds.bottom < 0 || bounds.top > window.innerHeight) return;
+        const depth = Number(element.dataset.parallax) || 20;
+        const progress = (window.innerHeight - bounds.top) / (window.innerHeight + bounds.height);
+        const shift = (progress - 0.5) * depth * (window.innerWidth <= 760 ? 0.5 : 1);
+        element.style.setProperty("--parallax-y", shift.toFixed(1) + "px");
+      });
+      if (!sequence || !stage) return;
+      const rect = sequence.getBoundingClientRect();
+      if (rect.top > window.innerHeight || rect.bottom < 0) return;
+      const distance = Math.max(1, sequence.offsetHeight - window.innerHeight);
+      const progress = Math.min(1, Math.max(0, -rect.top / distance));
+      const tidy = Math.min(1, Math.max(0, (progress - 0.19) / 0.53));
+      const eased = tidy * tidy * (3 - 2 * tidy);
+      const chaos = 1 - Math.min(1, Math.max(0, (progress - 0.31) / 0.12));
+      const clarity = Math.min(1, Math.max(0, (progress - 0.52) / 0.16));
+      stage.style.setProperty("--story-tidy", eased.toFixed(3));
+      stage.style.setProperty("--story-chaos", chaos.toFixed(3));
+      stage.style.setProperty("--story-clarity", clarity.toFixed(3));
+      stage.style.setProperty("--story-progress", progress.toFixed(3));
+      const positions =
+        window.innerWidth <= 760
+          ? [
+              [-25, -28, -7],
+              [27, -9, 6],
+              [-25, 12, -5],
+              [22, 28, 5],
+            ]
+          : [
+              [-90, -82, -13],
+              [120, -42, 11],
+              [-115, 83, -8],
+              [110, 138, 9],
+            ];
+      stage.querySelectorAll<HTMLElement>("[data-scatter-card]").forEach((card, index) => {
+        const [x, y, rotation] = positions[index];
+        const remaining = 1 - eased;
+        card.style.transform =
+          "translate3d(" +
+          (x * remaining).toFixed(1) +
+          "px," +
+          (y * remaining).toFixed(1) +
+          "px,0) rotate(" +
+          (rotation * remaining).toFixed(1) +
+          "deg)";
+      });
+    };
+    const request = () => {
+      if (!frame) frame = window.requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener("scroll", request, { passive: true });
+    window.addEventListener("resize", request);
+    return () => {
+      window.removeEventListener("scroll", request);
+      window.removeEventListener("resize", request);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, []);
 
-const FAQS = [
-  {
-    question: "Is CanvasPro allowed by my school or university?",
-    answer:
-      "Yes. CanvasPro uses your personal Canvas Access Token, an official feature provided directly by Instructure Canvas for third-party student tools. It operates strictly within your existing student permissions.",
-  },
-  {
-    question: "Can CanvasPro see my Canvas password or change my grades?",
-    answer:
-      "No, never. You never enter your school password or institutional credentials. CanvasPro only receives a read-only access token. It cannot alter grades, submit assignments, post announcements, or make any changes to your Canvas account.",
-  },
-  {
-    question: "How do I get my Canvas Access Token?",
-    answer:
-      "It takes about 30 seconds: Log in to your school's Canvas website, click 'Account' in the left menu, choose 'Settings', scroll down to 'Approved Integrations', and click '+ New Access Token'. Copy that token into CanvasPro and your dashboard immediately populates.",
-  },
-  {
-    question: "What is included for free?",
-    answer:
-      "Everything: live Canvas sync, grades, assignments, focus and study sessions, the final exam predictor, workload heatmap, calendar export, and notifications. No subscription or credit card is required.",
-  },
-  {
-    question: "What if I have an existing subscription?",
-    answer:
-      "You can manage or cancel it from Billing after signing in. CanvasPro access stays free even after cancellation.",
-  },
-  {
-    question: "Does CanvasPro work on mobile phones and tablets?",
-    answer:
-      "Yes! CanvasPro is built as a progressive, fully responsive web application that runs smoothly in Safari, Chrome, iOS, and Android. You can even add it directly to your home screen like an app.",
-  },
-];
+  return { sequenceRef, stageRef, heroRef };
+}
+
+function useReveal() {
+  useEffect(() => {
+    const root = document.querySelector<HTMLElement>(".cp-story");
+    const elements = root?.querySelectorAll<HTMLElement>("[data-reveal]") ?? [];
+    if (
+      !("IntersectionObserver" in window) ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      elements.forEach((element) => element.classList.add("is-visible"));
+      return;
+    }
+    root?.classList.add("cp-story--motion");
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-visible");
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.13, rootMargin: "0px 0px -5% 0px" },
+    );
+    elements.forEach((element) => observer.observe(element));
+    return () => {
+      observer.disconnect();
+      root?.classList.remove("cp-story--motion");
+    };
+  }, []);
+}
+
+function Brand({ dark = false }: { dark?: boolean }) {
+  return (
+    <span className={"cp-brand" + (dark ? " cp-brand--dark" : "")}>
+      <span className="cp-brand__mark" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+      </span>
+      <span>
+        canvaspro<span className="cp-brand__dot">.</span>
+      </span>
+    </span>
+  );
+}
 
 function LandingPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [activeDemoTab, setActiveDemoTab] = useState<"grades" | "assignments" | "calculator">("grades");
-  const [demoFinalTarget, setDemoFinalTarget] = useState<string>("90");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [targetGrade, setTargetGrade] = useState("90");
+  const [view, setView] = useState<"week" | "grades">("week");
+  const { sequenceRef, stageRef, heroRef } = useStoryMotion();
+  useReveal();
 
   useEffect(() => {
     let active = true;
     supabase.auth.getSession().then(({ data }) => {
-      if (!active) return;
-      if (data.session) {
-        setIsLoggedIn(true);
-      }
+      if (active) setIsLoggedIn(Boolean(data.session));
     });
     return () => {
       active = false;
     };
   }, []);
 
+  const cta = isLoggedIn ? "/dashboard" : "/signup";
+  const finalNeeded = Math.max(
+    0,
+    Math.ceil(((Number(targetGrade) - 88.4 * 0.75) / 0.25) * 10) / 10,
+  );
+
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-10 sm:py-16">
-      {/* Logged in notification banner */}
-      {isLoggedIn && (
-        <div className="glass-panel-strong mb-10 flex flex-wrap items-center justify-between gap-4 p-4 sm:p-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <GraduationCap className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-foreground">Welcome back!</p>
-              <p className="text-xs text-muted-foreground">You are signed in to your CanvasPro account.</p>
-            </div>
-          </div>
-          <Link
-            to="/dashboard"
-            className="glass-hover inline-flex min-h-10 items-center justify-center rounded-xl bg-foreground px-5 text-xs font-semibold text-background"
-          >
-            Go to my dashboard <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+    <div className="cp-story">
+      <a className="cp-skip" href="#main-story">
+        Skip to content
+      </a>
+      <header className="cp-nav">
+        <Link to="/" className="cp-nav__brand" aria-label="CanvasPro home">
+          <Brand />
+        </Link>
+        <nav
+          className={"cp-nav__links" + (menuOpen ? " cp-nav__links--open" : "")}
+          aria-label="Main navigation"
+        >
+          <a href="#experience" onClick={() => setMenuOpen(false)}>
+            The experience
+          </a>
+          <a href="#how-it-works" onClick={() => setMenuOpen(false)}>
+            How it works
+          </a>
+          <a href="#questions" onClick={() => setMenuOpen(false)}>
+            Questions
+          </a>
+          <Link to="/canvas-grade-calculator" onClick={() => setMenuOpen(false)}>
+            Grade calculator
           </Link>
+          <Link
+            to={isLoggedIn ? "/dashboard" : "/auth"}
+            className="cp-nav__mobile-signin"
+            onClick={() => setMenuOpen(false)}
+          >
+            {isLoggedIn ? "Dashboard" : "Sign in"}
+          </Link>
+        </nav>
+        <div className="cp-nav__actions">
+          <Link to={isLoggedIn ? "/dashboard" : "/auth"} className="cp-nav__signin">
+            {isLoggedIn ? "Dashboard" : "Sign in"}
+          </Link>
+          <Link to={cta} className="cp-button cp-button--nav">
+            {isLoggedIn ? "Open app" : "Get started"} <ArrowRight size={15} aria-hidden="true" />
+          </Link>
+          <button
+            type="button"
+            className="cp-nav__menu"
+            aria-label={menuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen(!menuOpen)}
+          >
+            {menuOpen ? <X size={21} /> : <Menu size={21} />}
+          </button>
         </div>
-      )}
+      </header>
 
-      {/* Hero Section */}
-      <section className="text-center">
-        <div className="inline-flex items-center gap-2 rounded-full border border-foreground/10 bg-foreground/5 px-3.5 py-1 text-xs font-medium text-foreground/80 backdrop-blur-md">
-          <Sparkles className="h-3.5 w-3.5 text-amber-400" />
-          <span>A calmer Canvas experience — Loved by students</span>
-        </div>
-
-        <h1 className="mx-auto mt-4 max-w-3xl text-4xl font-semibold tracking-tight sm:text-5xl lg:text-6xl">
-          A calmer, faster dashboard for your Canvas classes
-        </h1>
-
-        <p className="mx-auto mt-5 max-w-2xl text-base text-muted-foreground sm:text-lg">
-          CanvasPro pulls your live grades, upcoming assignments, schedules, and announcements into one
-          customizable home screen. Stop hunting through nested course menus.
-        </p>
-
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          {isLoggedIn ? (
-            <Link
-              to="/dashboard"
-              className="glass-hover inline-flex min-h-12 items-center justify-center rounded-xl bg-foreground px-7 text-sm font-semibold text-background"
-            >
-              Open Dashboard <ArrowRight className="ml-2 h-4 w-4" />
+      <main id="main-story">
+        <section className="cp-hero" ref={heroRef} aria-labelledby="cp-hero-title">
+          <div className="cp-hero__halo" aria-hidden="true" />
+          <div className="cp-hero__grid" aria-hidden="true" />
+          <div className="cp-hero__eyebrow">
+            <span className="cp-eyebrow-line" /> THE STUDENT DAY, REIMAGINED
+          </div>
+          <h1 id="cp-hero-title">
+            A clearer day
+            <br />
+            starts <em>here.</em>
+          </h1>
+          <p className="cp-hero__intro">
+            Every class. Every deadline. One place to see what matters and move forward.
+          </p>
+          <div className="cp-hero__actions">
+            <Link to={cta} className="cp-button cp-button--light">
+              {isLoggedIn ? "Open your dashboard" : "Make your day easier"}{" "}
+              <ArrowRight size={18} aria-hidden="true" />
             </Link>
-          ) : (
-            <>
-              <Link
-                to="/signup"
-                className="glass-hover inline-flex min-h-12 items-center justify-center rounded-xl bg-foreground px-7 text-sm font-semibold text-background"
-              >
-                Get started free <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-              <Link
-                to="/auth"
-                className="glass-inset glass-hover inline-flex min-h-12 items-center justify-center rounded-xl px-6 text-sm font-medium"
-              >
-                Sign in
-              </Link>
-            </>
-          )}
-        </div>
-
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-4 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1.5">
-              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> All features free
-          </span>
-          <span className="flex items-center gap-1.5">
-            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> 2-minute setup
-          </span>
-          <span className="flex items-center gap-1.5">
-            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> 100% Read-only security
-          </span>
-        </div>
-      </section>
-
-      {/* Interactive Live Dashboard Preview Mockup */}
-      <section className="mt-12 sm:mt-16">
-        <div className="glass-panel-strong overflow-hidden border border-foreground/15 p-1.5 shadow-2xl">
-          {/* Mock Browser / Window Header */}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-foreground/10 px-4 py-3 bg-foreground/[0.02]">
-            <div className="flex items-center gap-2">
-              <div className="flex gap-1.5">
-                <span className="h-3 w-3 rounded-full bg-red-500/60" />
-                <span className="h-3 w-3 rounded-full bg-amber-500/60" />
-                <span className="h-3 w-3 rounded-full bg-emerald-500/60" />
-              </div>
-              <span className="ml-2 rounded-md bg-foreground/5 px-2.5 py-0.5 text-[11px] font-mono text-muted-foreground">
-                canvaspro.app/dashboard
-              </span>
+            <a href="#experience" className="cp-text-link">
+              Explore the experience <ArrowDown size={16} aria-hidden="true" />
+            </a>
+          </div>
+          <div className="cp-hero__objects" aria-hidden="true">
+            <div className="cp-orbit cp-orbit--one">
+              <span className="cp-orbit__dot cp-orbit__dot--violet" /> PHYSICS II{" "}
+              <strong>94.2%</strong>
             </div>
-
-            {/* Interactive Demo Switcher */}
-            <div className="flex items-center gap-1 rounded-xl bg-foreground/5 p-1">
-              <button
-                type="button"
-                onClick={() => setActiveDemoTab("grades")}
-                className={cn(
-                  "rounded-lg px-3 py-1 text-xs font-medium transition",
-                  activeDemoTab === "grades"
-                    ? "bg-foreground/15 text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                Live Grades
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveDemoTab("assignments")}
-                className={cn(
-                  "rounded-lg px-3 py-1 text-xs font-medium transition",
-                  activeDemoTab === "assignments"
-                    ? "bg-foreground/15 text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                Up Next
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveDemoTab("calculator")}
-                className={cn(
-                  "rounded-lg px-3 py-1 text-xs font-medium transition",
-                  activeDemoTab === "calculator"
-                    ? "bg-foreground/15 text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                Finals Calculator
-              </button>
+            <div className="cp-orbit cp-orbit--two">
+              <CalendarDays size={16} /> Lab report <span>Tomorrow</span>
+            </div>
+            <div className="cp-orbit cp-orbit--three">
+              <Check size={16} /> One thing at a time
+            </div>
+            <div className="cp-orbit cp-orbit--four">
+              <Bell size={16} /> Due tonight <span>11:59 PM</span>
             </div>
           </div>
-
-          {/* Interactive Mockup Body */}
-          <div className="p-4 sm:p-6">
-            {activeDemoTab === "grades" && (
-              <div>
-                <div className="mb-4 flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-semibold tracking-tight text-foreground">Current Course Scores</h3>
-                    <p className="text-xs text-muted-foreground">Real-time sync with trend indicators</p>
-                  </div>
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-400">
-                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
-                    Synced 2m ago
-                  </span>
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {DEMO_COURSES.map((course) => (
-                    <div
-                      key={course.name}
-                      className={cn(
-                        "glass-inset flex items-center justify-between p-4 transition-all hover:border-foreground/20",
-                        "bg-gradient-to-br",
-                        course.color,
-                      )}
-                    >
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-sm font-semibold text-foreground">{course.name}</h4>
-                          <span className="text-[11px] font-mono text-muted-foreground">{course.code}</span>
-                        </div>
-                        <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                          <TrendingUp className="h-3 w-3 text-emerald-400" />
-                          <span>{course.trend} recently</span>
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-lg font-bold tracking-tight text-foreground">{course.score}</span>
-                        <span className={cn("block text-xs font-semibold", course.accent)}>{course.letter}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {activeDemoTab === "assignments" && (
-              <div>
-                <div className="mb-4 flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-semibold tracking-tight text-foreground">Upcoming Deadlines</h3>
-                    <p className="text-xs text-muted-foreground">Countdown badges sorted by urgency</p>
-                  </div>
-                  <span className="text-xs text-muted-foreground">4 items due this week</span>
-                </div>
-
-                <div className="space-y-2.5">
-                  {DEMO_ASSIGNMENTS.map((item) => (
-                    <div
-                      key={item.title}
-                      className="glass-inset flex flex-col gap-2 p-3.5 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border border-foreground/20">
-                          <Check className="h-3 w-3 text-transparent hover:text-foreground" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{item.title}</p>
-                          <p className="text-xs text-muted-foreground">{item.course}</p>
-                        </div>
-                      </div>
-                      <div className="self-end sm:self-center">
-                        <span
-                          className={cn(
-                            "inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium",
-                            item.urgency === "urgent" && "bg-red-500/15 text-red-400 border border-red-500/30",
-                            item.urgency === "warning" && "bg-amber-500/15 text-amber-400 border border-amber-500/30",
-                            item.urgency === "normal" && "bg-foreground/5 text-muted-foreground border border-foreground/10",
-                          )}
-                        >
-                          <Clock className="h-3 w-3" />
-                          {item.due}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {activeDemoTab === "calculator" && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-semibold tracking-tight text-foreground">Final Exam Grade Predictor</h3>
-                    <p className="text-xs text-muted-foreground">Calculates exact score needed on your final exam</p>
-                  </div>
-                  <span className="text-xs font-medium text-purple-400">Physics II (PHY 2049)</span>
-                </div>
-
-                <div className="glass-inset grid gap-4 p-4 sm:grid-cols-3">
-                  <div>
-                    <span className="text-xs text-muted-foreground">Current Grade</span>
-                    <p className="mt-1 text-xl font-bold text-foreground">88.4% (B+)</p>
-                    <span className="text-[11px] text-muted-foreground">75% of class graded</span>
-                  </div>
-                  <div>
-                    <span className="text-xs text-muted-foreground">Final Exam Weight</span>
-                    <p className="mt-1 text-xl font-bold text-foreground">25%</p>
-                    <span className="text-[11px] text-muted-foreground">Weighted category</span>
-                  </div>
-                  <div>
-                    <label htmlFor="target-grade" className="text-xs text-muted-foreground">
-                      Target Course Grade
-                    </label>
-                    <div className="mt-1 flex items-center gap-2">
-                      <select
-                        id="target-grade"
-                        value={demoFinalTarget}
-                        onChange={(e) => setDemoFinalTarget(e.target.value)}
-                        className="rounded-lg border border-foreground/20 bg-background px-2.5 py-1 text-sm font-semibold text-foreground"
-                      >
-                        <option value="93">93% (A)</option>
-                        <option value="90">90% (A-)</option>
-                        <option value="87">87% (B+)</option>
-                        <option value="80">80% (B-)</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-xl border border-purple-500/20 bg-purple-500/10 p-4 text-center">
-                  <p className="text-xs font-medium text-purple-300">You need to score at least</p>
-                  <p className="mt-1 text-3xl font-extrabold tracking-tight text-purple-200">
-                    {demoFinalTarget === "93"
-                      ? "106.8% (Extra credit needed)"
-                      : demoFinalTarget === "90"
-                      ? "94.8%"
-                      : demoFinalTarget === "87"
-                      ? "82.8%"
-                      : "54.8%"}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    on the final exam to finish with a {demoFinalTarget}% in this course.
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* University Trust Banner */}
-      <section className="mt-14 border-y border-foreground/10 py-6 text-center">
-        <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-          Works with Canvas LMS at 1,000+ colleges & high schools
-        </p>
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-          {UNIVERSITIES.map((school) => (
-            <span
-              key={school}
-              className="rounded-full border border-foreground/10 bg-foreground/5 px-3 py-1 text-xs text-muted-foreground"
-            >
-              {school}
+          <div className="cp-hero__bottom">
+            <span>BUILT AROUND THE WAY STUDENTS ACTUALLY WORK</span>
+            <span>
+              SCROLL TO EXPLORE <ArrowDown size={14} />
             </span>
-          ))}
-        </div>
-      </section>
+          </div>
+        </section>
 
-      {/* Key Benefits Grid */}
-      <section className="mt-16">
-        <div className="text-center">
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            Everything in one place
-          </p>
-          <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-            Designed for how students actually study
-          </h2>
-        </div>
-
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <article className="glass-panel flex flex-col gap-3 p-5">
-            <LayoutGrid className="h-5 w-5 text-muted-foreground" />
-            <h3 className="text-base font-semibold tracking-tight">A homepage you arrange</h3>
-            <p className="text-sm text-muted-foreground">
-              Drag widgets for calendar, grades, assignments, announcements, focus, and workload into the order you
-              actually use. Hide the rest.
-            </p>
-          </article>
-
-          <article className="glass-panel flex flex-col gap-3 p-5">
-            <GraduationCap className="h-5 w-5 text-muted-foreground" />
-            <h3 className="text-base font-semibold tracking-tight">Live grades with trend arrows</h3>
-            <p className="text-sm text-muted-foreground">
-              Every class score in one list, with indicators showing whenever your professor posts new marks.
-            </p>
-          </article>
-
-          <article className="glass-panel flex flex-col gap-3 p-5">
-            <Calculator className="h-5 w-5 text-muted-foreground" />
-            <h3 className="text-base font-semibold tracking-tight">Grade calculator & finals math</h3>
-            <p className="text-sm text-muted-foreground">
-              Weighted category calculations and an automated final-exam score estimator — no spreadsheets required.
-            </p>
-          </article>
-
-          <article className="glass-panel flex flex-col gap-3 p-5">
-            <ListChecks className="h-5 w-5 text-muted-foreground" />
-            <h3 className="text-base font-semibold tracking-tight">Smart assignments with countdowns</h3>
-            <p className="text-sm text-muted-foreground">
-              Grouped by class, sorted by due date, with urgency badges and one-tap completion tracking.
-            </p>
-          </article>
-
-          <article className="glass-panel flex flex-col gap-3 p-5">
-            <Timer className="h-5 w-5 text-muted-foreground" />
-            <h3 className="text-base font-semibold tracking-tight">Focus windows</h3>
-            <p className="text-sm text-muted-foreground">
-              Filter your dashboard to show only what's due in the next 24 hours, 48 hours, 3 days, or this week.
-            </p>
-          </article>
-
-          <article className="glass-panel flex flex-col gap-3 p-5">
-            <BarChart3 className="h-5 w-5 text-muted-foreground" />
-            <h3 className="text-base font-semibold tracking-tight">Workload heatmap</h3>
-            <p className="text-sm text-muted-foreground">
-              Spot brutal exam and deadline weeks at a single glance so you can prep ahead instead of cramming.
-            </p>
-          </article>
-
-          <article className="glass-panel flex flex-col gap-3 p-5">
-            <CalendarDays className="h-5 w-5 text-muted-foreground" />
-            <h3 className="text-base font-semibold tracking-tight">Class schedules & .ics export</h3>
-            <p className="text-sm text-muted-foreground">
-              Sync your due dates and recurring classes directly into Google Calendar, Apple Calendar, or Outlook in one
-              tap.
-            </p>
-          </article>
-
-          <article className="glass-panel flex flex-col gap-3 p-5">
-            <Pencil className="h-5 w-5 text-muted-foreground" />
-            <h3 className="text-base font-semibold tracking-tight">Friendly course nicknames</h3>
-            <p className="text-sm text-muted-foreground">
-              Rename cryptic departmental course codes like <code className="rounded bg-foreground/10 px-1 py-0.5">PHY1154-04</code> to clean, readable names like <span className="font-semibold">Physics</span>.
-            </p>
-          </article>
-
-          <article className="glass-panel flex flex-col gap-3 p-5">
-            <SlidersHorizontal className="h-5 w-5 text-muted-foreground" />
-            <h3 className="text-base font-semibold tracking-tight">Notifications you control</h3>
-            <p className="text-sm text-muted-foreground">
-              Get notified only about what matters to you: upcoming due windows, newly posted grades, and announcements.
-            </p>
-          </article>
-        </div>
-      </section>
-
-      {/* How it Works & Security Reassurance */}
-      <section className="mt-16">
-        <div className="text-center">
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            3-minute setup
-          </p>
-          <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-            How CanvasPro works
-          </h2>
-        </div>
-
-        <div className="mt-8 grid gap-4 sm:grid-cols-3">
-          <article className="glass-panel p-5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-foreground/10 text-xs font-bold text-foreground">
-              1
-            </div>
-            <h3 className="mt-3 text-base font-semibold tracking-tight">Create your account</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Sign up with email and password, or continue with your Google or Apple account in seconds.
-            </p>
-          </article>
-
-          <article className="glass-panel p-5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-foreground/10 text-xs font-bold text-foreground">
-              2
-            </div>
-            <h3 className="mt-3 text-base font-semibold tracking-tight">Paste your Canvas token</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Generate a personal read-only access token from your school's Canvas Settings. 3 quick clicks.
-            </p>
-          </article>
-
-          <article className="glass-panel p-5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-foreground/10 text-xs font-bold text-foreground">
-              3
-            </div>
-            <h3 className="mt-3 text-base font-semibold tracking-tight">Customize your view</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Give your courses friendly nicknames, arrange your widgets, and enjoy a clutter-free semester.
-            </p>
-          </article>
-        </div>
-
-        {/* Security Box */}
-        <div className="glass-panel-strong mt-6 border border-emerald-500/20 bg-emerald-500/[0.03] p-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-400">
-              <ShieldCheck className="h-6 w-6" />
-            </div>
-            <div>
-              <h4 className="text-base font-semibold text-foreground">
-                Your credentials and student privacy are 100% protected
-              </h4>
-              <p className="mt-1 text-sm text-muted-foreground">
-                We never ask for your school password. Your Canvas token is stored encrypted write-only and is restricted to read-only access. CanvasPro cannot edit grades, submit coursework, or modify your school account in any way.
+        <section
+          className="cp-sequence"
+          id="experience"
+          ref={sequenceRef}
+          aria-label="From scattered work to a clear plan"
+        >
+          <div className="cp-sequence__stage" ref={stageRef}>
+            <div className="cp-sequence__grain" aria-hidden="true" />
+            <div className="cp-sequence__copy cp-sequence__copy--chaos">
+              <span className="cp-kicker">01 / THE PROBLEM</span>
+              <h2>
+                Too many tabs.
+                <br />
+                Too much <em>noise.</em>
+              </h2>
+              <p>
+                Assignments hide inside courses. Deadlines compete for attention. Figuring out where
+                to begin becomes its own task.
               </p>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Social Proof / Student Testimonials */}
-      <section className="mt-16">
-        <div className="text-center">
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            Student Reviews
-          </p>
-          <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-            Trusted by students across the country
-          </h2>
-          <div className="mt-2 flex items-center justify-center gap-1">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Star key={i} className="h-4 w-4 fill-amber-400 text-amber-400" />
-            ))}
-            <span className="ml-1.5 text-xs font-medium text-foreground">4.9 / 5 rating</span>
-          </div>
-        </div>
-
-        <div className="mt-8 grid gap-4 sm:grid-cols-3">
-          {TESTIMONIALS.map((t) => (
-            <article key={t.author} className="glass-panel flex flex-col justify-between p-5">
-              <div>
-                <div className="flex gap-0.5 text-amber-400">
-                  {Array.from({ length: t.stars }).map((_, i) => (
-                    <Star key={i} className="h-3.5 w-3.5 fill-current" />
-                  ))}
-                </div>
-                <p className="mt-3 text-sm italic text-foreground/90">"{t.quote}"</p>
-              </div>
-              <div className="mt-4 border-t border-foreground/10 pt-3">
-                <p className="text-xs font-semibold text-foreground">{t.author}</p>
-                <p className="text-[11px] text-muted-foreground">{t.school}</p>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      {/* Free access */}
-      <section className="mt-16">
-        <div className="text-center">
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            Simple Pricing
-          </p>
-          <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-            Every feature, free for everyone.
-          </h2>
-        </div>
-
-        <div className="mx-auto mt-8 max-w-xl">
-          <div className="glass-panel-strong flex flex-col justify-between p-6">
-            <div>
-              <span className="inline-block rounded-md bg-foreground/10 px-2.5 py-1 text-xs font-semibold text-foreground">
-                CanvasPro
-              </span>
-              <p className="mt-3 text-3xl font-bold tracking-tight text-foreground">$0</p>
-              <p className="mt-1 text-xs text-muted-foreground">Free forever — no credit card needed</p>
-
-              <ul className="mt-6 space-y-2.5 text-sm text-muted-foreground">
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-emerald-400" />
-                  <span>Dashboard overview & widget layout</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-emerald-400" />
-                  <span>Custom class nicknames</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-emerald-400" />
-                  <span>Light and dark liquid glass themes</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-emerald-400" />
-                  <span>Standalone Canvas Grade Calculator</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-emerald-400" />
-                  <span>Live Canvas grades, assignments & announcements</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-emerald-400" />
-                  <span>Focus, study sessions, calendar & notifications</span>
-                </li>
-              </ul>
+            <div className="cp-sequence__copy cp-sequence__copy--clarity">
+              <span className="cp-kicker">02 / THE SHIFT</span>
+              <h2>
+                Now it all
+                <br />
+                <em>makes sense.</em>
+              </h2>
+              <p>
+                CanvasPro brings the pieces together and points you toward the work that matters
+                now.
+              </p>
             </div>
+            <div
+              className="cp-sequence__canvas"
+              aria-label="Example assignments organizing into one list"
+            >
+              <span className="cp-sequence__caption">YOUR WORK, IN ONE VIEW</span>
+              {tasks.map((task, index) => (
+                <div
+                  key={task.title}
+                  className={"cp-scatter-card cp-scatter-card--" + task.tone}
+                  data-scatter-card
+                >
+                  <span className="cp-scatter-card__index">0{index + 1}</span>
+                  <span className="cp-scatter-card__body">
+                    <small>{task.course}</small>
+                    <strong>{task.title}</strong>
+                  </span>
+                  <span className="cp-scatter-card__due">{task.due}</span>
+                </div>
+              ))}
+              <div className="cp-sequence__line" aria-hidden="true" />
+            </div>
+            <div className="cp-sequence__progress" aria-hidden="true">
+              <span />
+            </div>
+          </div>
+        </section>
 
-            <div className="mt-8">
-              <Link
-                to="/signup"
-                className="glass-inset glass-hover inline-flex min-h-11 w-full items-center justify-center rounded-xl px-4 text-sm font-medium"
-              >
-                Create free account
+        <section className="cp-plan" aria-labelledby="cp-plan-title">
+          <div className="cp-plan__topline">
+            <span>03 / YOUR NEXT MOVE</span>
+            <span>LESS GUESSING. MORE DOING.</span>
+          </div>
+          <div className="cp-plan__layout">
+            <div className="cp-plan__copy" data-reveal>
+              <span className="cp-kicker cp-kicker--dark">GET IT DONE</span>
+              <h2 id="cp-plan-title">
+                A plan that
+                <br />
+                feels <em>possible.</em>
+              </h2>
+              <p>
+                Start with one recommended assignment. Then follow a realistic plan for the rest of
+                today, with time estimates and room to adjust.
+              </p>
+              <Link to={cta} className="cp-inline-link">
+                See what to do next <ArrowRight size={18} />
               </Link>
             </div>
+            <div className="cp-plan__visual" data-reveal>
+              <div className="cp-plan__orbit cp-plan__orbit--one" aria-hidden="true">
+                FOCUS
+              </div>
+              <div className="cp-plan__orbit cp-plan__orbit--two" aria-hidden="true">
+                <Sparkles size={18} />
+              </div>
+              <div className="cp-product-panel cp-product-panel--plan" data-parallax="42">
+                <div className="cp-product-panel__chrome">
+                  <Brand dark />
+                  <span>
+                    GET IT DONE <span className="cp-live-dot" />
+                  </span>
+                </div>
+                <div className="cp-product-panel__content">
+                  <div className="cp-panel-label">WHAT SHOULD I DO NOW?</div>
+                  <h3>Start with Physics Homework.</h3>
+                  <p>Due tonight · highest priority · about 30 min</p>
+                  <div className="cp-panel-primary">
+                    Start now <ArrowRight size={15} />
+                  </div>
+                  <div className="cp-panel-rule" />
+                  <div className="cp-panel-heading">
+                    <strong>Today’s plan</strong>
+                    <span>1 hr 40 min total</span>
+                  </div>
+                  {[
+                    ["01", "Physics Homework", "30 min", "Tonight"],
+                    ["02", "CAD Assignment", "45 min", "Tomorrow"],
+                    ["03", "English Reading", "25 min", "Friday"],
+                  ].map(([number, title, duration, due]) => (
+                    <div className="cp-plan-row" key={number}>
+                      <span>{number}</span>
+                      <div>
+                        <strong>{title}</strong>
+                        <small>{due}</small>
+                      </div>
+                      <em>{duration}</em>
+                    </div>
+                  ))}
+                  <div className="cp-panel-progress">
+                    <span>0 OF 3 COMPLETE</span>
+                    <span>0%</span>
+                    <div>
+                      <i />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="cp-plan__side-note" aria-hidden="true">
+                NOT A PERFECT DAY.
+                <br />A STARTABLE ONE.
+              </div>
+            </div>
           </div>
+        </section>
 
-        </div>
-      </section>
+        <section className="cp-workspace" aria-labelledby="cp-workspace-title">
+          <div className="cp-workspace__intro" data-reveal>
+            <span className="cp-kicker">04 / THE WHOLE PICTURE</span>
+            <h2 id="cp-workspace-title">
+              Clarity is a<br />
+              <em>powerful feeling.</em>
+            </h2>
+            <p>
+              See how your courses, deadlines, and grades connect. The dashboard stays useful when
+              the semester gets complicated.
+            </p>
+          </div>
+          <div className="cp-workspace__stage" data-reveal>
+            <div className="cp-workspace__rail">
+              <span className="cp-workspace__rail-title">
+                <Brand />
+              </span>
+              <div className="cp-workspace__rail-icons">
+                <span>◧</span>
+                <CalendarDays size={18} />
+                <CheckCircle2 size={18} />
+                <GraduationCap size={18} />
+              </div>
+              <span className="cp-workspace__rail-bottom">CP</span>
+            </div>
+            <div className="cp-workspace__window">
+              <div className="cp-workspace__window-head">
+                <div>
+                  <small>YOUR SPACE</small>
+                  <strong>{view === "week" ? "A week in view." : "Every grade, in view."}</strong>
+                </div>
+                <span className="cp-sync">
+                  <span /> CANVAS SYNCED
+                </span>
+              </div>
+              <div className="cp-workspace__tabs" role="tablist" aria-label="Dashboard preview">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={view === "week"}
+                  onClick={() => setView("week")}
+                >
+                  This week
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={view === "grades"}
+                  onClick={() => setView("grades")}
+                >
+                  Grades
+                </button>
+              </div>
+              {view === "week" ? (
+                <div className="cp-week" role="tabpanel">
+                  <div className="cp-week__days">
+                    {[
+                      ["MON", "21"],
+                      ["TUE", "22"],
+                      ["WED", "23"],
+                      ["THU", "24"],
+                      ["FRI", "25"],
+                    ].map(([day, date]) => (
+                      <div key={day}>
+                        <small>{day}</small>
+                        <strong>{date}</strong>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="cp-week__schedule">
+                    <div className="cp-week__schedule-label">
+                      <span>UPCOMING</span>
+                      <span>3 ASSIGNMENTS</span>
+                    </div>
+                    <div className="cp-week__assignment cp-week__assignment--purple">
+                      <span>09:00</span>
+                      <div>
+                        <strong>Physics problem set</strong>
+                        <small>Physics II · 30 min</small>
+                      </div>
+                      <Check size={16} />
+                    </div>
+                    <div className="cp-week__assignment cp-week__assignment--mint">
+                      <span>11:30</span>
+                      <div>
+                        <strong>CAD assignment</strong>
+                        <small>Engineering Design · 45 min</small>
+                      </div>
+                      <Check size={16} />
+                    </div>
+                    <div className="cp-week__assignment cp-week__assignment--peach">
+                      <span>15:00</span>
+                      <div>
+                        <strong>Reading response</strong>
+                        <small>Modern Texts · 25 min</small>
+                      </div>
+                      <Check size={16} />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="cp-grades" role="tabpanel">
+                  {[
+                    ["Physics II", "94.2%", "A"],
+                    ["Calculus III", "88.7%", "B+"],
+                    ["Engineering Design", "97.5%", "A+"],
+                  ].map(([course, grade, letter]) => (
+                    <div key={course}>
+                      <span>{course}</span>
+                      <strong>{grade}</strong>
+                      <em>{letter}</em>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div
+              className="cp-workspace__float cp-workspace__float--grade"
+              data-parallax="52"
+              aria-hidden="true"
+            >
+              <span>CALCULUS III</span>
+              <strong>88.7%</strong>
+              <small>Current grade</small>
+            </div>
+            <div className="cp-workspace__float cp-workspace__float--notice" aria-hidden="true">
+              <Bell size={17} />
+              <div>
+                <strong>Heads up</strong>
+                <span>Physics is due tonight.</span>
+              </div>
+            </div>
+          </div>
+          <div className="cp-workspace__details" data-reveal>
+            <span>LIVE GRADES</span>
+            <span>SMART DEADLINES</span>
+            <span>CLASS SCHEDULE</span>
+            <span>NOTIFICATIONS</span>
+          </div>
+        </section>
 
-      {/* Frequently Asked Questions */}
-      <section className="mt-16">
-        <div className="text-center">
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            Got questions?
-          </p>
-          <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-            Frequently Asked Questions
-          </h2>
-        </div>
+        <section className="cp-calculator" aria-labelledby="cp-calculator-title">
+          <div className="cp-calculator__visual" data-reveal>
+            <div className="cp-calculator__ring" aria-hidden="true">
+              <span>
+                88.4<small>%</small>
+              </span>
+            </div>
+            <div className="cp-calculator__card" data-parallax="36">
+              <span>FINAL GRADE PREDICTOR</span>
+              <strong>{finalNeeded > 100 ? "Over 100%" : finalNeeded.toFixed(1) + "%"}</strong>
+              <small>needed on your final exam</small>
+            </div>
+          </div>
+          <div className="cp-calculator__copy" data-reveal>
+            <span className="cp-kicker cp-kicker--dark">05 / KNOW WHERE YOU STAND</span>
+            <h2 id="cp-calculator-title">
+              No more
+              <br />
+              <em>grade guessing.</em>
+            </h2>
+            <p>
+              Grades update alongside your classes. Try a target below to see what the final exam
+              math looks like.
+            </p>
+            <label htmlFor="cp-target-grade">YOUR TARGET COURSE GRADE</label>
+            <select
+              id="cp-target-grade"
+              value={targetGrade}
+              onChange={(event) => setTargetGrade(event.target.value)}
+            >
+              <option value="80">80% · B−</option>
+              <option value="85">85% · B</option>
+              <option value="90">90% · A−</option>
+              <option value="93">93% · A</option>
+            </select>
+            <small className="cp-calculator__note">
+              Example: 88.4% current grade, final worth 25%.
+            </small>
+            <Link to="/canvas-grade-calculator" className="cp-inline-link">
+              Open the full grade calculator <ArrowRight size={18} />
+            </Link>
+          </div>
+        </section>
 
-        <div className="glass-panel-strong mx-auto mt-8 max-w-3xl p-6">
-          <Accordion type="single" collapsible className="w-full">
-            {FAQS.map((faq, idx) => (
-              <AccordionItem key={idx} value={`item-${idx}`}>
-                <AccordionTrigger className="text-left text-sm font-semibold text-foreground">
-                  {faq.question}
-                </AccordionTrigger>
-                <AccordionContent className="text-sm text-muted-foreground">
-                  {faq.answer}
-                </AccordionContent>
+        <section className="cp-steps" id="how-it-works" aria-labelledby="cp-steps-title">
+          <div className="cp-steps__heading" data-reveal>
+            <span className="cp-kicker">06 / BEGIN SIMPLY</span>
+            <h2 id="cp-steps-title">
+              Three small steps.
+              <br />
+              <em>A lot more breathing room.</em>
+            </h2>
+          </div>
+          <div className="cp-steps__list">
+            {[
+              ["01", "Create your space", "Make a free CanvasPro account in minutes."],
+              [
+                "02",
+                "Connect Canvas",
+                "Add a personal access token from your school's Canvas settings.",
+              ],
+              [
+                "03",
+                "Find your rhythm",
+                "See your classes, choose a next task, and make the day yours.",
+              ],
+            ].map(([number, title, detail]) => (
+              <div className="cp-step" key={number} data-reveal>
+                <span>{number}</span>
+                <strong>{title}</strong>
+                <p>{detail}</p>
+                <ChevronRight size={20} aria-hidden="true" />
+              </div>
+            ))}
+          </div>
+          <div className="cp-steps__trust" data-reveal>
+            <LockKeyhole size={18} />
+            <p>
+              Your school password stays with your school. CanvasPro connects using the token you
+              create in Canvas.
+            </p>
+          </div>
+        </section>
+
+        <section className="cp-questions" id="questions" aria-labelledby="cp-questions-title">
+          <div className="cp-questions__intro" data-reveal>
+            <span className="cp-kicker cp-kicker--dark">GOOD TO KNOW</span>
+            <h2 id="cp-questions-title">
+              A few things
+              <br />
+              you might <em>wonder.</em>
+            </h2>
+            <p>Clear answers, just like the rest of your day.</p>
+          </div>
+          <Accordion type="single" collapsible className="cp-questions__list" data-reveal>
+            {faq.map((item, index) => (
+              <AccordionItem key={item.question} value={"question-" + index}>
+                <AccordionTrigger>{item.question}</AccordionTrigger>
+                <AccordionContent>{item.answer}</AccordionContent>
               </AccordionItem>
             ))}
           </Accordion>
-        </div>
-      </section>
+        </section>
 
-      {/* Free Tools Banner */}
-      <section className="glass-panel mt-16 flex flex-col items-center gap-4 p-8 text-center">
-        <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">
-          Try our free standalone student tools
-        </h2>
-        <p className="max-w-xl text-sm text-muted-foreground">
-          No account needed — calculate what you need on your final exam or learn how to customize Canvas.
-        </p>
-        <div className="flex flex-wrap justify-center gap-3">
-          <Link
-            to="/canvas-grade-calculator"
-            className="glass-inset glass-hover inline-flex min-h-11 items-center justify-center rounded-xl px-4 text-sm font-medium"
-          >
-            Canvas grade calculator
-          </Link>
-          <Link
-            to="/canvas-dashboard-guide"
-            className="glass-inset glass-hover inline-flex min-h-11 items-center justify-center rounded-xl px-4 text-sm font-medium"
-          >
-            Customize Canvas guide
-          </Link>
-        </div>
-      </section>
+        <section className="cp-finale" aria-labelledby="cp-finale-title">
+          <div className="cp-finale__glow" aria-hidden="true" />
+          <div className="cp-finale__content" data-reveal>
+            <span className="cp-kicker">YOUR NEXT CHAPTER STARTS HERE</span>
+            <h2 id="cp-finale-title">
+              Less looking.
+              <br />
+              More <em>living.</em>
+            </h2>
+            <p>A place for your coursework to make sense. Free for every student.</p>
+            <Link to={cta} className="cp-button cp-button--light">
+              {isLoggedIn ? "Open your dashboard" : "Get started for free"} <ArrowRight size={18} />
+            </Link>
+            <span className="cp-finale__fineprint">
+              NO SUBSCRIPTION. NO CREDIT CARD. JUST A CLEARER DAY.
+            </span>
+          </div>
+          <div className="cp-finale__orb" data-parallax="45" aria-hidden="true">
+            <Brand />
+          </div>
+        </section>
+      </main>
     </div>
   );
 }
