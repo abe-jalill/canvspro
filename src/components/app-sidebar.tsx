@@ -189,7 +189,7 @@ export function AppSidebar() {
       >
         <div
           className={cn(
-            "glass-panel-strong flex h-full flex-col overflow-y-auto transition-[padding] duration-300",
+            "sidebar-scroll glass-panel-strong flex h-full flex-col overflow-y-auto transition-[padding] duration-300",
             rail ? "items-center p-2" : "p-5",
           )}
         >
@@ -277,14 +277,7 @@ export function AppSidebar() {
                   className="block min-w-0 flex-1 px-2 press transition-opacity hover:opacity-80"
                   aria-label="Go to homepage"
                 >
-                  <span className="app-brand">
-                    <span className="app-brand__mark" aria-hidden="true">
-                      <i />
-                      <i />
-                      <i />
-                    </span>
-                    canvaspro.
-                  </span>
+                  <span className="app-brand">canvaspro.</span>
                 </Link>
                 <TrafficLights
                   className="relative z-10 shrink-0"

@@ -84,28 +84,13 @@
   letter-spacing: -0.06em;
 }
 
-.app-brand__mark {
-  display: flex;
-  width: 21px;
-  height: 20px;
-  align-items: flex-end;
-  gap: 3px;
-  color: hsl(var(--primary));
-  transform: rotate(-16deg);
+.sidebar-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
-.app-brand__mark i {
-  width: 4px;
-  height: 10px;
-  border-radius: 3px;
-  background: currentColor;
-}
-
-.app-brand__mark i:nth-child(2) {
-  height: 19px;
-}
-.app-brand__mark i:nth-child(3) {
-  height: 14px;
+.sidebar-scroll::-webkit-scrollbar {
+  display: none;
 }
 
 .appearance-palettes {

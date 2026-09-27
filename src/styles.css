@@ -578,8 +578,8 @@
 .dashboard-hero {
   border: 1px solid rgb(255 255 255 / 0.12);
   background:
-    radial-gradient(ellipse 42% 85% at 23% 47%, rgb(248 222 192 / 0.12), transparent 75%),
-    radial-gradient(ellipse 50% 95% at 92% -10%, rgb(195 209 229 / 0.11), transparent 75%),
+    radial-gradient(ellipse 42% 85% at 23% 47%, hsl(var(--primary) / 0.15), transparent 75%),
+    radial-gradient(ellipse 50% 95% at 92% -10%, hsl(var(--primary) / 0.1), transparent 75%),
     linear-gradient(128deg, #25262a 0%, #202126 52%, #191a1e 100%);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.1),
@@ -601,14 +601,14 @@
   position: absolute;
   inset: -42px -20px -30px -28px;
   pointer-events: none;
-  background: radial-gradient(ellipse at 35% 42%, rgb(255 235 209 / 0.17), transparent 68%);
+  background: radial-gradient(ellipse at 35% 42%, hsl(var(--primary) / 0.18), transparent 68%);
   filter: blur(18px);
 }
 
 .dashboard-hero__greeting {
   text-shadow:
-    0 0 22px rgb(255 243 226 / 0.26),
-    0 0 62px rgb(255 237 213 / 0.14);
+    0 0 22px hsl(var(--primary) / 0.22),
+    0 0 62px hsl(var(--primary) / 0.13);
 }
 
 .dashboard-hero__cta {
@@ -637,7 +637,7 @@
   overflow: hidden;
   border: 1px solid rgb(255 255 255 / 0.15);
   background:
-    radial-gradient(ellipse 85% 100% at 8% 0%, rgb(194 212 239 / 0.18), transparent 72%),
+    radial-gradient(ellipse 85% 100% at 8% 0%, hsl(var(--primary) / 0.16), transparent 72%),
     linear-gradient(145deg, #303239 0%, #25262c 52%, #1e1f24 100%);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.13),
@@ -684,7 +684,7 @@
     box-shadow:
       inset 0 1px 0 rgb(255 255 255 / 0.2),
       0 16px 26px -10px rgb(0 0 0 / 0.54),
-      0 0 25px rgb(203 221 248 / 0.09);
+      0 0 25px hsl(var(--primary) / 0.11);
     transform: translateY(-2px);
   }
 
@@ -697,8 +697,8 @@
 .light .dashboard-hero {
   border-color: rgb(31 47 69 / 0.12);
   background:
-    radial-gradient(ellipse 50% 90% at 20% 44%, rgb(251 224 193 / 0.48), transparent 76%),
-    radial-gradient(ellipse 50% 90% at 92% -10%, rgb(196 215 241 / 0.5), transparent 74%),
+    radial-gradient(ellipse 50% 90% at 20% 44%, hsl(var(--primary) / 0.2), transparent 76%),
+    radial-gradient(ellipse 50% 90% at 92% -10%, hsl(var(--primary) / 0.16), transparent 74%),
     linear-gradient(130deg, #f8f9fb, #e9edf3);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.9),
@@ -706,7 +706,7 @@
 }
 
 .light .dashboard-hero__greeting-wrap::before {
-  background: radial-gradient(ellipse at 35% 42%, rgb(255 255 255 / 0.75), transparent 70%);
+  background: radial-gradient(ellipse at 35% 42%, hsl(var(--primary) / 0.15), transparent 70%);
 }
 
 .light .dashboard-hero__greeting,
@@ -733,7 +733,7 @@
 .light .dashboard-hero__stat-card {
   border-color: rgb(31 47 69 / 0.13);
   background:
-    radial-gradient(ellipse 85% 100% at 8% 0%, rgb(255 255 255 / 0.95), transparent 72%),
+    radial-gradient(ellipse 85% 100% at 8% 0%, hsl(var(--primary) / 0.12), transparent 72%),
     linear-gradient(145deg, #f4f7fb, #e7ecf4);
   box-shadow:
     inset 0 1px 0 white,
