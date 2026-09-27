@@ -108,15 +108,25 @@ function useStoryMotion() {
   const focusStageRef = useRef<HTMLDivElement>(null);
   const studyRef = useRef<HTMLElement>(null);
   const studyStageRef = useRef<HTMLDivElement>(null);
+  const workspaceRef = useRef<HTMLElement>(null);
+  const calculatorRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
     if (reduce.matches) return;
 
     let frame = 0;
+    const sceneProgress = { focus: 0, study: 0 };
+    let needsFrame = false;
+    const clamp = (value: number) => Math.min(1, Math.max(0, value));
+    const smooth = (value: number) => {
+      const t = clamp(value);
+      return t * t * (3 - 2 * t);
+    };
     const parallax = document.querySelectorAll<HTMLElement>(".cp-story [data-parallax]");
     const update = () => {
       frame = 0;
+      needsFrame = false;
       const sequence = sequenceRef.current;
       const stage = stageRef.current;
       const hero = heroRef.current;
@@ -149,7 +159,7 @@ function useStoryMotion() {
           stage.style.setProperty("--story-clarity", clarity.toFixed(3));
           stage.style.setProperty("--story-progress", progress.toFixed(3));
           const positions =
-            window.innerWidth <= 760
+            window.innerWidth <= 1100
               ? [
                   [-25, -28, -7],
                   [27, -9, 6],
@@ -178,16 +188,36 @@ function useStoryMotion() {
         const rect = section.getBoundingClientRect();
         if (rect.top > window.innerHeight || rect.bottom < 0) return;
         const distance = Math.max(1, section.offsetHeight - window.innerHeight);
-        const progress = Math.min(1, Math.max(0, -rect.top / distance));
-        const change = Math.min(1, Math.max(0, (progress - 0.16) / 0.65));
-        const eased = change * change * (3 - 2 * change);
+        const target = clamp(-rect.top / distance);
+        const current = sceneProgress[name as "focus" | "study"];
+        const progress =
+          Math.abs(target - current) > 0.002 ? current + (target - current) * 0.23 : target;
+        sceneProgress[name as "focus" | "study"] = progress;
+        if (Math.abs(target - progress) > 0.002) needsFrame = true;
+        const eased = smooth((progress - 0.14) / 0.72);
         surface.style.setProperty(`--${name}-progress`, progress.toFixed(3));
         surface.style.setProperty(`--${name}-change`, eased.toFixed(3));
+        if (name === "focus") {
+          surface.style.setProperty("--focus-out", smooth((progress - 0.17) / 0.39).toFixed(3));
+          surface.style.setProperty(
+            "--focus-row-four",
+            smooth((progress - 0.14) / 0.17).toFixed(3),
+          );
+          surface.style.setProperty(
+            "--focus-row-three",
+            smooth((progress - 0.22) / 0.17).toFixed(3),
+          );
+          surface.style.setProperty("--focus-row-two", smooth((progress - 0.29) / 0.17).toFixed(3));
+          surface.style.setProperty("--focus-in", smooth((progress - 0.42) / 0.24).toFixed(3));
+        }
         if (name === "study") {
-          surface.style.setProperty("--study-ring", `${Math.round(eased * 238)}deg`);
+          const session = smooth((progress - 0.29) / 0.42);
+          surface.style.setProperty("--study-out", smooth((progress - 0.18) / 0.32).toFixed(3));
+          surface.style.setProperty("--study-in", session.toFixed(3));
+          surface.style.setProperty("--study-ring", `${Math.round(session * 238)}deg`);
           const time = surface.querySelector<HTMLElement>("[data-study-time]");
           if (time) {
-            const seconds = Math.round(25 * 60 - eased * 12 * 60);
+            const seconds = Math.round(25 * 60 - session * 12 * 60);
             time.textContent = `${Math.floor(seconds / 60)
               .toString()
               .padStart(2, "0")}:${(seconds % 60).toString().padStart(2, "0")}`;
@@ -196,6 +226,26 @@ function useStoryMotion() {
       };
       updateScene(focusRef.current, focusStageRef.current, "focus");
       updateScene(studyRef.current, studyStageRef.current, "study");
+      const workspace = workspaceRef.current;
+      if (workspace) {
+        const rect = workspace.getBoundingClientRect();
+        if (rect.top < window.innerHeight && rect.bottom > 0) {
+          workspace.style.setProperty(
+            "--workspace-enter",
+            smooth((window.innerHeight - rect.top) / (window.innerHeight * 1.2)).toFixed(3),
+          );
+        }
+      }
+      const calculator = calculatorRef.current;
+      if (calculator) {
+        const rect = calculator.getBoundingClientRect();
+        if (rect.top < window.innerHeight && rect.bottom > 0) {
+          const enter = smooth((window.innerHeight - rect.top) / (window.innerHeight * 1.15));
+          calculator.style.setProperty("--calc-tilt", `${(-14 + enter * 20).toFixed(2)}deg`);
+          calculator.style.setProperty("--calc-lift", `${((1 - enter) * 32).toFixed(1)}px`);
+        }
+      }
+      if (needsFrame) frame = window.requestAnimationFrame(update);
     };
     const request = () => {
       if (!frame) frame = window.requestAnimationFrame(update);
@@ -210,7 +260,17 @@ function useStoryMotion() {
     };
   }, []);
 
-  return { sequenceRef, stageRef, heroRef, focusRef, focusStageRef, studyRef, studyStageRef };
+  return {
+    sequenceRef,
+    stageRef,
+    heroRef,
+    focusRef,
+    focusStageRef,
+    studyRef,
+    studyStageRef,
+    workspaceRef,
+    calculatorRef,
+  };
 }
 
 function useReveal() {
@@ -264,8 +324,17 @@ function LandingPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [targetGrade, setTargetGrade] = useState("90");
   const [view, setView] = useState<"week" | "grades">("week");
-  const { sequenceRef, stageRef, heroRef, focusRef, focusStageRef, studyRef, studyStageRef } =
-    useStoryMotion();
+  const {
+    sequenceRef,
+    stageRef,
+    heroRef,
+    focusRef,
+    focusStageRef,
+    studyRef,
+    studyStageRef,
+    workspaceRef,
+    calculatorRef,
+  } = useStoryMotion();
   useReveal();
 
   useEffect(() => {
@@ -447,6 +516,8 @@ function LandingPage() {
           </div>
         </section>
 
+        <div className="cp-story-bridge cp-story-bridge--night-to-day" aria-hidden="true" />
+
         <section className="cp-plan" aria-labelledby="cp-plan-title">
           <div className="cp-plan__topline">
             <span>03 / YOUR NEXT MOVE</span>
@@ -548,18 +619,21 @@ function LandingPage() {
             </div>
             <div
               className="cp-focus-demo"
-              aria-label="Focus preview: a week of assignments narrows to one urgent physics assignment"
+              role="img"
+              aria-label="Focus preview: four assignments due this week narrow to Newton’s Laws Homework, with a clear reason to start it today"
             >
               <div className="cp-focus-demo__header">
-                <span>FOCUS / ASSIGNMENTS</span>
+                <span>FOCUS / THIS WEEK</span>
                 <span className="cp-focus-demo__live">
                   SYNCED WITH CANVAS <i />
                 </span>
               </div>
               <div className="cp-focus-demo__filters" aria-hidden="true">
-                <span className="cp-focus-demo__week">1 WEEK</span>
-                <span className="cp-focus-demo__day">1 DAY</span>
-                <span>BY CLASS</span>
+                <span className="cp-focus-demo__filter-state">
+                  <span className="cp-focus-demo__week">1 WEEK</span>
+                  <span className="cp-focus-demo__day">DUE TODAY</span>
+                </span>
+                <span className="cp-focus-demo__count">4 THIS WEEK</span>
               </div>
               <div className="cp-focus-demo__list" aria-hidden="true">
                 <div className="cp-focus-task cp-focus-task--one">
@@ -591,8 +665,15 @@ function LandingPage() {
                   <span>Due 11:59 PM · 40 min</span>
                 </div>
               </div>
-              <div className="cp-focus-demo__answer" aria-hidden="true">
-                ONE TASK IN VIEW <ArrowRight size={18} />
+              <div className="cp-focus-demo__detail" aria-hidden="true">
+                <span>WHY THIS ONE</span>
+                <p>Due tonight, and short enough to finish in one focused block.</p>
+                <div className="cp-focus-demo__detail-foot">
+                  <strong>30 MIN TO DONE</strong>
+                  <span>
+                    START WITH THIS <ArrowRight size={17} />
+                  </span>
+                </div>
               </div>
             </div>
             <span className="cp-feature-index" aria-hidden="true">
@@ -600,6 +681,8 @@ function LandingPage() {
             </span>
           </div>
         </section>
+
+        <div className="cp-story-bridge cp-story-bridge--day-to-night" aria-hidden="true" />
 
         <section className="cp-study-story" ref={studyRef} aria-labelledby="cp-study-title">
           <div className="cp-study-story__stage" ref={studyStageRef}>
@@ -657,7 +740,7 @@ function LandingPage() {
           </div>
         </section>
 
-        <section className="cp-workspace" aria-labelledby="cp-workspace-title">
+        <section className="cp-workspace" ref={workspaceRef} aria-labelledby="cp-workspace-title">
           <div className="cp-workspace__intro" data-reveal>
             <span className="cp-kicker">06 / THE WHOLE PICTURE</span>
             <h2 id="cp-workspace-title">
@@ -798,7 +881,13 @@ function LandingPage() {
           </div>
         </section>
 
-        <section className="cp-calculator" aria-labelledby="cp-calculator-title">
+        <div className="cp-story-bridge cp-story-bridge--night-to-mint" aria-hidden="true" />
+
+        <section
+          className="cp-calculator"
+          ref={calculatorRef}
+          aria-labelledby="cp-calculator-title"
+        >
           <div className="cp-calculator__visual" data-reveal>
             <div className="cp-calculator__ring" aria-hidden="true">
               <span>
@@ -842,6 +931,8 @@ function LandingPage() {
           </div>
         </section>
 
+        <div className="cp-story-bridge cp-story-bridge--mint-to-night" aria-hidden="true" />
+
         <section className="cp-steps" id="how-it-works" aria-labelledby="cp-steps-title">
           <div className="cp-steps__heading" data-reveal>
             <span className="cp-kicker">08 / BEGIN SIMPLY</span>
@@ -882,6 +973,8 @@ function LandingPage() {
           </div>
         </section>
 
+        <div className="cp-story-bridge cp-story-bridge--night-to-paper" aria-hidden="true" />
+
         <section className="cp-questions" id="questions" aria-labelledby="cp-questions-title">
           <div className="cp-questions__intro" data-reveal>
             <span className="cp-kicker cp-kicker--dark">GOOD TO KNOW</span>
@@ -901,6 +994,8 @@ function LandingPage() {
             ))}
           </Accordion>
         </section>
+
+        <div className="cp-story-bridge cp-story-bridge--paper-to-night" aria-hidden="true" />
 
         <section className="cp-finale" aria-labelledby="cp-finale-title">
           <div className="cp-finale__glow" aria-hidden="true" />
