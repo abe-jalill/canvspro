@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { Camera, Check, ExternalLink, LoaderCircle, Sparkles, Trash2, UserRound, X } from "lucide-react";
 import { GlassCard } from "@/components/glass-card";
-import { useCanvasKey, useCanvasDomain, useSaveCanvasKey, normalizeCanvasDomain } from "@/lib/user-settings";
+import { useCanvasKey, useCanvasDomain, useSaveCanvasKey, useSaveCanvasDomain, normalizeCanvasDomain } from "@/lib/user-settings";
 import { CanvasTokenModal } from "@/components/canvas-token-modal";
 import { getCanvasTokenSettingsUrl } from "@/lib/school-domains";
 import {
@@ -65,13 +65,22 @@ function SettingsPage() {
     if (!domainTouched) setDomainValue(savedDomain ?? "");
   }, [savedDomain, domainTouched]);
 
+  const saveDomain = useSaveCanvasDomain();
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setStatus(null);
     // Saving with an empty key field while a key exists would silently wipe
     // the connection — only the explicit "Clear key" button does that.
     if (!value.trim() && (savedKey || isLoading)) {
-      setStatus("Paste a new key to replace the saved one, or use Clear key to disconnect.");
+      if (isLoading) return;
+      // Key already saved: allow correcting just the Canvas URL.
+      try {
+        await saveDomain.mutateAsync(domainValue);
+        setStatus("Canvas URL saved and verified with your saved key.");
+      } catch (err) {
+        setStatus(err instanceof Error ? err.message : "Could not save.");
+      }
       return;
     }
     try {

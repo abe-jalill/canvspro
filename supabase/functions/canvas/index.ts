@@ -546,7 +546,14 @@ Deno.serve(async (req) => {
                   excluded: new Set<number>(),
                 };
               })()
-            : storedCreds!;
+            : overrideDomain !== undefined && storedCreds
+              ? (() => {
+                  // URL-only change: check the saved key against the new URL.
+                  const d = normalizeDomain(overrideDomain);
+                  if (!d) throw new Error("INVALID_DOMAIN");
+                  return { ...storedCreds, domain: d, cacheScope: "validation" };
+                })()
+              : storedCreds!;
         const me = await canvasFetchRaw<{ name?: string }>(vCreds, "/users/self");
         data = { ok: true, name: me?.name ?? null };
         break;
