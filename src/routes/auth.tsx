@@ -3,6 +3,8 @@ import { useEffect, useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AuthShell, Field } from "@/components/auth-ui";
 import { signInWithUsername } from "@/lib/username-auth.functions";
+import { LegalConsent } from "@/components/legal-consent";
+import { createLegalConsentMetadata } from "@/lib/legal-consent";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
@@ -31,6 +33,7 @@ function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [legalAccepted, setLegalAccepted] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -41,35 +44,55 @@ function LoginPage() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    setBusy(true);
-    const cleanIdentifier = identifier.trim();
-    let signInError: Error | null = null;
-    if (cleanIdentifier.includes("@")) {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: cleanIdentifier,
-        password,
-      });
-      signInError = error;
-    } else {
-      try {
-        const session = await signInWithUsername({
-          data: { username: cleanIdentifier, password },
-        });
-        const { error } = await supabase.auth.setSession({
-          access_token: session.accessToken,
-          refresh_token: session.refreshToken,
-        });
-        signInError = error;
-      } catch (usernameError) {
-        signInError = usernameError instanceof Error ? usernameError : new Error("Sign-in failed.");
-      }
-    }
-    setBusy(false);
-    if (signInError) {
-      setError(signInError.message);
+    let consent;
+    try {
+      consent = createLegalConsentMetadata(legalAccepted);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Please accept the policies.");
       return;
     }
-    navigate({ to: "/dashboard", replace: true });
+    setBusy(true);
+    try {
+      const cleanIdentifier = identifier.trim();
+      let signInError: Error | null = null;
+      if (cleanIdentifier.includes("@")) {
+        const { error } = await supabase.auth.signInWithPassword({
+          email: cleanIdentifier,
+          password,
+        });
+        signInError = error;
+      } else {
+        try {
+          const session = await signInWithUsername({
+            data: { username: cleanIdentifier, password },
+          });
+          const { error } = await supabase.auth.setSession({
+            access_token: session.accessToken,
+            refresh_token: session.refreshToken,
+          });
+          signInError = error;
+        } catch (usernameError) {
+          signInError =
+            usernameError instanceof Error ? usernameError : new Error("Sign-in failed.");
+        }
+      }
+      if (signInError) {
+        setError(signInError.message);
+        return;
+      }
+      const { error: consentError } = await supabase.auth.updateUser({ data: consent });
+      if (consentError) {
+        await supabase.auth.signOut({ scope: "local" });
+        setError("We couldn't save your agreement. Please sign in again.");
+        return;
+      }
+      navigate({ to: "/dashboard", replace: true });
+    } catch (error) {
+      await supabase.auth.signOut({ scope: "local" });
+      setError(error instanceof Error ? error.message : "Sign-in failed. Please try again.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -110,7 +133,12 @@ function LoginPage() {
             Forgot password?
           </Link>
         </p>
-        {error && <p className="text-sm text-foreground/80">{error}</p>}
+        <LegalConsent checked={legalAccepted} onChange={setLegalAccepted} />
+        {error && (
+          <p role="alert" className="text-sm text-foreground/80">
+            {error}
+          </p>
+        )}
         <button
           type="submit"
           disabled={busy}
@@ -119,17 +147,6 @@ function LoginPage() {
           {busy ? "Signing in…" : "Sign in"}
         </button>
       </form>
-      <p className="mt-4 text-center text-xs text-muted-foreground">
-        By signing in, you agree to our{" "}
-        <Link to="/terms" className="font-medium text-foreground underline underline-offset-4">
-          Terms of Service
-        </Link>{" "}
-        and{" "}
-        <Link to="/privacy" className="font-medium text-foreground underline underline-offset-4">
-          Privacy Policy
-        </Link>
-        .
-      </p>
     </AuthShell>
   );
 }

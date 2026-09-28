@@ -2,10 +2,9 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AuthShell, Field } from "@/components/auth-ui";
-import {
-  createAgeConfirmationMetadata,
-  MINIMUM_ACCOUNT_AGE,
-} from "@/lib/signup-age";
+import { LegalConsent } from "@/components/legal-consent";
+import { createLegalConsentMetadata } from "@/lib/legal-consent";
+import { createAgeConfirmationMetadata, MINIMUM_ACCOUNT_AGE } from "@/lib/signup-age";
 
 export const Route = createFileRoute("/signup")({
   ssr: false,
@@ -37,6 +36,7 @@ function SignupPage() {
   const [major, setMajor] = useState("");
   const [classOf, setClassOf] = useState("");
   const [ageConfirmed, setAgeConfirmed] = useState(false);
+  const [legalAccepted, setLegalAccepted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -60,8 +60,10 @@ function SignupPage() {
     }
 
     let ageMetadata;
+    let consent;
     try {
       ageMetadata = createAgeConfirmationMetadata(ageConfirmed);
+      consent = createLegalConsentMetadata(legalAccepted);
     } catch (ageError) {
       setError(ageError instanceof Error ? ageError.message : "Confirm your age to continue.");
       return;
@@ -82,6 +84,7 @@ function SignupPage() {
           profile_setup_prompted: true,
           profile_setup_completed: true,
           ...ageMetadata,
+          ...consent,
         },
       },
     });
@@ -182,11 +185,14 @@ function SignupPage() {
             onChange={(event) => setAgeConfirmed(event.target.checked)}
             className="mt-0.5 h-4 w-4 shrink-0 accent-foreground"
           />
-          <span>
-            I confirm that I am at least {MINIMUM_ACCOUNT_AGE} years old.
-          </span>
+          <span>I confirm that I am at least {MINIMUM_ACCOUNT_AGE} years old.</span>
         </label>
-        {error && <p className="text-sm text-foreground/80">{error}</p>}
+        <LegalConsent checked={legalAccepted} onChange={setLegalAccepted} />
+        {error && (
+          <p role="alert" className="text-sm text-foreground/80">
+            {error}
+          </p>
+        )}
         {notice && <p className="text-sm text-muted-foreground">{notice}</p>}
         <button
           type="submit"
@@ -196,17 +202,6 @@ function SignupPage() {
           {busy ? "Creating account…" : "Create account"}
         </button>
       </form>
-      <p className="mt-4 text-center text-xs text-muted-foreground">
-        By signing up, you agree to our{" "}
-        <Link to="/terms" className="font-medium text-foreground underline underline-offset-4">
-          Terms of Service
-        </Link>{" "}
-        and{" "}
-        <Link to="/privacy" className="font-medium text-foreground underline underline-offset-4">
-          Privacy Policy
-        </Link>
-        .
-      </p>
     </AuthShell>
   );
 }
