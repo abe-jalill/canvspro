@@ -15,6 +15,8 @@ import {
 } from "@/lib/canvas.queries";
 import { SkeletonBlock, WorkloadHeatmapSkeleton } from "@/components/skeletons/dashboard-skeletons";
 import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
+import { useCalendarPicks } from "@/lib/calendar-picks";
+import { X } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/schedule")({
   head: () => ({
@@ -45,7 +47,7 @@ interface AgendaItem {
   title: string;
   when: Date;
   context?: string;
-  kind: "event" | "assignment";
+  kind: "event" | "assignment" | "pick";
   assignmentId?: number;
 }
 
@@ -55,6 +57,7 @@ function SchedulePage() {
   const events = useQuery(eventsQO);
   const assignments = useQuery(assignmentsQO);
   const [range, setRange] = useState<Range>("week");
+  const picks = useCalendarPicks();
 
   const now = Date.now();
   const rangeEnd = range === "week" ? endOfUpcomingDay(now, 7) : Number.POSITIVE_INFINITY;
@@ -74,8 +77,20 @@ function SchedulePage() {
       kind: "event",
     });
   });
+  picks.list.forEach((p) => {
+    const when = new Date(p.at).getTime();
+    if (!Number.isFinite(when) || when < now - 12 * 3_600_000 || when > rangeEnd) return;
+    items.push({
+      key: `p-${p.assignmentId}`,
+      title: p.title,
+      when: new Date(p.at),
+      context: p.context,
+      kind: "pick",
+      assignmentId: p.assignmentId,
+    });
+  });
   (assignments.data ?? []).forEach((a) => {
-    if (!a.due_at) return;
+    if (!a.due_at || picks.ids.has(a.id)) return;
     const when = new Date(a.due_at).getTime();
     if (!Number.isFinite(when) || when < now || when > rangeEnd) return;
     items.push({
@@ -203,6 +218,30 @@ function SchedulePage() {
                           />
                         )}
                       </div>
+                      {it.kind === "pick" && it.assignmentId != null ? (
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          <input
+                            type="time"
+                            aria-label={`Time for ${it.title}`}
+                            value={`${String(it.when.getHours()).padStart(2, "0")}:${String(it.when.getMinutes()).padStart(2, "0")}`}
+                            onChange={(e) => {
+                              const [h, m] = e.target.value.split(":").map(Number);
+                              if (!Number.isFinite(h) || !Number.isFinite(m)) return;
+                              const d = new Date(it.when);
+                              d.setHours(h, m, 0, 0);
+                              picks.setTime(it.assignmentId!, d.toISOString());
+                            }}
+                            className="glass-inset rounded-lg bg-transparent px-2 py-1 text-sm tabular-nums text-foreground"
+                          />
+                          <button
+                            onClick={() => picks.remove(it.assignmentId!)}
+                            aria-label={`Remove ${it.title} from calendar`}
+                            className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ) : (
                       <div className="text-right">
                         <p className="text-sm font-medium tabular-nums">
                           {it.when.toLocaleTimeString(undefined, {
@@ -214,6 +253,7 @@ function SchedulePage() {
                           {it.kind === "event" ? "Event" : "Due"}
                         </p>
                       </div>
+                      )}
                     </li>
                   ))}
                 </ul>
