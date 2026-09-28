@@ -19,8 +19,8 @@ self.addEventListener("push", (event) => {
         body: data.body || "",
         tag: data.tag || title,
         renotify: false,
-        icon: "/favicon.png",
-        badge: "/favicon.png",
+        icon: "/icon-192.png",
+        badge: "/icon-192.png",
         timestamp: Date.now(),
         data: { to: data.to || "/dashboard" },
       });
