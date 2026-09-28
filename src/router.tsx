@@ -23,7 +23,7 @@ export const getRouter = () => {
     scrollRestoration: true,
     scrollToTopSelectors: ["#app-main"],
     defaultPreload: "intent",
-    defaultPreloadDelay: 30,
+    defaultPreloadDelay: 0,
     defaultViewTransition: true,
     defaultPreloadStaleTime: 15 * 60_000,
     defaultStaleTime: 15 * 60_000,
