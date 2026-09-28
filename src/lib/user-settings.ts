@@ -3,9 +3,31 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { resetCanvasBundle } from "@/lib/canvas.functions";
 import { friendlyCanvasTransportError, invokeCanvasEdge } from "@/lib/canvas-edge-client";
+import { isCanvasAuthenticationRejected } from "@/lib/canvas-key-status";
+import { clearCanvasKeyInvalidFlag } from "@/lib/canvas-key-health";
+import { getUserScope } from "@/lib/user-scope";
 
 export const canvasKeyQueryKey = ["user-settings", "canvas-key"] as const;
 export const canvasDomainQueryKey = ["user-settings", "canvas-domain"] as const;
+export const canvasKeyValidationQueryKey = ["user-settings", "canvas-key-validation"] as const;
+
+/** A historical warning is only actionable after a fresh check of the token. */
+export async function verifySavedCanvasKey(): Promise<boolean> {
+  const scope = getUserScope();
+  if (!scope) throw new Error("Please sign in to check your Canvas connection.");
+  const { data, error } = await invokeCanvasEdge<{ ok?: boolean; error?: string }>({ resource: "validate" });
+  if (scope !== getUserScope()) throw new Error("Session changed — please retry.");
+  if (error || data?.error) {
+    const message = error ? await invokeError(error) : data!.error!;
+    if (isCanvasAuthenticationRejected(message)) return false;
+    // Offline, expired CanvasPro sessions and service failures cannot prove a
+    // Canvas token is invalid. Keep the warning hidden while these recover.
+    throw new Error(message);
+  }
+  if (data?.ok !== true) throw new Error("Could not verify your Canvas connection.");
+  void clearCanvasKeyInvalidFlag();
+  return true;
+}
 
 /**
  * Normalizes a user-supplied Canvas URL to a bare hostname, e.g.
@@ -164,6 +186,7 @@ export function useSaveCanvasKey() {
     onSuccess: async (key) => {
       toast.success(key ? "Canvas connection saved" : "Canvas key cleared");
       resetCanvasBundle();
+      qc.removeQueries({ queryKey: canvasKeyValidationQueryKey });
       await qc.cancelQueries({ queryKey: ["canvas"] });
       if (!key) qc.removeQueries({ queryKey: ["canvas"] });
       qc.setQueryData(canvasKeyQueryKey, !!key);
@@ -215,6 +238,7 @@ export function useSaveCanvasDomain() {
     onSuccess: async () => {
       toast.success("Canvas URL saved");
       resetCanvasBundle();
+      qc.removeQueries({ queryKey: canvasKeyValidationQueryKey });
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["user-preferences"] }),
         qc.invalidateQueries({ queryKey: canvasDomainQueryKey }),

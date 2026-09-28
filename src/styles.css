@@ -1,7 +1,6 @@
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
-@import "@fontsource-variable/dm-sans/wght.css";
 @import "./targeted-design.css";
 
 @custom-variant dark (&:is(.dark *));
@@ -47,8 +46,8 @@
   --color-status-warning: var(--status-warning);
   --shadow-status-live: 0 0 8px hsl(var(--status-live) / 0.7);
 
-  --font-sans: "DM Sans Variable", "Helvetica Neue", Arial, sans-serif;
-  --font-display: "DM Sans Variable", "Helvetica Neue", Arial, sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: var(--font-sans);
   --font-mono: var(--font-sans);
 
   --shadow-glass:

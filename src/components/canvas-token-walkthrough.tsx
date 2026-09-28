@@ -496,16 +496,16 @@ export function CanvasTokenWalkthrough({
         {showSecurityFaq && (
           <div className="mt-3 rounded-2xl bg-foreground/[0.03] border border-foreground/10 p-4 text-xs text-muted-foreground space-y-2">
             <p>
-              <strong>🔒 Official Instructure Feature:</strong> Personal Access Tokens are standard
+              <strong>Official Instructure Feature:</strong> Personal Access Tokens are standard
               Canvas functionality designed specifically for third-party student companion apps.
             </p>
             <p>
-              <strong>🛡️ Zero Password Access:</strong> CanvasPro never sees or stores your
+              <strong>Zero Password Access:</strong> CanvasPro never sees or stores your
               university password. The token only grants access to what your student account is
               already authorized to view.
             </p>
             <p>
-              <strong>🔑 You Stay in Control:</strong> Your token is encrypted at rest in your
+              <strong>You Stay in Control:</strong> Your token is encrypted at rest in your
               personal database row scoped by Row Level Security. You can revoke it at any second in
               Canvas under <em>Settings → Approved Integrations → Delete</em>.
             </p>

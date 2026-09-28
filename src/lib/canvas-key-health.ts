@@ -1,8 +1,9 @@
 import { supabase } from "@/integrations/supabase/client";
+import { getUserScope } from "@/lib/user-scope";
 
 type Listener = () => void;
 
-let lastConfirmedAt = 0;
+const confirmedByUser = new Map<string, number>();
 const listeners = new Set<Listener>();
 
 /**
@@ -11,7 +12,7 @@ const listeners = new Set<Listener>();
  * needs an immediate, in-memory confirmation as well as the database cleanup.
  */
 export function getCanvasKeyConfirmedAt(): number {
-  return lastConfirmedAt;
+  return confirmedByUser.get(getUserScope() ?? "") ?? 0;
 }
 
 export function subscribeCanvasKeyHealth(listener: Listener): () => void {
@@ -19,20 +20,22 @@ export function subscribeCanvasKeyHealth(listener: Listener): () => void {
   return () => listeners.delete(listener);
 }
 
-function markCanvasKeyConfirmed(): void {
-  lastConfirmedAt = Date.now();
+function markCanvasKeyConfirmed(userId: string): void {
+  confirmedByUser.set(userId, Date.now());
   listeners.forEach((listener) => listener());
 }
 
 /** Removes a stale background-job warning after Canvas has just responded. */
 export async function clearCanvasKeyInvalidFlag(): Promise<void> {
+  const scope = getUserScope();
+  if (!scope) return;
   // The live Canvas response is authoritative for this screen. Do not leave a
   // false warning visible merely because the preference cleanup is delayed.
-  markCanvasKeyConfirmed();
+  markCanvasKeyConfirmed(scope);
 
   const { data: userData } = await supabase.auth.getUser();
   const user = userData.user;
-  if (!user) return;
+  if (!user || user.id !== scope || getUserScope() !== scope) return;
 
   const { error } = await supabase
     .from("user_preferences")

@@ -19,7 +19,7 @@
     <path d="M130 0V630M300 0V630M470 0V630M640 0V630M810 0V630M980 0V630M1150 0V630"/>
   </g>
   <circle cx="862" cy="320" r="320" fill="#96e7b8" opacity=".08"/>
-  <g font-family="Arial, Helvetica, sans-serif">
+  <g font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, 'Segoe UI', Arial, sans-serif">
     <g transform="translate(74 47) rotate(-17)">
       <rect x="0" y="12" width="8" height="17" rx="3" fill="#b0edc9"/>
       <rect x="14" y="0" width="8" height="29" rx="3" fill="#e2faec"/>
@@ -35,7 +35,7 @@
     <text x="102" y="556" fill="#26382d" font-size="18" font-weight="700">Get started free</text>
     <path d="M253 549h14m-5-6 6 6-6 6" fill="none" stroke="#26382d" stroke-width="2"/>
   </g>
-  <g transform="translate(790 131) rotate(6 185 175)" filter="url(#shadow)" font-family="Arial, Helvetica, sans-serif">
+  <g transform="translate(790 131) rotate(6 185 175)" filter="url(#shadow)" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, 'Segoe UI', Arial, sans-serif">
     <rect x="0" y="0" width="370" height="350" rx="24" fill="url(#card)"/>
     <text x="27" y="44" fill="#6fa786" font-size="12" font-weight="700" letter-spacing="2">TODAY'S PLAN</text>
     <text x="27" y="87" fill="#27382e" font-size="27" font-weight="700">One thing at a time.</text>

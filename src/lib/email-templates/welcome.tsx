@@ -57,7 +57,7 @@ export const template = {
 const main = {
   backgroundColor: '#ffffff',
   fontFamily:
-    '-apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Helvetica, Arial, sans-serif',
+    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
 }
 const container = { padding: '32px 28px', maxWidth: '520px' }
 const brand = {

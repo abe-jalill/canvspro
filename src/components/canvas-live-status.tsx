@@ -22,7 +22,8 @@ function readStatus(queryClient: ReturnType<typeof useQueryClient>): CanvasStatu
     (latest, query) => Math.max(latest, query.state.dataUpdatedAt),
     0,
   );
-  const failed = queries.find((query) => query.state.status === "error");
+  // A previous failure is not a current failure while its retry is running.
+  const failed = queries.find((query) => query.state.status === "error" && query.state.fetchStatus !== "fetching");
   const error = failed?.state.error;
 
   return {
