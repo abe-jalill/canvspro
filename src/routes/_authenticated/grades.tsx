@@ -243,13 +243,7 @@ function GradesPage() {
       )}
 
       {!loading && !error && filteredCourses.length > 0 && (
-        <section className="glass-panel overflow-hidden rounded-[1.75rem] border border-foreground/10">
-          <div className="hidden grid-cols-[minmax(0,1fr)_8rem_7rem_2.5rem] gap-4 border-b border-foreground/10 px-6 py-3 text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground md:grid">
-            <span>Course</span>
-            <span>Standing</span>
-            <span>Movement</span>
-            <span />
-          </div>
+        <section className="grid items-start gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {filteredCourses.map((course) => {
             const trend = trends.get(course.id);
             const expanded = expandedCourses.has(course.id);
@@ -266,7 +260,7 @@ function GradesPage() {
                 key={course.id}
                 id={highlightProps.id}
                 className={cn(
-                  "border-b border-foreground/10 last:border-0",
+                  "glass-panel group overflow-hidden rounded-[1.65rem] border border-foreground/10 transition-[border-color,transform,box-shadow] duration-300 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-lg",
                   highlightProps.className,
                 )}
               >
@@ -274,17 +268,68 @@ function GradesPage() {
                   type="button"
                   onClick={() => toggleExpanded(course.id)}
                   aria-expanded={expanded}
-                  className="group grid w-full gap-4 px-4 py-5 text-left transition-colors hover:bg-foreground/[0.025] sm:px-6 md:grid-cols-[minmax(0,1fr)_8rem_7rem_2.5rem] md:items-center"
+                  className="relative flex min-h-64 w-full flex-col p-5 text-left transition-colors hover:bg-foreground/[0.02] sm:p-6"
                 >
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-3">
+                  <div className="flex w-full items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
                       <span
                         className="h-2.5 w-2.5 shrink-0 rounded-full"
                         style={{ backgroundColor: color, boxShadow: `0 0 10px ${color}66` }}
                       />
-                      <span className="truncate text-base font-medium">{label}</span>
+                      <span className="line-clamp-2 text-sm font-medium leading-snug">{label}</span>
                     </div>
-                    <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-foreground/10">
+                    <ChevronDown
+                      className={cn(
+                        "mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-300",
+                        expanded && "rotate-180",
+                      )}
+                    />
+                  </div>
+
+                  <div className="mt-8 flex items-end justify-between gap-4">
+                    <div>
+                      <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
+                        Current grade
+                      </p>
+                      <div className="mt-1 flex items-baseline gap-2">
+                        <span
+                          className="text-5xl font-medium tabular-nums tracking-[-0.075em]"
+                          style={{ color }}
+                        >
+                          {fmt(score)}
+                        </span>
+                        {course.current_grade && (
+                          <span className="text-sm font-semibold" style={{ color }}>
+                            {course.current_grade}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {trend ? (
+                      <span
+                        className="inline-flex items-center gap-1 rounded-full border border-foreground/10 bg-foreground/[0.04] px-2.5 py-1 text-xs"
+                        style={{ color }}
+                      >
+                        {trend.dir === "up" ? (
+                          <ArrowUp className="h-3.5 w-3.5" />
+                        ) : (
+                          <ArrowDown className="h-3.5 w-3.5" />
+                        )}
+                        {Math.abs((score ?? 0) - trend.prev).toFixed(1)}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-foreground/[0.04] px-2.5 py-1 text-xs text-muted-foreground">
+                        <Minus className="h-3.5 w-3.5" /> Steady
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="mt-auto pt-8">
+                    <div className="mb-2 flex items-center justify-between text-[10px] text-muted-foreground">
+                      <span>Progress</span>
+                      <span>{items.length} graded</span>
+                    </div>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-foreground/10">
                       <div
                         className="h-full rounded-full transition-[width] duration-500"
                         style={{
@@ -294,46 +339,9 @@ function GradesPage() {
                       />
                     </div>
                   </div>
-                  <div className="flex items-baseline justify-between md:block">
-                    <span className="text-xs text-muted-foreground md:hidden">Standing</span>
-                    <span
-                      className="text-2xl font-medium tabular-nums tracking-[-0.05em]"
-                      style={{ color }}
-                    >
-                      {fmt(score)}
-                    </span>
-                    {course.current_grade && (
-                      <span className="ml-2 text-xs font-medium" style={{ color }}>
-                        {course.current_grade}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between text-sm md:justify-start">
-                    <span className="text-xs text-muted-foreground md:hidden">Movement</span>
-                    {trend ? (
-                      <span className="inline-flex items-center gap-1" style={{ color }}>
-                        {trend.dir === "up" ? (
-                          <ArrowUp className="h-4 w-4" />
-                        ) : (
-                          <ArrowDown className="h-4 w-4" />
-                        )}
-                        {Math.abs((score ?? 0) - trend.prev).toFixed(1)}
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-muted-foreground">
-                        <Minus className="h-4 w-4" /> Steady
-                      </span>
-                    )}
-                  </div>
-                  <ChevronDown
-                    className={cn(
-                      "hidden h-4 w-4 text-muted-foreground transition-transform md:block",
-                      expanded && "rotate-180",
-                    )}
-                  />
                 </button>
                 {expanded && (
-                  <div className="border-t border-foreground/[0.07] bg-foreground/[0.02] px-4 py-3 sm:px-6 md:pl-14">
+                  <div className="border-t border-foreground/[0.07] bg-foreground/[0.02] px-5 py-4 sm:px-6">
                     <div className="mb-2 flex items-center justify-between">
                       <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
                         Graded work
@@ -351,7 +359,7 @@ function GradesPage() {
                         No graded assignments yet.
                       </p>
                     ) : (
-                      <ul>
+                      <ul className="max-h-72 overflow-y-auto pr-1">
                         {items.map((item) => (
                           <li
                             key={item.id}
