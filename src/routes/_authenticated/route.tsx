@@ -50,20 +50,31 @@ function AuthenticatedLayout() {
   const needsFallbackTransition =
     typeof document !== "undefined" && typeof document.startViewTransition !== "function";
 
-  useNotificationEngine(true);
-  useDueTodayBadge(true);
   useQueryCachePersistence();
   const startup = useAppPrefetch(true);
+  const startupReady = startup === "ready";
+  useNotificationEngine(startupReady);
+  useDueTodayBadge(startupReady);
   useWelcomeEmail(true);
   useActivityHeartbeat(true);
 
   useEffect(() => {
-    void maintainBackgroundPush();
+    const idleCallback = (
+      window as unknown as {
+        requestIdleCallback?: Window["requestIdleCallback"];
+      }
+    ).requestIdleCallback;
+    if (idleCallback) {
+      const id = idleCallback.call(window, () => void maintainBackgroundPush(), { timeout: 2_000 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const timer = window.setTimeout(() => void maintainBackgroundPush(), 1_000);
+    return () => window.clearTimeout(timer);
   }, []);
 
   return (
     <div className="min-h-svh w-full overflow-x-clip md:h-svh md:overflow-hidden">
-      <AppStartupWelcome ready={startup === "ready"} user={user} />
+      <AppStartupWelcome ready={startupReady} user={user} />
       <ProfileCompletionDialog user={user} />
       <RouteProgress />
       <AppSidebar />

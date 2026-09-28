@@ -1,11 +1,7 @@
 import { useEffect, useMemo } from "react";
-import { useQuery, queryOptions } from "@tanstack/react-query";
-import {
-  getAllAssignmentsFn,
-  getAnnouncementsFn,
-  type AssignmentItem,
-  type AnnouncementItem,
-} from "@/lib/canvas.functions";
+import { useQuery } from "@tanstack/react-query";
+import { type AssignmentItem, type AnnouncementItem } from "@/lib/canvas.functions";
+import { announcementsQueryOptions, assignmentsQueryOptions } from "@/lib/canvas.queries";
 import { displayCourseName } from "@/lib/course-display";
 import { notify, updateNotification } from "@/lib/notifications";
 import { DUE_WINDOWS, readPrefs } from "@/lib/notification-prefs";
@@ -34,18 +30,6 @@ function writeSet(baseKey: string, set: Set<string>) {
     // ignore
   }
 }
-
-const assignmentsQO = queryOptions({
-  queryKey: ["canvas", "assignments"],
-  queryFn: () => getAllAssignmentsFn(),
-  staleTime: 5 * 60_000,
-});
-
-const announcementsQO = queryOptions({
-  queryKey: ["canvas", "announcements"],
-  queryFn: () => getAnnouncementsFn(),
-  staleTime: 5 * 60_000,
-});
 
 function runDueChecks(assignments: AssignmentItem[], completed: Set<string>) {
   const prefs = readPrefs();
@@ -182,8 +166,8 @@ function runAnnouncementChecks(items: AnnouncementItem[]) {
 
 /** Watches Canvas data and turns it into in-app + browser notifications. */
 export function useNotificationEngine(enabled = true) {
-  const assignments = useQuery({ ...assignmentsQO, enabled });
-  const announcements = useQuery({ ...announcementsQO, enabled });
+  const assignments = useQuery({ ...assignmentsQueryOptions, enabled });
+  const announcements = useQuery({ ...announcementsQueryOptions, enabled });
   const preferences = useUserPreferences();
   const completed = useMemo(() => completedAssignmentIds(preferences.data), [preferences.data]);
 

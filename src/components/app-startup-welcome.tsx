@@ -42,7 +42,7 @@ export function AppStartupWelcome({ ready, user }: { ready: boolean; user: User 
   useEffect(() => {
     if (!native || !ready || !visible) return;
     setLeaving(true);
-    const timer = window.setTimeout(() => setVisible(false), 520);
+    const timer = window.setTimeout(() => setVisible(false), 240);
     return () => window.clearTimeout(timer);
   }, [native, ready, visible]);
 
@@ -50,7 +50,7 @@ export function AppStartupWelcome({ ready, user }: { ready: boolean; user: User 
 
   return (
     <section
-      className={`fixed inset-0 z-[100] overflow-y-auto bg-[#050506] text-white transition duration-500 ease-out lg:overflow-hidden ${
+      className={`fixed inset-0 z-[100] overflow-y-auto bg-[#050506] text-white transition duration-200 ease-out lg:overflow-hidden ${
         leaving ? "pointer-events-none scale-[1.015] opacity-0" : "scale-100 opacity-100"
       }`}
       role="status"

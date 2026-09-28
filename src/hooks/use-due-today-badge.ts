@@ -1,22 +1,16 @@
 import { useEffect, useMemo } from "react";
-import { queryOptions, useQuery } from "@tanstack/react-query";
-import { getAllAssignmentsFn } from "@/lib/canvas.functions";
+import { useQuery } from "@tanstack/react-query";
+import { assignmentsQueryOptions } from "@/lib/canvas.queries";
 import { useUserPreferences } from "@/hooks/use-user-preferences";
 import { completedAssignmentIds } from "@/lib/completion-records";
 import { useNotificationPrefs } from "@/lib/notification-prefs";
 import { clearAppBadge, setAppBadge } from "@/lib/app-badge";
 
-const assignmentsQO = queryOptions({
-  queryKey: ["canvas", "assignments"],
-  queryFn: () => getAllAssignmentsFn(),
-  staleTime: 5 * 60_000,
-});
-
 /** Keeps the app-icon badge in sync with what's still due before midnight. */
 export function useDueTodayBadge(enabled = true) {
   const { prefs } = useNotificationPrefs();
   const on = enabled && prefs.enabled && prefs.badge;
-  const { data } = useQuery({ ...assignmentsQO, enabled: on });
+  const { data } = useQuery({ ...assignmentsQueryOptions, enabled: on });
   const preferences = useUserPreferences();
   const done = useMemo(() => completedAssignmentIds(preferences.data), [preferences.data]);
 

@@ -39,7 +39,19 @@ export function useActivityHeartbeat(enabled: boolean): void {
 
   useEffect(() => {
     if (!enabled) return;
-    void ping(storageKey);
+    const idleCallback = (
+      window as unknown as {
+        requestIdleCallback?: Window["requestIdleCallback"];
+      }
+    ).requestIdleCallback;
+    let cancelInitial: () => void;
+    if (idleCallback) {
+      const id = idleCallback.call(window, () => void ping(storageKey), { timeout: 2_000 });
+      cancelInitial = () => window.cancelIdleCallback(id);
+    } else {
+      const timer = window.setTimeout(() => void ping(storageKey), 1_000);
+      cancelInitial = () => window.clearTimeout(timer);
+    }
 
     function onVisible() {
       if (document.visibilityState === "visible") void ping(storageKey);
@@ -47,6 +59,7 @@ export function useActivityHeartbeat(enabled: boolean): void {
     document.addEventListener("visibilitychange", onVisible);
     const timer = window.setInterval(() => void ping(storageKey), THROTTLE_MS);
     return () => {
+      cancelInitial();
       document.removeEventListener("visibilitychange", onVisible);
       window.clearInterval(timer);
     };

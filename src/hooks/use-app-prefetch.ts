@@ -6,7 +6,6 @@ import {
   getAllAssignmentsFn,
   getAnnouncementsFn,
   getCalendarEventsFn,
-  type CourseSummary,
 } from "@/lib/canvas.functions";
 import { CANVAS_DATA_GC_MS, CANVAS_DATA_STALE_MS } from "@/lib/query-policy";
 import { canvasKeyQueryKey, fetchHasCanvasKey } from "@/lib/user-settings";
@@ -15,7 +14,14 @@ import { fetchUserProfile } from "@/lib/user-profile";
 import { useUserScope } from "@/lib/user-scope";
 import { userKey } from "@/lib/auth-user";
 
-const PRIMARY_ROUTES = ["/dashboard", "/assignments", "/focus", "/schedule", "/grades"] as const;
+const PRIMARY_ROUTES = [
+  "/dashboard",
+  "/get-it-done",
+  "/assignments",
+  "/focus",
+  "/schedule",
+  "/grades",
+] as const;
 
 const SECONDARY_ROUTES = [
   "/study-session",
@@ -25,8 +31,9 @@ const SECONDARY_ROUTES = [
   "/settings",
 ] as const;
 
-const MINIMUM_WELCOME_MS = 900;
-const CRITICAL_CAP_MS = 4_000;
+const MINIMUM_WELCOME_MS = 150;
+const CRITICAL_CAP_MS = 1_500;
+const REFRESH_COOLDOWN_MS = 30_000;
 
 export type AppStartupStatus = "loading" | "ready";
 
@@ -114,18 +121,15 @@ export function useAppPrefetch(enabled = true): AppStartupStatus {
       await routerIdle();
       if (cancelled) return;
 
-      // These five destinations make up the app's primary navigation loop.
+      // These destinations make up the app's primary navigation loop.
       // Their code is requested as soon as launch-critical data is ready, but
       // it never delays the dashboard becoming interactive.
-      const primaryWarm = Promise.allSettled(
-        PRIMARY_ROUTES.map(warmRoute),
-      );
+      const primaryWarm = Promise.allSettled(PRIMARY_ROUTES.map(warmRoute));
 
       // Wait until the browser has painted the dashboard before fetching
       // lower-priority data and chunks.
       const warmSecondary = () => {
         if (cancelled) return;
-        const courses = client.getQueryData<CourseSummary[]>(["canvas", "courses"]) ?? [];
         void Promise.allSettled([
           client.prefetchQuery({
             queryKey: ["canvas", "announcements"],
@@ -139,33 +143,31 @@ export function useAppPrefetch(enabled = true): AppStartupStatus {
             staleTime: 60_000,
           }),
           ...SECONDARY_ROUTES.map(warmRoute),
-          ...courses.map((course) =>
-            router
-              .preloadRoute({
-                to: "/courses/$courseId",
-                params: { courseId: String(course.id) },
-              })
-              .catch(() => undefined),
-          ),
         ]);
       };
 
       void primaryWarm.then(() => {
         if (cancelled) return;
-        const idleCallback = (window as unknown as {
-          requestIdleCallback?: Window["requestIdleCallback"];
-        }).requestIdleCallback;
+        const idleCallback = (
+          window as unknown as {
+            requestIdleCallback?: Window["requestIdleCallback"];
+          }
+        ).requestIdleCallback;
         if (idleCallback) {
-          const idleId = idleCallback.call(window, warmSecondary, { timeout: 1_500 });
+          const idleId = idleCallback.call(window, warmSecondary, { timeout: 2_500 });
           cancelIdle = () => window.cancelIdleCallback(idleId);
         } else {
-          const timer = window.setTimeout(warmSecondary, 500);
+          const timer = window.setTimeout(warmSecondary, 1_000);
           cancelIdle = () => window.clearTimeout(timer);
         }
       });
     });
+    let lastRefreshAt = 0;
     const refresh = () => {
       if (document.visibilityState !== "visible" || !navigator.onLine) return;
+      const now = Date.now();
+      if (now - lastRefreshAt < REFRESH_COOLDOWN_MS) return;
+      lastRefreshAt = now;
       void client.refetchQueries(
         { queryKey: ["canvas"], type: "active", stale: true },
         { cancelRefetch: false },
@@ -173,15 +175,22 @@ export function useAppPrefetch(enabled = true): AppStartupStatus {
       // Changes made on another device should appear when this one becomes
       // active again. Keep existing cache visible while these refresh.
       void Promise.allSettled([
-        client.invalidateQueries({ queryKey: ["user-preferences"], refetchType: "active" }),
-        client.invalidateQueries({ queryKey: ["user-profile"], refetchType: "active" }),
-        client.invalidateQueries({ queryKey: ["user-settings"], refetchType: "active" }),
-        client.invalidateQueries({ queryKey: ["class-nicknames"], refetchType: "active" }),
-        client.invalidateQueries({ queryKey: ["class-schedule-entries"], refetchType: "active" }),
-        client.invalidateQueries({ queryKey: ["user-assignment-meta"], refetchType: "active" }),
+        ...[
+          "user-preferences",
+          "user-profile",
+          "user-settings",
+          "class-nicknames",
+          "class-schedule-entries",
+          "user-assignment-meta",
+        ].map((key) =>
+          client.refetchQueries(
+            { queryKey: [key], type: "active", stale: true },
+            { cancelRefetch: false },
+          ),
+        ),
       ]);
     };
-    const interval = setInterval(refresh, 60_000);
+    const interval = setInterval(refresh, 5 * 60_000);
     window.addEventListener("online", refresh);
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);
