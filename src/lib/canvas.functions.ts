@@ -2,11 +2,12 @@
 // The Canvas key is stored per-user in `user_settings`; the Edge Function
 // reads it server-side, so the browser never needs to hold it.
 import { supabase } from "@/integrations/supabase/client";
-import { clearCanvasKeyInvalidFlag } from "@/lib/user-settings";
+import { clearCanvasKeyInvalidFlag } from "@/lib/canvas-key-health";
 import { getUserScope } from "@/lib/user-scope";
 import { createRequestCache } from "@/lib/request-cache";
 import { isAssignmentComplete } from "@/lib/assignment-window";
 import { friendlyCanvasTransportError, invokeCanvasEdge } from "@/lib/canvas-edge-client";
+import { canvasBundleHasSuccessfulSection } from "@/lib/canvas-key-status";
 
 /**
  * Right after sign-in the session can still be settling. Waiting for it (and
@@ -151,9 +152,10 @@ export function fetchCanvasBundle(): Promise<CanvasBundle> {
       // invokeCanvas returns [] when no Canvas key is saved yet.
       if (Array.isArray(raw)) return EMPTY_BUNDLE;
       const b = raw as CanvasBundle;
-      // The key demonstrably works, so drop any stale "Canvas rejected your
-      // key" flag a failed background run may have left behind.
-      if ((b.courses?.length ?? 0) > 0) void clearCanvasKeyInvalidFlag();
+      // Any successfully completed Canvas section proves authentication works,
+      // even when that section legitimately contains zero courses/items.
+      // Drop any stale rejection left by an older background notification run.
+      if (canvasBundleHasSuccessfulSection(b.errors)) void clearCanvasKeyInvalidFlag();
       return {
         courses: b.courses ?? [],
         assignments: b.assignments ?? [],

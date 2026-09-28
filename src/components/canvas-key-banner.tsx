@@ -1,8 +1,14 @@
 import { Link } from "@tanstack/react-router";
+import { useSyncExternalStore } from "react";
 import { TriangleAlert, Sparkles } from "lucide-react";
 import { useCanvasKey } from "@/lib/user-settings";
 import { useUserPreferenceKey } from "@/hooks/use-user-preferences";
 import { CanvasTokenModal } from "@/components/canvas-token-modal";
+import {
+  getCanvasKeyConfirmedAt,
+  subscribeCanvasKeyHealth,
+} from "@/lib/canvas-key-health";
+import { isCanvasKeyWarningCurrent } from "@/lib/canvas-key-status";
 
 /** Written by the background alert job when Canvas rejects the stored token. */
 const CANVAS_KEY_STATUS_PREF = "canvas_key_status";
@@ -16,10 +22,15 @@ interface CanvasKeyStatus {
 export function CanvasKeyBanner() {
   const { data: key, isLoading } = useCanvasKey();
   const { value: status } = useUserPreferenceKey<CanvasKeyStatus>(CANVAS_KEY_STATUS_PREF, {});
+  const confirmedAt = useSyncExternalStore(
+    subscribeCanvasKeyHealth,
+    getCanvasKeyConfirmedAt,
+    () => 0,
+  );
 
   if (isLoading) return null;
 
-  if (key && status?.invalid) {
+  if (key && status?.invalid && isCanvasKeyWarningCurrent(status.at, confirmedAt)) {
     return (
       <div className="glass-panel-strong mb-4 flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-start gap-3">

@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { getCoursesFn, type CourseSummary } from "@/lib/canvas.functions";
 import { useClassSchedule } from "@/lib/user-class-schedule";
 import { useNicknames } from "@/lib/nicknames";
-import { displayCourseName } from "@/lib/course-display";
+import { displayCourseName, formatCleanTitle } from "@/lib/course-display";
 import {
   computeGpa,
   DEFAULT_SCALE,
@@ -44,7 +44,12 @@ function useGpa(): {
     const creditsMap: Record<number, number> = {};
 
     for (const c of courses.data) {
-      const display = displayCourseName(c.name, c.course_code);
+      const customName = nicknames.data?.find(
+        (nickname) => nickname.canvas_course_id === c.id,
+      )?.custom_name;
+      const display = customName
+        ? formatCleanTitle(customName)
+        : displayCourseName(c.name, c.course_code);
       // Match by schedule canvas_course_id first, then title/nickname, then code.
       const scheduleMatch = schedule.data?.find(
         (s) =>

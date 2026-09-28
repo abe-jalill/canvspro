@@ -35,7 +35,6 @@ export function brokeredPreviewStorage() {
     new Promise((resolve) => {
       const requestId = newId();
       let done = false;
-      let timer: ReturnType<typeof setTimeout>;
       const finish = (r: { ok: boolean; value?: string | null } | null) => {
         if (done) return;
         done = true;
@@ -49,11 +48,13 @@ export function brokeredPreviewStorage() {
         if (d && d.type === RESULT && d.requestId === requestId) finish(d);
       };
       window.addEventListener('message', onMessage);
+      // Start the timeout before posting. An unusually fast broker response
+      // must never reach finish() before the timer has been initialized.
+      const timer = setTimeout(() => finish(null), TIMEOUT);
       const msg: Record<string, unknown> = { type, requestId, projectId, key };
       if (value !== undefined) msg['value'] = value;
       // targetOrigin per trusted editor origin, so a session token never reaches an arbitrary embedder.
       for (const origin of editorOrigins) window.parent.postMessage(msg, origin);
-      timer = setTimeout(() => finish(null), TIMEOUT);
     });
 
   // The editor may not be listening yet at the first getItem, so retry once.
