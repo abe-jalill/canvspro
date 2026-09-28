@@ -14,7 +14,6 @@ import { displayCourseName } from "@/lib/course-display";
 import { useLocalSet, COMPLETED_ASSIGNMENTS_KEY } from "@/lib/local-state";
 import {
   Search,
-  CalendarPlus,
   Sparkles,
   Plus,
   Trash2,
@@ -29,7 +28,13 @@ import {
 } from "@/lib/custom-assignments";
 import { CompleteToggle } from "@/components/complete-toggle";
 import { getCountdown, urgencyTextClass, urgencyAccentClass } from "@/lib/countdown";
-import { buildIcs, downloadIcs, safeFilename } from "@/lib/ics";
+import { AddToCalendarButton as SharedCalBtn } from "@/components/add-to-calendar-button";
+const AddToCalendarButton = ({ assignment }: { assignment: AssignmentItem }) => (
+  <SharedCalBtn
+    assignment={assignment}
+    className="glass-hover flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-glass-border text-muted-foreground hover:text-foreground"
+  />
+);
 import { useCourseHighlight, validateCourseSearch } from "@/lib/course-highlight";
 import { buildPriorityList, describePriorityList } from "@/lib/priority";
 import { useAssignmentMetaMap } from "@/hooks/use-assignment-meta";
@@ -772,34 +777,6 @@ function AssignmentsPage() {
   );
 }
 
-function AddToCalendarButton({ assignment }: { assignment: AssignmentItem }) {
-  const onClick = () => {
-    if (!assignment.due_at) return;
-    const start = new Date(assignment.due_at);
-    const ics = buildIcs({
-      uid: `canvas-assignment-${assignment.id}@lovable`,
-      title: `${assignment.name} (${displayCourseName(
-        assignment.course_name,
-        assignment.course_code,
-      )})`,
-      description: `Assignment due on Canvas.`,
-      url: assignment.html_url,
-      start,
-    });
-    downloadIcs(`${safeFilename(assignment.name)}.ics`, ics);
-  };
-  return (
-    <button
-      onClick={onClick}
-      aria-label={`Add ${assignment.name} to calendar`}
-      title="Add to calendar (.ics)"
-      className="glass-hover flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-glass-border text-muted-foreground hover:text-foreground"
-    >
-      <CalendarPlus className="h-4 w-4" />
-    </button>
-  );
-}
-
 function AddAssignmentForm({
   courseId,
   courseLabel,
@@ -942,4 +919,9 @@ function AddAssignmentForm({
       </div>
     </form>
   );
+}
+
+function formatGrade(score: number | null | undefined, grade: string | null | undefined) {
+  if (typeof score === "number" && Number.isFinite(score)) return `${score.toFixed(1)}%`;
+  return grade || "—";
 }

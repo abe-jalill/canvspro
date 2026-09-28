@@ -20,9 +20,9 @@ import {
   DISMISSED_ANNOUNCEMENTS_KEY,
   COMPLETED_ASSIGNMENTS_KEY,
 } from "@/lib/local-state";
-import { Check, X, CalendarPlus, FileText, ChevronDown } from "lucide-react";
+import { Check, X, FileText, ChevronDown } from "lucide-react";
 import { getCountdown, urgencyTextClass, urgencyAccentClass } from "@/lib/countdown";
-import { buildIcs, downloadIcs, safeFilename } from "@/lib/ics";
+import { AddToCalendarButton } from "@/components/add-to-calendar-button";
 import { SyllabusModal } from "@/components/syllabus-modal";
 import { DigestCard } from "@/components/digest-card";
 import { WorkloadHeatmap } from "@/components/workload-heatmap";
@@ -509,26 +509,12 @@ function DismissButton({
 }
 
 function IcsButton({ assignment }: { assignment: AssignmentItem }) {
-  const onClick = () => {
-    if (!assignment.due_at) return;
-    const ics = buildIcs({
-      uid: `canvas-assignment-${assignment.id}@lovable`,
-      title: `${assignment.name} (${displayCourseName(assignment.course_name, assignment.course_code)})`,
-      description: "Assignment due on Canvas.",
-      url: assignment.html_url,
-      start: new Date(assignment.due_at),
-    });
-    downloadIcs(`${safeFilename(assignment.name)}.ics`, ics);
-  };
   return (
-    <button
-      onClick={onClick}
-      aria-label={`Add ${assignment.name} to calendar`}
-      title="Add to calendar (.ics)"
+    <AddToCalendarButton
+      assignment={assignment}
+      iconClassName="h-3.5 w-3.5"
       className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-foreground/20 text-muted-foreground transition-colors hover:border-foreground/50 hover:text-foreground"
-    >
-      <CalendarPlus className="h-3.5 w-3.5" />
-    </button>
+    />
   );
 }
 
