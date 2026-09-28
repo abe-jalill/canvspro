@@ -5,6 +5,27 @@
 
 @custom-variant dark (&:is(.dark *));
 
+.skip-link {
+  position: fixed;
+  top: max(0.75rem, env(safe-area-inset-top, 0px));
+  left: 0.75rem;
+  z-index: 100;
+  transform: translateY(calc(-100% - 2rem));
+  border-radius: 0.75rem;
+  background: hsl(var(--foreground));
+  color: hsl(var(--background));
+  padding: 0.7rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: transform 150ms ease-out;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
 /*
  * Liquid Glass — Apple-inspired deep navy design system.
  * Rich navy background with translucent lighter-navy glass panels.

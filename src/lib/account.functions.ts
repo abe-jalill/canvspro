@@ -29,6 +29,7 @@ export const deleteMyAccount = createServerFn({ method: "POST" })
       "push_subscriptions",
       "subscriptions",
       "user_assignment_meta",
+      "user_activity_daily",
       "user_preferences",
       "user_settings",
     ] as const;

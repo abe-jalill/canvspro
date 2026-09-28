@@ -27,3 +27,8 @@ test("both authentication forms check agreement before authenticating", () => {
     assert.match(source, /<LegalConsent checked=\{legalAccepted\}/);
   }
 });
+
+test("account deletion explicitly includes account-linked usage history", () => {
+  const source = readFileSync(new URL("../src/lib/account.functions.ts", import.meta.url), "utf8");
+  assert.match(source, /"user_activity_daily"/);
+});

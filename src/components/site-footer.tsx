@@ -24,8 +24,14 @@ export function SiteFooter() {
             Privacy Policy
           </Link>
           <Link to="/terms" className="transition-colors hover:text-foreground">
-            Terms of Service
+            Terms of Use
           </Link>
+          <a
+            href="mailto:support@canvaspro.app?subject=Accessibility%20help"
+            className="transition-colors hover:text-foreground"
+          >
+            Accessibility help
+          </a>
           <a
             href="https://forms.gle/7bttezmTW3ji3zFU9"
             target="_blank"

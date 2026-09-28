@@ -107,6 +107,9 @@ function RootShell({ children }: { children: ReactNode }) {
         <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
       </head>
       <body>
+        <a href="#main-content" className="skip-link">
+          Skip to main content
+        </a>
         {children}
         <Scripts />
       </body>
@@ -194,7 +197,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <div className="site-shell">
-          <div className="site-content">
+          <div id="main-content" tabIndex={-1} className="site-content outline-none">
             <Outlet />
           </div>
           {showFooter && <SiteFooter />}
