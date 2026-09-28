@@ -575,11 +575,16 @@
 
 /* Dashboard hero: a shared soft light source across the greeting and three cards. */
 .dashboard-hero {
-  border: 1px solid rgb(255 255 255 / 0.12);
+  --hero-hue: var(--palette-hue, 148);
+  --hero-saturation: var(--palette-saturation, 34%);
+  border: 1px solid hsl(var(--primary) / 0.28);
   background:
-    radial-gradient(ellipse 42% 85% at 23% 47%, hsl(var(--primary) / 0.15), transparent 75%),
-    radial-gradient(ellipse 50% 95% at 92% -10%, hsl(var(--primary) / 0.1), transparent 75%),
-    linear-gradient(128deg, #25262a 0%, #202126 52%, #191a1e 100%);
+    radial-gradient(ellipse 55% 95% at 23% 47%, hsl(var(--primary) / 0.24), transparent 75%),
+    radial-gradient(ellipse 50% 95% at 92% -10%, hsl(var(--primary) / 0.18), transparent 75%),
+    linear-gradient(128deg,
+      hsl(var(--hero-hue) var(--hero-saturation) 19%) 0%,
+      hsl(var(--hero-hue) var(--hero-saturation) 13%) 52%,
+      hsl(var(--hero-hue) var(--hero-saturation) 8%) 100%);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.1),
     0 28px 60px -30px rgb(0 0 0 / 0.7),
@@ -600,7 +605,7 @@
   position: absolute;
   inset: -42px -20px -30px -28px;
   pointer-events: none;
-  background: radial-gradient(ellipse at 35% 42%, hsl(var(--primary) / 0.18), transparent 68%);
+  background: radial-gradient(ellipse at 35% 42%, hsl(var(--primary) / 0.24), transparent 68%);
   filter: blur(18px);
 }
 
@@ -611,8 +616,8 @@
 }
 
 .dashboard-hero__cta {
-  border: 1px solid rgb(255 255 255 / 0.4);
-  background: linear-gradient(145deg, rgb(255 255 255 / 0.13), rgb(255 255 255 / 0.045));
+  border: 1px solid hsl(var(--primary) / 0.5);
+  background: linear-gradient(145deg, hsl(var(--primary) / 0.23), hsl(var(--primary) / 0.08));
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.19),
     0 5px 14px rgb(0 0 0 / 0.18),
@@ -624,8 +629,8 @@
 }
 
 .dashboard-hero__stat-shell {
-  border: 1px solid rgb(255 255 255 / 0.11);
-  background: linear-gradient(145deg, rgb(255 255 255 / 0.1), rgb(255 255 255 / 0.025) 55%);
+  border: 1px solid hsl(var(--primary) / 0.2);
+  background: linear-gradient(145deg, hsl(var(--primary) / 0.13), hsl(var(--primary) / 0.035) 55%);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.06),
     0 12px 28px rgb(0 0 0 / 0.18);
@@ -634,10 +639,13 @@
 .dashboard-hero__stat-card {
   isolation: isolate;
   overflow: hidden;
-  border: 1px solid rgb(255 255 255 / 0.15);
+  border: 1px solid hsl(var(--primary) / 0.3);
   background:
-    radial-gradient(ellipse 85% 100% at 8% 0%, hsl(var(--primary) / 0.16), transparent 72%),
-    linear-gradient(145deg, #303239 0%, #25262c 52%, #1e1f24 100%);
+    radial-gradient(ellipse 85% 100% at 8% 0%, hsl(var(--primary) / 0.22), transparent 72%),
+    linear-gradient(145deg,
+      hsl(var(--hero-hue) var(--hero-saturation) 23%) 0%,
+      hsl(var(--hero-hue) var(--hero-saturation) 16%) 52%,
+      hsl(var(--hero-hue) var(--hero-saturation) 11%) 100%);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.13),
     0 11px 21px -10px rgb(0 0 0 / 0.5),
@@ -672,14 +680,14 @@
 
 @media (hover: hover) {
   .dashboard-hero__cta:hover {
-    border-color: rgb(255 255 255 / 0.65);
+    border-color: hsl(var(--primary) / 0.75);
     box-shadow:
       inset 0 1px 0 rgb(255 255 255 / 0.25),
       0 7px 20px rgb(0 0 0 / 0.24);
   }
 
   .dashboard-hero__stat-card:hover {
-    border-color: rgb(255 255 255 / 0.3);
+    border-color: hsl(var(--primary) / 0.5);
     box-shadow:
       inset 0 1px 0 rgb(255 255 255 / 0.2),
       0 16px 26px -10px rgb(0 0 0 / 0.54),
@@ -694,11 +702,13 @@
 }
 
 .light .dashboard-hero {
-  border-color: rgb(31 47 69 / 0.12);
+  border-color: hsl(var(--primary) / 0.22);
   background:
     radial-gradient(ellipse 50% 90% at 20% 44%, hsl(var(--primary) / 0.2), transparent 76%),
     radial-gradient(ellipse 50% 90% at 92% -10%, hsl(var(--primary) / 0.16), transparent 74%),
-    linear-gradient(130deg, #f8f9fb, #e9edf3);
+    linear-gradient(130deg,
+      hsl(var(--hero-hue) var(--hero-saturation) 97%),
+      hsl(var(--hero-hue) var(--hero-saturation) 88%));
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.9),
     0 24px 56px -30px rgb(28 45 72 / 0.28);
@@ -714,26 +724,28 @@
 }
 
 .light .dashboard-hero__cta {
-  border-color: rgb(37 55 80 / 0.28);
-  background: linear-gradient(145deg, rgb(255 255 255 / 0.95), rgb(255 255 255 / 0.55));
+  border-color: hsl(var(--primary) / 0.35);
+  background: linear-gradient(145deg, rgb(255 255 255 / 0.85), hsl(var(--primary) / 0.1));
   box-shadow:
     inset 0 1px 0 white,
     0 5px 14px rgb(34 54 82 / 0.11);
 }
 
 .light .dashboard-hero__stat-shell {
-  border-color: rgb(31 47 69 / 0.1);
-  background: linear-gradient(145deg, rgb(255 255 255 / 0.68), rgb(220 229 241 / 0.34));
+  border-color: hsl(var(--primary) / 0.16);
+  background: linear-gradient(145deg, rgb(255 255 255 / 0.68), hsl(var(--primary) / 0.09));
   box-shadow:
     inset 0 1px 0 white,
     0 12px 28px rgb(31 47 69 / 0.1);
 }
 
 .light .dashboard-hero__stat-card {
-  border-color: rgb(31 47 69 / 0.13);
+  border-color: hsl(var(--primary) / 0.23);
   background:
     radial-gradient(ellipse 85% 100% at 8% 0%, hsl(var(--primary) / 0.12), transparent 72%),
-    linear-gradient(145deg, #f4f7fb, #e7ecf4);
+    linear-gradient(145deg,
+      hsl(var(--hero-hue) var(--hero-saturation) 98%),
+      hsl(var(--hero-hue) var(--hero-saturation) 92%));
   box-shadow:
     inset 0 1px 0 white,
     0 10px 20px -10px rgb(31 47 69 / 0.25);
@@ -750,14 +762,14 @@
 
 @media (hover: hover) {
   .light .dashboard-hero__cta:hover {
-    border-color: rgb(37 55 80 / 0.42);
+    border-color: hsl(var(--primary) / 0.55);
     box-shadow:
       inset 0 1px 0 white,
       0 8px 20px rgb(34 54 82 / 0.15);
   }
 
   .light .dashboard-hero__stat-card:hover {
-    border-color: rgb(31 47 69 / 0.23);
+    border-color: hsl(var(--primary) / 0.4);
     box-shadow:
       inset 0 1px 0 white,
       0 15px 28px -10px rgb(31 47 69 / 0.29);
