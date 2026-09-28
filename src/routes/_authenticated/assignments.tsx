@@ -920,3 +920,8 @@ function AddAssignmentForm({
     </form>
   );
 }
+
+function formatGrade(score: number | null | undefined, grade: string | null | undefined) {
+  if (typeof score === "number" && Number.isFinite(score)) return `${score.toFixed(1)}%`;
+  return grade || "—";
+}
