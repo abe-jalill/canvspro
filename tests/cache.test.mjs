@@ -5,9 +5,16 @@ import { createRequestCache } from "../src/lib/request-cache.ts";
 import { restoreQueryCache } from "../src/lib/query-persist.ts";
 
 test("requests still deduplicate after more than two seconds in flight", async () => {
-  let time = 0, calls = 0, finish;
+  let time = 0,
+    calls = 0,
+    finish;
   const cache = createRequestCache(2000, () => time);
-  const load = () => { calls++; return new Promise((resolve) => { finish = resolve; }); };
+  const load = () => {
+    calls++;
+    return new Promise((resolve) => {
+      finish = resolve;
+    });
+  };
   const first = cache.get("a", load);
   await Promise.resolve();
   time = 10000;
@@ -28,7 +35,11 @@ test("account changes and explicit refresh do not reuse an old request", async (
 
 test("a failed request can be retried immediately", async () => {
   const cache = createRequestCache();
-  await assert.rejects(cache.get("a", async () => { throw new Error("offline"); }));
+  await assert.rejects(
+    cache.get("a", async () => {
+      throw new Error("offline");
+    }),
+  );
   assert.equal(await cache.get("a", async () => "online"), "online");
 });
 
@@ -37,7 +48,7 @@ test("cache restore is synchronous, scoped, expiring, and excludes auth/preferen
   source.setQueryData(["canvas", "courses"], [{ id: 42 }]);
   source.setQueryData(["auth-user"], "a");
   source.setQueryData(["user-preferences", "a"], { stale: true });
-  const saved = { version: 5, userId: "a", savedAt: Date.now(), state: dehydrate(source) };
+  const saved = { version: 6, userId: "a", savedAt: Date.now(), state: dehydrate(source) };
   let raw = JSON.stringify(saved);
   globalThis.window = {};
   globalThis.localStorage = { getItem: () => raw };
@@ -49,7 +60,7 @@ test("cache restore is synchronous, scoped, expiring, and excludes auth/preferen
   const wrongUser = new QueryClient();
   restoreQueryCache(wrongUser, "b");
   assert.equal(wrongUser.getQueryCache().getAll().length, 0);
-  raw = JSON.stringify({ ...saved, version: 4 });
+  raw = JSON.stringify({ ...saved, version: 5 });
   const oldVersion = new QueryClient();
   restoreQueryCache(oldVersion, "a");
   assert.equal(oldVersion.getQueryCache().getAll().length, 0);
@@ -62,6 +73,11 @@ test("cache restore is synchronous, scoped, expiring, and excludes auth/preferen
   raw = JSON.stringify({ buster: "v2", timestamp: Date.now(), clientState: saved.state });
   restoreQueryCache(expired, "a");
   assert.equal(expired.getQueryData(["canvas", "courses"]), undefined);
-  source.clear(); restored.clear(); wrongUser.clear(); oldVersion.clear(); expired.clear();
-  delete globalThis.window; delete globalThis.localStorage;
+  source.clear();
+  restored.clear();
+  wrongUser.clear();
+  oldVersion.clear();
+  expired.clear();
+  delete globalThis.window;
+  delete globalThis.localStorage;
 });

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, queryOptions } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   getAllAssignmentsFn,
   getCoursesFn,
@@ -34,12 +34,17 @@ import { useCourseHighlight, validateCourseSearch } from "@/lib/course-highlight
 import { buildPriorityList, describePriorityList } from "@/lib/priority";
 import { useAssignmentMetaMap } from "@/hooks/use-assignment-meta";
 import { isAssignmentComplete } from "@/lib/assignment-window";
+import { htmlToText } from "@/lib/html-text";
 
 import {
   coursesQueryOptions as coursesQO,
   assignmentsQueryOptions as assignmentsQO,
 } from "@/lib/canvas.queries";
-import { AssignmentRowSkeleton, SkeletonBlock } from "@/components/skeletons/dashboard-skeletons";
+import {
+  AssignmentGroupSkeleton,
+  AssignmentRowSkeleton,
+  SkeletonBlock,
+} from "@/components/skeletons/dashboard-skeletons";
 
 const LEGACY_CLASS_LAYOUT_ENABLED = false;
 
@@ -62,7 +67,10 @@ export const Route = createFileRoute("/_authenticated/assignments")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  validateSearch: validateCourseSearch,
+  validateSearch: (search: { course?: unknown; assignment?: unknown }) => ({
+    ...validateCourseSearch(search),
+    ...(typeof search.assignment === "string" ? { assignment: search.assignment } : {}),
+  }),
   loader: ({ context }) => {
     if (context?.queryClient) {
       void context.queryClient.ensureQueryData(assignmentsQO);
@@ -206,6 +214,7 @@ function AssignmentsPage() {
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
   const highlight = useCourseHighlight();
   const custom = useCustomAssignments();
+  const routeSearch = Route.useSearch();
 
   const courseOptions = useMemo(
     () =>
@@ -227,6 +236,21 @@ function AssignmentsPage() {
       ...custom.list.map((c) => customToAssignmentItem(c, courseById.get(c.course_id))),
     ];
   }, [data, custom.list, courses.data]);
+  const selectedAssignment = routeSearch.assignment
+    ? allAssignments.find((assignment) => String(assignment.id) === routeSearch.assignment)
+    : undefined;
+
+  useEffect(() => {
+    if (!selectedAssignment) return;
+    const timer = window.setTimeout(
+      () =>
+        document
+          .getElementById("selected-assignment-description")
+          ?.scrollIntoView({ behavior: "smooth", block: "center" }),
+      120,
+    );
+    return () => window.clearTimeout(timer);
+  }, [selectedAssignment]);
 
   const groups: ClassGroup[] = useMemo(() => {
     const map = new Map<number, ClassGroup>();
@@ -416,6 +440,37 @@ function AssignmentsPage() {
         </span>
       </div>
 
+      {selectedAssignment && (
+        <section
+          id="selected-assignment-description"
+          className="glass-panel-strong scroll-mt-6 rounded-[1.75rem] border border-primary/25 p-5 sm:p-6"
+        >
+          <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-primary">
+            Assignment description
+          </p>
+          <h2 className="mt-2 text-xl font-semibold tracking-tight sm:text-2xl">
+            {selectedAssignment.name}
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {displayCourseName(selectedAssignment.course_name, selectedAssignment.course_code)}
+          </p>
+          <p className="mt-5 whitespace-pre-line text-sm leading-6 text-foreground/80">
+            {htmlToText(selectedAssignment.description ?? "") ||
+              "Canvas does not provide a description for this assignment."}
+          </p>
+          {selectedAssignment.html_url && (
+            <a
+              href={selectedAssignment.html_url}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-5 inline-flex text-xs font-medium text-primary hover:opacity-80"
+            >
+              Open assignment in Canvas
+            </a>
+          )}
+        </section>
+      )}
+
       <PriorityAssignmentsCard
         groups={priorityGroups}
         loading={isLoading}
@@ -524,6 +579,16 @@ function AssignmentsPage() {
                           <p className="mt-1 line-clamp-2 whitespace-pre-wrap text-xs text-foreground/70">
                             {notes}
                           </p>
+                        )}
+                        {a.description && (
+                          <details className="mt-2 text-xs">
+                            <summary className="cursor-pointer font-medium text-muted-foreground hover:text-foreground">
+                              Assignment description
+                            </summary>
+                            <p className="mt-2 whitespace-pre-line leading-5 text-foreground/75">
+                              {htmlToText(a.description)}
+                            </p>
+                          </details>
                         )}
                       </div>
                       <div className="flex items-center justify-between gap-2 pl-8 sm:justify-end sm:pl-0">

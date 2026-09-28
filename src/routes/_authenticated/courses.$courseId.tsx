@@ -15,15 +15,9 @@ import { displayCourseNameForCourse } from "@/lib/course-display";
 import { getGradeColor, getGradeBg, letterFromScore } from "@/lib/grade-color";
 import { useClassSchedule } from "@/lib/user-class-schedule";
 import { DAY_LABELS } from "@/lib/class-schedule";
-import {
-  ArrowLeft,
-  Calendar,
-  Clock,
-  ExternalLink,
-  CheckCircle2,
-  CalendarPlus,
-} from "lucide-react";
+import { ArrowLeft, Calendar, Clock, ExternalLink, CheckCircle2, CalendarPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
 import { COMPLETED_ASSIGNMENTS_KEY, useLocalSet } from "@/lib/local-state";
 import { isAssignmentComplete } from "@/lib/assignment-window";
 
@@ -41,7 +35,10 @@ export const Route = createFileRoute("/_authenticated/courses/$courseId")({
   head: () => ({
     meta: [
       { title: "Class Details — CanvasPro" },
-      { name: "description", content: "Individual course overview, grades, assignments, and announcements." },
+      {
+        name: "description",
+        content: "Individual course overview, grades, assignments, and announcements.",
+      },
     ],
   }),
   loader: ({ context }) => {
@@ -116,7 +113,9 @@ function CourseDetailPage() {
   const classSchedule = useClassSchedule();
   const { has: isCompleted } = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
 
-  const [activeTab, setActiveTab] = useState<"all" | "upcoming" | "graded" | "announcements">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "upcoming" | "graded" | "announcements">(
+    "all",
+  );
   const [showAllUpcoming, setShowAllUpcoming] = useState(false);
   const [showAllAnnouncements, setShowAllAnnouncements] = useState(false);
 
@@ -141,11 +140,14 @@ function CourseDetailPage() {
     // this page (nickname / cleaned title), so an entry that is identical to
     // the class name the user sees always matches.
     const norm = (v: string) =>
-      v.trim().toLowerCase().replace(/\s+/g, " ").replace(/[^a-z0-9 ]/g, "").trim();
+      v
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, " ")
+        .replace(/[^a-z0-9 ]/g, "")
+        .trim();
     const candidates = new Set(
-      [course.name, course.course_code, courseName]
-        .map(norm)
-        .filter((v) => v.length > 0),
+      [course.name, course.course_code, courseName].map(norm).filter((v) => v.length > 0),
     );
     const matches = (classSchedule.data ?? []).filter((s) => {
       const titles = [s.title, s.displayName].map(norm).filter((v) => v.length > 0);
@@ -239,7 +241,10 @@ function CourseDetailPage() {
   const courseAnnouncements = useMemo(() => {
     if (!course || !announcementsQueryState.data) return [];
     return announcementsQueryState.data
-      .filter((item: AnnouncementItem) => item.course_id === course.id || item.context_code === `course_${course.id}`)
+      .filter(
+        (item: AnnouncementItem) =>
+          item.course_id === course.id || item.context_code === `course_${course.id}`,
+      )
       .sort((a, b) => new Date(b.posted_at).getTime() - new Date(a.posted_at).getTime());
   }, [course, announcementsQueryState.data]);
 
@@ -382,10 +387,7 @@ function CourseDetailPage() {
                   <span className="truncate">{matchingSchedule.text}</span>
                 </>
               ) : (
-                <Link
-                  to="/class-schedule"
-                  className="story-link inline-flex items-center gap-1.5"
-                >
+                <Link to="/class-schedule" className="story-link inline-flex items-center gap-1.5">
                   <CalendarPlus className="h-4 w-4 shrink-0" />
                   <span>Enter class time/days</span>
                 </Link>
@@ -480,9 +482,7 @@ function CourseDetailPage() {
       {/* Section 1: Upcoming Assignments */}
       {(activeTab === "all" || activeTab === "upcoming") && (
         <section className="space-y-3">
-          <h2 className="px-1 text-xs uppercase tracking-widest text-muted-foreground">
-            Upcoming
-          </h2>
+          <h2 className="px-1 text-xs uppercase tracking-widest text-muted-foreground">Upcoming</h2>
           {(() => {
             const shown = showAllUpcoming ? upcomingAssignments : upcomingWithinWindow;
             const hiddenCount = upcomingAssignments.length - upcomingWithinWindow.length;
@@ -521,52 +521,51 @@ function CourseDetailPage() {
                   </p>
                 )}
                 {shown.map((a) => {
-                const dueDate = a.due_at ? new Date(a.due_at) : null;
-                const formattedDate = dueDate
-                  ? dueDate.toLocaleDateString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                      hour: "numeric",
-                      minute: "2-digit",
-                    })
-                  : "No due date";
+                  const dueDate = a.due_at ? new Date(a.due_at) : null;
+                  const formattedDate = dueDate
+                    ? dueDate.toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })
+                    : "No due date";
 
-                return (
-                  <GlassCard key={a.id} className="hover-scale p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-foreground">
-                          {a.name}
-                        </p>
+                  return (
+                    <GlassCard key={a.id} className="hover-scale p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-foreground">{a.name}</p>
+                          <AssignmentDescriptionLink assignmentId={a.id} className="mt-1" />
 
-                        <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                          <span className="inline-flex items-center gap-1">
-                            <Calendar className="h-3.5 w-3.5" />
-                            {formattedDate}
-                          </span>
-                          {a.points_possible != null && (
-                            <span className="glass-inset rounded-full px-2 py-0.5">
-                              {a.points_possible} pts
+                          <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                            <span className="inline-flex items-center gap-1">
+                              <Calendar className="h-3.5 w-3.5" />
+                              {formattedDate}
                             </span>
-                          )}
+                            {a.points_possible != null && (
+                              <span className="glass-inset rounded-full px-2 py-0.5">
+                                {a.points_possible} pts
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      </div>
 
-                      {a.html_url && (
-                        <a
-                          href={a.html_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="glass-inset inline-flex shrink-0 items-center gap-1 rounded-xl px-3 py-1.5 text-xs text-foreground transition-transform active:scale-95"
-                        >
-                          Open
-                          <ExternalLink className="h-3 w-3" />
-                        </a>
-                      )}
-                    </div>
-                  </GlassCard>
-                );
-              })}
+                        {a.html_url && (
+                          <a
+                            href={a.html_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="glass-inset inline-flex shrink-0 items-center gap-1 rounded-xl px-3 py-1.5 text-xs text-foreground transition-transform active:scale-95"
+                          >
+                            Open
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        )}
+                      </div>
+                    </GlassCard>
+                  );
+                })}
               </div>
             );
           })()}
@@ -576,9 +575,7 @@ function CourseDetailPage() {
       {/* Section 2: Graded Assignments */}
       {(activeTab === "all" || activeTab === "graded") && (
         <section className="space-y-3">
-          <h2 className="px-1 text-xs uppercase tracking-widest text-muted-foreground">
-            Graded
-          </h2>
+          <h2 className="px-1 text-xs uppercase tracking-widest text-muted-foreground">Graded</h2>
           {gradedAssignments.length === 0 ? (
             <EmptyState
               icon={<CheckCircle2 className="h-5 w-5" />}
@@ -601,10 +598,9 @@ function CourseDetailPage() {
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
                           <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                          <p className="truncate text-sm font-medium text-foreground">
-                            {a.name}
-                          </p>
+                          <p className="truncate text-sm font-medium text-foreground">{a.name}</p>
                         </div>
+                        <AssignmentDescriptionLink assignmentId={a.id} className="mt-1" />
 
                         <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                           {a.submission?.submitted_at && (
@@ -699,46 +695,45 @@ function CourseDetailPage() {
                   </p>
                 )}
                 {shown.map((item) => {
-                const postedDate = new Date(item.posted_at).toLocaleDateString(undefined, {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                });
+                  const postedDate = new Date(item.posted_at).toLocaleDateString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  });
 
-                const cleanBody = item.message
-                  ? item.message.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim()
-                  : "";
+                  const cleanBody = item.message
+                    ? item.message
+                        .replace(/<[^>]*>/g, " ")
+                        .replace(/\s+/g, " ")
+                        .trim()
+                    : "";
 
-                return (
-                  <GlassCard key={item.id} className="p-4">
-                    <div className="mb-1.5 flex items-start justify-between gap-3">
-                      <p className="text-sm font-medium text-foreground">
-                        {item.title}
-                      </p>
-                      <span className="shrink-0 text-xs text-muted-foreground">
-                        {postedDate}
-                      </span>
-                    </div>
+                  return (
+                    <GlassCard key={item.id} className="p-4">
+                      <div className="mb-1.5 flex items-start justify-between gap-3">
+                        <p className="text-sm font-medium text-foreground">{item.title}</p>
+                        <span className="shrink-0 text-xs text-muted-foreground">{postedDate}</span>
+                      </div>
 
-                    {cleanBody && (
-                      <p className="line-clamp-3 text-sm leading-relaxed text-muted-foreground">
-                        {cleanBody}
-                      </p>
-                    )}
-                    {item.html_url && (
-                      <a
-                        href={item.html_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="story-link mt-2.5 inline-flex items-center gap-1 text-xs text-foreground"
-                      >
-                        Read full announcement on Canvas
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
-                    )}
-                  </GlassCard>
-                );
-              })}
+                      {cleanBody && (
+                        <p className="line-clamp-3 text-sm leading-relaxed text-muted-foreground">
+                          {cleanBody}
+                        </p>
+                      )}
+                      {item.html_url && (
+                        <a
+                          href={item.html_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="story-link mt-2.5 inline-flex items-center gap-1 text-xs text-foreground"
+                        >
+                          Read full announcement on Canvas
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      )}
+                    </GlassCard>
+                  );
+                })}
               </div>
             );
           })()}

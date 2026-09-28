@@ -44,6 +44,7 @@ interface CanvasCourse {
 interface CanvasAssignment {
   id: number;
   name: string;
+  description?: string | null;
   due_at: string | null;
   html_url: string;
   points_possible: number | null;
@@ -315,7 +316,14 @@ async function handleAssignments(creds: Creds) {
         `/courses/${c.id}/assignments?include[]=submission&override_assignment_dates=true&per_page=100&order_by=due_at`,
       );
       return assignments.map((a) => ({
-        ...a,
+        id: a.id,
+        name: a.name,
+        description: a.description ?? null,
+        due_at: a.due_at,
+        html_url: a.html_url,
+        points_possible: a.points_possible,
+        course_id: a.course_id,
+        submission: a.submission,
         course_name: c.name,
         course_code: c.course_code,
       }));
@@ -378,6 +386,7 @@ async function handleAssignments(creds: Creds) {
       list.push({
         id,
         name: p.title ?? p.name ?? "Untitled",
+        description: null,
         due_at: p.due_at ?? p.todo_date ?? it.plannable_date ?? null,
         html_url: it.html_url
           ? `https://${creds.domain}${it.html_url.startsWith("/") ? "" : "/"}${it.html_url}`

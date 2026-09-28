@@ -33,6 +33,7 @@ import {
 } from "@/lib/study-session";
 
 import { assignmentsQueryOptions as assignmentsQO } from "@/lib/canvas.queries";
+import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
 
 const PRESETS = [15, 25, 45, 60];
 
@@ -354,6 +355,12 @@ function StudySessionPage() {
                       )}
                     </span>
                   </button>
+                  {item.source === "canvas" && (
+                    <AssignmentDescriptionLink
+                      assignmentId={Number(item.id.replace("canvas:", ""))}
+                      className="ml-11 mt-1"
+                    />
+                  )}
                 </li>
               ))}
             </ol>
@@ -517,6 +524,10 @@ function StudySessionPage() {
                           </span>
                         )}
                       </button>
+                      <AssignmentDescriptionLink
+                        assignmentId={assignment.id}
+                        className="ml-11 mt-1"
+                      />
                     </li>
                   );
                 })}

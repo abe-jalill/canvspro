@@ -10,6 +10,7 @@ import {
 } from "@/lib/canvas.functions";
 import { GlassCard, Skeleton, ErrorState, EmptyState } from "@/components/glass-card";
 import { cn } from "@/lib/utils";
+import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
 import { htmlToText } from "@/lib/html-text";
 import type { WidgetId } from "@/lib/dashboard-layout";
 import { displayCourseName } from "@/lib/course-display";
@@ -171,9 +172,10 @@ function UpcomingWidget() {
   const [expanded, setExpanded] = useState<number[]>([]);
 
   const courseById = new Map((courses.data ?? []).map((course) => [course.id, course]));
-  const inWindow = [...(data ?? []), ...custom.list.map((item) => customToAssignmentItem(item, courseById.get(item.course_id)))].filter((a) =>
-    isInFocusWindow(a, "7", Date.now(), completed.has(a.id)),
-  );
+  const inWindow = [
+    ...(data ?? []),
+    ...custom.list.map((item) => customToAssignmentItem(item, courseById.get(item.course_id))),
+  ].filter((a) => isInFocusWindow(a, "7", Date.now(), completed.has(a.id)));
 
   // Group by course, keyed by course_id. We show one section per active
   // course (even if empty) so the widget makes per-class expectations clear.
@@ -302,6 +304,7 @@ function UpcomingWidget() {
                             >
                               {a.name}
                             </p>
+                            <AssignmentDescriptionLink assignmentId={a.id} />
                           </div>
                           <div className="flex shrink-0 items-center gap-2">
                             <div className="text-right">
@@ -580,6 +583,7 @@ function FocusWidget() {
                   <p className="mt-0.5 truncate text-xs text-muted-foreground">
                     {displayCourseName(a.course_name, a.course_code)}
                   </p>
+                  <AssignmentDescriptionLink assignmentId={a.id} className="mt-1" />
                 </div>
                 <span
                   className={cn(

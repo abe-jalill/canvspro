@@ -14,6 +14,7 @@ import {
   assignmentsQueryOptions as assignmentsQO,
 } from "@/lib/canvas.queries";
 import { SkeletonBlock, WorkloadHeatmapSkeleton } from "@/components/skeletons/dashboard-skeletons";
+import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
 
 export const Route = createFileRoute("/_authenticated/schedule")({
   head: () => ({
@@ -45,6 +46,7 @@ interface AgendaItem {
   when: Date;
   context?: string;
   kind: "event" | "assignment";
+  assignmentId?: number;
 }
 
 type Range = "week" | "semester";
@@ -82,6 +84,7 @@ function SchedulePage() {
       when: new Date(a.due_at),
       context: displayCourseName(a.course_name, a.course_code),
       kind: "assignment",
+      assignmentId: a.id,
     });
   });
 
@@ -192,6 +195,12 @@ function SchedulePage() {
                           <p className="mt-0.5 truncate text-xs text-muted-foreground">
                             {it.context}
                           </p>
+                        )}
+                        {it.assignmentId != null && (
+                          <AssignmentDescriptionLink
+                            assignmentId={it.assignmentId}
+                            className="mt-1"
+                          />
                         )}
                       </div>
                       <div className="text-right">

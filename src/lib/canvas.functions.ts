@@ -7,7 +7,10 @@ import { getUserScope } from "@/lib/user-scope";
 import { createRequestCache } from "@/lib/request-cache";
 import { isAssignmentComplete } from "@/lib/assignment-window";
 import { friendlyCanvasTransportError, invokeCanvasEdge } from "@/lib/canvas-edge-client";
-import { canvasBundleHasSuccessfulSection, friendlyCanvasSectionError } from "@/lib/canvas-key-status";
+import {
+  canvasBundleHasSuccessfulSection,
+  friendlyCanvasSectionError,
+} from "@/lib/canvas-key-status";
 
 /**
  * Right after sign-in the session can still be settling. Waiting for it (and
@@ -75,6 +78,7 @@ export interface CourseSummary {
 export interface AssignmentItem {
   id: number;
   name: string;
+  description?: string | null;
   due_at: string | null;
   html_url: string;
   points_possible: number | null;

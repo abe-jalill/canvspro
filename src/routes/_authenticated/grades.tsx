@@ -24,6 +24,7 @@ import {
   assignmentsQueryOptions as assignmentsQO,
 } from "@/lib/canvas.queries";
 import { CourseGradeCardSkeleton } from "@/components/skeletons/dashboard-skeletons";
+import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
 
 const LEGACY_GRADE_LAYOUT_ENABLED = false;
 
@@ -365,7 +366,10 @@ function GradesPage() {
                             key={item.id}
                             className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 border-t border-foreground/[0.07] py-3 first:border-0"
                           >
-                            <p className="truncate text-sm">{item.name}</p>
+                            <div className="min-w-0">
+                              <p className="truncate text-sm">{item.name}</p>
+                              <AssignmentDescriptionLink assignmentId={item.id} className="mt-1" />
+                            </div>
                             <p className="text-sm tabular-nums">
                               <span className="font-semibold">{item.submission?.score ?? "—"}</span>
                               <span className="text-muted-foreground">

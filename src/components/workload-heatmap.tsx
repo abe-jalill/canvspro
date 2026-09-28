@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
+import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
 import type { AssignmentItem } from "@/lib/canvas.functions";
 import { displayCourseName } from "@/lib/course-display";
 
@@ -51,11 +52,7 @@ export function WorkloadHeatmap({ assignments, weeks = 4 }: Props) {
     assignments.forEach((a) => {
       if (!a.due_at) return;
       const d = new Date(a.due_at);
-      const key = new Date(
-        d.getFullYear(),
-        d.getMonth(),
-        d.getDate(),
-      ).toDateString();
+      const key = new Date(d.getFullYear(), d.getMonth(), d.getDate()).toDateString();
       const cell = byKey.get(key);
       if (!cell) return;
       cell.items.push(a);
@@ -75,9 +72,7 @@ export function WorkloadHeatmap({ assignments, weeks = 4 }: Props) {
   return (
     <div>
       <div className="mb-3 flex items-baseline justify-between px-1">
-        <h3 className="text-sm font-semibold tracking-tight">
-          Workload — next {weeks} weeks
-        </h3>
+        <h3 className="text-sm font-semibold tracking-tight">Workload — next {weeks} weeks</h3>
         <span className="text-xs text-muted-foreground">
           {cells.reduce((n, c) => n + c.items.length, 0)} items
         </span>
@@ -108,14 +103,10 @@ export function WorkloadHeatmap({ assignments, weeks = 4 }: Props) {
                   return (
                     <button
                       key={cell.key}
-                      onClick={() =>
-                        setOpen((prev) => (prev === cell.key ? null : cell.key))
-                      }
+                      onClick={() => setOpen((prev) => (prev === cell.key ? null : cell.key))}
                       className={cn(
                         "glass-hover flex aspect-square w-full min-w-0 flex-col items-center justify-center rounded-xl border p-0.5 text-xs transition-all sm:p-1",
-                        isToday
-                          ? "border-white/60 ring-1 ring-white/40"
-                          : "border-glass-border",
+                        isToday ? "border-white/60 ring-1 ring-white/40" : "border-glass-border",
                         open === cell.key && "ring-1 ring-white/50",
                       )}
                       style={{ background: bg }}
@@ -151,15 +142,13 @@ export function WorkloadHeatmap({ assignments, weeks = 4 }: Props) {
                   </p>
                   <ul className="space-y-1.5">
                     {openCell.items.map((a) => (
-                      <li
-                        key={a.id}
-                        className="flex items-baseline justify-between gap-2"
-                      >
+                      <li key={a.id} className="flex items-baseline justify-between gap-2">
                         <div className="min-w-0">
                           <p className="truncate text-xs font-medium">{a.name}</p>
                           <p className="truncate text-[10px] text-muted-foreground">
                             {displayCourseName(a.course_name, a.course_code)}
                           </p>
+                          <AssignmentDescriptionLink assignmentId={a.id} className="mt-0.5" />
                         </div>
                         <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
                           {a.points_possible ?? 0} pt
@@ -173,7 +162,6 @@ export function WorkloadHeatmap({ assignments, weeks = 4 }: Props) {
           );
         })}
       </div>
-
     </div>
   );
 }

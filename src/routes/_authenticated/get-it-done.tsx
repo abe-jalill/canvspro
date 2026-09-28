@@ -20,6 +20,7 @@ import { GlassCard, Skeleton, ErrorState, EmptyState } from "@/components/glass-
 import { CompleteToggle } from "@/components/complete-toggle";
 import { Segmented } from "@/components/segmented";
 import { cn } from "@/lib/utils";
+import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
 import { displayCourseName } from "@/lib/course-display";
 import { useLocalSet, COMPLETED_ASSIGNMENTS_KEY } from "@/lib/local-state";
 import { useAssignmentMetaMap, useSetAssignmentEstimate } from "@/hooks/use-assignment-meta";
@@ -462,6 +463,7 @@ function RecommendationCard({
                   </>
                 )}
               </p>
+              <AssignmentDescriptionLink assignmentId={assignment.id} className="mt-2" />
             </div>
           </div>
           <p className="mt-5 max-w-2xl text-sm leading-relaxed text-foreground/85">
@@ -660,6 +662,7 @@ function PlanRow({
               <span className="opacity-40">·</span>
               <span>{statusLabel(assignment, done)}</span>
             </p>
+            <AssignmentDescriptionLink assignmentId={assignment.id} className="mt-1" />
           </div>
         </div>
       </div>
