@@ -14,7 +14,6 @@ import { displayCourseName } from "@/lib/course-display";
 import { useLocalSet, COMPLETED_ASSIGNMENTS_KEY } from "@/lib/local-state";
 import {
   Search,
-  CalendarPlus,
   Sparkles,
   Plus,
   Trash2,

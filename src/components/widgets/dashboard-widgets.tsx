@@ -20,7 +20,7 @@ import {
   DISMISSED_ANNOUNCEMENTS_KEY,
   COMPLETED_ASSIGNMENTS_KEY,
 } from "@/lib/local-state";
-import { Check, X, CalendarPlus, FileText, ChevronDown } from "lucide-react";
+import { Check, X, FileText, ChevronDown } from "lucide-react";
 import { getCountdown, urgencyTextClass, urgencyAccentClass } from "@/lib/countdown";
 import { AddToCalendarButton } from "@/components/add-to-calendar-button";
 import { SyllabusModal } from "@/components/syllabus-modal";
