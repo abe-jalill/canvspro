@@ -6,7 +6,15 @@ import { getCoursesFn, getAllAssignmentsFn } from "@/lib/canvas.functions";
 import { CANVAS_DATA_GC_MS, CANVAS_DATA_STALE_MS } from "@/lib/query-policy";
 import { GlassCard, Skeleton, ErrorState, EmptyState } from "@/components/glass-card";
 import { displayCourseName } from "@/lib/course-display";
-import { Search, ArrowUp, ArrowDown, Minus, ChevronDown } from "lucide-react";
+import {
+  Search,
+  ArrowUp,
+  ArrowDown,
+  Minus,
+  ChevronDown,
+  BarChart3,
+  TrendingUp,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCourseHighlight, validateCourseSearch } from "@/lib/course-highlight";
 import { useGradeSnapshots, useRecordGradeSnapshots } from "@/hooks/use-grade-snapshots";
@@ -16,6 +24,8 @@ import {
   assignmentsQueryOptions as assignmentsQO,
 } from "@/lib/canvas.queries";
 import { CourseGradeCardSkeleton } from "@/components/skeletons/dashboard-skeletons";
+
+const LEGACY_GRADE_LAYOUT_ENABLED = false;
 
 export const Route = createFileRoute("/_authenticated/grades")({
   head: () => ({
@@ -93,9 +103,7 @@ function GradesPage() {
         map.set(c.id, null);
         return;
       }
-      const prev = snaps.find(
-        (s) => s.courseId === c.id && Math.abs(s.score - cur) > 0.05,
-      )?.score;
+      const prev = snaps.find((s) => s.courseId === c.id && Math.abs(s.score - cur) > 0.05)?.score;
       if (prev == null) map.set(c.id, null);
       else map.set(c.id, { dir: cur > prev ? "up" : "down", prev });
     });
@@ -130,26 +138,85 @@ function GradesPage() {
     const items = byCourse.get(c.id) ?? [];
     return items.some((a) => a.name.toLowerCase().includes(q));
   });
+  const scoredCourses = (courses.data ?? []).filter((course) => course.current_score != null);
+  const average = scoredCourses.length
+    ? scoredCourses.reduce((sum, course) => sum + (course.current_score ?? 0), 0) /
+      scoredCourses.length
+    : null;
+  const risingCount = scoredCourses.filter((course) => trends.get(course.id)?.dir === "up").length;
+  const gradedAssignmentCount = Array.from(byCourse.values()).reduce(
+    (count, items) =>
+      count +
+      items.filter((item) => item.submission?.score != null || item.submission?.grade).length,
+    0,
+  );
 
   return (
     <div className="space-y-6">
-      <header className="px-1 pt-2">
-        <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-          Per course
-        </p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">Grades</h1>
-      </header>
+      <section className="glass-panel-strong relative isolate overflow-hidden rounded-[2rem] border border-primary/15 p-5 sm:p-7">
+        <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-primary/15 blur-3xl" />
+        <div className="relative grid gap-7 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+          <div className="max-w-2xl">
+            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary">
+              <BarChart3 className="h-5 w-5" />
+            </div>
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+              Academic performance
+            </p>
+            <h1 className="mt-2 text-4xl font-medium tracking-[-0.045em] sm:text-5xl">
+              Your semester, at a glance.
+            </h1>
+            <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+              Compare courses, spot movement, and open the details only when you need them.
+            </p>
+          </div>
+          <div className="flex items-end gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                Current average
+              </p>
+              <p
+                className="mt-1 text-6xl font-medium tabular-nums tracking-[-0.075em]"
+                style={{ color: getGradeColor(average) }}
+              >
+                {average == null ? "—" : average.toFixed(1)}
+              </p>
+            </div>
+            {average != null && <span className="mb-2 text-lg text-muted-foreground">%</span>}
+          </div>
+        </div>
+        <div className="relative mt-7 grid grid-cols-3 border-t border-foreground/10 pt-5">
+          <div>
+            <p className="text-xl font-medium tabular-nums">{scoredCourses.length}</p>
+            <p className="mt-1 text-xs text-muted-foreground">Courses graded</p>
+          </div>
+          <div className="border-l border-foreground/10 pl-4">
+            <p className="inline-flex items-center gap-1 text-xl font-medium tabular-nums text-primary">
+              <TrendingUp className="h-4 w-4" />
+              {risingCount}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">Trending up</p>
+          </div>
+          <div className="border-l border-foreground/10 pl-4">
+            <p className="text-xl font-medium tabular-nums">{gradedAssignmentCount}</p>
+            <p className="mt-1 text-xs text-muted-foreground">Grades posted</p>
+          </div>
+        </div>
+      </section>
 
-      <div className="glass-panel-strong flex items-center gap-2 px-4 py-2">
+      <div className="glass-panel-strong flex items-center gap-3 rounded-2xl px-4 py-3">
         <Search className="h-4 w-4 text-muted-foreground" />
         <input
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search courses or assignments…"
+          placeholder="Find a course or graded assignment"
           className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           aria-label="Search grades"
         />
+        <span className="hidden text-xs text-muted-foreground sm:block">
+          {filteredCourses.length} courses
+        </span>
       </div>
 
       {loading && (
@@ -175,7 +242,143 @@ function GradesPage() {
         </GlassCard>
       )}
 
-      {!loading &&
+      {!loading && !error && filteredCourses.length > 0 && (
+        <section className="glass-panel overflow-hidden rounded-[1.75rem] border border-foreground/10">
+          <div className="hidden grid-cols-[minmax(0,1fr)_8rem_7rem_2.5rem] gap-4 border-b border-foreground/10 px-6 py-3 text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground md:grid">
+            <span>Course</span>
+            <span>Standing</span>
+            <span>Movement</span>
+            <span />
+          </div>
+          {filteredCourses.map((course) => {
+            const trend = trends.get(course.id);
+            const expanded = expandedCourses.has(course.id);
+            const score = course.current_score;
+            const color = getGradeColor(score);
+            let items = (byCourse.get(course.id) ?? []).filter(
+              (item) => item.submission?.score != null || item.submission?.grade,
+            );
+            if (q) items = items.filter((item) => item.name.toLowerCase().includes(q));
+            const label = displayCourseName(course.name, course.course_code);
+            const highlightProps = highlight(label);
+            return (
+              <div
+                key={course.id}
+                id={highlightProps.id}
+                className={cn(
+                  "border-b border-foreground/10 last:border-0",
+                  highlightProps.className,
+                )}
+              >
+                <button
+                  type="button"
+                  onClick={() => toggleExpanded(course.id)}
+                  aria-expanded={expanded}
+                  className="group grid w-full gap-4 px-4 py-5 text-left transition-colors hover:bg-foreground/[0.025] sm:px-6 md:grid-cols-[minmax(0,1fr)_8rem_7rem_2.5rem] md:items-center"
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-3">
+                      <span
+                        className="h-2.5 w-2.5 shrink-0 rounded-full"
+                        style={{ backgroundColor: color, boxShadow: `0 0 10px ${color}66` }}
+                      />
+                      <span className="truncate text-base font-medium">{label}</span>
+                    </div>
+                    <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-foreground/10">
+                      <div
+                        className="h-full rounded-full transition-[width] duration-500"
+                        style={{
+                          width: `${Math.max(0, Math.min(100, score ?? 0))}%`,
+                          backgroundColor: color,
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-baseline justify-between md:block">
+                    <span className="text-xs text-muted-foreground md:hidden">Standing</span>
+                    <span
+                      className="text-2xl font-medium tabular-nums tracking-[-0.05em]"
+                      style={{ color }}
+                    >
+                      {fmt(score)}
+                    </span>
+                    {course.current_grade && (
+                      <span className="ml-2 text-xs font-medium" style={{ color }}>
+                        {course.current_grade}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between text-sm md:justify-start">
+                    <span className="text-xs text-muted-foreground md:hidden">Movement</span>
+                    {trend ? (
+                      <span className="inline-flex items-center gap-1" style={{ color }}>
+                        {trend.dir === "up" ? (
+                          <ArrowUp className="h-4 w-4" />
+                        ) : (
+                          <ArrowDown className="h-4 w-4" />
+                        )}
+                        {Math.abs((score ?? 0) - trend.prev).toFixed(1)}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-muted-foreground">
+                        <Minus className="h-4 w-4" /> Steady
+                      </span>
+                    )}
+                  </div>
+                  <ChevronDown
+                    className={cn(
+                      "hidden h-4 w-4 text-muted-foreground transition-transform md:block",
+                      expanded && "rotate-180",
+                    )}
+                  />
+                </button>
+                {expanded && (
+                  <div className="border-t border-foreground/[0.07] bg-foreground/[0.02] px-4 py-3 sm:px-6 md:pl-14">
+                    <div className="mb-2 flex items-center justify-between">
+                      <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
+                        Graded work
+                      </p>
+                      <Link
+                        to="/courses/$courseId"
+                        params={{ courseId: String(course.id) }}
+                        className="text-xs font-medium text-primary hover:opacity-80"
+                      >
+                        Open course
+                      </Link>
+                    </div>
+                    {items.length === 0 ? (
+                      <p className="py-4 text-sm text-muted-foreground">
+                        No graded assignments yet.
+                      </p>
+                    ) : (
+                      <ul>
+                        {items.map((item) => (
+                          <li
+                            key={item.id}
+                            className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 border-t border-foreground/[0.07] py-3 first:border-0"
+                          >
+                            <p className="truncate text-sm">{item.name}</p>
+                            <p className="text-sm tabular-nums">
+                              <span className="font-semibold">{item.submission?.score ?? "—"}</span>
+                              <span className="text-muted-foreground">
+                                {" "}
+                                / {item.points_possible ?? "—"}
+                              </span>
+                            </p>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </section>
+      )}
+
+      {LEGACY_GRADE_LAYOUT_ENABLED &&
+        !loading &&
         !error &&
         filteredCourses.map((c) => {
           const trend = trends.get(c.id);

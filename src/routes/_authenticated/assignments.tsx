@@ -12,7 +12,16 @@ import { GlassCard, Skeleton, ErrorState, EmptyState } from "@/components/glass-
 import { cn } from "@/lib/utils";
 import { displayCourseName } from "@/lib/course-display";
 import { useLocalSet, COMPLETED_ASSIGNMENTS_KEY } from "@/lib/local-state";
-import { Search, CalendarPlus, ChevronDown, Sparkles, Plus, Trash2 } from "lucide-react";
+import {
+  Search,
+  CalendarPlus,
+  Sparkles,
+  Plus,
+  Trash2,
+  ListTodo,
+  Clock3,
+  ChevronDown,
+} from "lucide-react";
 import {
   useCustomAssignments,
   customToAssignmentItem,
@@ -24,21 +33,15 @@ import { buildIcs, downloadIcs, safeFilename } from "@/lib/ics";
 import { useCourseHighlight, validateCourseSearch } from "@/lib/course-highlight";
 import { buildPriorityList, describePriorityList } from "@/lib/priority";
 import { useAssignmentMetaMap } from "@/hooks/use-assignment-meta";
-import { ProductivityOverview } from "@/components/productivity-overview";
-import { useLocalNumber } from "@/lib/local-value";
 import { isAssignmentComplete } from "@/lib/assignment-window";
-
-const ASSIGNMENTS_PULSE_HIDDEN_KEY = "canvas:assignments-pulse-hidden";
 
 import {
   coursesQueryOptions as coursesQO,
   assignmentsQueryOptions as assignmentsQO,
 } from "@/lib/canvas.queries";
-import {
-  AssignmentGroupSkeleton,
-  AssignmentRowSkeleton,
-  SkeletonBlock,
-} from "@/components/skeletons/dashboard-skeletons";
+import { AssignmentRowSkeleton, SkeletonBlock } from "@/components/skeletons/dashboard-skeletons";
+
+const LEGACY_CLASS_LAYOUT_ENABLED = false;
 
 export const Route = createFileRoute("/_authenticated/assignments")({
   head: () => ({
@@ -80,14 +83,6 @@ function statusLabel(a: AssignmentItem) {
 
 function isDone(a: AssignmentItem, completedHas: boolean) {
   return isAssignmentComplete(a, completedHas);
-}
-
-function formatGrade(score: number | null, grade: string | null) {
-  if (score == null && !grade) return "—";
-  const parts: string[] = [];
-  if (score != null) parts.push(`${score.toFixed(1)}%`);
-  if (grade) parts.push(grade);
-  return parts.join(" · ");
 }
 
 interface ClassGroup {
@@ -281,7 +276,6 @@ function AssignmentsPage() {
       .sort((a, b) => a.label.localeCompare(b.label));
   }, [courses.data, allAssignments, completed]);
 
-  const pulseHidden = useLocalNumber(ASSIGNMENTS_PULSE_HIDDEN_KEY, 0);
   const metaMap = useAssignmentMetaMap();
   const priorityGroups = useMemo(() => {
     const estimates: Record<number, number | null> = {};
@@ -306,14 +300,60 @@ function AssignmentsPage() {
     ? groups
         .map((g) => ({
           ...g,
-          items: g.items.filter((a) => `${g.label} ${a.name} ${a.course_code}`.toLowerCase().includes(q)),
+          items: g.items.filter((a) =>
+            `${g.label} ${a.name} ${a.course_code}`.toLowerCase().includes(q),
+          ),
         }))
         .filter((g) => g.items.length > 0)
     : groups.filter((g) => g.items.length > 0);
 
+  const now = Date.now();
+  const agendaItems = visibleGroups.flatMap((group) =>
+    group.items.map((assignment) => ({ assignment, course: group.label })),
+  );
+  const agendaSections = [
+    {
+      title: "Overdue",
+      detail: "Needs attention first",
+      tone: "text-red-500",
+      items: agendaItems.filter(
+        ({ assignment }) => assignment.due_at && new Date(assignment.due_at).getTime() < now,
+      ),
+    },
+    {
+      title: "Next 7 days",
+      detail: "Your immediate runway",
+      tone: "text-primary",
+      items: agendaItems.filter(({ assignment }) => {
+        if (!assignment.due_at) return false;
+        const due = new Date(assignment.due_at).getTime();
+        return due >= now && due <= now + 7 * 24 * 60 * 60 * 1_000;
+      }),
+    },
+    {
+      title: "Later",
+      detail: "Beyond this week",
+      tone: "text-muted-foreground",
+      items: agendaItems.filter(
+        ({ assignment }) =>
+          assignment.due_at &&
+          new Date(assignment.due_at).getTime() > now + 7 * 24 * 60 * 60 * 1_000,
+      ),
+    },
+    {
+      title: "No due date",
+      detail: "Keep these on your radar",
+      tone: "text-muted-foreground",
+      items: agendaItems.filter(({ assignment }) => !assignment.due_at),
+    },
+  ].filter((section) => section.items.length > 0);
+  const overdueCount =
+    agendaSections.find((section) => section.title === "Overdue")?.items.length ?? 0;
+  const weekCount =
+    agendaSections.find((section) => section.title === "Next 7 days")?.items.length ?? 0;
   const toggle = (id: number) =>
-    setExpanded((prev) => {
-      const next = new Set(prev);
+    setExpanded((previous) => {
+      const next = new Set(previous);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
@@ -321,43 +361,59 @@ function AssignmentsPage() {
 
   return (
     <div className="space-y-6">
-      <header className="px-1 pt-2">
-        <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-          By class
-        </p>
-        <div className="mt-1 flex items-center gap-2">
-          <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">Assignments</h1>
-          <button
-            type="button"
-            onClick={() => pulseHidden.set(pulseHidden.value ? 0 : 1)}
-            aria-expanded={!pulseHidden.value}
-            aria-label={pulseHidden.value ? "Show weekly pulse" : "Hide weekly pulse"}
-            title={pulseHidden.value ? "Show weekly pulse" : "Hide weekly pulse"}
-            className="press flex h-8 w-8 items-center justify-center rounded-full border border-foreground/10 bg-foreground/[0.04] text-muted-foreground transition-colors hover:bg-foreground/[0.08] hover:text-foreground"
-          >
-            <ChevronDown
-              className={cn(
-                "h-4 w-4 transition-transform",
-                pulseHidden.value ? "-rotate-90" : "",
-              )}
-            />
-          </button>
+      <section className="glass-panel-strong relative isolate overflow-hidden rounded-[2rem] border border-primary/15 p-5 sm:p-7">
+        <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-primary/15 blur-3xl" />
+        <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+          <div className="max-w-2xl">
+            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary">
+              <ListTodo className="h-5 w-5" />
+            </div>
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+              Complete workload
+            </p>
+            <h1 className="mt-2 text-4xl font-medium tracking-[-0.045em] sm:text-5xl">
+              One agenda. Every assignment.
+            </h1>
+            <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+              Work is ordered by urgency across every class, so the next deadline is always obvious.
+            </p>
+          </div>
+          <div className="grid grid-cols-3 gap-2 sm:min-w-[24rem]">
+            <div className="rounded-2xl border border-foreground/10 bg-background/35 p-4 backdrop-blur-md">
+              <p className="text-3xl font-medium tabular-nums tracking-[-0.05em]">
+                {agendaItems.length}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">Remaining</p>
+            </div>
+            <div className="rounded-2xl border border-red-500/15 bg-red-500/[0.06] p-4 backdrop-blur-md">
+              <p className="text-3xl font-medium tabular-nums tracking-[-0.05em] text-red-500">
+                {overdueCount}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">Overdue</p>
+            </div>
+            <div className="rounded-2xl border border-primary/15 bg-primary/[0.06] p-4 backdrop-blur-md">
+              <p className="text-3xl font-medium tabular-nums tracking-[-0.05em] text-primary">
+                {weekCount}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">This week</p>
+            </div>
+          </div>
         </div>
-      </header>
+      </section>
 
-      {!pulseHidden.value && <ProductivityOverview showLink={false} />}
-
-
-      <div className="glass-panel-strong relative flex items-center gap-2 px-4 py-2">
+      <div className="glass-panel-strong relative flex items-center gap-3 rounded-2xl px-4 py-3">
         <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
         <input
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search assignments or classes…"
+          placeholder="Find any assignment or course"
           className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           aria-label="Search assignments"
         />
+        <span className="hidden text-xs tabular-nums text-muted-foreground sm:block">
+          {agendaItems.length} shown
+        </span>
       </div>
 
       <PriorityAssignmentsCard
@@ -369,12 +425,15 @@ function AssignmentsPage() {
       />
 
       {courseOptions.length > 0 && (
-        <GlassCard
-          title="Your own assignments"
-          subtitle="Add anything Canvas doesn't have: due date, points and notes"
-        >
+        <details className="glass-panel group rounded-2xl border border-foreground/10 p-4">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-medium">
+            <span className="inline-flex items-center gap-2">
+              <Plus className="h-4 w-4 text-primary" /> Add something Canvas doesn't have
+            </span>
+            <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
+          </summary>
           <AddAssignmentForm courseOptions={courseOptions} onAdd={custom.add} />
-        </GlassCard>
+        </details>
       )}
 
       {isLoading && (
@@ -395,143 +454,255 @@ function AssignmentsPage() {
         </GlassCard>
       )}
 
-      <div className="space-y-3">
-        {visibleGroups.map((g) => {
-          const open = expanded.has(g.id) || Boolean(q);
-          return (
-            <div key={g.id} {...highlight(g.label)}>
-              <GlassCard className="p-0 sm:p-0 md:p-0">
-                <button
-                  onClick={() => toggle(g.id)}
-                  aria-expanded={open}
-                  className="glass-hover grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 p-4 text-left sm:p-6"
-                >
-                  <div className="min-w-0">
-                    <h2 className="truncate text-base font-semibold tracking-tight sm:text-lg">
-                      {g.label}
-                    </h2>
-                    <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                      <span className={cn(g.overdue > 0 && "font-semibold text-foreground")}>
-                        {g.overdue} overdue
-                      </span>
-                      <span className="opacity-40">·</span>
-                      <span className={cn(g.dueSoon > 0 && "text-foreground/85")}>
-                        {g.dueSoon} due within 3 days
-                      </span>
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-3">
-                    <div className="text-right">
-                      <p className="text-lg font-semibold tabular-nums tracking-tight">
-                        {formatGrade(g.score, g.grade)}
-                      </p>
-                      <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-                        Grade
-                      </p>
-                    </div>
-                    <ChevronDown
+      {!isLoading && !isError && agendaSections.length > 0 && (
+        <section className="glass-panel overflow-hidden rounded-[1.75rem] border border-foreground/10">
+          {agendaSections.map((section) => (
+            <div key={section.title} className="border-b border-foreground/10 last:border-0">
+              <div className="flex items-end justify-between gap-3 bg-foreground/[0.025] px-4 py-4 sm:px-6">
+                <div>
+                  <h2
+                    className={cn(
+                      "text-sm font-semibold uppercase tracking-[0.14em]",
+                      section.tone,
+                    )}
+                  >
+                    {section.title}
+                  </h2>
+                  <p className="mt-1 text-xs text-muted-foreground">{section.detail}</p>
+                </div>
+                <span className="text-2xl font-medium tabular-nums tracking-[-0.05em]">
+                  {section.items.length}
+                </span>
+              </div>
+              <ul>
+                {section.items.map(({ assignment: a, course }) => {
+                  const done = completed.has(a.id);
+                  const cd = getCountdown(a.due_at, { completed: done });
+                  const mine = isCustomAssignmentId(a.id);
+                  const notes = custom.notesById.get(a.id);
+                  const highlightProps = highlight(course);
+                  const firstForCourse =
+                    agendaItems.find((entry) => entry.course === course)?.assignment.id === a.id;
+                  return (
+                    <li
+                      key={a.id}
+                      id={firstForCourse ? highlightProps.id : undefined}
                       className={cn(
-                        "h-4 w-4 text-muted-foreground transition-transform",
-                        open && "rotate-180",
+                        "group grid gap-3 border-t border-foreground/[0.07] px-4 py-4 transition-colors first:border-0 hover:bg-foreground/[0.025] sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center sm:px-6",
+                        done && "opacity-60",
+                        highlightProps.className,
                       )}
-                    />
-                  </div>
-                </button>
-
-                {open && (
-                  <div className="border-t border-glass-border p-4 sm:p-6">
-                    <ul className="space-y-2">
-                      {g.items.map((a) => {
-                        const done = completed.has(a.id);
-                        const cd = getCountdown(a.due_at, { completed: done });
-                        const mine = isCustomAssignmentId(a.id);
-                        const notes = custom.notesById.get(a.id);
-                        return (
-                          <li
-                            key={a.id}
+                    >
+                      <CompleteToggle
+                        done={done}
+                        onToggle={() => completed.toggle(a.id)}
+                        label={a.name}
+                        disabled={!completed.ready}
+                        className="h-5 w-5"
+                      />
+                      <div className="min-w-0">
+                        <p
+                          className={cn(
+                            "truncate text-sm font-medium sm:text-base",
+                            done && "line-through",
+                          )}
+                        >
+                          {a.name}
+                        </p>
+                        <p className="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+                          <span className="truncate text-primary/90">{course}</span>
+                          <span className="opacity-40">·</span>
+                          <span>{done ? "Completed" : mine ? "Added by you" : statusLabel(a)}</span>
+                          {a.points_possible != null && (
+                            <>
+                              <span className="opacity-40">·</span>
+                              <span>{a.points_possible} pts</span>
+                            </>
+                          )}
+                        </p>
+                        {notes && (
+                          <p className="mt-1 line-clamp-2 whitespace-pre-wrap text-xs text-foreground/70">
+                            {notes}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between gap-2 pl-8 sm:justify-end sm:pl-0">
+                        <div className="text-left sm:text-right">
+                          <p
                             className={cn(
-                              "glass-inset flex items-start justify-between gap-4 p-3 transition-opacity",
-                              cd ? urgencyAccentClass(cd.urgency) : "",
-                              done && "opacity-60",
+                              "inline-flex items-center gap-1.5 text-sm tabular-nums",
+                              cd ? urgencyTextClass(cd.urgency) : "text-muted-foreground",
                             )}
                           >
-                            <div className="flex min-w-0 items-start gap-3">
-                              <CompleteToggle
-                                done={done}
-                                onToggle={() => completed.toggle(a.id)}
-                                label={a.name}
-                                disabled={!completed.ready}
-                                className="mt-0.5 h-5 w-5"
-                              />
-                              <div className="min-w-0">
-                                <p
-                                  className={cn(
-                                    "truncate text-sm font-medium",
-                                    done && "line-through",
-                                  )}
-                                >
-                                  {a.name}
-                                </p>
-                                <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
-                                  <span>
-                                    {done ? "Completed" : mine ? "Added by you" : statusLabel(a)}
-                                  </span>
-                                  {a.points_possible != null && (
-                                    <>
-                                      <span className="opacity-40">·</span>
-                                      <span>{a.points_possible} pts</span>
-                                    </>
-                                  )}
-                                </p>
-                                {notes && (
-                                  <p className="mt-1 whitespace-pre-wrap text-xs text-foreground/70">
-                                    {notes}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex shrink-0 items-start gap-2">
-                              <div className="text-right">
-                                <p
-                                  className={cn(
-                                    "text-sm tabular-nums",
-                                    cd ? urgencyTextClass(cd.urgency) : "text-muted-foreground",
-                                  )}
-                                >
-                                  {cd ? cd.label : "No due date"}
-                                </p>
-                                {cd && (
-                                  <p className="mt-0.5 text-[10px] tabular-nums text-muted-foreground/80">
-                                    {cd.fullDate}
-                                  </p>
-                                )}
-                              </div>
-                              {a.due_at && <AddToCalendarButton assignment={a} />}
-                              {mine && (
-                                <button
-                                  type="button"
-                                  onClick={() => custom.remove(a.id)}
-                                  aria-label={`Delete ${a.name}`}
-                                  title="Delete"
-                                  className="glass-hover flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-glass-border text-muted-foreground hover:text-foreground"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
-                              )}
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-
-                    <AddAssignmentForm courseId={g.id} courseLabel={g.label} onAdd={custom.add} />
-                  </div>
-                )}
-              </GlassCard>
+                            <Clock3 className="h-3.5 w-3.5" />
+                            {cd ? cd.label : "No due date"}
+                          </p>
+                          {cd && (
+                            <p className="mt-0.5 text-[10px] text-muted-foreground">
+                              {cd.fullDate}
+                            </p>
+                          )}
+                        </div>
+                        {a.due_at && <AddToCalendarButton assignment={a} />}
+                        {mine && (
+                          <button
+                            type="button"
+                            onClick={() => custom.remove(a.id)}
+                            aria-label={`Delete ${a.name}`}
+                            className="glass-hover flex h-8 w-8 items-center justify-center rounded-xl border border-glass-border text-muted-foreground hover:text-foreground"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
-          );
-        })}
-      </div>
+          ))}
+        </section>
+      )}
+
+      {LEGACY_CLASS_LAYOUT_ENABLED && (
+        <div className="space-y-3">
+          {visibleGroups.map((g) => {
+            const open = expanded.has(g.id) || Boolean(q);
+            return (
+              <div key={g.id} {...highlight(g.label)}>
+                <GlassCard className="p-0 sm:p-0 md:p-0">
+                  <button
+                    onClick={() => toggle(g.id)}
+                    aria-expanded={open}
+                    className="glass-hover grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 p-4 text-left sm:p-6"
+                  >
+                    <div className="min-w-0">
+                      <h2 className="truncate text-base font-semibold tracking-tight sm:text-lg">
+                        {g.label}
+                      </h2>
+                      <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                        <span className={cn(g.overdue > 0 && "font-semibold text-foreground")}>
+                          {g.overdue} overdue
+                        </span>
+                        <span className="opacity-40">·</span>
+                        <span className={cn(g.dueSoon > 0 && "text-foreground/85")}>
+                          {g.dueSoon} due within 3 days
+                        </span>
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-3">
+                      <div className="text-right">
+                        <p className="text-lg font-semibold tabular-nums tracking-tight">
+                          {formatGrade(g.score, g.grade)}
+                        </p>
+                        <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                          Grade
+                        </p>
+                      </div>
+                      <ChevronDown
+                        className={cn(
+                          "h-4 w-4 text-muted-foreground transition-transform",
+                          open && "rotate-180",
+                        )}
+                      />
+                    </div>
+                  </button>
+
+                  {open && (
+                    <div className="border-t border-glass-border p-4 sm:p-6">
+                      <ul className="space-y-2">
+                        {g.items.map((a) => {
+                          const done = completed.has(a.id);
+                          const cd = getCountdown(a.due_at, { completed: done });
+                          const mine = isCustomAssignmentId(a.id);
+                          const notes = custom.notesById.get(a.id);
+                          return (
+                            <li
+                              key={a.id}
+                              className={cn(
+                                "glass-inset flex items-start justify-between gap-4 p-3 transition-opacity",
+                                cd ? urgencyAccentClass(cd.urgency) : "",
+                                done && "opacity-60",
+                              )}
+                            >
+                              <div className="flex min-w-0 items-start gap-3">
+                                <CompleteToggle
+                                  done={done}
+                                  onToggle={() => completed.toggle(a.id)}
+                                  label={a.name}
+                                  disabled={!completed.ready}
+                                  className="mt-0.5 h-5 w-5"
+                                />
+                                <div className="min-w-0">
+                                  <p
+                                    className={cn(
+                                      "truncate text-sm font-medium",
+                                      done && "line-through",
+                                    )}
+                                  >
+                                    {a.name}
+                                  </p>
+                                  <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+                                    <span>
+                                      {done ? "Completed" : mine ? "Added by you" : statusLabel(a)}
+                                    </span>
+                                    {a.points_possible != null && (
+                                      <>
+                                        <span className="opacity-40">·</span>
+                                        <span>{a.points_possible} pts</span>
+                                      </>
+                                    )}
+                                  </p>
+                                  {notes && (
+                                    <p className="mt-1 whitespace-pre-wrap text-xs text-foreground/70">
+                                      {notes}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex shrink-0 items-start gap-2">
+                                <div className="text-right">
+                                  <p
+                                    className={cn(
+                                      "text-sm tabular-nums",
+                                      cd ? urgencyTextClass(cd.urgency) : "text-muted-foreground",
+                                    )}
+                                  >
+                                    {cd ? cd.label : "No due date"}
+                                  </p>
+                                  {cd && (
+                                    <p className="mt-0.5 text-[10px] tabular-nums text-muted-foreground/80">
+                                      {cd.fullDate}
+                                    </p>
+                                  )}
+                                </div>
+                                {a.due_at && <AddToCalendarButton assignment={a} />}
+                                {mine && (
+                                  <button
+                                    type="button"
+                                    onClick={() => custom.remove(a.id)}
+                                    aria-label={`Delete ${a.name}`}
+                                    title="Delete"
+                                    className="glass-hover flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-glass-border text-muted-foreground hover:text-foreground"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                )}
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+
+                      <AddAssignmentForm courseId={g.id} courseLabel={g.label} onAdd={custom.add} />
+                    </div>
+                  )}
+                </GlassCard>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
