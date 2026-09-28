@@ -2,6 +2,10 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AuthShell, Field } from "@/components/auth-ui";
+import {
+  createAgeConfirmationMetadata,
+  MINIMUM_ACCOUNT_AGE,
+} from "@/lib/signup-age";
 
 export const Route = createFileRoute("/signup")({
   ssr: false,
@@ -32,6 +36,7 @@ function SignupPage() {
   const [password, setPassword] = useState("");
   const [major, setMajor] = useState("");
   const [classOf, setClassOf] = useState("");
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -54,6 +59,14 @@ function SignupPage() {
       return;
     }
 
+    let ageMetadata;
+    try {
+      ageMetadata = createAgeConfirmationMetadata(ageConfirmed);
+    } catch (ageError) {
+      setError(ageError instanceof Error ? ageError.message : "Confirm your age to continue.");
+      return;
+    }
+
     setBusy(true);
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
@@ -68,6 +81,7 @@ function SignupPage() {
           class_of: classOf.trim(),
           profile_setup_prompted: true,
           profile_setup_completed: true,
+          ...ageMetadata,
         },
       },
     });
@@ -160,6 +174,18 @@ function SignupPage() {
             />
           </div>
         </div>
+        <label className="glass-inset flex cursor-pointer items-start gap-3 rounded-xl p-4 text-sm text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={ageConfirmed}
+            required
+            onChange={(event) => setAgeConfirmed(event.target.checked)}
+            className="mt-0.5 h-4 w-4 shrink-0 accent-foreground"
+          />
+          <span>
+            I confirm that I am at least {MINIMUM_ACCOUNT_AGE} years old.
+          </span>
+        </label>
         {error && <p className="text-sm text-foreground/80">{error}</p>}
         {notice && <p className="text-sm text-muted-foreground">{notice}</p>}
         <button
