@@ -587,6 +587,64 @@
   }
 }
 
+/* Shared interaction feedback without animating layout or delaying actions. */
+@media (prefers-reduced-motion: no-preference) {
+  #app-main :where(button, a, input, select, textarea),
+  .segmented-control button {
+    transition-property: color, background-color, border-color, opacity, box-shadow;
+    transition-duration: 150ms;
+    transition-timing-function: ease-out;
+  }
+  [role="tabpanel"][data-state="active"] {
+    animation: route-enter 180ms ease-out;
+  }
+}
+
+[data-ui-dialog] {
+  max-height: calc(100dvh - 2rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+@media (max-width: 767px) {
+  [data-ui-dialog] {
+    max-width: min(32rem, calc(100vw - 2rem));
+  }
+  .mobile-navigation {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .mobile-navigation-panel {
+    max-height: calc(100dvh - 6rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  }
+  #app-main {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+  }
+  /* Keep the keyboard from triggering Safari's automatic input zoom. */
+  :where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea) {
+    font-size: max(16px, 1em);
+  }
+  .segmented-control button,
+  [role="tab"] {
+    min-height: 44px;
+  }
+  [role="tablist"] {
+    max-width: 100%;
+    height: auto;
+    overflow-x: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-ui-dialog],
+  [data-radix-popper-content-wrapper] *,
+  [role="tabpanel"],
+  [data-state][class*="animate-"],
+  .mobile-navigation * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 /* Dashboard hero: a shared soft light source across the greeting and three cards. */
 .dashboard-hero {
   --hero-hue: var(--palette-hue, 148);

@@ -405,7 +405,7 @@ export function MobileNav() {
   const current = navItems.find((i) => isActive(pathname, i.to))?.title ?? "CanvasPro";
 
   return (
-    <div className="sticky top-0 z-40 md:hidden">
+    <div className="mobile-navigation sticky top-0 z-40 md:hidden">
       <div className="glass-panel-strong relative z-40 mx-2 mt-2 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 p-2">
         <TrafficLights
           className="shrink-0"
@@ -435,11 +435,13 @@ export function MobileNav() {
 
       {/* Collapsible panel — always mounted so it can animate */}
       <div
+        inert={!open}
+        aria-hidden={!open}
         className={cn(
-          "glass-panel-strong relative z-40 mx-2 flex flex-col gap-1 overflow-y-auto p-2 transition-all duration-300 ease-in-out",
+          "mobile-navigation-panel glass-panel-strong absolute inset-x-0 top-full z-40 mx-2 mt-2 flex max-h-[calc(100dvh-6rem)] flex-col gap-1 overflow-y-auto overscroll-contain p-2 transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none",
           open
-            ? "mt-2 max-h-[calc(100dvh-6rem)] translate-y-0 opacity-100"
-            : "pointer-events-none mt-0 max-h-0 -translate-y-2 overflow-hidden border-transparent p-0 opacity-0",
+            ? "translate-y-0 opacity-100"
+            : "pointer-events-none -translate-y-2 opacity-0",
         )}
       >
         {navItems.map((item) => (

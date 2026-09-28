@@ -22,7 +22,7 @@ export function Segmented<T extends string>({
     <div
       role="tablist"
       className={cn(
-        "glass-panel-strong inline-flex gap-1 p-1.5",
+        "segmented-control glass-panel-strong inline-flex max-w-full gap-1 overflow-x-auto p-1.5",
         className,
       )}
     >
@@ -30,12 +30,13 @@ export function Segmented<T extends string>({
         const active = o.id === value;
         return (
           <button
+            type="button"
             key={o.id}
             role="tab"
             aria-selected={active}
             onClick={() => onChange(o.id)}
             className={cn(
-              "shrink-0 whitespace-nowrap rounded-xl px-4 py-1.5 text-xs font-medium transition-all duration-300",
+              "shrink-0 whitespace-nowrap rounded-xl px-4 py-1.5 text-xs font-medium transition-[background-color,color,box-shadow] duration-150 motion-reduce:transition-none",
               active
                 ? "bg-foreground text-background shadow-sm"
                 : "text-muted-foreground hover:text-foreground",
