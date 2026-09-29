@@ -447,7 +447,7 @@ struct CourseRow: View {
 struct CourseDetailView: View {
     let course: CourseSummary; @ObservedObject var store: NativeContentStore
     private var assignments: [AssignmentItem] { store.bundle.assignments.filter { $0.courseID == course.id }.sorted(by: AssignmentItem.dueSort) }
-    var body: some View { List { Section("Current grade") { CourseRow(course: course, store: store); if let final = course.finalScore { LabeledContent("Final score", value: "\(final.formatted())%") } }; Section("Assignments") { ForEach(assignments) { NativeAssignmentRow(assignment: $0, store: store) } }; Section("Announcements") { ForEach(store.bundle.announcements.filter { $0.courseID == course.id }) { NavigationLink($0.title) { AnnouncementDetailView(item: $0) } } } }.cpListScreen().navigationTitle(store.displayName(courseID: course.id, fallback: course.name)).navigationBarTitleDisplayMode(.inline) }
+    var body: some View { List { Section("Current grade") { CourseRow(course: course, store: store); if let final = course.finalScore { LabeledContent("Final score", value: "\(final.formatted())%") } }; Section("Assignments") { ForEach(assignments) { assignment in NativeAssignmentRow(assignment: assignment, store: store) } }; Section("Announcements") { ForEach(store.bundle.announcements.filter { $0.courseID == course.id }) { announcement in NavigationLink(announcement.title) { AnnouncementDetailView(item: announcement) } } } }.cpListScreen().navigationTitle(store.displayName(courseID: course.id, fallback: course.name)).navigationBarTitleDisplayMode(.inline) }
 }
 
 private struct GradeCalculatorView: View {
@@ -474,7 +474,7 @@ private struct NativeStudyView: View {
 
 extension AssignmentItem {
     var dueDate: Date? { dueAt.flatMap { ISO8601DateFormatter.canvas.date(from: $0) } }
-    func isFinished(in store: NativeContentStore) -> Bool { store.completed.contains(id) || submission?.submittedAt != nil || submission?.workflowState == "graded" || submission?.excused == true }
+    @MainActor func isFinished(in store: NativeContentStore) -> Bool { store.completed.contains(id) || submission?.submittedAt != nil || submission?.workflowState == "graded" || submission?.excused == true }
     static func dueSort(_ lhs: AssignmentItem, _ rhs: AssignmentItem) -> Bool { (lhs.dueDate ?? .distantFuture) < (rhs.dueDate ?? .distantFuture) }
 }
 

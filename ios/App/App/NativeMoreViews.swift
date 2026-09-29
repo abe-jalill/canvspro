@@ -237,7 +237,15 @@ private struct CanvasSettingsView: View {
     @State private var domain = ""; @State private var canvasToken = ""; @State private var working = false; @State private var status: String?
     var body: some View {
         Form {
-            Section("Canvas connection") { TextField("yourschool.instructure.com", text: $domain).textInputAutocapitalization(.never).keyboardType(.URL); SecureField("Canvas API token", text: $canvasToken); Button("Validate and Save") { save() }.disabled(domain.isEmpty || canvasToken.isEmpty || working) } footer: { Text("The token is validated through CanvasPro and stored securely on the server, not on this device.") }
+            Section {
+                TextField("yourschool.instructure.com", text: $domain).textInputAutocapitalization(.never).keyboardType(.URL)
+                SecureField("Canvas API token", text: $canvasToken)
+                Button("Validate and Save") { save() }.disabled(domain.isEmpty || canvasToken.isEmpty || working)
+            } header: {
+                Text("Canvas connection")
+            } footer: {
+                Text("The token is validated through CanvasPro and stored securely on the server, not on this device.")
+            }
             if let status { Section { Text(status).foregroundStyle(.secondary) } }
             Section("How to get a token") { Text("In Canvas on the web, open Account → Settings → Approved Integrations → New Access Token. Copy it here once; CanvasPro cannot read it back later.") }
         }.cpListScreen().navigationTitle("Canvas")
