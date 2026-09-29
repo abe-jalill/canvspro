@@ -545,11 +545,19 @@ final class NativeContentStore: ObservableObject {
     @Published var errorMessage: String?
     let isPreview: Bool
     private unowned let sessionStore: NativeSessionStore
+    private let previewCompletedKey = "CanvasProPreviewCompleted"
+    private let previewNicknamesKey = "CanvasProPreviewNicknames"
 
     init(sessionStore: NativeSessionStore, preview: Bool = false) {
         self.sessionStore = sessionStore
         isPreview = preview
-        if preview { bundle = NativePreviewData.bundle; completed = [1005] }
+        if preview {
+            bundle = NativePreviewData.bundle
+            if let saved = UserDefaults.standard.array(forKey: previewCompletedKey) as? [NSNumber] { completed = Set(saved.map(\.intValue)) }
+            else { completed = [1005] }
+            if let data = UserDefaults.standard.data(forKey: previewNicknamesKey),
+               let saved = try? JSONDecoder().decode([Int: ClassNickname].self, from: data) { nicknames = saved }
+        }
     }
 
     func load() async {
@@ -575,6 +583,7 @@ final class NativeContentStore: ObservableObject {
     func toggle(_ assignment: AssignmentItem) async {
         if isPreview {
             if completed.contains(assignment.id) { completed.remove(assignment.id) } else { completed.insert(assignment.id) }
+            UserDefaults.standard.set(Array(completed), forKey: previewCompletedKey)
             return
         }
         guard let api = sessionStore.api, let user = sessionStore.session?.user else { return }
@@ -593,6 +602,7 @@ final class NativeContentStore: ObservableObject {
             let row = ClassNickname(canvasCourseID: course.id, rawName: course.name, rawCode: course.courseCode, customName: name)
             if name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { nicknames.removeValue(forKey: course.id) }
             else { nicknames[course.id] = row }
+            if let data = try? JSONEncoder().encode(nicknames) { UserDefaults.standard.set(data, forKey: previewNicknamesKey) }
             return
         }
         guard let api = sessionStore.api, let user = sessionStore.session?.user else { return }

@@ -235,6 +235,13 @@ extension NativeAPI {
     }
 }
 
+private struct NativePreviewFeatureState: Codable {
+    let preferences: [String: JSONValue]
+    let profile: AccountProfile
+    let schedule: [ClassScheduleEntry]
+    let estimates: [Int: Int]
+}
+
 @MainActor
 final class NativeFeatureStore: ObservableObject {
     @Published var preferences: [String: JSONValue] = [:]
@@ -249,17 +256,24 @@ final class NativeFeatureStore: ObservableObject {
     @Published var errorMessage: String?
     let isPreview: Bool
     unowned let sessionStore: NativeSessionStore
+    private let previewStateKey = "CanvasProPreviewFeatureState"
 
     init(sessionStore: NativeSessionStore, preview: Bool = false) {
         self.sessionStore = sessionStore
         isPreview = preview
         if preview {
-            profile = AccountProfile(username: "Preview Student", avatarPath: nil)
-            schedule = [
-                ClassScheduleEntry(id: "preview-1", code: "CS 230", section: "01", title: "Data Structures", crn: "", credits: 3, instructor: "Dr. Rivera", location: "Science 204", campus: "", scheduleType: "Lecture", days: ["M", "W"], startMinutes: 600, endMinutes: 675, term: "", dateRange: "", canvasCourseID: 102),
-                ClassScheduleEntry(id: "preview-2", code: "ENG 102", section: "02", title: "College Writing", crn: "", credits: 3, instructor: "Prof. Chen", location: "Humanities 118", campus: "", scheduleType: "Lecture", days: ["T", "R"], startMinutes: 780, endMinutes: 855, term: "", dateRange: "", canvasCourseID: 103),
-            ]
-            estimates = [1001: 45, 1002: 60, 1003: 20]
+            if let data = UserDefaults.standard.data(forKey: previewStateKey),
+               let saved = try? JSONDecoder().decode(NativePreviewFeatureState.self, from: data) {
+                preferences = saved.preferences; profile = saved.profile; schedule = saved.schedule; estimates = saved.estimates
+                decodePreferenceModels()
+            } else {
+                profile = AccountProfile(username: "Preview Student", avatarPath: nil)
+                schedule = [
+                    ClassScheduleEntry(id: "preview-1", code: "CS 230", section: "01", title: "Data Structures", crn: "", credits: 3, instructor: "Dr. Rivera", location: "Science 204", campus: "", scheduleType: "Lecture", days: ["M", "W"], startMinutes: 600, endMinutes: 675, term: "", dateRange: "", canvasCourseID: 102),
+                    ClassScheduleEntry(id: "preview-2", code: "ENG 102", section: "02", title: "College Writing", crn: "", credits: 3, instructor: "Prof. Chen", location: "Humanities 118", campus: "", scheduleType: "Lecture", days: ["T", "R"], startMinutes: 780, endMinutes: 855, term: "", dateRange: "", canvasCourseID: 103),
+                ]
+                estimates = [1001: 45, 1002: 60, 1003: 20]
+            }
         }
     }
 
@@ -287,7 +301,7 @@ final class NativeFeatureStore: ObservableObject {
         let data = try JSONEncoder().encode(value)
         let json = try JSONDecoder().decode(JSONValue.self, from: data)
         preferences[key] = json
-        if isPreview { decodePreferenceModels(); return }
+        if isPreview { decodePreferenceModels(); persistPreviewState(); return }
         guard let api = sessionStore.api, let user = sessionStore.session?.user else { throw NativeAppError.signedOut }
         try await api.savePreference(key: key, value: json, token: try await sessionStore.accessToken(), userID: user.id)
         decodePreferenceModels()
@@ -300,14 +314,14 @@ final class NativeFeatureStore: ObservableObject {
     }
 
     func saveUsername(_ username: String) async throws {
-        if isPreview { profile.username = username; return }
+        if isPreview { profile.username = username; persistPreviewState(); return }
         guard let api = sessionStore.api else { throw NativeAppError.signedOut }
         try await api.setUsername(username, token: try await sessionStore.accessToken())
         profile.username = username
     }
 
     func saveEstimate(_ minutes: Int?, for assignment: AssignmentItem) async throws {
-        if isPreview { estimates[assignment.id] = minutes ?? 0; return }
+        if isPreview { estimates[assignment.id] = minutes ?? 0; persistPreviewState(); return }
         guard let api = sessionStore.api, let user = sessionStore.session?.user else { throw NativeAppError.signedOut }
         try await api.saveEstimate(assignmentID: assignment.id, courseID: assignment.courseID, minutes: minutes, token: try await sessionStore.accessToken(), userID: user.id)
         estimates[assignment.id] = minutes ?? 0
@@ -317,6 +331,17 @@ final class NativeFeatureStore: ObservableObject {
         let decoder = JSONDecoder()
         if let value = preferences["custom-assignments"], let data = try? JSONEncoder().encode(value) { customAssignments = (try? decoder.decode([CustomAssignment].self, from: data)) ?? [] }
         if let value = preferences["calendar-picks"], let data = try? JSONEncoder().encode(value) { calendarPicks = (try? decoder.decode([CalendarPick].self, from: data)) ?? [] }
+    }
+
+    func persistPreviewState() {
+        guard isPreview else { return }
+        let state = NativePreviewFeatureState(preferences: preferences, profile: profile, schedule: schedule, estimates: estimates)
+        if let data = try? JSONEncoder().encode(state) { UserDefaults.standard.set(data, forKey: previewStateKey) }
+    }
+
+    var hiddenCourseIDs: Set<Int> {
+        guard case .some(.array(let values)) = preferences["hidden-courses"] else { return [] }
+        return Set(values.compactMap { if case .number(let id) = $0 { return Int(id) }; return nil })
     }
 }
 

@@ -19,7 +19,7 @@ struct NativeSettingsView: View {
                             settingsLink("Focus", "scope") { FocusView(store: contentStore, features: features) }
                             settingsLink("Calendar", "calendar") { CalendarView(store: contentStore, features: features) }
                             settingsLink("Class Schedule", "calendar.badge.clock") { ClassScheduleView(features: features) }
-                            settingsLink("Announcements", "megaphone") { AnnouncementsView(store: contentStore) }
+                            settingsLink("Announcements", "megaphone") { AnnouncementsView(store: contentStore, features: features) }
                         }
                         AppearanceSettingsCard()
                         CPGlassCard(title: "Profile", subtitle: "Your personal CanvasPro details.") {
@@ -54,7 +54,8 @@ private struct GetItDoneView: View {
     @State private var skipped = Set<Int>()
     private var candidates: [AssignmentItem] {
         let limit = Date().addingTimeInterval(Double(window) * 86400)
-        return store.bundle.assignments.filter { !$0.isFinished(in: store) && !skipped.contains($0.id) && ($0.dueDate ?? limit) <= limit }.sorted { score($0) > score($1) }
+        let custom = features.customAssignments.map { item in AssignmentItem.custom(item, course: store.bundle.courses.first { $0.id == item.courseID }) }
+        return (store.bundle.assignments + custom).filter { !features.hiddenCourseIDs.contains($0.courseID) && !$0.isFinished(in: store) && !skipped.contains($0.id) && ($0.dueDate ?? limit) <= limit }.sorted { score($0) > score($1) }
     }
     private func score(_ item: AssignmentItem) -> Double {
         let hours = max(1, (item.dueDate ?? .distantFuture).timeIntervalSinceNow / 3600)
@@ -73,7 +74,7 @@ private struct GetItDoneView: View {
                         }
                     }
                     CPGlassCard(title: "Today’s Plan", subtitle: "A realistic order for the work CanvasPro thinks you can make progress on today.") {
-                        LazyVGrid(columns: phoneMetricColumns, spacing: 8) { PlanMetricTile(value: "\(candidates.prefix(8).reduce(0) { $0 + (features.estimates[$1.id] ?? 25) })m", label: "Remaining workload"); PlanMetricTile(value: "0%", label: "Plan progress"); PlanMetricTile(value: "0/\(min(8, candidates.count))", label: "Tasks") }
+                        LazyVGrid(columns: phoneMetricColumns, spacing: 8) { PlanMetricTile(value: "\(candidates.prefix(8).reduce(0) { $0 + (features.estimates[$1.id] ?? 25) })m", label: "Remaining workload"); PlanMetricTile(value: "\(min(8, candidates.count))", label: "Tasks ready"); PlanMetricTile(value: "\(window)d", label: "Planning window") }
                         VStack(spacing: 8) { ForEach(candidates.prefix(8)) { item in CPInsetRow { VStack(alignment: .leading, spacing: 5) { NativeAssignmentRow(assignment: item, store: store); Text("Estimated \(features.estimates[item.id] ?? 25) minutes").font(.system(size: 12)).foregroundStyle(CPTheme.muted(scheme)) } } } }
                         if candidates.isEmpty { NativeEmptyState(title: "No plan needed.", symbol: "checkmark.circle", detail: "Everything urgent is complete, skipped, or already submitted.") }
                     }
@@ -84,7 +85,7 @@ private struct GetItDoneView: View {
     private var phoneMetricColumns: [GridItem] { [GridItem(.flexible(minimum: 0), spacing: 8), GridItem(.flexible(minimum: 0), spacing: 8)] }
 }
 
-private struct FocusView: View {
+struct FocusView: View {
     @Environment(\.colorScheme) private var scheme
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
@@ -93,7 +94,9 @@ private struct FocusView: View {
     private var items: [AssignmentItem] {
         let end = Date().addingTimeInterval(Double(days) * 86400)
         let custom = features.customAssignments.map { item in AssignmentItem.custom(item, course: store.bundle.courses.first { $0.id == item.courseID }) }
-        return (store.bundle.assignments + custom).filter { ($0.dueDate ?? .distantFuture) <= end && (showCompleted || !$0.isFinished(in: store)) }.sorted(by: AssignmentItem.dueSort)
+        return (store.bundle.assignments + custom).filter { item in
+            !features.hiddenCourseIDs.contains(item.courseID) && (days == 3650 || (item.dueDate ?? .distantFuture) <= end) && (showCompleted || !item.isFinished(in: store))
+        }.sorted(by: AssignmentItem.dueSort)
     }
     var body: some View {
         ZStack {
@@ -128,8 +131,13 @@ private struct CalendarView: View {
     private var agenda: [(Date, String, String)] {
         let end = weekOnly ? Date().addingTimeInterval(7 * 86400) : Date.distantFuture
         var result = store.bundle.assignments.compactMap { item -> (Date, String, String)? in
-            guard let date = item.dueDate, date >= Date(), date <= end else { return nil }
+            guard !features.hiddenCourseIDs.contains(item.courseID), let date = item.dueDate, date >= Date(), date <= end else { return nil }
             return (date, item.name, item.courseName)
+        }
+        result += features.customAssignments.compactMap { item -> (Date, String, String)? in
+            guard !features.hiddenCourseIDs.contains(item.courseID), let raw = item.dueAt, let date = ISO8601DateFormatter.canvas.date(from: raw), date >= Date(), date <= end else { return nil }
+            let course = store.bundle.courses.first { $0.id == item.courseID }
+            return (date, item.name, course.map { store.displayName(courseID: $0.id, fallback: $0.name) } ?? "Custom assignment")
         }
         result += store.bundle.calendar.compactMap { event in
             guard let raw = event.startAt, let date = ISO8601DateFormatter.canvas.date(from: raw), date >= Date(), date <= end else { return nil }
@@ -174,8 +182,15 @@ struct WorkloadView: View {
 private struct AnnouncementsView: View {
     @Environment(\.colorScheme) private var scheme
     @ObservedObject var store: NativeContentStore
+    @ObservedObject var features: NativeFeatureStore
+    @AppStorage("CanvasProAnnouncementWeeks") private var weeks = 2
     @State private var search = ""
-    private var items: [AnnouncementItem] { store.bundle.announcements.filter { search.isEmpty || $0.title.localizedCaseInsensitiveContains(search) || $0.courseName.localizedCaseInsensitiveContains(search) } }
+    private var items: [AnnouncementItem] {
+        let cutoff = Date().addingTimeInterval(Double(-7 * weeks) * 86400)
+        return store.bundle.announcements.filter { item in
+            !features.hiddenCourseIDs.contains(item.courseID) && (ISO8601DateFormatter.canvas.date(from: item.postedAt) ?? .distantPast) >= cutoff && (search.isEmpty || item.title.localizedCaseInsensitiveContains(search) || item.courseName.localizedCaseInsensitiveContains(search))
+        }
+    }
     private var courseCount: Int { Set(items.map(\.courseID)).count }
     var body: some View {
         ZStack {
@@ -185,7 +200,7 @@ private struct AnnouncementsView: View {
                     CPGlassCard(strong: true) {
                         VStack(alignment: .leading, spacing: 14) {
                             Image(systemName: "megaphone").font(.system(size: 16)).foregroundStyle(CPTheme.primary(scheme: scheme)).frame(width: 36, height: 36).background(CPTheme.primary(scheme: scheme).opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
-                            Text("CAMPUS FEED · 2 WEEKS").font(.system(size: 10, weight: .regular)).tracking(1.7).foregroundStyle(CPTheme.muted(scheme))
+                            Text("CAMPUS FEED · \(weeks) WEEK\(weeks == 1 ? "" : "S")").font(.system(size: 10, weight: .regular)).tracking(1.7).foregroundStyle(CPTheme.muted(scheme))
                             Text("What changed while you were away.").font(.system(size: 28, weight: .regular)).tracking(-0.8)
                             Text("Every course update, ordered by when it happened—not hidden behind class cards.").font(.system(size: 12, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)).lineSpacing(2)
                             HStack(spacing: 8) { announcementMetric(items.count, "Recent posts"); announcementMetric(courseCount, "Active courses") }
@@ -346,8 +361,9 @@ private struct ClassNamesView: View {
     @ObservedObject var store: NativeContentStore
     @State private var drafts: [Int: String] = [:]
     @State private var status: String?
-    var body: some View { Form { Section("Class names") { ForEach(store.bundle.courses) { course in VStack(alignment: .leading) { Text(course.name).font(.caption).foregroundStyle(.secondary); TextField("Nickname", text: Binding(get: { drafts[course.id] ?? store.nicknames[course.id]?.customName ?? "" }, set: { drafts[course.id] = $0 })).onSubmit { save(course) } } } }; if let status { Section { Text(status) } } }.cpListScreen().navigationTitle("Class Names") }
+    var body: some View { Form { Section("Class names") { ForEach(store.bundle.courses) { course in VStack(alignment: .leading) { Text(course.name).font(.caption).foregroundStyle(.secondary); TextField("Nickname", text: Binding(get: { drafts[course.id] ?? store.nicknames[course.id]?.customName ?? "" }, set: { drafts[course.id] = $0 })).onSubmit { save(course) } } } }; Section { Button("Save Class Names") { saveAll() }.disabled(drafts.isEmpty) }; if let status { Section { Text(status) } } }.cpListScreen().navigationTitle("Class Names") }
     private func save(_ course: CourseSummary) { Task { do { try await store.saveNickname(course: course, name: drafts[course.id] ?? ""); status = "Saved." } catch { status = error.localizedDescription } } }
+    private func saveAll() { Task { do { for course in store.bundle.courses where drafts[course.id] != nil { try await store.saveNickname(course: course, name: drafts[course.id] ?? "") }; drafts.removeAll(); status = "Class names saved." } catch { status = error.localizedDescription } } }
 }
 
 private struct HiddenCoursesView: View {
@@ -389,7 +405,7 @@ private struct ClassScheduleView: View {
         List {
             ForEach(features.schedule) { item in VStack(alignment: .leading, spacing: 3) { Text(item.title).font(.system(size: 13, weight: .regular)); Text("\(item.days.joined(separator: ", ")) · \(time(item.startMinutes))–\(time(item.endMinutes))").font(.system(size: 12, weight: .regular)); Text([item.code, item.section, item.location, item.instructor].filter { !$0.isEmpty }.joined(separator: " · ")).font(.system(size: 10, weight: .regular)).foregroundStyle(.secondary) } }
                 .onDelete { indexes in Task {
-                    if features.isPreview { features.schedule.remove(atOffsets: indexes); return }
+                    if features.isPreview { features.schedule.remove(atOffsets: indexes); features.persistPreviewState(); return }
                     for index in indexes {
                         let item = features.schedule[index]
                         if let api = features.sessionStore.api {
@@ -414,7 +430,7 @@ private struct AddScheduleView: View {
         NavigationStack {
             Form {
                 Section("Class") { TextField("Title", text: $title); TextField("Course code", text: $code); TextField("Location", text: $location); TextField("Instructor", text: $instructor) }
-                Section("Meets") { HStack { ForEach(days, id: \.self) { day in Button(day) { if selectedDays.contains(day) { selectedDays.remove(day) } else { selectedDays.insert(day) } }.buttonStyle(.borderedProminent).tint(selectedDays.contains(day) ? CPTheme.accent : .gray) } }; DatePicker("Starts", selection: $start, displayedComponents: .hourAndMinute); DatePicker("Ends", selection: $end, displayedComponents: .hourAndMinute) }
+                Section("Meets") { LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 0)), count: 4), spacing: 8) { ForEach(days, id: \.self) { day in Button(day) { if selectedDays.contains(day) { selectedDays.remove(day) } else { selectedDays.insert(day) } }.buttonStyle(.borderedProminent).tint(selectedDays.contains(day) ? CPTheme.accent : .gray).frame(maxWidth: .infinity) } }; DatePicker("Starts", selection: $start, displayedComponents: .hourAndMinute); DatePicker("Ends", selection: $end, displayedComponents: .hourAndMinute) }
                 if let error { Section { Text(error).foregroundStyle(.red) } }
             }.cpListScreen().navigationTitle("Add Class").toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }; ToolbarItem(placement: .confirmationAction) { Button("Save") { save() }.disabled(title.isEmpty || selectedDays.isEmpty) } }
         }
@@ -430,6 +446,7 @@ private struct AddScheduleView: View {
                     var previewEntry = entry
                     previewEntry.id = "preview-\(UUID().uuidString)"
                     features.schedule.append(previewEntry)
+                    features.persistPreviewState()
                     dismiss()
                     return
                 }
