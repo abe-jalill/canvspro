@@ -104,7 +104,7 @@ private struct FocusView: View {
                     HStack { Text(showCompleted ? "Showing completed assignments" : "Showing unfinished assignments").font(.system(size: 12)).foregroundStyle(CPTheme.muted(scheme)); Spacer(); Toggle("Show completed", isOn: $showCompleted).labelsHidden() }
                     CPGlassCard {
                         if items.isEmpty { NativeEmptyState(title: "You’re all caught up.", symbol: "checkmark", detail: "No assignments match this view. Choose All dates to check other deadlines.") }
-                        VStack(spacing: 8) { ForEach(items) { CPInsetRow { NativeAssignmentRow(assignment: $0, store: store) } } }
+                        VStack(spacing: 8) { ForEach(items) { item in CPInsetRow { NativeAssignmentRow(assignment: item, store: store) } } }
                     }
                 }.padding(15).padding(.bottom, 24)
             }
