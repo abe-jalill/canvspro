@@ -13,7 +13,7 @@ struct NativeSettingsView: View {
                 CPBackdrop()
                 ScrollView {
                     LazyVStack(spacing: 14) {
-                        CPPageHeader(eyebrow: "Your account", title: "Settings", detail: "Personalize CanvasPro and control what the app can do.")
+                        CPPageHeader(eyebrow: "Preferences", title: "Settings", detail: "Personalize CanvasPro and organize your coursework.")
                         CPGlassCard(title: "Plan & organize", subtitle: "The tools that live in the website sidebar.") {
                             settingsLink("Get It Done", "sparkles") { GetItDoneView(store: contentStore, features: features) }
                             settingsLink("Focus", "scope") { FocusView(store: contentStore, features: features) }
@@ -22,9 +22,6 @@ struct NativeSettingsView: View {
                             settingsLink("Announcements", "megaphone") { AnnouncementsView(store: contentStore, features: features) }
                         }
                         AppearanceSettingsCard()
-                        CPGlassCard(title: "Profile", subtitle: "Your personal CanvasPro details.") {
-                            settingsLink("Open profile settings", "person.crop.circle") { ProfileView(features: features, email: sessionStore.session?.user.email) }
-                        }
                         CPGlassCard(title: "Courses", subtitle: "Names, visibility, and announcement history.") {
                             settingsLink("Announcements", "clock.arrow.circlepath") { AnnouncementWindowSettingsView() }
                             settingsLink("Class names", "character.cursor.ibeam") { ClassNamesView(store: contentStore) }
@@ -109,12 +106,7 @@ private struct GetItDoneView: View {
             ScrollView {
                 LazyVStack(spacing: 14) {
                     VStack(alignment: .leading, spacing: 12) { CPPageHeader(eyebrow: "Get It Done", title: "Get It Done", detail: nil); HStack(spacing: 8) { ForEach([7, 14], id: \.self) { value in Button { window = value; choiceOffset = 0; orderRaw = "" } label: { CPChip(text: value == 7 ? "1 week" : "2 weeks", selected: window == value) }.buttonStyle(.plain) } } }
-                    CPGlassCard(title: "Today’s Plan", subtitle: "A realistic order for the work CanvasPro thinks you can make progress on today.") {
-                        LazyVGrid(columns: phoneMetricColumns, spacing: 8) { PlanMetricTile(value: "\(plan.reduce(0) { $0 + (features.estimates[$1.id].flatMap { $0 > 0 ? $0 : nil } ?? NativeParity.defaultEstimate($1)) })m", label: "Remaining workload"); PlanMetricTile(value: "\(plan.count)", label: "Tasks ready"); PlanMetricTile(value: "\(window)d", label: "Planning window") }
-                        HStack { Spacer(); Button("Regenerate plan") { skippedRaw = ""; orderRaw = ""; choiceOffset = 0 }.font(.system(size: 11, weight: .regular)) }
-                        VStack(spacing: 8) { ForEach(plan.indices, id: \.self) { index in let item = plan[index]; CPInsetRow { VStack(alignment: .leading, spacing: 7) { NativeAssignmentRow(assignment: item, store: store); Text("Estimated \(features.estimates[item.id].flatMap { $0 > 0 ? $0 : nil } ?? NativeParity.defaultEstimate(item)) minutes").font(.system(size: 11)).foregroundStyle(CPTheme.muted(scheme)); HStack(spacing: 14) { Button { move(item.id, direction: -1) } label: { Image(systemName: "arrow.up") }.disabled(index == 0); Button { move(item.id, direction: 1) } label: { Image(systemName: "arrow.down") }.disabled(index == plan.count - 1); Button("Estimate") { estimateMinutes = features.estimates[item.id].flatMap { $0 > 0 ? $0 : nil } ?? NativeParity.defaultEstimate(item); editingEstimate = item.id }; Spacer() }; HStack { if let url = URL(string: item.htmlURL), url.scheme == "https" { Link("Start", destination: url) }; Spacer(); Button("Skip today") { skip(item.id) } } }.font(.system(size: 11, weight: .regular)) } } } }
-                        if plan.isEmpty { NativeEmptyState(title: "No plan needed.", symbol: "checkmark.circle", detail: "Everything urgent is complete, skipped, or already submitted.") }
-                    }
+                    planCard
                     if let first = recommendation {
                         CPGlassCard(title: "What Should I Do Now?", subtitle: "One clear next step, chosen from deadlines, workload, priority, and the rest of your week.", strong: true) {
                             NativeAssignmentRow(assignment: first, store: store)
@@ -132,6 +124,34 @@ private struct GetItDoneView: View {
                 Button("Cancel", role: .cancel) { editingEstimate = nil }
             }
     }
+    private var planCard: some View {
+        CPGlassCard(title: "Today’s Plan", subtitle: "A realistic order for the work CanvasPro thinks you can make progress on today.") {
+            LazyVGrid(columns: phoneMetricColumns, spacing: 8) {
+                PlanMetricTile(value: "\(plan.reduce(0) { $0 + estimate(for: $1) })m", label: "Remaining workload")
+                PlanMetricTile(value: "\(plan.count)", label: "Tasks ready")
+                PlanMetricTile(value: "\(window)d", label: "Planning window")
+            }
+            HStack { Spacer(); Button("Regenerate plan") { skippedRaw = ""; orderRaw = ""; choiceOffset = 0 }.font(.system(size: 11, weight: .regular)) }
+            ForEach(plan.indices, id: \.self) { index in planRow(plan[index], index: index) }
+            if plan.isEmpty { NativeEmptyState(title: "No plan needed.", symbol: "checkmark.circle", detail: "Everything urgent is complete, skipped, or already submitted.") }
+        }
+    }
+    private func planRow(_ item: AssignmentItem, index: Int) -> some View {
+        CPInsetRow {
+            VStack(alignment: .leading, spacing: 7) {
+                NativeAssignmentRow(assignment: item, store: store)
+                Text("Estimated \(estimate(for: item)) minutes").font(.system(size: 11)).foregroundStyle(CPTheme.muted(scheme))
+                HStack(spacing: 14) {
+                    Button { move(item.id, direction: -1) } label: { Image(systemName: "arrow.up") }.disabled(index == 0)
+                    Button { move(item.id, direction: 1) } label: { Image(systemName: "arrow.down") }.disabled(index == plan.count - 1)
+                    Button("Estimate") { estimateMinutes = estimate(for: item); editingEstimate = item.id }
+                    Spacer()
+                }
+                HStack { if let url = URL(string: item.htmlURL), url.scheme == "https" { Link("Start", destination: url) }; Spacer(); Button("Skip today") { skip(item.id) } }
+            }.font(.system(size: 11, weight: .regular))
+        }
+    }
+    private func estimate(for item: AssignmentItem) -> Int { features.estimates[item.id].flatMap { $0 > 0 ? $0 : nil } ?? NativeParity.defaultEstimate(item) }
     private func skip(_ id: Int) { skippedRaw = (skipped.union([id])).sorted().map { String($0) }.joined(separator: ","); orderRaw = manualOrder.filter { $0 != id }.map { String($0) }.joined(separator: ","); choiceOffset = 0 }
     private func move(_ id: Int, direction: Int) { var ids = plan.map(\.id); guard let index = ids.firstIndex(of: id), ids.indices.contains(index + direction) else { return }; ids.swapAt(index, index + direction); orderRaw = ids.map { String($0) }.joined(separator: ",") }
     private var phoneMetricColumns: [GridItem] { [GridItem(.flexible(minimum: 0), spacing: 8), GridItem(.flexible(minimum: 0), spacing: 8)] }
@@ -402,7 +422,7 @@ private struct AppearanceSettingsCard: View {
     @AppStorage("CanvasProPalette") private var palette = "forest"
     private let columns = [GridItem(.flexible()), GridItem(.flexible())]
     var body: some View {
-        CPGlassCard(title: "Make yourself at home", subtitle: "Your colors, saved to your account. A familiar space on every device.", strong: true) {
+        CPGlassCard(title: "Make yourself at home", subtitle: "Your colors, saved on this iPhone for the preview.", strong: true) {
                     Text("COLOR PALETTE").font(.system(size: 10, weight: .regular)).tracking(1.5).foregroundStyle(CPTheme.muted(resolvedScheme))
                     LazyVGrid(columns: columns, spacing: 11) {
                         ForEach(CPPalette.allCases) { option in

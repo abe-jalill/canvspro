@@ -117,7 +117,8 @@ struct CPChip: View {
 }
 
 struct CPListScreenModifier: ViewModifier {
-    func body(content: Content) -> some View { content.scrollContentBackground(.hidden).background(CPBackdrop()) }
+    @Environment(\.colorScheme) private var scheme
+    func body(content: Content) -> some View { content.scrollContentBackground(.hidden).foregroundStyle(CPTheme.foreground(scheme)).tint(CPTheme.primary(scheme: scheme)).background(CPBackdrop()) }
 }
 
 extension View { func cpListScreen() -> some View { modifier(CPListScreenModifier()) } }
