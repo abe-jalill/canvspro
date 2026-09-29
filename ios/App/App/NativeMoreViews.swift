@@ -39,7 +39,7 @@ struct NativeSettingsView: View {
                     NavigationLink("Terms of Service") { NativeLegalView(title: "Terms of Service") }
                 }
                 Section("About") { LabeledContent("Interface", value: "Native SwiftUI"); LabeledContent("Navigation", value: "Apple TabView") }
-            }.navigationTitle("Settings")
+            }.cpListScreen().navigationTitle("Settings")
         }
     }
 }
@@ -63,7 +63,7 @@ private struct GetItDoneView: View {
             if let first = candidates.first { Section("Start here") { NativeAssignmentRow(assignment: first, store: store); Button("Choose another") { skipped.insert(first.id) } } }
             Section("Today’s plan") { ForEach(candidates.prefix(8)) { item in VStack(alignment: .leading) { NativeAssignmentRow(assignment: item, store: store); Text("Estimated \(features.estimates[item.id] ?? 25) minutes").font(.caption).foregroundStyle(.secondary) } } }
             if candidates.isEmpty { NativeEmptyState(title: "Nothing urgent", symbol: "sparkles") }
-        }.navigationTitle("Get It Done")
+        }.cpListScreen().navigationTitle("Get It Done")
     }
 }
 
@@ -82,7 +82,7 @@ private struct FocusView: View {
             Section { Picker("Due within", selection: $days) { Text("1 day").tag(1); Text("3 days").tag(3); Text("1 week").tag(7); Text("All").tag(3650) }.pickerStyle(.segmented); Toggle("Show completed", isOn: $showCompleted) }
             Section { ForEach(items) { NativeAssignmentRow(assignment: $0, store: store) } }
             if items.isEmpty { NativeEmptyState(title: "You’re all caught up", symbol: "checkmark.circle") }
-        }.navigationTitle("Focus")
+        }.cpListScreen().navigationTitle("Focus")
     }
 }
 
@@ -114,7 +114,7 @@ private struct CalendarView: View {
                 VStack(alignment: .leading) { Text(item.1).font(.headline); Text(item.2).font(.caption).foregroundStyle(.secondary); Text(item.0, format: .dateTime.weekday().month().day().hour().minute()).font(.caption) }
             }
             if agenda.isEmpty { NativeEmptyState(title: "Nothing scheduled", symbol: "calendar") }
-        }.navigationTitle("Calendar")
+        }.cpListScreen().navigationTitle("Calendar")
     }
 }
 
@@ -125,7 +125,7 @@ struct WorkloadView: View {
             ForEach(0..<7, id: \.self) { offset in
                 let day = Calendar.current.date(byAdding: .day, value: offset, to: Date())!
                 let count = assignments.filter { $0.dueDate.map { Calendar.current.isDate($0, inSameDayAs: day) } ?? false }.count
-                VStack { RoundedRectangle(cornerRadius: 5).fill(count == 0 ? Color.secondary.opacity(0.15) : Color.indigo.opacity(min(1, 0.3 + Double(count) * 0.18))).frame(height: 34); Text(day, format: .dateTime.weekday(.narrow)).font(.caption2) }.accessibilityLabel("\(count) assignments")
+                VStack { RoundedRectangle(cornerRadius: 5).fill(count == 0 ? Color.secondary.opacity(0.15) : CPTheme.accent.opacity(min(1, 0.3 + Double(count) * 0.18))).frame(height: 34); Text(day, format: .dateTime.weekday(.narrow)).font(.caption2) }.accessibilityLabel("\(count) assignments")
             }
         }
     }
@@ -135,12 +135,12 @@ private struct AnnouncementsView: View {
     @ObservedObject var store: NativeContentStore
     @State private var search = ""
     private var items: [AnnouncementItem] { store.bundle.announcements.filter { search.isEmpty || $0.title.localizedCaseInsensitiveContains(search) || $0.courseName.localizedCaseInsensitiveContains(search) } }
-    var body: some View { List(items) { item in NavigationLink { AnnouncementDetailView(item: item) } label: { VStack(alignment: .leading) { Text(item.title).font(.headline); Text(item.courseName).font(.caption).foregroundStyle(.secondary) } } }.navigationTitle("Announcements").searchable(text: $search).refreshable { await store.load() } }
+    var body: some View { List(items) { item in NavigationLink { AnnouncementDetailView(item: item) } label: { VStack(alignment: .leading) { Text(item.title).font(.headline); Text(item.courseName).font(.caption).foregroundStyle(.secondary) } } }.cpListScreen().navigationTitle("Announcements").searchable(text: $search).refreshable { await store.load() } }
 }
 
 struct AnnouncementDetailView: View {
     let item: AnnouncementItem
-    var body: some View { ScrollView { VStack(alignment: .leading, spacing: 14) { Text(item.courseName).foregroundStyle(.secondary); Text(item.message.strippingHTML).textSelection(.enabled); if let url = URL(string: item.htmlURL), !item.htmlURL.isEmpty { Link("Open in Canvas", destination: url) } }.frame(maxWidth: .infinity, alignment: .leading).padding() }.navigationTitle(item.title).navigationBarTitleDisplayMode(.inline) }
+    var body: some View { ZStack { CPBackdrop(); ScrollView { CPGlassCard(title: item.title, subtitle: item.courseName, strong: true) { Text(item.message.strippingHTML).textSelection(.enabled); if let url = URL(string: item.htmlURL), !item.htmlURL.isEmpty { Link("Open in Canvas", destination: url) } }.padding() } }.navigationTitle("Announcement").navigationBarTitleDisplayMode(.inline) }
 }
 
 private struct NotificationsView: View {
@@ -161,6 +161,7 @@ private struct NotificationsView: View {
             Section("History") { ForEach(features.alerts) { alert in VStack(alignment: .leading) { Text(alert.title).font(.headline); Text(alert.body).font(.subheadline); Text(alert.sentAt == nil ? "Scheduled" : "Sent").font(.caption).foregroundStyle(.secondary) } }; if features.alerts.isEmpty { Text("No notification history").foregroundStyle(.secondary) } }
             if let status { Section { Text(status).foregroundStyle(.secondary) } }
         }
+        .cpListScreen()
         .navigationTitle("Notifications")
         .onReceive(NotificationCenter.default.publisher(for: .nativeDeviceToken)) { note in
             if let token = note.object as? String { Task { await register(token) } }
@@ -201,7 +202,7 @@ private struct NotificationsView: View {
 
 private struct AppearanceView: View {
     @AppStorage("CanvasProColorScheme") private var scheme = "system"
-    var body: some View { Form { Section("Theme") { Picker("Appearance", selection: $scheme) { Text("System").tag("system"); Text("Light").tag("light"); Text("Dark").tag("dark") } } }.navigationTitle("Appearance") }
+    var body: some View { Form { Section("Theme") { Picker("Appearance", selection: $scheme) { Text("System").tag("system"); Text("Light").tag("light"); Text("Dark").tag("dark") } }; Section("CanvasPro style") { Label("Forest", systemImage: "checkmark.circle.fill").foregroundStyle(CPTheme.accent); Text("The native app uses the same forest palette, glass panels, rounded cards, and high-contrast typography as the website.").foregroundStyle(.secondary) } }.cpListScreen().navigationTitle("Appearance") }
 }
 
 private struct ProfileView: View {
@@ -209,14 +210,14 @@ private struct ProfileView: View {
     let email: String?
     @State private var username = ""
     @State private var status: String?
-    var body: some View { Form { Section("Account") { LabeledContent("Email", value: email ?? "—"); TextField("Username", text: $username).textInputAutocapitalization(.never); Button("Save username") { Task { do { try await features.saveUsername(username); status = "Profile saved." } catch { status = error.localizedDescription } } } }; if let status { Section { Text(status).foregroundStyle(.secondary) } } }.navigationTitle("Profile").onAppear { username = features.profile.username ?? "" } }
+    var body: some View { Form { Section("Account") { LabeledContent("Email", value: email ?? "—"); TextField("Username", text: $username).textInputAutocapitalization(.never); Button("Save username") { Task { do { try await features.saveUsername(username); status = "Profile saved." } catch { status = error.localizedDescription } } } }; if let status { Section { Text(status).foregroundStyle(.secondary) } } }.cpListScreen().navigationTitle("Profile").onAppear { username = features.profile.username ?? "" } }
 }
 
 private struct ClassNamesView: View {
     @ObservedObject var store: NativeContentStore
     @State private var drafts: [Int: String] = [:]
     @State private var status: String?
-    var body: some View { Form { Section("Class names") { ForEach(store.bundle.courses) { course in VStack(alignment: .leading) { Text(course.name).font(.caption).foregroundStyle(.secondary); TextField("Nickname", text: Binding(get: { drafts[course.id] ?? store.nicknames[course.id]?.customName ?? "" }, set: { drafts[course.id] = $0 })).onSubmit { save(course) } } } }; if let status { Section { Text(status) } } }.navigationTitle("Class Names") }
+    var body: some View { Form { Section("Class names") { ForEach(store.bundle.courses) { course in VStack(alignment: .leading) { Text(course.name).font(.caption).foregroundStyle(.secondary); TextField("Nickname", text: Binding(get: { drafts[course.id] ?? store.nicknames[course.id]?.customName ?? "" }, set: { drafts[course.id] = $0 })).onSubmit { save(course) } } } }; if let status { Section { Text(status) } } }.cpListScreen().navigationTitle("Class Names") }
     private func save(_ course: CourseSummary) { Task { do { try await store.saveNickname(course: course, name: drafts[course.id] ?? ""); status = "Saved." } catch { status = error.localizedDescription } } }
 }
 
@@ -227,7 +228,7 @@ private struct HiddenCoursesView: View {
     var body: some View {
         List(store.bundle.courses) { course in
             Toggle(store.displayName(courseID: course.id, fallback: course.name), isOn: Binding(get: { hidden.contains(course.id) }, set: { value in if value { hidden.insert(course.id) } else { hidden.remove(course.id) }; Task { try? await features.savePreference("hidden-courses", Array(hidden)) } }))
-        }.navigationTitle("Hidden Courses").onAppear { if case .some(.array(let values)) = features.preferences["hidden-courses"] { hidden = Set(values.compactMap { if case .number(let id) = $0 { return Int(id) }; return nil }) } }
+        }.cpListScreen().navigationTitle("Hidden Courses").onAppear { if case .some(.array(let values)) = features.preferences["hidden-courses"] { hidden = Set(values.compactMap { if case .number(let id) = $0 { return Int(id) }; return nil }) } }
     }
 }
 
@@ -239,7 +240,7 @@ private struct CanvasSettingsView: View {
             Section("Canvas connection") { TextField("yourschool.instructure.com", text: $domain).textInputAutocapitalization(.never).keyboardType(.URL); SecureField("Canvas API token", text: $canvasToken); Button("Validate and Save") { save() }.disabled(domain.isEmpty || canvasToken.isEmpty || working) } footer: { Text("The token is validated through CanvasPro and stored securely on the server, not on this device.") }
             if let status { Section { Text(status).foregroundStyle(.secondary) } }
             Section("How to get a token") { Text("In Canvas on the web, open Account → Settings → Approved Integrations → New Access Token. Copy it here once; CanvasPro cannot read it back later.") }
-        }.navigationTitle("Canvas")
+        }.cpListScreen().navigationTitle("Canvas")
     }
     private func save() { working = true; Task { defer { working = false }; do { try await store.saveCanvas(domain: domain, canvasToken: canvasToken); canvasToken = ""; status = "Canvas connection saved." } catch { status = error.localizedDescription } } }
 }
@@ -262,7 +263,7 @@ private struct ClassScheduleView: View {
                     await features.load()
                 } }
             if features.schedule.isEmpty { NativeEmptyState(title: "No class schedule", symbol: "calendar.badge.plus") }
-        }.navigationTitle("Class Schedule").toolbar { Button { showAdd = true } label: { Image(systemName: "plus") } }.sheet(isPresented: $showAdd) { AddScheduleView(features: features) }
+        }.cpListScreen().navigationTitle("Class Schedule").toolbar { Button { showAdd = true } label: { Image(systemName: "plus") } }.sheet(isPresented: $showAdd) { AddScheduleView(features: features) }
     }
     private func time(_ minutes: Int) -> String { let hour = minutes / 60; let minute = minutes % 60; return String(format: "%d:%02d %@", hour % 12 == 0 ? 12 : hour % 12, minute, hour < 12 ? "AM" : "PM") }
 }
@@ -276,9 +277,9 @@ private struct AddScheduleView: View {
         NavigationStack {
             Form {
                 Section("Class") { TextField("Title", text: $title); TextField("Course code", text: $code); TextField("Location", text: $location); TextField("Instructor", text: $instructor) }
-                Section("Meets") { HStack { ForEach(days, id: \.self) { day in Button(day) { if selectedDays.contains(day) { selectedDays.remove(day) } else { selectedDays.insert(day) } }.buttonStyle(.borderedProminent).tint(selectedDays.contains(day) ? .indigo : .gray) } }; DatePicker("Starts", selection: $start, displayedComponents: .hourAndMinute); DatePicker("Ends", selection: $end, displayedComponents: .hourAndMinute) }
+                Section("Meets") { HStack { ForEach(days, id: \.self) { day in Button(day) { if selectedDays.contains(day) { selectedDays.remove(day) } else { selectedDays.insert(day) } }.buttonStyle(.borderedProminent).tint(selectedDays.contains(day) ? CPTheme.accent : .gray) } }; DatePicker("Starts", selection: $start, displayedComponents: .hourAndMinute); DatePicker("Ends", selection: $end, displayedComponents: .hourAndMinute) }
                 if let error { Section { Text(error).foregroundStyle(.red) } }
-            }.navigationTitle("Add Class").toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }; ToolbarItem(placement: .confirmationAction) { Button("Save") { save() }.disabled(title.isEmpty || selectedDays.isEmpty) } }
+            }.cpListScreen().navigationTitle("Add Class").toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }; ToolbarItem(placement: .confirmationAction) { Button("Save") { save() }.disabled(title.isEmpty || selectedDays.isEmpty) } }
         }
     }
     private func save() {
@@ -308,13 +309,15 @@ private struct AddScheduleView: View {
 struct NativeLegalView: View {
     let title: String
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                Text(title).font(.largeTitle.bold())
-                Text("CanvasPro stores the account and coursework settings needed to provide the service. Canvas credentials are stored server-side and used only to retrieve your Canvas data. You may delete your account and its stored data from CanvasPro. Use of CanvasPro is subject to school and Canvas policies.")
-                Text("The complete, current policy is also available on canvaspro.app.").foregroundStyle(.secondary)
-                if let url = URL(string: title == "Privacy Policy" ? "https://canvaspro.app/privacy" : "https://canvaspro.app/terms") { Link("View current \(title)", destination: url) }
-            }.padding()
+        ZStack {
+            CPBackdrop()
+            ScrollView {
+                CPGlassCard(title: title, strong: true) {
+                    Text("CanvasPro stores the account and coursework settings needed to provide the service. Canvas credentials are stored server-side and used only to retrieve your Canvas data. You may delete your account and its stored data from CanvasPro. Use of CanvasPro is subject to school and Canvas policies.")
+                    Text("The complete, current policy is also available on canvaspro.app.").foregroundStyle(.secondary)
+                    if let url = URL(string: title == "Privacy Policy" ? "https://canvaspro.app/privacy" : "https://canvaspro.app/terms") { Link("View current \(title)", destination: url) }
+                }.padding()
+            }
         }.navigationTitle(title).navigationBarTitleDisplayMode(.inline)
     }
 }
