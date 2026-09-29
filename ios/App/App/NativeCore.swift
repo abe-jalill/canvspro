@@ -193,6 +193,34 @@ struct CanvasBundle: Codable {
     let errors: [String: String]?
 }
 
+enum NativePreviewData {
+    private static func date(daysFromToday: Int, hour: Int = 17) -> String {
+        let value = Calendar.current.date(byAdding: .day, value: daysFromToday, to: Date()) ?? Date()
+        let scheduled = Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: value) ?? value
+        return ISO8601DateFormatter().string(from: scheduled)
+    }
+
+    static var bundle: CanvasBundle {
+        let courses = [
+            CourseSummary(id: 101, name: "Introduction to Psychology", courseCode: "PSY 101", currentScore: 91.4, currentGrade: "A-", finalScore: nil),
+            CourseSummary(id: 102, name: "Data Structures", courseCode: "CS 230", currentScore: 87.2, currentGrade: "B+", finalScore: nil),
+            CourseSummary(id: 103, name: "College Writing", courseCode: "ENG 102", currentScore: 94.0, currentGrade: "A", finalScore: nil),
+        ]
+        let assignments = [
+            AssignmentItem(id: 1001, name: "Research outline", description: "Prepare an outline with at least three peer-reviewed sources.", dueAt: date(daysFromToday: 1), htmlURL: "", pointsPossible: 25, courseID: 103, courseName: "College Writing", courseCode: "ENG 102", submission: nil),
+            AssignmentItem(id: 1002, name: "Linked list lab", description: "Implement insert, remove, and search operations.", dueAt: date(daysFromToday: 2), htmlURL: "", pointsPossible: 40, courseID: 102, courseName: "Data Structures", courseCode: "CS 230", submission: nil),
+            AssignmentItem(id: 1003, name: "Memory and learning quiz", description: "Review chapters 6–7 before taking the quiz.", dueAt: date(daysFromToday: 4), htmlURL: "", pointsPossible: 15, courseID: 101, courseName: "Introduction to Psychology", courseCode: "PSY 101", submission: nil),
+            AssignmentItem(id: 1004, name: "Discussion response", description: "Reply thoughtfully to two classmates.", dueAt: date(daysFromToday: -1), htmlURL: "", pointsPossible: 10, courseID: 101, courseName: "Introduction to Psychology", courseCode: "PSY 101", submission: AssignmentSubmission(workflowState: nil, submittedAt: nil, score: nil, gradedAt: nil, grade: nil, missing: true, excused: false, late: false)),
+            AssignmentItem(id: 1005, name: "Arrays practice", description: "Completed example assignment.", dueAt: date(daysFromToday: -2), htmlURL: "", pointsPossible: 20, courseID: 102, courseName: "Data Structures", courseCode: "CS 230", submission: AssignmentSubmission(workflowState: "graded", submittedAt: date(daysFromToday: -2), score: 19, gradedAt: date(daysFromToday: -1), grade: "A", missing: false, excused: false, late: false)),
+        ]
+        let announcements = [
+            AnnouncementItem(id: 501, title: "Reminder: outline workshop", message: "Bring a working thesis statement and one source to class on Thursday.", postedAt: date(daysFromToday: -1), htmlURL: "", contextCode: "course_103", courseID: 103, courseName: "College Writing", courseCode: "ENG 102"),
+            AnnouncementItem(id: 502, title: "Exam review materials posted", message: "The review guide and practice problems are now available in Modules.", postedAt: date(daysFromToday: -2), htmlURL: "", contextCode: "course_101", courseID: 101, courseName: "Introduction to Psychology", courseCode: "PSY 101"),
+        ]
+        return CanvasBundle(courses: courses, assignments: assignments, announcements: announcements, calendar: [], errors: nil)
+    }
+}
+
 struct ClassNickname: Codable, Identifiable, Hashable {
     let canvasCourseID: Int
     let rawName: String?
@@ -515,11 +543,17 @@ final class NativeContentStore: ObservableObject {
     @Published var nicknames: [Int: ClassNickname] = [:]
     @Published var isLoading = false
     @Published var errorMessage: String?
+    let isPreview: Bool
     private unowned let sessionStore: NativeSessionStore
 
-    init(sessionStore: NativeSessionStore) { self.sessionStore = sessionStore }
+    init(sessionStore: NativeSessionStore, preview: Bool = false) {
+        self.sessionStore = sessionStore
+        isPreview = preview
+        if preview { bundle = NativePreviewData.bundle; completed = [1005] }
+    }
 
     func load() async {
+        guard !isPreview else { return }
         guard let api = sessionStore.api, let user = sessionStore.session?.user else { return }
         isLoading = true
         errorMessage = nil
@@ -539,6 +573,10 @@ final class NativeContentStore: ObservableObject {
     func displayName(courseID: Int, fallback: String) -> String { nicknames[courseID]?.customName ?? fallback }
 
     func toggle(_ assignment: AssignmentItem) async {
+        if isPreview {
+            if completed.contains(assignment.id) { completed.remove(assignment.id) } else { completed.insert(assignment.id) }
+            return
+        }
         guard let api = sessionStore.api, let user = sessionStore.session?.user else { return }
         let next = !completed.contains(assignment.id)
         if next { completed.insert(assignment.id) } else { completed.remove(assignment.id) }
@@ -551,6 +589,12 @@ final class NativeContentStore: ObservableObject {
     }
 
     func saveNickname(course: CourseSummary, name: String) async throws {
+        if isPreview {
+            let row = ClassNickname(canvasCourseID: course.id, rawName: course.name, rawCode: course.courseCode, customName: name)
+            if name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { nicknames.removeValue(forKey: course.id) }
+            else { nicknames[course.id] = row }
+            return
+        }
         guard let api = sessionStore.api, let user = sessionStore.session?.user else { return }
         let row = ClassNickname(canvasCourseID: course.id, rawName: course.name, rawCode: course.courseCode, customName: name)
         try await api.saveNickname(row, token: try await sessionStore.accessToken(), userID: user.id)

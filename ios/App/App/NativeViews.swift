@@ -8,13 +8,7 @@ struct NativeRootView: View {
 
     var body: some View {
         Group {
-            if let error = sessionStore.configurationError {
-                NativeEmptyState(title: "Build configuration missing", symbol: "wrench.and.screwdriver", detail: error)
-            } else if sessionStore.session == nil {
-                NativeAuthView(sessionStore: sessionStore)
-            } else {
-                NativeMainTabView(sessionStore: sessionStore).id(sessionStore.session?.user.id)
-            }
+            NativeMainTabView(sessionStore: sessionStore, preview: true)
         }
         .tint(.indigo)
         .preferredColorScheme(colorScheme == "dark" ? .dark : colorScheme == "light" ? .light : nil)
@@ -123,14 +117,16 @@ private enum NativeTab: Hashable { case dashboard, assignments, study, grades, s
 
 struct NativeMainTabView: View {
     @ObservedObject var sessionStore: NativeSessionStore
+    let preview: Bool
     @StateObject private var contentStore: NativeContentStore
     @StateObject private var featureStore: NativeFeatureStore
     @State private var selection: NativeTab = .dashboard
 
-    init(sessionStore: NativeSessionStore) {
+    init(sessionStore: NativeSessionStore, preview: Bool = false) {
         self.sessionStore = sessionStore
-        _contentStore = StateObject(wrappedValue: NativeContentStore(sessionStore: sessionStore))
-        _featureStore = StateObject(wrappedValue: NativeFeatureStore(sessionStore: sessionStore))
+        self.preview = preview
+        _contentStore = StateObject(wrappedValue: NativeContentStore(sessionStore: sessionStore, preview: preview))
+        _featureStore = StateObject(wrappedValue: NativeFeatureStore(sessionStore: sessionStore, preview: preview))
     }
 
     var body: some View {

@@ -247,11 +247,24 @@ final class NativeFeatureStore: ObservableObject {
     @Published var notificationPreferences = NotificationPreferences()
     @Published var isLoading = false
     @Published var errorMessage: String?
+    let isPreview: Bool
     unowned let sessionStore: NativeSessionStore
 
-    init(sessionStore: NativeSessionStore) { self.sessionStore = sessionStore }
+    init(sessionStore: NativeSessionStore, preview: Bool = false) {
+        self.sessionStore = sessionStore
+        isPreview = preview
+        if preview {
+            profile = AccountProfile(username: "Preview Student", avatarPath: nil)
+            schedule = [
+                ClassScheduleEntry(id: "preview-1", code: "CS 230", section: "01", title: "Data Structures", crn: "", credits: 3, instructor: "Dr. Rivera", location: "Science 204", campus: "", scheduleType: "Lecture", days: ["M", "W"], startMinutes: 600, endMinutes: 675, term: "", dateRange: "", canvasCourseID: 102),
+                ClassScheduleEntry(id: "preview-2", code: "ENG 102", section: "02", title: "College Writing", crn: "", credits: 3, instructor: "Prof. Chen", location: "Humanities 118", campus: "", scheduleType: "Lecture", days: ["T", "R"], startMinutes: 780, endMinutes: 855, term: "", dateRange: "", canvasCourseID: 103),
+            ]
+            estimates = [1001: 45, 1002: 60, 1003: 20]
+        }
+    }
 
     func load() async {
+        guard !isPreview else { return }
         guard let api = sessionStore.api, let user = sessionStore.session?.user else { return }
         isLoading = true; errorMessage = nil; defer { isLoading = false }
         do {
@@ -271,26 +284,30 @@ final class NativeFeatureStore: ObservableObject {
     }
 
     func savePreference<T: Encodable>(_ key: String, _ value: T) async throws {
-        guard let api = sessionStore.api, let user = sessionStore.session?.user else { throw NativeAppError.signedOut }
         let data = try JSONEncoder().encode(value)
         let json = try JSONDecoder().decode(JSONValue.self, from: data)
         preferences[key] = json
+        if isPreview { decodePreferenceModels(); return }
+        guard let api = sessionStore.api, let user = sessionStore.session?.user else { throw NativeAppError.signedOut }
         try await api.savePreference(key: key, value: json, token: try await sessionStore.accessToken(), userID: user.id)
         decodePreferenceModels()
     }
 
     func saveNotifications() async throws {
+        if isPreview { return }
         guard let api = sessionStore.api, let user = sessionStore.session?.user else { throw NativeAppError.signedOut }
         try await api.syncNotificationPreferences(notificationPreferences.dictionary, token: try await sessionStore.accessToken(), userID: user.id)
     }
 
     func saveUsername(_ username: String) async throws {
+        if isPreview { profile.username = username; return }
         guard let api = sessionStore.api else { throw NativeAppError.signedOut }
         try await api.setUsername(username, token: try await sessionStore.accessToken())
         profile.username = username
     }
 
     func saveEstimate(_ minutes: Int?, for assignment: AssignmentItem) async throws {
+        if isPreview { estimates[assignment.id] = minutes ?? 0; return }
         guard let api = sessionStore.api, let user = sessionStore.session?.user else { throw NativeAppError.signedOut }
         try await api.saveEstimate(assignmentID: assignment.id, courseID: assignment.courseID, minutes: minutes, token: try await sessionStore.accessToken(), userID: user.id)
         estimates[assignment.id] = minutes ?? 0

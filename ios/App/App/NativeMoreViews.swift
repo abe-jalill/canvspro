@@ -25,10 +25,14 @@ struct NativeSettingsView: View {
                     NavigationLink("Class names") { ClassNamesView(store: contentStore) }
                     NavigationLink("Hidden courses") { HiddenCoursesView(store: contentStore, features: features) }
                 }
-                Section("Connections") { NavigationLink("Canvas") { CanvasSettingsView(store: contentStore) } }
-                Section("Account") {
-                    LabeledContent("Signed in as", value: sessionStore.session?.user.email ?? "CanvasPro user")
-                    Button("Sign Out", role: .destructive) { Task { await sessionStore.signOut() } }
+                if !features.isPreview {
+                    Section("Connections") { NavigationLink("Canvas") { CanvasSettingsView(store: contentStore) } }
+                    Section("Account") {
+                        LabeledContent("Signed in as", value: sessionStore.session?.user.email ?? "CanvasPro user")
+                        Button("Sign Out", role: .destructive) { Task { await sessionStore.signOut() } }
+                    }
+                } else {
+                    Section("Preview Mode") { Text("Sample data is used locally. No account or Canvas connection is required.").foregroundStyle(.secondary) }
                 }
                 Section("Legal") {
                     NavigationLink("Privacy Policy") { NativeLegalView(title: "Privacy Policy") }
@@ -165,6 +169,10 @@ private struct NotificationsView: View {
     }
     private func bind<T>(_ path: WritableKeyPath<NotificationPreferences, T>) -> Binding<T> { Binding(get: { features.notificationPreferences[keyPath: path] }, set: { features.notificationPreferences[keyPath: path] = $0 }) }
     private func save() {
+        if features.isPreview {
+            status = "Preview settings saved on this simulator."
+            return
+        }
         syncing = true
         Task {
             defer { syncing = false }
@@ -242,7 +250,17 @@ private struct ClassScheduleView: View {
     var body: some View {
         List {
             ForEach(features.schedule) { item in VStack(alignment: .leading, spacing: 4) { Text(item.title).font(.headline); Text("\(item.days.joined(separator: ", ")) · \(time(item.startMinutes))–\(time(item.endMinutes))").font(.subheadline); Text([item.code, item.section, item.location, item.instructor].filter { !$0.isEmpty }.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary) } }
-                .onDelete { indexes in Task { for index in indexes { let item = features.schedule[index]; if let api = features.sessionStore.api { let token = try await features.sessionStore.accessToken(); try? await api.deleteScheduleEntry(id: item.id, token: token) } }; await features.load() } }
+                .onDelete { indexes in Task {
+                    if features.isPreview { features.schedule.remove(atOffsets: indexes); return }
+                    for index in indexes {
+                        let item = features.schedule[index]
+                        if let api = features.sessionStore.api {
+                            let token = try await features.sessionStore.accessToken()
+                            try? await api.deleteScheduleEntry(id: item.id, token: token)
+                        }
+                    }
+                    await features.load()
+                } }
             if features.schedule.isEmpty { NativeEmptyState(title: "No class schedule", symbol: "calendar.badge.plus") }
         }.navigationTitle("Class Schedule").toolbar { Button { showAdd = true } label: { Image(systemName: "plus") } }.sheet(isPresented: $showAdd) { AddScheduleView(features: features) }
     }
@@ -268,7 +286,22 @@ private struct AddScheduleView: View {
         let startMinutes = cal.component(.hour, from: start) * 60 + cal.component(.minute, from: start)
         let endMinutes = cal.component(.hour, from: end) * 60 + cal.component(.minute, from: end)
         let entry = ClassScheduleEntry(id: "", code: code, section: "", title: title, crn: "", credits: 0, instructor: instructor, location: location, campus: "", scheduleType: "Lecture", days: days.filter(selectedDays.contains), startMinutes: startMinutes, endMinutes: endMinutes, term: "", dateRange: "", canvasCourseID: nil)
-        Task { do { guard let api = features.sessionStore.api, let user = features.sessionStore.session?.user else { return }; let token = try await features.sessionStore.accessToken(); try await api.saveScheduleEntry(entry, token: token, userID: user.id); await features.load(); dismiss() } catch { self.error = error.localizedDescription } }
+        Task {
+            do {
+                if features.isPreview {
+                    var previewEntry = entry
+                    previewEntry.id = "preview-\(UUID().uuidString)"
+                    features.schedule.append(previewEntry)
+                    dismiss()
+                    return
+                }
+                guard let api = features.sessionStore.api, let user = features.sessionStore.session?.user else { return }
+                let token = try await features.sessionStore.accessToken()
+                try await api.saveScheduleEntry(entry, token: token, userID: user.id)
+                await features.load()
+                dismiss()
+            } catch { self.error = error.localizedDescription }
+        }
     }
 }
 
