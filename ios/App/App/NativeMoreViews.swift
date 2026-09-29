@@ -403,7 +403,7 @@ private struct CanvasSettingsView: View {
     private func save() { working = true; Task { defer { working = false }; do { try await store.saveCanvas(domain: domain, canvasToken: canvasToken); canvasToken = ""; status = "Canvas connection saved." } catch { status = error.localizedDescription } } }
 }
 
-private struct ClassScheduleView: View {
+struct ClassScheduleView: View {
     @ObservedObject var features: NativeFeatureStore
     @State private var showAdd = false
     var body: some View {
