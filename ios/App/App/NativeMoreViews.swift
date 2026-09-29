@@ -65,7 +65,7 @@ private struct GetItDoneView: View {
             CPBackdrop()
             ScrollView {
                 LazyVStack(spacing: 20) {
-                    HStack(alignment: .bottom) { CPPageHeader(eyebrow: "Get It Done", title: "Get It Done", detail: nil); HStack(spacing: 8) { ForEach([7, 14], id: \.self) { value in Button { window = value } label: { CPChip(text: value == 7 ? "1 week" : "2 weeks", selected: window == value) }.buttonStyle(.plain) } } }
+                    VStack(alignment: .leading, spacing: 12) { CPPageHeader(eyebrow: "Get It Done", title: "Get It Done", detail: nil); HStack(spacing: 8) { ForEach([7, 14], id: \.self) { value in Button { window = value } label: { CPChip(text: value == 7 ? "1 week" : "2 weeks", selected: window == value) }.buttonStyle(.plain) } } }
                     if let first = candidates.first {
                         CPGlassCard(title: "What Should I Do Now?", subtitle: "One clear next step, chosen from deadlines, workload, priority, and the rest of your week.", strong: true) {
                             HStack(alignment: .top, spacing: 12) { Image(systemName: "sparkles").frame(width: 36, height: 36).background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 12)); VStack(alignment: .leading, spacing: 8) { NativeAssignmentRow(assignment: first, store: store); Text("This is the strongest next step based on its deadline and estimated workload.").font(.system(size: 14)).foregroundStyle(CPTheme.foreground(scheme).opacity(0.85)).lineSpacing(3) } }
@@ -73,7 +73,7 @@ private struct GetItDoneView: View {
                         }
                     }
                     CPGlassCard(title: "Today’s Plan", subtitle: "A realistic order for the work CanvasPro thinks you can make progress on today.") {
-                        HStack(spacing: 8) { PlanMetricTile(value: "\(candidates.prefix(8).reduce(0) { $0 + (features.estimates[$1.id] ?? 25) })m", label: "Remaining workload"); PlanMetricTile(value: "0%", label: "Plan progress"); PlanMetricTile(value: "0/\(min(8, candidates.count))", label: "Tasks") }
+                        LazyVGrid(columns: phoneMetricColumns, spacing: 8) { PlanMetricTile(value: "\(candidates.prefix(8).reduce(0) { $0 + (features.estimates[$1.id] ?? 25) })m", label: "Remaining workload"); PlanMetricTile(value: "0%", label: "Plan progress"); PlanMetricTile(value: "0/\(min(8, candidates.count))", label: "Tasks") }
                         VStack(spacing: 8) { ForEach(candidates.prefix(8)) { item in CPInsetRow { VStack(alignment: .leading, spacing: 5) { NativeAssignmentRow(assignment: item, store: store); Text("Estimated \(features.estimates[item.id] ?? 25) minutes").font(.system(size: 12)).foregroundStyle(CPTheme.muted(scheme)) } } } }
                         if candidates.isEmpty { NativeEmptyState(title: "No plan needed.", symbol: "checkmark.circle", detail: "Everything urgent is complete, skipped, or already submitted.") }
                     }
@@ -81,6 +81,7 @@ private struct GetItDoneView: View {
             }
         }.navigationTitle("Get It Done").navigationBarTitleDisplayMode(.inline)
     }
+    private var phoneMetricColumns: [GridItem] { [GridItem(.flexible(minimum: 0), spacing: 8), GridItem(.flexible(minimum: 0), spacing: 8)] }
 }
 
 private struct FocusView: View {
@@ -145,7 +146,7 @@ private struct CalendarView: View {
             CPBackdrop()
             ScrollView {
                 LazyVStack(spacing: 20) {
-                    HStack(alignment: .bottom) { CPPageHeader(eyebrow: weekOnly ? "Next 7 days" : "Full semester", title: "Calendar", detail: nil); HStack(spacing: 8) { Button { weekOnly = true } label: { CPChip(text: "This Week", selected: weekOnly) }.buttonStyle(.plain); Button { weekOnly = false } label: { CPChip(text: "Full Semester", selected: !weekOnly) }.buttonStyle(.plain) } }
+                    VStack(alignment: .leading, spacing: 12) { CPPageHeader(eyebrow: weekOnly ? "Next 7 days" : "Full semester", title: "Calendar", detail: nil); HStack(spacing: 8) { Button { weekOnly = true } label: { CPChip(text: "This Week", selected: weekOnly) }.buttonStyle(.plain); Button { weekOnly = false } label: { CPChip(text: "Full Semester", selected: !weekOnly) }.buttonStyle(.plain) } }
                     CPGlassCard(title: "Workload", subtitle: "Assignment density by week") { WorkloadView(assignments: store.bundle.assignments) }
                     CPGlassCard {
                         VStack(spacing: 8) { ForEach(Array(agenda.enumerated()), id: \.offset) { _, item in CPInsetRow { HStack { VStack(alignment: .leading, spacing: 5) { Text(item.1).font(.system(size: 14, weight: .medium)); Text(item.2).font(.system(size: 12)).foregroundStyle(CPTheme.muted(scheme)) }; Spacer(); Text(item.0, format: .dateTime.month().day().hour().minute()).font(.system(size: 12)).foregroundStyle(CPTheme.muted(scheme)).multilineTextAlignment(.trailing) } } } }
@@ -286,7 +287,7 @@ private struct AppearanceSettingsCard: View {
                         Button { palette = CPPalette.neutral.rawValue } label: { PaletteOption(option: .neutral, selected: palette == CPPalette.neutral.rawValue) }.buttonStyle(.plain).gridCellColumns(2)
                     }
                     Text("APPEARANCE").font(.system(size: 12, weight: .medium)).tracking(1.9).foregroundStyle(CPTheme.muted(resolvedScheme)).padding(.top, 4)
-                    HStack(spacing: 9) {
+                    LazyVGrid(columns: [GridItem(.flexible(minimum: 0), spacing: 9), GridItem(.flexible(minimum: 0), spacing: 9), GridItem(.flexible(minimum: 0))], spacing: 9) {
                         appearanceButton("light", "Light", "sun.max")
                         appearanceButton("dark", "Dark", "moon")
                         appearanceButton("system", "System", "desktopcomputer")

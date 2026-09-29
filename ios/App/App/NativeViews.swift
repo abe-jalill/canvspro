@@ -207,7 +207,7 @@ private struct NativeDashboardView: View {
                         }.padding(.horizontal, 3)
 
                         CPGlassCard(title: "Since your last visit", subtitle: "A quick look at what changed", strong: true) {
-                            HStack(spacing: 8) { MetricTile(value: "\(store.bundle.courses.count)", label: "Classes"); MetricTile(value: "\(weekItems.count)", label: "Upcoming"); MetricTile(value: "\(store.completed.count)", label: "Done") }
+                            LazyVGrid(columns: metricColumns, spacing: 8) { MetricTile(value: "\(store.bundle.courses.count)", label: "Classes"); MetricTile(value: "\(weekItems.count)", label: "Upcoming"); MetricTile(value: "\(store.completed.count)", label: "Done") }
                         }
 
                         CPGlassCard(title: "Classes & Grades", subtitle: "Active enrollments") {
@@ -275,6 +275,8 @@ private struct NativeDashboardView: View {
         .overlay(RoundedRectangle(cornerRadius: 32, style: .continuous).stroke(CPTheme.primary(scheme: scheme).opacity(scheme == .dark ? 0.28 : 0.22), lineWidth: 1))
         .shadow(color: Color.black.opacity(scheme == .dark ? 0.38 : 0.10), radius: 30, y: 16)
     }
+
+    private var metricColumns: [GridItem] { [GridItem(.flexible(minimum: 0), spacing: 8), GridItem(.flexible(minimum: 0), spacing: 8)] }
 
     private var heroMessage: String {
         if overdueCount > 0 { return "\(overdueCount) past-due item\(overdueCount == 1 ? " needs" : "s need") attention, with \(weekItems.count) ahead this week." }
@@ -378,7 +380,7 @@ private struct NativeAssignmentsView: View {
                 Text("COMPLETE WORKLOAD").font(.system(size: 12, weight: .medium)).tracking(2.4).foregroundStyle(CPTheme.muted(scheme))
                 Text("One agenda. Every assignment.").font(.system(size: 38, weight: .medium)).tracking(-1.7)
                 Text("Work is ordered by urgency across every class, so the next deadline is always obvious.").font(.system(size: 14)).foregroundStyle(CPTheme.muted(scheme)).lineSpacing(4)
-                HStack(spacing: 8) { workloadMetric(remaining.count, "Remaining"); workloadMetric(overdueCount, "Overdue", color: CPTheme.danger); workloadMetric(weekCount, "This week", color: CPTheme.primary(scheme: scheme)) }
+                LazyVGrid(columns: [GridItem(.flexible(minimum: 0), spacing: 8), GridItem(.flexible(minimum: 0), spacing: 8)], spacing: 8) { workloadMetric(remaining.count, "Remaining"); workloadMetric(overdueCount, "Overdue", color: CPTheme.danger); workloadMetric(weekCount, "This week", color: CPTheme.primary(scheme: scheme)) }
             }
         }.overlay(alignment: .topTrailing) { Circle().fill(CPTheme.primary(scheme: scheme).opacity(0.15)).frame(width: 280, height: 280).blur(radius: 70).offset(x: 100, y: -100).allowsHitTesting(false) }
     }
@@ -396,15 +398,15 @@ struct NativeAssignmentRow: View {
         HStack(alignment: .top, spacing: 12) {
             Button { Task { await store.toggle(assignment) } } label: { Image(systemName: isComplete ? "checkmark.square.fill" : "square").font(.title3).foregroundStyle(isComplete ? CPTheme.accent : CPTheme.muted(scheme)) }.buttonStyle(.plain)
             VStack(alignment: .leading, spacing: 4) {
-                Text(assignment.name).font(.headline).strikethrough(isComplete)
-                Text(store.displayName(courseID: assignment.courseID, fallback: assignment.courseName)).font(.subheadline).foregroundStyle(CPTheme.muted(scheme))
+                Text(assignment.name).font(.headline).strikethrough(isComplete).fixedSize(horizontal: false, vertical: true)
+                Text(store.displayName(courseID: assignment.courseID, fallback: assignment.courseName)).font(.subheadline).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
                 if let date = assignment.dueDate { Text(date, format: .dateTime.month().day().hour().minute()).font(.caption).foregroundStyle(date < Date() && !isComplete ? CPTheme.danger : CPTheme.muted(scheme)) }
                 HStack(spacing: 8) {
                     if assignment.submission?.missing == true { Label("Missing", systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red) }
                     if assignment.submission?.late == true { Text("Late").foregroundStyle(.orange) }
                     if let points = assignment.pointsPossible { Text("\(points.formatted()) pts") }
                 }.font(.caption2)
-            }
+            }.frame(maxWidth: .infinity, alignment: .leading)
         }.padding(.vertical, 3)
     }
 }
@@ -502,7 +504,7 @@ private struct NativeGradesView: View {
                 Text("Compare courses, spot movement, and open the details only when you need them.").font(.system(size: 14)).foregroundStyle(CPTheme.muted(scheme)).lineSpacing(4)
                 VStack(alignment: .leading, spacing: 2) { Text("CURRENT AVERAGE").font(.system(size: 12)).tracking(1.7).foregroundStyle(CPTheme.muted(scheme)); HStack(alignment: .bottom, spacing: 4) { Text(average.map { String(format: "%.1f", $0) } ?? "—").font(.system(size: 60, weight: .medium)).tracking(-4.5).foregroundStyle(gradeColor(average)); if average != nil { Text("%").font(.system(size: 18)).foregroundStyle(CPTheme.muted(scheme)).padding(.bottom, 9) } } }
                 Divider().overlay(CPTheme.foreground(scheme).opacity(0.10))
-                HStack(spacing: 0) { gradeMetric("\(scored.count)", "Courses graded"); gradeMetric("0", "Trending up", accent: true); gradeMetric("\(gradedAssignments)", "Grades posted") }
+                LazyVGrid(columns: [GridItem(.flexible(minimum: 0), spacing: 8), GridItem(.flexible(minimum: 0), spacing: 8)], spacing: 12) { gradeMetric("\(scored.count)", "Courses graded"); gradeMetric("0", "Trending up", accent: true); gradeMetric("\(gradedAssignments)", "Grades posted") }
             }
         }.overlay(alignment: .topTrailing) { Circle().fill(CPTheme.primary(scheme: scheme).opacity(0.15)).frame(width: 280, height: 280).blur(radius: 70).offset(x: 100, y: -100).allowsHitTesting(false) }
     }
@@ -514,7 +516,7 @@ private struct NativeGradesView: View {
 struct CourseRow: View {
     @Environment(\.colorScheme) private var scheme
     let course: CourseSummary; @ObservedObject var store: NativeContentStore
-    var body: some View { HStack(spacing: 12) { Circle().fill(gradeColor).frame(width: 9, height: 9).shadow(color: gradeColor.opacity(0.6), radius: 5); VStack(alignment: .leading, spacing: 4) { Text(store.displayName(courseID: course.id, fallback: course.name)).font(.headline.weight(.regular)); Text(course.courseCode).font(.caption).foregroundStyle(CPTheme.muted(scheme)) }; Spacer(); VStack(alignment: .trailing) { Text(course.currentGrade ?? "—").font(.title3.weight(.medium)).foregroundStyle(gradeColor); if let score = course.currentScore { Text("\(score.formatted(.number.precision(.fractionLength(1))))%").font(.caption).foregroundStyle(CPTheme.muted(scheme)) } } }.padding(.vertical, 3) }
+    var body: some View { HStack(spacing: 12) { Circle().fill(gradeColor).frame(width: 9, height: 9).shadow(color: gradeColor.opacity(0.6), radius: 5); VStack(alignment: .leading, spacing: 4) { Text(store.displayName(courseID: course.id, fallback: course.name)).font(.headline.weight(.regular)).lineLimit(2); Text(course.courseCode).font(.caption).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1) }.frame(maxWidth: .infinity, alignment: .leading); VStack(alignment: .trailing) { Text(course.currentGrade ?? "—").font(.title3.weight(.medium)).foregroundStyle(gradeColor); if let score = course.currentScore { Text("\(score.formatted(.number.precision(.fractionLength(1))))%").font(.caption).foregroundStyle(CPTheme.muted(scheme)) } }.fixedSize(horizontal: true, vertical: false) }.padding(.vertical, 3) }
     private var gradeColor: Color { guard let score = course.currentScore else { return CPTheme.muted(scheme) }; return score >= 90 ? CPTheme.accent : score >= 80 ? .cyan : score >= 70 ? CPTheme.warning : CPTheme.danger }
 }
 
@@ -554,7 +556,7 @@ private struct NativeStudyView: View {
                     }
                     CPGlassCard(title: "2 · Set a finish line", subtitle: "Pick a focused amount of time.", strong: true) {
                         VStack(spacing: 2) { Text("\(duration)").font(.system(size: 42, weight: .medium)).tracking(-1.8).monospacedDigit(); Text("MINUTES").font(.system(size: 11, weight: .medium)).tracking(1.8).foregroundStyle(CPTheme.muted(scheme)) }.frame(maxWidth: .infinity).padding(.vertical, 18).background(CPTheme.foreground(scheme).opacity(0.05), in: RoundedRectangle(cornerRadius: 16))
-                        HStack(spacing: 8) { ForEach([15, 25, 45, 60], id: \.self) { value in Button { duration = value; remaining = value * 60 } label: { CPChip(text: "\(value)m", selected: duration == value) }.buttonStyle(.plain) } }
+                        LazyVGrid(columns: [GridItem(.flexible(minimum: 0), spacing: 8), GridItem(.flexible(minimum: 0), spacing: 8)], spacing: 8) { ForEach([15, 25, 45, 60], id: \.self) { value in Button { duration = value; remaining = value * 60 } label: { CPChip(text: "\(value)m", selected: duration == value).frame(maxWidth: .infinity) }.buttonStyle(.plain) } }
                         Button { remaining = duration * 60; running = true } label: { Label("Start session", systemImage: "timer").font(.system(size: 14, weight: .medium)).frame(maxWidth: .infinity, minHeight: 48).foregroundStyle(CPTheme.background(scheme)).background(CPTheme.foreground(scheme), in: RoundedRectangle(cornerRadius: 12)) }.buttonStyle(.plain).disabled(selected.isEmpty).opacity(selected.isEmpty ? 0.5 : 1)
                     }
                 }.padding(.horizontal, 15).padding(.vertical, 10).padding(.bottom, 28)
@@ -573,7 +575,7 @@ private struct NativeStudyView: View {
                             Circle().stroke(CPTheme.foreground(scheme).opacity(0.08), lineWidth: 10)
                             Circle().trim(from: 0, to: Double(duration * 60 - remaining) / Double(max(1, duration * 60))).stroke(CPTheme.primary(scheme: scheme), style: StrokeStyle(lineWidth: 10, lineCap: .round)).rotationEffect(.degrees(-90))
                             VStack(spacing: 8) { Text(String(format: "%02d:%02d", remaining / 60, remaining % 60)).font(.system(size: 50, weight: .medium)).tracking(-3).monospacedDigit(); Text(running ? "FOCUS TIME" : "PAUSED").font(.system(size: 11, weight: .medium)).tracking(1.7).foregroundStyle(CPTheme.muted(scheme)) }
-                        }.frame(width: 250, height: 250).frame(maxWidth: .infinity).padding(.vertical, 12)
+                        }.frame(width: 210, height: 210).frame(maxWidth: .infinity).padding(.vertical, 12)
                         if !items.isEmpty { VStack(spacing: 6) { Text("NOW STUDYING").font(.system(size: 11, weight: .medium)).tracking(1.7).foregroundStyle(CPTheme.muted(scheme)); Text(items[min(currentIndex, items.count - 1)].name).font(.system(size: 20, weight: .medium)).multilineTextAlignment(.center); Text(items[min(currentIndex, items.count - 1)].courseName).font(.system(size: 12)).foregroundStyle(CPTheme.muted(scheme)) }.frame(maxWidth: .infinity) }
                         HStack { Button(running ? "Pause" : "Resume") { running.toggle() }.buttonStyle(.borderedProminent); Button("Next") { if !items.isEmpty { currentIndex = (currentIndex + 1) % items.count } }.buttonStyle(.bordered) }.frame(maxWidth: .infinity)
                         Button("End session", role: .destructive) { running = false; remaining = duration * 60; selected.removeAll(); currentIndex = 0 }.frame(maxWidth: .infinity)

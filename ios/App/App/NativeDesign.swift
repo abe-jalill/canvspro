@@ -70,11 +70,16 @@ extension Color {
 struct CPBackdrop: View {
     @Environment(\.colorScheme) private var scheme
     var body: some View {
-        ZStack {
-            CPTheme.background(scheme)
-            Circle().fill(CPTheme.primary(scheme: scheme).opacity(0.13)).frame(width: 520, height: 520).blur(radius: 100).offset(x: -180, y: -360)
-            Circle().fill(CPTheme.primary(scheme: scheme).opacity(0.08)).frame(width: 440, height: 440).blur(radius: 110).offset(x: 210, y: -120)
-        }.ignoresSafeArea()
+        GeometryReader { proxy in
+            ZStack {
+                CPTheme.background(scheme)
+                Circle().fill(CPTheme.primary(scheme: scheme).opacity(0.13)).frame(width: 520, height: 520).blur(radius: 100).offset(x: -180, y: -360)
+                Circle().fill(CPTheme.primary(scheme: scheme).opacity(0.08)).frame(width: 440, height: 440).blur(radius: 110).offset(x: 210, y: -120)
+            }
+            .frame(width: proxy.size.width, height: proxy.size.height)
+            .clipped()
+        }
+        .ignoresSafeArea()
     }
 }
 
@@ -104,7 +109,7 @@ struct CPInsetRow<Content: View>: View {
 struct CPPageHeader: View {
     @Environment(\.colorScheme) private var scheme
     let eyebrow: String; let title: String; let detail: String?
-    var body: some View { VStack(alignment: .leading, spacing: 8) { Text(eyebrow.uppercased()).font(.system(size: 12, weight: .medium)).tracking(2.2).foregroundStyle(CPTheme.muted(scheme)); Text(title).font(.system(size: 36, weight: .medium)).tracking(-1.6).foregroundStyle(CPTheme.foreground(scheme)); if let detail { Text(detail).font(.system(size: 14)).foregroundStyle(CPTheme.muted(scheme)).lineSpacing(3) } }.frame(maxWidth: .infinity, alignment: .leading) }
+    var body: some View { VStack(alignment: .leading, spacing: 8) { Text(eyebrow.uppercased()).font(.system(size: 12, weight: .medium)).tracking(2.2).foregroundStyle(CPTheme.muted(scheme)); Text(title).font(.system(size: 36, weight: .medium)).tracking(-1.6).foregroundStyle(CPTheme.foreground(scheme)).fixedSize(horizontal: false, vertical: true); if let detail { Text(detail).font(.system(size: 14)).foregroundStyle(CPTheme.muted(scheme)).lineSpacing(3).fixedSize(horizontal: false, vertical: true) } }.frame(maxWidth: .infinity, alignment: .leading) }
 }
 
 struct CPChip: View {
