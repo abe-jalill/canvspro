@@ -568,8 +568,9 @@ private struct NativeGradesView: View {
     @State private var search = ""
     @State private var expanded = Set<Int>()
     @State private var gradeHistory: [Int: [Double]] = [:]
-    private var courses: [CourseSummary] { store.bundle.courses.filter { course in !features.hiddenCourseIDs.contains(course.id) && (search.isEmpty || store.displayName(courseID: course.id, fallback: course.name).localizedCaseInsensitiveContains(search) || course.courseCode.localizedCaseInsensitiveContains(search) || store.bundle.assignments.contains { $0.courseID == course.id && $0.name.localizedCaseInsensitiveContains(search) }) } }
-    private var scored: [CourseSummary] { courses.filter { $0.currentScore != nil } }
+    private var visibleCourses: [CourseSummary] { store.bundle.courses.filter { !features.hiddenCourseIDs.contains($0.id) } }
+    private var courses: [CourseSummary] { visibleCourses.filter { course in search.isEmpty || store.displayName(courseID: course.id, fallback: course.name).localizedCaseInsensitiveContains(search) || course.courseCode.localizedCaseInsensitiveContains(search) || store.bundle.assignments.contains { $0.courseID == course.id && $0.name.localizedCaseInsensitiveContains(search) } } }
+    private var scored: [CourseSummary] { visibleCourses.filter { $0.currentScore != nil } }
     private var average: Double? { scored.isEmpty ? nil : scored.compactMap(\.currentScore).reduce(0, +) / Double(scored.count) }
     private var gradedAssignments: Int { store.bundle.assignments.filter { !features.hiddenCourseIDs.contains($0.courseID) && ($0.submission?.score != nil || $0.submission?.grade != nil) }.count }
     private var gradeSignature: String { store.bundle.courses.map { "\($0.id):\($0.currentScore ?? -1)" }.joined(separator: ",") }
@@ -610,19 +611,24 @@ private struct NativeGradesView: View {
     private func gradeColor(_ score: Double?) -> Color { guard let score else { return CPTheme.muted(scheme) }; return score >= 90 ? CPTheme.primary(scheme: scheme) : score >= 80 ? .cyan : score >= 70 ? CPTheme.warning : CPTheme.danger }
     private func trend(for course: CourseSummary) -> Double? { guard let current = course.currentScore, let previous = gradeHistory[course.id]?.first(where: { abs($0 - current) > 0.05 }) else { return nil }; return current - previous }
     private func gradeCard(_ course: CourseSummary) -> some View {
-        let graded = store.bundle.assignments.filter { $0.courseID == course.id && ($0.submission?.score != nil || !($0.submission?.grade ?? "").isEmpty) }
+        let graded = store.bundle.assignments.filter { item in
+            item.courseID == course.id &&
+            (item.submission?.score != nil || !((item.submission?.grade ?? "").isEmpty)) &&
+            (search.isEmpty || item.name.localizedCaseInsensitiveContains(search))
+        }
         return CPGlassCard {
-            Button { if expanded.contains(course.id) { expanded.remove(course.id) } else { expanded.insert(course.id) } } label: {
+            NavigationLink { CourseDetailView(course: course, store: store, features: features) } label: {
                 VStack(alignment: .leading, spacing: 12) {
-                    HStack { Text(store.displayName(courseID: course.id, fallback: course.name)).font(.system(size: 14)); Spacer(); Image(systemName: expanded.contains(course.id) ? "chevron.up" : "chevron.down").font(.system(size: 11)) }
+                    HStack { Text(store.displayName(courseID: course.id, fallback: course.name)).font(.system(size: 14)); Spacer(); Image(systemName: "chevron.right").font(.system(size: 11)) }
                     HStack(alignment: .bottom) { VStack(alignment: .leading) { Text("CURRENT GRADE").font(.system(size: 9)).foregroundStyle(CPTheme.muted(scheme)); CountUpGrade(value: course.currentScore, size: 31, color: gradeColor(course.currentScore)) }; Spacer(); Text(course.currentGrade ?? "—").font(.system(size: 12)).foregroundStyle(gradeColor(course.currentScore)); if let trend = trend(for: course) { Label("\(abs(trend).formatted(.number.precision(.fractionLength(1))))", systemImage: trend > 0 ? "arrow.up" : "arrow.down").font(.system(size: 11)).foregroundStyle(trend > 0 ? CPTheme.primary(scheme: scheme) : CPTheme.danger) } else { Label("Steady", systemImage: "minus").font(.system(size: 10)).foregroundStyle(CPTheme.muted(scheme)) } }
                     Text("\(graded.count) graded").font(.system(size: 10)).foregroundStyle(CPTheme.muted(scheme))
                     ProgressView(value: max(0, min(100, course.currentScore ?? 0)), total: 100).tint(gradeColor(course.currentScore))
                 }
             }.buttonStyle(.plain)
+            Button { if expanded.contains(course.id) { expanded.remove(course.id) } else { expanded.insert(course.id) } } label: { HStack { Text(expanded.contains(course.id) ? "Hide graded work" : "Show graded work"); Spacer(); Image(systemName: expanded.contains(course.id) ? "chevron.up" : "chevron.down") }.font(.system(size: 11)).foregroundStyle(CPTheme.primary(scheme: scheme)) }.buttonStyle(.plain)
             if expanded.contains(course.id) {
                 Divider()
-                HStack { Text("GRADED WORK").font(.system(size: 10)).foregroundStyle(CPTheme.muted(scheme)); Spacer(); NavigationLink { CourseDetailView(course: course, store: store, features: features) } label: { Text("Open course").font(.system(size: 11)) } }
+                Text("GRADED WORK").font(.system(size: 10)).foregroundStyle(CPTheme.muted(scheme))
                 if graded.isEmpty { Text("No graded assignments yet.").font(.system(size: 11)).foregroundStyle(CPTheme.muted(scheme)) }
                 ForEach(graded) { item in NavigationLink { AssignmentDetailView(assignment: item, store: store, features: features) } label: { HStack { Text(item.name).font(.system(size: 11)).lineLimit(2); Spacer(); Text("\(item.submission?.score?.formatted() ?? "—") / \(item.pointsPossible?.formatted() ?? "—")").font(.system(size: 11)).monospacedDigit() } }.buttonStyle(.plain) }
             }
