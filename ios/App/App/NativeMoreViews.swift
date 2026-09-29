@@ -235,7 +235,7 @@ struct CalendarView: View {
         }
         result += features.calendarPicks.compactMap { pick in
             if let assignment = allAssignments.first(where: { $0.id == pick.assignmentID }), !assignment.isVisible(in: store, showCompleted: showCompleted) { return nil }
-            guard let date = ISO8601DateFormatter.canvasDate(from: pick.at), date >= Date(), date <= end else { return nil }
+            guard let date = ISO8601DateFormatter.canvasDate(from: pick.at), date >= Date().addingTimeInterval(-12 * 3600), date <= end else { return nil }
             return NativeCalendarEntry(id: "pick-\(pick.id)", date: date, title: pick.title, context: pick.context, kind: "Planned work", url: nil, pickID: pick.id)
         }
         return result.sorted { $0.date < $1.date }
