@@ -85,6 +85,7 @@ struct CourseSummary: Codable, Identifiable, Hashable {
     let currentScore: Double?
     let currentGrade: String?
     let finalScore: Double?
+    var syllabusBody: String? = nil
 
     enum CodingKeys: String, CodingKey {
         case id, name
@@ -92,6 +93,7 @@ struct CourseSummary: Codable, Identifiable, Hashable {
         case currentScore = "current_score"
         case currentGrade = "current_grade"
         case finalScore = "final_score"
+        case syllabusBody = "syllabus_body"
     }
 }
 
@@ -166,6 +168,9 @@ struct CalendarEventItem: Codable, Identifiable, Hashable {
     let startAt: String?
     let endAt: String?
     let htmlURL: String?
+    let contextCode: String?
+    let contextName: String?
+    let locationName: String?
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -175,6 +180,9 @@ struct CalendarEventItem: Codable, Identifiable, Hashable {
         startAt = try container.decodeIfPresent(String.self, forKey: .startAt)
         endAt = try container.decodeIfPresent(String.self, forKey: .endAt)
         htmlURL = try container.decodeIfPresent(String.self, forKey: .htmlURL)
+        contextCode = try container.decodeIfPresent(String.self, forKey: .contextCode)
+        contextName = try container.decodeIfPresent(String.self, forKey: .contextName)
+        locationName = try container.decodeIfPresent(String.self, forKey: .locationName)
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -182,6 +190,9 @@ struct CalendarEventItem: Codable, Identifiable, Hashable {
         case startAt = "start_at"
         case endAt = "end_at"
         case htmlURL = "html_url"
+        case contextCode = "context_code"
+        case contextName = "context_name"
+        case locationName = "location_name"
     }
 }
 
@@ -202,7 +213,7 @@ enum NativePreviewData {
 
     static var bundle: CanvasBundle {
         let courses = [
-            CourseSummary(id: 101, name: "Introduction to Psychology", courseCode: "PSY 101", currentScore: 91.4, currentGrade: "A-", finalScore: nil),
+            CourseSummary(id: 101, name: "Introduction to Psychology", courseCode: "PSY 101", currentScore: 91.4, currentGrade: "A-", finalScore: nil, syllabusBody: "<h2>Introduction to Psychology</h2><p>Meetings: Monday and Wednesday. Topics include learning, memory, development, and research methods.</p><p>Assignments and announcements are posted in Canvas.</p>"),
             CourseSummary(id: 102, name: "Data Structures", courseCode: "CS 230", currentScore: 87.2, currentGrade: "B+", finalScore: nil),
             CourseSummary(id: 103, name: "College Writing", courseCode: "ENG 102", currentScore: 94.0, currentGrade: "A", finalScore: nil),
         ]

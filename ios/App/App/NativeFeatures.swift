@@ -350,3 +350,79 @@ extension AssignmentItem {
         AssignmentItem(id: item.id, name: item.name, description: item.notes, dueAt: item.dueAt, htmlURL: "", pointsPossible: item.pointsPossible, courseID: item.courseID, courseName: course?.name ?? "", courseCode: course?.courseCode ?? "", submission: nil)
     }
 }
+
+enum NativeParity {
+    static func endOfUpcomingDay(_ days: Int, from now: Date = Date()) -> Date {
+        let day = Calendar.current.date(byAdding: .day, value: days, to: now) ?? now
+        return Calendar.current.date(bySettingHour: 23, minute: 59, second: 59, of: day) ?? day
+    }
+
+    static func isInFocusWindow(_ item: AssignmentItem, window: String, now: Date = Date()) -> Bool {
+        if window == "all" { return true }
+        guard let due = item.dueDate else { return false }
+        if window == "overdue" { return due < now }
+        guard let days = Int(window) else { return false }
+        let end = days == 7 ? endOfUpcomingDay(7, from: now) : now.addingTimeInterval(Double(days) * 86400)
+        return due >= now && due <= end
+    }
+
+    static func defaultEstimate(_ item: AssignmentItem) -> Int {
+        let points = item.pointsPossible ?? 0
+        if points >= 100 { return 90 }
+        if points >= 50 { return 60 }
+        if points >= 20 { return 45 }
+        return 30
+    }
+
+    static func priority(_ item: AssignmentItem, courseTotalPoints: Double, estimate: Int?, now: Date = Date()) -> Double {
+        let hours = item.dueDate.map { $0.timeIntervalSince(now) / 3600 }
+        let timeScore: Double
+        if let hours {
+            if hours < 0 { timeScore = 100 + min(abs(hours) / 24, 5) * 2 }
+            else if hours <= 24 { timeScore = 80 + (24 - hours) / 24 * 20 }
+            else if hours <= 72 { timeScore = 50 + (72 - hours) / 48 * 30 }
+            else if hours <= 168 { timeScore = 20 + (168 - hours) / 96 * 30 }
+            else { timeScore = max(0, 20 - (hours - 168) / 24) }
+        } else { timeScore = 5 }
+        let points = item.pointsPossible ?? 0
+        let relativeWeight = courseTotalPoints > 0 ? points / courseTotalPoints * 100 : 0
+        let weightScore = points > 0 ? min(points / 200, 1) * 15 : 0
+        let estimateScore = estimate.map { $0 > 0 ? min(Double($0) / 120, 1) * 8 : 0 } ?? 0
+        return timeScore + weightScore + relativeWeight * 0.5 + estimateScore
+    }
+
+    static func getItDoneScore(_ item: AssignmentItem, estimate: Int?, dueSoonCount: Int, now: Date = Date()) -> Double {
+        let hours = item.dueDate.map { $0.timeIntervalSince(now) / 3600 }
+        var score: Double
+        if let hours {
+            if hours < 0 { score = 120 + min(abs(hours) / 24, 7) * 3 }
+            else if hours <= 12 { score = 105 }
+            else if hours <= 24 { score = 92 }
+            else if hours <= 72 { score = 70 - hours / 72 * 12 }
+            else if hours <= 168 { score = 38 - hours / 168 * 8 }
+            else { score = 10 }
+        } else { score = 8 }
+        let points = item.pointsPossible ?? 0
+        if points > 0 { score += min(points / 100, 1) * 16 }
+        if let estimate, estimate > 0 { score += min(Double(estimate) / 90, 1) * 8 }
+        else { score += min(Double(defaultEstimate(item)) / 90, 1) * 4 }
+        if dueSoonCount > 1 { score += Double(min(dueSoonCount, 4)) * 5 }
+        return score
+    }
+
+    static func recommendationReason(_ item: AssignmentItem, estimate: Int?, dueSoonCount: Int, now: Date = Date()) -> String {
+        var reasons: [String] = []
+        if let due = item.dueDate {
+            let hours = due.timeIntervalSince(now) / 3600
+            if hours < 0 { reasons.append("it is overdue") }
+            else if hours <= 12 { reasons.append("it is due soon") }
+            else if hours <= 24 { reasons.append("it is due within 24 hours") }
+            else if hours <= 72 { reasons.append("it is due within 3 days") }
+            else if hours <= 168 { reasons.append("it is due this week") }
+        }
+        if (item.pointsPossible ?? 0) >= 50 { reasons.append("it carries a lot of points") }
+        if (estimate ?? 0) >= 60 { reasons.append("it needs a longer work block") }
+        if dueSoonCount > 1 { reasons.append("\(dueSoonCount) assignments in this class are due soon") }
+        return reasons.isEmpty ? "Recommended because it is the strongest next task." : "Recommended because \(reasons.prefix(2).joined(separator: " and "))."
+    }
+}
