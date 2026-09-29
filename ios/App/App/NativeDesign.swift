@@ -2,15 +2,15 @@ import SwiftUI
 import UIKit
 
 enum CPPalette: String, CaseIterable, Identifiable {
-    case forest, blue, violet, rose, neutral
+    case forest, blue, violet, rose
 
     var id: String { rawValue }
     var name: String { rawValue.capitalized }
     var hue: Double {
-        switch self { case .forest: 148; case .blue: 214; case .violet: 266; case .rose: 340; case .neutral: 210 }
+        switch self { case .forest: 148; case .blue: 214; case .violet: 266; case .rose: 340 }
     }
     var saturation: Double {
-        switch self { case .forest: 0.34; case .blue: 0.58; case .violet: 0.48; case .rose: 0.45; case .neutral: 0.04 }
+        switch self { case .forest: 0.34; case .blue: 0.58; case .violet: 0.48; case .rose: 0.45 }
     }
     var swatch: Color {
         switch self {
@@ -18,7 +18,6 @@ enum CPPalette: String, CaseIterable, Identifiable {
         case .blue: Color(red: 118.0 / 255, green: 169.0 / 255, blue: 232.0 / 255)
         case .violet: Color(red: 179.0 / 255, green: 154.0 / 255, blue: 231.0 / 255)
         case .rose: Color(red: 220.0 / 255, green: 147.0 / 255, blue: 173.0 / 255)
-        case .neutral: Color(red: 168.0 / 255, green: 170.0 / 255, blue: 167.0 / 255)
         }
     }
     var detail: String {
@@ -27,7 +26,6 @@ enum CPPalette: String, CaseIterable, Identifiable {
         case .blue: "Clear skies, clear mind."
         case .violet: "Space for a new idea."
         case .rose: "A warmer kind of focus."
-        case .neutral: "Just the essentials."
         }
     }
 }

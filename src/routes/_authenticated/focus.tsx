@@ -12,7 +12,7 @@ import { displayCourseName } from "@/lib/course-display";
 import { useLocalSet, COMPLETED_ASSIGNMENTS_KEY } from "@/lib/local-state";
 import { getCountdown, urgencyAccentClass, urgencyTextClass } from "@/lib/countdown";
 import { isFocusWindow, isDueInFocusWindow, type FocusWindow } from "@/lib/focus-window";
-import { isAssignmentComplete } from "@/lib/assignment-window";
+import { isAssignmentComplete, isAssignmentVisible } from "@/lib/assignment-window";
 import { customToAssignmentItem, useCustomAssignments } from "@/lib/custom-assignments";
 import { toast } from "sonner";
 
@@ -83,9 +83,14 @@ function FocusPage() {
     ...custom.list.map((item) => customToAssignmentItem(item, courseById.get(item.course_id))),
   ];
   const dueInWindow = allAssignments.filter((a) => isDueInFocusWindow(a, win, now));
-  const unfinished = dueInWindow.filter((a) => !isAssignmentComplete(a, completed.has(a.id)));
-  const hiddenCompleteCount = dueInWindow.length - unfinished.length;
-  const inWindow = showCompleted ? dueInWindow : unfinished;
+  const completedInWindow = dueInWindow.filter((a) =>
+    isAssignmentComplete(a, completed.has(a.id)),
+  );
+  const unfinished = dueInWindow.filter((a) =>
+    isAssignmentVisible(a, completed.has(a.id), false, now),
+  );
+  const hiddenCompleteCount = completedInWindow.length;
+  const inWindow = showCompleted ? [...unfinished, ...completedInWindow] : unfinished;
 
   function toggleComplete(assignment: AssignmentItem) {
     const wasComplete = completed.has(assignment.id);

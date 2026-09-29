@@ -30,6 +30,7 @@ import { GpaCalculator } from "@/components/gpa-calculator";
 import { getCalendarEventsFn } from "@/lib/canvas.functions";
 import { getGradeColor } from "@/lib/grade-color";
 import { isInFocusWindow } from "@/lib/focus-window";
+import { useAnnouncementWindow, withinAnnouncementWindow } from "@/lib/announcement-window";
 import { customToAssignmentItem, useCustomAssignments } from "@/lib/custom-assignments";
 
 import {
@@ -64,6 +65,7 @@ function DigestWidget() {
   const courses = useQuery(coursesQO);
   const assignments = useQuery(assignmentsQO);
   const announcements = useQuery(announcementsQO);
+  const announcementWindow = useAnnouncementWindow();
   if (!courses.data || !assignments.data || !announcements.data) {
     return <DigestWidgetSkeleton />;
   }
@@ -71,7 +73,9 @@ function DigestWidget() {
     <DigestCard
       courses={courses.data}
       assignments={assignments.data}
-      announcements={announcements.data}
+      announcements={announcements.data.filter((item) =>
+        withinAnnouncementWindow(item.posted_at, announcementWindow.weeks),
+      )}
     />
   );
 }
@@ -347,8 +351,13 @@ function AnnouncementsWidget() {
   const { data, isLoading, isError, error } = useQuery(announcementsQO);
   const dismissed = useLocalSet(DISMISSED_ANNOUNCEMENTS_KEY);
   const [expanded, setExpanded] = useState<number[]>([]);
+  const announcementWindow = useAnnouncementWindow();
 
-  const visible = (data ?? []).filter((a) => !dismissed.has(a.id));
+  const visible = (data ?? []).filter(
+    (a) =>
+      !dismissed.has(a.id) &&
+      withinAnnouncementWindow(a.posted_at, announcementWindow.weeks),
+  );
 
   type Item = (typeof visible)[number];
   type Group = { id: number; name: string; code: string; items: Item[] };

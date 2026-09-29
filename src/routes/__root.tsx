@@ -21,7 +21,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/lib/theme";
 import { NativeAppEvents } from "@/components/native-app-events";
 
-const themeBootScript = `try{var t=localStorage.getItem("canvas:theme"),p=localStorage.getItem("canvas:palette");document.documentElement.classList.add(t==="dark"||t!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.palette=["forest","blue","violet","rose","neutral"].includes(p)?p:"forest"}catch(e){document.documentElement.classList.add("light");document.documentElement.dataset.palette="forest"}`;
+const themeBootScript = `try{var t=localStorage.getItem("canvas:theme"),p=localStorage.getItem("canvas:palette");document.documentElement.classList.add(t==="dark"||t!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.palette=["forest","blue","violet","rose"].includes(p)?p:"forest"}catch(e){document.documentElement.classList.add("light");document.documentElement.dataset.palette="forest"}`;
 
 function NotFoundComponent() {
   return (

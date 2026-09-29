@@ -1,5 +1,5 @@
 import type { AssignmentItem } from "@/lib/canvas.functions";
-import { isAssignmentComplete } from "./assignment-window.ts";
+import { isAssignmentVisible } from "./assignment-window.ts";
 
 export interface PriorityAssignment {
   assignment: AssignmentItem;
@@ -89,7 +89,7 @@ export function buildPriorityList(
     const manual = isCompleted instanceof Set
       ? isCompleted.has(a.id) || isCompleted.has(String(a.id))
       : isCompleted(a.id);
-    if (isAssignmentComplete(a, manual)) continue;
+    if (!isAssignmentVisible(a, manual, false, now)) continue;
     const arr = byCourse.get(a.course_id) ?? [];
     arr.push(a);
     byCourse.set(a.course_id, arr);

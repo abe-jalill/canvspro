@@ -39,11 +39,6 @@
   --palette-saturation: 45%;
 }
 
-:root[data-palette="neutral"] {
-  --palette-hue: 210;
-  --palette-saturation: 4%;
-}
-
 :root.light[data-palette] {
   --background: var(--palette-hue) 24% 97%;
   --foreground: var(--palette-hue) 26% 12%;

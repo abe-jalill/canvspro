@@ -313,9 +313,11 @@ function SettingsPage() {
 
 function AnnouncementWindowSection() {
   const { weeks, isLoading, ready, set } = useAnnouncementWindow();
-  const options: Array<{ value: 1 | 2; label: string }> = [
+  const options: Array<{ value: 0 | 1 | 2 | 4; label: string }> = [
     { value: 1, label: "1 week" },
     { value: 2, label: "2 weeks" },
+    { value: 4, label: "1 month" },
+    { value: 0, label: "All" },
   ];
 
   return (

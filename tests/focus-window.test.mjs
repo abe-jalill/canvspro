@@ -17,9 +17,11 @@ test("accepts the Focus windows including all dates", () => {
   for (const value of ["today", "8", "", undefined]) assert.equal(isFocusWindow(value), false);
 });
 
-test("overdue is separate from every upcoming window", () => {
-  const late = assignment(now - 10 * day);
+test("only overdue work from the last 24 hours remains actionable", () => {
+  const late = assignment(now - 23 * 60 * 60 * 1000);
+  const stale = assignment(now - 25 * 60 * 60 * 1000);
   assert.equal(isInFocusWindow(late, "overdue", now, false), true);
+  assert.equal(isInFocusWindow(stale, "overdue", now, false), false);
   for (const window of ["1", "2", "3", "7"]) {
     assert.equal(isInFocusWindow(late, window, now, false), false);
   }

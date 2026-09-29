@@ -55,7 +55,7 @@ private struct GetItDoneView: View {
     private var candidates: [AssignmentItem] {
         let limit = Date().addingTimeInterval(Double(window) * 86400)
         let custom = features.customAssignments.map { item in AssignmentItem.custom(item, course: store.bundle.courses.first { $0.id == item.courseID }) }
-        return (store.bundle.assignments + custom).filter { !features.hiddenCourseIDs.contains($0.courseID) && !$0.isFinished(in: store) && !skipped.contains($0.id) && ($0.dueDate ?? limit) <= limit }.sorted { score($0) > score($1) }
+        return (store.bundle.assignments + custom).filter { !features.hiddenCourseIDs.contains($0.courseID) && $0.isVisible(in: store) && !skipped.contains($0.id) && ($0.dueDate ?? limit) <= limit }.sorted { score($0) > score($1) }
     }
     private func score(_ item: AssignmentItem) -> Double {
         let hours = max(1, (item.dueDate ?? .distantFuture).timeIntervalSinceNow / 3600)
@@ -95,7 +95,9 @@ struct FocusView: View {
         let end = Date().addingTimeInterval(Double(days) * 86400)
         let custom = features.customAssignments.map { item in AssignmentItem.custom(item, course: store.bundle.courses.first { $0.id == item.courseID }) }
         return (store.bundle.assignments + custom).filter { item in
-            !features.hiddenCourseIDs.contains(item.courseID) && (days == 3650 || (item.dueDate ?? .distantFuture) <= end) && (showCompleted || !item.isFinished(in: store))
+            !features.hiddenCourseIDs.contains(item.courseID) &&
+            (days == 3650 || (item.dueDate ?? .distantFuture) <= end) &&
+            item.isVisible(in: store, showCompleted: showCompleted)
         }.sorted(by: AssignmentItem.dueSort)
     }
     var body: some View {
@@ -128,22 +130,27 @@ private struct CalendarView: View {
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
     @State private var weekOnly = true
+    @State private var showCompleted = false
+    private var allAssignments: [AssignmentItem] {
+        store.bundle.assignments + features.customAssignments.map { item in
+            AssignmentItem.custom(item, course: store.bundle.courses.first { $0.id == item.courseID })
+        }
+    }
+    private var visibleAssignments: [AssignmentItem] {
+        allAssignments.filter { !features.hiddenCourseIDs.contains($0.courseID) && $0.isVisible(in: store, showCompleted: showCompleted) }
+    }
     private var agenda: [(Date, String, String)] {
         let end = weekOnly ? Date().addingTimeInterval(7 * 86400) : Date.distantFuture
-        var result = store.bundle.assignments.compactMap { item -> (Date, String, String)? in
+        var result = visibleAssignments.compactMap { item -> (Date, String, String)? in
             guard !features.hiddenCourseIDs.contains(item.courseID), let date = item.dueDate, date >= Date(), date <= end else { return nil }
             return (date, item.name, item.courseName)
-        }
-        result += features.customAssignments.compactMap { item -> (Date, String, String)? in
-            guard !features.hiddenCourseIDs.contains(item.courseID), let raw = item.dueAt, let date = ISO8601DateFormatter.canvas.date(from: raw), date >= Date(), date <= end else { return nil }
-            let course = store.bundle.courses.first { $0.id == item.courseID }
-            return (date, item.name, course.map { store.displayName(courseID: $0.id, fallback: $0.name) } ?? "Custom assignment")
         }
         result += store.bundle.calendar.compactMap { event in
             guard let raw = event.startAt, let date = ISO8601DateFormatter.canvas.date(from: raw), date >= Date(), date <= end else { return nil }
             return (date, event.title, "Canvas event")
         }
         result += features.calendarPicks.compactMap { pick in
+            if let assignment = allAssignments.first(where: { $0.id == pick.assignmentID }), !assignment.isVisible(in: store, showCompleted: showCompleted) { return nil }
             guard let date = ISO8601DateFormatter.canvas.date(from: pick.at), date >= Date(), date <= end else { return nil }
             return (date, pick.title, pick.context)
         }
@@ -154,8 +161,8 @@ private struct CalendarView: View {
             CPBackdrop()
             ScrollView {
                 LazyVStack(spacing: 14) {
-                    VStack(alignment: .leading, spacing: 12) { CPPageHeader(eyebrow: weekOnly ? "Next 7 days" : "Full semester", title: "Calendar", detail: nil); HStack(spacing: 8) { Button { weekOnly = true } label: { CPChip(text: "This Week", selected: weekOnly) }.buttonStyle(.plain); Button { weekOnly = false } label: { CPChip(text: "Full Semester", selected: !weekOnly) }.buttonStyle(.plain) } }
-                    CPGlassCard(title: "Workload", subtitle: "Assignment density by week") { WorkloadView(assignments: store.bundle.assignments) }
+                    VStack(alignment: .leading, spacing: 12) { CPPageHeader(eyebrow: weekOnly ? "Next 7 days" : "Full semester", title: "Calendar", detail: nil); HStack(spacing: 8) { Button { weekOnly = true } label: { CPChip(text: "This Week", selected: weekOnly) }.buttonStyle(.plain); Button { weekOnly = false } label: { CPChip(text: "Full Semester", selected: !weekOnly) }.buttonStyle(.plain) }; Toggle("Show completed", isOn: $showCompleted).font(.system(size: 12, weight: .regular)) }
+                    CPGlassCard(title: "Workload", subtitle: "Assignment density by week") { WorkloadView(assignments: visibleAssignments) }
                     CPGlassCard {
                         VStack(spacing: 8) { ForEach(Array(agenda.enumerated()), id: \.offset) { _, item in CPInsetRow { HStack { VStack(alignment: .leading, spacing: 4) { Text(item.1).font(.system(size: 13, weight: .regular)); Text(item.2).font(.system(size: 11, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)) }; Spacer(); Text(item.0, format: .dateTime.month().day().hour().minute()).font(.system(size: 11, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)).multilineTextAlignment(.trailing) } } } }
                         if agenda.isEmpty { NativeEmptyState(title: "Nothing scheduled", symbol: "calendar", detail: weekOnly ? "Nothing scheduled in the next 7 days." : "Nothing scheduled for the semester.") }
@@ -173,7 +180,7 @@ struct WorkloadView: View {
             ForEach(0..<7, id: \.self) { offset in
                 let day = Calendar.current.date(byAdding: .day, value: offset, to: Date())!
                 let count = assignments.filter { $0.dueDate.map { Calendar.current.isDate($0, inSameDayAs: day) } ?? false }.count
-                VStack { RoundedRectangle(cornerRadius: 5).fill(count == 0 ? Color.secondary.opacity(0.15) : CPTheme.accent.opacity(min(1, 0.3 + Double(count) * 0.18))).frame(height: 34); Text(day, format: .dateTime.weekday(.narrow)).font(.caption2) }.accessibilityLabel("\(count) assignments")
+                VStack { RoundedRectangle(cornerRadius: 5).fill(count == 0 ? Color.secondary.opacity(0.15) : Color.accentColor.opacity(min(1, 0.3 + Double(count) * 0.18))).frame(height: 34); Text(day, format: .dateTime.weekday(.narrow)).font(.caption2) }.accessibilityLabel("\(count) assignments")
             }
         }
     }
@@ -183,12 +190,11 @@ private struct AnnouncementsView: View {
     @Environment(\.colorScheme) private var scheme
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
-    @AppStorage("CanvasProAnnouncementWeeks") private var weeks = 2
+    @AppStorage("CanvasProAnnouncementWeeks") private var weeks = 1
     @State private var search = ""
     private var items: [AnnouncementItem] {
-        let cutoff = Date().addingTimeInterval(Double(-7 * weeks) * 86400)
         return store.bundle.announcements.filter { item in
-            !features.hiddenCourseIDs.contains(item.courseID) && (ISO8601DateFormatter.canvas.date(from: item.postedAt) ?? .distantPast) >= cutoff && (search.isEmpty || item.title.localizedCaseInsensitiveContains(search) || item.courseName.localizedCaseInsensitiveContains(search))
+            !features.hiddenCourseIDs.contains(item.courseID) && item.isWithin(weeks: weeks) && (search.isEmpty || item.title.localizedCaseInsensitiveContains(search) || item.courseName.localizedCaseInsensitiveContains(search))
         }
     }
     private var courseCount: Int { Set(items.map(\.courseID)).count }
@@ -200,7 +206,7 @@ private struct AnnouncementsView: View {
                     CPGlassCard(strong: true) {
                         VStack(alignment: .leading, spacing: 14) {
                             Image(systemName: "megaphone").font(.system(size: 16)).foregroundStyle(CPTheme.primary(scheme: scheme)).frame(width: 36, height: 36).background(CPTheme.primary(scheme: scheme).opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
-                            Text("CAMPUS FEED · \(weeks) WEEK\(weeks == 1 ? "" : "S")").font(.system(size: 10, weight: .regular)).tracking(1.7).foregroundStyle(CPTheme.muted(scheme))
+                            Text(weeks == 0 ? "CAMPUS FEED · ALL" : "CAMPUS FEED · \(weeks) WEEK\(weeks == 1 ? "" : "S")").font(.system(size: 10, weight: .regular)).tracking(1.7).foregroundStyle(CPTheme.muted(scheme))
                             Text("What changed while you were away.").font(.system(size: 28, weight: .regular)).tracking(-0.8)
                             Text("Every course update, ordered by when it happened—not hidden behind class cards.").font(.system(size: 12, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)).lineSpacing(2)
                             HStack(spacing: 8) { announcementMetric(items.count, "Recent posts"); announcementMetric(courseCount, "Active courses") }
@@ -296,10 +302,9 @@ private struct AppearanceSettingsCard: View {
         CPGlassCard(title: "Make yourself at home", subtitle: "Your colors, saved to your account. A familiar space on every device.", strong: true) {
                     Text("COLOR PALETTE").font(.system(size: 10, weight: .regular)).tracking(1.5).foregroundStyle(CPTheme.muted(resolvedScheme))
                     LazyVGrid(columns: columns, spacing: 11) {
-                        ForEach(Array(CPPalette.allCases.dropLast())) { option in
+                        ForEach(CPPalette.allCases) { option in
                             Button { palette = option.rawValue } label: { PaletteOption(option: option, selected: palette == option.rawValue) }.buttonStyle(.plain)
                         }
-                        Button { palette = CPPalette.neutral.rawValue } label: { PaletteOption(option: .neutral, selected: palette == CPPalette.neutral.rawValue) }.buttonStyle(.plain).gridCellColumns(2)
                     }
                     Text("APPEARANCE").font(.system(size: 10, weight: .regular)).tracking(1.5).foregroundStyle(CPTheme.muted(resolvedScheme)).padding(.top, 4)
                     LazyVGrid(columns: [GridItem(.flexible(minimum: 0), spacing: 9), GridItem(.flexible(minimum: 0), spacing: 9), GridItem(.flexible(minimum: 0))], spacing: 9) {
@@ -320,13 +325,13 @@ private struct AppearanceSettingsCard: View {
 
 private struct AnnouncementWindowSettingsView: View {
     @Environment(\.colorScheme) private var scheme
-    @AppStorage("CanvasProAnnouncementWeeks") private var weeks = 2
+    @AppStorage("CanvasProAnnouncementWeeks") private var weeks = 1
     var body: some View {
         ZStack {
             CPBackdrop()
             ScrollView {
                 CPGlassCard(title: "Announcements", subtitle: "How far back the announcements list reaches.", strong: true) {
-                    HStack(spacing: 10) { ForEach([1, 2], id: \.self) { value in Button { weeks = value } label: { CPChip(text: "\(value) week\(value == 1 ? "" : "s")", selected: weeks == value) }.buttonStyle(.plain) } }
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) { ForEach([1, 2, 4, 0], id: \.self) { value in Button { weeks = value } label: { CPChip(text: value == 0 ? "All" : value == 4 ? "1 month" : "\(value) week\(value == 1 ? "" : "s")", selected: weeks == value).frame(maxWidth: .infinity) }.buttonStyle(.plain) } }
                     Text("Announcements older than this are hidden from the list.").font(.system(size: 12)).foregroundStyle(CPTheme.muted(scheme))
                 }.padding(14)
             }
@@ -430,7 +435,7 @@ private struct AddScheduleView: View {
         NavigationStack {
             Form {
                 Section("Class") { TextField("Title", text: $title); TextField("Course code", text: $code); TextField("Location", text: $location); TextField("Instructor", text: $instructor) }
-                Section("Meets") { LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 0)), count: 4), spacing: 8) { ForEach(days, id: \.self) { day in Button(day) { if selectedDays.contains(day) { selectedDays.remove(day) } else { selectedDays.insert(day) } }.buttonStyle(.borderedProminent).tint(selectedDays.contains(day) ? CPTheme.accent : .gray).frame(maxWidth: .infinity) } }; DatePicker("Starts", selection: $start, displayedComponents: .hourAndMinute); DatePicker("Ends", selection: $end, displayedComponents: .hourAndMinute) }
+                Section("Meets") { LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 0)), count: 4), spacing: 8) { ForEach(days, id: \.self) { day in Button(day) { if selectedDays.contains(day) { selectedDays.remove(day) } else { selectedDays.insert(day) } }.buttonStyle(.borderedProminent).tint(selectedDays.contains(day) ? Color.accentColor : .gray).frame(maxWidth: .infinity) } }; DatePicker("Starts", selection: $start, displayedComponents: .hourAndMinute); DatePicker("Ends", selection: $end, displayedComponents: .hourAndMinute) }
                 if let error { Section { Text(error).foregroundStyle(.red) } }
             }.cpListScreen().navigationTitle("Add Class").toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }; ToolbarItem(placement: .confirmationAction) { Button("Save") { save() }.disabled(title.isEmpty || selectedDays.isEmpty) } }
         }

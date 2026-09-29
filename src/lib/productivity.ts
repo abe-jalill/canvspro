@@ -1,7 +1,7 @@
 import type { AssignmentItem } from "./canvas.functions";
 import type { CompletionRecord } from "./completion-records";
 import { isInFocusWindow } from "./focus-window.ts";
-import { isAssignmentComplete } from "./assignment-window.ts";
+import { isAssignmentComplete, isStaleOverdue } from "./assignment-window.ts";
 
 function timestamp(value: string | null | undefined) {
   const time = value ? Date.parse(value) : NaN;
@@ -36,7 +36,8 @@ export function summarizeProductivity(
   for (const a of assignments) {
     const submitted = timestamp(a.submission?.submitted_at);
     if (submitted !== null) completed.set(String(a.id), { at: submitted, due: timestamp(a.due_at) });
-    if (!isAssignmentComplete(a, completedIds.has(String(a.id)))) remaining.push(a);
+    if (!isAssignmentComplete(a, completedIds.has(String(a.id))) &&
+        !isStaleOverdue(a, now.getTime())) remaining.push(a);
   }
   const recent = [...completed.values()].filter((r) => r.at >= since && r.at <= now.getTime());
   const upcomingByDay = new Map<string, number>();

@@ -3,7 +3,6 @@ export const PALETTES = [
   { id: "blue", name: "Blue", color: "#76a9e8", description: "Clear skies, clear mind." },
   { id: "violet", name: "Violet", color: "#b39ae7", description: "Space for a new idea." },
   { id: "rose", name: "Rose", color: "#dc93ad", description: "A warmer kind of focus." },
-  { id: "neutral", name: "Neutral", color: "#a8aaa7", description: "Just the essentials." },
 ] as const;
 export type Palette = (typeof PALETTES)[number]["id"];
 export type ThemeMode = "light" | "dark" | "system";

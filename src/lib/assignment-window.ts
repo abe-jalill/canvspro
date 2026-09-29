@@ -35,6 +35,21 @@ export function isStaleOverdue(a: AssignmentItem, now = Date.now()): boolean {
   return due < now - DAY_MS;
 }
 
+/**
+ * Shared visibility rule for every assignment surface. Completed work is only
+ * visible by explicit request; unfinished work disappears after 24h overdue.
+ */
+export function isAssignmentVisible(
+  a: AssignmentItem,
+  manuallyCompleted: boolean,
+  showCompleted = false,
+  now = Date.now(),
+): boolean {
+  const complete = isAssignmentComplete(a, manuallyCompleted);
+  if (complete) return showCompleted;
+  return !isStaleOverdue(a, now);
+}
+
 export function dropStaleOverdue(
   items: AssignmentItem[],
   now = Date.now(),

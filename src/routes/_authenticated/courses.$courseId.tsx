@@ -19,7 +19,8 @@ import { ArrowLeft, Calendar, Clock, ExternalLink, CheckCircle2, CalendarPlus } 
 import { cn } from "@/lib/utils";
 import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
 import { COMPLETED_ASSIGNMENTS_KEY, useLocalSet } from "@/lib/local-state";
-import { isAssignmentComplete } from "@/lib/assignment-window";
+import { isAssignmentVisible } from "@/lib/assignment-window";
+import { useAnnouncementWindow, withinAnnouncementWindow } from "@/lib/announcement-window";
 
 const THREE_WEEKS_MS = 3 * 7 * 24 * 60 * 60 * 1000;
 
@@ -112,6 +113,7 @@ function CourseDetailPage() {
   const calendarQueryState = useQuery(eventsQO);
   const classSchedule = useClassSchedule();
   const { has: isCompleted } = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
+  const announcementWindow = useAnnouncementWindow();
 
   const [activeTab, setActiveTab] = useState<"all" | "upcoming" | "graded" | "announcements">(
     "all",
@@ -206,7 +208,7 @@ function CourseDetailPage() {
   // completed or graded task upcoming while Focus correctly excludes it.
   const upcomingAssignments = useMemo(() => {
     return courseAssignments
-      .filter((a) => !isAssignmentComplete(a, isCompleted(a.id)))
+      .filter((a) => isAssignmentVisible(a, isCompleted(a.id), false))
       .sort((a, b) => {
         if (!a.due_at) return 1;
         if (!b.due_at) return -1;
@@ -243,10 +245,11 @@ function CourseDetailPage() {
     return announcementsQueryState.data
       .filter(
         (item: AnnouncementItem) =>
-          item.course_id === course.id || item.context_code === `course_${course.id}`,
+          (item.course_id === course.id || item.context_code === `course_${course.id}`) &&
+          withinAnnouncementWindow(item.posted_at, announcementWindow.weeks),
       )
       .sort((a, b) => new Date(b.posted_at).getTime() - new Date(a.posted_at).getTime());
-  }, [course, announcementsQueryState.data]);
+  }, [course, announcementsQueryState.data, announcementWindow.weeks]);
 
   // Announcements posted within the past 3 weeks; older ones hide behind
   // "View all".

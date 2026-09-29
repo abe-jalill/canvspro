@@ -24,7 +24,8 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { studySelectionFeedback, studySuccessFeedback } from "@/lib/study-session-feedback";
 import { useStudySession } from "@/hooks/use-study-session";
-import { isAssignmentComplete } from "@/lib/assignment-window";
+import { isAssignmentComplete, isAssignmentVisible } from "@/lib/assignment-window";
+import { COMPLETED_ASSIGNMENTS_KEY, useLocalSet } from "@/lib/local-state";
 import {
   createStudySession,
   remainingForSession,
@@ -118,6 +119,7 @@ function StudyClock({
 function StudySessionPage() {
   const { assignment: requestedAssignment } = Route.useSearch();
   const assignments = useQuery(assignmentsQO);
+  const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
   const { session, setSession, ready } = useStudySession();
   const [selected, setSelected] = useState<StudySessionItem[]>([]);
   const [manualName, setManualName] = useState("");
@@ -159,8 +161,9 @@ function StudySessionPage() {
     const needle = search.trim().toLowerCase();
     return (assignments.data ?? [])
       .filter((item) => {
-        const submitted = isAssignmentComplete(item, false);
-        if (!showCompleted && submitted) return false;
+        if (!isAssignmentVisible(item, completed.has(item.id), showCompleted, Date.now())) {
+          return false;
+        }
         if (!needle) return true;
         return `${item.name} ${item.course_name} ${item.course_code}`
           .toLowerCase()
@@ -171,7 +174,7 @@ function StudySessionPage() {
         if (!b.due_at) return -1;
         return new Date(a.due_at).getTime() - new Date(b.due_at).getTime();
       });
-  }, [assignments.data, search, showCompleted]);
+  }, [assignments.data, completed, search, showCompleted]);
 
   const selectedIds = useMemo(() => new Set(selected.map((item) => item.id)), [selected]);
 
