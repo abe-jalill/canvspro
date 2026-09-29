@@ -352,6 +352,25 @@ extension AssignmentItem {
 }
 
 enum NativeParity {
+    struct Countdown {
+        let label: String
+        let urgency: String
+        let fullDate: String
+    }
+
+    static func countdown(_ item: AssignmentItem, completed: Bool, now: Date = Date()) -> Countdown? {
+        guard let due = item.dueDate else { return nil }
+        let days = Calendar.current.dateComponents([.day], from: Calendar.current.startOfDay(for: now), to: Calendar.current.startOfDay(for: due)).day ?? 0
+        let fullDate = due.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().hour().minute())
+        let shortDate = due.formatted(.dateTime.month(.abbreviated).day())
+        if completed { return Countdown(label: days >= 0 ? shortDate : "Completed", urgency: "none", fullDate: fullDate) }
+        if due < now { return Countdown(label: "Overdue", urgency: "overdue", fullDate: fullDate) }
+        if days <= 0 { return Countdown(label: "Due today", urgency: "today", fullDate: fullDate) }
+        if days == 1 { return Countdown(label: "Due tomorrow", urgency: "soon", fullDate: fullDate) }
+        if days <= 6 { return Countdown(label: "\(days) days left", urgency: days <= 3 ? "soon" : "later", fullDate: fullDate) }
+        return Countdown(label: "Due \(shortDate)", urgency: "later", fullDate: fullDate)
+    }
+
     static func endOfUpcomingDay(_ days: Int, from now: Date = Date()) -> Date {
         let day = Calendar.current.date(byAdding: .day, value: days, to: now) ?? now
         return Calendar.current.date(bySettingHour: 23, minute: 59, second: 59, of: day) ?? day
@@ -423,6 +442,11 @@ enum NativeParity {
         if (item.pointsPossible ?? 0) >= 50 { reasons.append("it carries a lot of points") }
         if (estimate ?? 0) >= 60 { reasons.append("it needs a longer work block") }
         if dueSoonCount > 1 { reasons.append("\(dueSoonCount) assignments in this class are due soon") }
-        return reasons.isEmpty ? "Recommended because it is the strongest next task." : "Recommended because \(reasons.prefix(2).joined(separator: " and "))."
+        let dueDescription: String
+        if let due = item.dueDate {
+            let days = Int(ceil(abs(due.timeIntervalSince(now)) / 86400))
+            dueDescription = due < now ? (days <= 1 ? "overdue" : "\(days) days overdue") : due <= now.addingTimeInterval(86400) ? "due within 24 hours" : due <= now.addingTimeInterval(3 * 86400) ? "due within 3 days" : due <= now.addingTimeInterval(7 * 86400) ? "due this week" : "due later"
+        } else { dueDescription = "no due date" }
+        return reasons.isEmpty ? "Recommended because it is the strongest next task with \(dueDescription)." : "Recommended because \(reasons.prefix(2).joined(separator: " and "))."
     }
 }

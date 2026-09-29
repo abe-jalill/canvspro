@@ -206,8 +206,8 @@ private struct NativeDashboardView: View {
         (store.bundle.assignments + features.customAssignments.map { item in .custom(item, course: store.bundle.courses.first { $0.id == item.courseID }) }).filter { !features.hiddenCourseIDs.contains($0.courseID) }
     }
     private var activeAssignments: [AssignmentItem] { allAssignments.filter { $0.isVisible(in: store) } }
-    private var upcoming: [AssignmentItem] { Array(activeAssignments.sorted(by: AssignmentItem.dueSort).prefix(5)) }
-    private var weekItems: [AssignmentItem] { activeAssignments.filter { ($0.dueDate ?? .distantFuture) <= Date().addingTimeInterval(7 * 86400) } }
+    private var upcoming: [AssignmentItem] { Array(weekItems.sorted(by: AssignmentItem.dueSort).prefix(5)) }
+    private var weekItems: [AssignmentItem] { activeAssignments.filter { item in guard let due = item.dueDate else { return false }; return due >= Date() && due <= NativeParity.endOfUpcomingDay(7) } }
     private var todayCount: Int { weekItems.filter { ($0.dueDate ?? .distantFuture) <= Date().addingTimeInterval(86400) && ($0.dueDate ?? .distantFuture) >= Date() }.count }
     private var overdueCount: Int { activeAssignments.filter { ($0.dueDate ?? .distantFuture) < Date() }.count }
     private var greeting: String { let hour = Calendar.current.component(.hour, from: Date()); return hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening" }
@@ -217,6 +217,23 @@ private struct NativeDashboardView: View {
     private var newAnnouncements: [AnnouncementItem] { guard let digest else { return [] }; return Array(store.bundle.announcements.filter { item in item.isWithin(weeks: announcementWeeks) && (ISO8601DateFormatter.canvasDate(from: item.postedAt) ?? .distantPast) > digest.lastVisit }.prefix(8)) }
     private var newGrades: [AssignmentItem] { guard let digest else { return [] }; return Array(allAssignments.filter { item in guard let score = item.submission?.score else { return false }; return digest.grades[item.id] != score }.prefix(8)) }
     private var newlyUrgent: [AssignmentItem] { guard let digest else { return [] }; return Array(activeAssignments.filter { item in guard let value = urgency(for: item) else { return false }; return (value == "today" || value == "soon") && digest.urgency[item.id] != value }.prefix(8)) }
+    private var calendarPreview: [NativeCalendarEntry] {
+        let pickedIDs = Set(features.calendarPicks.map(\.assignmentID))
+        var values = activeAssignments.compactMap { item -> NativeCalendarEntry? in
+            guard !pickedIDs.contains(item.id), let due = item.dueDate, due >= Date() else { return nil }
+            return NativeCalendarEntry(id: "assignment-\(item.id)", date: due, title: item.name, context: item.courseName, kind: "Assignment due", url: URL(string: item.htmlURL), pickID: nil)
+        }
+        values += store.bundle.calendar.compactMap { event -> NativeCalendarEntry? in
+            guard let raw = event.startAt, let date = ISO8601DateFormatter.canvasDate(from: raw), date >= Date() else { return nil }
+            return NativeCalendarEntry(id: "event-\(event.id)", date: date, title: event.title, context: event.contextName ?? "Canvas event", kind: "Canvas event", url: event.htmlURL.flatMap { URL(string: $0) }, pickID: nil)
+        }
+        values += features.calendarPicks.compactMap { pick -> NativeCalendarEntry? in
+            if let assignment = allAssignments.first(where: { $0.id == pick.assignmentID }), !assignment.isVisible(in: store) { return nil }
+            guard let date = ISO8601DateFormatter.canvasDate(from: pick.at), date >= Date().addingTimeInterval(-12 * 3600) else { return nil }
+            return NativeCalendarEntry(id: "pick-\(pick.id)", date: date, title: pick.title, context: pick.context, kind: "Planned work", url: nil, pickID: pick.id)
+        }
+        return Array(values.sorted { $0.date < $1.date }.prefix(3))
+    }
     private var widgetIDs: [String] { let defaults = ["digest", "classes", "upcoming", "focus", "calendar", "announcements", "heatmap"]; var result = orderRaw.split(separator: ",").map { String($0) }.filter { defaults.contains($0) }; for id in defaults where !result.contains(id) { result.append(id) }; return result }
 
     var body: some View {
@@ -271,7 +288,7 @@ private struct NativeDashboardView: View {
         case "classes": if showCourses { CPGlassCard(title: "Classes & Grades", subtitle: "Active enrollments") { ForEach(visibleCourses) { course in CPInsetRow { HStack { NavigationLink { CourseDetailView(course: course, store: store, features: features) } label: { CourseRow(course: course, store: store) }.buttonStyle(.plain); if let body = course.syllabusBody, !body.isEmpty { Button { syllabusCourse = course } label: { Image(systemName: "doc.text").font(.system(size: 13)) }.accessibilityLabel("Open \(course.name) syllabus") } } } } } }
         case "upcoming": if showUpcoming { CPGlassCard(title: "Upcoming Assignments", subtitle: "Due within the next 7 days") { if upcoming.isEmpty { NativeEmptyState(title: "You’re caught up", symbol: "checkmark.circle") }; ForEach(upcoming) { assignment in CPInsetRow { NativeAssignmentRow(assignment: assignment, store: store) } } } }
         case "focus": if showFocus { CPGlassCard(title: "Focus", subtitle: "Due within 48 hours") { ForEach(weekItems.filter { ($0.dueDate ?? .distantFuture) <= Date().addingTimeInterval(2 * 86400) }.prefix(3)) { assignment in CPInsetRow { NativeAssignmentRow(assignment: assignment, store: store) } } } }
-        case "calendar": if showCalendar { CPGlassCard(title: "Calendar", subtitle: "Your upcoming days") { ForEach(activeAssignments.filter { $0.dueDate != nil }.sorted(by: AssignmentItem.dueSort).prefix(3)) { item in CPInsetRow { NativeAssignmentRow(assignment: item, store: store) } }; NavigationLink { CalendarView(store: store, features: features) } label: { Label("Open calendar", systemImage: "arrow.up.right").font(.system(size: 11)) } } }
+        case "calendar": if showCalendar { CPGlassCard(title: "Calendar", subtitle: "Your upcoming days") { ForEach(calendarPreview) { item in CPInsetRow { HStack { VStack(alignment: .leading, spacing: 3) { Text(item.title).font(.system(size: 12)); Text("\(item.kind) · \(item.context)").font(.system(size: 10)).foregroundStyle(CPTheme.muted(scheme)) }; Spacer(); Text(item.date, format: .dateTime.month().day().hour().minute()).font(.system(size: 10)).foregroundStyle(CPTheme.muted(scheme)) } } }; NavigationLink { CalendarView(store: store, features: features) } label: { Label("Open calendar", systemImage: "arrow.up.right").font(.system(size: 11)) } } }
         case "announcements": if showAnnouncements { CPGlassCard(title: "Announcements", subtitle: "Latest from your courses") { ForEach(store.bundle.announcements.filter { !features.hiddenCourseIDs.contains($0.courseID) && $0.isWithin(weeks: announcementWeeks) && !dismissedAnnouncements.contains($0.id) }.prefix(3)) { item in NavigationLink { AnnouncementDetailView(item: item) } label: { CPInsetRow { VStack(alignment: .leading, spacing: 3) { Text(item.title).font(.system(size: 13, weight: .regular)); Text(item.courseName).font(.system(size: 10, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)); Text(item.message.strippingHTML).font(.system(size: 11, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)).lineLimit(2) } } }.buttonStyle(.plain) } } }
         case "heatmap": if showWorkload { CPGlassCard(title: "Workload", subtitle: "Assignment density this month") { WorkloadView(assignments: activeAssignments) } }
         default: EmptyView()
@@ -464,13 +481,14 @@ struct NativeAssignmentRow: View {
     let assignment: AssignmentItem
     @ObservedObject var store: NativeContentStore
     private var isComplete: Bool { assignment.isFinished(in: store) }
+    private var countdown: NativeParity.Countdown? { NativeParity.countdown(assignment, completed: isComplete) }
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Button { Task { await store.toggle(assignment) } } label: { Image(systemName: isComplete ? "checkmark.square.fill" : "square").font(.system(size: 17)).foregroundStyle(isComplete ? CPTheme.primary(scheme: scheme) : CPTheme.muted(scheme)) }.buttonStyle(.plain).disabled(assignment.isCanvasFinished)
             VStack(alignment: .leading, spacing: 4) {
                 Text(assignment.name).font(.system(size: 14, weight: .regular)).strikethrough(isComplete).fixedSize(horizontal: false, vertical: true)
                 Text(store.displayName(courseID: assignment.courseID, fallback: assignment.courseName)).font(.system(size: 12, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
-                if let date = assignment.dueDate { Text(date, format: .dateTime.month().day().hour().minute()).font(.caption).foregroundStyle(date < Date() && !isComplete ? CPTheme.danger : CPTheme.muted(scheme)) }
+                if let countdown { VStack(alignment: .leading, spacing: 1) { Text(countdown.label).font(.system(size: 11)).foregroundStyle(countdown.urgency == "today" || countdown.urgency == "overdue" ? CPTheme.foreground(scheme) : CPTheme.muted(scheme)); Text(countdown.fullDate).font(.system(size: 10)).foregroundStyle(CPTheme.muted(scheme)) } }
                 HStack(spacing: 8) {
                     if assignment.submission?.missing == true { Label("Missing", systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red) }
                     if assignment.submission?.late == true { Text("Late").foregroundStyle(.orange) }

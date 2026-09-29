@@ -98,7 +98,7 @@ private struct GetItDoneView: View {
         return NativeParity.getItDoneScore(item, estimate: features.estimates[item.id], dueSoonCount: count)
     }
     private func candidatesDueSoonCount(for item: AssignmentItem) -> Int {
-        visibleAssignments.filter { $0.courseID == item.courseID && $0.isVisible(in: store) && ($0.dueDate ?? .distantFuture) <= Date().addingTimeInterval(3 * 86400) }.count
+        visibleAssignments.filter { $0.courseID == item.courseID && $0.isVisible(in: store) && !skipped.contains($0.id) && ($0.dueDate ?? .distantFuture) <= Date().addingTimeInterval(3 * 86400) }.count
     }
     var body: some View {
         ZStack {
@@ -196,7 +196,7 @@ private struct PlanMetricTile: View {
     var body: some View { VStack(alignment: .leading, spacing: 4) { Text(label.uppercased()).font(.system(size: 8, weight: .regular)).tracking(1).foregroundStyle(CPTheme.muted(scheme)).lineLimit(2); Text(value).font(.system(size: 16, weight: .regular)).monospacedDigit() }.padding(10).frame(maxWidth: .infinity, minHeight: 64, alignment: .leading).background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 15)).overlay(RoundedRectangle(cornerRadius: 15).stroke(CPTheme.insetBorder(scheme))) }
 }
 
-private struct NativeCalendarEntry: Identifiable {
+struct NativeCalendarEntry: Identifiable {
     let id: String
     let date: Date
     let title: String
