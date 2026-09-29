@@ -390,8 +390,8 @@ private struct NativeAssignmentsView: View {
     private var visibleCourses: [CourseSummary] { store.bundle.courses.filter { !features.hiddenCourseIDs.contains($0.id) } }
     private var allAssignments: [AssignmentItem] { (store.bundle.assignments + features.customAssignments.map { item in AssignmentItem.custom(item, course: store.bundle.courses.first { $0.id == item.courseID }) }).filter { !features.hiddenCourseIDs.contains($0.courseID) } }
     private var remaining: [AssignmentItem] { allAssignments.filter { $0.isVisible(in: store) } }
-    private var overdueCount: Int { remaining.filter { ($0.dueDate ?? .distantFuture) < Date() }.count }
-    private var weekCount: Int { remaining.filter { guard let due = $0.dueDate else { return false }; return due >= Date() && due <= NativeParity.endOfUpcomingDay(7) }.count }
+    private var overdueCount: Int { assignments.filter { ($0.dueDate ?? .distantFuture) < Date() }.count }
+    private var weekCount: Int { assignments.filter { guard let due = $0.dueDate else { return false }; return due >= Date() && due <= Date().addingTimeInterval(7 * 86400) }.count }
     private var priorityGroups: [(courseID: Int, items: [AssignmentItem])] {
         let now = Date()
         return Dictionary(grouping: remaining) { $0.courseID }.map { entry in
@@ -413,7 +413,7 @@ private struct NativeAssignmentsView: View {
 
     private var assignments: [AssignmentItem] {
         return allAssignments.filter { item in
-            let matches = search.isEmpty || item.name.localizedCaseInsensitiveContains(search) || item.courseName.localizedCaseInsensitiveContains(search)
+            let matches = search.isEmpty || item.name.localizedCaseInsensitiveContains(search) || store.displayName(courseID: item.courseID, fallback: item.courseName).localizedCaseInsensitiveContains(search)
             let courseMatches = courseID == nil || item.courseID == courseID
             return matches && courseMatches && item.isVisible(in: store, showCompleted: showCompleted)
         }.sorted(by: AssignmentItem.dueSort)
@@ -475,7 +475,7 @@ private struct NativeAssignmentsView: View {
                 Text("COMPLETE WORKLOAD").font(.system(size: 10, weight: .regular)).tracking(1.7).foregroundStyle(CPTheme.muted(scheme))
                 Text("One agenda. Every assignment.").font(.system(size: 28, weight: .regular)).tracking(-0.8)
                 Text("Work is ordered by urgency across every class, so the next deadline is always obvious.").font(.system(size: 12, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)).lineSpacing(2)
-                LazyVGrid(columns: [GridItem(.flexible(minimum: 0), spacing: 8), GridItem(.flexible(minimum: 0), spacing: 8)], spacing: 8) { workloadMetric(remaining.count, "Remaining"); workloadMetric(overdueCount, "Overdue", color: CPTheme.danger); workloadMetric(weekCount, "This week", color: CPTheme.primary(scheme: scheme)) }
+                LazyVGrid(columns: [GridItem(.flexible(minimum: 0), spacing: 8), GridItem(.flexible(minimum: 0), spacing: 8)], spacing: 8) { workloadMetric(assignments.count, "Remaining"); workloadMetric(overdueCount, "Overdue", color: CPTheme.danger); workloadMetric(weekCount, "This week", color: CPTheme.primary(scheme: scheme)) }
             }
         }.overlay(alignment: .topTrailing) { Circle().fill(CPTheme.primary(scheme: scheme).opacity(0.15)).frame(width: 280, height: 280).blur(radius: 70).offset(x: 100, y: -100).allowsHitTesting(false) }
     }

@@ -589,7 +589,33 @@ final class NativeContentStore: ObservableObject {
         } catch { errorMessage = error.localizedDescription }
     }
 
-    func displayName(courseID: Int, fallback: String) -> String { nicknames[courseID]?.customName ?? fallback }
+    func displayName(courseID: Int, fallback: String) -> String {
+        if let nickname = nicknames[courseID]?.customName.trimmingCharacters(in: .whitespacesAndNewlines), !nickname.isEmpty {
+            return cleanCourseTitle(nickname)
+        }
+        let course = bundle.courses.first { $0.id == courseID }
+        let name = course?.name ?? fallback
+        let code = course?.courseCode ?? ""
+        if [name, code].contains(where: { $0.range(of: "(?i)PHY\\s*1154", options: .regularExpression) != nil }) { return "Physics" }
+        if [name, code].contains(where: { $0.range(of: "(?i)HUM\\s*1213", options: .regularExpression) != nil }) { return "Humanities" }
+        return cleanCourseTitle(name.isEmpty ? (code.isEmpty ? "Course" : code) : name)
+    }
+
+    private func cleanCourseTitle(_ value: String) -> String {
+        let title = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        let letters = title.filter { $0.isLetter }
+        guard letters.count >= 3, letters == letters.uppercased() else { return title }
+        let acronyms: Set<String> = ["CE", "CS", "IT", "AI", "EE", "ME", "BME", "ECE", "CIV", "CHM", "CHEM", "BIO", "ENG", "ENGR", "MATH", "PHY", "PHYS", "HUM", "HIST", "SOC", "PSY", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "AP", "IB", "GPA", "USA", "UK"]
+        let minor: Set<String> = ["of", "and", "in", "to", "for", "with", "on", "at", "by", "from", "the", "a", "an"]
+        return title.split(separator: " ", omittingEmptySubsequences: false).enumerated().map { index, part in
+            let word = String(part)
+            let clean = word.filter { $0.isLetter || $0.isNumber }.uppercased()
+            if acronyms.contains(clean) { return word.uppercased() }
+            let lower = word.lowercased()
+            if index > 0 && minor.contains(lower) { return lower }
+            return lower.prefix(1).uppercased() + String(lower.dropFirst())
+        }.joined(separator: " ")
+    }
 
     func toggle(_ assignment: AssignmentItem) async {
         if isPreview {
