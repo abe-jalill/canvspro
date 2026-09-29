@@ -3,21 +3,11 @@ workflows:
     name: CanvasPro iOS
     instance_type: mac_mini_m2
     max_build_duration: 60
+    environment:
+      xcode: latest
 
     scripts:
-      - name: Install dependencies
-        script: |
-          npm install
-
-      - name: Build mobile frontend
-        script: |
-          npm run build:ios
-
-      - name: Sync Capacitor
-        script: |
-          npx cap sync ios
-
-      - name: Build iOS app
+      - name: Build native SwiftUI app
         script: |
           cd ios/App
           xcodebuild build \
@@ -25,6 +15,8 @@ workflows:
             -scheme App \
             -sdk iphonesimulator \
             -configuration Debug \
+            SUPABASE_URL="${SUPABASE_URL:-$VITE_SUPABASE_URL}" \
+            SUPABASE_PUBLISHABLE_KEY="${SUPABASE_PUBLISHABLE_KEY:-$VITE_SUPABASE_PUBLISHABLE_KEY}" \
             CODE_SIGNING_ALLOWED=NO
 
     artifacts:
