@@ -115,8 +115,8 @@ function CourseDetailPage() {
   const { has: isCompleted } = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
   const announcementWindow = useAnnouncementWindow();
 
-  const [activeTab, setActiveTab] = useState<"all" | "upcoming" | "graded" | "announcements">(
-    "all",
+  const [activeTab, setActiveTab] = useState<"upcoming" | "graded" | "announcements">(
+    "upcoming",
   );
   const [showAllUpcoming, setShowAllUpcoming] = useState(false);
   const [showAllAnnouncements, setShowAllAnnouncements] = useState(false);
@@ -296,7 +296,6 @@ function CourseDetailPage() {
 
         {/* Tabs Bar Skeleton */}
         <div className="flex gap-2">
-          <SkeletonBlock className="h-9 w-16 rounded-xl" />
           <SkeletonBlock className="h-9 w-24 rounded-xl" />
           <SkeletonBlock className="h-9 w-20 rounded-xl" />
           <SkeletonBlock className="h-9 w-28 rounded-xl" />
@@ -425,18 +424,6 @@ function CourseDetailPage() {
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
-          onClick={() => setActiveTab("all")}
-          className={cn(
-            "rounded-xl px-3.5 py-1.5 text-xs transition-all font-normal",
-            activeTab === "all"
-              ? "bg-foreground text-background font-medium"
-              : "glass-hover glass-inset text-muted-foreground hover:text-foreground",
-          )}
-        >
-          All Sections
-        </button>
-        <button
-          type="button"
           onClick={() => setActiveTab("upcoming")}
           className={cn(
             "rounded-xl px-3.5 py-1.5 text-xs transition-all font-normal flex items-center gap-1.5",
@@ -483,7 +470,7 @@ function CourseDetailPage() {
       </div>
 
       {/* Section 1: Upcoming Assignments */}
-      {(activeTab === "all" || activeTab === "upcoming") && (
+      {activeTab === "upcoming" && (
         <section className="space-y-3">
           <h2 className="px-1 text-xs uppercase tracking-widest text-muted-foreground">Upcoming</h2>
           {(() => {
@@ -576,7 +563,7 @@ function CourseDetailPage() {
       )}
 
       {/* Section 2: Graded Assignments */}
-      {(activeTab === "all" || activeTab === "graded") && (
+      {activeTab === "graded" && (
         <section className="space-y-3">
           <h2 className="px-1 text-xs uppercase tracking-widest text-muted-foreground">Graded</h2>
           {gradedAssignments.length === 0 ? (
@@ -660,7 +647,7 @@ function CourseDetailPage() {
       )}
 
       {/* Section 3: Announcements */}
-      {(activeTab === "all" || activeTab === "announcements") && (
+      {activeTab === "announcements" && (
         <section className="space-y-3">
           <h2 className="px-1 text-xs uppercase tracking-widest text-muted-foreground">
             Announcements
