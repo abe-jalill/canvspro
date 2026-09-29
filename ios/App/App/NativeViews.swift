@@ -392,15 +392,24 @@ private struct NativeAssignmentsView: View {
     private var remaining: [AssignmentItem] { allAssignments.filter { $0.isVisible(in: store) } }
     private var overdueCount: Int { remaining.filter { ($0.dueDate ?? .distantFuture) < Date() }.count }
     private var weekCount: Int { remaining.filter { guard let due = $0.dueDate else { return false }; return due >= Date() && due <= NativeParity.endOfUpcomingDay(7) }.count }
-    private var priorityAssignments: [AssignmentItem] {
-        var totals: [Int: Double] = [:]
-        for item in remaining { totals[item.courseID, default: 0] += item.pointsPossible ?? 0 }
-        return remaining.sorted { lhs, rhs in
-            let left = NativeParity.priority(lhs, courseTotalPoints: totals[lhs.courseID] ?? 0, estimate: features.estimates[lhs.id])
-            let right = NativeParity.priority(rhs, courseTotalPoints: totals[rhs.courseID] ?? 0, estimate: features.estimates[rhs.id])
-            return left == right ? AssignmentItem.dueSort(lhs, rhs) : left > right
+    private var priorityGroups: [(courseID: Int, items: [AssignmentItem])] {
+        let now = Date()
+        return Dictionary(grouping: remaining) { $0.courseID }.map { entry in
+            let courseID = entry.key
+            let items = entry.value
+            let total = items.reduce(0) { $0 + ($1.pointsPossible ?? 0) }
+            let ranked = items.sorted {
+                NativeParity.priority($0, courseTotalPoints: total, estimate: features.estimates[$0.id], now: now) >
+                NativeParity.priority($1, courseTotalPoints: total, estimate: features.estimates[$1.id], now: now)
+            }
+            return (courseID: courseID, items: ranked)
+        }.sorted { left, right in
+            let leftTop = left.items.first.map { NativeParity.priority($0, courseTotalPoints: left.items.reduce(0) { $0 + ($1.pointsPossible ?? 0) }, estimate: features.estimates[$0.id], now: now) } ?? 0
+            let rightTop = right.items.first.map { NativeParity.priority($0, courseTotalPoints: right.items.reduce(0) { $0 + ($1.pointsPossible ?? 0) }, estimate: features.estimates[$0.id], now: now) } ?? 0
+            return leftTop == rightTop ? left.courseID < right.courseID : leftTop > rightTop
         }
     }
+    private var priorityAssignments: [AssignmentItem] { Array(priorityGroups.flatMap { $0.items.prefix(2) }.prefix(5)) }
 
     private var assignments: [AssignmentItem] {
         return allAssignments.filter { item in
@@ -428,7 +437,7 @@ private struct NativeAssignmentsView: View {
                         assignmentsHero
                         CPGlassCard(title: "Priority Assignments", subtitle: "Smart ordering by deadline and weight") {
                             HStack(alignment: .top, spacing: 10) { Image(systemName: "sparkles").font(.system(size: 13)).foregroundStyle(CPTheme.foreground(scheme).opacity(0.8)).frame(width: 28, height: 28).background(CPTheme.foreground(scheme).opacity(0.10), in: RoundedRectangle(cornerRadius: 8)); Text(prioritySummary).font(.system(size: 12, weight: .regular)).foregroundStyle(CPTheme.foreground(scheme).opacity(0.90)).lineSpacing(2) }
-                            VStack(spacing: 8) { ForEach(priorityAssignments.prefix(5)) { item in CPInsetRow { NativeAssignmentRow(assignment: item, store: store) } } }
+                            VStack(spacing: 8) { ForEach(priorityAssignments) { item in CPInsetRow { VStack(alignment: .leading, spacing: 4) { NativeAssignmentRow(assignment: item, store: store); Text(priorityUrgency(item).uppercased()).font(.system(size: 9, weight: .regular)).tracking(0.7).foregroundStyle(priorityUrgency(item) == "critical" ? CPTheme.danger : priorityUrgency(item) == "high" ? CPTheme.warning : CPTheme.muted(scheme)) } } } }
                         }
                         HStack { Toggle("Show completed", isOn: $showCompleted).font(.system(size: 11)); Spacer(); Text("\(assignments.count) shown").font(.system(size: 10)).foregroundStyle(CPTheme.muted(scheme)) }
                         CPGlassCard(strong: true) {
@@ -472,7 +481,23 @@ private struct NativeAssignmentsView: View {
     }
 
     private func workloadMetric(_ value: Int, _ label: String, color: Color? = nil) -> some View { VStack(alignment: .leading, spacing: 3) { Text("\(value)").font(.system(size: 21, weight: .regular)).tracking(-0.6).monospacedDigit().foregroundStyle(color ?? CPTheme.foreground(scheme)); Text(label).font(.system(size: 10, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)) }.padding(10).frame(maxWidth: .infinity, alignment: .leading).background((color ?? CPTheme.foreground(scheme)).opacity(0.06), in: RoundedRectangle(cornerRadius: 14)).overlay(RoundedRectangle(cornerRadius: 14).stroke((color ?? CPTheme.foreground(scheme)).opacity(0.10))) }
-    private var prioritySummary: String { overdueCount > 0 ? "Start with overdue work, then move through the nearest deadlines." : weekCount > 0 ? "Your nearest deadlines are collected here so you always know what to start next." : "Nothing urgent right now. Your remaining work is still listed below." }
+    private var prioritySummary: String {
+        let parts = priorityGroups.prefix(3).compactMap { group -> String? in
+            let names = group.items.prefix(2).map(\.name).joined(separator: " and ")
+            guard !names.isEmpty, let first = group.items.first else { return nil }
+            return "\(names) from \(store.displayName(courseID: group.courseID, fallback: first.courseName))"
+        }
+        guard let first = parts.first else { return "No unfinished assignments right now." }
+        return "Right now, finish \(first)\(parts.count > 1 ? ", then \(parts.dropFirst().joined(separator: "; then "))" : "")."
+    }
+    private func priorityUrgency(_ item: AssignmentItem) -> String {
+        guard let due = item.dueDate else { return "low" }
+        let hours = due.timeIntervalSinceNow / 3600
+        if hours <= 24 { return "critical" }
+        if hours <= 72 { return "high" }
+        if hours <= 168 { return "medium" }
+        return "low"
+    }
     private func addToCalendar(_ item: AssignmentItem) { guard let due = item.dueDate else { return }; let pick = CalendarPick(assignmentID: item.id, title: item.name, context: item.courseName, at: ISO8601DateFormatter().string(from: due), dueAt: item.dueAt); Task { try? await features.savePreference("calendar-picks", features.calendarPicks.filter { $0.assignmentID != item.id } + [pick]) } }
 }
 
