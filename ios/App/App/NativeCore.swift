@@ -210,7 +210,7 @@ struct ClassNickname: Codable, Identifiable, Hashable {
 
 final class NativeAPI {
     let configuration: NativeConfiguration
-    private let decoder: JSONDecoder
+    let decoder: JSONDecoder
 
     init(configuration: NativeConfiguration) {
         self.configuration = configuration
@@ -223,6 +223,26 @@ final class NativeAPI {
         request.httpBody = try JSONSerialization.data(withJSONObject: ["email": email, "password": password])
         let json = try await json(request)
         return try session(from: json)
+    }
+
+    func signUp(email: String, password: String, metadata: [String: Any]) async throws {
+        var request = try request(path: "/auth/v1/signup")
+        request.httpMethod = "POST"
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["email": email, "password": password, "data": metadata])
+        _ = try await data(request)
+    }
+
+    func sendPasswordReset(email: String) async throws {
+        var request = try request(path: "/auth/v1/recover")
+        request.httpMethod = "POST"
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["email": email])
+        _ = try await data(request)
+    }
+
+    func signOut(token: String) async throws {
+        var request = try request(path: "/auth/v1/logout", token: token)
+        request.httpMethod = "POST"
+        _ = try await data(request)
     }
 
     func refresh(_ refreshToken: String) async throws -> NativeSession {
@@ -330,13 +350,17 @@ final class NativeAPI {
         _ = try await data(request)
     }
 
-    func syncNotificationPreferences(enabled: Bool, token: String, userID: String) async throws {
-        let prefs: [String: Any] = [
-            "enabled": enabled, "due1w": false, "due3d": true, "due2d": true, "due1d": true,
-            "grades": true, "announcements": true, "gradeThreshold": 80, "browserPush": enabled,
-            "quietEnabled": true, "quietStart": 22, "quietEnd": 7, "countdownClass": false,
-            "countdownLeads": [15], "countdownTonight": false, "countdownTonightHours": [18], "badge": false,
-        ]
+    func notificationPreferences(token: String, userID: String) async throws -> [String: Any]? {
+        let rows = try await restRows(path: "/rest/v1/notification_prefs", token: token, query: [
+            .init(name: "select", value: "prefs"), .init(name: "user_id", value: "eq.\(userID)"), .init(name: "limit", value: "1"),
+        ])
+        return rows.first?["prefs"] as? [String: Any]
+    }
+
+    /// Merges only the supplied fields, preserving every preference created on the website.
+    func syncNotificationPreferences(_ changes: [String: Any], token: String, userID: String) async throws {
+        var prefs = try await notificationPreferences(token: token, userID: userID) ?? [:]
+        changes.forEach { prefs[$0.key] = $0.value }
         try await upsert(table: "notification_prefs", token: token, conflict: "user_id", rows: [[
             "user_id": userID, "prefs": prefs,
             "timezone_offset_minutes": TimeZone.current.secondsFromGMT() / -60,
@@ -344,7 +368,7 @@ final class NativeAPI {
         ]])
     }
 
-    private func upsert(table: String, token: String, conflict: String, rows: [[String: Any]]) async throws {
+    func upsert(table: String, token: String, conflict: String, rows: [[String: Any]]) async throws {
         var request = try request(path: "/rest/v1/\(table)", token: token, query: [.init(name: "on_conflict", value: conflict)])
         request.httpMethod = "POST"
         request.setValue("resolution=merge-duplicates,return=minimal", forHTTPHeaderField: "Prefer")
@@ -352,11 +376,11 @@ final class NativeAPI {
         _ = try await data(request)
     }
 
-    private func restRows(path: String, token: String, query: [URLQueryItem]) async throws -> [[String: Any]] {
+    func restRows(path: String, token: String, query: [URLQueryItem]) async throws -> [[String: Any]] {
         try await json(request(path: path, token: token, query: query)) as? [[String: Any]] ?? []
     }
 
-    private func request(path: String, token: String? = nil, query: [URLQueryItem] = []) throws -> URLRequest {
+    func request(path: String, token: String? = nil, query: [URLQueryItem] = []) throws -> URLRequest {
         let relativePath = path.hasPrefix("/") ? String(path.dropFirst()) : path
         guard var components = URLComponents(url: configuration.supabaseURL.appendingPathComponent(relativePath), resolvingAgainstBaseURL: false) else {
             throw NativeAppError.configuration("Invalid backend URL.")
@@ -371,7 +395,7 @@ final class NativeAPI {
         return request
     }
 
-    private func data(_ request: URLRequest) async throws -> Data {
+    func data(_ request: URLRequest) async throws -> Data {
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
             let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
@@ -381,7 +405,7 @@ final class NativeAPI {
         return data
     }
 
-    private func json(_ request: URLRequest) async throws -> Any {
+    func json(_ request: URLRequest) async throws -> Any {
         try JSONSerialization.jsonObject(with: await data(request))
     }
 
@@ -429,6 +453,34 @@ final class NativeSessionStore: ObservableObject {
         } catch { errorMessage = error.localizedDescription }
     }
 
+    func signUp(email: String, password: String, metadata: [String: Any]) async -> Bool {
+        guard let api else { return false }
+        isWorking = true
+        errorMessage = nil
+        defer { isWorking = false }
+        do {
+            try await api.signUp(email: email, password: password, metadata: metadata)
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
+
+    func sendPasswordReset(email: String) async -> Bool {
+        guard let api else { return false }
+        isWorking = true
+        errorMessage = nil
+        defer { isWorking = false }
+        do {
+            try await api.sendPasswordReset(email: email)
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
+
     func accessToken() async throws -> String {
         guard let api, var current = session else { throw NativeAppError.signedOut }
         if current.expiresAt.timeIntervalSinceNow < 90 {
@@ -439,7 +491,18 @@ final class NativeSessionStore: ObservableObject {
         return current.accessToken
     }
 
-    func signOut() {
+    func signOut() async {
+        if let api, session != nil {
+            do {
+                let token = try await accessToken()
+                if let deviceToken = UserDefaults.standard.string(forKey: "CanvasProNativePushToken") {
+                    try? await api.deletePushToken(deviceToken, token: token)
+                    UserDefaults.standard.removeObject(forKey: "CanvasProNativePushToken")
+                }
+                try? await api.signOut(token: token)
+            } catch { /* Local sign-out must always succeed. */ }
+        }
+        UIApplication.shared.unregisterForRemoteNotifications()
         SecureSessionStore.clear()
         session = nil
     }

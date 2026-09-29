@@ -3,6 +3,7 @@ import UserNotifications
 
 extension Notification.Name {
     static let nativeDeviceToken = Notification.Name("CanvasProNativeDeviceToken")
+    static let nativeNotificationPath = Notification.Name("CanvasProNativeNotificationPath")
 }
 
 @UIApplicationMain
@@ -59,5 +60,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 extension AppDelegate: UNUserNotificationCenterDelegate {
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
         [.banner, .sound, .badge]
+    }
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
+        let info = response.notification.request.content.userInfo
+        let path = info["to_path"] as? String ?? info["path"] as? String ?? "/notifications"
+        await MainActor.run { NotificationCenter.default.post(name: .nativeNotificationPath, object: path) }
     }
 }
