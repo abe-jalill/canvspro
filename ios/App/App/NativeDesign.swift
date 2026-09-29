@@ -88,13 +88,13 @@ struct CPGlassCard<Content: View>: View {
     let title: String?; let subtitle: String?; let strong: Bool; let content: Content
     init(title: String? = nil, subtitle: String? = nil, strong: Bool = false, @ViewBuilder content: () -> Content) { self.title = title; self.subtitle = subtitle; self.strong = strong; self.content = content() }
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            if title != nil || subtitle != nil { VStack(alignment: .leading, spacing: 2) { if let title { Text(title).font(.system(size: 18, weight: .regular)).tracking(-0.4).foregroundStyle(CPTheme.foreground(scheme)) }; if let subtitle { Text(subtitle).font(.system(size: 12)).foregroundStyle(CPTheme.muted(scheme)) } } }
+        VStack(alignment: .leading, spacing: 14) {
+            if title != nil || subtitle != nil { VStack(alignment: .leading, spacing: 2) { if let title { Text(title).font(.system(size: 16, weight: .regular)).tracking(-0.2).foregroundStyle(CPTheme.foreground(scheme)) }; if let subtitle { Text(subtitle).font(.system(size: 11, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)) } } }
             content
         }
-        .padding(16).frame(maxWidth: .infinity, alignment: .leading)
-        .background(CPTheme.glass(scheme, strong: strong), in: RoundedRectangle(cornerRadius: 32, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 32, style: .continuous).stroke(CPTheme.border(scheme), lineWidth: 1))
+        .padding(14).frame(maxWidth: .infinity, alignment: .leading)
+        .background(CPTheme.glass(scheme, strong: strong), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(CPTheme.border(scheme), lineWidth: 1))
         .shadow(color: Color.black.opacity(scheme == .dark ? (strong ? 0.34 : 0.25) : 0.09), radius: strong ? 32 : 20, y: strong ? 18 : 10)
     }
 }
@@ -103,19 +103,19 @@ struct CPInsetRow<Content: View>: View {
     @Environment(\.colorScheme) private var scheme
     let content: Content
     init(@ViewBuilder content: () -> Content) { self.content = content() }
-    var body: some View { content.padding(12).frame(maxWidth: .infinity, alignment: .leading).background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 20, style: .continuous)).overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(CPTheme.insetBorder(scheme), lineWidth: 1)) }
+    var body: some View { content.padding(10).frame(maxWidth: .infinity, alignment: .leading).background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 16, style: .continuous)).overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(CPTheme.insetBorder(scheme), lineWidth: 1)) }
 }
 
 struct CPPageHeader: View {
     @Environment(\.colorScheme) private var scheme
     let eyebrow: String; let title: String; let detail: String?
-    var body: some View { VStack(alignment: .leading, spacing: 8) { Text(eyebrow.uppercased()).font(.system(size: 12, weight: .medium)).tracking(2.2).foregroundStyle(CPTheme.muted(scheme)); Text(title).font(.system(size: 36, weight: .medium)).tracking(-1.6).foregroundStyle(CPTheme.foreground(scheme)).fixedSize(horizontal: false, vertical: true); if let detail { Text(detail).font(.system(size: 14)).foregroundStyle(CPTheme.muted(scheme)).lineSpacing(3).fixedSize(horizontal: false, vertical: true) } }.frame(maxWidth: .infinity, alignment: .leading) }
+    var body: some View { VStack(alignment: .leading, spacing: 6) { Text(eyebrow.uppercased()).font(.system(size: 10, weight: .regular)).tracking(1.6).foregroundStyle(CPTheme.muted(scheme)); Text(title).font(.system(size: 28, weight: .regular)).tracking(-0.8).foregroundStyle(CPTheme.foreground(scheme)).fixedSize(horizontal: false, vertical: true); if let detail { Text(detail).font(.system(size: 12, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)).lineSpacing(2).fixedSize(horizontal: false, vertical: true) } }.frame(maxWidth: .infinity, alignment: .leading) }
 }
 
 struct CPChip: View {
     @Environment(\.colorScheme) private var scheme
     let text: String; let selected: Bool
-    var body: some View { Text(text).font(.system(size: 13, weight: selected ? .semibold : .medium)).padding(.horizontal, 14).frame(minHeight: 42).foregroundStyle(selected ? CPTheme.background(scheme) : CPTheme.foreground(scheme)).background(selected ? CPTheme.foreground(scheme) : CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 12, style: .continuous)).overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(CPTheme.insetBorder(scheme), lineWidth: selected ? 0 : 1)) }
+    var body: some View { Text(text).font(.system(size: 12, weight: .regular)).padding(.horizontal, 12).frame(minHeight: 36).foregroundStyle(selected ? CPTheme.background(scheme) : CPTheme.foreground(scheme)).background(selected ? CPTheme.foreground(scheme) : CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 10, style: .continuous)).overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(CPTheme.insetBorder(scheme), lineWidth: selected ? 0 : 1)) }
 }
 
 struct CPListScreenModifier: ViewModifier {
