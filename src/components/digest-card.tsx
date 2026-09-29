@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { Bell, TrendingUp, Clock, Check } from "lucide-react";
 import type { AnnouncementItem, AssignmentItem, CourseSummary } from "@/lib/canvas.functions";
 import { GlassCard } from "@/components/glass-card";
+import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
 import { displayCourseName } from "@/lib/course-display";
 import { getCountdown } from "@/lib/countdown";
 import {
@@ -152,7 +153,12 @@ export function DigestCard({ announcements, assignments, courses }: Props) {
           emptyText="No new posts"
         >
           {newAnnouncements.map((a) => (
-            <Link key={a.id} to="/announcements" className="glass-inset glass-hover block p-2.5">
+            <Link
+              key={a.id}
+              to="/announcements"
+              preload="intent"
+              className="glass-inset glass-hover block p-2.5"
+            >
               <p className="truncate text-xs font-medium">{a.title}</p>
               <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
                 {courseName(a.course_id, a.course_name, a.course_code)}
@@ -168,7 +174,7 @@ export function DigestCard({ announcements, assignments, courses }: Props) {
           emptyText="No new grades"
         >
           {gradeChanges.map(({ a, prev, next }) => (
-            <Link key={a.id} to="/grades" className="glass-inset glass-hover block p-2.5">
+            <div key={a.id} className="glass-inset glass-hover block p-2.5">
               <p className="truncate text-xs font-medium">{a.name}</p>
               <div className="mt-0.5 flex items-baseline justify-between gap-2">
                 <p className="truncate text-[10px] text-muted-foreground">
@@ -181,7 +187,17 @@ export function DigestCard({ announcements, assignments, courses }: Props) {
                   ) : null}
                 </p>
               </div>
-            </Link>
+              <div className="mt-1.5 flex items-center gap-3">
+                <Link
+                  to="/grades"
+                  preload="intent"
+                  className="text-[11px] font-medium text-muted-foreground hover:text-foreground"
+                >
+                  View grade
+                </Link>
+                <AssignmentDescriptionLink assignmentId={a.id} />
+              </div>
+            </div>
           ))}
         </Section>
 
@@ -192,7 +208,13 @@ export function DigestCard({ announcements, assignments, courses }: Props) {
           emptyText="Nothing new due soon"
         >
           {newlyUrgent.map(({ a, urgency }) => (
-            <Link key={a.id} to="/assignments" className="glass-inset glass-hover block p-2.5">
+            <Link
+              key={a.id}
+              to="/assignments"
+              search={{ assignment: String(a.id) }}
+              preload="intent"
+              className="glass-inset glass-hover block p-2.5"
+            >
               <p className="truncate text-xs font-medium">{a.name}</p>
               <div className="mt-0.5 flex items-baseline justify-between gap-2">
                 <p className="truncate text-[10px] text-muted-foreground">
@@ -202,6 +224,9 @@ export function DigestCard({ announcements, assignments, courses }: Props) {
                   {urgency === "today" ? "Due today" : "Due soon"}
                 </p>
               </div>
+              <span className="mt-1.5 block text-[11px] font-medium text-muted-foreground underline decoration-foreground/20 underline-offset-2">
+                See description
+              </span>
             </Link>
           ))}
         </Section>

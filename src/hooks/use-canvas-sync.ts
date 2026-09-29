@@ -1,7 +1,8 @@
-import { useCallback, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useCallback } from "react";
+import { useQueryClient, useIsFetching, type QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { resetCanvasBundleRequest } from "@/lib/canvas.functions";
+import { resetCanvasBundle } from "@/lib/canvas.functions";
+const syncs = new WeakMap<QueryClient, Promise<void>>();
 
 /**
  * Forces a fresh pull of every Canvas query (courses, assignments,
@@ -9,23 +10,28 @@ import { resetCanvasBundleRequest } from "@/lib/canvas.functions";
  */
 export function useCanvasSync() {
   const queryClient = useQueryClient();
-  const [isSyncing, setIsSyncing] = useState(false);
+  const isSyncing = useIsFetching({ queryKey: ["canvas"] }) > 0;
 
   const sync = useCallback(async () => {
-    if (isSyncing) return;
-    setIsSyncing(true);
-    try {
-      resetCanvasBundleRequest();
-      await queryClient.refetchQueries({ queryKey: ["canvas"], type: "active" });
-      toast.success("Sync complete", { description: "Canvas data is up to date." });
-    } catch (err) {
-      toast.error("Sync failed", {
-        description: err instanceof Error ? err.message : "Could not reach Canvas.",
-      });
-    } finally {
-      setIsSyncing(false);
-    }
-  }, [isSyncing, queryClient]);
+    const existing = syncs.get(queryClient);
+    if (existing) return existing;
+    const operation = Promise.resolve().then(async () => {
+      try {
+        if (!queryClient.isFetching({ queryKey: ["canvas"] })) resetCanvasBundle();
+        await queryClient.invalidateQueries({ queryKey: ["canvas"], refetchType: "none" });
+        await queryClient.refetchQueries({ queryKey: ["canvas"], type: "active" }, { throwOnError: true, cancelRefetch: false });
+        toast.success("Sync complete", { description: "Canvas data is up to date." });
+      } catch (err) {
+        toast.error("Sync failed", {
+          description: err instanceof Error ? err.message : "Could not reach Canvas.",
+        });
+      } finally {
+        syncs.delete(queryClient);
+      }
+    });
+    syncs.set(queryClient, operation);
+    return operation;
+  }, [queryClient]);
 
   return { sync, isSyncing };
 }

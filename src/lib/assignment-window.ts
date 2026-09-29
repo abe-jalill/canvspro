@@ -2,6 +2,28 @@ import type { AssignmentItem } from "@/lib/canvas.functions";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/** End of the student's local calendar day, including late-night deadlines. */
+export function endOfUpcomingDay(now: number, days: number): number {
+  const end = new Date(now);
+  end.setDate(end.getDate() + days);
+  end.setHours(23, 59, 59, 999);
+  return end.getTime();
+}
+
+export function isAssignmentComplete(a: AssignmentItem, manuallyCompleted: boolean): boolean {
+  if (manuallyCompleted) return true;
+  const submission = a.submission;
+  if (!submission) return false;
+  if (submission.excused) return true;
+  // Missing work can have an automatic zero. Canvas can also retain the
+  // graded state after a grade is cleared; neither means the student is done.
+  if (submission.missing) return false;
+  if (submission.submitted_at || submission.workflow_state === "submitted" ||
+      submission.workflow_state === "pending_review") return true;
+  return submission.workflow_state === "graded" &&
+    (submission.score != null || (submission.grade != null && submission.grade !== ""));
+}
+
 /**
  * Assignments whose due date passed a full day or more ago are treated as gone:
  * they are no longer actionable, so the app stops listing them.

@@ -2,31 +2,9 @@
 // Canvas API key, stored per-user in the `user_settings` table. The key never
 // reaches the browser: the function reads it with the caller's JWT.
 
-const ALLOWED_ORIGINS = [
-  "https://canvaspro.app",
-  "https://www.canvaspro.app",
-  "https://canvaspremium.lovable.app",
-];
-
-function corsHeaders(req: Request): Record<string, string> {
-  const origin = req.headers.get("Origin") ?? "";
-  let allow = ALLOWED_ORIGINS[0];
-  if (
-    ALLOWED_ORIGINS.includes(origin) ||
-    /^https:\/\/[a-z0-9-]+\.lovable\.app$/.test(origin) ||
-    /^https:\/\/[a-z0-9-]+\.lovableproject\.com$/.test(origin) ||
-    /^http:\/\/localhost(:\d+)?$/.test(origin)
-  ) {
-    allow = origin;
-  }
-  return {
-    "Access-Control-Allow-Origin": allow,
-    Vary: "Origin",
-    "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  };
-}
+import { nextCanvasPagePath } from "./pagination.ts";
+import { isCanvasCourseVisible } from "./course-visibility.ts";
+import { corsHeaders } from "./cors.ts";
 
 const API_VERSION = "/api/v1";
 
@@ -36,8 +14,16 @@ const API_VERSION = "/api/v1";
 function normalizeDomain(raw: string | null | undefined): string {
   let v = (raw ?? "").trim().toLowerCase();
   if (!v) return "";
-  v = v.replace(/^https?:\/\//, "").split("/")[0]!.split("?")[0]!.trim();
-  return /^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/.test(v) ? v : "";
+  v = v
+    .replace(/^https?:\/\//, "")
+    .split("/")[0]!
+    .split("?")[0]!
+    .trim();
+  if (!/^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/.test(v)) return "";
+  const labels = v.split(".");
+  if (labels.some((label) => !label || label.startsWith("-") || label.endsWith("-"))) return "";
+  const forbidden = new Set(["local", "localhost", "internal", "home", "lan"]);
+  return labels.some((label) => forbidden.has(label)) ? "" : v;
 }
 
 interface CanvasCourse {
@@ -58,6 +44,7 @@ interface CanvasCourse {
 interface CanvasAssignment {
   id: number;
   name: string;
+  description?: string | null;
   due_at: string | null;
   html_url: string;
   points_possible: number | null;
@@ -97,6 +84,8 @@ interface CanvasCalendarEvent {
 interface Creds {
   domain: string;
   token: string;
+  /** Non-secret cache namespace derived from the complete token. */
+  cacheScope: string;
   /** Course ids this account chose to hide. Per-user, never hardcoded. */
   excluded: Set<number>;
 }
@@ -107,7 +96,12 @@ const cache = new Map<string, { at: number; value: unknown }>();
 const inflight = new Map<string, Promise<unknown>>();
 
 function cacheKey(creds: Creds, path: string) {
-  return `${creds.domain}|${creds.token.slice(-10)}|${path}`;
+  return `${creds.domain}|${creds.cacheScope}|${path}`;
+}
+
+async function tokenFingerprint(token: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 /** Expired entries are evicted, plus a hard ceiling, so the cache can't grow
@@ -127,14 +121,22 @@ function evictExpired() {
 }
 
 async function canvasFetch<T>(creds: Creds, path: string): Promise<T> {
-  const key = cacheKey(creds, path);
+  return cachedCanvasRequest(creds, path, () => canvasFetchRaw<T>(creds, path));
+}
+
+async function cachedCanvasRequest<T>(
+  creds: Creds,
+  requestKey: string,
+  load: () => Promise<T>,
+): Promise<T> {
+  const key = cacheKey(creds, requestKey);
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.value as T;
   if (hit) cache.delete(key);
   evictExpired();
   const pending = inflight.get(key);
   if (pending) return (await pending) as T;
-  const p = canvasFetchRaw<T>(creds, path)
+  const p = load()
     .then((v) => {
       cache.set(key, { at: Date.now(), value: v });
       return v;
@@ -144,37 +146,91 @@ async function canvasFetch<T>(creds: Creds, path: string): Promise<T> {
   return p;
 }
 
-async function canvasFetchRaw<T>(creds: Creds, path: string): Promise<T> {
+async function canvasFetchPageRaw<T>(
+  creds: Creds,
+  path: string,
+): Promise<{ data: T; nextPath: string | null }> {
   const url = `https://${creds.domain}${API_VERSION}${path}`;
   const res = await fetch(url, {
     headers: {
       Authorization: `Bearer ${creds.token}`,
       Accept: "application/json",
     },
+    signal: AbortSignal.timeout(15_000),
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(`Canvas API ${res.status}: ${text.slice(0, 200)}`);
   }
-  return (await res.json()) as T;
+  return {
+    data: (await res.json()) as T,
+    nextPath: nextCanvasPagePath(res.headers.get("Link"), creds.domain),
+  };
+}
+
+async function canvasFetchRaw<T>(creds: Creds, path: string): Promise<T> {
+  return (await canvasFetchPageRaw<T>(creds, path)).data;
+}
+
+/** Fetch every Canvas page, rather than silently losing everything after the
+ * first 100 records. The aggregate is cached and shared like a normal call. */
+async function canvasFetchAll<T>(creds: Creds, path: string): Promise<T[]> {
+  return cachedCanvasRequest(creds, `all-pages:${path}`, async () => {
+    const all: T[] = [];
+    let nextPath: string | null = path;
+    let pageCount = 0;
+
+    while (nextPath) {
+      pageCount += 1;
+      if (pageCount > 100) throw new Error("Canvas pagination exceeded 100 pages");
+      const page: { data: T[]; nextPath: string | null } = await canvasFetchPageRaw<T[]>(
+        creds,
+        nextPath,
+      );
+      if (!Array.isArray(page.data))
+        throw new Error("Canvas returned an invalid paginated response");
+      all.push(...page.data);
+      nextPath = page.nextPath;
+    }
+
+    return all;
+  });
 }
 
 // Reads the caller's Canvas API key from `user_settings` using their JWT,
 // so RLS guarantees a user can only ever use their own key.
 async function credsForRequest(req: Request, includeHidden = false): Promise<Creds> {
   const authHeader = req.headers.get("Authorization") ?? "";
-  if (!authHeader) throw new Error("NOT_AUTHENTICATED");
+  if (!authHeader.startsWith("Bearer ")) throw new Error("NOT_AUTHENTICATED");
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const apiKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
+  const publicKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!serviceKey) throw new Error("SERVER_CONFIGURATION_ERROR");
+
+  // Resolve the user from the signed token first, then perform the credential
+  // read with the service role and an explicit user filter. Browser clients no
+  // longer need SELECT permission on the secret canvas_api_key column.
+  const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: { apikey: publicKey, Authorization: authHeader },
+  });
+  if (!userRes.ok) throw new Error("NOT_AUTHENTICATED");
+  const user = (await userRes.json()) as { id?: string };
+  if (!user.id) throw new Error("NOT_AUTHENTICATED");
+
+  const adminHeaders: Record<string, string> = { apikey: serviceKey };
+  if (!serviceKey.startsWith("sb_secret_")) {
+    adminHeaders.Authorization = `Bearer ${serviceKey}`;
+  }
 
   const res = await fetch(
-    `${supabaseUrl}/rest/v1/user_settings?select=canvas_api_key,canvas_domain&limit=1`,
+    `${supabaseUrl}/rest/v1/user_settings?select=canvas_api_key,canvas_domain` +
+      `&user_id=eq.${encodeURIComponent(user.id)}&limit=1`,
     {
-      headers: { apikey: apiKey, Authorization: authHeader },
+      headers: adminHeaders,
     },
   );
-  if (!res.ok) throw new Error("NOT_AUTHENTICATED");
+  if (!res.ok) throw new Error("SERVER_CONFIGURATION_ERROR");
   const rows = (await res.json()) as Array<{
     canvas_api_key: string | null;
     canvas_domain: string | null;
@@ -192,16 +248,15 @@ async function credsForRequest(req: Request, includeHidden = false): Promise<Cre
   if (!includeHidden) {
     try {
       const prefRes = await fetch(
-        `${supabaseUrl}/rest/v1/user_preferences?select=value&key=eq.hidden_course_ids&limit=1`,
-        { headers: { apikey: apiKey, Authorization: authHeader } },
+        `${supabaseUrl}/rest/v1/user_preferences?select=value` +
+          `&user_id=eq.${encodeURIComponent(user.id)}&key=eq.hidden_course_ids&limit=1`,
+        { headers: adminHeaders },
       );
       if (prefRes.ok) {
         const prefRows = (await prefRes.json()) as Array<{ value: unknown }>;
         const value = prefRows?.[0]?.value;
         if (Array.isArray(value)) {
-          excluded = new Set(
-            value.map((v) => Number(v)).filter((n) => Number.isFinite(n)),
-          );
+          excluded = new Set(value.map((v) => Number(v)).filter((n) => Number.isFinite(n)));
         }
       }
     } catch {
@@ -209,53 +264,17 @@ async function credsForRequest(req: Request, includeHidden = false): Promise<Cre
     }
   }
 
-  return { domain, token, excluded };
-}
-
-// Paid access is decided HERE, server-side, before any Canvas data leaves the
-// function — a client-side route guard is UX only. The caller's own JWT reads
-// their `subscriptions` row (RLS scopes it to auth.uid()), and only rows in the
-// live Stripe mode count: test-mode checkouts are free for anyone.
-async function requirePaidAccess(req: Request): Promise<void> {
-  const authHeader = req.headers.get("Authorization") ?? "";
-  if (!authHeader) throw new Error("NOT_AUTHENTICATED");
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const apiKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
-
-  const res = await fetch(
-    `${supabaseUrl}/rest/v1/subscriptions?select=status,current_period_end` +
-      `&environment=eq.live&order=created_at.desc&limit=1`,
-    { headers: { apikey: apiKey, Authorization: authHeader } },
-  );
-  if (!res.ok) throw new Error("NOT_AUTHENTICATED");
-  const rows = (await res.json()) as Array<{
-    status: string;
-    current_period_end: string | null;
-  }>;
-  const sub = rows?.[0];
-  if (!sub) throw new Error("NOT_SUBSCRIBED");
-
-  const end = sub.current_period_end ? new Date(sub.current_period_end).getTime() : null;
-  const future = end === null || end > Date.now();
-  const paid =
-    (["active", "trialing"].includes(sub.status) && future) ||
-    (sub.status === "canceled" && end !== null && end > Date.now());
-  if (!paid) throw new Error("NOT_SUBSCRIBED");
-}
-
-function isActive(c: CanvasCourse, excluded: Set<number>) {
-  if (excluded.has(c.id)) return false;
-  if (c.access_restricted_by_date) return false;
-  if (c.workflow_state && c.workflow_state !== "available") return false;
-  return true;
+  return { domain, token, cacheScope: await tokenFingerprint(token), excluded };
 }
 
 async function fetchActiveCourses(creds: Creds): Promise<CanvasCourse[]> {
-  const courses = await canvasFetch<CanvasCourse[]>(
+  const courses = await canvasFetchAll<CanvasCourse>(
     creds,
     "/courses?enrollment_state=active&include[]=total_scores&include[]=syllabus_body&per_page=100",
   );
-  return courses.filter((c) => isActive(c, creds.excluded));
+  // enrollment_state=active is Canvas's source of truth. Do not let a page's
+  // date window (or a redundant local workflow-state check) shrink this feed.
+  return courses.filter((course) => isCanvasCourseVisible(course, creds.excluded));
 }
 
 async function handleCourses(creds: Creds) {
@@ -290,24 +309,138 @@ async function handleCourses(creds: Creds) {
 
 async function handleAssignments(creds: Creds) {
   const courses = await fetchActiveCourses(creds);
-  const results = await Promise.all(
+  const results = await Promise.allSettled(
     courses.map(async (c) => {
-      try {
-        const assignments = await canvasFetch<CanvasAssignment[]>(
-          creds,
-          `/courses/${c.id}/assignments?include[]=submission&per_page=100&order_by=due_at`,
-        );
-        return assignments.map((a) => ({
-          ...a,
-          course_name: c.name,
-          course_code: c.course_code,
-        }));
-      } catch {
-        return [];
-      }
+      const assignments = await canvasFetchAll<CanvasAssignment>(
+        creds,
+        `/courses/${c.id}/assignments?include[]=submission&override_assignment_dates=true&per_page=100&order_by=due_at`,
+      );
+      return assignments.map((a) => ({
+        id: a.id,
+        name: a.name,
+        description: a.description ?? null,
+        due_at: a.due_at,
+        html_url: a.html_url,
+        points_possible: a.points_possible,
+        course_id: a.course_id,
+        submission: a.submission,
+        course_name: c.name,
+        course_code: c.course_code,
+      }));
     }),
   );
-  return results.flat().filter((a) => !creds.excluded.has(a.course_id));
+  const failures = results.filter((result) => result.status === "rejected");
+  if (courses.length > 0 && failures.length === courses.length) {
+    const reason = failures[0].reason;
+    throw reason instanceof Error ? reason : new Error(String(reason));
+  }
+  for (const failure of failures) {
+    console.error(
+      "[canvas] assignment course fetch failed:",
+      failure.reason instanceof Error ? failure.reason.message : String(failure.reason),
+    );
+  }
+  const list = results
+    .filter(
+      (
+        result,
+      ): result is PromiseFulfilledResult<
+        (CanvasAssignment & {
+          course_name: string;
+          course_code: string;
+        })[]
+      > => result.status === "fulfilled",
+    )
+    .flatMap((result) => result.value)
+    .filter((a) => !creds.excluded.has(a.course_id));
+
+  // Canvas's own "Upcoming"/To-Do list comes from the planner, which also
+  // includes ungraded quizzes, discussions and pages with to-do dates that the
+  // assignments endpoint never returns. Merge those in (deduped).
+  try {
+    const courseById = new Map(courses.map((c) => [c.id, c]));
+    const start = new Date(Date.now() - 2 * 86_400_000).toISOString();
+    const end = new Date(Date.now() + 60 * 86_400_000).toISOString();
+    const items = await canvasFetchAll<PlannerItem>(
+      creds,
+      `/planner/items?start_date=${encodeURIComponent(start)}&end_date=${encodeURIComponent(end)}&per_page=100`,
+    );
+    const seen = new Set(list.map((a) => a.id));
+    const typeCode: Record<string, number> = {
+      quiz: 1,
+      discussion_topic: 2,
+      wiki_page: 3,
+      sub_assignment: 4,
+    };
+    for (const it of items) {
+      const course = it.course_id ? courseById.get(it.course_id) : undefined;
+      if (!course || creds.excluded.has(course.id)) continue;
+      const p = it.plannable ?? {};
+      const assignmentId = it.plannable_type === "assignment" ? it.plannable_id : p.assignment_id;
+      if (assignmentId && seen.has(assignmentId)) continue;
+      const code = typeCode[it.plannable_type];
+      if (!assignmentId && !code) continue; // skip notes, events, announcements
+      const id = assignmentId ?? -(it.plannable_id * 10 + code);
+      seen.add(id);
+      const sub = typeof it.submissions === "object" && it.submissions ? it.submissions : null;
+      list.push({
+        id,
+        name: p.title ?? p.name ?? "Untitled",
+        description: null,
+        due_at: p.due_at ?? p.todo_date ?? it.plannable_date ?? null,
+        html_url: it.html_url
+          ? `https://${creds.domain}${it.html_url.startsWith("/") ? "" : "/"}${it.html_url}`
+          : `https://${creds.domain}/courses/${course.id}`,
+        points_possible: p.points_possible ?? null,
+        course_id: course.id,
+        course_name: course.name,
+        course_code: course.course_code,
+        submission: sub
+          ? {
+              submitted_at: sub.submitted ? new Date().toISOString() : null,
+              workflow_state: sub.graded ? "graded" : sub.submitted ? "submitted" : "unsubmitted",
+              missing: !!sub.missing,
+              excused: !!sub.excused,
+              late: !!sub.late,
+            }
+          : it.planner_override?.marked_complete
+            ? { workflow_state: "submitted", submitted_at: new Date().toISOString() }
+            : undefined,
+      } as unknown as (typeof list)[number]);
+    }
+  } catch (err) {
+    console.error(
+      "[canvas] planner merge failed:",
+      err instanceof Error ? err.message : String(err),
+    );
+  }
+  return list;
+}
+
+interface PlannerItem {
+  course_id?: number;
+  plannable_id: number;
+  plannable_type: string;
+  plannable_date?: string;
+  html_url?: string;
+  plannable?: {
+    title?: string;
+    name?: string;
+    due_at?: string | null;
+    todo_date?: string | null;
+    points_possible?: number | null;
+    assignment_id?: number;
+  };
+  submissions?:
+    | false
+    | {
+        submitted?: boolean;
+        graded?: boolean;
+        missing?: boolean;
+        excused?: boolean;
+        late?: boolean;
+      };
+  planner_override?: { marked_complete?: boolean } | null;
 }
 
 async function handleAnnouncements(creds: Creds, days = 30) {
@@ -319,7 +452,10 @@ async function handleAnnouncements(creds: Creds, days = 30) {
   start.setDate(start.getDate() - days);
   params.set("start_date", start.toISOString());
   params.set("per_page", "50");
-  const raw = await canvasFetch<CanvasAnnouncement[]>(creds, `/announcements?${params.toString()}`);
+  const raw = await canvasFetchAll<CanvasAnnouncement>(
+    creds,
+    `/announcements?${params.toString()}`,
+  );
   const courseById = new Map(courses.map((c) => [c.id, c]));
   return raw
     .map((a) => {
@@ -351,7 +487,7 @@ async function handleCalendar(creds: Creds, daysAhead = 14) {
   // Only fetch real calendar events here. Assignment due dates are merged
   // client-side from the assignments endpoint, so fetching type=assignment
   // would duplicate every assignment on the schedule page.
-  const events = await canvasFetch<CanvasCalendarEvent[]>(
+  const events = await canvasFetchAll<CanvasCalendarEvent>(
     creds,
     `/calendar_events?${params.toString()}`,
   );
@@ -362,8 +498,7 @@ async function handleCalendar(creds: Creds, daysAhead = 14) {
   });
 }
 
-// Free tier: due timestamps only — no names, links, points, grades or course
-// titles. Enough for the dashboard countdown, useless as a stand-in for Pro.
+// Small due-date summary used by the dashboard countdown.
 async function handleDueDates(creds: Creds) {
   const assignments = await handleAssignments(creds);
   return assignments.map((a) => ({
@@ -390,7 +525,7 @@ Deno.serve(async (req) => {
     if (req.method === "POST") {
       const body = await req.json().catch(() => ({}));
       resource = body?.resource ?? null;
-      days = typeof body?.days === "number" ? body.days : undefined;
+      days = typeof body?.days === "number" ? Math.min(90, Math.max(1, body.days)) : undefined;
       includeHidden = body?.includeHidden === true;
       // Used only by the "validate" check when saving credentials: the caller's
       // own freshly typed key/URL, verified in-memory and never persisted here.
@@ -400,13 +535,9 @@ Deno.serve(async (req) => {
       const url = new URL(req.url);
       resource = url.searchParams.get("resource");
       const d = url.searchParams.get("days");
-      if (d) days = Number(d);
+      if (d && Number.isFinite(Number(d))) days = Math.min(90, Math.max(1, Number(d)));
       includeHidden = url.searchParams.get("includeHidden") === "true";
     }
-
-    // Everything except the free due-date counts and the credential check
-    // requires a paid account — validating your own key must work pre-purchase.
-    if (resource !== "duedates" && resource !== "validate") await requirePaidAccess(req);
 
     // The stored credentials aren't needed when validating a freshly typed
     // pair (the caller may not have saved a key yet), so load them lazily.
@@ -423,9 +554,21 @@ Deno.serve(async (req) => {
             ? (() => {
                 const d = normalizeDomain(overrideDomain);
                 if (!d) throw new Error("INVALID_DOMAIN");
-                return { domain: d, token: overrideToken, excluded: new Set<number>() };
+                return {
+                  domain: d,
+                  token: overrideToken,
+                  cacheScope: "validation",
+                  excluded: new Set<number>(),
+                };
               })()
-            : storedCreds!;
+            : overrideDomain !== undefined && storedCreds
+              ? (() => {
+                  // URL-only change: check the saved key against the new URL.
+                  const d = normalizeDomain(overrideDomain);
+                  if (!d) throw new Error("INVALID_DOMAIN");
+                  return { ...storedCreds, domain: d, cacheScope: "validation" };
+                })()
+              : storedCreds!;
         const me = await canvasFetchRaw<{ name?: string }>(vCreds, "/users/self");
         data = { ok: true, name: me?.name ?? null };
         break;
@@ -495,13 +638,11 @@ Deno.serve(async (req) => {
     const status =
       message === "NOT_AUTHENTICATED"
         ? 401
-        : message === "NOT_SUBSCRIBED"
-          ? 402
-          : message === "NO_CANVAS_KEY" || message === "NO_CANVAS_DOMAIN"
-            ? 428
-            : message === "INVALID_DOMAIN" || /^Canvas API 4\d\d/.test(message)
-              ? 400
-              : 500;
+        : message === "NO_CANVAS_KEY" || message === "NO_CANVAS_DOMAIN"
+          ? 428
+          : message === "INVALID_DOMAIN" || /^Canvas API 4\d\d/.test(message)
+            ? 400
+            : 500;
     if (status === 500) console.error("[canvas]", message);
     return new Response(JSON.stringify({ error: message }), {
       status,

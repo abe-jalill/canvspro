@@ -19,8 +19,8 @@ self.addEventListener("push", (event) => {
         body: data.body || "",
         tag: data.tag || title,
         renotify: false,
-        icon: "/favicon.png",
-        badge: "/favicon.png",
+        icon: "/icon-192.png",
+        badge: "/icon-192.png",
         timestamp: Date.now(),
         data: { to: data.to || "/dashboard" },
       });
@@ -38,10 +38,15 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const target = new URL(
+  const requestedTarget = new URL(
     (event.notification.data && event.notification.data.to) || "/dashboard",
     self.location.origin,
-  ).href;
+  );
+  // Push payloads are data, never trusted navigation instructions.
+  const target =
+    requestedTarget.origin === self.location.origin
+      ? requestedTarget.href
+      : new URL("/dashboard", self.location.origin).href;
   event.waitUntil(
     (async () => {
       const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });

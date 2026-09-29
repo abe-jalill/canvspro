@@ -8,3 +8,8 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Keep @tanstack/react-router >= 1.170.39: older versions blank the signed-in pages on first load ("Uncaught undefined") because the client-only layout rendered before its load started.
+- Root footer visibility is decided from the URL path, not route matches: matches differ between server and client for the client-only signed-in area.
+
+- Keep .env tracked (not gitignored): publish builds from the repo and need the VITE_ backend URL/publishable key, or the live site shows "Something went wrong".

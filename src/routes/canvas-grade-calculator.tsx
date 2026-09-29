@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
+import "./public-pages.css";
 
 const TITLE = "Canvas Grade Calculator — Weighted Grades & Final Exam";
 const DESCRIPTION =
@@ -122,8 +123,11 @@ function CalculatorPage() {
   }, [rows, target]);
 
   return (
-    <div className="mx-auto min-h-dvh w-full max-w-3xl px-4 pb-[max(3rem,env(safe-area-inset-bottom))] pt-[max(3rem,env(safe-area-inset-top))] sm:py-16">
+    <div className="cp-public-tool mx-auto w-full max-w-3xl px-4 py-12 sm:py-16">
       <header className="text-center">
+        <Link to="/" className="cp-public-tool__back">
+          ← CanvasPro
+        </Link>
         <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
           Free tool
         </p>
@@ -303,16 +307,16 @@ function CalculatorPage() {
         <div className="glass-panel-strong flex flex-col items-start gap-4 p-6">
           <h2 className="text-xl font-semibold tracking-tight">Stop doing this by hand</h2>
           <p className="text-sm text-muted-foreground">
-            Canvas Pro pulls your real scores straight from Canvas and keeps every class,
-            assignment, and announcement on one dashboard you arrange yourself — with trend arrows
-            when a grade moves. $2.99/month, or $30/year (save 17%!).
+            CanvasPro pulls your real scores straight from Canvas and keeps every class, assignment,
+            and announcement on one dashboard you arrange yourself — with trend arrows when a grade
+            moves. Every feature is free, with no subscription required.
           </p>
           <div className="flex flex-wrap gap-3">
             <Link
               to="/signup"
               className="glass-hover inline-flex min-h-11 items-center justify-center rounded-xl bg-foreground px-4 text-sm font-semibold text-background"
             >
-              Try Canvas Pro
+              Try CanvasPro
             </Link>
             <Link
               to="/canvas-dashboard-guide"

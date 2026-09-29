@@ -2,20 +2,14 @@ import { useMemo } from "react";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useQuery, queryOptions } from "@tanstack/react-query";
-import {
-  getAllAssignmentsFn,
-  getCoursesFn,
-  type AssignmentItem,
-} from "@/lib/canvas.functions";
+import { getAllAssignmentsFn, getCoursesFn, type AssignmentItem } from "@/lib/canvas.functions";
 import { GlassCard, Skeleton, ErrorState } from "@/components/glass-card";
 import { useLocalSet, COMPLETED_ASSIGNMENTS_KEY } from "@/lib/local-state";
 import { displayCourseName } from "@/lib/course-display";
 import { buildPriorityList, describePriorityList } from "@/lib/priority";
 import { cn } from "@/lib/utils";
-import {
-  useAssignmentMetaMap,
-  useSetAssignmentEstimate,
-} from "@/hooks/use-assignment-meta";
+import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
+import { useAssignmentMetaMap, useSetAssignmentEstimate } from "@/hooks/use-assignment-meta";
 import { Clock } from "lucide-react";
 import { CompleteToggle } from "@/components/complete-toggle";
 import { useState } from "react";
@@ -54,9 +48,7 @@ function EstimateEditor({
   courseId: number;
   minutes: number | null;
 }) {
-  const [draft, setDraft] = useState<string>(
-    minutes === null ? "" : String(minutes),
-  );
+  const [draft, setDraft] = useState<string>(minutes === null ? "" : String(minutes));
   const { mutate, isPending } = useSetAssignmentEstimate();
 
   function save() {
@@ -157,10 +149,7 @@ export function PriorityAssignmentsWidget() {
       {topItems.length > 0 && (
         <ul className="mt-4 space-y-2">
           {topItems.map((p) => (
-            <li
-              key={p.assignment.id}
-              className="glass-inset flex flex-col gap-2 p-3"
-            >
+            <li key={p.assignment.id} className="glass-inset flex flex-col gap-2 p-3">
               <div className="flex items-center justify-between gap-3">
                 <CompleteToggle
                   done={completed.has(p.assignment.id)}
@@ -178,11 +167,9 @@ export function PriorityAssignmentsWidget() {
                     {p.assignment.name}
                   </p>
                   <p className="truncate text-xs text-muted-foreground">
-                    {displayCourseName(
-                      p.assignment.course_name,
-                      p.assignment.course_code,
-                    )}
+                    {displayCourseName(p.assignment.course_name, p.assignment.course_code)}
                   </p>
+                  <AssignmentDescriptionLink assignmentId={p.assignment.id} className="mt-1" />
                 </div>
                 <span
                   className={cn(

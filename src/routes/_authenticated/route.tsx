@@ -1,171 +1,126 @@
-import {
-  createFileRoute,
-  Outlet,
-  redirect,
-  useRouter,
-  useRouterState,
-} from "@tanstack/react-router";
-import { useEffect, useLayoutEffect, useRef } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { createFileRoute, Outlet, redirect, useRouterState } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppSidebar, MobileNav } from "@/components/app-sidebar";
 import { CanvasKeyBanner } from "@/components/canvas-key-banner";
 import { CanvasKeyGate } from "@/components/canvas-key-gate";
 import { ClassNamesGate } from "@/components/class-names-editor";
-import { ProGate } from "@/components/pro-gate";
-import { useSubscription } from "@/lib/subscription";
 import { NotificationCenter } from "@/components/notification-center";
+import { ProfileButton } from "@/components/profile-button";
 import { CanvasLiveStatus } from "@/components/canvas-live-status";
 import { useNotificationEngine } from "@/hooks/use-notification-engine";
 import { useDueTodayBadge } from "@/hooks/use-due-today-badge";
 import { useAppPrefetch } from "@/hooks/use-app-prefetch";
 import { useWelcomeEmail } from "@/hooks/use-welcome-email";
+import { useActivityHeartbeat } from "@/hooks/use-activity-heartbeat";
 import { purgeScopedStorage } from "@/lib/user-scope";
 import { syncAuthIdentity } from "@/lib/auth-user";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { useQueryCachePersistence } from "@/lib/query-persist";
 import { useSidebarMode } from "@/lib/sidebar-state";
-import { useNicknames } from "@/lib/nicknames";
-import { setNicknameLookup } from "@/lib/course-display";
 import { cn } from "@/lib/utils";
+import { AppStartupWelcome } from "@/components/app-startup-welcome";
+import { RouteProgress } from "@/components/route-progress";
+import { ProfileCompletionDialog } from "@/components/profile-completion-dialog";
+import { CanvasTrademarkNotice } from "@/components/canvas-trademark-notice";
+import { maintainBackgroundPush } from "@/lib/push-client";
+import { isNativeApp } from "@/lib/native";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async ({ context }) => {
-    // getSession reads the persisted native session and avoids making first
-    // paint wait on a network round trip. The session is verified immediately
-    // after the shell mounts; protected APIs still enforce auth server-side.
+    // Local session gates the UI; APIs still validate the token and enforce RLS.
     const { data, error } = await supabase.auth.getSession();
-    const user = data.session?.user;
-    if (error || !user) {
+    if (error || !data.session) {
       purgeScopedStorage();
       syncAuthIdentity(context.queryClient, null);
       throw redirect({ to: "/auth" });
     }
     // Scope browser storage to this account and wipe any cache that belonged
     // to a different one BEFORE a single component renders.
-    syncAuthIdentity(context.queryClient, user.id);
-    return { user };
+    syncAuthIdentity(context.queryClient, data.session.user.id);
+    return { user: data.session.user };
   },
   component: AuthenticatedLayout,
 });
 
 function AuthenticatedLayout() {
   const { user } = Route.useRouteContext();
-  const { isActive: isPro } = useSubscription();
-  const router = useRouter();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [sidebarMode] = useSidebarMode();
-  const queryClient = useQueryClient();
-  const mainRef = useRef<HTMLElement>(null);
-  const pageRef = useRef<HTMLDivElement>(null);
-  const initialPage = useRef(true);
-  const priorPro = useRef<boolean | null>(null);
-  // Resolve the display lookup before any sidebar/page child renders. Updating
-  // the parent naturally re-renders descendants while preserving their state;
-  // the old keyed wrapper remounted the entire active route when names loaded.
-  const nicknames = useNicknames();
-  setNicknameLookup(nicknames.data ?? []);
+  const needsFallbackTransition =
+    typeof document !== "undefined" && typeof document.startViewTransition !== "function";
 
-  useEffect(() => {
-    let active = true;
-    void supabase.auth.getUser().then(({ data, error }) => {
-      if (!active) return;
-      const status = error?.status ?? 0;
-      const definitelyInvalid =
-        (!data.user && (!error || error.name === "AuthSessionMissingError")) ||
-        status === 401 ||
-        status === 403;
-      const identityChanged = !!data.user && data.user.id !== user.id;
-      // A transport failure should not eject an offline student who has a
-      // valid persisted session. Supabase and protected APIs still reject an
-      // expired/invalid token, which is the terminal case handled here.
-      if (!definitelyInvalid && !identityChanged) return;
-      purgeScopedStorage(user.id);
-      syncAuthIdentity(queryClient, null);
-      void router.navigate({ to: "/auth", replace: true });
-    });
-    return () => {
-      active = false;
-    };
-  }, [queryClient, router, user.id]);
-
-  // Every page change starts at the top — on desktop the page scrolls inside
-  // <main>, on mobile it scrolls the window, so reset both.
-  useEffect(() => {
-    if (window.matchMedia("(min-width: 48rem)").matches) {
-      mainRef.current?.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
-    }
-  }, [pathname]);
-
-  // Animate the already-rendered route container instead of keying/remounting
-  // the whole subtree. Starting almost opaque prevents white flashes while a
-  // short translate gives navigation a native iOS sense of continuity.
-  useLayoutEffect(() => {
-    if (initialPage.current) {
-      initialPage.current = false;
-      return;
-    }
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const animation = pageRef.current?.animate(
-      [
-        { opacity: 0.97, transform: "translate3d(0, 3px, 0)" },
-        { opacity: 1, transform: "translate3d(0, 0, 0)" },
-      ],
-      { duration: 160, easing: "cubic-bezier(0.16, 1, 0.3, 1)" },
-    );
-    return () => animation?.cancel();
-  }, [pathname]);
-
-  // The moment Pro access is confirmed, drop any Canvas result fetched while it
-  // was still unknown, so nothing stays blank waiting for a stale window.
-  useEffect(() => {
-    if (priorPro.current === false && isPro) {
-      void queryClient.invalidateQueries({ queryKey: ["canvas"] });
-    }
-    priorPro.current = isPro;
-  }, [isPro, queryClient]);
-  useNotificationEngine(isPro);
-  useDueTodayBadge(isPro);
   useQueryCachePersistence();
-  useAppPrefetch(true);
+  const startup = useAppPrefetch(true);
+  const startupReady = startup === "ready";
+  useNotificationEngine(startupReady);
+  useDueTodayBadge(startupReady);
   useWelcomeEmail(true);
+  useActivityHeartbeat(true);
+
+  useEffect(() => {
+    const idleCallback = (
+      window as unknown as {
+        requestIdleCallback?: Window["requestIdleCallback"];
+      }
+    ).requestIdleCallback;
+    if (idleCallback) {
+      const id = idleCallback.call(window, () => void maintainBackgroundPush(), { timeout: 2_000 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const timer = window.setTimeout(() => void maintainBackgroundPush(), 1_000);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   return (
-    <div className="min-h-dvh w-full overflow-x-hidden md:h-screen md:overflow-hidden">
+    <div className="min-h-svh w-full overflow-x-clip md:h-svh md:overflow-hidden">
+      <AppStartupWelcome ready={startupReady} user={user} />
+      <ProfileCompletionDialog user={user} />
+      <RouteProgress />
       <AppSidebar />
       <MobileNav />
       <main
-        ref={mainRef}
+        id="app-main"
+        data-scroll-restoration-id="app-main"
         className={cn(
-          "transition-[padding] duration-300 ease-in-out md:h-screen md:overflow-y-auto md:py-4 md:pr-4",
+          "transition-[padding] duration-300 ease-in-out md:h-svh md:overflow-y-auto md:py-4 md:pr-4",
           sidebarMode === "full" && "md:pl-64",
           sidebarMode === "rail" && "md:pl-[4.5rem]",
           sidebarMode === "hidden" && "md:pl-4",
         )}
       >
-        <div className="ios-main-content mx-auto w-full min-w-0 max-w-6xl px-3 py-4 sm:px-4 md:p-6">
+        <div
+          className={cn(
+            "mx-auto w-full min-w-0 max-w-6xl px-3 py-4 sm:px-4 md:p-6",
+            isNativeApp() && "pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-6",
+          )}
+        >
           <div className="mb-2 flex min-w-0 items-center justify-end gap-2">
             <CanvasLiveStatus />
-            {/* Bell already lives in the mobile top bar — avoid a duplicate on phones */}
-            {isPro && (
-              <span className="hidden md:inline-flex">
-                <NotificationCenter />
-              </span>
-            )}
+            {/* Bell and profile already live in the mobile top bar — avoid duplicates on phones */}
+            <span className="hidden items-center gap-2 md:inline-flex">
+              <NotificationCenter />
+              <ProfileButton />
+            </span>
           </div>
           <CanvasKeyBanner />
           <CanvasKeyGate>
             <ClassNamesGate>
-              <ProGate>
-                <PullToRefresh>
-                  <div ref={pageRef} className="min-w-0">
-                    <Outlet />
-                  </div>
-                </PullToRefresh>
-              </ProGate>
+              <PullToRefresh>
+                <div
+                  key={needsFallbackTransition ? pathname : "native-transition"}
+                  className={cn(
+                    "route-content min-w-0",
+                    needsFallbackTransition && "route-content-fallback",
+                  )}
+                >
+                  <Outlet />
+                </div>
+              </PullToRefresh>
             </ClassNamesGate>
           </CanvasKeyGate>
+          <CanvasTrademarkNotice className="mx-auto mt-10 max-w-3xl border-t border-border/30 px-4 pt-5" />
         </div>
       </main>
     </div>

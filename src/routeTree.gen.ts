@@ -23,18 +23,19 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedAnnouncementsRouteImport } from './routes/_authenticated/announcements'
 import { Route as AuthenticatedAssignmentsRouteImport } from './routes/_authenticated/assignments'
 import { Route as AuthenticatedBillingRouteImport } from './routes/_authenticated/billing'
 import { Route as AuthenticatedClassScheduleRouteImport } from './routes/_authenticated/class-schedule'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedFocusRouteImport } from './routes/_authenticated/focus'
+import { Route as AuthenticatedGetItDoneRouteImport } from './routes/_authenticated/get-it-done'
 import { Route as AuthenticatedGradesRouteImport } from './routes/_authenticated/grades'
 import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
 import { Route as AuthenticatedScheduleRouteImport } from './routes/_authenticated/schedule'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedStudySessionRouteImport } from './routes/_authenticated/study-session'
-import { Route as AuthenticatedCheckoutReturnRouteImport } from './routes/_authenticated/checkout.return'
 import { Route as AuthenticatedCoursesCourseIdRouteImport } from './routes/_authenticated/courses.$courseId'
 import { Route as ApiMobileSubscriptionRouteImport } from './routes/api/mobile/subscription'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
@@ -113,6 +114,11 @@ const TermsRoute = TermsRouteImport.update({
   path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedAnnouncementsRoute =
   AuthenticatedAnnouncementsRouteImport.update({
     id: '/announcements',
@@ -146,6 +152,11 @@ const AuthenticatedFocusRoute = AuthenticatedFocusRouteImport.update({
   path: '/focus',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedGetItDoneRoute = AuthenticatedGetItDoneRouteImport.update({
+  id: '/get-it-done',
+  path: '/get-it-done',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedGradesRoute = AuthenticatedGradesRouteImport.update({
   id: '/grades',
   path: '/grades',
@@ -171,12 +182,6 @@ const AuthenticatedStudySessionRoute =
   AuthenticatedStudySessionRouteImport.update({
     id: '/study-session',
     path: '/study-session',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedCheckoutReturnRoute =
-  AuthenticatedCheckoutReturnRouteImport.update({
-    id: '/checkout/return',
-    path: '/checkout/return',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedCoursesCourseIdRoute =
@@ -237,18 +242,19 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
+  '/admin': typeof AuthenticatedAdminRoute
   '/announcements': typeof AuthenticatedAnnouncementsRoute
   '/assignments': typeof AuthenticatedAssignmentsRoute
   '/billing': typeof AuthenticatedBillingRoute
   '/class-schedule': typeof AuthenticatedClassScheduleRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/focus': typeof AuthenticatedFocusRoute
+  '/get-it-done': typeof AuthenticatedGetItDoneRoute
   '/grades': typeof AuthenticatedGradesRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/schedule': typeof AuthenticatedScheduleRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/study-session': typeof AuthenticatedStudySessionRoute
-  '/checkout/return': typeof AuthenticatedCheckoutReturnRoute
   '/courses/$courseId': typeof AuthenticatedCoursesCourseIdRoute
   '/api/mobile/subscription': typeof ApiMobileSubscriptionRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
@@ -272,18 +278,19 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
+  '/admin': typeof AuthenticatedAdminRoute
   '/announcements': typeof AuthenticatedAnnouncementsRoute
   '/assignments': typeof AuthenticatedAssignmentsRoute
   '/billing': typeof AuthenticatedBillingRoute
   '/class-schedule': typeof AuthenticatedClassScheduleRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/focus': typeof AuthenticatedFocusRoute
+  '/get-it-done': typeof AuthenticatedGetItDoneRoute
   '/grades': typeof AuthenticatedGradesRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/schedule': typeof AuthenticatedScheduleRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/study-session': typeof AuthenticatedStudySessionRoute
-  '/checkout/return': typeof AuthenticatedCheckoutReturnRoute
   '/courses/$courseId': typeof AuthenticatedCoursesCourseIdRoute
   '/api/mobile/subscription': typeof ApiMobileSubscriptionRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
@@ -309,18 +316,19 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
+  '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/announcements': typeof AuthenticatedAnnouncementsRoute
   '/_authenticated/assignments': typeof AuthenticatedAssignmentsRoute
   '/_authenticated/billing': typeof AuthenticatedBillingRoute
   '/_authenticated/class-schedule': typeof AuthenticatedClassScheduleRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/focus': typeof AuthenticatedFocusRoute
+  '/_authenticated/get-it-done': typeof AuthenticatedGetItDoneRoute
   '/_authenticated/grades': typeof AuthenticatedGradesRoute
   '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
   '/_authenticated/schedule': typeof AuthenticatedScheduleRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/study-session': typeof AuthenticatedStudySessionRoute
-  '/_authenticated/checkout/return': typeof AuthenticatedCheckoutReturnRoute
   '/_authenticated/courses/$courseId': typeof AuthenticatedCoursesCourseIdRoute
   '/api/mobile/subscription': typeof ApiMobileSubscriptionRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
@@ -346,18 +354,19 @@ export interface FileRouteTypes {
     | '/signup'
     | '/sitemap.xml'
     | '/terms'
+    | '/admin'
     | '/announcements'
     | '/assignments'
     | '/billing'
     | '/class-schedule'
     | '/dashboard'
     | '/focus'
+    | '/get-it-done'
     | '/grades'
     | '/notifications'
     | '/schedule'
     | '/settings'
     | '/study-session'
-    | '/checkout/return'
     | '/courses/$courseId'
     | '/api/mobile/subscription'
     | '/api/public/payments/webhook'
@@ -381,18 +390,19 @@ export interface FileRouteTypes {
     | '/signup'
     | '/sitemap.xml'
     | '/terms'
+    | '/admin'
     | '/announcements'
     | '/assignments'
     | '/billing'
     | '/class-schedule'
     | '/dashboard'
     | '/focus'
+    | '/get-it-done'
     | '/grades'
     | '/notifications'
     | '/schedule'
     | '/settings'
     | '/study-session'
-    | '/checkout/return'
     | '/courses/$courseId'
     | '/api/mobile/subscription'
     | '/api/public/payments/webhook'
@@ -417,18 +427,19 @@ export interface FileRouteTypes {
     | '/signup'
     | '/sitemap.xml'
     | '/terms'
+    | '/_authenticated/admin'
     | '/_authenticated/announcements'
     | '/_authenticated/assignments'
     | '/_authenticated/billing'
     | '/_authenticated/class-schedule'
     | '/_authenticated/dashboard'
     | '/_authenticated/focus'
+    | '/_authenticated/get-it-done'
     | '/_authenticated/grades'
     | '/_authenticated/notifications'
     | '/_authenticated/schedule'
     | '/_authenticated/settings'
     | '/_authenticated/study-session'
-    | '/_authenticated/checkout/return'
     | '/_authenticated/courses/$courseId'
     | '/api/mobile/subscription'
     | '/api/public/payments/webhook'
@@ -563,6 +574,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/announcements': {
       id: '/_authenticated/announcements'
       path: '/announcements'
@@ -605,6 +623,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedFocusRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/get-it-done': {
+      id: '/_authenticated/get-it-done'
+      path: '/get-it-done'
+      fullPath: '/get-it-done'
+      preLoaderRoute: typeof AuthenticatedGetItDoneRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/grades': {
       id: '/_authenticated/grades'
       path: '/grades'
@@ -638,13 +663,6 @@ declare module '@tanstack/react-router' {
       path: '/study-session'
       fullPath: '/study-session'
       preLoaderRoute: typeof AuthenticatedStudySessionRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/checkout/return': {
-      id: '/_authenticated/checkout/return'
-      path: '/checkout/return'
-      fullPath: '/checkout/return'
-      preLoaderRoute: typeof AuthenticatedCheckoutReturnRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/courses/$courseId': {
@@ -707,34 +725,36 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedAnnouncementsRoute: typeof AuthenticatedAnnouncementsRoute
   AuthenticatedAssignmentsRoute: typeof AuthenticatedAssignmentsRoute
   AuthenticatedBillingRoute: typeof AuthenticatedBillingRoute
   AuthenticatedClassScheduleRoute: typeof AuthenticatedClassScheduleRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedFocusRoute: typeof AuthenticatedFocusRoute
+  AuthenticatedGetItDoneRoute: typeof AuthenticatedGetItDoneRoute
   AuthenticatedGradesRoute: typeof AuthenticatedGradesRoute
   AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
   AuthenticatedScheduleRoute: typeof AuthenticatedScheduleRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedStudySessionRoute: typeof AuthenticatedStudySessionRoute
-  AuthenticatedCheckoutReturnRoute: typeof AuthenticatedCheckoutReturnRoute
   AuthenticatedCoursesCourseIdRoute: typeof AuthenticatedCoursesCourseIdRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedAnnouncementsRoute: AuthenticatedAnnouncementsRoute,
   AuthenticatedAssignmentsRoute: AuthenticatedAssignmentsRoute,
   AuthenticatedBillingRoute: AuthenticatedBillingRoute,
   AuthenticatedClassScheduleRoute: AuthenticatedClassScheduleRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedFocusRoute: AuthenticatedFocusRoute,
+  AuthenticatedGetItDoneRoute: AuthenticatedGetItDoneRoute,
   AuthenticatedGradesRoute: AuthenticatedGradesRoute,
   AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
   AuthenticatedScheduleRoute: AuthenticatedScheduleRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedStudySessionRoute: AuthenticatedStudySessionRoute,
-  AuthenticatedCheckoutReturnRoute: AuthenticatedCheckoutReturnRoute,
   AuthenticatedCoursesCourseIdRoute: AuthenticatedCoursesCourseIdRoute,
 }
 

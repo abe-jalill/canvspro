@@ -1,298 +1,288 @@
-import { createFileRoute, useSearch } from "@tanstack/react-router";
-import { useQuery, queryOptions } from "@tanstack/react-query";
-import { getAnnouncementsFn, type AnnouncementItem } from "@/lib/canvas.functions";
-import { GlassCard, Skeleton, ErrorState, EmptyState } from "@/components/glass-card";
-import { displayCourseName } from "@/lib/course-display";
-import { useLocalSet, DISMISSED_ANNOUNCEMENTS_KEY } from "@/lib/local-state";
-import { X, RotateCcw, ChevronDown } from "lucide-react";
-import { htmlToText } from "@/lib/html-text";
-import { cn } from "@/lib/utils";
+import { createFileRoute, Link, useSearch } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
+import { ArrowUpRight, Clock3, Megaphone, RotateCcw, X } from "lucide-react";
+import { GlassCard, ErrorState, EmptyState } from "@/components/glass-card";
+import { SkeletonBlock } from "@/components/skeletons/dashboard-skeletons";
+import { announcementsQueryOptions as announcementsQO } from "@/lib/canvas.queries";
+import { displayCourseName } from "@/lib/course-display";
 import { useCourseHighlight } from "@/lib/course-highlight";
-import {
-  useAnnouncementWindow,
-  withinAnnouncementWindow,
-} from "@/lib/announcement-window";
-
-const announcementsQO = queryOptions({
-  queryKey: ["canvas", "announcements"],
-  queryFn: () => getAnnouncementsFn(),
-  staleTime: 5 * 60_000,
-});
+import { htmlToText } from "@/lib/html-text";
+import { useLocalSet, DISMISSED_ANNOUNCEMENTS_KEY } from "@/lib/local-state";
+import { useAnnouncementWindow, withinAnnouncementWindow } from "@/lib/announcement-window";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/announcements")({
   head: () => ({
     meta: [
-      { title: "Announcements — Canvas Pro" },
+      { title: "Announcements — CanvasPro" },
       {
         name: "description",
-        content: "Recent announcements from all of your Canvas courses, grouped by class.",
+        content: "Recent announcements from all of your Canvas courses, in one timeline.",
       },
-      { property: "og:title", content: "Announcements — Canvas Pro" },
-      {
-        property: "og:description",
-        content: "Recent announcements from all of your Canvas courses, grouped by class.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   validateSearch: (search: { course?: unknown; expand?: unknown }) => ({
     ...(typeof search?.course === "string" ? { course: search.course } : {}),
     ...(typeof search?.expand === "string" ? { expand: search.expand } : {}),
   }),
+  loader: ({ context }) => {
+    if (context?.queryClient) void context.queryClient.ensureQueryData(announcementsQO);
+  },
   component: AnnouncementsPage,
 });
 
-function stripHtml(html: string) {
-  return htmlToText(html);
+function formatPosted(value: string) {
+  const date = new Date(value);
+  return {
+    date: date.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+    time: date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }),
+  };
 }
 
 function AnnouncementsPage() {
   const { data, isLoading, isError, error } = useQuery(announcementsQO);
   const dismissed = useLocalSet(DISMISSED_ANNOUNCEMENTS_KEY);
   const highlight = useCourseHighlight();
-  const search = useSearch({ strict: false }) as {
-    course?: string;
-    expand?: string;
-  };
-  const [expanded, setExpanded] = useState<number[]>([]);
-  const [expandedBody, setExpandedBody] = useState<Set<number>>(new Set());
-
+  const search = useSearch({ strict: false }) as { course?: string; expand?: string };
   const announcementWindow = useAnnouncementWindow();
+  const [courseFilter, setCourseFilter] = useState<number | "all">("all");
+  const [expandedBody, setExpandedBody] = useState<Set<number>>(new Set());
 
   const visible = useMemo(
     () =>
-      (data ?? []).filter(
-        (a) =>
-          !dismissed.has(a.id) &&
-          withinAnnouncementWindow(a.posted_at, announcementWindow.weeks),
-      ),
+      (data ?? [])
+        .filter(
+          (item) =>
+            !dismissed.has(item.id) &&
+            withinAnnouncementWindow(item.posted_at, announcementWindow.weeks),
+        )
+        .sort((a, b) => new Date(b.posted_at).getTime() - new Date(a.posted_at).getTime()),
     [data, dismissed, announcementWindow.weeks],
   );
 
-  type Group = {
-    id: number;
-    name: string;
-    code: string;
-    items: AnnouncementItem[];
-  };
-  const groups = useMemo(() => {
-    const groupMap = new Map<number, Group>();
-    visible.forEach((a) => {
-      const g = groupMap.get(a.course_id) ?? {
-        id: a.course_id,
-        name: a.course_name,
-        code: a.course_code ?? "",
-        items: [],
-      };
-      g.items.push(a);
-      groupMap.set(a.course_id, g);
+  const courses = useMemo(() => {
+    const map = new Map<number, { id: number; label: string; count: number }>();
+    visible.forEach((item) => {
+      const current = map.get(item.course_id);
+      if (current) current.count += 1;
+      else
+        map.set(item.course_id, {
+          id: item.course_id,
+          label: displayCourseName(item.course_name, item.course_code),
+          count: 1,
+        });
     });
-    return Array.from(groupMap.values()).sort((a, b) =>
-      displayCourseName(a.name, a.code).localeCompare(displayCourseName(b.name, b.code)),
-    );
+    return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label));
   }, [visible]);
 
-  useEffect(() => {
-    if (!data || !search.expand) return;
-    const id = Number(search.expand);
-    if (!id) return;
-    const group = groups.find((g) => g.items.some((a) => a.id === id));
-    if (!group) return;
-    setExpanded((prev) => (prev.includes(group.id) ? prev : [...prev, group.id]));
-    setExpandedBody((prev) => {
-      if (prev.has(id)) return prev;
-      const next = new Set(prev);
-      next.add(id);
-      return next;
-    });
-    const timer = window.setTimeout(() => {
-      document
-        .getElementById(`announcement-${id}`)
-        ?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }, 180);
-    return () => window.clearTimeout(timer);
-  }, [data, search.expand, groups]);
+  const feed =
+    courseFilter === "all" ? visible : visible.filter((item) => item.course_id === courseFilter);
 
-  const toggleBody = (id: number) => {
-    setExpandedBody((prev) => {
-      const next = new Set(prev);
+  useEffect(() => {
+    if (!search.expand || !data) return;
+    const id = Number(search.expand);
+    const item = visible.find((announcement) => announcement.id === id);
+    if (!item) return;
+    setCourseFilter(item.course_id);
+    setExpandedBody((previous) => new Set(previous).add(id));
+    const timer = window.setTimeout(
+      () =>
+        document
+          .getElementById(`announcement-${id}`)
+          ?.scrollIntoView({ behavior: "smooth", block: "center" }),
+      180,
+    );
+    return () => window.clearTimeout(timer);
+  }, [data, search.expand, visible]);
+
+  const toggleBody = (id: number) =>
+    setExpandedBody((previous) => {
+      const next = new Set(previous);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
-  };
 
   return (
-    <div className="space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-4 px-1 pt-2">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            {announcementWindow.label}
-          </p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">Announcements</h1>
+    <div className="space-y-5 sm:space-y-6">
+      <section className="glass-panel-strong relative isolate overflow-hidden rounded-[2rem] border border-primary/15 p-5 sm:p-7">
+        <div className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-primary/15 blur-3xl" />
+        <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+          <div className="max-w-2xl">
+            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary">
+              <Megaphone className="h-5 w-5" />
+            </div>
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+              Campus feed · {announcementWindow.label}
+            </p>
+            <h1 className="mt-2 text-4xl font-medium tracking-[-0.045em] sm:text-5xl">
+              What changed while you were away.
+            </h1>
+            <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+              Every course update, ordered by when it happened—not hidden behind class cards.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:min-w-72">
+            <div className="rounded-2xl border border-foreground/10 bg-background/35 p-4 backdrop-blur-md">
+              <p className="text-3xl font-medium tabular-nums tracking-[-0.05em]">
+                {visible.length}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">Recent posts</p>
+            </div>
+            <div className="rounded-2xl border border-foreground/10 bg-background/35 p-4 backdrop-blur-md">
+              <p className="text-3xl font-medium tabular-nums tracking-[-0.05em]">
+                {courses.length}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">Active courses</p>
+            </div>
+          </div>
         </div>
+      </section>
+
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <button
+          type="button"
+          onClick={() => setCourseFilter("all")}
+          className={cn(
+            "press shrink-0 rounded-full border px-4 py-2 text-xs font-medium transition-colors",
+            courseFilter === "all"
+              ? "border-primary/30 bg-primary/15 text-foreground"
+              : "border-foreground/10 bg-foreground/[0.03] text-muted-foreground hover:text-foreground",
+          )}
+        >
+          All updates <span className="ml-1 opacity-60">{visible.length}</span>
+        </button>
+        {courses.map((course) => (
+          <button
+            key={course.id}
+            type="button"
+            onClick={() => setCourseFilter(course.id)}
+            className={cn(
+              "press shrink-0 rounded-full border px-4 py-2 text-xs font-medium transition-colors",
+              courseFilter === course.id
+                ? "border-primary/30 bg-primary/15 text-foreground"
+                : "border-foreground/10 bg-foreground/[0.03] text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {course.label} <span className="ml-1 opacity-60">{course.count}</span>
+          </button>
+        ))}
         {dismissed.size > 0 && (
           <button
-            onClick={() => {
-              (data ?? []).forEach((a) => dismissed.remove(a.id));
-            }}
-            className="glass-hover inline-flex items-center gap-1.5 rounded-lg border border-glass-border px-3 py-1.5 text-xs font-medium text-muted-foreground"
+            type="button"
+            onClick={() => (data ?? []).forEach((item) => dismissed.remove(item.id))}
+            className="press ml-auto inline-flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-xs text-muted-foreground hover:text-foreground"
           >
-            <RotateCcw className="h-3.5 w-3.5" />
-            Restore dismissed ({dismissed.size})
+            <RotateCcw className="h-3.5 w-3.5" /> Restore {dismissed.size}
           </button>
         )}
-      </header>
+      </div>
 
       {isLoading && (
-        <GlassCard>
-          <div className="space-y-3">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-20" />
-            ))}
-          </div>
-        </GlassCard>
+        <div className="glass-panel overflow-hidden rounded-[1.75rem]">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div
+              key={index}
+              className="grid gap-3 border-b border-foreground/10 p-5 last:border-0 sm:grid-cols-[7rem_1fr]"
+            >
+              <SkeletonBlock className="h-4 w-20" />
+              <div className="space-y-3">
+                <SkeletonBlock className="h-5 w-3/5" />
+                <SkeletonBlock className="h-12 w-full" />
+              </div>
+            </div>
+          ))}
+        </div>
       )}
       {isError && (
         <GlassCard>
           <ErrorState message={(error as Error).message} />
         </GlassCard>
       )}
-      {!isLoading && !isError && groups.length === 0 && (
+      {!isLoading && !isError && feed.length === 0 && (
         <GlassCard>
-          <EmptyState
-            message={
-              announcementWindow.weeks === 1
-                ? "No announcements in the last week."
-                : "No announcements in the last 2 weeks."
-            }
-          />
+          <EmptyState message="No announcements in this view." />
         </GlassCard>
       )}
 
-      <div className="space-y-3">
-        {groups.map((g) => {
-          const open = expanded.includes(g.id);
-          const label = displayCourseName(g.name, g.code);
-          const latest = g.items.reduce(
-            (max, a) => Math.max(max, new Date(a.posted_at).getTime()),
-            0,
-          );
-          return (
-            <div key={g.id} {...highlight(label)}>
-              <GlassCard className="p-0 sm:p-0 md:p-0">
-                <button
-                  onClick={() =>
-                    setExpanded((prev) =>
-                      prev.includes(g.id) ? prev.filter((x) => x !== g.id) : [...prev, g.id],
-                    )
-                  }
-                  aria-expanded={open}
-                  className="glass-hover grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 p-4 text-left sm:p-6"
-                >
-                  <div className="min-w-0">
-                    <h2 className="truncate text-base font-semibold tracking-tight sm:text-lg">
-                      {label}
-                    </h2>
-                    <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                      <span>
-                        {g.items.length} announcement
-                        {g.items.length === 1 ? "" : "s"}
-                      </span>
-                      {latest > 0 && (
-                        <>
-                          <span className="opacity-40">·</span>
-                          <span>
-                            latest{" "}
-                            {new Date(latest).toLocaleDateString(undefined, {
-                              month: "short",
-                              day: "numeric",
-                            })}
-                          </span>
-                        </>
-                      )}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-3">
-                    <div className="text-right">
-                      <p className="text-lg font-semibold tabular-nums tracking-tight">
-                        {g.items.length}
-                      </p>
-                      <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-                        Posts
-                      </p>
-                    </div>
-                    <ChevronDown
-                      className={cn(
-                        "h-4 w-4 text-muted-foreground transition-transform",
-                        open && "rotate-180",
-                      )}
-                    />
-                  </div>
-                </button>
-
-                {open && (
-                  <div className="border-t border-glass-border p-4 sm:p-6">
-                    <div className="space-y-3">
-                      {g.items.map((a) => {
-                        const bodyOpen = expandedBody.has(a.id);
-                        const bodyText = stripHtml(a.message);
-                        return (
-                          <div
-                            key={a.id}
-                            id={`announcement-${a.id}`}
-                            className="glass-inset glass-hover p-3 sm:p-4"
-                          >
-                            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2 sm:gap-3">
-                              <h3 className="min-w-0 text-sm font-semibold tracking-tight">
-                                {a.title}
-                              </h3>
-                              <div className="flex shrink-0 items-center gap-2">
-                                <span className="whitespace-nowrap text-[11px] text-muted-foreground sm:text-xs">
-                                  {new Date(a.posted_at).toLocaleDateString(undefined, {
-                                    month: "short",
-                                    day: "numeric",
-                                  })}
-                                </span>
-                                <button
-                                  onClick={() => dismissed.add(a.id)}
-                                  aria-label={`Dismiss ${a.title}`}
-                                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-foreground/20 text-muted-foreground transition-colors hover:border-foreground/50 hover:text-foreground"
-                                >
-                                  <X className="h-3.5 w-3.5" />
-                                </button>
-                              </div>
-                            </div>
-                            <p
-                              className={cn(
-                                "mt-2 whitespace-pre-line break-words text-sm leading-relaxed text-muted-foreground",
-                                !bodyOpen && "line-clamp-6",
-                              )}
-                            >
-                              {bodyText}
-                            </p>
-                            {bodyText.length > 200 && (
-                              <button
-                                type="button"
-                                onClick={() => toggleBody(a.id)}
-                                className="mt-2 text-xs font-medium text-foreground/80 underline decoration-foreground/30 underline-offset-2 transition-colors hover:text-foreground"
-                              >
-                                {bodyOpen ? "See less" : "See more"}
-                              </button>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
+      {!isLoading && !isError && feed.length > 0 && (
+        <section className="glass-panel overflow-hidden rounded-[1.75rem] border border-foreground/10">
+          {feed.map((item, index) => {
+            const body = htmlToText(item.message);
+            const bodyOpen = expandedBody.has(item.id);
+            const posted = formatPosted(item.posted_at);
+            const label = displayCourseName(item.course_name, item.course_code);
+            const highlightProps = highlight(label);
+            const firstForCourse =
+              feed.find((entry) => entry.course_id === item.course_id)?.id === item.id;
+            return (
+              <article
+                key={item.id}
+                id={
+                  item.id === Number(search.expand)
+                    ? `announcement-${item.id}`
+                    : firstForCourse
+                      ? highlightProps.id
+                      : undefined
+                }
+                className={cn(
+                  "group relative grid gap-4 border-b border-foreground/10 p-5 transition-colors last:border-0 hover:bg-foreground/[0.025] sm:grid-cols-[7rem_minmax(0,1fr)_auto] sm:p-6",
+                  highlightProps.className,
                 )}
-              </GlassCard>
-            </div>
-          );
-        })}
-      </div>
+              >
+                <div>
+                  <p className="text-sm font-medium tabular-nums">{posted.date}</p>
+                  <p className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                    <Clock3 className="h-3 w-3" /> {posted.time}
+                  </p>
+                </div>
+                <div className="min-w-0">
+                  <Link
+                    to="/courses/$courseId"
+                    params={{ courseId: String(item.course_id) }}
+                    className="inline-flex max-w-full items-center gap-1 text-[11px] font-medium uppercase tracking-[0.14em] text-primary hover:opacity-80"
+                  >
+                    <span className="truncate">{label}</span>
+                    <ArrowUpRight className="h-3 w-3 shrink-0" />
+                  </Link>
+                  <h2 className="mt-2 text-balance text-lg font-semibold tracking-[-0.02em] sm:text-xl">
+                    {item.title}
+                  </h2>
+                  <p
+                    className={cn(
+                      "mt-2 whitespace-pre-line break-words text-sm leading-6 text-muted-foreground",
+                      !bodyOpen && "line-clamp-3",
+                    )}
+                  >
+                    {body}
+                  </p>
+                  {body.length > 180 && (
+                    <button
+                      type="button"
+                      onClick={() => toggleBody(item.id)}
+                      className="mt-3 text-xs font-medium text-foreground underline decoration-foreground/25 underline-offset-4"
+                    >
+                      {bodyOpen ? "Show less" : "Read full update"}
+                    </button>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => dismissed.add(item.id)}
+                  aria-label={`Dismiss ${item.title}`}
+                  className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground opacity-70 transition hover:bg-foreground/10 hover:text-foreground sm:static sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+                {index === 0 && (
+                  <span className="absolute left-0 top-6 h-10 w-0.5 rounded-full bg-primary" />
+                )}
+              </article>
+            );
+          })}
+        </section>
+      )}
     </div>
   );
 }

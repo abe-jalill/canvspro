@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <radialGradient id="bg" cx=".52" cy="1" r=".85">
+      <stop offset="0" stop-color="#49785d"/>
+      <stop offset=".48" stop-color="#294133"/>
+      <stop offset="1" stop-color="#15281d"/>
+    </radialGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#e9f4ee"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-40%" width="160%" height="190%">
+      <feDropShadow dx="0" dy="25" stdDeviation="20" flood-color="#08150d" flood-opacity=".4"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <g opacity=".13" stroke="#d7f9e5" stroke-width="1">
+    <path d="M0 145H1200M0 275H1200M0 405H1200M0 535H1200"/>
+    <path d="M130 0V630M300 0V630M470 0V630M640 0V630M810 0V630M980 0V630M1150 0V630"/>
+  </g>
+  <circle cx="862" cy="320" r="320" fill="#96e7b8" opacity=".08"/>
+  <g font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, 'Segoe UI', Arial, sans-serif">
+    <g transform="translate(74 47) rotate(-17)">
+      <rect x="0" y="12" width="8" height="17" rx="3" fill="#b0edc9"/>
+      <rect x="14" y="0" width="8" height="29" rx="3" fill="#e2faec"/>
+      <rect x="28" y="7" width="8" height="22" rx="3" fill="#b7e7d5"/>
+    </g>
+    <text x="122" y="76" fill="#ffffff" font-size="29" font-weight="700" letter-spacing="-1.5">canvaspro<tspan fill="#b0edc9">.</tspan></text>
+    <text x="76" y="172" fill="#caf4db" font-size="16" font-weight="700" letter-spacing="4">THE STUDENT DAY, REIMAGINED</text>
+    <text x="70" y="278" fill="#ffffff" font-size="83" font-weight="600" letter-spacing="-5">A clearer day</text>
+    <text x="70" y="370" fill="#ffffff" font-size="83" font-weight="600" letter-spacing="-5">starts <tspan fill="#bdf3d3">here.</tspan></text>
+    <text x="76" y="439" fill="#d4e5db" font-size="24">Every class. Every deadline. One place to see</text>
+    <text x="76" y="471" fill="#d4e5db" font-size="24">what matters and move forward.</text>
+    <rect x="75" y="520" width="215" height="58" rx="29" fill="#f5faf7"/>
+    <text x="102" y="556" fill="#26382d" font-size="18" font-weight="700">Get started free</text>
+    <path d="M253 549h14m-5-6 6 6-6 6" fill="none" stroke="#26382d" stroke-width="2"/>
+  </g>
+  <g transform="translate(790 131) rotate(6 185 175)" filter="url(#shadow)" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, 'Segoe UI', Arial, sans-serif">
+    <rect x="0" y="0" width="370" height="350" rx="24" fill="url(#card)"/>
+    <text x="27" y="44" fill="#6fa786" font-size="12" font-weight="700" letter-spacing="2">TODAY'S PLAN</text>
+    <text x="27" y="87" fill="#27382e" font-size="27" font-weight="700">One thing at a time.</text>
+    <path d="M27 109H342" stroke="#d8e5dd"/>
+    <g font-size="17" fill="#33463b" font-weight="600">
+      <rect x="27" y="132" width="9" height="47" rx="4" fill="#a0e3bc"/>
+      <text x="55" y="153">Physics Homework</text>
+      <text x="55" y="174" fill="#7ba08a" font-size="13" font-weight="400">Due tonight</text>
+      <text x="291" y="164" fill="#6ca182" font-size="14">30 min</text>
+      <path d="M27 194H342" stroke="#e2eae5"/>
+      <rect x="27" y="208" width="9" height="47" rx="4" fill="#93d7bf"/>
+      <text x="55" y="229">CAD Assignment</text>
+      <text x="55" y="250" fill="#7ba08a" font-size="13" font-weight="400">Tomorrow</text>
+      <text x="291" y="240" fill="#6ca182" font-size="14">45 min</text>
+      <path d="M27 270H342" stroke="#e2eae5"/>
+      <rect x="27" y="283" width="9" height="43" rx="4" fill="#efbbaa"/>
+      <text x="55" y="305">English Reading</text>
+      <text x="291" y="305" fill="#6ca182" font-size="14">25 min</text>
+    </g>
+  </g>
+</svg>

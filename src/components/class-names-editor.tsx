@@ -4,7 +4,7 @@ import { getCoursesFn, type CourseSummary } from "@/lib/canvas.functions";
 import { useCanvasKey } from "@/lib/user-settings";
 import { useNicknames, useSaveNicknames, type ClassNickname } from "@/lib/nicknames";
 import { useUserPreferenceKey } from "@/hooks/use-user-preferences";
-import { successHaptic } from "@/lib/native";
+import { nicknameLookupVersion } from "@/lib/course-display";
 
 const coursesQuery = {
   queryKey: ["canvas", "courses"] as const,
@@ -51,7 +51,6 @@ export function ClassNamesEditor({
         })),
       );
       setStatus("Class names saved.");
-      void successHaptic();
       onSaved?.();
     } catch (err) {
       setStatus(err instanceof Error ? err.message : "Could not save names.");
@@ -60,7 +59,7 @@ export function ClassNamesEditor({
 
   return (
     <form onSubmit={onSubmit} className="flex w-full flex-col gap-4">
-      <div className="flex min-w-0 flex-col gap-3">
+      <div className="flex flex-col gap-3">
         {courses.map((c) => (
           <div key={c.id} className="glass-inset flex flex-col gap-2 rounded-xl p-3">
             <div className="min-w-0">
@@ -85,7 +84,7 @@ export function ClassNamesEditor({
       <button
         type="submit"
         disabled={save.isPending}
-        className="glass-hover min-h-11 w-full rounded-xl bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-60 sm:w-auto sm:self-start"
+        className="glass-hover min-h-11 w-full rounded-xl bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-60 sm:w-auto sm:min-w-32 sm:self-start"
       >
         {save.isPending ? "Saving…" : ctaLabel}
       </button>
@@ -157,18 +156,20 @@ export function ClassNamesGate({ children }: { children: ReactNode }) {
   const needsSetup =
     !!key && ready && !skipped && (courses.data ?? []).length > 0 && missing.length > 0;
 
-  if (needsSetup) {
-    return (
-      <div className="mx-auto flex min-h-[calc(100dvh-12rem)] w-full max-w-2xl items-start pb-[calc(env(safe-area-inset-bottom)+1rem)]">
-        <div className="glass-panel-strong w-full min-w-0 p-4 sm:p-5 md:p-7">
-          <h1 className="text-2xl font-semibold tracking-tight">Name your classes</h1>
-          <p className="mt-1 mb-5 break-words text-sm leading-relaxed text-muted-foreground">
+  return (
+    <div>
+      {needsSetup && (
+        <details className="glass-panel-strong mb-4 p-5 md:p-7">
+          <summary className="cursor-pointer text-sm font-medium">
+            Personalize your class names (optional)
+          </summary>
+          <p className="mt-1 mb-5 text-sm text-muted-foreground">
             Give each Canvas course a friendlier name. You can change these later in Settings.
           </p>
           <ClassNamesEditor
             courses={courses.data ?? []}
             nicknames={nicknames.data ?? []}
-            ctaLabel="Save and continue"
+            ctaLabel="Save names"
             onSaved={dismiss}
           />
           <button
@@ -178,10 +179,9 @@ export function ClassNamesGate({ children }: { children: ReactNode }) {
           >
             Skip for now
           </button>
-        </div>
-      </div>
-    );
-  }
-
-  return <>{children}</>;
+        </details>
+      )}
+      <div key={nicknameLookupVersion()}>{children}</div>
+    </div>
+  );
 }

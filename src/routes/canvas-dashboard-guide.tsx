@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import "./public-pages.css";
 
 export const TITLE = "How to Customize Your Canvas Dashboard (Student Guide)";
 export const DESCRIPTION =
@@ -7,7 +8,7 @@ export const DESCRIPTION =
 export const Route = createFileRoute("/canvas-dashboard-guide")({
   head: () => ({
     meta: [
-      { title: "How to Customize Your Canvas Dashboard — Canvas Pro" },
+      { title: "How to Customize Your Canvas Dashboard — CanvasPro" },
       { name: "description", content: DESCRIPTION },
       { property: "og:title", content: TITLE },
       { property: "og:description", content: DESCRIPTION },
@@ -61,8 +62,11 @@ function Steps({ items }: { items: string[] }) {
 
 function GuidePage() {
   return (
-    <article className="mx-auto min-h-dvh w-full max-w-3xl px-4 pb-[max(3rem,env(safe-area-inset-bottom))] pt-[max(3rem,env(safe-area-inset-top))] sm:py-16">
+    <article className="cp-public-tool mx-auto w-full max-w-3xl px-4 py-12 sm:py-16">
       <header className="text-center">
+        <Link to="/" className="cp-public-tool__back">
+          ← CanvasPro
+        </Link>
         <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
           Guide
         </p>
@@ -187,18 +191,18 @@ function GuidePage() {
       <section className="glass-panel-strong mt-10 flex flex-col items-start gap-4 p-6">
         <h2 className="text-xl font-semibold tracking-tight">Or skip the settings entirely</h2>
         <p className="text-sm text-muted-foreground">
-          Canvas Pro reads the same Canvas data through your own access key and gives you a
-          dashboard you actually arrange: drag widgets for grades, assignments, announcements, class
-          calendar, and focus windows, hide the ones you don't need, rename every class once, and
-          get reminders on your schedule. First 10 days free, then $2.99/month or $30/year (save
-          17%!), cancel anytime.
+          CanvasPro reads the same Canvas data through your own access key and gives you a dashboard
+          you actually arrange: drag widgets for grades, assignments, announcements, class calendar,
+          and focus windows, hide the ones you don't need, rename every class once, and get
+          reminders on your schedule. Every CanvasPro feature is free, with no subscription
+          required.
         </p>
         <div className="flex flex-wrap gap-3">
           <Link
             to="/signup"
             className="glass-hover inline-flex min-h-11 items-center justify-center rounded-xl bg-foreground px-4 text-sm font-semibold text-background"
           >
-            Try Canvas Pro
+            Try CanvasPro
           </Link>
           <Link
             to="/canvas-grade-calculator"

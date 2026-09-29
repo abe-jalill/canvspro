@@ -55,7 +55,6 @@ export function pushSupported(): boolean {
   );
 }
 
-
 /** True on iOS/iPadOS Safari outside an installed home-screen app. */
 export function needsHomeScreenInstall(): boolean {
   if (typeof window === "undefined") return false;
@@ -70,9 +69,37 @@ export function needsHomeScreenInstall(): boolean {
 }
 
 async function getRegistration(): Promise<ServiceWorkerRegistration> {
-  const existing = await navigator.serviceWorker.getRegistration("/sw.js");
+  const existing = await navigator.serviceWorker.getRegistration("/");
   if (existing) return existing;
   return navigator.serviceWorker.register("/sw.js", { scope: "/" });
+}
+
+/**
+ * Refreshes an already-enabled device without showing a permission prompt.
+ * This repairs the server row after a deploy or transient failure and makes
+ * sure installed iOS/desktop PWAs are running the latest worker.
+ */
+export async function maintainBackgroundPush(): Promise<void> {
+  if (inEditorPreview() || !pushSupported() || Notification.permission !== "granted") return;
+  const registration = await getRegistration();
+  await registration.update().catch(() => undefined);
+  const subscription = await registration.pushManager.getSubscription();
+  if (!subscription) return;
+
+  const { data } = await supabase.auth.getUser();
+  if (!data.user) return;
+  const json = subscription.toJSON();
+  const { error } = await supabase.from("push_subscriptions").upsert(
+    {
+      user_id: data.user.id,
+      endpoint: subscription.endpoint,
+      p256dh: json.keys?.p256dh ?? "",
+      auth: json.keys?.auth ?? "",
+      user_agent: navigator.userAgent.slice(0, 200),
+    },
+    { onConflict: "endpoint" },
+  );
+  if (!error) await syncPrefsToServer();
 }
 
 /** Mirrors the local notification preferences to the backend for the cron job. */
@@ -110,7 +137,7 @@ export async function isPushEnabled(): Promise<boolean> {
     return error ? true : !!data?.length;
   }
   if (!pushSupported()) return false;
-  const reg = await navigator.serviceWorker.getRegistration("/sw.js");
+  const reg = await navigator.serviceWorker.getRegistration("/");
   const sub = await reg?.pushManager.getSubscription();
   if (!sub) return false;
 
@@ -251,7 +278,7 @@ export async function disableBackgroundPush(): Promise<void> {
     return;
   }
   if (!pushSupported()) return;
-  const reg = await navigator.serviceWorker.getRegistration("/sw.js");
+  const reg = await navigator.serviceWorker.getRegistration("/");
   const sub = await reg?.pushManager.getSubscription();
   if (sub) {
     await supabase.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);

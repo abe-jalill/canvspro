@@ -528,7 +528,7 @@ export default function ClassScheduleEditor({
         <button
           type="submit"
           disabled={save.isPending}
-          className="glass-panel-strong press min-h-11 rounded-full px-6 text-xs font-medium uppercase tracking-[0.14em] disabled:opacity-60"
+          className="glass-panel-strong press min-h-11 min-w-36 rounded-full px-6 text-xs font-medium uppercase tracking-[0.14em] disabled:opacity-60"
         >
           {save.isPending ? "Saving…" : "Save schedule"}
         </button>

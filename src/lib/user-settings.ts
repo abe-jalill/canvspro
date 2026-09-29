@@ -1,16 +1,32 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { resetCanvasBundle } from "@/lib/canvas.functions";
+import { friendlyCanvasTransportError, invokeCanvasEdge } from "@/lib/canvas-edge-client";
+import { isCanvasAuthenticationRejected } from "@/lib/canvas-key-status";
+import { clearCanvasKeyInvalidFlag } from "@/lib/canvas-key-health";
+import { getUserScope } from "@/lib/user-scope";
 
 export const canvasKeyQueryKey = ["user-settings", "canvas-key"] as const;
 export const canvasDomainQueryKey = ["user-settings", "canvas-domain"] as const;
+export const canvasKeyValidationQueryKey = ["user-settings", "canvas-key-validation"] as const;
 
-let canvasKeyRequest: { userId: string; startedAt: number; promise: Promise<boolean> } | null =
-  null;
-const CANVAS_KEY_DEDUPE_MS = 2_000;
-
-function resetCanvasKeyRequest() {
-  canvasKeyRequest = null;
+/** A historical warning is only actionable after a fresh check of the token. */
+export async function verifySavedCanvasKey(): Promise<boolean> {
+  const scope = getUserScope();
+  if (!scope) throw new Error("Please sign in to check your Canvas connection.");
+  const { data, error } = await invokeCanvasEdge<{ ok?: boolean; error?: string }>({ resource: "validate" });
+  if (scope !== getUserScope()) throw new Error("Session changed — please retry.");
+  if (error || data?.error) {
+    const message = error ? await invokeError(error) : data!.error!;
+    if (isCanvasAuthenticationRejected(message)) return false;
+    // Offline, expired CanvasPro sessions and service failures cannot prove a
+    // Canvas token is invalid. Keep the warning hidden while these recover.
+    throw new Error(message);
+  }
+  if (data?.ok !== true) throw new Error("Could not verify your Canvas connection.");
+  void clearCanvasKeyInvalidFlag();
+  return true;
 }
 
 /**
@@ -26,7 +42,11 @@ export function normalizeCanvasDomain(raw: string | null | undefined): string {
     .split("/")[0]!
     .split("?")[0]!
     .trim();
-  return /^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/.test(v) ? v : "";
+  if (!/^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/.test(v)) return "";
+  const labels = v.split(".");
+  if (labels.some((label) => !label || label.startsWith("-") || label.endsWith("-"))) return "";
+  const forbidden = new Set(["local", "localhost", "internal", "home", "lan"]);
+  return labels.some((label) => forbidden.has(label)) ? "" : v;
 }
 
 /**
@@ -34,27 +54,9 @@ export function normalizeCanvasDomain(raw: string | null | undefined): string {
  * backend whether one is saved, never for the value itself.
  */
 export async function fetchHasCanvasKey(): Promise<boolean> {
-  const { data: sessionData } = await supabase.auth.getSession();
-  const userId = sessionData.session?.user.id;
-  if (!userId) return false;
-  if (
-    canvasKeyRequest?.userId === userId &&
-    Date.now() - canvasKeyRequest.startedAt < CANVAS_KEY_DEDUPE_MS
-  ) {
-    return canvasKeyRequest.promise;
-  }
-  const promise = (async () => {
-    try {
-      const { data, error } = await supabase.rpc("has_canvas_key");
-      if (error) throw new Error(error.message);
-      return data === true;
-    } catch (error) {
-      resetCanvasKeyRequest();
-      throw error;
-    }
-  })();
-  canvasKeyRequest = { userId, startedAt: Date.now(), promise };
-  return promise;
+  const { data, error } = await supabase.rpc("has_canvas_key");
+  if (error) throw new Error(error.message);
+  return data === true;
 }
 
 /**
@@ -65,8 +67,8 @@ export function useCanvasDomain() {
   return useQuery({
     queryKey: canvasDomainQueryKey,
     queryFn: async (): Promise<string | null> => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session?.user) return null;
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) return null;
       const { data, error } = await supabase
         .from("user_settings")
         .select("canvas_domain")
@@ -79,28 +81,11 @@ export function useCanvasDomain() {
   });
 }
 
-/**
- * Removes the "Canvas rejected your key" flag. Called whenever Canvas data
- * loads successfully, so a stale flag from a failed background run can never
- * keep warning about a key that clearly works.
- */
-export async function clearCanvasKeyInvalidFlag(): Promise<void> {
-  const { data: sessionData } = await supabase.auth.getSession();
-  const user = sessionData.session?.user;
-  if (!user) return;
-  await supabase
-    .from("user_preferences")
-    .delete()
-    .eq("user_id", user.id)
-    .eq("key", "canvas_key_status");
-}
-
 export function useCanvasKey() {
   return useQuery({
     queryKey: canvasKeyQueryKey,
     queryFn: fetchHasCanvasKey,
     staleTime: 60_000,
-    refetchOnMount: "always",
   });
 }
 
@@ -118,7 +103,7 @@ async function invokeError(err: unknown): Promise<string> {
       }
     }
   }
-  return err instanceof Error ? err.message : "Request failed";
+  return friendlyCanvasTransportError(err instanceof Error ? err.message : "Request failed");
 }
 
 /** Turns a raw validation failure into a message a student can act on. */
@@ -167,8 +152,10 @@ export function useSaveCanvasKey() {
       // this runs through the backend, so the browser never calls Canvas
       // directly and the pair can't be saved in a silently broken state.
       if (key) {
-        const { data: vData, error: vError } = await supabase.functions.invoke("canvas", {
-          body: { resource: "validate", domain, token: key },
+        const { data: vData, error: vError } = await invokeCanvasEdge<{ ok?: boolean }>({
+          resource: "validate",
+          domain,
+          token: key,
         });
         if (vError) throw new Error(friendlyValidateError(await invokeError(vError)));
         if (!vData || (vData as { ok?: boolean }).ok !== true) {
@@ -197,12 +184,66 @@ export function useSaveCanvasKey() {
       return key;
     },
     onSuccess: async (key) => {
-      resetCanvasKeyRequest();
       toast.success(key ? "Canvas connection saved" : "Canvas key cleared");
-      await qc.invalidateQueries({ queryKey: ["user-preferences"] });
-      await qc.invalidateQueries({ queryKey: canvasKeyQueryKey });
-      await qc.invalidateQueries({ queryKey: canvasDomainQueryKey });
-      await qc.invalidateQueries({ queryKey: ["canvas"] });
+      resetCanvasBundle();
+      qc.removeQueries({ queryKey: canvasKeyValidationQueryKey });
+      await qc.cancelQueries({ queryKey: ["canvas"] });
+      if (!key) qc.removeQueries({ queryKey: ["canvas"] });
+      qc.setQueryData(canvasKeyQueryKey, !!key);
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["user-preferences"] }),
+        qc.invalidateQueries({ queryKey: canvasDomainQueryKey }),
+        qc.invalidateQueries({ queryKey: ["canvas"] }),
+      ]);
+    },
+    onError: (err: Error) => toast.error("Could not save", { description: err.message }),
+  });
+}
+
+/** Updates only the Canvas URL, verifying it with the already-saved key. */
+export function useSaveCanvasDomain() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (raw: string) => {
+      const { data: userData } = await supabase.auth.getUser();
+      const user = userData.user;
+      if (!user) throw new Error("You must be signed in.");
+      const domain = normalizeCanvasDomain(raw);
+      if (!domain) {
+        throw new Error(
+          "That Canvas URL doesn't look right — enter it like yourschool.instructure.com.",
+        );
+      }
+      const { data: vData, error: vError } = await invokeCanvasEdge<{ ok?: boolean }>({
+        resource: "validate",
+        domain,
+      });
+      if (vError) throw new Error(friendlyValidateError(await invokeError(vError)));
+      if (!vData || (vData as { ok?: boolean }).ok !== true) {
+        throw new Error(
+          "Your saved key doesn't work at that URL — double-check it, or save a new key.",
+        );
+      }
+      const { error } = await supabase
+        .from("user_settings")
+        .update({ canvas_domain: domain })
+        .eq("user_id", user.id);
+      if (error) throw new Error(error.message);
+      await supabase
+        .from("user_preferences")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("key", "canvas_key_status");
+    },
+    onSuccess: async () => {
+      toast.success("Canvas URL saved");
+      resetCanvasBundle();
+      qc.removeQueries({ queryKey: canvasKeyValidationQueryKey });
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["user-preferences"] }),
+        qc.invalidateQueries({ queryKey: canvasDomainQueryKey }),
+        qc.invalidateQueries({ queryKey: ["canvas"] }),
+      ]);
     },
     onError: (err: Error) => toast.error("Could not save", { description: err.message }),
   });

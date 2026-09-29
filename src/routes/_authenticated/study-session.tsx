@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { queryOptions, useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDown,
   ArrowUp,
@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { studySelectionFeedback, studySuccessFeedback } from "@/lib/study-session-feedback";
 import { useStudySession } from "@/hooks/use-study-session";
+import { isAssignmentComplete } from "@/lib/assignment-window";
 import {
   createStudySession,
   remainingForSession,
@@ -31,16 +32,24 @@ import {
   type StudySessionSnapshot,
 } from "@/lib/study-session";
 
-const assignmentsQO = queryOptions({
-  queryKey: ["canvas", "assignments"],
-  queryFn: () => getAllAssignmentsFn(),
-  staleTime: 5 * 60_000,
-});
+import { assignmentsQueryOptions as assignmentsQO } from "@/lib/canvas.queries";
+import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
 
 const PRESETS = [15, 25, 45, 60];
 
 export const Route = createFileRoute("/_authenticated/study-session")({
-  head: () => ({ meta: [{ title: "Study Session — Canvas Pro" }] }),
+  validateSearch: (search: Record<string, unknown>) => {
+    const assignment = Number(search.assignment);
+    return {
+      assignment: Number.isFinite(assignment) && assignment > 0 ? assignment : undefined,
+    };
+  },
+  head: () => ({ meta: [{ title: "Study Session — CanvasPro" }] }),
+  loader: ({ context }) => {
+    if (context?.queryClient) {
+      void context.queryClient.ensureQueryData(assignmentsQO);
+    }
+  },
   component: StudySessionPage,
 });
 
@@ -72,7 +81,42 @@ function nextUnfinished(session: StudySessionSnapshot, from: number) {
   return from;
 }
 
+function StudyClock({
+  remaining,
+  total,
+  paused,
+}: {
+  remaining: number;
+  total: number;
+  paused: boolean;
+}) {
+  const radius = 54;
+  const circumference = 2 * Math.PI * radius;
+  const elapsed = total <= 0 ? 0 : Math.min(1, Math.max(0, (total - remaining) / total));
+
+  return (
+    <div className="study-clock" aria-label={`${formatTime(remaining)} remaining`}>
+      <svg viewBox="0 0 128 128" aria-hidden="true">
+        <circle className="study-clock__track" cx="64" cy="64" r={radius} />
+        <circle
+          className="study-clock__progress"
+          cx="64"
+          cy="64"
+          r={radius}
+          strokeDasharray={circumference}
+          strokeDashoffset={circumference * (1 - elapsed)}
+        />
+      </svg>
+      <div className="study-clock__time">
+        <span>{formatTime(remaining)}</span>
+        <small>{paused ? "Paused" : "Focus time"}</small>
+      </div>
+    </div>
+  );
+}
+
 function StudySessionPage() {
+  const { assignment: requestedAssignment } = Route.useSearch();
   const assignments = useQuery(assignmentsQO);
   const { session, setSession, ready } = useStudySession();
   const [selected, setSelected] = useState<StudySessionItem[]>([]);
@@ -82,6 +126,18 @@ function StudySessionPage() {
   const [duration, setDuration] = useState(25);
   const [now, setNow] = useState(() => Date.now());
   const [summary, setSummary] = useState<StudySessionSnapshot | null>(null);
+  const selectedFromLink = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!requestedAssignment || selectedFromLink.current === requestedAssignment) return;
+    const assignment = assignments.data?.find((item) => item.id === requestedAssignment);
+    if (!assignment) return;
+    setSelected((items) => {
+      const next = canvasItem(assignment);
+      return items.some((item) => item.id === next.id) ? items : [next, ...items];
+    });
+    selectedFromLink.current = requestedAssignment;
+  }, [assignments.data, requestedAssignment]);
 
   useEffect(() => {
     if (!session || session.status !== "running") return;
@@ -103,8 +159,7 @@ function StudySessionPage() {
     const needle = search.trim().toLowerCase();
     return (assignments.data ?? [])
       .filter((item) => {
-        const submitted =
-          Boolean(item.submission?.submitted_at) || item.submission?.workflow_state === "graded";
+        const submitted = isAssignmentComplete(item, false);
         if (!showCompleted && submitted) return false;
         if (!needle) return true;
         return `${item.name} ${item.course_name} ${item.course_code}`
@@ -186,124 +241,145 @@ function StudySessionPage() {
     };
 
     return (
-      <div className="mx-auto max-w-3xl space-y-5 pb-24 md:pb-8">
+      <div className="mx-auto max-w-6xl space-y-5 pb-24 md:pb-8">
         <header className="px-1">
-          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Study Session</p>
-          <h1 className="mt-1 text-2xl font-normal tracking-tight">
-            Stay with the next small step.
+          <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            Study Session
+          </p>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">
+            One thing at a time.
           </h1>
+          <p className="mt-2 max-w-xl text-sm text-muted-foreground">
+            The plan stays out of the way while you focus on the assignment in front of you.
+          </p>
         </header>
-        <GlassCard strong className="text-center">
-          <div className="mx-auto mb-5 h-1.5 max-w-md overflow-hidden rounded-full bg-foreground/10">
-            <div
-              className="h-full rounded-full bg-primary transition-[width] duration-1000"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-          <p className="text-sm text-muted-foreground">
-            {session.status === "paused" ? "Paused" : "Time remaining"}
-          </p>
-          <p
-            className="mt-1 text-6xl font-light tabular-nums tracking-tight sm:text-7xl"
-            aria-label={`${formatTime(remaining)} remaining`}
-          >
-            {formatTime(remaining)}
-          </p>
-          <div className="mt-7 rounded-2xl bg-foreground/[0.05] p-5 text-left">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Now studying</p>
-            <p className="mt-1 text-lg font-medium">{current.name}</p>
-            {current.courseName && (
-              <p className="mt-1 text-sm text-muted-foreground">{current.courseName}</p>
-            )}
-          </div>
-          <div className="mt-5 flex flex-wrap justify-center gap-2">
-            <Button
-              variant="outline"
-              size="lg"
-              onClick={() =>
-                update({
-                  currentIndex:
-                    (session.currentIndex - 1 + session.items.length) % session.items.length,
-                })
-              }
-              aria-label="Previous assignment"
-            >
-              <ChevronLeft />
-            </Button>
-            <Button size="lg" onClick={pauseOrResume}>
-              {session.status === "running" ? <CirclePause /> : <CirclePlay />}
-              {session.status === "running" ? "Pause" : "Resume"}
-            </Button>
-            <Button
-              variant="outline"
-              size="lg"
-              onClick={() =>
-                update({ currentIndex: nextUnfinished(session, session.currentIndex) })
-              }
-              aria-label="Next assignment"
-            >
-              <ChevronRight />
-            </Button>
-            <Button size="lg" onClick={finishItem}>
-              <Check /> Done with this
-            </Button>
-          </div>
-        </GlassCard>
 
-        <GlassCard
-          title="Session queue"
-          subtitle={`${completed.size} of ${session.items.length} finished`}
-        >
-          <ol className="space-y-2">
-            {session.items.map((item, index) => (
-              <li key={item.id}>
-                <button
-                  type="button"
-                  onClick={() => update({ currentIndex: index })}
-                  className={cn(
-                    "glass-inset flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left",
-                    index === session.currentIndex && "ring-1 ring-primary/50",
-                    completed.has(item.id) && "opacity-55",
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs",
-                      completed.has(item.id) && "border-primary bg-primary text-primary-foreground",
-                    )}
-                  >
-                    {completed.has(item.id) ? <Check className="h-3.5 w-3.5" /> : index + 1}
-                  </span>
-                  <span
-                    className={cn(
-                      "min-w-0 truncate text-sm",
-                      completed.has(item.id) && "line-through",
-                    )}
-                  >
-                    {item.name}
-                  </span>
-                  {item.source === "manual" && (
-                    <span className="ml-auto text-[10px] uppercase tracking-wide text-muted-foreground">
-                      Your task
-                    </span>
-                  )}
-                </button>
-              </li>
-            ))}
-          </ol>
-          <Button
-            variant="ghost"
-            className="mt-4 text-destructive"
-            onClick={() => {
-              if (window.confirm("End this study session? Your timer progress will be cleared.")) {
-                setSummary(session);
-                setSession(null);
-              }
-            }}
+        <div className="study-active-layout">
+          <GlassCard strong className="study-timer-panel">
+            <div className="flex items-center justify-between gap-4 text-xs text-muted-foreground">
+              <span>{completed.size} finished</span>
+              <span>{Math.round(progress)}% of session</span>
+            </div>
+            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-foreground/10">
+              <div
+                className="h-full rounded-full bg-primary transition-[width] duration-1000"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+
+            <StudyClock
+              remaining={remaining}
+              total={session.durationMs}
+              paused={session.status === "paused"}
+            />
+
+            <div className="study-now">
+              <span>Now studying</span>
+              <strong>{current.name}</strong>
+              {current.courseName && <small>{current.courseName}</small>}
+            </div>
+
+            <div className="mt-5 flex flex-wrap justify-center gap-2">
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() =>
+                  update({
+                    currentIndex:
+                      (session.currentIndex - 1 + session.items.length) % session.items.length,
+                  })
+                }
+                aria-label="Previous assignment"
+              >
+                <ChevronLeft />
+              </Button>
+              <Button size="lg" onClick={pauseOrResume}>
+                {session.status === "running" ? <CirclePause /> : <CirclePlay />}
+                {session.status === "running" ? "Pause" : "Resume"}
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() =>
+                  update({ currentIndex: nextUnfinished(session, session.currentIndex) })
+                }
+                aria-label="Next assignment"
+              >
+                <ChevronRight />
+              </Button>
+              <Button size="lg" onClick={finishItem}>
+                <Check /> Finish task
+              </Button>
+            </div>
+          </GlassCard>
+
+          <GlassCard
+            title="Up next"
+            subtitle={`${completed.size} of ${session.items.length} finished`}
+            className="study-queue"
           >
-            <Trash2 /> End session
-          </Button>
-        </GlassCard>
+            <ol className="space-y-2">
+              {session.items.map((item, index) => (
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    onClick={() => update({ currentIndex: index })}
+                    className={cn(
+                      "glass-inset flex min-h-14 w-full items-center gap-3 rounded-xl px-3 text-left transition",
+                      index === session.currentIndex && "ring-1 ring-primary/60",
+                      completed.has(item.id) && "opacity-55",
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs",
+                        completed.has(item.id) &&
+                          "border-primary bg-primary text-primary-foreground",
+                      )}
+                    >
+                      {completed.has(item.id) ? <Check className="h-3.5 w-3.5" /> : index + 1}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span
+                        className={cn(
+                          "block truncate text-sm font-medium",
+                          completed.has(item.id) && "line-through",
+                        )}
+                      >
+                        {item.name}
+                      </span>
+                      {item.courseName && (
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {item.courseName}
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                  {item.source === "canvas" && (
+                    <AssignmentDescriptionLink
+                      assignmentId={Number(item.id.replace("canvas:", ""))}
+                      className="ml-11 mt-1"
+                    />
+                  )}
+                </li>
+              ))}
+            </ol>
+            <Button
+              variant="ghost"
+              className="mt-4 text-destructive"
+              onClick={() => {
+                if (
+                  window.confirm("End this study session? Your timer progress will be cleared.")
+                ) {
+                  setSummary(session);
+                  setSession(null);
+                }
+              }}
+            >
+              <Trash2 /> End session
+            </Button>
+          </GlassCard>
+        </div>
       </div>
     );
   }
@@ -311,13 +387,15 @@ function StudySessionPage() {
   return (
     <div className="mx-auto max-w-5xl space-y-5 pb-24 md:pb-8">
       <header className="px-1">
-        <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Study Session</p>
-        <h1 className="mt-1 text-2xl font-normal tracking-tight">
-          Choose what matters. Give it a finish line.
+        <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+          Study Session
+        </p>
+        <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">
+          Build a focused session.
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          Pick Canvas assignments or add your own task. Your timer survives refreshes and app
-          backgrounding.
+          Choose the work, set a finish line, and let CanvasPro hold your place—even if you close
+          the app.
         </p>
       </header>
 
@@ -343,13 +421,13 @@ function StudySessionPage() {
       )}
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
-        <div className="space-y-5">
+        <div>
           <GlassCard
-            title="Add your own assignment"
-            subtitle="Only the assignment name is required"
+            title="1 · Choose your focus"
+            subtitle="Select Canvas work or add one task of your own."
           >
             <form
-              className="flex gap-2"
+              className="mb-5 flex gap-2 border-b border-foreground/10 pb-5"
               onSubmit={(event) => {
                 event.preventDefault();
                 addManual();
@@ -366,9 +444,6 @@ function StudySessionPage() {
                 <Plus /> Add
               </Button>
             </form>
-          </GlassCard>
-
-          <GlassCard title="Canvas assignments" subtitle="Submitted work is hidden by default">
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
               <label className="relative flex-1">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -449,6 +524,10 @@ function StudySessionPage() {
                           </span>
                         )}
                       </button>
+                      <AssignmentDescriptionLink
+                        assignmentId={assignment.id}
+                        className="ml-11 mt-1"
+                      />
                     </li>
                   );
                 })}
@@ -459,8 +538,9 @@ function StudySessionPage() {
 
         <div className="space-y-5 lg:sticky lg:top-6 lg:self-start">
           <GlassCard
-            title="Your session"
-            subtitle={`${selected.length} ${selected.length === 1 ? "assignment" : "assignments"}`}
+            strong
+            title="2 · Set the timer"
+            subtitle={`${selected.length} ${selected.length === 1 ? "task" : "tasks"} in this session`}
           >
             {selected.length === 0 ? (
               <p className="rounded-xl bg-foreground/[0.04] p-5 text-center text-sm text-muted-foreground">
@@ -525,9 +605,14 @@ function StudySessionPage() {
             )}
 
             <div className="mt-5">
-              <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
-                Session length
-              </p>
+              <div className="mb-3 rounded-2xl bg-foreground/[0.05] px-4 py-5 text-center">
+                <span className="block text-4xl font-semibold tabular-nums tracking-tight">
+                  {duration}
+                </span>
+                <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                  minutes
+                </span>
+              </div>
               <div className="grid grid-cols-4 gap-2">
                 {PRESETS.map((minutes) => (
                   <Button
@@ -541,8 +626,8 @@ function StudySessionPage() {
                   </Button>
                 ))}
               </div>
-              <label className="mt-3 flex items-center gap-3 text-sm">
-                <span className="text-muted-foreground">Custom</span>
+              <label className="mt-3 flex items-center justify-between gap-3 text-sm">
+                <span className="text-muted-foreground">Custom length</span>
                 <Input
                   type="number"
                   min={1}
@@ -552,7 +637,6 @@ function StudySessionPage() {
                   className="w-24"
                   aria-label="Custom session minutes"
                 />
-                <span className="text-muted-foreground">minutes</span>
               </label>
             </div>
             <Button

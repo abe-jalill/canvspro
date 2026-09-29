@@ -10,45 +10,43 @@ import {
 } from "@/lib/canvas.functions";
 import { GlassCard, Skeleton, ErrorState, EmptyState } from "@/components/glass-card";
 import { cn } from "@/lib/utils";
+import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
 import { htmlToText } from "@/lib/html-text";
 import type { WidgetId } from "@/lib/dashboard-layout";
 import { displayCourseName } from "@/lib/course-display";
 import { courseSlug } from "@/lib/course-highlight";
-import { useLocalSet, DISMISSED_ANNOUNCEMENTS_KEY, COMPLETED_ASSIGNMENTS_KEY } from "@/lib/local-state";
-import { Check, X, CalendarPlus, FileText, ChevronDown } from "lucide-react";
+import {
+  useLocalSet,
+  DISMISSED_ANNOUNCEMENTS_KEY,
+  COMPLETED_ASSIGNMENTS_KEY,
+} from "@/lib/local-state";
+import { Check, X, FileText, ChevronDown } from "lucide-react";
 import { getCountdown, urgencyTextClass, urgencyAccentClass } from "@/lib/countdown";
-import { buildIcs, downloadIcs, safeFilename } from "@/lib/ics";
+import { AddToCalendarButton } from "@/components/add-to-calendar-button";
 import { SyllabusModal } from "@/components/syllabus-modal";
 import { DigestCard } from "@/components/digest-card";
 import { WorkloadHeatmap } from "@/components/workload-heatmap";
 import { GpaCalculator } from "@/components/gpa-calculator";
 import { getCalendarEventsFn } from "@/lib/canvas.functions";
-import { Lock } from "lucide-react";
 import { getGradeColor } from "@/lib/grade-color";
+import { isInFocusWindow } from "@/lib/focus-window";
+import { customToAssignmentItem, useCustomAssignments } from "@/lib/custom-assignments";
 
-const coursesQO = queryOptions({
-  queryKey: ["canvas", "courses"],
-  queryFn: () => getCoursesFn(),
-  staleTime: 5 * 60_000,
-});
-
-const assignmentsQO = queryOptions({
-  queryKey: ["canvas", "assignments"],
-  queryFn: () => getAllAssignmentsFn(),
-  staleTime: 5 * 60_000,
-});
-
-const eventsQO = queryOptions({
-  queryKey: ["canvas", "calendar"],
-  queryFn: () => getCalendarEventsFn(),
-  staleTime: 5 * 60_000,
-});
-
-const announcementsQO = queryOptions({
-  queryKey: ["canvas", "announcements"],
-  queryFn: () => getAnnouncementsFn(),
-  staleTime: 5 * 60_000,
-});
+import {
+  coursesQueryOptions as coursesQO,
+  assignmentsQueryOptions as assignmentsQO,
+  calendarQueryOptions as eventsQO,
+  announcementsQueryOptions as announcementsQO,
+} from "@/lib/canvas.queries";
+import {
+  ClassesWidgetSkeleton,
+  UpcomingWidgetSkeleton,
+  AnnouncementsWidgetSkeleton,
+  CalendarWidgetSkeleton,
+  DigestWidgetSkeleton,
+  WorkloadHeatmapSkeleton,
+  AssignmentRowSkeleton,
+} from "@/components/skeletons/dashboard-skeletons";
 
 function formatScore(score: number | null, grade: string | null) {
   if (score == null && !grade) return "—";
@@ -66,8 +64,16 @@ function DigestWidget() {
   const courses = useQuery(coursesQO);
   const assignments = useQuery(assignmentsQO);
   const announcements = useQuery(announcementsQO);
-  if (!courses.data || !assignments.data || !announcements.data) return null;
-  return <DigestCard courses={courses.data} assignments={assignments.data} announcements={announcements.data} />;
+  if (!courses.data || !assignments.data || !announcements.data) {
+    return <DigestWidgetSkeleton />;
+  }
+  return (
+    <DigestCard
+      courses={courses.data}
+      assignments={assignments.data}
+      announcements={announcements.data}
+    />
+  );
 }
 
 function CoursesWidget() {
@@ -80,21 +86,16 @@ function CoursesWidget() {
         title="Classes & Grades"
         subtitle="Active enrollments"
         action={
-          <Link to="/grades" className="glass-hover rounded-lg px-2.5 py-1 text-xs font-normal text-muted-foreground">
+          <Link
+            to="/grades"
+            preload="intent"
+            className="glass-hover rounded-lg px-2.5 py-1 text-xs font-normal text-muted-foreground"
+          >
             View all
           </Link>
         }
       >
-        {isLoading && (
-          <div className="space-y-3">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="glass-inset p-3">
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="mt-2 h-3 w-1/3" />
-              </div>
-            ))}
-          </div>
-        )}
+        {isLoading && <ClassesWidgetSkeleton count={4} />}
         {isError && <ErrorState message={(error as Error).message} />}
         {data && data.length === 0 && <EmptyState message="No active courses." />}
         {data && data.length > 0 && (
@@ -112,6 +113,7 @@ function CoursesWidget() {
                   <Link
                     to="/courses/$courseId"
                     params={{ courseId: String(c.id) }}
+                    preload="intent"
                     className="flex min-w-0 flex-1 items-center gap-2.5"
                     title={`View ${courseName} details`}
                   >
@@ -139,7 +141,10 @@ function CoursesWidget() {
                         Syllabus
                       </button>
                     )}
-                    <span className="whitespace-nowrap text-xs font-normal tabular-nums" style={{ color }}>
+                    <span
+                      className="whitespace-nowrap text-xs font-normal tabular-nums"
+                      style={{ color }}
+                    >
                       {formatScore(c.current_score, c.current_grade)}
                     </span>
                   </div>
@@ -163,15 +168,14 @@ function UpcomingWidget() {
   const { data, isLoading, isError, error } = useQuery(assignmentsQO);
   const courses = useQuery(coursesQO);
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
+  const custom = useCustomAssignments();
   const [expanded, setExpanded] = useState<number[]>([]);
 
-  const inWindow = (data ?? []).filter((a) => {
-    if (!a.due_at) return false;
-    const due = new Date(a.due_at).getTime();
-    const now = Date.now();
-    const week = now + 7 * 24 * 60 * 60 * 1000;
-    return due >= now && due <= week;
-  });
+  const courseById = new Map((courses.data ?? []).map((course) => [course.id, course]));
+  const inWindow = [
+    ...(data ?? []),
+    ...custom.list.map((item) => customToAssignmentItem(item, courseById.get(item.course_id))),
+  ].filter((a) => isInFocusWindow(a, "7", Date.now(), completed.has(a.id)));
 
   // Group by course, keyed by course_id. We show one section per active
   // course (even if empty) so the widget makes per-class expectations clear.
@@ -220,22 +224,14 @@ function UpcomingWidget() {
       action={
         <Link
           to="/assignments"
+          preload="intent"
           className="glass-hover rounded-lg px-2.5 py-1 text-xs font-medium text-muted-foreground"
         >
           View all
         </Link>
       }
     >
-      {isLoading && (
-        <div className="space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="glass-inset p-3">
-              <Skeleton className="h-4 w-2/3" />
-              <Skeleton className="mt-2 h-3 w-1/2" />
-            </div>
-          ))}
-        </div>
-      )}
+      {isLoading && <UpcomingWidgetSkeleton groupCount={3} />}
       {isError && <ErrorState message={(error as Error).message} />}
       {data && groups.length === 0 && <EmptyState message="No active courses." />}
       {groups.length > 0 && (
@@ -247,7 +243,9 @@ function UpcomingWidget() {
                 <button
                   type="button"
                   onClick={() =>
-                    setExpanded((prev) => (prev.includes(g.id) ? prev.filter((x) => x !== g.id) : [...prev, g.id]))
+                    setExpanded((prev) =>
+                      prev.includes(g.id) ? prev.filter((x) => x !== g.id) : [...prev, g.id],
+                    )
                   }
                   aria-expanded={isOpen}
                   className="glass-hover flex min-h-11 w-full items-center gap-3 rounded-xl px-1.5 text-left"
@@ -293,7 +291,11 @@ function UpcomingWidget() {
                           )}
                         >
                           <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
-                            <CompleteButton done={done} onClick={() => completed.toggle(a.id)} label={a.name} />
+                            <CompleteButton
+                              done={done}
+                              onClick={() => completed.toggle(a.id)}
+                              label={a.name}
+                            />
                             <p
                               className={cn(
                                 "min-w-0 flex-1 truncate text-sm font-medium",
@@ -302,6 +304,7 @@ function UpcomingWidget() {
                             >
                               {a.name}
                             </p>
+                            <AssignmentDescriptionLink assignmentId={a.id} />
                           </div>
                           <div className="flex shrink-0 items-center gap-2">
                             <div className="text-right">
@@ -327,7 +330,9 @@ function UpcomingWidget() {
                   </ul>
                 )}
                 {isOpen && g.items.length === 0 && (
-                  <p className="px-2 py-3 text-xs text-muted-foreground/80">No upcoming assignments</p>
+                  <p className="px-2 py-3 text-xs text-muted-foreground/80">
+                    No upcoming assignments
+                  </p>
                 )}
               </div>
             );
@@ -360,7 +365,9 @@ function AnnouncementsWidget() {
   });
   const groups = Array.from(groupMap.values())
     .filter((group) => group.items.length > 0)
-    .sort((a, b) => displayCourseName(a.name, a.code).localeCompare(displayCourseName(b.name, b.code)));
+    .sort((a, b) =>
+      displayCourseName(a.name, a.code).localeCompare(displayCourseName(b.name, b.code)),
+    );
 
   return (
     <GlassCard
@@ -369,22 +376,14 @@ function AnnouncementsWidget() {
       action={
         <Link
           to="/announcements"
+          preload="intent"
           className="glass-hover rounded-lg px-2.5 py-1 text-xs font-medium text-muted-foreground"
         >
           View all
         </Link>
       }
     >
-      {isLoading && (
-        <div className="space-y-2">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="glass-inset p-4">
-              <Skeleton className="h-4 w-3/5" />
-              <Skeleton className="mt-2 h-3 w-full" />
-            </div>
-          ))}
-        </div>
-      )}
+      {isLoading && <AnnouncementsWidgetSkeleton count={3} />}
       {isError && <ErrorState message={(error as Error).message} />}
       {data && groups.length === 0 && <EmptyState message="No new announcements." />}
       {groups.length > 0 && (
@@ -396,7 +395,9 @@ function AnnouncementsWidget() {
                 <button
                   type="button"
                   onClick={() =>
-                    setExpanded((prev) => (prev.includes(g.id) ? prev.filter((id) => id !== g.id) : [...prev, g.id]))
+                    setExpanded((prev) =>
+                      prev.includes(g.id) ? prev.filter((id) => id !== g.id) : [...prev, g.id],
+                    )
                   }
                   aria-expanded={isOpen}
                   className="glass-hover flex min-h-11 w-full items-center gap-3 rounded-xl px-1.5 text-left"
@@ -417,13 +418,17 @@ function AnnouncementsWidget() {
                 {isOpen && (
                   <ul className="mt-2 space-y-2">
                     {g.items.slice(0, 4).map((a) => (
-                      <li key={a.id} className="glass-inset glass-hover flex items-start gap-2 p-3 sm:p-4">
+                      <li
+                        key={a.id}
+                        className="glass-inset glass-hover flex items-start gap-2 p-3 sm:p-4"
+                      >
                         <Link
                           to="/announcements"
                           search={{
                             course: courseSlug(displayCourseName(g.name, g.code)),
                             expand: String(a.id),
                           }}
+                          preload="intent"
                           className="min-w-0 flex-1"
                         >
                           <div className="flex items-start justify-between gap-2">
@@ -436,7 +441,11 @@ function AnnouncementsWidget() {
                             {stripHtml(a.message)}
                           </p>
                         </Link>
-                        <DismissButton stopPropagation onClick={() => dismissed.add(a.id)} label={a.title} />
+                        <DismissButton
+                          stopPropagation
+                          onClick={() => dismissed.add(a.id)}
+                          label={a.title}
+                        />
                       </li>
                     ))}
                   </ul>
@@ -450,7 +459,15 @@ function AnnouncementsWidget() {
   );
 }
 
-function CompleteButton({ done, onClick, label }: { done: boolean; onClick: () => void; label: string }) {
+function CompleteButton({
+  done,
+  onClick,
+  label,
+}: {
+  done: boolean;
+  onClick: () => void;
+  label: string;
+}) {
   return (
     <button
       onClick={onClick}
@@ -492,26 +509,12 @@ function DismissButton({
 }
 
 function IcsButton({ assignment }: { assignment: AssignmentItem }) {
-  const onClick = () => {
-    if (!assignment.due_at) return;
-    const ics = buildIcs({
-      uid: `canvas-assignment-${assignment.id}@lovable`,
-      title: `${assignment.name} (${displayCourseName(assignment.course_name, assignment.course_code)})`,
-      description: "Assignment due on Canvas.",
-      url: assignment.html_url,
-      start: new Date(assignment.due_at),
-    });
-    downloadIcs(`${safeFilename(assignment.name)}.ics`, ics);
-  };
   return (
-    <button
-      onClick={onClick}
-      aria-label={`Add ${assignment.name} to calendar`}
-      title="Add to calendar (.ics)"
+    <AddToCalendarButton
+      assignment={assignment}
+      iconClassName="h-3.5 w-3.5"
       className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-foreground/20 text-muted-foreground transition-colors hover:border-foreground/50 hover:text-foreground"
-    >
-      <CalendarPlus className="h-3.5 w-3.5" />
-    </button>
+    />
   );
 }
 
@@ -520,20 +523,22 @@ function FocusWidget() {
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
 
   const soon = (data ?? [])
-    .filter((a) => {
-      if (!a.due_at || completed.has(a.id)) return false;
-      const due = new Date(a.due_at).getTime();
-      const now = Date.now();
-      return due >= now && due <= now + 48 * 60 * 60 * 1000;
-    })
-    .sort((a, b) => new Date(a.due_at as string).getTime() - new Date(b.due_at as string).getTime());
+    .filter((a) => isInFocusWindow(a, "2", Date.now(), completed.has(a.id)))
+    .sort(
+      (a, b) => new Date(a.due_at as string).getTime() - new Date(b.due_at as string).getTime(),
+    );
 
   return (
     <GlassCard
       title="Focus"
       subtitle="Due within 48 hours"
       action={
-        <Link to="/focus" className="glass-hover rounded-lg px-2.5 py-1 text-xs font-medium text-muted-foreground">
+        <Link
+          to="/focus"
+          search={{ window: "2" }}
+          preload="intent"
+          className="glass-hover rounded-lg px-2.5 py-1 text-xs font-medium text-muted-foreground"
+        >
           Open
         </Link>
       }
@@ -541,9 +546,7 @@ function FocusWidget() {
       {isLoading && (
         <div className="space-y-2">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="glass-inset p-3">
-              <Skeleton className="h-4 w-2/3" />
-            </div>
+            <AssignmentRowSkeleton key={i} index={i} showCalendarBtn={false} />
           ))}
         </div>
       )}
@@ -566,6 +569,7 @@ function FocusWidget() {
                   <p className="mt-0.5 truncate text-xs text-muted-foreground">
                     {displayCourseName(a.course_name, a.course_code)}
                   </p>
+                  <AssignmentDescriptionLink assignmentId={a.id} className="mt-1" />
                 </div>
                 <span
                   className={cn(
@@ -594,7 +598,9 @@ function CalendarWidget() {
       const now = Date.now();
       return t >= now && t <= now + 7 * 24 * 60 * 60 * 1000;
     })
-    .sort((a, b) => new Date(a.start_at as string).getTime() - new Date(b.start_at as string).getTime())
+    .sort(
+      (a, b) => new Date(a.start_at as string).getTime() - new Date(b.start_at as string).getTime(),
+    )
     .slice(0, 8);
 
   return (
@@ -602,29 +608,30 @@ function CalendarWidget() {
       title="Calendar"
       subtitle="Next 7 days"
       action={
-        <Link to="/schedule" className="glass-hover rounded-lg px-2.5 py-1 text-xs font-medium text-muted-foreground">
+        <Link
+          to="/schedule"
+          preload="intent"
+          className="glass-hover rounded-lg px-2.5 py-1 text-xs font-medium text-muted-foreground"
+        >
           View all
         </Link>
       }
     >
-      {isLoading && (
-        <div className="space-y-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="glass-inset p-3">
-              <Skeleton className="h-4 w-2/3" />
-            </div>
-          ))}
-        </div>
-      )}
+      {isLoading && <CalendarWidgetSkeleton count={4} />}
       {isError && <ErrorState message={(error as Error).message} />}
       {data && upcoming.length === 0 && <EmptyState message="No calendar events this week." />}
       {upcoming.length > 0 && (
         <ul className="space-y-2">
           {upcoming.map((e) => (
-            <li key={String(e.id)} className="glass-inset glass-hover flex items-center justify-between gap-3 p-3">
+            <li
+              key={String(e.id)}
+              className="glass-inset glass-hover flex items-center justify-between gap-3 p-3"
+            >
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium">{e.title}</p>
-                {e.context_name && <p className="mt-0.5 truncate text-xs text-muted-foreground">{e.context_name}</p>}
+                {e.context_name && (
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">{e.context_name}</p>
+                )}
               </div>
               <span className="shrink-0 whitespace-nowrap text-xs tabular-nums text-muted-foreground">
                 {new Date(e.start_at as string).toLocaleString(undefined, {
@@ -645,7 +652,7 @@ function HeatmapWidget() {
   const { data, isLoading, isError, error } = useQuery(assignmentsQO);
   return (
     <GlassCard title="Workload" subtitle="Assignment density by week">
-      {isLoading && <Skeleton className="h-24 w-full" />}
+      {isLoading && <WorkloadHeatmapSkeleton />}
       {isError && <ErrorState message={(error as Error).message} />}
       {data && <WorkloadHeatmap assignments={data} />}
     </GlassCard>
@@ -654,26 +661,6 @@ function HeatmapWidget() {
 
 function GpaWidget() {
   return <GpaCalculator />;
-}
-
-/** Shown in place of a Pro-only widget for free-tier accounts. */
-export function LockedWidget({ title, feature }: { title: string; feature: string }) {
-  return (
-    <GlassCard title={title} subtitle="Canvas Pro">
-      <div className="flex flex-col items-start gap-3 p-1">
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Lock className="h-4 w-4" />
-          <p className="text-sm">{feature} is part of Canvas Pro.</p>
-        </div>
-        <Link
-          to="/billing"
-          className="glass-hover inline-flex min-h-10 items-center rounded-xl bg-foreground px-4 text-sm font-semibold text-background"
-        >
-          Start 10 days free — then $2.99/mo or $30/yr (Save 17%!)
-        </Link>
-      </div>
-    </GlassCard>
-  );
 }
 
 export type WidgetSize = "sm" | "md" | "full";
@@ -686,12 +673,37 @@ export interface WidgetMeta {
 }
 
 export const WIDGETS: Record<WidgetId, WidgetMeta> = {
-  digest: { pro: true, label: "Since your last visit", defaultSize: "full", render: () => <DigestWidget /> },
-  classes: { pro: true, label: "Classes & Grades", defaultSize: "md", render: () => <CoursesWidget /> },
-  upcoming: { pro: true, label: "Upcoming Assignments", defaultSize: "md", render: () => <UpcomingWidget /> },
+  digest: {
+    pro: true,
+    label: "Since your last visit",
+    defaultSize: "full",
+    render: () => <DigestWidget />,
+  },
+  classes: {
+    pro: true,
+    label: "Classes & Grades",
+    defaultSize: "md",
+    render: () => <CoursesWidget />,
+  },
+  upcoming: {
+    pro: true,
+    label: "Upcoming Assignments",
+    defaultSize: "md",
+    render: () => <UpcomingWidget />,
+  },
   focus: { label: "Focus", pro: true, defaultSize: "md", render: () => <FocusWidget /> },
   calendar: { label: "Calendar", pro: true, defaultSize: "md", render: () => <CalendarWidget /> },
-  announcements: { pro: true, label: "Announcements", defaultSize: "md", render: () => <AnnouncementsWidget /> },
+  announcements: {
+    pro: true,
+    label: "Announcements",
+    defaultSize: "md",
+    render: () => <AnnouncementsWidget />,
+  },
   gpa: { pro: true, label: "GPA", defaultSize: "md", render: () => <GpaWidget /> },
-  heatmap: { label: "Workload heatmap", pro: true, defaultSize: "full", render: () => <HeatmapWidget /> },
+  heatmap: {
+    label: "Workload heatmap",
+    pro: true,
+    defaultSize: "full",
+    render: () => <HeatmapWidget />,
+  },
 };

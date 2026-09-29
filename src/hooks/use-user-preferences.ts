@@ -3,20 +3,24 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { useAuthUserId, userKey } from "@/lib/auth-user";
+import { createOptimisticWrites } from "@/lib/optimistic-writes";
 
 /** Base key — invalidating this matches every per-user variant. */
 export const userPreferencesQueryKey = ["user-preferences"] as const;
 
-type PrefMap = Record<string, unknown>;
+export type PrefMap = Record<string, unknown>;
+const writes = new WeakMap<object, ReturnType<typeof createOptimisticWrites>>();
 
-export async function fetchUserPreferences(): Promise<PrefMap> {
-  const { data: sessionData } = await supabase.auth.getSession();
-  const user = sessionData.session?.user;
-  if (!user) throw new Error("Not signed in");
-  const { data, error } = await supabase
+export async function fetchUserPreferences(signal?: AbortSignal): Promise<PrefMap> {
+  const { data: userData, error: userError } = await supabase.auth.getSession();
+  const user = userData.session?.user;
+  if (userError || !user) throw new Error("Not signed in");
+  let request = supabase
     .from("user_preferences")
     .select("key, value")
     .eq("user_id", user.id);
+  if (signal) request = request.abortSignal(signal);
+  const { data, error } = await request;
   if (error) throw new Error(error.message);
   const result: PrefMap = {};
   (data ?? []).forEach((row) => {
@@ -25,9 +29,12 @@ export async function fetchUserPreferences(): Promise<PrefMap> {
   return result;
 }
 
-export async function getUserPreference<T>(key: string, defaultValue: T): Promise<T> {
-  const { data: sessionData } = await supabase.auth.getSession();
-  const user = sessionData.session?.user;
+export async function getUserPreference<T>(
+  key: string,
+  defaultValue: T,
+): Promise<T> {
+  const { data: userData } = await supabase.auth.getUser();
+  const user = userData.user;
   if (!user) return defaultValue;
   const { data, error } = await supabase
     .from("user_preferences")
@@ -45,11 +52,9 @@ export function useUserPreferences() {
   const query = useQuery({
     queryKey: userKey(userPreferencesQueryKey, userId),
     enabled: !!userId,
-    queryFn: fetchUserPreferences,
-    staleTime: 30_000,
-    // The database is the source of truth: always revalidate on mount so a
-    // warm/persisted cache can never be the basis for a write.
-    refetchOnMount: "always",
+    queryFn: ({ signal }) => fetchUserPreferences(signal),
+    staleTime: 60_000,
+    refetchOnMount: false,
     retry: 1,
   });
   return {
@@ -68,8 +73,12 @@ export function useSetUserPreference() {
   const qc = useQueryClient();
   const { userId } = useAuthUserId();
   const key = userKey(userPreferencesQueryKey, userId);
+  const tracker = writes.get(qc) ?? createOptimisticWrites();
+  writes.set(qc, tracker);
 
   return useMutation({
+    mutationKey: ["save-preference", userId],
+    scope: { id: `preferences:${userId}` },
     mutationFn: async ({ key: prefKey, value }: { key: string; value: unknown }) => {
       const { data: userData, error: userError } = await supabase.auth.getUser();
       const user = userData.user;
@@ -89,15 +98,26 @@ export function useSetUserPreference() {
     onMutate: async ({ key: prefKey, value }) => {
       await qc.cancelQueries({ queryKey: key });
       const previous = qc.getQueryData<PrefMap>(key);
+      const ticket = tracker.start(`${userId}:${prefKey}`, previous?.[prefKey]);
       if (previous) qc.setQueryData<PrefMap>(key, { ...previous, [prefKey]: value });
-      return { previous };
+      return ticket;
+    },
+    onSuccess: (_data, variables, context) => {
+      if (context) tracker.commit(context, variables.value);
     },
     onError: (err: Error, _vars, context) => {
-      if (context?.previous) qc.setQueryData(key, context.previous);
+      const rollback = context ? tracker.rollback(context) : null;
+      if (rollback?.apply) {
+        qc.setQueryData<PrefMap>(key, (current) => current ? { ...current, [_vars.key]: rollback.value } : current);
+      }
       toast.error("Could not save that change", { description: err.message });
     },
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: userPreferencesQueryKey });
+    onSettled: (_data, _error, _variables, context) => {
+      if (context) tracker.finish(context);
+      // Earlier writes must not refetch over another pending optimistic edit.
+      if (qc.isMutating({ mutationKey: ["save-preference", userId] }) === 1) {
+        return qc.invalidateQueries({ queryKey: key });
+      }
     },
   });
 }

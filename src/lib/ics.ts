@@ -42,7 +42,7 @@ export function buildIcs(ev: IcsEvent): string {
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Canvas Pro//Assignments//EN",
+    "PRODID:-//CanvasPro//Assignments//EN",
     "CALSCALE:GREGORIAN",
     "BEGIN:VEVENT",
     `UID:${ev.uid}`,
@@ -71,5 +71,5 @@ export function downloadIcs(filename: string, content: string) {
 }
 
 export function safeFilename(s: string) {
-  return s.replace(/[^\w\-]+/g, "_").slice(0, 60) || "assignment";
+  return s.replace(/[^\w-]+/g, "_").slice(0, 60) || "assignment";
 }

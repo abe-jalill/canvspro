@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_profiles: {
+        Row: {
+          avatar_path: string | null
+          created_at: string
+          updated_at: string
+          user_id: string
+          username: string | null
+        }
+        Insert: {
+          avatar_path?: string | null
+          created_at?: string
+          updated_at?: string
+          user_id: string
+          username?: string | null
+        }
+        Update: {
+          avatar_path?: string | null
+          created_at?: string
+          updated_at?: string
+          user_id?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
       class_nicknames: {
         Row: {
           canvas_course_id: number
@@ -392,6 +416,30 @@ export type Database = {
         }
         Relationships: []
       }
+      user_activity_daily: {
+        Row: {
+          activity_date: string
+          first_seen_at: string
+          interactions: number
+          last_seen_at: string
+          user_id: string
+        }
+        Insert: {
+          activity_date: string
+          first_seen_at?: string
+          interactions?: number
+          last_seen_at?: string
+          user_id: string
+        }
+        Update: {
+          activity_date?: string
+          first_seen_at?: string
+          interactions?: number
+          last_seen_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_assignment_meta: {
         Row: {
           assignment_id: number
@@ -483,6 +531,13 @@ export type Database = {
         Returns: boolean
       }
       has_canvas_key: { Args: never; Returns: boolean }
+      record_activity_heartbeat: { Args: never; Returns: string }
+      set_avatar_path: { Args: { requested_path: string }; Returns: string }
+      set_username: { Args: { requested_username: string }; Returns: string }
+      username_available: {
+        Args: { requested_username: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
