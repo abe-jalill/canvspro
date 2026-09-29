@@ -1,5 +1,5 @@
 import type { AssignmentItem } from "@/lib/canvas.functions";
-import { endOfUpcomingDay, isAssignmentComplete } from "./assignment-window.ts";
+import { endOfUpcomingDay, isAssignmentComplete, isStaleOverdue } from "./assignment-window.ts";
 
 export interface PlanInput {
   assignments: AssignmentItem[];
@@ -81,6 +81,7 @@ export function rankGetItDoneAssignments(input: PlanInput): RankedAssignment[] {
   const active = input.assignments.filter(
     (assignment) =>
       !assignmentIsComplete(assignment, input.completed) &&
+      !isStaleOverdue(assignment, now) &&
       !input.skipped?.has(String(assignment.id)),
   );
   const dueSoonByCourse = new Map<number, number>();

@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { normalizePalette, normalizeThemeMode, resolveTheme } from "../src/lib/theme-options.ts";
+import { PALETTES, normalizePalette, normalizeThemeMode, resolveTheme } from "../src/lib/theme-options.ts";
+
+test("offers exactly the four supported palettes", () => {
+  assert.deepEqual(PALETTES.map((palette) => palette.id), ["forest", "blue", "violet", "rose"]);
+  assert.equal(normalizePalette("neutral"), "forest");
+});
 
 test("existing light and dark preferences remain compatible", () => {
   assert.equal(normalizeThemeMode("light"), "light");

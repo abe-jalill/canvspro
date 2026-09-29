@@ -7,7 +7,8 @@ import { GlassCard, Skeleton, ErrorState, EmptyState } from "@/components/glass-
 import { displayCourseName } from "@/lib/course-display";
 import { Segmented } from "@/components/segmented";
 import { WorkloadHeatmap } from "@/components/workload-heatmap";
-import { endOfUpcomingDay } from "@/lib/assignment-window";
+import { endOfUpcomingDay, isAssignmentVisible } from "@/lib/assignment-window";
+import { COMPLETED_ASSIGNMENTS_KEY, useLocalSet } from "@/lib/local-state";
 
 import {
   calendarQueryOptions as eventsQO,
@@ -58,9 +59,11 @@ function SchedulePage() {
   const assignments = useQuery(assignmentsQO);
   const [range, setRange] = useState<Range>("week");
   const picks = useCalendarPicks();
+  const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
 
   const now = Date.now();
   const rangeEnd = range === "week" ? endOfUpcomingDay(now, 7) : Number.POSITIVE_INFINITY;
+  const assignmentById = new Map((assignments.data ?? []).map((item) => [item.id, item]));
 
   const items: AgendaItem[] = [];
   (events.data ?? []).forEach((e) => {
@@ -78,6 +81,10 @@ function SchedulePage() {
     });
   });
   picks.list.forEach((p) => {
+    const assignment = assignmentById.get(p.assignmentId);
+    if (assignment && !isAssignmentVisible(assignment, completed.has(assignment.id), false, now)) {
+      return;
+    }
     const when = new Date(p.at).getTime();
     if (!Number.isFinite(when) || when < now - 12 * 3_600_000 || when > rangeEnd) return;
     items.push({
@@ -90,6 +97,7 @@ function SchedulePage() {
     });
   });
   (assignments.data ?? []).forEach((a) => {
+    if (!isAssignmentVisible(a, completed.has(a.id), false, now)) return;
     if (!a.due_at || picks.ids.has(a.id)) return;
     const when = new Date(a.due_at).getTime();
     if (!Number.isFinite(when) || when < now || when > rangeEnd) return;
@@ -139,7 +147,11 @@ function SchedulePage() {
         {assignments.isLoading ? (
           <WorkloadHeatmapSkeleton />
         ) : (
-          <WorkloadHeatmap assignments={assignments.data ?? []} />
+          <WorkloadHeatmap
+            assignments={(assignments.data ?? []).filter((assignment) =>
+              isAssignmentVisible(assignment, completed.has(assignment.id), false, now),
+            )}
+          />
         )}
       </GlassCard>
 

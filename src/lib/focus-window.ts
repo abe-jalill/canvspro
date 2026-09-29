@@ -1,5 +1,5 @@
 import type { AssignmentItem } from "./canvas.functions.ts";
-import { endOfUpcomingDay, isAssignmentComplete } from "./assignment-window.ts";
+import { endOfUpcomingDay, isAssignmentVisible } from "./assignment-window.ts";
 
 export type FocusWindow = "all" | "7" | "overdue" | "3" | "2" | "1";
 
@@ -26,6 +26,6 @@ export function isInFocusWindow(
   now: number,
   completed: boolean,
 ): boolean {
-  if (isAssignmentComplete(assignment, completed)) return false;
+  if (!isAssignmentVisible(assignment, completed, false, now)) return false;
   return isDueInFocusWindow(assignment, window, now);
 }

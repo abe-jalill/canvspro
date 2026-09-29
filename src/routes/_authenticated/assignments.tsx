@@ -38,7 +38,7 @@ const AddToCalendarButton = ({ assignment }: { assignment: AssignmentItem }) => 
 import { useCourseHighlight, validateCourseSearch } from "@/lib/course-highlight";
 import { buildPriorityList, describePriorityList } from "@/lib/priority";
 import { useAssignmentMetaMap } from "@/hooks/use-assignment-meta";
-import { isAssignmentComplete } from "@/lib/assignment-window";
+import { isAssignmentComplete, isAssignmentVisible } from "@/lib/assignment-window";
 import { htmlToText } from "@/lib/html-text";
 
 import {
@@ -215,6 +215,7 @@ function AssignmentsPage() {
   const { data, isLoading, isError, error } = useQuery(assignmentsQO);
   const courses = useQuery(coursesQO);
   const [search, setSearch] = useState("");
+  const [showCompleted, setShowCompleted] = useState(false);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
   const highlight = useCourseHighlight();
@@ -242,7 +243,11 @@ function AssignmentsPage() {
     ];
   }, [data, custom.list, courses.data]);
   const selectedAssignment = routeSearch.assignment
-    ? allAssignments.find((assignment) => String(assignment.id) === routeSearch.assignment)
+    ? allAssignments.find(
+        (assignment) =>
+          String(assignment.id) === routeSearch.assignment &&
+          isAssignmentVisible(assignment, completed.has(assignment.id), showCompleted),
+      )
     : undefined;
 
   useEffect(() => {
@@ -286,7 +291,9 @@ function AssignmentsPage() {
     const now = Date.now();
     const threeDays = now + 3 * 24 * 60 * 60 * 1000;
     for (const g of map.values()) {
-      g.items = g.items.filter((a) => !isDone(a, completed.has(a.id)));
+      g.items = g.items.filter((a) =>
+        isAssignmentVisible(a, completed.has(a.id), showCompleted, now),
+      );
       g.items.sort((a, b) => {
         if (!a.due_at) return 1;
         if (!b.due_at) return -1;
@@ -303,7 +310,7 @@ function AssignmentsPage() {
     return Array.from(map.values())
       .filter((group) => group.items.length > 0)
       .sort((a, b) => a.label.localeCompare(b.label));
-  }, [courses.data, allAssignments, completed]);
+  }, [courses.data, allAssignments, completed, showCompleted]);
 
   const metaMap = useAssignmentMetaMap();
   const priorityGroups = useMemo(() => {
@@ -430,16 +437,26 @@ function AssignmentsPage() {
         </div>
       </section>
 
-      <div className="glass-panel-strong relative flex items-center gap-3 rounded-2xl px-4 py-3">
-        <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
-        <input
-          type="search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Find any assignment or course"
-          className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-          aria-label="Search assignments"
-        />
+      <div className="glass-panel-strong relative flex flex-wrap items-center gap-3 rounded-2xl px-4 py-3">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Find any assignment or course"
+            className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+            aria-label="Search assignments"
+          />
+        </div>
+        <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={showCompleted}
+            onChange={(event) => setShowCompleted(event.target.checked)}
+          />
+          Show completed
+        </label>
         <span className="hidden text-xs tabular-nums text-muted-foreground sm:block">
           {agendaItems.length} shown
         </span>
@@ -536,7 +553,8 @@ function AssignmentsPage() {
               </div>
               <ul>
                 {section.items.map(({ assignment: a, course }) => {
-                  const done = completed.has(a.id);
+                  const done = isDone(a, completed.has(a.id));
+                  const canvasDone = isAssignmentComplete(a, false);
                   const cd = getCountdown(a.due_at, { completed: done });
                   const mine = isCustomAssignmentId(a.id);
                   const notes = custom.notesById.get(a.id);
@@ -557,7 +575,7 @@ function AssignmentsPage() {
                         done={done}
                         onToggle={() => completed.toggle(a.id)}
                         label={a.name}
-                        disabled={!completed.ready}
+                        disabled={!completed.ready || canvasDone}
                         className="h-5 w-5"
                       />
                       <div className="min-w-0">
