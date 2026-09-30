@@ -75,7 +75,7 @@ export async function fetchUserProfile(): Promise<UserProfile> {
   const { data: sessionData } = await supabase.auth.getSession();
   const meta = sessionData.session?.user.user_metadata ?? {};
   const local = getLocalProfile();
-  const userId = userData.user?.id;
+  const userId = sessionData.session?.user.id;
   const { data: accountProfile } = userId
     ? await supabase
         .from("account_profiles")

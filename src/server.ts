@@ -49,6 +49,7 @@ function withSecurityHeaders(request: Request, response: Response): Response {
   headers.set("X-Content-Type-Options", "nosniff");
   headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  headers.set("Content-Security-Policy", "object-src 'none'; base-uri 'self'");
   if (new URL(request.url).protocol === "https:") {
     headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   }

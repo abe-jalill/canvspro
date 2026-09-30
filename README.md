@@ -62,7 +62,13 @@ Data & API integration
 
 Canvas domain: use environment variable CANVAS_DOMAIN (value: lawrencetech.instructure.com)
 
-Canvas API token: use environment variable CANVAS_TOKEN — never hardcode this or expose it in frontend/client-side code
+The Canvas proxy sends student tokens only to `*.instructure.com`, `CANVAS_DOMAIN`,
+or school vanity hosts explicitly listed in the comma-separated
+`CANVAS_ALLOWED_DOMAINS` Edge Function secret. Add a school's custom Canvas
+hostname there before asking students to connect it. The proxy rejects
+cross-host redirects.
+
+Canvas API token: each user saves their own token in account settings. Never hardcode a token or expose another user's token in client-side code.
 
 Fetch data on page load only — no polling, no auto-refresh timers
 
@@ -78,7 +84,13 @@ Calendar events: /api/v1/calendar_events
 
 Announcements: /api/v1/announcements?context_codes[]=course_:id
 
-All requests need header: Authorization: Bearer CANVAS_TOKEN
+The server-side Canvas proxy sends each user's saved token as an Authorization: Bearer header.
+
+Native iOS builds: Codemagic's `ios-workflow` is a Debug simulator preview with
+sample data and no sign-in. Before release, run `ios-release-check`; it compiles
+the SwiftUI Release path, which uses real Supabase sign-in and requires
+`SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`. Deploy the `canvas` and
+`delete-account` Supabase Edge Functions before testing a live account.
 
 Handle loading and error states gracefully — show a subtle glass-style loading skeleton while fetching, and a clean "couldn't load" message on failure instead of crashing
 

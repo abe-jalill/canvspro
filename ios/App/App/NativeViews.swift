@@ -9,7 +9,15 @@ struct NativeRootView: View {
 
     var body: some View {
         Group {
+            #if DEBUG
             NativeMainTabView(sessionStore: sessionStore, preview: true)
+            #else
+            if sessionStore.session != nil {
+                NativeMainTabView(sessionStore: sessionStore, preview: false)
+            } else {
+                NativeAuthView(sessionStore: sessionStore)
+            }
+            #endif
         }
         .font(.system(size: 13, weight: .regular))
         .fontDesign(.rounded)
@@ -64,6 +72,7 @@ private struct NativeAuthView: View {
                 }
                 if let notice { Section { Text(notice).foregroundStyle(.secondary) } }
                 if let error = sessionStore.errorMessage { Section { Text(error).foregroundStyle(.red) } }
+                if let error = sessionStore.configurationError { Section { Text(error).foregroundStyle(.red) } }
                 Section("Legal") {
                     NavigationLink("Privacy Policy") { NativeLegalView(title: "Privacy Policy") }
                     NavigationLink("Terms of Service") { NativeLegalView(title: "Terms of Service") }
@@ -174,7 +183,7 @@ struct NativeMainTabView: View {
             NavigationStack { FocusView(store: contentStore, features: featureStore) }.tabItem { Label("Focus", systemImage: "scope") }.tag(NativeTab.focus)
             NativeStudyView(store: contentStore, features: featureStore).tabItem { Label("Study Session", systemImage: "timer") }.tag(NativeTab.study)
             NativeGradesView(store: contentStore, features: featureStore).tabItem { Label("Grades", systemImage: "chart.bar.fill") }.tag(NativeTab.grades)
-            NativeMoreView(store: contentStore, features: featureStore).tabItem { Label("More", systemImage: "square.grid.2x2") }.tag(NativeTab.more)
+            NativeMoreView(store: contentStore, features: featureStore, sessionStore: sessionStore, preview: preview).tabItem { Label("More", systemImage: "square.grid.2x2") }.tag(NativeTab.more)
         }
         .tabBarMinimizeBehavior(.onScrollDown)
     }
@@ -203,6 +212,7 @@ private struct NativeDashboardView: View {
     @AppStorage("CanvasProAnnouncementWeeks") private var announcementWeeks = 1
     @AppStorage("CanvasProDismissedAnnouncements") private var dismissedAnnouncementsRaw = ""
     @State private var digest: NativeDigestSnapshot?
+    private var digestKey: String { "CanvasProNativeDigest.\(store.persistenceScope)" }
     @State private var syllabusCourse: CourseSummary?
     private var dismissedAnnouncements: Set<Int> { Set(dismissedAnnouncementsRaw.split(separator: ",").compactMap { Int($0) }) }
     private var visibleCourses: [CourseSummary] { store.bundle.courses.filter { !features.hiddenCourseIDs.contains($0.id) } }
@@ -559,10 +569,10 @@ private struct NativeDashboardView: View {
     private func digestSection(_ title: String, items: [String]) -> some View { VStack(alignment: .leading, spacing: 5) { Text("\(title) · \(items.count)").font(.system(size: 11)).foregroundStyle(CPTheme.muted(scheme)); if items.isEmpty { Text("Nothing new").font(.system(size: 11)).foregroundStyle(CPTheme.muted(scheme)) }; ForEach(items, id: \.self) { item in Text(item).font(.system(size: 11)).lineLimit(2) } }.frame(maxWidth: .infinity, alignment: .leading) }
     private func urgency(for item: AssignmentItem) -> String? { guard let due = item.dueDate else { return nil }; let hours = due.timeIntervalSinceNow / 3600; if hours < 0 { return "overdue" }; if hours <= 24 { return "today" }; if hours <= 72 { return "soon" }; return "later" }
     private func loadDigest() {
-        if let data = UserDefaults.standard.data(forKey: "CanvasProNativeDigest"), let saved = try? JSONDecoder().decode(NativeDigestSnapshot.self, from: data) { digest = saved }
+        if let data = UserDefaults.standard.data(forKey: digestKey), let saved = try? JSONDecoder().decode(NativeDigestSnapshot.self, from: data) { digest = saved }
         else if !store.bundle.courses.isEmpty { markDigestSeen() }
     }
-    private func markDigestSeen() { let snapshot = NativeDigestSnapshot(lastVisit: Date(), grades: gradeMap, urgency: urgencyMap); digest = snapshot; if let data = try? JSONEncoder().encode(snapshot) { UserDefaults.standard.set(data, forKey: "CanvasProNativeDigest") } }
+    private func markDigestSeen() { let snapshot = NativeDigestSnapshot(lastVisit: Date(), grades: gradeMap, urgency: urgencyMap); digest = snapshot; if let data = try? JSONEncoder().encode(snapshot) { UserDefaults.standard.set(data, forKey: digestKey) } }
 
     private var heroBackground: LinearGradient {
         let palette = CPTheme.currentPalette
@@ -1040,9 +1050,10 @@ private struct NativeGradesView: View {
         }
     }
     private func loadAndRecordGrades() {
-        if let saved = UserDefaults.standard.data(forKey: "CanvasProNativeGradeHistory"), let decoded = try? JSONDecoder().decode([Int: [Double]].self, from: saved) { gradeHistory = decoded }
+        let historyKey = "CanvasProNativeGradeHistory.\(store.persistenceScope)"
+        if let saved = UserDefaults.standard.data(forKey: historyKey), let decoded = try? JSONDecoder().decode([Int: [Double]].self, from: saved) { gradeHistory = decoded }
         for course in store.bundle.courses { guard let score = course.currentScore else { continue }; if gradeHistory[course.id]?.first != score { gradeHistory[course.id, default: []].insert(score, at: 0); gradeHistory[course.id] = Array(gradeHistory[course.id, default: []].prefix(20)) } }
-        if let data = try? JSONEncoder().encode(gradeHistory) { UserDefaults.standard.set(data, forKey: "CanvasProNativeGradeHistory") }
+        if let data = try? JSONEncoder().encode(gradeHistory) { UserDefaults.standard.set(data, forKey: historyKey) }
     }
 }
 

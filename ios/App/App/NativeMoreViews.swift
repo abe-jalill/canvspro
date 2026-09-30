@@ -5,6 +5,8 @@ struct NativeMoreView: View {
     @Environment(\.colorScheme) private var scheme
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
+    @ObservedObject var sessionStore: NativeSessionStore
+    let preview: Bool
 
     var body: some View {
         NavigationStack {
@@ -20,7 +22,7 @@ struct NativeMoreView: View {
                             link("Announcements", "megaphone") { AnnouncementsView(store: store, features: features) }
                         }
                         CPGlassCard {
-                            link("Settings", "gearshape") { NativeSettingsView(contentStore: store, features: features) }
+                            link("Settings", "gearshape") { NativeSettingsView(contentStore: store, features: features, sessionStore: sessionStore, preview: preview) }
                         }
                     }
                     .padding(.horizontal, 14)
@@ -53,6 +55,8 @@ struct NativeSettingsView: View {
     @Environment(\.colorScheme) private var scheme
     @ObservedObject var contentStore: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
+    @ObservedObject var sessionStore: NativeSessionStore
+    let preview: Bool
 
     var body: some View {
         ZStack {
@@ -70,10 +74,18 @@ struct NativeSettingsView: View {
                         settingsLink("Privacy Policy", "hand.raised") { NativeLegalView(title: "Privacy Policy") }
                         settingsLink("Terms of Service", "doc.text") { NativeLegalView(title: "Terms of Service") }
                     }
-                    Text("Preview uses sample data saved on this iPhone.")
-                        .font(.system(size: 11))
-                        .foregroundStyle(CPTheme.muted(scheme))
-                        .frame(maxWidth: .infinity, alignment: .center)
+                    if preview {
+                        Text("Preview uses sample data saved on this iPhone.")
+                            .font(.system(size: 11))
+                            .foregroundStyle(CPTheme.muted(scheme))
+                            .frame(maxWidth: .infinity, alignment: .center)
+                    } else {
+                        CPGlassCard(title: "Account") {
+                            Button("Sign out") { Task { await sessionStore.signOut() } }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            settingsLink("Delete account", "trash") { NativeDeleteAccountView(sessionStore: sessionStore) }
+                        }
+                    }
                 }
                 .padding(.horizontal, 14)
                 .padding(.top, 14)
@@ -86,6 +98,34 @@ struct NativeSettingsView: View {
 
     private func settingsLink<Destination: View>(_ title: String, _ symbol: String, @ViewBuilder destination: () -> Destination) -> some View {
         NavigationLink(destination: destination()) { CPInsetRow { HStack(spacing: 10) { Image(systemName: symbol).font(.system(size: 14)).frame(width: 20).foregroundStyle(CPTheme.primary(scheme: scheme)); Text(title).font(.system(size: 13, weight: .regular)); Spacer(); Image(systemName: "chevron.right").font(.system(size: 10, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)) } } }.buttonStyle(.plain)
+    }
+}
+
+private struct NativeDeleteAccountView: View {
+    @ObservedObject var sessionStore: NativeSessionStore
+    @State private var confirmation = ""
+
+    var body: some View {
+        Form {
+            Section {
+                Text("This permanently deletes your account, saved Canvas key, classes, and app data. It cannot be undone.")
+                Text("If an old paid subscription still renews, cancel it first or contact support@canvaspro.app.")
+            }
+            Section("Type DELETE to confirm") {
+                TextField("DELETE", text: $confirmation)
+                    .textInputAutocapitalization(.characters)
+                    .autocorrectionDisabled()
+                Button("Permanently delete account", role: .destructive) {
+                    Task { await sessionStore.deleteAccount() }
+                }
+                .disabled(confirmation.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() != "DELETE" || sessionStore.isWorking)
+            }
+            if let error = sessionStore.errorMessage {
+                Section { Text(error).foregroundStyle(.red) }
+            }
+        }
+        .cpListScreen()
+        .navigationTitle("Delete account")
     }
 }
 

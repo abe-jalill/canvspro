@@ -47,6 +47,10 @@ export function DeleteAccountSection() {
         removes your Canvas key, class names, schedule, notes, and every other
         saved item. This cannot be undone.
       </p>
+      <p className="text-sm text-muted-foreground">
+        If you have an existing paid subscription, deleting your account does not cancel it.
+        Contact support@canvaspro.app to cancel it before deleting your account.
+      </p>
 
       {!open ? (
         <button

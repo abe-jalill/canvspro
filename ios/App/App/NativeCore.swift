@@ -211,6 +211,42 @@ private struct NativeContentCache: Codable {
     let nicknames: [Int: ClassNickname]
 }
 
+private enum NativeCourseworkCacheStore {
+    private static func file(for userID: String) -> URL? {
+        guard let id = UUID(uuidString: userID),
+              let directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return nil }
+        return directory.appendingPathComponent("coursework-\(id.uuidString).json")
+    }
+
+    static func load(userID: String) -> Data? {
+        guard let url = file(for: userID) else { return nil }
+        return try? Data(contentsOf: url)
+    }
+
+    @discardableResult static func save(_ data: Data, userID: String) -> Bool {
+        guard let url = file(for: userID) else { return false }
+        let directory = url.deletingLastPathComponent()
+        do {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            try data.write(to: url, options: .atomic)
+            try FileManager.default.setAttributes([.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication], ofItemAtPath: url.path)
+            var excludedURL = url
+            var values = URLResourceValues()
+            values.isExcludedFromBackup = true
+            try excludedURL.setResourceValues(values)
+            return true
+        } catch {
+            // The remote account remains the source of truth if offline caching fails.
+            return false
+        }
+    }
+
+    static func clear(userID: String) {
+        guard let url = file(for: userID) else { return }
+        try? FileManager.default.removeItem(at: url)
+    }
+}
+
 enum NativePreviewData {
     private static func date(daysFromToday: Int, hour: Int = 17) -> String {
         let value = Calendar.current.date(byAdding: .day, value: daysFromToday, to: Date()) ?? Date()
@@ -288,6 +324,13 @@ final class NativeAPI {
     func signOut(token: String) async throws {
         var request = try request(path: "/auth/v1/logout", token: token)
         request.httpMethod = "POST"
+        _ = try await data(request)
+    }
+
+    func deleteAccount(token: String) async throws {
+        var request = try request(path: "/functions/v1/delete-account", token: token)
+        request.httpMethod = "POST"
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["confirm": "DELETE"])
         _ = try await data(request)
     }
 
@@ -548,7 +591,34 @@ final class NativeSessionStore: ObservableObject {
                 try? await api.signOut(token: token)
             } catch { /* Local sign-out must always succeed. */ }
         }
+        clearLocalSession()
+    }
+
+    func deleteAccount() async {
+        guard let api, session != nil else { return }
+        isWorking = true
+        errorMessage = nil
+        defer { isWorking = false }
+        do {
+            try await api.deleteAccount(token: try await accessToken())
+            clearLocalSession()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func clearLocalSession() {
+        let previousUserID = session?.user.id
         UIApplication.shared.unregisterForRemoteNotifications()
+        if let previousUserID {
+            NativeCourseworkCacheStore.clear(userID: previousUserID)
+            UserDefaults.standard.removeObject(forKey: "CanvasProNativeContentCache.\(previousUserID)")
+            UserDefaults.standard.removeObject(forKey: "CanvasProNativeDigest.\(previousUserID)")
+            UserDefaults.standard.removeObject(forKey: "CanvasProNativeGradeHistory.\(previousUserID)")
+        }
+        UserDefaults.standard.removeObject(forKey: "CanvasProNativeDigest")
+        UserDefaults.standard.removeObject(forKey: "CanvasProNativeGradeHistory")
+        UserDefaults.standard.removeObject(forKey: "CanvasProNativePushToken")
         SecureSessionStore.clear()
         session = nil
     }
@@ -566,6 +636,7 @@ final class NativeContentStore: ObservableObject {
     @Published var errorMessage: String?
     let isPreview: Bool
     private unowned let sessionStore: NativeSessionStore
+    var persistenceScope: String { isPreview ? "preview" : (sessionStore.session?.user.id ?? "signed-out") }
     private let previewCompletedKey = "CanvasProPreviewCompleted"
     private let previewNicknamesKey = "CanvasProPreviewNicknames"
 
@@ -705,8 +776,11 @@ final class NativeContentStore: ObservableObject {
 
     private func loadCachedContent() {
         guard let userID = sessionStore.session?.user.id,
-              let data = UserDefaults.standard.data(forKey: cacheKey(userID: userID)),
+              let data = NativeCourseworkCacheStore.load(userID: userID) ?? UserDefaults.standard.data(forKey: cacheKey(userID: userID)),
               let cache = try? JSONDecoder().decode(NativeContentCache.self, from: data) else { return }
+        if NativeCourseworkCacheStore.save(data, userID: userID) {
+            UserDefaults.standard.removeObject(forKey: cacheKey(userID: userID))
+        }
         bundle = cache.bundle
         completed = sanitizedCompletedIDs(Set(cache.completed), in: cache.bundle)
         nicknames = cache.nicknames
@@ -720,7 +794,7 @@ final class NativeContentStore: ObservableObject {
         let savedAt = lastSyncedAt ?? Date()
         let cache = NativeContentCache(savedAt: savedAt, bundle: bundle, completed: Array(sanitizedCompletedIDs(completed, in: bundle)), nicknames: nicknames)
         if let data = try? JSONEncoder().encode(cache) {
-            UserDefaults.standard.set(data, forKey: cacheKey(userID: userID))
+            NativeCourseworkCacheStore.save(data, userID: userID)
         }
     }
 

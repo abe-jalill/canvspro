@@ -76,7 +76,7 @@ const sections = [
     paragraphs: [
       "We retain account information and saved preferences while needed to provide your account, with additional retention where reasonably necessary for security, disputes, billing, or legal obligations. Canvas caches are temporary and may be refreshed or expire. Retention varies by category and provider; we do not promise a single deletion period for all systems.",
       "You can delete your account in Settings or request help at support@canvaspro.app. Account deletion removes the authentication account and associated app records through deletion and database relationships. Limited records may remain in backups, provider logs, legal holds, or records that must be retained by law until their applicable retention period ends. Deletion does not remove your institution’s Canvas records.",
-      "Removing a saved key stops future use of that saved key after the change takes effect; requests already in progress, cached results, or queued notifications may persist temporarily. Revoke the token in Canvas to invalidate it at its source. Removing a key is not the same as deleting your account. Cancel any existing billing subscription separately through the billing portal or contact support.",
+      "Removing a saved key stops future use of that saved key after the change takes effect; requests already in progress, cached results, or queued notifications may persist temporarily. Revoke the token in Canvas to invalidate it at its source. Removing a key is not the same as deleting your account. Cancel any existing billing subscription separately through an available billing portal or contact support@canvaspro.app.",
     ],
   },
   {
