@@ -263,19 +263,41 @@ private struct NativeDashboardView: View {
     }
 
     private var dashboardHero: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Label(Date().formatted(.dateTime.weekday(.wide).month(.wide).day()), systemImage: "calendar").font(.system(size: 10, weight: .regular)).tracking(1.4).textCase(.uppercase).foregroundStyle(CPTheme.muted(scheme))
-            Text("\(greeting), \(studentName).").font(.system(size: 24, weight: .regular)).tracking(-0.6).foregroundStyle(CPTheme.foreground(scheme))
+        VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 4) {
+                Label(Date().formatted(.dateTime.weekday(.wide).month(.wide).day()), systemImage: "calendar")
+                    .font(.system(size: 11, weight: .semibold))
+                    .tracking(1.2)
+                    .textCase(.uppercase)
+                    .foregroundStyle(CPTheme.muted(scheme))
+                Text("\(greeting), \(studentName).")
+                    .font(.system(size: 26, weight: .semibold))
+                    .tracking(-0.6)
+                    .foregroundStyle(CPTheme.foreground(scheme))
+            }
             HStack(spacing: 8) {
                 heroStat(value: weekItems.count, label: "7 days", symbol: "calendar")
                 heroStat(value: todayCount, label: "24 hours", symbol: "clock")
-                heroStat(value: overdueCount, label: "Overdue", symbol: "exclamationmark.triangle", danger: overdueCount > 0)
+                heroStat(value: overdueCount, label: "Overdue", symbol: "exclamationmark.triangle.fill", danger: overdueCount > 0)
             }
         }
-        .padding(14)
+        .padding(16)
         .background(heroBackground, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(CPTheme.primary(scheme: scheme).opacity(scheme == .dark ? 0.28 : 0.22), lineWidth: 1))
-        .shadow(color: Color.black.opacity(scheme == .dark ? 0.30 : 0.08), radius: 20, y: 10)
+        .overlay(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(scheme == .dark ? 0.14 : 0.5),
+                            Color.white.opacity(scheme == .dark ? 0.04 : 0.1)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ),
+                    lineWidth: 1
+                )
+        )
+        .shadow(color: Color.black.opacity(scheme == .dark ? 0.35 : 0.08), radius: 24, y: 10)
     }
 
     private var metricColumns: [GridItem] { [GridItem(.flexible(minimum: 0), spacing: 8), GridItem(.flexible(minimum: 0), spacing: 8)] }
@@ -285,7 +307,57 @@ private struct NativeDashboardView: View {
         case "classes": if showCourses { classesWidget }
         case "upcoming": if showUpcoming { upcomingWidget }
         case "focus": if showFocus { focusWidget }
-        case "calendar": if showCalendar { CPGlassCard(title: "Calendar") { ForEach(calendarPreview) { item in CPInsetRow { HStack { VStack(alignment: .leading, spacing: 3) { Text(item.title).font(.system(size: 12)); Text("\(item.kind) · \(item.context)").font(.system(size: 10)).foregroundStyle(CPTheme.muted(scheme)) }; Spacer(); Text(item.date, format: .dateTime.month().day().hour().minute()).font(.system(size: 10)).foregroundStyle(CPTheme.muted(scheme)) } } }; NavigationLink { CalendarView(store: store, features: features) } label: { Label("Open calendar", systemImage: "arrow.up.right").font(.system(size: 11)) } } }
+        case "calendar": if showCalendar {
+            CPGlassCard(title: "Calendar", subtitle: "Upcoming deadlines & events") {
+                VStack(spacing: 8) {
+                    ForEach(calendarPreview) { item in
+                        HStack(spacing: 12) {
+                            VStack(spacing: 1) {
+                                Text(item.date, format: .dateTime.month(.abbreviated).day())
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(CPTheme.foreground(scheme))
+                                Text(item.date, format: .dateTime.weekday(.abbreviated))
+                                    .font(.system(size: 9))
+                                    .foregroundStyle(CPTheme.muted(scheme))
+                            }
+                            .frame(width: 48, height: 42)
+                            .background(Color.white.opacity(scheme == .dark ? 0.05 : 0.04), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.title)
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundStyle(CPTheme.foreground(scheme))
+                                    .lineLimit(1)
+                                Text("\(item.kind) · \(item.context)")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(CPTheme.muted(scheme))
+                                    .lineLimit(1)
+                            }
+                            Spacer()
+                            Text(item.date, format: .dateTime.hour().minute())
+                                .font(.system(size: 11, weight: .medium))
+                                .monospacedDigit()
+                                .foregroundStyle(CPTheme.muted(scheme))
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(CPTheme.insetBorder(scheme), lineWidth: 1))
+                    }
+                }
+                NavigationLink {
+                    CalendarView(store: store, features: features)
+                } label: {
+                    HStack(spacing: 4) {
+                        Text("Open full calendar")
+                        Image(systemName: "arrow.up.right")
+                    }
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(CPTheme.primary(scheme: scheme))
+                }
+                .padding(.top, 4)
+            }
+        }
         case "announcements": if showAnnouncements { CPGlassCard(title: "Announcements") { ForEach(store.bundle.announcements.filter { !features.hiddenCourseIDs.contains($0.courseID) && $0.isWithin(weeks: announcementWeeks) && !dismissedAnnouncements.contains($0.id) }.prefix(3)) { item in NavigationLink { AnnouncementDetailView(item: item) } label: { CPInsetRow { VStack(alignment: .leading, spacing: 3) { Text(item.title).font(.system(size: 13, weight: .regular)); Text(item.courseName).font(.system(size: 10, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)); Text(item.message.strippingHTML).font(.system(size: 11, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)).lineLimit(2) } } }.buttonStyle(.plain) } } }
         case "heatmap": if showWorkload { CPGlassCard(title: "Workload") { WorkloadView(assignments: activeAssignments) } }
         default: EmptyView()
@@ -296,8 +368,10 @@ private struct NativeDashboardView: View {
             widgetHeader("Classes & Grades", subtitle: "Active enrollments") {
                 selection = .grades
             }
-            ForEach(visibleCourses) { course in
-                CPInsetRow { dashboardCourseRow(course) }
+            VStack(spacing: 8) {
+                ForEach(visibleCourses) { course in
+                    dashboardCourseRow(course)
+                }
             }
             if visibleCourses.isEmpty { NativeEmptyState(title: "No classes yet", symbol: "books.vertical") }
         }
@@ -369,48 +443,67 @@ private struct NativeDashboardView: View {
     }
 
     private func dashboardCourseRow(_ course: CourseSummary) -> some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 8) {
-                courseLink(course, compact: false)
-                syllabusButton(course)
-                gradeLink(course)
+        NavigationLink {
+            CourseDetailView(course: course, store: store, features: features, initialSection: .graded)
+        } label: {
+            HStack(spacing: 12) {
+                RoundedRectangle(cornerRadius: 3, style: .continuous)
+                    .fill(courseColor(course))
+                    .frame(width: 4, height: 28)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(store.displayName(courseID: course.id, fallback: course.name))
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(CPTheme.foreground(scheme))
+                        .lineLimit(1)
+
+                    if let code = course.courseCode, !code.isEmpty {
+                        Text(code)
+                            .font(.system(size: 11))
+                            .foregroundStyle(CPTheme.muted(scheme))
+                    }
+                }
+
+                Spacer(minLength: 8)
+
+                if course.syllabusBody != nil {
+                    Button {
+                        syllabusCourse = course
+                    } label: {
+                        HStack(spacing: 3) {
+                            Image(systemName: "doc.text")
+                                .font(.system(size: 11))
+                            Text("Syllabus")
+                                .font(.system(size: 11, weight: .regular))
+                        }
+                        .foregroundStyle(CPTheme.muted(scheme))
+                        .padding(.horizontal, 8)
+                        .frame(height: 26)
+                        .background(Color.white.opacity(scheme == .dark ? 0.06 : 0.05), in: Capsule())
+                        .overlay(Capsule().stroke(Color.white.opacity(scheme == .dark ? 0.08 : 0.1), lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("View syllabus for \(course.name)")
+                }
+
+                Text(course.currentScore.map { "\($0.formatted(.number.precision(.fractionLength(1))))%" } ?? "—")
+                    .font(.system(size: 13, weight: .semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(courseColor(course))
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(courseColor(course).opacity(0.12), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(CPTheme.muted(scheme).opacity(0.4))
             }
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 8) { courseLink(course, compact: true); gradeLink(course) }
-                syllabusButton(course)
-            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 15, style: .continuous).stroke(CPTheme.insetBorder(scheme), lineWidth: 1))
         }
-    }
-
-    private func courseLink(_ course: CourseSummary, compact: Bool) -> some View {
-        NavigationLink {
-            CourseDetailView(course: course, store: store, features: features, initialSection: .graded)
-        } label: {
-            HStack(spacing: 8) {
-                Circle().fill(courseColor(course)).frame(width: 8, height: 8)
-                Text(store.displayName(courseID: course.id, fallback: course.name))
-                    .font(.system(size: 12)).foregroundStyle(CPTheme.foreground(scheme))
-                    .lineLimit(compact ? 2 : 1)
-            }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
-        }.buttonStyle(.plain)
-    }
-
-    private func syllabusButton(_ course: CourseSummary) -> some View {
-        Button { syllabusCourse = course } label: {
-            Label("Syllabus", systemImage: "doc.text").font(.system(size: 10))
-                .foregroundStyle(CPTheme.muted(scheme)).padding(.horizontal, 8).frame(minHeight: 28)
-                .background(CPTheme.inset(scheme), in: Capsule())
-                .overlay(Capsule().stroke(CPTheme.insetBorder(scheme)))
-        }.buttonStyle(.plain)
-    }
-
-    private func gradeLink(_ course: CourseSummary) -> some View {
-        NavigationLink {
-            CourseDetailView(course: course, store: store, features: features, initialSection: .graded)
-        } label: {
-            Text(course.currentScore.map { "\($0.formatted(.number.precision(.fractionLength(1))))%" } ?? "—")
-                .font(.system(size: 12)).monospacedDigit().foregroundStyle(courseColor(course)).fixedSize()
-        }.buttonStyle(.plain)
+        .buttonStyle(.plain)
     }
 
     private func courseColor(_ course: CourseSummary) -> Color {
@@ -428,14 +521,35 @@ private struct NativeDashboardView: View {
         showFocus = true
         migratedWidgetOrder = true
     }
+
     private var digestCard: some View {
-        CPGlassCard(title: "Since your last visit", subtitle: "\(newAnnouncements.count + newGrades.count + newlyUrgent.count) updates", strong: true) {
-            if newAnnouncements.isEmpty && newGrades.isEmpty && newlyUrgent.isEmpty { NativeEmptyState(title: "All caught up.", symbol: "checkmark", detail: "No new announcements, grades, or urgent deadlines since your last visit.") }
-            else {
-                Button("Mark all seen") { markDigestSeen() }.font(.system(size: 11, weight: .regular))
-                digestSection("New announcements", items: newAnnouncements.map { $0.title })
-                digestSection("New grades", items: newGrades.map { "\($0.name) · \($0.submission?.score?.formatted() ?? "—")" })
-                digestSection("Newly urgent", items: newlyUrgent.map { "\($0.name) · \(urgency(for: $0) == "today" ? "Due today" : "Due soon")" })
+        Group {
+            if newAnnouncements.isEmpty && newGrades.isEmpty && newlyUrgent.isEmpty {
+                HStack(spacing: 12) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 20))
+                        .foregroundStyle(CPTheme.primary(scheme: scheme))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("All caught up")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(CPTheme.foreground(scheme))
+                        Text("No new announcements, grades, or urgent deadlines.")
+                            .font(.system(size: 11))
+                            .foregroundStyle(CPTheme.muted(scheme))
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
+                .background(CPTheme.glass(scheme), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(CPTheme.border(scheme), lineWidth: 1))
+            } else {
+                CPGlassCard(title: "Since your last visit", subtitle: "\(newAnnouncements.count + newGrades.count + newlyUrgent.count) updates", strong: true) {
+                    Button("Mark all seen") { markDigestSeen() }.font(.system(size: 11, weight: .regular))
+                    digestSection("New announcements", items: newAnnouncements.map { $0.title })
+                    digestSection("New grades", items: newGrades.map { "\($0.name) · \($0.submission?.score?.formatted() ?? "—")" })
+                    digestSection("Newly urgent", items: newlyUrgent.map { "\($0.name) · \(urgency(for: $0) == "today" ? "Due today" : "Due soon")" })
+                }
             }
         }
     }
@@ -447,23 +561,69 @@ private struct NativeDashboardView: View {
     }
     private func markDigestSeen() { let snapshot = NativeDigestSnapshot(lastVisit: Date(), grades: gradeMap, urgency: urgencyMap); digest = snapshot; if let data = try? JSONEncoder().encode(snapshot) { UserDefaults.standard.set(data, forKey: "CanvasProNativeDigest") } }
 
-    private var heroBackground: LinearGradient {
-        let palette = CPTheme.currentPalette
-        return LinearGradient(colors: scheme == .dark ? [.hsl(palette.hue, palette.saturation, 0.19), .hsl(palette.hue, palette.saturation, 0.13), .hsl(palette.hue, palette.saturation, 0.08)] : [.hsl(palette.hue, palette.saturation, 0.97), .hsl(palette.hue, palette.saturation, 0.88)], startPoint: .topLeading, endPoint: .bottomTrailing)
+    private var heroBackground: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: scheme == .dark
+                            ? [Color(white: 0.15), Color(white: 0.10)]
+                            : [Color.white, Color(white: 0.96)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            CPTheme.primary(scheme: scheme).opacity(scheme == .dark ? 0.10 : 0.06),
+                            Color.clear
+                        ],
+                        center: .topLeading,
+                        startRadius: 20,
+                        endRadius: 260
+                    )
+                )
+        }
     }
 
     private func heroStat(value: Int, label: String, symbol: String, danger: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack { Image(systemName: symbol).font(.system(size: 13)); Spacer(); Text("\(value)").font(.system(size: 18, weight: .regular)).tracking(-0.5).monospacedDigit() }
-            Text(label).font(.system(size: 10, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1).minimumScaleFactor(0.75)
-        }.foregroundStyle(danger ? CPTheme.danger : CPTheme.foreground(scheme)).padding(9).frame(maxWidth: .infinity, minHeight: 64).heroStatSurface(scheme: scheme)
-    }
-}
-
-private extension View {
-    func heroStatSurface(scheme: ColorScheme) -> some View {
-        let palette = CPTheme.currentPalette
-        return background(LinearGradient(colors: scheme == .dark ? [.hsl(palette.hue, palette.saturation, 0.23), .hsl(palette.hue, palette.saturation, 0.16), .hsl(palette.hue, palette.saturation, 0.11)] : [.hsl(palette.hue, palette.saturation, 0.98), .hsl(palette.hue, palette.saturation, 0.92)], startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 20, style: .continuous)).overlay(RoundedRectangle(cornerRadius: 20).stroke(CPTheme.primary(scheme: scheme).opacity(scheme == .dark ? 0.30 : 0.23)))
+            HStack {
+                Image(systemName: symbol)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(danger ? CPTheme.danger : CPTheme.muted(scheme))
+                Spacer()
+                Text("\(value)")
+                    .font(.system(size: 20, weight: .semibold))
+                    .tracking(-0.5)
+                    .monospacedDigit()
+                    .foregroundStyle(danger ? CPTheme.danger : CPTheme.foreground(scheme))
+            }
+            Text(label)
+                .font(.system(size: 11, weight: .regular))
+                .foregroundStyle(danger ? CPTheme.danger.opacity(0.85) : CPTheme.muted(scheme))
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, minHeight: 64)
+        .background(
+            danger
+                ? CPTheme.danger.opacity(scheme == .dark ? 0.14 : 0.10)
+                : Color.white.opacity(scheme == .dark ? 0.05 : 0.04),
+            in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(
+                    danger
+                        ? CPTheme.danger.opacity(0.35)
+                        : Color.white.opacity(scheme == .dark ? 0.07 : 0.12),
+                    lineWidth: 1
+                )
+        )
     }
 }
 
@@ -632,18 +792,62 @@ struct NativeAssignmentRow: View {
     private var countdown: NativeParity.Countdown? { NativeParity.countdown(assignment, completed: isComplete) }
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Button { Task { await store.toggle(assignment) } } label: { Image(systemName: isComplete ? "checkmark.square.fill" : "square").font(.system(size: 17)).foregroundStyle(isComplete ? CPTheme.primary(scheme: scheme) : CPTheme.muted(scheme)) }.buttonStyle(.plain).disabled(assignment.isCanvasFinished)
+            Button { Task { await store.toggle(assignment) } } label: {
+                Image(systemName: isComplete ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 20))
+                    .foregroundStyle(isComplete ? CPTheme.primary(scheme: scheme) : CPTheme.muted(scheme).opacity(0.6))
+            }
+            .buttonStyle(.plain)
+            .disabled(assignment.isCanvasFinished)
+
             VStack(alignment: .leading, spacing: 4) {
-                Text(assignment.name).font(.system(size: 14, weight: .regular)).strikethrough(isComplete).fixedSize(horizontal: false, vertical: true)
-                Text(store.displayName(courseID: assignment.courseID, fallback: assignment.courseName)).font(.system(size: 12, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
-                if let countdown { VStack(alignment: .leading, spacing: 1) { Text(countdown.label).font(.system(size: 11)).foregroundStyle(countdown.urgency == "today" || countdown.urgency == "overdue" ? CPTheme.foreground(scheme) : CPTheme.muted(scheme)); Text(countdown.fullDate).font(.system(size: 10)).foregroundStyle(CPTheme.muted(scheme)) } }
+                Text(assignment.name)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(isComplete ? CPTheme.muted(scheme) : CPTheme.foreground(scheme))
+                    .strikethrough(isComplete)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(store.displayName(courseID: assignment.courseID, fallback: assignment.courseName))
+                    .font(.system(size: 12, weight: .regular))
+                    .foregroundStyle(CPTheme.muted(scheme))
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if let countdown {
+                    HStack(spacing: 4) {
+                        Image(systemName: "clock")
+                            .font(.system(size: 10))
+                        Text(countdown.label)
+                            .font(.system(size: 11, weight: .medium))
+                        if !countdown.fullDate.isEmpty {
+                            Text("· \(countdown.fullDate)")
+                                .font(.system(size: 10))
+                                .foregroundStyle(CPTheme.muted(scheme))
+                        }
+                    }
+                    .foregroundStyle(
+                        countdown.urgency == "overdue" ? CPTheme.danger :
+                        countdown.urgency == "today" ? Color.orange :
+                        CPTheme.muted(scheme)
+                    )
+                }
+
                 HStack(spacing: 8) {
-                    if assignment.submission?.missing == true { Label("Missing", systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red) }
-                    if assignment.submission?.late == true { Text("Late").foregroundStyle(.orange) }
-                    if let points = assignment.pointsPossible { Text("\(points.formatted()) pts") }
-                }.font(.caption2)
-            }.frame(maxWidth: .infinity, alignment: .leading)
-        }.padding(.vertical, 3)
+                    if assignment.submission?.missing == true {
+                        Label("Missing", systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red)
+                    }
+                    if assignment.submission?.late == true {
+                        Text("Late").foregroundStyle(.orange)
+                    }
+                    if let points = assignment.pointsPossible {
+                        Text("\(points.formatted()) pts")
+                            .foregroundStyle(CPTheme.muted(scheme))
+                    }
+                }
+                .font(.system(size: 10, weight: .medium))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.vertical, 3)
     }
 }
 

@@ -98,13 +98,13 @@ export function DashboardHero() {
   return (
     <section className="dashboard-hero relative isolate overflow-hidden rounded-[2rem]">
       <div className="relative grid gap-4 p-4 sm:p-5 lg:grid-cols-[minmax(0,1.25fr)_minmax(21rem,0.75fr)] lg:gap-5 lg:p-6">
-        <div className="flex min-h-56 flex-col justify-between px-2 py-3 sm:px-3 sm:py-4 lg:min-h-64 lg:px-5">
+        <div className="flex min-h-44 flex-col justify-between px-2 py-3 sm:min-h-56 sm:px-3 sm:py-4 lg:min-h-64 lg:px-5">
           <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
             <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
             <span>{date}</span>
           </div>
 
-          <div className="dashboard-hero__greeting-wrap relative my-8 max-w-2xl">
+          <div className="dashboard-hero__greeting-wrap relative my-5 sm:my-8 max-w-2xl">
             <h1 className="dashboard-hero__greeting relative text-balance text-[clamp(2rem,4vw,3.5rem)] font-medium leading-[1.04] tracking-[-0.035em] text-foreground">
               {greeting}
               {displayName ? `, ${displayName}.` : "."}

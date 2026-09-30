@@ -254,10 +254,21 @@ struct CalendarView: View {
     @Environment(\.colorScheme) private var scheme
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
-    @State private var weekOnly = true
     @State private var showCompleted = false
     @State private var editingPick: CalendarPick?
     @State private var pickedTime = Date()
+    @State private var selectedDate: Date? = Calendar.current.startOfDay(for: Date())
+    @State private var currentWeekOffset = 0
+
+    private var calendar: Calendar { Calendar.current }
+    private var today: Date { calendar.startOfDay(for: Date()) }
+
+    private var weekDates: [Date] {
+        let weekday = calendar.component(.weekday, from: today)
+        let monday = calendar.date(byAdding: .day, value: -((weekday + 5) % 7) + (currentWeekOffset * 7), to: today) ?? today
+        return (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: monday) }
+    }
+
     private var allAssignments: [AssignmentItem] {
         store.bundle.assignments + features.customAssignments.map { item in
             AssignmentItem.custom(item, course: store.bundle.courses.first { $0.id == item.courseID })
@@ -267,68 +278,432 @@ struct CalendarView: View {
         allAssignments.filter { !features.hiddenCourseIDs.contains($0.courseID) && $0.isVisible(in: store, showCompleted: showCompleted) }
     }
     private var agenda: [NativeCalendarEntry] {
-        let end = weekOnly ? NativeParity.endOfUpcomingDay(7) : Date.distantFuture
         let pickedIDs = Set(features.calendarPicks.map(\.assignmentID))
         var result = visibleAssignments.compactMap { item -> NativeCalendarEntry? in
-            guard !pickedIDs.contains(item.id), let date = item.dueDate, date >= Date(), date <= end else { return nil }
+            guard !pickedIDs.contains(item.id), let date = item.dueDate, date >= Date().addingTimeInterval(-86400) else { return nil }
             return NativeCalendarEntry(id: "assignment-\(item.id)", date: date, title: item.name, context: item.courseName, kind: "Assignment due", url: URL(string: item.htmlURL), pickID: nil)
         }
         result += store.bundle.calendar.compactMap { event in
-            guard let raw = event.startAt, let date = ISO8601DateFormatter.canvasDate(from: raw), date >= Date(), date <= end else { return nil }
+            guard let raw = event.startAt, let date = ISO8601DateFormatter.canvasDate(from: raw), date >= Date().addingTimeInterval(-86400) else { return nil }
             return NativeCalendarEntry(id: "event-\(event.id)", date: date, title: event.title, context: event.contextName ?? event.locationName ?? "Canvas event", kind: "Canvas event", url: event.htmlURL.flatMap { URL(string: $0) }, pickID: nil)
         }
         result += features.calendarPicks.compactMap { pick in
             if let assignment = allAssignments.first(where: { $0.id == pick.assignmentID }), !assignment.isVisible(in: store, showCompleted: showCompleted) { return nil }
-            guard let date = ISO8601DateFormatter.canvasDate(from: pick.at), date >= Date().addingTimeInterval(-12 * 3600), date <= end else { return nil }
+            guard let date = ISO8601DateFormatter.canvasDate(from: pick.at), date >= Date().addingTimeInterval(-12 * 3600) else { return nil }
             return NativeCalendarEntry(id: "pick-\(pick.id)", date: date, title: pick.title, context: pick.context, kind: "Planned work", url: nil, pickID: pick.id)
         }
         return result.sorted { $0.date < $1.date }
     }
-    private var days: [Date] { Array(Set(agenda.map { Calendar.current.startOfDay(for: $0.date) })).sorted() }
+
+    private func itemsFor(day: Date) -> [NativeCalendarEntry] {
+        agenda.filter { calendar.isDate($0.date, inSameDayAs: day) }
+    }
+
+    private var displayedAgenda: [NativeCalendarEntry] {
+        if let selected = selectedDate {
+            return agenda.filter { calendar.isDate($0.date, inSameDayAs: selected) }
+        }
+        return agenda
+    }
+
+    private var displayedDays: [Date] {
+        if let selected = selectedDate {
+            return [selected]
+        }
+        return Array(Set(agenda.map { calendar.startOfDay(for: $0.date) })).sorted()
+    }
+
     var body: some View {
         ZStack {
             CPBackdrop()
             ScrollView {
                 LazyVStack(spacing: 14) {
-                    VStack(alignment: .leading, spacing: 12) { HStack(spacing: 8) { Button { weekOnly = true } label: { CPChip(text: "This Week", selected: weekOnly) }.buttonStyle(.plain); Button { weekOnly = false } label: { CPChip(text: "Full Semester", selected: !weekOnly) }.buttonStyle(.plain) }; Toggle("Show completed", isOn: $showCompleted).font(.system(size: 12, weight: .regular)) }
-                    CPGlassCard(title: "Workload") { WorkloadView(assignments: visibleAssignments) }
-                    if agenda.isEmpty { CPGlassCard { NativeEmptyState(title: "Nothing scheduled", symbol: "calendar", detail: weekOnly ? "Nothing scheduled in the next 7 days." : "Nothing scheduled for the semester.") } }
-                    ForEach(days, id: \.self) { day in
-                        CPGlassCard(title: day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())) {
-                            ForEach(agenda.filter { Calendar.current.isDate($0.date, inSameDayAs: day) }) { item in
-                                CPInsetRow { VStack(alignment: .leading, spacing: 6) {
-                                    HStack(alignment: .top) { VStack(alignment: .leading, spacing: 3) { Text(item.title).font(.system(size: 13, weight: .regular)); Text("\(item.kind) · \(item.context)").font(.system(size: 11)).foregroundStyle(CPTheme.muted(scheme)) }; Spacer(); Text(item.date, format: .dateTime.hour().minute()).font(.system(size: 11)).foregroundStyle(CPTheme.muted(scheme)) }
-                                    if let pickID = item.pickID { HStack { Button("Change time") { if let pick = features.calendarPicks.first(where: { $0.id == pickID }) { pickedTime = item.date; editingPick = pick } }; Spacer(); Button("Remove", role: .destructive) { removePick(pickID) } }.font(.system(size: 11, weight: .regular)) }
-                                    else if let url = item.url, url.scheme == "https" { Link("Open in Canvas", destination: url).font(.system(size: 11, weight: .regular)) }
-                                } }
+                    calendarStrip
+
+                    if agenda.isEmpty {
+                        CPGlassCard {
+                            NativeEmptyState(
+                                title: "Nothing scheduled",
+                                symbol: "calendar",
+                                detail: "No upcoming assignments or events on your Canvas calendar."
+                            )
+                        }
+                    } else if let selected = selectedDate {
+                        // Selected Day View
+                        let dayItems = itemsFor(day: selected)
+                        CPGlassCard(
+                            title: selected.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()),
+                            subtitle: dayItems.isEmpty ? "No deadlines scheduled" : "\(dayItems.count) \(dayItems.count == 1 ? "item" : "items")"
+                        ) {
+                            if dayItems.isEmpty {
+                                HStack(spacing: 10) {
+                                    Image(systemName: "checkmark.circle")
+                                        .font(.system(size: 20))
+                                        .foregroundStyle(CPTheme.primary(scheme: scheme))
+                                    Text("Your schedule is clear for this day.")
+                                        .font(.system(size: 13))
+                                        .foregroundStyle(CPTheme.muted(scheme))
+                                }
+                                .padding(.vertical, 8)
+                            } else {
+                                VStack(spacing: 8) {
+                                    ForEach(dayItems) { item in
+                                        agendaItemRow(item)
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        // All Upcoming Days View
+                        ForEach(displayedDays, id: \.self) { day in
+                            let dayItems = itemsFor(day: day)
+                            if !dayItems.isEmpty {
+                                CPGlassCard(
+                                    title: day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()),
+                                    subtitle: "\(dayItems.count) \(dayItems.count == 1 ? "item" : "items")"
+                                ) {
+                                    VStack(spacing: 8) {
+                                        ForEach(dayItems) { item in
+                                            agendaItemRow(item)
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
-                }.padding(14).padding(.bottom, 20)
-            }
-        }.navigationTitle("Calendar").navigationBarTitleDisplayMode(.inline)
-            .sheet(item: $editingPick) { pick in NavigationStack { Form { DatePicker("Planned time", selection: $pickedTime) }.navigationTitle("Change time").toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { editingPick = nil } }; ToolbarItem(placement: .confirmationAction) { Button("Save") { let updated = features.calendarPicks.map { existing in var value = existing; if existing.id == pick.id { value.at = ISO8601DateFormatter().string(from: pickedTime) }; return value }; Task { try? await features.savePreference("calendar-picks", updated) }; editingPick = nil } } } } }
-    }
-    private func removePick(_ id: Int) { Task { try? await features.savePreference("calendar-picks", features.calendarPicks.filter { $0.id != id }) } }
-}
 
-struct WorkloadView: View {
-    let assignments: [AssignmentItem]
-    @State private var selectedDay: Date?
-    private var monday: Date { let today = Calendar.current.startOfDay(for: Date()); let weekday = Calendar.current.component(.weekday, from: today); return Calendar.current.date(byAdding: .day, value: -((weekday + 5) % 7), to: today) ?? today }
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack { Text("Workload — next 4 weeks").font(.system(size: 12)); Spacer(); Text("\(assignments.filter { $0.dueDate.map { $0 >= monday && $0 < (Calendar.current.date(byAdding: .day, value: 28, to: monday) ?? .distantFuture) } ?? false }.count) items").font(.system(size: 10)).foregroundStyle(.secondary) }
-            ForEach(0..<4, id: \.self) { week in
-                HStack(spacing: 6) {
-                    ForEach(0..<7, id: \.self) { weekday in
-                        let day = Calendar.current.date(byAdding: .day, value: week * 7 + weekday, to: monday) ?? Date()
-                        let count = assignments.filter { $0.dueDate.map { Calendar.current.isDate($0, inSameDayAs: day) } ?? false }.count
-                        Button { selectedDay = day } label: { VStack(spacing: 4) { RoundedRectangle(cornerRadius: 5).fill(count == 0 ? Color.secondary.opacity(0.13) : Color.accentColor.opacity(min(1, 0.3 + Double(count) * 0.18))).frame(height: 30).overlay { VStack(spacing: 0) { Text("\(Calendar.current.component(.day, from: day))").font(.system(size: 9)); if count > 0 { Text("\(count)").font(.system(size: 9)) } } }; Text(day, format: .dateTime.weekday(.narrow)).font(.system(size: 9)) } }.buttonStyle(.plain).frame(maxWidth: .infinity).accessibilityLabel("\(day.formatted(.dateTime.month().day())): \(count) assignments")
+                    CPGlassCard(title: "Workload Overview", subtitle: "Assignment load over next 4 weeks") {
+                        WorkloadView(assignments: visibleAssignments)
+                    }
+                }
+                .padding(14)
+                .padding(.bottom, 24)
+            }
+        }
+        .navigationTitle("Calendar")
+        .navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $editingPick) { pick in
+            NavigationStack {
+                Form {
+                    DatePicker("Planned time", selection: $pickedTime)
+                }
+                .navigationTitle("Change time")
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { editingPick = nil }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Save") {
+                            let updated = features.calendarPicks.map { existing in
+                                var value = existing
+                                if existing.id == pick.id {
+                                    value.at = ISO8601DateFormatter().string(from: pickedTime)
+                                }
+                                return value
+                            }
+                            Task {
+                                try? await features.savePreference("calendar-picks", updated)
+                            }
+                            editingPick = nil
+                        }
                     }
                 }
             }
-            if let selectedDay { let items = assignments.filter { $0.dueDate.map { Calendar.current.isDate($0, inSameDayAs: selectedDay) } ?? false }; Text("\(selectedDay.formatted(.dateTime.month(.abbreviated).day())) · \(items.count) assignment\(items.count == 1 ? "" : "s")").font(.system(size: 11)).foregroundStyle(.secondary); ForEach(items) { item in Text(item.name).font(.system(size: 11)) } }
+        }
+    }
+
+    private var calendarStrip: some View {
+        CPGlassCard(strong: true) {
+            VStack(spacing: 12) {
+                // Header with Month and Week Navigation
+                HStack {
+                    if let firstDate = weekDates.first {
+                        Text(firstDate.formatted(.dateTime.month(.wide).year()))
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(CPTheme.foreground(scheme))
+                    }
+                    Spacer()
+                    HStack(spacing: 6) {
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                currentWeekOffset -= 1
+                            }
+                        } label: {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 12, weight: .semibold))
+                                .frame(width: 30, height: 30)
+                                .background(CPTheme.inset(scheme), in: Circle())
+                        }
+                        .buttonStyle(.plain)
+
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                currentWeekOffset = 0
+                                selectedDate = today
+                            }
+                        } label: {
+                            Text("Today")
+                                .font(.system(size: 11, weight: .medium))
+                                .padding(.horizontal, 8)
+                                .frame(height: 30)
+                                .background(CPTheme.inset(scheme), in: Capsule())
+                        }
+                        .buttonStyle(.plain)
+
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                currentWeekOffset += 1
+                            }
+                        } label: {
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 12, weight: .semibold))
+                                .frame(width: 30, height: 30)
+                                .background(CPTheme.inset(scheme), in: Circle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+
+                // 7-day row
+                HStack(spacing: 4) {
+                    ForEach(weekDates, id: \.self) { date in
+                        let isSelected = selectedDate != nil && calendar.isDate(selectedDate!, inSameDayAs: date)
+                        let isToday = calendar.isDate(date, inSameDayAs: today)
+                        let dayItems = itemsFor(day: date)
+                        let hasItems = !dayItems.isEmpty
+
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.15)) {
+                                if isSelected {
+                                    selectedDate = nil
+                                } else {
+                                    selectedDate = date
+                                }
+                            }
+                        } label: {
+                            VStack(spacing: 5) {
+                                Text(date.formatted(.dateTime.weekday(.narrow)))
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundStyle(isToday && !isSelected ? CPTheme.primary(scheme: scheme) : CPTheme.muted(scheme))
+
+                                ZStack {
+                                    if isSelected {
+                                        Circle()
+                                            .fill(CPTheme.primary(scheme: scheme))
+                                            .frame(width: 32, height: 32)
+                                    } else if isToday {
+                                        Circle()
+                                            .stroke(CPTheme.primary(scheme: scheme), lineWidth: 1.5)
+                                            .frame(width: 32, height: 32)
+                                    }
+
+                                    Text("\(calendar.component(.day, from: date))")
+                                        .font(.system(size: 13, weight: isSelected || isToday ? .bold : .medium))
+                                        .foregroundStyle(
+                                            isSelected ? CPTheme.background(scheme) :
+                                            isToday ? CPTheme.primary(scheme: scheme) :
+                                            CPTheme.foreground(scheme)
+                                        )
+                                }
+                                .frame(height: 32)
+
+                                Circle()
+                                    .fill(
+                                        isSelected ? CPTheme.background(scheme) :
+                                        hasItems ? CPTheme.primary(scheme: scheme) :
+                                        Color.clear
+                                    )
+                                    .frame(width: 4, height: 4)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 6)
+                            .background(
+                                isSelected ? CPTheme.primary(scheme: scheme).opacity(0.12) : Color.clear,
+                                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+
+                // Filter / View selector row
+                HStack(spacing: 8) {
+                    Button {
+                        withAnimation { selectedDate = nil }
+                    } label: {
+                        CPChip(text: "All Upcoming", selected: selectedDate == nil)
+                    }
+                    .buttonStyle(.plain)
+
+                    Spacer()
+
+                    Toggle("Completed", isOn: $showCompleted)
+                        .font(.system(size: 12, weight: .regular))
+                        .tint(CPTheme.primary(scheme: scheme))
+                }
+            }
+        }
+    }
+
+    private func agendaItemRow(_ item: NativeCalendarEntry) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(
+                        item.kind.contains("Assignment")
+                            ? CPTheme.primary(scheme: scheme).opacity(0.14)
+                            : Color.blue.opacity(0.14)
+                    )
+                    .frame(width: 32, height: 32)
+
+                Image(systemName: item.kind.contains("Assignment") ? "checklist" : "calendar")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(
+                        item.kind.contains("Assignment")
+                            ? CPTheme.primary(scheme: scheme)
+                            : Color.blue
+                    )
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(item.title)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(CPTheme.foreground(scheme))
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(item.context)
+                    .font(.system(size: 12))
+                    .foregroundStyle(CPTheme.muted(scheme))
+
+                HStack(spacing: 8) {
+                    if let pickID = item.pickID {
+                        Button("Change time") {
+                            if let pick = features.calendarPicks.first(where: { $0.id == pickID }) {
+                                pickedTime = item.date
+                                editingPick = pick
+                            }
+                        }
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(CPTheme.primary(scheme: scheme))
+
+                        Button("Remove", role: .destructive) {
+                            removePick(pickID)
+                        }
+                        .font(.system(size: 11, weight: .medium))
+                    } else if let url = item.url, url.scheme == "https" {
+                        Link(destination: url) {
+                            HStack(spacing: 3) {
+                                Text("Open Canvas")
+                                Image(systemName: "arrow.up.right")
+                            }
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(CPTheme.primary(scheme: scheme))
+                        }
+                    }
+                }
+                .padding(.top, 2)
+            }
+
+            Spacer(minLength: 8)
+
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(item.date, format: .dateTime.hour().minute())
+                    .font(.system(size: 13, weight: .semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(CPTheme.foreground(scheme))
+
+                Text(item.kind.contains("Assignment") ? "Due" : "Event")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(CPTheme.muted(scheme))
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 15, style: .continuous).stroke(CPTheme.insetBorder(scheme), lineWidth: 1))
+    }
+
+    private func removePick(_ id: Int) {
+        Task {
+            try? await features.savePreference("calendar-picks", features.calendarPicks.filter { $0.id != id })
+        }
+    }
+}
+
+struct WorkloadView: View {
+    @Environment(\.colorScheme) private var scheme
+    let assignments: [AssignmentItem]
+    private var calendar: Calendar { Calendar.current }
+    private var today: Date { calendar.startOfDay(for: Date()) }
+    private var monday: Date {
+        let weekday = calendar.component(.weekday, from: today)
+        return calendar.date(byAdding: .day, value: -((weekday + 5) % 7), to: today) ?? today
+    }
+
+    private var weekSummaries: [(name: String, range: String, count: Int, assignments: [AssignmentItem])] {
+        (0..<4).compactMap { weekIndex -> (name: String, range: String, count: Int, [AssignmentItem])? in
+            guard let start = calendar.date(byAdding: .day, value: weekIndex * 7, to: monday),
+                  let end = calendar.date(byAdding: .day, value: 7, to: start) else { return nil }
+            let items = assignments.filter {
+                guard let due = $0.dueDate else { return false }
+                return due >= start && due < end
+            }
+            let label = weekIndex == 0 ? "This Week" : weekIndex == 1 ? "Next Week" : "Week \(weekIndex + 1)"
+            let rangeStr = "\(start.formatted(.dateTime.month(.abbreviated).day())) – \(calendar.date(byAdding: .day, value: 6, to: start)?.formatted(.dateTime.month(.abbreviated).day()) ?? "")"
+            return (name: label, range: rangeStr, count: items.count, assignments: items)
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Upcoming 4-Week Load")
+                    .font(.system(size: 13, weight: .medium))
+                Spacer()
+                Text("\(assignments.count) total items")
+                    .font(.system(size: 11))
+                    .foregroundStyle(CPTheme.muted(scheme))
+            }
+
+            VStack(spacing: 8) {
+                ForEach(weekSummaries, id: \.name) { week in
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(week.name)
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(CPTheme.foreground(scheme))
+                            Text(week.range)
+                                .font(.system(size: 11))
+                                .foregroundStyle(CPTheme.muted(scheme))
+                        }
+
+                        Spacer()
+
+                        GeometryReader { proxy in
+                            ZStack(alignment: .leading) {
+                                Capsule()
+                                    .fill(Color.white.opacity(scheme == .dark ? 0.06 : 0.08))
+                                    .frame(height: 6)
+                                Capsule()
+                                    .fill(week.count > 4 ? CPTheme.danger : week.count > 0 ? CPTheme.primary(scheme: scheme) : Color.clear)
+                                    .frame(width: min(proxy.size.width, max(8, proxy.size.width * CGFloat(min(1.0, Double(week.count) / 6.0)))), height: 6)
+                            }
+                            .frame(maxHeight: .infinity)
+                        }
+                        .frame(width: 80, height: 16)
+
+                        Text("\(week.count) due")
+                            .font(.system(size: 12, weight: .semibold))
+                            .monospacedDigit()
+                            .foregroundStyle(week.count > 4 ? CPTheme.danger : week.count > 0 ? CPTheme.foreground(scheme) : CPTheme.muted(scheme))
+                            .frame(width: 48, alignment: .trailing)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(CPTheme.insetBorder(scheme), lineWidth: 1))
+                }
+            }
         }
     }
 }

@@ -297,23 +297,23 @@
 /* Frosted glass surfaces */
 @utility glass-panel {
   background: hsl(var(--glass));
-  backdrop-filter: blur(14px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(150%);
   border: 1px solid hsl(var(--glass-border));
-  box-shadow: var(--shadow-glass);
+  box-shadow: 0 1px 0 0 rgb(255 255 255 / 0.05) inset, 0 8px 24px -8px rgb(0 0 0 / 0.3);
   border-radius: var(--radius-2xl);
 }
 
 @utility glass-panel-strong {
   background: hsl(var(--glass-strong));
-  backdrop-filter: blur(16px) saturate(190%);
+  backdrop-filter: blur(24px) saturate(160%);
   border: 1px solid hsl(var(--glass-border));
-  box-shadow: var(--shadow-glass-lg);
+  box-shadow: 0 1px 0 0 rgb(255 255 255 / 0.06) inset, 0 12px 32px -10px rgb(0 0 0 / 0.35);
   border-radius: var(--radius-2xl);
 }
 
 @utility glass-inset {
-  background: hsl(0 0% 100% / 0.035);
-  border: 1px solid hsl(0 0% 100% / 0.06);
+  background: hsl(0 0% 100% / 0.045);
+  border: 1px solid hsl(0 0% 100% / 0.07);
   border-radius: var(--radius-lg);
 }
 
@@ -670,18 +670,19 @@
 .dashboard-hero {
   --hero-hue: var(--palette-hue, 148);
   --hero-saturation: var(--palette-saturation, 34%);
-  border: 1px solid hsl(var(--primary) / 0.28);
+  --hero-sat-low: calc(var(--hero-saturation) * 0.45);
+  border: 1px solid hsl(var(--primary) / 0.18);
   background:
-    radial-gradient(ellipse 55% 95% at 23% 47%, hsl(var(--primary) / 0.24), transparent 75%),
-    radial-gradient(ellipse 50% 95% at 92% -10%, hsl(var(--primary) / 0.18), transparent 75%),
+    radial-gradient(ellipse 55% 95% at 23% 47%, hsl(var(--primary) / 0.14), transparent 75%),
+    radial-gradient(ellipse 50% 95% at 92% -10%, hsl(var(--primary) / 0.10), transparent 75%),
     linear-gradient(128deg,
-      hsl(var(--hero-hue) var(--hero-saturation) 19%) 0%,
-      hsl(var(--hero-hue) var(--hero-saturation) 13%) 52%,
-      hsl(var(--hero-hue) var(--hero-saturation) 8%) 100%);
+      hsl(var(--hero-hue) var(--hero-sat-low) 17%) 0%,
+      hsl(var(--hero-hue) var(--hero-sat-low) 12%) 52%,
+      hsl(var(--hero-hue) var(--hero-sat-low) 7%) 100%);
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.1),
-    0 28px 60px -30px rgb(0 0 0 / 0.7),
-    0 8px 24px -14px rgb(0 0 0 / 0.45);
+    inset 0 1px 0 rgb(255 255 255 / 0.06),
+    0 20px 50px -25px rgb(0 0 0 / 0.5),
+    0 6px 18px -10px rgb(0 0 0 / 0.3);
 }
 
 .dashboard-hero::before {
@@ -709,12 +710,11 @@
 }
 
 .dashboard-hero__cta {
-  border: 1px solid hsl(var(--primary) / 0.5);
-  background: linear-gradient(145deg, hsl(var(--primary) / 0.23), hsl(var(--primary) / 0.08));
+  border: 1px solid hsl(var(--primary) / 0.35);
+  background: linear-gradient(145deg, hsl(var(--primary) / 0.16), hsl(var(--primary) / 0.05));
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.19),
-    0 5px 14px rgb(0 0 0 / 0.18),
-    0 0 18px rgb(255 255 255 / 0.06);
+    inset 0 1px 0 rgb(255 255 255 / 0.12),
+    0 4px 12px rgb(0 0 0 / 0.14);
   transition:
     border-color 250ms ease,
     box-shadow 250ms ease,
@@ -722,27 +722,27 @@
 }
 
 .dashboard-hero__stat-shell {
-  border: 1px solid hsl(var(--primary) / 0.2);
-  background: linear-gradient(145deg, hsl(var(--primary) / 0.13), hsl(var(--primary) / 0.035) 55%);
+  border: 1px solid hsl(var(--primary) / 0.12);
+  background: linear-gradient(145deg, hsl(var(--primary) / 0.08), hsl(var(--primary) / 0.02) 55%);
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.06),
-    0 12px 28px rgb(0 0 0 / 0.18);
+    inset 0 1px 0 rgb(255 255 255 / 0.04),
+    0 8px 20px rgb(0 0 0 / 0.12);
 }
 
 .dashboard-hero__stat-card {
   isolation: isolate;
   overflow: hidden;
-  border: 1px solid hsl(var(--primary) / 0.3);
+  border: 1px solid hsl(var(--primary) / 0.18);
   background:
-    radial-gradient(ellipse 85% 100% at 8% 0%, hsl(var(--primary) / 0.22), transparent 72%),
+    radial-gradient(ellipse 85% 100% at 8% 0%, hsl(var(--primary) / 0.12), transparent 72%),
     linear-gradient(145deg,
-      hsl(var(--hero-hue) var(--hero-saturation) 23%) 0%,
-      hsl(var(--hero-hue) var(--hero-saturation) 16%) 52%,
-      hsl(var(--hero-hue) var(--hero-saturation) 11%) 100%);
+      hsl(var(--hero-hue) var(--hero-sat-low) 20%) 0%,
+      hsl(var(--hero-hue) var(--hero-sat-low) 14%) 52%,
+      hsl(var(--hero-hue) var(--hero-sat-low) 9%) 100%);
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.13),
-    0 11px 21px -10px rgb(0 0 0 / 0.5),
-    0 3px 7px rgb(0 0 0 / 0.16);
+    inset 0 1px 0 rgb(255 255 255 / 0.08),
+    0 8px 18px -8px rgb(0 0 0 / 0.4),
+    0 2px 6px rgb(0 0 0 / 0.12);
   transition:
     border-color 250ms ease,
     box-shadow 250ms ease,

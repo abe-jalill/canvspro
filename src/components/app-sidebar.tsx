@@ -592,7 +592,7 @@ function NativeMobileNav() {
 
       <nav
         aria-label="Primary"
-        className="fixed inset-x-0 bottom-0 z-50 border-t border-foreground/10 bg-background/90 px-2 pb-[max(.35rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur-2xl"
+        className="fixed inset-x-0 bottom-0 z-50 border-t border-foreground/[0.06] bg-background/80 px-2 pb-[max(.35rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-3xl backdrop-saturate-150"
       >
         <div className="mx-auto grid max-w-lg grid-cols-5">
           {primary.map((item) => {
@@ -604,8 +604,8 @@ function NativeMobileNav() {
                 preload="intent"
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "press flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-xl text-[10px]",
-                  active ? "text-foreground" : "text-muted-foreground",
+                  "press flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-medium",
+                  active ? "text-primary" : "text-muted-foreground",
                 )}
               >
                 <item.icon className="h-5 w-5" aria-hidden="true" />
@@ -618,8 +618,8 @@ function NativeMobileNav() {
             onClick={() => setOpen((value) => !value)}
             aria-expanded={open}
             className={cn(
-              "press flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-xl text-[10px]",
-              open ? "text-foreground" : "text-muted-foreground",
+              "press flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-medium",
+              open ? "text-primary" : "text-muted-foreground",
             )}
           >
             <Menu className="h-5 w-5" aria-hidden="true" />

@@ -7,14 +7,14 @@ enum CPPalette: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var name: String { rawValue.capitalized }
     var hue: Double {
-        switch self { case .forest: 148; case .blue: 214; case .violet: 266; case .rose: 340 }
+        switch self { case .forest: 152; case .blue: 214; case .violet: 266; case .rose: 340 }
     }
     var saturation: Double {
-        switch self { case .forest: 0.34; case .blue: 0.58; case .violet: 0.48; case .rose: 0.45 }
+        switch self { case .forest: 0.45; case .blue: 0.58; case .violet: 0.48; case .rose: 0.45 }
     }
     var swatch: Color {
         switch self {
-        case .forest: Color(red: 120.0 / 255, green: 185.0 / 255, blue: 142.0 / 255)
+        case .forest: Color(red: 48.0 / 255, green: 209.0 / 255, blue: 88.0 / 255)
         case .blue: Color(red: 118.0 / 255, green: 169.0 / 255, blue: 232.0 / 255)
         case .violet: Color(red: 179.0 / 255, green: 154.0 / 255, blue: 231.0 / 255)
         case .rose: Color(red: 220.0 / 255, green: 147.0 / 255, blue: 173.0 / 255)
@@ -43,14 +43,32 @@ enum CPTheme {
         return UITraitCollection.current.userInterfaceStyle == .dark ? .dark : .light
     }
 
-    static func background(_ scheme: ColorScheme, palette: CPPalette = currentPalette) -> Color { .hsl(palette.hue, scheme == .dark ? 0.28 : 0.24, scheme == .dark ? 0.04 : 0.97) }
-    static func foreground(_ scheme: ColorScheme, palette: CPPalette = currentPalette) -> Color { .hsl(palette.hue, scheme == .dark ? 0.10 : 0.26, scheme == .dark ? 0.97 : 0.12) }
-    static func primary(_ palette: CPPalette = currentPalette, scheme: ColorScheme) -> Color { .hsl(palette.hue, palette.saturation, scheme == .dark ? 0.72 : 0.30) }
-    static func muted(_ scheme: ColorScheme, palette: CPPalette = currentPalette) -> Color { .hsl(palette.hue, scheme == .dark ? 0.09 : 0.14, scheme == .dark ? 0.67 : 0.40) }
-    static func glass(_ scheme: ColorScheme, strong: Bool = false, palette: CPPalette = currentPalette) -> Color { .hsl(palette.hue, scheme == .dark ? (strong ? 0.20 : 0.18) : 0.24, scheme == .dark ? (strong ? 0.14 : 0.16) : 0.94, opacity: scheme == .dark ? (strong ? 0.76 : 0.60) : (strong ? 0.84 : 0.70)) }
-    static func border(_ scheme: ColorScheme, palette: CPPalette = currentPalette) -> Color { .hsl(palette.hue, scheme == .dark ? 0.18 : 0.28, scheme == .dark ? 0.88 : 0.18, opacity: 0.11) }
-    static func inset(_ scheme: ColorScheme) -> Color { foreground(scheme).opacity(0.035) }
-    static func insetBorder(_ scheme: ColorScheme) -> Color { foreground(scheme).opacity(scheme == .dark ? 0.06 : 0.07) }
+    static func background(_ scheme: ColorScheme, palette: CPPalette = currentPalette) -> Color {
+        scheme == .dark ? Color(red: 12.0 / 255, green: 14.0 / 255, blue: 13.0 / 255) : .hsl(palette.hue, 0.15, 0.98)
+    }
+    static func foreground(_ scheme: ColorScheme, palette: CPPalette = currentPalette) -> Color {
+        scheme == .dark ? .hsl(palette.hue, 0.02, 0.97) : .hsl(palette.hue, 0.20, 0.12)
+    }
+    static func primary(_ palette: CPPalette = currentPalette, scheme: ColorScheme) -> Color {
+        .hsl(palette.hue, palette.saturation, scheme == .dark ? 0.65 : 0.35)
+    }
+    static func muted(_ scheme: ColorScheme, palette: CPPalette = currentPalette) -> Color {
+        scheme == .dark ? .hsl(palette.hue, 0.03, 0.60) : .hsl(palette.hue, 0.10, 0.45)
+    }
+    static func glass(_ scheme: ColorScheme, strong: Bool = false, palette: CPPalette = currentPalette) -> Color {
+        scheme == .dark
+            ? Color(white: strong ? 0.16 : 0.12).opacity(strong ? 0.85 : 0.70)
+            : Color.white.opacity(strong ? 0.90 : 0.75)
+    }
+    static func border(_ scheme: ColorScheme, palette: CPPalette = currentPalette) -> Color {
+        scheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.08)
+    }
+    static func inset(_ scheme: ColorScheme) -> Color {
+        scheme == .dark ? Color.white.opacity(0.045) : Color.black.opacity(0.035)
+    }
+    static func insetBorder(_ scheme: ColorScheme) -> Color {
+        scheme == .dark ? Color.white.opacity(0.065) : Color.black.opacity(0.06)
+    }
 }
 
 extension Color {
@@ -71,8 +89,8 @@ struct CPBackdrop: View {
         GeometryReader { proxy in
             ZStack {
                 CPTheme.background(scheme)
-                Circle().fill(CPTheme.primary(scheme: scheme).opacity(0.13)).frame(width: 520, height: 520).blur(radius: 100).offset(x: -180, y: -360)
-                Circle().fill(CPTheme.primary(scheme: scheme).opacity(0.08)).frame(width: 440, height: 440).blur(radius: 110).offset(x: 210, y: -120)
+                Circle().fill(CPTheme.primary(scheme: scheme).opacity(0.05)).frame(width: 480, height: 480).blur(radius: 120).offset(x: -160, y: -320)
+                Circle().fill(CPTheme.primary(scheme: scheme).opacity(0.03)).frame(width: 400, height: 400).blur(radius: 130).offset(x: 180, y: -80)
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
             .clipped()
@@ -87,20 +105,43 @@ struct CPGlassCard<Content: View>: View {
     init(title: String? = nil, subtitle: String? = nil, strong: Bool = false, @ViewBuilder content: () -> Content) { self.title = title; self.subtitle = subtitle; self.strong = strong; self.content = content() }
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            if title != nil || subtitle != nil { VStack(alignment: .leading, spacing: 2) { if let title { Text(title).font(.system(size: 16, weight: .regular)).tracking(-0.2).foregroundStyle(CPTheme.foreground(scheme)) }; if let subtitle { Text(subtitle).font(.system(size: 11, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)) } } }
+            if title != nil || subtitle != nil {
+                VStack(alignment: .leading, spacing: 2) {
+                    if let title {
+                        Text(title).font(.system(size: 16, weight: .semibold)).tracking(-0.3).foregroundStyle(CPTheme.foreground(scheme))
+                    }
+                    if let subtitle {
+                        Text(subtitle).font(.system(size: 11, weight: .regular)).foregroundStyle(CPTheme.muted(scheme))
+                    }
+                }
+            }
             content
         }
-        .padding(14).frame(maxWidth: .infinity, alignment: .leading)
+        .padding(15)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(LinearGradient(colors: [
-                    CPTheme.glass(scheme, strong: strong),
-                    CPTheme.glass(scheme, strong: strong).opacity(0.86),
-                    CPTheme.primary(scheme: scheme).opacity(scheme == .dark ? 0.07 : 0.035)
-                ], startPoint: .topLeading, endPoint: .bottomTrailing))
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(CPTheme.glass(scheme, strong: strong))
         }
-        .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(LinearGradient(colors: [CPTheme.foreground(scheme).opacity(0.13), CPTheme.border(scheme)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1))
-        .shadow(color: Color.black.opacity(scheme == .dark ? (strong ? 0.34 : 0.25) : 0.09), radius: strong ? 32 : 20, y: strong ? 18 : 10)
+        .overlay(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(scheme == .dark ? 0.12 : 0.45),
+                            Color.white.opacity(scheme == .dark ? 0.03 : 0.08)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ),
+                    lineWidth: 1
+                )
+        )
+        .shadow(
+            color: Color.black.opacity(scheme == .dark ? (strong ? 0.35 : 0.22) : 0.06),
+            radius: strong ? 24 : 14,
+            y: strong ? 12 : 6
+        )
     }
 }
 
@@ -108,7 +149,13 @@ struct CPInsetRow<Content: View>: View {
     @Environment(\.colorScheme) private var scheme
     let content: Content
     init(@ViewBuilder content: () -> Content) { self.content = content() }
-    var body: some View { content.padding(10).frame(maxWidth: .infinity, alignment: .leading).background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 16, style: .continuous)).overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(CPTheme.insetBorder(scheme), lineWidth: 1)) }
+    var body: some View {
+        content
+            .padding(11)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 15, style: .continuous).stroke(CPTheme.insetBorder(scheme), lineWidth: 1))
+    }
 }
 
 struct CPPageHeader: View {

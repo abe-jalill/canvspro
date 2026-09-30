@@ -2,26 +2,26 @@
 :root[data-palette] {
   --palette-hue: 148;
   --palette-saturation: 34%;
-  --background: var(--palette-hue) 28% 4%;
-  --foreground: var(--palette-hue) 10% 97%;
-  --card: var(--palette-hue) 18% 16% / 0.6;
+  --background: var(--palette-hue) 12% 5%;
+  --foreground: var(--palette-hue) 6% 97%;
+  --card: var(--palette-hue) 10% 18% / 0.55;
   --card-foreground: var(--foreground);
-  --popover: var(--palette-hue) 22% 7% / 0.96;
+  --popover: var(--palette-hue) 12% 9% / 0.96;
   --popover-foreground: var(--foreground);
-  --primary: var(--palette-hue) var(--palette-saturation) 72%;
+  --primary: var(--palette-hue) var(--palette-saturation) 68%;
   --primary-foreground: var(--palette-hue) 28% 8%;
-  --secondary: var(--palette-hue) 20% 13% / 0.72;
+  --secondary: var(--palette-hue) 10% 15% / 0.65;
   --secondary-foreground: var(--foreground);
-  --muted: var(--palette-hue) 18% 14% / 0.62;
-  --muted-foreground: var(--palette-hue) 9% 67%;
-  --accent: var(--palette-hue) 22% 17% / 0.74;
+  --muted: var(--palette-hue) 8% 16% / 0.55;
+  --muted-foreground: var(--palette-hue) 6% 62%;
+  --accent: var(--palette-hue) 10% 19% / 0.65;
   --accent-foreground: var(--foreground);
-  --border: var(--palette-hue) 18% 88% / 0.11;
-  --input: var(--palette-hue) 18% 88% / 0.14;
+  --border: var(--palette-hue) 10% 88% / 0.09;
+  --input: var(--palette-hue) 10% 88% / 0.12;
   --ring: var(--palette-hue) var(--palette-saturation) 63% / 0.48;
-  --glass: var(--palette-hue) 18% 16% / 0.6;
-  --glass-strong: var(--palette-hue) 20% 14% / 0.76;
-  --glass-border: var(--palette-hue) 18% 88% / 0.11;
+  --glass: var(--palette-hue) 10% 18% / 0.55;
+  --glass-strong: var(--palette-hue) 10% 16% / 0.72;
+  --glass-border: var(--palette-hue) 10% 88% / 0.09;
 }
 
 :root[data-palette="blue"] {
@@ -65,8 +65,8 @@
 :root[data-palette] body {
   background-color: hsl(var(--background));
   background-image:
-    radial-gradient(65rem 40rem at 18% 0%, hsl(var(--primary) / 0.13), transparent 70%),
-    radial-gradient(50rem 35rem at 85% 12%, hsl(var(--primary) / 0.08), transparent 65%);
+    radial-gradient(65rem 40rem at 18% 0%, hsl(var(--primary) / 0.08), transparent 70%),
+    radial-gradient(50rem 35rem at 85% 12%, hsl(var(--primary) / 0.05), transparent 65%);
 }
 
 .app-brand {

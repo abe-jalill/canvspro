@@ -114,19 +114,13 @@ export function DigestCard({ announcements, assignments, courses }: Props) {
 
   if (total === 0) {
     return (
-      <GlassCard>
-        <div className="glass-hover flex items-center justify-between rounded-2xl px-1 py-1">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="glass-inset flex h-9 w-9 shrink-0 items-center justify-center rounded-xl">
-              <Check className="h-4 w-4" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold">All caught up.</p>
-              <p className="text-xs text-muted-foreground">
-                No new announcements, grades, or urgent deadlines since your last visit.
-              </p>
-            </div>
-          </div>
+      <GlassCard title="Since your last visit" subtitle="0 updates">
+        <div className="flex flex-col items-center justify-center gap-2 py-4 text-center">
+          <Check className="h-6 w-6 text-primary/60" />
+          <p className="text-sm font-medium">All caught up.</p>
+          <p className="max-w-xs text-xs text-muted-foreground">
+            No new announcements, grades, or urgent deadlines since your last visit.
+          </p>
         </div>
       </GlassCard>
     );

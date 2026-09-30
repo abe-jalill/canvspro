@@ -70,7 +70,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     root.dataset.palette = appearance.palette;
     document
       .querySelector('meta[name="theme-color"]')
-      ?.setAttribute("content", theme === "dark" ? "#09120e" : "#f4f6f2");
+      ?.setAttribute("content", theme === "dark" ? "#0d120f" : "#f4f6f2");
     try {
       localStorage.setItem("canvas:theme", appearance.mode);
       localStorage.setItem("canvas:palette", appearance.palette);
