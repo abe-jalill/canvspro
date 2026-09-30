@@ -1,10 +1,9 @@
 import SwiftUI
 import UserNotifications
 
-struct NativeSettingsView: View {
+struct NativeMoreView: View {
     @Environment(\.colorScheme) private var scheme
-    @ObservedObject var sessionStore: NativeSessionStore
-    @ObservedObject var contentStore: NativeContentStore
+    @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
 
     var body: some View {
@@ -12,30 +11,76 @@ struct NativeSettingsView: View {
             ZStack {
                 CPBackdrop()
                 ScrollView {
-                    LazyVStack(spacing: 14) {
-                        CPPageHeader(eyebrow: "Preferences", title: "Settings", detail: "Personalize CanvasPro and organize your coursework.")
-                        CPGlassCard(title: "Plan & organize", subtitle: "The tools that live in the website sidebar.") {
-                            settingsLink("Get It Done", "sparkles") { GetItDoneView(store: contentStore, features: features) }
-                            settingsLink("Focus", "scope") { FocusView(store: contentStore, features: features) }
-                            settingsLink("Calendar", "calendar") { CalendarView(store: contentStore, features: features) }
-                            settingsLink("Class Schedule", "calendar.badge.clock") { ClassScheduleView(features: features) }
-                            settingsLink("Announcements", "megaphone") { AnnouncementsView(store: contentStore, features: features) }
+                    VStack(spacing: 18) {
+                        CPGlassCard {
+                            link("Assignments", "checklist") { NativeAssignmentsView(store: store, features: features) }
+                            link("Get It Done", "sparkles") { GetItDoneView(store: store, features: features) }
+                            link("Calendar", "calendar") { CalendarView(store: store, features: features) }
+                            link("Class Schedule", "calendar.badge.clock") { ClassScheduleView(features: features) }
+                            link("Announcements", "megaphone") { AnnouncementsView(store: store, features: features) }
                         }
-                        AppearanceSettingsCard()
-                        CPGlassCard(title: "Courses", subtitle: "Names, visibility, and announcement history.") {
-                            settingsLink("Announcements", "clock.arrow.circlepath") { AnnouncementWindowSettingsView() }
-                            settingsLink("Class names", "character.cursor.ibeam") { ClassNamesView(store: contentStore) }
-                            settingsLink("Which classes to show", "eye.slash") { HiddenCoursesView(store: contentStore, features: features) }
+                        CPGlassCard {
+                            link("Settings", "gearshape") { NativeSettingsView(contentStore: store, features: features) }
                         }
-                        CPGlassCard(title: "Preview mode", subtitle: "No sign-in is required for this build.") { Text("Sample information is stored locally. Authentication, billing, Canvas connection, and notification preferences are intentionally excluded for now.").font(.system(size: 12, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)).lineSpacing(2) }
-                        CPGlassCard(title: "Legal") {
-                            settingsLink("Privacy Policy", "hand.raised") { NativeLegalView(title: "Privacy Policy") }
-                            settingsLink("Terms of Service", "doc.text") { NativeLegalView(title: "Terms of Service") }
-                        }
-                    }.padding(.horizontal, 14).padding(.top, 8).padding(.bottom, 24)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.top, 14)
+                    .padding(.bottom, 28)
                 }
-            }.navigationTitle("Settings").navigationBarTitleDisplayMode(.inline)
+            }
+            .navigationTitle("More")
+            .navigationBarTitleDisplayMode(.inline)
         }
+    }
+
+    private func link<Destination: View>(_ title: String, _ symbol: String, @ViewBuilder destination: () -> Destination) -> some View {
+        NavigationLink(destination: destination()) {
+            CPInsetRow {
+                HStack(spacing: 12) {
+                    Image(systemName: symbol).font(.system(size: 16)).frame(width: 24).foregroundStyle(CPTheme.primary(scheme: scheme))
+                    Text(title).font(.system(size: 14, weight: .regular))
+                    Spacer()
+                    Image(systemName: "chevron.right").font(.system(size: 10)).foregroundStyle(CPTheme.muted(scheme))
+                }
+                .frame(minHeight: 32)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct NativeSettingsView: View {
+    @Environment(\.colorScheme) private var scheme
+    @ObservedObject var contentStore: NativeContentStore
+    @ObservedObject var features: NativeFeatureStore
+
+    var body: some View {
+        ZStack {
+            CPBackdrop()
+            ScrollView {
+                LazyVStack(spacing: 18) {
+                    AppearanceSettingsCard()
+                    CPGlassCard(title: "Classes") {
+                        settingsLink("Announcement history", "clock.arrow.circlepath") { AnnouncementWindowSettingsView() }
+                        settingsLink("Class names", "character.cursor.ibeam") { ClassNamesView(store: contentStore) }
+                        settingsLink("Hidden classes", "eye.slash") { HiddenCoursesView(store: contentStore, features: features) }
+                    }
+                    CPGlassCard(title: "Legal") {
+                        settingsLink("Privacy Policy", "hand.raised") { NativeLegalView(title: "Privacy Policy") }
+                        settingsLink("Terms of Service", "doc.text") { NativeLegalView(title: "Terms of Service") }
+                    }
+                    Text("Preview uses sample data saved on this iPhone.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(CPTheme.muted(scheme))
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
+                .padding(.horizontal, 14)
+                .padding(.top, 14)
+                .padding(.bottom, 28)
+            }
+        }
+        .navigationTitle("Settings")
+        .navigationBarTitleDisplayMode(.inline)
     }
 
     private func settingsLink<Destination: View>(_ title: String, _ symbol: String, @ViewBuilder destination: () -> Destination) -> some View {
@@ -105,10 +150,10 @@ private struct GetItDoneView: View {
             CPBackdrop()
             ScrollView {
                 LazyVStack(spacing: 14) {
-                    VStack(alignment: .leading, spacing: 12) { CPPageHeader(eyebrow: "Get It Done", title: "Get It Done", detail: nil); HStack(spacing: 8) { ForEach([7, 14], id: \.self) { value in Button { window = value; choiceOffset = 0; orderRaw = "" } label: { CPChip(text: value == 7 ? "1 week" : "2 weeks", selected: window == value) }.buttonStyle(.plain) } } }
+                    HStack(spacing: 8) { ForEach([7, 14], id: \.self) { value in Button { window = value; choiceOffset = 0; orderRaw = "" } label: { CPChip(text: value == 7 ? "1 week" : "2 weeks", selected: window == value) }.buttonStyle(.plain) } }
                     planCard
                     if let first = recommendation {
-                        CPGlassCard(title: "What Should I Do Now?", subtitle: "One clear next step, chosen from deadlines, workload, priority, and the rest of your week.", strong: true) {
+                        CPGlassCard(title: "Start here", strong: true) {
                             NativeAssignmentRow(assignment: first, store: store)
                             Text(NativeParity.recommendationReason(first, estimate: features.estimates[first.id], dueSoonCount: candidatesDueSoonCount(for: first))).font(.system(size: 12, weight: .regular)).foregroundStyle(CPTheme.muted(scheme))
                             HStack { Button("Choose another") { choiceOffset = candidates.count <= 1 ? 0 : (choiceOffset + 1) % candidates.count }; Spacer(); Button("Skip today") { skip(first.id) } }.font(.system(size: 12, weight: .regular))
@@ -125,7 +170,7 @@ private struct GetItDoneView: View {
             }
     }
     private var planCard: some View {
-        CPGlassCard(title: "Today’s Plan", subtitle: "A realistic order for the work CanvasPro thinks you can make progress on today.") {
+        CPGlassCard(title: "Today’s Plan") {
             LazyVGrid(columns: phoneMetricColumns, spacing: 8) {
                 PlanMetricTile(value: "\(plan.reduce(0) { $0 + estimate(for: $1) })m", label: "Remaining workload")
                 PlanMetricTile(value: "\(plan.count)", label: "Tasks ready")
@@ -176,9 +221,8 @@ struct FocusView: View {
             CPBackdrop()
             ScrollView {
                 LazyVStack(spacing: 14) {
-                    CPPageHeader(eyebrow: "Focus", title: window == "all" ? "All assignments" : window == "overdue" ? "Overdue assignments" : "Due within \(window == "7" ? "1 week" : "\(window) day\(window == "1" ? "" : "s")")", detail: nil)
                     ScrollView(.horizontal, showsIndicators: false) { HStack(spacing: 8) { ForEach(["all", "7", "overdue", "3", "2", "1"], id: \.self) { value in Button { window = value } label: { CPChip(text: focusLabel(value), selected: window == value) }.buttonStyle(.plain) } } }
-                    HStack { Text(showCompleted ? "Showing completed assignments" : "Showing unfinished assignments").font(.system(size: 12)).foregroundStyle(CPTheme.muted(scheme)); Spacer(); Toggle("Show completed", isOn: $showCompleted).labelsHidden() }
+                    Toggle("Show completed", isOn: $showCompleted).font(.system(size: 12, weight: .regular))
                     CPGlassCard {
                         if items.isEmpty { NativeEmptyState(title: "You’re all caught up.", symbol: "checkmark", detail: "No assignments match this view. Choose All dates to check other deadlines.") }
                         VStack(spacing: 8) { ForEach(items) { item in CPInsetRow { VStack(alignment: .leading, spacing: 6) { NativeAssignmentRow(assignment: item, store: store); HStack { NavigationLink { AssignmentDetailView(assignment: item, store: store, features: features) } label: { Label("Description", systemImage: "doc.text") }; Spacer(); if let url = URL(string: item.htmlURL), !item.htmlURL.isEmpty { Link(destination: url) { Label("Open", systemImage: "arrow.up.right") } } }.font(.system(size: 11, weight: .regular)) } } } }
@@ -246,8 +290,8 @@ struct CalendarView: View {
             CPBackdrop()
             ScrollView {
                 LazyVStack(spacing: 14) {
-                    VStack(alignment: .leading, spacing: 12) { CPPageHeader(eyebrow: weekOnly ? "Next 7 days" : "Full semester", title: "Calendar", detail: nil); HStack(spacing: 8) { Button { weekOnly = true } label: { CPChip(text: "This Week", selected: weekOnly) }.buttonStyle(.plain); Button { weekOnly = false } label: { CPChip(text: "Full Semester", selected: !weekOnly) }.buttonStyle(.plain) }; Toggle("Show completed", isOn: $showCompleted).font(.system(size: 12, weight: .regular)) }
-                    CPGlassCard(title: "Workload", subtitle: "Assignment density by week") { WorkloadView(assignments: visibleAssignments) }
+                    VStack(alignment: .leading, spacing: 12) { HStack(spacing: 8) { Button { weekOnly = true } label: { CPChip(text: "This Week", selected: weekOnly) }.buttonStyle(.plain); Button { weekOnly = false } label: { CPChip(text: "Full Semester", selected: !weekOnly) }.buttonStyle(.plain) }; Toggle("Show completed", isOn: $showCompleted).font(.system(size: 12, weight: .regular)) }
+                    CPGlassCard(title: "Workload") { WorkloadView(assignments: visibleAssignments) }
                     if agenda.isEmpty { CPGlassCard { NativeEmptyState(title: "Nothing scheduled", symbol: "calendar", detail: weekOnly ? "Nothing scheduled in the next 7 days." : "Nothing scheduled for the semester.") } }
                     ForEach(days, id: \.self) { day in
                         CPGlassCard(title: day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())) {
@@ -315,10 +359,7 @@ private struct AnnouncementsView: View {
                 LazyVStack(spacing: 14) {
                     CPGlassCard(strong: true) {
                         VStack(alignment: .leading, spacing: 14) {
-                            Image(systemName: "megaphone").font(.system(size: 16)).foregroundStyle(CPTheme.primary(scheme: scheme)).frame(width: 36, height: 36).background(CPTheme.primary(scheme: scheme).opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
-                            Text(weeks == 0 ? "CAMPUS FEED · ALL" : "CAMPUS FEED · \(weeks) WEEK\(weeks == 1 ? "" : "S")").font(.system(size: 10, weight: .regular)).tracking(1.7).foregroundStyle(CPTheme.muted(scheme))
-                            Text("What changed while you were away.").font(.system(size: 28, weight: .regular)).tracking(-0.8)
-                            Text("Every course update, ordered by when it happened—not hidden behind class cards.").font(.system(size: 12, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)).lineSpacing(2)
+                            Text(weeks == 0 ? "All announcements" : weeks == 1 ? "Past week" : weeks == 4 ? "Past month" : "Past \(weeks) weeks").font(.system(size: 15, weight: .regular))
                             HStack(spacing: 8) { announcementMetric(items.count, "Recent posts"); announcementMetric(courseCount, "Active courses") }
                         }
                     }.overlay(alignment: .topTrailing) { Circle().fill(CPTheme.primary(scheme: scheme).opacity(0.15)).frame(width: 260, height: 260).blur(radius: 70).offset(x: 95, y: -95).allowsHitTesting(false) }
@@ -422,20 +463,20 @@ private struct AppearanceSettingsCard: View {
     @AppStorage("CanvasProPalette") private var palette = "forest"
     private let columns = [GridItem(.flexible()), GridItem(.flexible())]
     var body: some View {
-        CPGlassCard(title: "Make yourself at home", subtitle: "Your colors, saved on this iPhone for the preview.", strong: true) {
-                    Text("COLOR PALETTE").font(.system(size: 10, weight: .regular)).tracking(1.5).foregroundStyle(CPTheme.muted(resolvedScheme))
+        CPGlassCard(title: "Appearance", strong: true) {
+                    Text("THEME").font(.system(size: 10, weight: .regular)).tracking(1.5).foregroundStyle(CPTheme.muted(resolvedScheme))
                     LazyVGrid(columns: columns, spacing: 11) {
                         ForEach(CPPalette.allCases) { option in
                             Button { palette = option.rawValue } label: { PaletteOption(option: option, selected: palette == option.rawValue) }.buttonStyle(.plain)
                         }
                     }
-                    Text("APPEARANCE").font(.system(size: 10, weight: .regular)).tracking(1.5).foregroundStyle(CPTheme.muted(resolvedScheme)).padding(.top, 4)
+                    Text("MODE").font(.system(size: 10, weight: .regular)).tracking(1.5).foregroundStyle(CPTheme.muted(resolvedScheme)).padding(.top, 4)
                     LazyVGrid(columns: [GridItem(.flexible(minimum: 0), spacing: 9), GridItem(.flexible(minimum: 0), spacing: 9), GridItem(.flexible(minimum: 0))], spacing: 9) {
                         appearanceButton("light", "Light", "sun.max")
                         appearanceButton("dark", "Dark", "moon")
                         appearanceButton("system", "System", "desktopcomputer")
                     }
-                    Text(scheme == "system" ? "Follows your device’s light or dark appearance." : "A space that feels like you.").font(.system(size: 12)).foregroundStyle(CPTheme.muted(resolvedScheme))
+                    if scheme == "system" { Text("Follows your iPhone.").font(.system(size: 11)).foregroundStyle(CPTheme.muted(resolvedScheme)) }
         }
     }
     private func appearanceButton(_ value: String, _ title: String, _ symbol: String) -> some View {
@@ -453,9 +494,8 @@ private struct AnnouncementWindowSettingsView: View {
         ZStack {
             CPBackdrop()
             ScrollView {
-                CPGlassCard(title: "Announcements", subtitle: "How far back the announcements list reaches.", strong: true) {
+                CPGlassCard(title: "Announcement history", strong: true) {
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) { ForEach([1, 2, 4, 0], id: \.self) { value in Button { weeks = value } label: { CPChip(text: value == 0 ? "All" : value == 4 ? "1 month" : "\(value) week\(value == 1 ? "" : "s")", selected: weeks == value).frame(maxWidth: .infinity) }.buttonStyle(.plain) } }
-                    Text("Announcements older than this are hidden from the list.").font(.system(size: 12)).foregroundStyle(CPTheme.muted(scheme))
                 }.padding(14)
             }
         }.navigationTitle("Announcements").navigationBarTitleDisplayMode(.inline)
@@ -472,7 +512,6 @@ private struct PaletteOption: View {
                 if selected { Image(systemName: "checkmark").font(.system(size: 10, weight: .regular)).foregroundStyle(Color.hsl(option.hue, 0.28, 0.08)).frame(width: 20, height: 20).background(option.swatch, in: Circle()).padding(7) }
             }
             Text(option.name).font(.system(size: 12, weight: .regular)).foregroundStyle(CPTheme.foreground(scheme))
-            Text(option.detail).font(.system(size: 11)).foregroundStyle(CPTheme.muted(scheme)).lineLimit(2)
         }.padding(8).frame(maxWidth: .infinity, alignment: .leading).background(CPTheme.background(scheme).opacity(0.55), in: RoundedRectangle(cornerRadius: 14)).overlay(RoundedRectangle(cornerRadius: 14).stroke(selected ? CPTheme.primary(option, scheme: scheme) : CPTheme.border(scheme), lineWidth: selected ? 2 : 1))
     }
 }

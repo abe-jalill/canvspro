@@ -118,7 +118,7 @@ private struct PasswordResetSheet: View {
     }
 }
 
-private enum NativeTab: Hashable { case dashboard, assignments, study, grades, settings }
+private enum NativeTab: Hashable { case dashboard, focus, study, grades, more }
 
 struct NativeMainTabView: View {
     @ObservedObject var sessionStore: NativeSessionStore
@@ -143,10 +143,11 @@ struct NativeMainTabView: View {
             }
             .onReceive(NotificationCenter.default.publisher(for: .nativeNotificationPath)) { note in
                 guard let path = note.object as? String else { return }
-                if path.contains("assignment") || path.contains("focus") || path.contains("get-it-done") { selection = .assignments }
+                if path.contains("focus") { selection = .focus }
+                else if path.contains("assignment") || path.contains("get-it-done") { selection = .more }
                 else if path.contains("grade") { selection = .grades }
                 else if path.contains("study") { selection = .study }
-                else if path.contains("notification") || path.contains("settings") || path.contains("schedule") || path.contains("announcement") { selection = .settings }
+                else if path.contains("notification") || path.contains("settings") || path.contains("schedule") || path.contains("announcement") { selection = .more }
                 else { selection = .dashboard }
             }
             .alert("CanvasPro", isPresented: Binding(get: { contentStore.errorMessage != nil || featureStore.errorMessage != nil }, set: { if !$0 { contentStore.errorMessage = nil; featureStore.errorMessage = nil } })) {
@@ -169,10 +170,10 @@ struct NativeMainTabView: View {
     private var tabs: some View {
         TabView(selection: $selection) {
             NativeDashboardView(store: contentStore, features: featureStore).tabItem { Label("Dashboard", systemImage: "house.fill") }.tag(NativeTab.dashboard)
-            NativeAssignmentsView(store: contentStore, features: featureStore).tabItem { Label("Assignments", systemImage: "checklist") }.tag(NativeTab.assignments)
-            NativeStudyView(store: contentStore, features: featureStore).tabItem { Label("Study", systemImage: "timer") }.tag(NativeTab.study)
+            NavigationStack { FocusView(store: contentStore, features: featureStore) }.tabItem { Label("Focus", systemImage: "scope") }.tag(NativeTab.focus)
+            NativeStudyView(store: contentStore, features: featureStore).tabItem { Label("Study Session", systemImage: "timer") }.tag(NativeTab.study)
             NativeGradesView(store: contentStore, features: featureStore).tabItem { Label("Grades", systemImage: "chart.bar.fill") }.tag(NativeTab.grades)
-            NativeSettingsView(sessionStore: sessionStore, contentStore: contentStore, features: featureStore).tabItem { Label("Settings", systemImage: "gearshape.fill") }.tag(NativeTab.settings)
+            NativeMoreView(store: contentStore, features: featureStore).tabItem { Label("More", systemImage: "square.grid.2x2") }.tag(NativeTab.more)
         }
         .tabBarMinimizeBehavior(.onScrollDown)
     }
@@ -244,10 +245,6 @@ private struct NativeDashboardView: View {
                     LazyVStack(spacing: 12) {
                         dashboardHero
                         HStack {
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text("Your dashboard").font(.system(size: 16, weight: .regular)).foregroundStyle(CPTheme.foreground(scheme))
-                                Text("Your classes, deadlines, and updates.").font(.system(size: 11, weight: .regular)).foregroundStyle(CPTheme.muted(scheme))
-                            }
                             Spacer()
                             NavigationLink { DashboardCustomizationView() } label: { Label("Customize dashboard", systemImage: "slider.horizontal.3").labelStyle(.iconOnly).foregroundStyle(CPTheme.muted(scheme)).frame(width: 40, height: 40).background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 12)).overlay(RoundedRectangle(cornerRadius: 12).stroke(CPTheme.insetBorder(scheme))) }.buttonStyle(.plain)
                         }.padding(.horizontal, 3)
@@ -264,16 +261,14 @@ private struct NativeDashboardView: View {
     }
 
     private var dashboardHero: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             Label(Date().formatted(.dateTime.weekday(.wide).month(.wide).day()), systemImage: "calendar").font(.system(size: 10, weight: .regular)).tracking(1.4).textCase(.uppercase).foregroundStyle(CPTheme.muted(scheme))
             Text("\(greeting), \(studentName).").font(.system(size: 24, weight: .regular)).tracking(-0.6).foregroundStyle(CPTheme.foreground(scheme))
-            Text(heroMessage).font(.system(size: 12, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)).lineSpacing(2).lineLimit(2)
             HStack(spacing: 8) {
                 heroStat(value: weekItems.count, label: "7 days", symbol: "calendar")
                 heroStat(value: todayCount, label: "24 hours", symbol: "clock")
                 heroStat(value: overdueCount, label: "Overdue", symbol: "exclamationmark.triangle", danger: overdueCount > 0)
             }
-            NavigationLink { FocusView(store: store, features: features) } label: { Label("Open focus", systemImage: "arrow.up.right").font(.system(size: 11, weight: .regular)).padding(.horizontal, 12).frame(minHeight: 34).background(LinearGradient(colors: [CPTheme.primary(scheme: scheme).opacity(0.20), CPTheme.primary(scheme: scheme).opacity(0.07)], startPoint: .topLeading, endPoint: .bottomTrailing), in: Capsule()).overlay(Capsule().stroke(CPTheme.primary(scheme: scheme).opacity(0.45))) }.buttonStyle(.plain)
         }
         .padding(14)
         .background(heroBackground, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
@@ -285,12 +280,12 @@ private struct NativeDashboardView: View {
     @ViewBuilder private func dashboardWidget(_ id: String) -> some View {
         switch id {
         case "digest": if showSummary { digestCard }
-        case "classes": if showCourses { CPGlassCard(title: "Classes & Grades", subtitle: "Active enrollments") { ForEach(visibleCourses) { course in CPInsetRow { HStack { NavigationLink { CourseDetailView(course: course, store: store, features: features) } label: { CourseRow(course: course, store: store) }.buttonStyle(.plain); if let body = course.syllabusBody, !body.isEmpty { Button { syllabusCourse = course } label: { Image(systemName: "doc.text").font(.system(size: 13)) }.accessibilityLabel("Open \(course.name) syllabus") } } } } } }
-        case "upcoming": if showUpcoming { CPGlassCard(title: "Upcoming Assignments", subtitle: "Due within the next 7 days") { if upcoming.isEmpty { NativeEmptyState(title: "You’re caught up", symbol: "checkmark.circle") }; ForEach(upcoming) { assignment in CPInsetRow { NativeAssignmentRow(assignment: assignment, store: store) } } } }
-        case "focus": if showFocus { CPGlassCard(title: "Focus", subtitle: "Due within 48 hours") { ForEach(weekItems.filter { ($0.dueDate ?? .distantFuture) <= Date().addingTimeInterval(2 * 86400) }.prefix(3)) { assignment in CPInsetRow { NativeAssignmentRow(assignment: assignment, store: store) } } } }
-        case "calendar": if showCalendar { CPGlassCard(title: "Calendar", subtitle: "Your upcoming days") { ForEach(calendarPreview) { item in CPInsetRow { HStack { VStack(alignment: .leading, spacing: 3) { Text(item.title).font(.system(size: 12)); Text("\(item.kind) · \(item.context)").font(.system(size: 10)).foregroundStyle(CPTheme.muted(scheme)) }; Spacer(); Text(item.date, format: .dateTime.month().day().hour().minute()).font(.system(size: 10)).foregroundStyle(CPTheme.muted(scheme)) } } }; NavigationLink { CalendarView(store: store, features: features) } label: { Label("Open calendar", systemImage: "arrow.up.right").font(.system(size: 11)) } } }
-        case "announcements": if showAnnouncements { CPGlassCard(title: "Announcements", subtitle: "Latest from your courses") { ForEach(store.bundle.announcements.filter { !features.hiddenCourseIDs.contains($0.courseID) && $0.isWithin(weeks: announcementWeeks) && !dismissedAnnouncements.contains($0.id) }.prefix(3)) { item in NavigationLink { AnnouncementDetailView(item: item) } label: { CPInsetRow { VStack(alignment: .leading, spacing: 3) { Text(item.title).font(.system(size: 13, weight: .regular)); Text(item.courseName).font(.system(size: 10, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)); Text(item.message.strippingHTML).font(.system(size: 11, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)).lineLimit(2) } } }.buttonStyle(.plain) } } }
-        case "heatmap": if showWorkload { CPGlassCard(title: "Workload", subtitle: "Assignment density this month") { WorkloadView(assignments: activeAssignments) } }
+        case "classes": if showCourses { CPGlassCard(title: "Classes & Grades") { ForEach(visibleCourses) { course in CPInsetRow { HStack { NavigationLink { CourseDetailView(course: course, store: store, features: features) } label: { CourseRow(course: course, store: store) }.buttonStyle(.plain); if let body = course.syllabusBody, !body.isEmpty { Button { syllabusCourse = course } label: { Image(systemName: "doc.text").font(.system(size: 13)) }.accessibilityLabel("Open \(course.name) syllabus") } } } } } }
+        case "upcoming": if showUpcoming { CPGlassCard(title: "Upcoming") { if upcoming.isEmpty { NativeEmptyState(title: "You’re caught up", symbol: "checkmark.circle") }; ForEach(upcoming) { assignment in CPInsetRow { NativeAssignmentRow(assignment: assignment, store: store) } } } }
+        case "focus": if showFocus { CPGlassCard(title: "Due soon") { ForEach(weekItems.filter { ($0.dueDate ?? .distantFuture) <= Date().addingTimeInterval(2 * 86400) }.prefix(3)) { assignment in CPInsetRow { NativeAssignmentRow(assignment: assignment, store: store) } } } }
+        case "calendar": if showCalendar { CPGlassCard(title: "Calendar") { ForEach(calendarPreview) { item in CPInsetRow { HStack { VStack(alignment: .leading, spacing: 3) { Text(item.title).font(.system(size: 12)); Text("\(item.kind) · \(item.context)").font(.system(size: 10)).foregroundStyle(CPTheme.muted(scheme)) }; Spacer(); Text(item.date, format: .dateTime.month().day().hour().minute()).font(.system(size: 10)).foregroundStyle(CPTheme.muted(scheme)) } } }; NavigationLink { CalendarView(store: store, features: features) } label: { Label("Open calendar", systemImage: "arrow.up.right").font(.system(size: 11)) } } }
+        case "announcements": if showAnnouncements { CPGlassCard(title: "Announcements") { ForEach(store.bundle.announcements.filter { !features.hiddenCourseIDs.contains($0.courseID) && $0.isWithin(weeks: announcementWeeks) && !dismissedAnnouncements.contains($0.id) }.prefix(3)) { item in NavigationLink { AnnouncementDetailView(item: item) } label: { CPInsetRow { VStack(alignment: .leading, spacing: 3) { Text(item.title).font(.system(size: 13, weight: .regular)); Text(item.courseName).font(.system(size: 10, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)); Text(item.message.strippingHTML).font(.system(size: 11, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)).lineLimit(2) } } }.buttonStyle(.plain) } } }
+        case "heatmap": if showWorkload { CPGlassCard(title: "Workload") { WorkloadView(assignments: activeAssignments) } }
         default: EmptyView()
         }
     }
@@ -312,13 +307,6 @@ private struct NativeDashboardView: View {
         else if !store.bundle.courses.isEmpty { markDigestSeen() }
     }
     private func markDigestSeen() { let snapshot = NativeDigestSnapshot(lastVisit: Date(), grades: gradeMap, urgency: urgencyMap); digest = snapshot; if let data = try? JSONEncoder().encode(snapshot) { UserDefaults.standard.set(data, forKey: "CanvasProNativeDigest") } }
-
-    private var heroMessage: String {
-        if overdueCount > 0 { return "\(overdueCount) past-due item\(overdueCount == 1 ? " needs" : "s need") attention, with \(weekItems.count) ahead this week." }
-        if todayCount > 0 { return "\(todayCount) assignment\(todayCount == 1 ? " is" : "s are") due in the next 24 hours. Everything else can wait." }
-        if !weekItems.isEmpty { return "Today is clear. \(weekItems.count) item\(weekItems.count == 1 ? " is" : "s are") coming up over the next seven days." }
-        return "Your next seven days are clear. Take the win."
-    }
 
     private var heroBackground: LinearGradient {
         let palette = CPTheme.currentPalette
@@ -378,7 +366,7 @@ private struct DashboardCustomizationView: View {
     private func move(_ index: Int, _ direction: Int) { var values = order; guard values.indices.contains(index + direction) else { return }; values.swapAt(index, index + direction); orderRaw = values.joined(separator: ",") }
 }
 
-private struct NativeAssignmentsView: View {
+struct NativeAssignmentsView: View {
     @Environment(\.colorScheme) private var scheme
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
@@ -429,13 +417,12 @@ private struct NativeAssignmentsView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ZStack {
+        ZStack {
                 CPBackdrop()
                 ScrollView {
                     LazyVStack(spacing: 14) {
                         assignmentsHero
-                        CPGlassCard(title: "Priority Assignments", subtitle: "Smart ordering by deadline and weight") {
+                        CPGlassCard(title: "Priority") {
                             HStack(alignment: .top, spacing: 10) { Image(systemName: "sparkles").font(.system(size: 13)).foregroundStyle(CPTheme.foreground(scheme).opacity(0.8)).frame(width: 28, height: 28).background(CPTheme.foreground(scheme).opacity(0.10), in: RoundedRectangle(cornerRadius: 8)); Text(prioritySummary).font(.system(size: 12, weight: .regular)).foregroundStyle(CPTheme.foreground(scheme).opacity(0.90)).lineSpacing(2) }
                             VStack(spacing: 8) { ForEach(priorityAssignments) { item in CPInsetRow { VStack(alignment: .leading, spacing: 4) { NativeAssignmentRow(assignment: item, store: store); Text(priorityUrgency(item).uppercased()).font(.system(size: 9, weight: .regular)).tracking(0.7).foregroundStyle(priorityUrgency(item) == "critical" ? CPTheme.danger : priorityUrgency(item) == "high" ? CPTheme.warning : CPTheme.muted(scheme)) } } } }
                         }
@@ -446,7 +433,7 @@ private struct NativeAssignmentsView: View {
                         if assignments.isEmpty && !store.isLoading { CPGlassCard { NativeEmptyState(title: search.isEmpty ? "No assignments" : "No matches", symbol: "magnifyingglass") } }
                         ForEach(agendaSections.indices, id: \.self) { sectionIndex in
                             let section = agendaSections[sectionIndex]
-                            CPGlassCard(title: "\(section.0) · \(section.2.count)", subtitle: section.1) {
+                            CPGlassCard(title: "\(section.0) · \(section.2.count)") {
                                 ForEach(section.2) { item in CPInsetRow { VStack(alignment: .leading, spacing: 7) {
                                     NativeAssignmentRow(assignment: item, store: store)
                                     HStack(spacing: 12) {
@@ -460,24 +447,21 @@ private struct NativeAssignmentsView: View {
                         }
                     }.padding(.horizontal, 15).padding(.vertical, 10).padding(.bottom, 24)
                 }
-            }
-            .navigationTitle("Assignments").navigationBarTitleDisplayMode(.inline).searchable(text: $search, prompt: "Assignment or class")
-            .toolbar { Button { showAdd = true } label: { Image(systemName: "plus") } }
-            .sheet(isPresented: $showAdd) { AddAssignmentView(courses: visibleCourses, features: features) }
-            .refreshable { async let a: Void = store.load(); async let b: Void = features.load(); _ = await (a, b) }
         }
+        .navigationTitle("Assignments").navigationBarTitleDisplayMode(.inline).searchable(text: $search, prompt: "Assignment or class")
+        .toolbar { Button { showAdd = true } label: { Image(systemName: "plus") } }
+        .sheet(isPresented: $showAdd) { AddAssignmentView(courses: visibleCourses, features: features) }
+        .refreshable { async let a: Void = store.load(); async let b: Void = features.load(); _ = await (a, b) }
     }
 
     private var assignmentsHero: some View {
         CPGlassCard(strong: true) {
-            VStack(alignment: .leading, spacing: 14) {
-                Image(systemName: "checklist").font(.system(size: 16)).foregroundStyle(CPTheme.primary(scheme: scheme)).frame(width: 36, height: 36).background(CPTheme.primary(scheme: scheme).opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
-                Text("COMPLETE WORKLOAD").font(.system(size: 10, weight: .regular)).tracking(1.7).foregroundStyle(CPTheme.muted(scheme))
-                Text("One agenda. Every assignment.").font(.system(size: 28, weight: .regular)).tracking(-0.8)
-                Text("Work is ordered by urgency across every class, so the next deadline is always obvious.").font(.system(size: 12, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)).lineSpacing(2)
-                LazyVGrid(columns: [GridItem(.flexible(minimum: 0), spacing: 8), GridItem(.flexible(minimum: 0), spacing: 8)], spacing: 8) { workloadMetric(assignments.count, "Remaining"); workloadMetric(overdueCount, "Overdue", color: CPTheme.danger); workloadMetric(weekCount, "This week", color: CPTheme.primary(scheme: scheme)) }
+            HStack(spacing: 8) {
+                workloadMetric(assignments.count, "Remaining")
+                workloadMetric(overdueCount, "Overdue", color: CPTheme.danger)
+                workloadMetric(weekCount, "This week", color: CPTheme.primary(scheme: scheme))
             }
-        }.overlay(alignment: .topTrailing) { Circle().fill(CPTheme.primary(scheme: scheme).opacity(0.15)).frame(width: 280, height: 280).blur(radius: 70).offset(x: 100, y: -100).allowsHitTesting(false) }
+        }
     }
 
     private func workloadMetric(_ value: Int, _ label: String, color: Color? = nil) -> some View { VStack(alignment: .leading, spacing: 3) { Text("\(value)").font(.system(size: 21, weight: .regular)).tracking(-0.6).monospacedDigit().foregroundStyle(color ?? CPTheme.foreground(scheme)); Text(label).font(.system(size: 10, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)) }.padding(10).frame(maxWidth: .infinity, alignment: .leading).background((color ?? CPTheme.foreground(scheme)).opacity(0.06), in: RoundedRectangle(cornerRadius: 14)).overlay(RoundedRectangle(cornerRadius: 14).stroke((color ?? CPTheme.foreground(scheme)).opacity(0.10))) }
@@ -620,11 +604,7 @@ private struct NativeGradesView: View {
 
     private var gradesHero: some View {
         CPGlassCard(strong: true) {
-            VStack(alignment: .leading, spacing: 14) {
-                Image(systemName: "chart.bar.xaxis").font(.system(size: 16)).foregroundStyle(CPTheme.primary(scheme: scheme)).frame(width: 36, height: 36).background(CPTheme.primary(scheme: scheme).opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
-                Text("ACADEMIC PERFORMANCE").font(.system(size: 10, weight: .regular)).tracking(1.7).foregroundStyle(CPTheme.muted(scheme))
-                Text("Your semester, at a glance.").font(.system(size: 28, weight: .regular)).tracking(-0.8)
-                Text("Compare courses, spot movement, and open the details only when you need them.").font(.system(size: 12, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)).lineSpacing(2)
+            VStack(alignment: .leading, spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) { Text("CURRENT AVERAGE").font(.system(size: 10, weight: .regular)).tracking(1.4).foregroundStyle(CPTheme.muted(scheme)); CountUpGrade(value: average, size: 42, color: gradeColor(average)) }
                 Divider().overlay(CPTheme.foreground(scheme).opacity(0.10))
                 LazyVGrid(columns: [GridItem(.flexible(minimum: 0), spacing: 8), GridItem(.flexible(minimum: 0), spacing: 8)], spacing: 12) { gradeMetric("\(scored.count)", "Courses graded"); gradeMetric("\(risingCount)", "Trending up", accent: true); gradeMetric("\(gradedAssignments)", "Grades posted") }
@@ -1001,15 +981,14 @@ private struct NativeStudyView: View {
             CPBackdrop()
             ScrollView {
                 LazyVStack(spacing: 14) {
-                    CPPageHeader(eyebrow: "Study Session", title: "Build a focused session.", detail: "Choose the work, set a finish line, and let CanvasPro hold your place—even if you close the app.")
-                    CPGlassCard(title: "1 · Choose your focus", subtitle: "Select Canvas work or add one task of your own.") {
+                    CPGlassCard(title: "Choose tasks") {
                         Toggle("Show completed", isOn: $showCompleted).font(.system(size: 12, weight: .regular))
                         HStack { TextField("Add a task of your own", text: $manualName); Button("Add") { addManualTask() }.disabled(manualName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) }
                         TextField("Search assignments", text: $search)
                         VStack(spacing: 8) { ForEach(availableItems.filter { item in (item.courseID == 0 || item.isVisible(in: store, showCompleted: showCompleted)) && (search.isEmpty || item.name.localizedCaseInsensitiveContains(search) || item.courseName.localizedCaseInsensitiveContains(search)) }.sorted(by: AssignmentItem.dueSort)) { item in Button { if selected.contains(item.id) { selected.remove(item.id); selectedOrder.removeAll { $0 == item.id } } else { selected.insert(item.id); selectedOrder.append(item.id) } } label: { CPInsetRow { HStack(spacing: 10) { Image(systemName: selected.contains(item.id) ? "checkmark.square.fill" : "square").foregroundStyle(selected.contains(item.id) ? CPTheme.primary(scheme: scheme) : CPTheme.muted(scheme)); VStack(alignment: .leading, spacing: 3) { Text(item.name).font(.system(size: 13, weight: .regular)); Text(item.courseName).font(.system(size: 11, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)) }; Spacer() } } }.buttonStyle(.plain) } }
                         if !items.isEmpty { VStack(alignment: .leading, spacing: 8) { Text("SELECTED ORDER").font(.system(size: 10)).foregroundStyle(CPTheme.muted(scheme)); ForEach(items.indices, id: \.self) { index in let item = items[index]; HStack { Text(item.name).font(.system(size: 12)); Spacer(); Button { moveSelection(index, -1) } label: { Image(systemName: "arrow.up") }.disabled(index == 0); Button { moveSelection(index, 1) } label: { Image(systemName: "arrow.down") }.disabled(index == items.count - 1); Button { selected.remove(item.id); selectedOrder.removeAll { $0 == item.id } } label: { Image(systemName: "xmark") } }.buttonStyle(.plain) } } }
                     }
-                    CPGlassCard(title: "2 · Set a finish line", subtitle: "Pick a focused amount of time.", strong: true) {
+                    CPGlassCard(title: "Duration", strong: true) {
                         VStack(spacing: 2) { Text("\(duration)").font(.system(size: 32, weight: .regular)).tracking(-1).monospacedDigit(); Text("MINUTES").font(.system(size: 10, weight: .regular)).tracking(1.4).foregroundStyle(CPTheme.muted(scheme)) }.frame(maxWidth: .infinity).padding(.vertical, 12).background(CPTheme.foreground(scheme).opacity(0.05), in: RoundedRectangle(cornerRadius: 14))
                         LazyVGrid(columns: [GridItem(.flexible(minimum: 0), spacing: 8), GridItem(.flexible(minimum: 0), spacing: 8)], spacing: 8) { ForEach([15, 25, 45, 60], id: \.self) { value in Button { duration = value; remaining = value * 60 } label: { CPChip(text: "\(value)m", selected: duration == value).frame(maxWidth: .infinity) }.buttonStyle(.plain) } }
                         Button { completedIDs.removeAll(); currentIndex = 0; remaining = duration * 60; sessionStarted = true; running = true } label: { Label("Start session", systemImage: "timer").font(.system(size: 13, weight: .regular)).frame(maxWidth: .infinity, minHeight: 42).foregroundStyle(CPTheme.background(scheme)).background(CPTheme.foreground(scheme), in: RoundedRectangle(cornerRadius: 11)) }.buttonStyle(.plain).disabled(selected.isEmpty).opacity(selected.isEmpty ? 0.5 : 1)
@@ -1023,7 +1002,6 @@ private struct NativeStudyView: View {
             CPBackdrop()
             ScrollView {
                 VStack(spacing: 14) {
-                    CPPageHeader(eyebrow: "Study Session", title: "One thing at a time.", detail: "The plan stays out of the way while you focus on the assignment in front of you.")
                     CPGlassCard(strong: true) {
                         HStack { Text("\(completedIDs.count) finished"); Spacer(); Text("\(Int((Double(duration * 60 - remaining) / Double(max(1, duration * 60))) * 100))% of session") }.font(.system(size: 12)).foregroundStyle(CPTheme.muted(scheme))
                         ZStack {
@@ -1042,7 +1020,7 @@ private struct NativeStudyView: View {
     }
 
     private var summary: some View {
-        ZStack { CPBackdrop(); ScrollView { VStack(spacing: 14) { CPPageHeader(eyebrow: "Study Session", title: "Session finished", detail: "\(completedIDs.count) of \(items.count) assignments completed"); CPGlassCard { Button("Plan another") { resetSession(keepSelection: true) }; Button("Dismiss") { resetSession(keepSelection: false) } } }.padding(14) } }
+        ZStack { CPBackdrop(); ScrollView { VStack(spacing: 14) { CPGlassCard(title: "Session complete", subtitle: "\(completedIDs.count) of \(items.count) tasks finished") { Button("Plan another") { resetSession(keepSelection: true) }; Button("Dismiss") { resetSession(keepSelection: false) } } }.padding(14) } }
     }
 
     private func addManualTask() {
