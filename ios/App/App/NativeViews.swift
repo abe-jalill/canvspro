@@ -246,6 +246,9 @@ private struct NativeDashboardView: View {
                 ScrollView {
                     LazyVStack(spacing: 12) {
                         dashboardHero
+                        NativeSyncStatusCard(store: store) {
+                            Task { await store.load() }
+                        }
                         HStack {
                             Spacer()
                             NavigationLink { DashboardCustomizationView() } label: { Label("Customize dashboard", systemImage: "slider.horizontal.3").labelStyle(.iconOnly).foregroundStyle(CPTheme.muted(scheme)).frame(width: 40, height: 40).background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 12)).overlay(RoundedRectangle(cornerRadius: 12).stroke(CPTheme.insetBorder(scheme))) }.buttonStyle(.plain)
@@ -615,6 +618,70 @@ private struct MetricTile: View {
     @Environment(\.colorScheme) private var scheme
     let value: String; let label: String
     var body: some View { VStack(spacing: 3) { Text(value).font(.system(size: 19, weight: .regular)).monospacedDigit(); Text(label).font(.system(size: 10, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)) }.padding(.vertical, 10).frame(maxWidth: .infinity).background(CPTheme.foreground(scheme).opacity(0.045), in: RoundedRectangle(cornerRadius: 13)).overlay(RoundedRectangle(cornerRadius: 13).stroke(CPTheme.border(scheme), lineWidth: 1)) }
+}
+
+struct NativeSyncStatusCard: View {
+    @Environment(\.colorScheme) private var scheme
+    @ObservedObject var store: NativeContentStore
+    let retry: () -> Void
+
+    private var shouldShow: Bool {
+        !store.isPreview && (store.isLoading || store.isShowingCachedData || store.syncMessage != nil || store.lastSyncedAt != nil)
+    }
+
+    var body: some View {
+        if shouldShow {
+            CPGlassCard {
+                HStack(spacing: 10) {
+                    ZStack {
+                        Circle().fill(statusColor.opacity(0.14)).frame(width: 32, height: 32)
+                        if store.isLoading { ProgressView().controlSize(.small) }
+                        else { Image(systemName: statusSymbol).font(.system(size: 13)).foregroundStyle(statusColor) }
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(statusTitle).font(.system(size: 12, weight: .regular))
+                        Text(statusDetail).font(.system(size: 10, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)).lineLimit(2)
+                    }
+                    Spacer(minLength: 8)
+                    if store.isShowingCachedData && !store.isLoading {
+                        Button(action: retry) {
+                            Image(systemName: "arrow.clockwise").font(.system(size: 12))
+                                .frame(width: 30, height: 30)
+                                .background(CPTheme.inset(scheme), in: Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Refresh Canvas")
+                    }
+                }
+            }
+        }
+    }
+
+    private var statusColor: Color {
+        if store.isLoading { return CPTheme.primary(scheme: scheme) }
+        if store.isShowingCachedData { return CPTheme.warning }
+        if store.syncMessage != nil { return CPTheme.warning }
+        return CPTheme.primary(scheme: scheme)
+    }
+
+    private var statusSymbol: String {
+        if store.isShowingCachedData { return "wifi.slash" }
+        if store.syncMessage != nil { return "exclamationmark.triangle" }
+        return "checkmark"
+    }
+
+    private var statusTitle: String {
+        if store.isLoading { return "Refreshing Canvas" }
+        if store.isShowingCachedData { return "Saved data" }
+        if store.syncMessage != nil { return "Needs refresh" }
+        return "Live data"
+    }
+
+    private var statusDetail: String {
+        if let message = store.syncMessage { return message }
+        if let date = store.lastSyncedAt { return "Updated \(date.formatted(.dateTime.month(.abbreviated).day().hour().minute()))" }
+        return "Coursework will appear after the first sync."
+    }
 }
 
 private struct DashboardCustomizationView: View {

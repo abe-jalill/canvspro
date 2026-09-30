@@ -204,6 +204,13 @@ struct CanvasBundle: Codable {
     let errors: [String: String]?
 }
 
+private struct NativeContentCache: Codable {
+    let savedAt: Date
+    let bundle: CanvasBundle
+    let completed: [Int]
+    let nicknames: [Int: ClassNickname]
+}
+
 enum NativePreviewData {
     private static func date(daysFromToday: Int, hour: Int = 17) -> String {
         let value = Calendar.current.date(byAdding: .day, value: daysFromToday, to: Date()) ?? Date()
@@ -553,6 +560,9 @@ final class NativeContentStore: ObservableObject {
     @Published var completed = Set<Int>()
     @Published var nicknames: [Int: ClassNickname] = [:]
     @Published var isLoading = false
+    @Published var isShowingCachedData = false
+    @Published var lastSyncedAt: Date?
+    @Published var syncMessage: String?
     @Published var errorMessage: String?
     let isPreview: Bool
     private unowned let sessionStore: NativeSessionStore
@@ -568,6 +578,9 @@ final class NativeContentStore: ObservableObject {
             else { completed = [1005] }
             if let data = UserDefaults.standard.data(forKey: previewNicknamesKey),
                let saved = try? JSONDecoder().decode([Int: ClassNickname].self, from: data) { nicknames = saved }
+            lastSyncedAt = Date()
+        } else {
+            loadCachedContent()
         }
     }
 
@@ -576,17 +589,41 @@ final class NativeContentStore: ObservableObject {
         guard let api = sessionStore.api, let user = sessionStore.session?.user else { return }
         isLoading = true
         errorMessage = nil
+        syncMessage = nil
         defer { isLoading = false }
         do {
             let token = try await sessionStore.accessToken()
-            async let canvas = api.canvasBundle(token: token)
-            async let completionRows = api.completionIDs(token: token, userID: user.id)
-            async let nicknameRows = api.nicknames(token: token, userID: user.id)
-            bundle = try await canvas
-            completed = try await completionRows
-            let nicknameValues = try await nicknameRows
-            nicknames = Dictionary(uniqueKeysWithValues: nicknameValues.map { ($0.canvasCourseID, $0) })
-        } catch { errorMessage = error.localizedDescription }
+            let freshBundle = try await api.canvasBundle(token: token)
+            var freshCompleted = completed
+            var savedPreferenceWarning: String?
+
+            do {
+                freshCompleted = try await api.completionIDs(token: token, userID: user.id)
+            } catch {
+                savedPreferenceWarning = "Coursework refreshed. Saved completion state could not update."
+            }
+
+            do {
+                let nicknameValues = try await api.nicknames(token: token, userID: user.id)
+                nicknames = Dictionary(uniqueKeysWithValues: nicknameValues.map { ($0.canvasCourseID, $0) })
+            } catch {
+                savedPreferenceWarning = savedPreferenceWarning ?? "Coursework refreshed. Class nicknames could not update."
+            }
+
+            bundle = freshBundle
+            completed = sanitizedCompletedIDs(freshCompleted, in: freshBundle)
+            lastSyncedAt = Date()
+            isShowingCachedData = false
+            syncMessage = savedPreferenceWarning
+            persistContentCache()
+        } catch {
+            if bundle.courses.isEmpty && bundle.assignments.isEmpty {
+                errorMessage = friendlySyncError(error)
+            } else {
+                isShowingCachedData = true
+                syncMessage = "Showing saved coursework. Pull to refresh when your connection is back."
+            }
+        }
     }
 
     func displayName(courseID: Int, fallback: String) -> String {
@@ -618,6 +655,7 @@ final class NativeContentStore: ObservableObject {
     }
 
     func toggle(_ assignment: AssignmentItem) async {
+        guard !assignment.isCanvasFinished else { return }
         if isPreview {
             if completed.contains(assignment.id) { completed.remove(assignment.id) } else { completed.insert(assignment.id) }
             UserDefaults.standard.set(Array(completed), forKey: previewCompletedKey)
@@ -628,6 +666,7 @@ final class NativeContentStore: ObservableObject {
         if next { completed.insert(assignment.id) } else { completed.remove(assignment.id) }
         do {
             try await api.setCompletion(next, assignment: assignment, token: try await sessionStore.accessToken(), userID: user.id)
+            persistContentCache()
         } catch {
             if next { completed.remove(assignment.id) } else { completed.insert(assignment.id) }
             errorMessage = error.localizedDescription
@@ -647,11 +686,72 @@ final class NativeContentStore: ObservableObject {
         try await api.saveNickname(row, token: try await sessionStore.accessToken(), userID: user.id)
         if name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { nicknames.removeValue(forKey: course.id) }
         else { nicknames[course.id] = row }
+        persistContentCache()
     }
 
     func saveCanvas(domain: String, canvasToken: String) async throws {
         guard let api = sessionStore.api, let user = sessionStore.session?.user else { return }
-        try await api.saveCanvas(domain: domain, canvasToken: canvasToken, token: try await sessionStore.accessToken(), userID: user.id)
+        let cleanDomain = NativeContentStore.normalizedCanvasDomain(domain)
+        guard cleanDomain.contains("."), cleanDomain.count >= 5 else {
+            throw NativeAppError.server("Enter your Canvas URL like yourschool.instructure.com.")
+        }
+        let cleanToken = canvasToken.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard cleanToken.count >= 20 else {
+            throw NativeAppError.server("Paste the full Canvas API token.")
+        }
+        try await api.saveCanvas(domain: cleanDomain, canvasToken: cleanToken, token: try await sessionStore.accessToken(), userID: user.id)
         await load()
+    }
+
+    private func loadCachedContent() {
+        guard let userID = sessionStore.session?.user.id,
+              let data = UserDefaults.standard.data(forKey: cacheKey(userID: userID)),
+              let cache = try? JSONDecoder().decode(NativeContentCache.self, from: data) else { return }
+        bundle = cache.bundle
+        completed = sanitizedCompletedIDs(Set(cache.completed), in: cache.bundle)
+        nicknames = cache.nicknames
+        lastSyncedAt = cache.savedAt
+        isShowingCachedData = true
+        syncMessage = "Showing saved coursework."
+    }
+
+    private func persistContentCache() {
+        guard !isPreview, let userID = sessionStore.session?.user.id else { return }
+        let savedAt = lastSyncedAt ?? Date()
+        let cache = NativeContentCache(savedAt: savedAt, bundle: bundle, completed: Array(sanitizedCompletedIDs(completed, in: bundle)), nicknames: nicknames)
+        if let data = try? JSONEncoder().encode(cache) {
+            UserDefaults.standard.set(data, forKey: cacheKey(userID: userID))
+        }
+    }
+
+    private func cacheKey(userID: String) -> String {
+        "CanvasProNativeContentCache.\(userID)"
+    }
+
+    private func sanitizedCompletedIDs(_ ids: Set<Int>, in bundle: CanvasBundle) -> Set<Int> {
+        let assignments = Dictionary(uniqueKeysWithValues: bundle.assignments.map { ($0.id, $0) })
+        return Set(ids.filter { id in
+            guard let assignment = assignments[id] else { return id < 0 }
+            return !assignment.isCanvasFinished
+        })
+    }
+
+    private static func normalizedCanvasDomain(_ raw: String) -> String {
+        var value = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        value = value.replacingOccurrences(of: "https://", with: "")
+        value = value.replacingOccurrences(of: "http://", with: "")
+        value = value.split(separator: "/").first.map(String.init) ?? value
+        return value.trimmingCharacters(in: CharacterSet(charactersIn: "."))
+    }
+
+    private func friendlySyncError(_ error: Error) -> String {
+        let raw = error.localizedDescription
+        if raw.localizedCaseInsensitiveContains("timed out") || raw.localizedCaseInsensitiveContains("offline") || raw.localizedCaseInsensitiveContains("network") {
+            return "Could not refresh Canvas. Check your connection and try again."
+        }
+        if raw.contains("401") || raw.contains("403") || raw.localizedCaseInsensitiveContains("invalid") || raw.localizedCaseInsensitiveContains("revoked") {
+            return "Canvas rejected the saved connection. Recheck your Canvas URL and API token."
+        }
+        return raw
     }
 }

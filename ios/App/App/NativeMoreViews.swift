@@ -61,6 +61,7 @@ struct NativeSettingsView: View {
                 LazyVStack(spacing: 18) {
                     AppearanceSettingsCard()
                     CPGlassCard(title: "Classes") {
+                        settingsLink("Canvas connection", "link") { CanvasSettingsView(store: contentStore) }
                         settingsLink("Announcement history", "clock.arrow.circlepath") { AnnouncementWindowSettingsView() }
                         settingsLink("Class names", "character.cursor.ibeam") { ClassNamesView(store: contentStore) }
                         settingsLink("Hidden classes", "eye.slash") { HiddenCoursesView(store: contentStore, features: features) }
@@ -925,24 +926,81 @@ private struct HiddenCoursesView: View {
 }
 
 private struct CanvasSettingsView: View {
+    @Environment(\.colorScheme) private var scheme
     @ObservedObject var store: NativeContentStore
-    @State private var domain = ""; @State private var canvasToken = ""; @State private var working = false; @State private var status: String?
+    @State private var domain = ""
+    @State private var canvasToken = ""
+    @State private var working = false
+    @State private var status: String?
+    private var cleanDomain: String {
+        var value = domain.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        value = value.replacingOccurrences(of: "https://", with: "")
+        value = value.replacingOccurrences(of: "http://", with: "")
+        value = value.split(separator: "/").first.map(String.init) ?? value
+        return value.trimmingCharacters(in: CharacterSet(charactersIn: "."))
+    }
+    private var canSave: Bool { cleanDomain.contains(".") && canvasToken.trimmingCharacters(in: .whitespacesAndNewlines).count >= 20 && !working }
+
     var body: some View {
         Form {
             Section {
-                TextField("yourschool.instructure.com", text: $domain).textInputAutocapitalization(.never).keyboardType(.URL)
+                NativeSyncStatusCard(store: store) {
+                    Task { await store.load() }
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+            }
+            Section {
+                TextField("yourschool.instructure.com", text: $domain)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .keyboardType(.URL)
+                    .textContentType(.URL)
+                    .submitLabel(.next)
                 SecureField("Canvas API token", text: $canvasToken)
-                Button("Validate and Save") { save() }.disabled(domain.isEmpty || canvasToken.isEmpty || working)
+                    .textContentType(.password)
+                    .submitLabel(.done)
+                    .onSubmit { if canSave { save() } }
+                Button {
+                    save()
+                } label: {
+                    HStack {
+                        Spacer()
+                        if working { ProgressView() }
+                        else { Text("Validate and Save") }
+                        Spacer()
+                    }
+                }
+                .disabled(!canSave)
             } header: {
                 Text("Canvas connection")
             } footer: {
                 Text("The token is validated through CanvasPro and stored securely on the server, not on this device.")
             }
-            if let status { Section { Text(status).foregroundStyle(.secondary) } }
+            if !cleanDomain.isEmpty && cleanDomain != domain {
+                Section { Text("Will save as \(cleanDomain).").font(.system(size: 12)).foregroundStyle(CPTheme.muted(scheme)) }
+            }
+            if let status { Section { Text(status).foregroundStyle(status.localizedCaseInsensitiveContains("saved") ? CPTheme.primary(scheme: scheme) : CPTheme.warning) } }
             Section("How to get a token") { Text("In Canvas on the web, open Account → Settings → Approved Integrations → New Access Token. Copy it here once; CanvasPro cannot read it back later.") }
         }.cpListScreen().navigationTitle("Canvas")
     }
-    private func save() { working = true; Task { defer { working = false }; do { try await store.saveCanvas(domain: domain, canvasToken: canvasToken); canvasToken = ""; status = "Canvas connection saved." } catch { status = error.localizedDescription } } }
+
+    private func save() {
+        guard canSave else { return }
+        working = true
+        status = "Checking Canvas..."
+        Task {
+            defer { working = false }
+            do {
+                try await store.saveCanvas(domain: cleanDomain, canvasToken: canvasToken)
+                domain = cleanDomain
+                canvasToken = ""
+                status = "Canvas connection saved."
+            } catch {
+                status = error.localizedDescription
+            }
+        }
+    }
 }
 
 struct ClassScheduleView: View {
