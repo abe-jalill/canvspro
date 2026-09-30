@@ -40,6 +40,33 @@ function SignupPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [awaitingCode, setAwaitingCode] = useState(false);
+  const [code, setCode] = useState("");
+
+  async function onVerify(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setBusy(true);
+    const { data, error } = await supabase.auth.verifyOtp({
+      email: email.trim(),
+      token: code.trim(),
+      type: "email",
+    });
+    setBusy(false);
+    if (error || !data.session) {
+      setError(error?.message ?? "That code didn't work. Check it and try again.");
+      return;
+    }
+    navigate({ to: "/dashboard", replace: true });
+  }
+
+  async function onResend() {
+    setError(null);
+    setNotice(null);
+    const { error } = await supabase.auth.resend({ type: "signup", email: email.trim() });
+    if (error) setError(error.message);
+    else setNotice("We sent a new code.");
+  }
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -97,7 +124,51 @@ function SignupPage() {
       navigate({ to: "/dashboard", replace: true });
       return;
     }
-    setNotice("Check your email to confirm your account, then sign in.");
+    setAwaitingCode(true);
+  }
+
+  if (awaitingCode) {
+    return (
+      <AuthShell
+        title="Enter your code"
+        subtitle={`We emailed a 6-digit code to ${email.trim()}`}
+      >
+        <form onSubmit={onVerify} className="flex w-full flex-col gap-4">
+          <input
+            value={code}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            placeholder="123456"
+            aria-label="Verification code"
+            required
+            minLength={6}
+            maxLength={6}
+            className="glass-inset min-h-14 w-full rounded-xl px-4 text-center text-2xl font-semibold tracking-[0.5em] text-foreground outline-none"
+          />
+          {error && (
+            <p role="alert" className="text-sm text-foreground/80">
+              {error}
+            </p>
+          )}
+          {notice && <p className="text-sm text-muted-foreground">{notice}</p>}
+          <button
+            type="submit"
+            disabled={busy || code.length !== 6}
+            className="glass-hover min-h-12 w-full rounded-xl bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-60"
+          >
+            {busy ? "Verifying…" : "Verify"}
+          </button>
+          <button
+            type="button"
+            onClick={onResend}
+            className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
+          >
+            Resend code
+          </button>
+        </form>
+      </AuthShell>
+    );
   }
 
   return (
