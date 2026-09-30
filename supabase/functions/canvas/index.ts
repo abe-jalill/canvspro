@@ -5,6 +5,7 @@
 import { nextCanvasPagePath } from "./pagination.ts";
 import { isCanvasCourseVisible } from "./course-visibility.ts";
 import { corsHeaders } from "./cors.ts";
+import { isAllowedCanvasDomain, normalizeCanvasDomain } from "./domain-policy.ts";
 
 const API_VERSION = "/api/v1";
 
@@ -12,18 +13,12 @@ const API_VERSION = "/api/v1";
  *  "https://Yourschool.Instructure.com/" → "yourschool.instructure.com".
  *  Returns "" when the value isn't a plausible hostname. */
 function normalizeDomain(raw: string | null | undefined): string {
-  let v = (raw ?? "").trim().toLowerCase();
-  if (!v) return "";
-  v = v
-    .replace(/^https?:\/\//, "")
-    .split("/")[0]!
-    .split("?")[0]!
-    .trim();
-  if (!/^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/.test(v)) return "";
-  const labels = v.split(".");
-  if (labels.some((label) => !label || label.startsWith("-") || label.endsWith("-"))) return "";
-  const forbidden = new Set(["local", "localhost", "internal", "home", "lan"]);
-  return labels.some((label) => forbidden.has(label)) ? "" : v;
+  const domain = normalizeCanvasDomain(raw);
+  const configured = [
+    Deno.env.get("CANVAS_DOMAIN") ?? "",
+    ...(Deno.env.get("CANVAS_ALLOWED_DOMAINS") ?? "").split(","),
+  ];
+  return domain && isAllowedCanvasDomain(domain, configured) ? domain : "";
 }
 
 interface CanvasCourse {
@@ -152,6 +147,7 @@ async function canvasFetchPageRaw<T>(
 ): Promise<{ data: T; nextPath: string | null }> {
   const url = `https://${creds.domain}${API_VERSION}${path}`;
   const res = await fetch(url, {
+    redirect: "error",
     headers: {
       Authorization: `Bearer ${creds.token}`,
       Accept: "application/json",
@@ -240,9 +236,9 @@ async function credsForRequest(req: Request, includeHidden = false): Promise<Cre
 
   // The caller's own school URL wins; the global default keeps existing
   // accounts working until they save their own.
-  const domain =
-    normalizeDomain(rows?.[0]?.canvas_domain) || normalizeDomain(Deno.env.get("CANVAS_DOMAIN"));
-  if (!domain) throw new Error("NO_CANVAS_DOMAIN");
+  const requestedDomain = rows?.[0]?.canvas_domain?.trim() || Deno.env.get("CANVAS_DOMAIN");
+  const domain = normalizeDomain(requestedDomain);
+  if (!domain) throw new Error(normalizeCanvasDomain(requestedDomain) ? "CANVAS_DOMAIN_NOT_ALLOWED" : "NO_CANVAS_DOMAIN");
 
   let excluded = new Set<number>();
   if (!includeHidden) {
@@ -277,10 +273,21 @@ async function fetchActiveCourses(creds: Creds): Promise<CanvasCourse[]> {
   return courses.filter((course) => isCanvasCourseVisible(course, creds.excluded));
 }
 
+async function mapLimited<T, R>(items: T[], limit: number, task: (item: T) => Promise<R>): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length) {
+      const index = next++;
+      results[index] = await task(items[index]);
+    }
+  }));
+  return results;
+}
+
 async function handleCourses(creds: Creds) {
   const courses = await fetchActiveCourses(creds);
-  const detailed = await Promise.all(
-    courses.map(async (course) => {
+  const detailed = await mapLimited(courses, 6, async (course) => {
       if ((course.syllabus_body ?? "").trim()) return course;
       try {
         return await canvasFetch<CanvasCourse>(
@@ -290,8 +297,7 @@ async function handleCourses(creds: Creds) {
       } catch {
         return course;
       }
-    }),
-  );
+    });
   return detailed.map((c) => {
     const enr = c.enrollments?.find((e) => e.type === "student") ?? c.enrollments?.[0];
     const syllabus = (c.syllabus_body ?? "").trim();
@@ -309,13 +315,13 @@ async function handleCourses(creds: Creds) {
 
 async function handleAssignments(creds: Creds) {
   const courses = await fetchActiveCourses(creds);
-  const results = await Promise.allSettled(
-    courses.map(async (c) => {
+  const results = await mapLimited(courses, 6, async (c): Promise<PromiseSettledResult<(CanvasAssignment & { course_name: string; course_code: string })[]>> => {
+    try {
       const assignments = await canvasFetchAll<CanvasAssignment>(
         creds,
         `/courses/${c.id}/assignments?include[]=submission&override_assignment_dates=true&per_page=100&order_by=due_at`,
       );
-      return assignments.map((a) => ({
+      return { status: "fulfilled", value: assignments.map((a) => ({
         id: a.id,
         name: a.name,
         description: a.description ?? null,
@@ -326,9 +332,11 @@ async function handleAssignments(creds: Creds) {
         submission: a.submission,
         course_name: c.name,
         course_code: c.course_code,
-      }));
-    }),
-  );
+      })) };
+    } catch (reason) {
+      return { status: "rejected", reason };
+    }
+  });
   const failures = results.filter((result) => result.status === "rejected");
   if (courses.length > 0 && failures.length === courses.length) {
     const reason = failures[0].reason;
@@ -553,7 +561,7 @@ Deno.serve(async (req) => {
           overrideToken && storedCreds === null
             ? (() => {
                 const d = normalizeDomain(overrideDomain);
-                if (!d) throw new Error("INVALID_DOMAIN");
+                if (!d) throw new Error(normalizeCanvasDomain(overrideDomain) ? "CANVAS_DOMAIN_NOT_ALLOWED" : "INVALID_DOMAIN");
                 return {
                   domain: d,
                   token: overrideToken,
@@ -565,7 +573,7 @@ Deno.serve(async (req) => {
               ? (() => {
                   // URL-only change: check the saved key against the new URL.
                   const d = normalizeDomain(overrideDomain);
-                  if (!d) throw new Error("INVALID_DOMAIN");
+                  if (!d) throw new Error(normalizeCanvasDomain(overrideDomain) ? "CANVAS_DOMAIN_NOT_ALLOWED" : "INVALID_DOMAIN");
                   return { ...storedCreds, domain: d, cacheScope: "validation" };
                 })()
               : storedCreds!;
@@ -640,7 +648,7 @@ Deno.serve(async (req) => {
         ? 401
         : message === "NO_CANVAS_KEY" || message === "NO_CANVAS_DOMAIN"
           ? 428
-          : message === "INVALID_DOMAIN" || /^Canvas API 4\d\d/.test(message)
+        : message === "INVALID_DOMAIN" || message === "CANVAS_DOMAIN_NOT_ALLOWED" || /^Canvas API 4\d\d/.test(message)
             ? 400
             : 500;
     if (status === 500) console.error("[canvas]", message);

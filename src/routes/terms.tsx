@@ -37,7 +37,7 @@ const sections = [
     paragraphs: [
       "CanvasPro organizes Canvas courses, assignments, deadlines, grades, announcements, calendars, and user-entered schedules. It also offers Focus, Today’s Plan, workload estimates, study sessions, widgets, and reminders. Features and compatibility can change.",
       "Your institution’s Canvas portal, syllabus, instructors, and official records remain authoritative. Check them directly for deadlines, time zones, submission requirements, extensions, grade changes, and emergencies. Cached data can be incomplete or out of date, and app calculations or displays can contain errors.",
-      "Marking an item complete, starting a study session, or opening an assignment in CanvasPro does not submit coursework to Canvas, change an instructor’s deadline, or earn academic credit. Recommended tasks, duration estimates, priorities, GPA calculations, and study plans are organizational estimates, not academic advice or promises of grades, admission, graduation, or results.",
+      "Marking an item complete, starting a study session, or opening an assignment in CanvasPro does not submit coursework to Canvas, change an instructor’s deadline, or earn academic credit. Recommended tasks, duration estimates, priorities, and study plans are organizational estimates, not academic advice or promises of grades, admission, graduation, or results.",
     ],
   },
   {
@@ -73,8 +73,8 @@ const sections = [
   {
     title: "8. Fees and existing billing arrangements",
     paragraphs: [
-      "CanvasPro currently offers its features free of charge and does not offer new subscriptions. An existing subscription may continue to renew under the billing terms originally accepted until canceled through the billing portal. Review your billing account and contact support if you need help. Access to current free features does not depend on keeping an existing subscription.",
-      "Canceling a subscription, deleting an app, revoking a Canvas key, and deleting an account are different actions. Cancel any existing subscription through the billing portal before deleting your account, or contact support for assistance. Refunds and cancellation rights required by law remain available. Any future paid offering will disclose its price and billing terms and require authorization before charging you.",
+      "CanvasPro currently offers its features free of charge and does not offer new subscriptions. An existing subscription may continue to renew under the billing terms originally accepted until canceled. If a billing portal is available in your account, use it to cancel; otherwise contact support@canvaspro.app. Access to current free features does not depend on keeping an existing subscription.",
+      "Canceling a subscription, deleting an app, revoking a Canvas key, and deleting an account are different actions. Cancel any existing subscription before deleting your account, or contact support@canvaspro.app for assistance. Refunds and cancellation rights required by law remain available. Any future paid offering will disclose its price and billing terms and require authorization before charging you.",
     ],
   },
   {

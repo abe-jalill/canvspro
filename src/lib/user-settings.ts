@@ -108,6 +108,9 @@ async function invokeError(err: unknown): Promise<string> {
 
 /** Turns a raw validation failure into a message a student can act on. */
 function friendlyValidateError(raw: string): string {
+  if (/CANVAS_DOMAIN_NOT_ALLOWED/.test(raw)) {
+    return "This school Canvas URL is not enabled yet. Contact support to add it.";
+  }
   if (/INVALID_DOMAIN/.test(raw)) {
     return "That Canvas URL doesn't look right — enter it like yourschool.instructure.com.";
   }
