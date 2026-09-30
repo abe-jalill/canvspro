@@ -250,6 +250,12 @@ struct NativeCalendarEntry: Identifiable {
     let pickID: Int?
 }
 
+private struct CalendarDayGroup: Identifiable {
+    var id: Date { day }
+    let day: Date
+    let items: [NativeCalendarEntry]
+}
+
 struct CalendarView: View {
     @Environment(\.colorScheme) private var scheme
     @ObservedObject var store: NativeContentStore
@@ -299,18 +305,12 @@ struct CalendarView: View {
         agenda.filter { calendar.isDate($0.date, inSameDayAs: day) }
     }
 
-    private var displayedAgenda: [NativeCalendarEntry] {
-        if let selected = selectedDate {
-            return agenda.filter { calendar.isDate($0.date, inSameDayAs: selected) }
+    private var upcomingDayGroups: [CalendarDayGroup] {
+        let uniqueDays = Array(Set(agenda.map { calendar.startOfDay(for: $0.date) })).sorted()
+        return uniqueDays.compactMap { day in
+            let items = itemsFor(day: day)
+            return items.isEmpty ? nil : CalendarDayGroup(day: day, items: items)
         }
-        return agenda
-    }
-
-    private var displayedDays: [Date] {
-        if let selected = selectedDate {
-            return [selected]
-        }
-        return Array(Set(agenda.map { calendar.startOfDay(for: $0.date) })).sorted()
     }
 
     var body: some View {
@@ -355,17 +355,14 @@ struct CalendarView: View {
                         }
                     } else {
                         // All Upcoming Days View
-                        ForEach(displayedDays, id: \.self) { day in
-                            let dayItems = itemsFor(day: day)
-                            if !dayItems.isEmpty {
-                                CPGlassCard(
-                                    title: day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()),
-                                    subtitle: "\(dayItems.count) \(dayItems.count == 1 ? "item" : "items")"
-                                ) {
-                                    VStack(spacing: 8) {
-                                        ForEach(dayItems) { item in
-                                            agendaItemRow(item)
-                                        }
+                        ForEach(upcomingDayGroups) { group in
+                            CPGlassCard(
+                                title: group.day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()),
+                                subtitle: "\(group.items.count) \(group.items.count == 1 ? "item" : "items")"
+                            ) {
+                                VStack(spacing: 8) {
+                                    ForEach(group.items) { item in
+                                        agendaItemRow(item)
                                     }
                                 }
                             }
@@ -467,62 +464,7 @@ struct CalendarView: View {
                 // 7-day row
                 HStack(spacing: 4) {
                     ForEach(weekDates, id: \.self) { date in
-                        let isSelected = selectedDate != nil && calendar.isDate(selectedDate!, inSameDayAs: date)
-                        let isToday = calendar.isDate(date, inSameDayAs: today)
-                        let dayItems = itemsFor(day: date)
-                        let hasItems = !dayItems.isEmpty
-
-                        Button {
-                            withAnimation(.easeInOut(duration: 0.15)) {
-                                if isSelected {
-                                    selectedDate = nil
-                                } else {
-                                    selectedDate = date
-                                }
-                            }
-                        } label: {
-                            VStack(spacing: 5) {
-                                Text(date.formatted(.dateTime.weekday(.narrow)))
-                                    .font(.system(size: 11, weight: .medium))
-                                    .foregroundStyle(isToday && !isSelected ? CPTheme.primary(scheme: scheme) : CPTheme.muted(scheme))
-
-                                ZStack {
-                                    if isSelected {
-                                        Circle()
-                                            .fill(CPTheme.primary(scheme: scheme))
-                                            .frame(width: 32, height: 32)
-                                    } else if isToday {
-                                        Circle()
-                                            .stroke(CPTheme.primary(scheme: scheme), lineWidth: 1.5)
-                                            .frame(width: 32, height: 32)
-                                    }
-
-                                    Text("\(calendar.component(.day, from: date))")
-                                        .font(.system(size: 13, weight: isSelected || isToday ? .bold : .medium))
-                                        .foregroundStyle(
-                                            isSelected ? CPTheme.background(scheme) :
-                                            isToday ? CPTheme.primary(scheme: scheme) :
-                                            CPTheme.foreground(scheme)
-                                        )
-                                }
-                                .frame(height: 32)
-
-                                Circle()
-                                    .fill(
-                                        isSelected ? CPTheme.background(scheme) :
-                                        hasItems ? CPTheme.primary(scheme: scheme) :
-                                        Color.clear
-                                    )
-                                    .frame(width: 4, height: 4)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 6)
-                            .background(
-                                isSelected ? CPTheme.primary(scheme: scheme).opacity(0.12) : Color.clear,
-                                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            )
-                        }
-                        .buttonStyle(.plain)
+                        dateButton(date)
                     }
                 }
 
@@ -543,6 +485,65 @@ struct CalendarView: View {
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private func dateButton(_ date: Date) -> some View {
+        let isSelected = selectedDate != nil && calendar.isDate(selectedDate!, inSameDayAs: date)
+        let isToday = calendar.isDate(date, inSameDayAs: today)
+        let hasItems = !itemsFor(day: date).isEmpty
+
+        Button {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                if isSelected {
+                    selectedDate = nil
+                } else {
+                    selectedDate = date
+                }
+            }
+        } label: {
+            VStack(spacing: 5) {
+                Text(date.formatted(.dateTime.weekday(.narrow)))
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(isToday && !isSelected ? CPTheme.primary(scheme: scheme) : CPTheme.muted(scheme))
+
+                ZStack {
+                    if isSelected {
+                        Circle()
+                            .fill(CPTheme.primary(scheme: scheme))
+                            .frame(width: 32, height: 32)
+                    } else if isToday {
+                        Circle()
+                            .stroke(CPTheme.primary(scheme: scheme), lineWidth: 1.5)
+                            .frame(width: 32, height: 32)
+                    }
+
+                    Text("\(calendar.component(.day, from: date))")
+                        .font(.system(size: 13, weight: isSelected || isToday ? .bold : .medium))
+                        .foregroundStyle(
+                            isSelected ? CPTheme.background(scheme) :
+                            isToday ? CPTheme.primary(scheme: scheme) :
+                            CPTheme.foreground(scheme)
+                        )
+                }
+                .frame(height: 32)
+
+                Circle()
+                    .fill(
+                        isSelected ? CPTheme.background(scheme) :
+                        hasItems ? CPTheme.primary(scheme: scheme) :
+                        Color.clear
+                    )
+                    .frame(width: 4, height: 4)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
+            .background(
+                isSelected ? CPTheme.primary(scheme: scheme).opacity(0.12) : Color.clear,
+                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     private func agendaItemRow(_ item: NativeCalendarEntry) -> some View {
@@ -630,6 +631,14 @@ struct CalendarView: View {
     }
 }
 
+private struct WeekSummary: Identifiable {
+    var id: String { name }
+    let name: String
+    let range: String
+    let count: Int
+    let assignments: [AssignmentItem]
+}
+
 struct WorkloadView: View {
     @Environment(\.colorScheme) private var scheme
     let assignments: [AssignmentItem]
@@ -640,8 +649,8 @@ struct WorkloadView: View {
         return calendar.date(byAdding: .day, value: -((weekday + 5) % 7), to: today) ?? today
     }
 
-    private var weekSummaries: [(name: String, range: String, count: Int, assignments: [AssignmentItem])] {
-        (0..<4).compactMap { weekIndex -> (name: String, range: String, count: Int, [AssignmentItem])? in
+    private var weekSummaries: [WeekSummary] {
+        (0..<4).compactMap { weekIndex -> WeekSummary? in
             guard let start = calendar.date(byAdding: .day, value: weekIndex * 7, to: monday),
                   let end = calendar.date(byAdding: .day, value: 7, to: start) else { return nil }
             let items = assignments.filter {
@@ -650,7 +659,7 @@ struct WorkloadView: View {
             }
             let label = weekIndex == 0 ? "This Week" : weekIndex == 1 ? "Next Week" : "Week \(weekIndex + 1)"
             let rangeStr = "\(start.formatted(.dateTime.month(.abbreviated).day())) – \(calendar.date(byAdding: .day, value: 6, to: start)?.formatted(.dateTime.month(.abbreviated).day()) ?? "")"
-            return (name: label, range: rangeStr, count: items.count, assignments: items)
+            return WeekSummary(name: label, range: rangeStr, count: items.count, assignments: items)
         }
     }
 
@@ -666,7 +675,7 @@ struct WorkloadView: View {
             }
 
             VStack(spacing: 8) {
-                ForEach(weekSummaries, id: \.name) { week in
+                ForEach(weekSummaries) { week in
                     HStack(spacing: 12) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(week.name)
@@ -679,18 +688,14 @@ struct WorkloadView: View {
 
                         Spacer()
 
-                        GeometryReader { proxy in
-                            ZStack(alignment: .leading) {
-                                Capsule()
-                                    .fill(Color.white.opacity(scheme == .dark ? 0.06 : 0.08))
-                                    .frame(height: 6)
-                                Capsule()
-                                    .fill(week.count > 4 ? CPTheme.danger : week.count > 0 ? CPTheme.primary(scheme: scheme) : Color.clear)
-                                    .frame(width: min(proxy.size.width, max(8, proxy.size.width * CGFloat(min(1.0, Double(week.count) / 6.0)))), height: 6)
-                            }
-                            .frame(maxHeight: .infinity)
+                        ZStack(alignment: .leading) {
+                            Capsule()
+                                .fill(Color.white.opacity(scheme == .dark ? 0.06 : 0.08))
+                                .frame(width: 70, height: 6)
+                            Capsule()
+                                .fill(week.count > 4 ? CPTheme.danger : (week.count > 0 ? CPTheme.primary(scheme: scheme) : Color.clear))
+                                .frame(width: max(week.count > 0 ? 8 : 0, min(70, 70 * CGFloat(week.count) / 6.0)), height: 6)
                         }
-                        .frame(width: 80, height: 16)
 
                         Text("\(week.count) due")
                             .font(.system(size: 12, weight: .semibold))

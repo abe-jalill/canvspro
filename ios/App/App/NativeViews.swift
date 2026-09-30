@@ -457,8 +457,8 @@ private struct NativeDashboardView: View {
                         .foregroundStyle(CPTheme.foreground(scheme))
                         .lineLimit(1)
 
-                    if let code = course.courseCode, !code.isEmpty {
-                        Text(code)
+                    if !course.courseCode.isEmpty {
+                        Text(course.courseCode)
                             .font(.system(size: 11))
                             .foregroundStyle(CPTheme.muted(scheme))
                     }
@@ -561,31 +561,15 @@ private struct NativeDashboardView: View {
     }
     private func markDigestSeen() { let snapshot = NativeDigestSnapshot(lastVisit: Date(), grades: gradeMap, urgency: urgencyMap); digest = snapshot; if let data = try? JSONEncoder().encode(snapshot) { UserDefaults.standard.set(data, forKey: "CanvasProNativeDigest") } }
 
-    private var heroBackground: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: scheme == .dark
-                            ? [Color(white: 0.15), Color(white: 0.10)]
-                            : [Color.white, Color(white: 0.96)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(
-                    RadialGradient(
-                        colors: [
-                            CPTheme.primary(scheme: scheme).opacity(scheme == .dark ? 0.10 : 0.06),
-                            Color.clear
-                        ],
-                        center: .topLeading,
-                        startRadius: 20,
-                        endRadius: 260
-                    )
-                )
-        }
+    private var heroBackground: LinearGradient {
+        let palette = CPTheme.currentPalette
+        return LinearGradient(
+            colors: scheme == .dark
+                ? [.hsl(palette.hue, 0.08, 0.16), .hsl(palette.hue, 0.08, 0.10)]
+                : [.hsl(palette.hue, 0.04, 0.98), .hsl(palette.hue, 0.08, 0.92)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
     }
 
     private func heroStat(value: Int, label: String, symbol: String, danger: Bool = false) -> some View {
