@@ -91,8 +91,15 @@ struct CPGlassCard<Content: View>: View {
             content
         }
         .padding(14).frame(maxWidth: .infinity, alignment: .leading)
-        .background(CPTheme.glass(scheme, strong: strong), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(CPTheme.border(scheme), lineWidth: 1))
+        .background {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(LinearGradient(colors: [
+                    CPTheme.glass(scheme, strong: strong),
+                    CPTheme.glass(scheme, strong: strong).opacity(0.86),
+                    CPTheme.primary(scheme: scheme).opacity(scheme == .dark ? 0.07 : 0.035)
+                ], startPoint: .topLeading, endPoint: .bottomTrailing))
+        }
+        .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(LinearGradient(colors: [CPTheme.foreground(scheme).opacity(0.13), CPTheme.border(scheme)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1))
         .shadow(color: Color.black.opacity(scheme == .dark ? (strong ? 0.34 : 0.25) : 0.09), radius: strong ? 32 : 20, y: strong ? 18 : 10)
     }
 }
