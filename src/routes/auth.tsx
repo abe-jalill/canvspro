@@ -27,6 +27,15 @@ export const Route = createFileRoute("/auth")({
   component: LoginPage,
 });
 
+/** Only same-origin app paths may be returned to (e.g. the OAuth consent page). */
+function safeReturnPath(): string | null {
+  if (typeof window === "undefined") return null;
+  const raw = new URLSearchParams(window.location.search).get("redirect");
+  if (!raw) return null;
+  if (!raw.startsWith("/") || raw.startsWith("//")) return null;
+  return raw;
+}
+
 function LoginPage() {
   const navigate = useNavigate();
   const [identifier, setIdentifier] = useState("");
@@ -37,9 +46,13 @@ function LoginPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/dashboard", replace: true });
+      if (!data.session) return;
+      const back = safeReturnPath();
+      if (back) window.location.replace(back);
+      else navigate({ to: "/dashboard", replace: true });
     });
   }, [navigate]);
+
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();

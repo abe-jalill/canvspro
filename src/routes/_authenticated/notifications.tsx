@@ -63,7 +63,7 @@ function NotificationsSettingsPage() {
 
       <p className="px-1 text-xs text-muted-foreground">
         Looking for your Canvas key or class names?{" "}
-        <Link to="/settings" className="underline underline-offset-4">Open Settings</Link>.
+        <Link to="/settings/canvas" className="underline underline-offset-4">Open Canvas settings</Link>.
       </p>
     </div>
   );

@@ -16,6 +16,7 @@ import { Route as CanvasDashboardGuideRouteImport } from './routes/canvas-dashbo
 import { Route as CanvasGradeCalculatorRouteImport } from './routes/canvas-grade-calculator'
 import { Route as EmailVerifiedRouteImport } from './routes/email-verified'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as McpRouteImport } from './routes/mcp'
 import { Route as MobileBillingReturnRouteImport } from './routes/mobile-billing-return'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as PrivacyRouteImport } from './routes/privacy'
@@ -23,6 +24,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedAnnouncementsRouteImport } from './routes/_authenticated/announcements'
 import { Route as AuthenticatedAssignmentsRouteImport } from './routes/_authenticated/assignments'
@@ -36,7 +38,17 @@ import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authen
 import { Route as AuthenticatedScheduleRouteImport } from './routes/_authenticated/schedule'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedStudySessionRouteImport } from './routes/_authenticated/study-session'
+import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable/oauth/consent'
 import { Route as AuthenticatedCoursesCourseIdRouteImport } from './routes/_authenticated/courses.$courseId'
+import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings.index'
+import { Route as AuthenticatedSettingsAccountRouteImport } from './routes/_authenticated/settings.account'
+import { Route as AuthenticatedSettingsAiAssistantRouteImport } from './routes/_authenticated/settings.ai-assistant'
+import { Route as AuthenticatedSettingsAnnouncementsRouteImport } from './routes/_authenticated/settings.announcements'
+import { Route as AuthenticatedSettingsAppearanceRouteImport } from './routes/_authenticated/settings.appearance'
+import { Route as AuthenticatedSettingsCanvasRouteImport } from './routes/_authenticated/settings.canvas'
+import { Route as AuthenticatedSettingsClassesRouteImport } from './routes/_authenticated/settings.classes'
+import { Route as AuthenticatedSettingsNotificationsRouteImport } from './routes/_authenticated/settings.notifications'
+import { Route as AuthenticatedSettingsProfileRouteImport } from './routes/_authenticated/settings.profile'
 import { Route as ApiMobileSubscriptionRouteImport } from './routes/api/mobile/subscription'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as ApiPublicPushDispatchRouteImport } from './routes/api/public/push/dispatch'
@@ -79,6 +91,11 @@ const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
   path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MobileBillingReturnRoute = MobileBillingReturnRouteImport.update({
   id: '/mobile-billing-return',
   path: '/mobile-billing-return',
@@ -114,6 +131,12 @@ const TermsRoute = TermsRouteImport.update({
   path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
+const Char91DotwellKnownChar93OauthProtectedResourceRoute =
+  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -184,11 +207,70 @@ const AuthenticatedStudySessionRoute =
     path: '/study-session',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
+  id: '/.lovable/oauth/consent',
+  path: '/.lovable/oauth/consent',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedCoursesCourseIdRoute =
   AuthenticatedCoursesCourseIdRouteImport.update({
     id: '/courses/$courseId',
     path: '/courses/$courseId',
     getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedSettingsIndexRoute =
+  AuthenticatedSettingsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsAccountRoute =
+  AuthenticatedSettingsAccountRouteImport.update({
+    id: '/account',
+    path: '/account',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsAiAssistantRoute =
+  AuthenticatedSettingsAiAssistantRouteImport.update({
+    id: '/ai-assistant',
+    path: '/ai-assistant',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsAnnouncementsRoute =
+  AuthenticatedSettingsAnnouncementsRouteImport.update({
+    id: '/announcements',
+    path: '/announcements',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsAppearanceRoute =
+  AuthenticatedSettingsAppearanceRouteImport.update({
+    id: '/appearance',
+    path: '/appearance',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsCanvasRoute =
+  AuthenticatedSettingsCanvasRouteImport.update({
+    id: '/canvas',
+    path: '/canvas',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsClassesRoute =
+  AuthenticatedSettingsClassesRouteImport.update({
+    id: '/classes',
+    path: '/classes',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsNotificationsRoute =
+  AuthenticatedSettingsNotificationsRouteImport.update({
+    id: '/notifications',
+    path: '/notifications',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsProfileRoute =
+  AuthenticatedSettingsProfileRouteImport.update({
+    id: '/profile',
+    path: '/profile',
+    getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
 const ApiMobileSubscriptionRoute = ApiMobileSubscriptionRouteImport.update({
   id: '/api/mobile/subscription',
@@ -235,6 +317,7 @@ export interface FileRoutesByFullPath {
   '/canvas-grade-calculator': typeof CanvasGradeCalculatorRoute
   '/email-verified': typeof EmailVerifiedRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/mcp': typeof McpRoute
   '/mobile-billing-return': typeof MobileBillingReturnRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
@@ -242,6 +325,7 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/announcements': typeof AuthenticatedAnnouncementsRoute
   '/assignments': typeof AuthenticatedAssignmentsRoute
@@ -253,10 +337,20 @@ export interface FileRoutesByFullPath {
   '/grades': typeof AuthenticatedGradesRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/schedule': typeof AuthenticatedScheduleRoute
-  '/settings': typeof AuthenticatedSettingsRoute
+  '/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/study-session': typeof AuthenticatedStudySessionRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/courses/$courseId': typeof AuthenticatedCoursesCourseIdRoute
+  '/settings/account': typeof AuthenticatedSettingsAccountRoute
+  '/settings/ai-assistant': typeof AuthenticatedSettingsAiAssistantRoute
+  '/settings/announcements': typeof AuthenticatedSettingsAnnouncementsRoute
+  '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
+  '/settings/canvas': typeof AuthenticatedSettingsCanvasRoute
+  '/settings/classes': typeof AuthenticatedSettingsClassesRoute
+  '/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
+  '/settings/profile': typeof AuthenticatedSettingsProfileRoute
   '/api/mobile/subscription': typeof ApiMobileSubscriptionRoute
+  '/settings/': typeof AuthenticatedSettingsIndexRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/push/dispatch': typeof ApiPublicPushDispatchRoute
   '/api/public/push/key': typeof ApiPublicPushKeyRoute
@@ -271,6 +365,7 @@ export interface FileRoutesByTo {
   '/canvas-grade-calculator': typeof CanvasGradeCalculatorRoute
   '/email-verified': typeof EmailVerifiedRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/mcp': typeof McpRoute
   '/mobile-billing-return': typeof MobileBillingReturnRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
@@ -278,6 +373,7 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/announcements': typeof AuthenticatedAnnouncementsRoute
   '/assignments': typeof AuthenticatedAssignmentsRoute
@@ -289,10 +385,19 @@ export interface FileRoutesByTo {
   '/grades': typeof AuthenticatedGradesRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/schedule': typeof AuthenticatedScheduleRoute
-  '/settings': typeof AuthenticatedSettingsRoute
   '/study-session': typeof AuthenticatedStudySessionRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/courses/$courseId': typeof AuthenticatedCoursesCourseIdRoute
+  '/settings/account': typeof AuthenticatedSettingsAccountRoute
+  '/settings/ai-assistant': typeof AuthenticatedSettingsAiAssistantRoute
+  '/settings/announcements': typeof AuthenticatedSettingsAnnouncementsRoute
+  '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
+  '/settings/canvas': typeof AuthenticatedSettingsCanvasRoute
+  '/settings/classes': typeof AuthenticatedSettingsClassesRoute
+  '/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
+  '/settings/profile': typeof AuthenticatedSettingsProfileRoute
   '/api/mobile/subscription': typeof ApiMobileSubscriptionRoute
+  '/settings': typeof AuthenticatedSettingsIndexRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/push/dispatch': typeof ApiPublicPushDispatchRoute
   '/api/public/push/key': typeof ApiPublicPushKeyRoute
@@ -309,6 +414,7 @@ export interface FileRoutesById {
   '/canvas-grade-calculator': typeof CanvasGradeCalculatorRoute
   '/email-verified': typeof EmailVerifiedRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/mcp': typeof McpRoute
   '/mobile-billing-return': typeof MobileBillingReturnRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
@@ -316,6 +422,7 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/announcements': typeof AuthenticatedAnnouncementsRoute
   '/_authenticated/assignments': typeof AuthenticatedAssignmentsRoute
@@ -327,10 +434,20 @@ export interface FileRoutesById {
   '/_authenticated/grades': typeof AuthenticatedGradesRoute
   '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
   '/_authenticated/schedule': typeof AuthenticatedScheduleRoute
-  '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/_authenticated/study-session': typeof AuthenticatedStudySessionRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/_authenticated/courses/$courseId': typeof AuthenticatedCoursesCourseIdRoute
+  '/_authenticated/settings/account': typeof AuthenticatedSettingsAccountRoute
+  '/_authenticated/settings/ai-assistant': typeof AuthenticatedSettingsAiAssistantRoute
+  '/_authenticated/settings/announcements': typeof AuthenticatedSettingsAnnouncementsRoute
+  '/_authenticated/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
+  '/_authenticated/settings/canvas': typeof AuthenticatedSettingsCanvasRoute
+  '/_authenticated/settings/classes': typeof AuthenticatedSettingsClassesRoute
+  '/_authenticated/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
+  '/_authenticated/settings/profile': typeof AuthenticatedSettingsProfileRoute
   '/api/mobile/subscription': typeof ApiMobileSubscriptionRoute
+  '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/push/dispatch': typeof ApiPublicPushDispatchRoute
   '/api/public/push/key': typeof ApiPublicPushKeyRoute
@@ -347,6 +464,7 @@ export interface FileRouteTypes {
     | '/canvas-grade-calculator'
     | '/email-verified'
     | '/forgot-password'
+    | '/mcp'
     | '/mobile-billing-return'
     | '/pricing'
     | '/privacy'
@@ -354,6 +472,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/sitemap.xml'
     | '/terms'
+    | '/.well-known/oauth-protected-resource'
     | '/admin'
     | '/announcements'
     | '/assignments'
@@ -367,8 +486,18 @@ export interface FileRouteTypes {
     | '/schedule'
     | '/settings'
     | '/study-session'
+    | '/.lovable/oauth/consent'
     | '/courses/$courseId'
+    | '/settings/account'
+    | '/settings/ai-assistant'
+    | '/settings/announcements'
+    | '/settings/appearance'
+    | '/settings/canvas'
+    | '/settings/classes'
+    | '/settings/notifications'
+    | '/settings/profile'
     | '/api/mobile/subscription'
+    | '/settings/'
     | '/api/public/payments/webhook'
     | '/api/public/push/dispatch'
     | '/api/public/push/key'
@@ -383,6 +512,7 @@ export interface FileRouteTypes {
     | '/canvas-grade-calculator'
     | '/email-verified'
     | '/forgot-password'
+    | '/mcp'
     | '/mobile-billing-return'
     | '/pricing'
     | '/privacy'
@@ -390,6 +520,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/sitemap.xml'
     | '/terms'
+    | '/.well-known/oauth-protected-resource'
     | '/admin'
     | '/announcements'
     | '/assignments'
@@ -401,10 +532,19 @@ export interface FileRouteTypes {
     | '/grades'
     | '/notifications'
     | '/schedule'
-    | '/settings'
     | '/study-session'
+    | '/.lovable/oauth/consent'
     | '/courses/$courseId'
+    | '/settings/account'
+    | '/settings/ai-assistant'
+    | '/settings/announcements'
+    | '/settings/appearance'
+    | '/settings/canvas'
+    | '/settings/classes'
+    | '/settings/notifications'
+    | '/settings/profile'
     | '/api/mobile/subscription'
+    | '/settings'
     | '/api/public/payments/webhook'
     | '/api/public/push/dispatch'
     | '/api/public/push/key'
@@ -420,6 +560,7 @@ export interface FileRouteTypes {
     | '/canvas-grade-calculator'
     | '/email-verified'
     | '/forgot-password'
+    | '/mcp'
     | '/mobile-billing-return'
     | '/pricing'
     | '/privacy'
@@ -427,6 +568,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/sitemap.xml'
     | '/terms'
+    | '/.well-known/oauth-protected-resource'
     | '/_authenticated/admin'
     | '/_authenticated/announcements'
     | '/_authenticated/assignments'
@@ -440,8 +582,18 @@ export interface FileRouteTypes {
     | '/_authenticated/schedule'
     | '/_authenticated/settings'
     | '/_authenticated/study-session'
+    | '/.lovable/oauth/consent'
     | '/_authenticated/courses/$courseId'
+    | '/_authenticated/settings/account'
+    | '/_authenticated/settings/ai-assistant'
+    | '/_authenticated/settings/announcements'
+    | '/_authenticated/settings/appearance'
+    | '/_authenticated/settings/canvas'
+    | '/_authenticated/settings/classes'
+    | '/_authenticated/settings/notifications'
+    | '/_authenticated/settings/profile'
     | '/api/mobile/subscription'
+    | '/_authenticated/settings/'
     | '/api/public/payments/webhook'
     | '/api/public/push/dispatch'
     | '/api/public/push/key'
@@ -458,6 +610,7 @@ export interface RootRouteChildren {
   CanvasGradeCalculatorRoute: typeof CanvasGradeCalculatorRoute
   EmailVerifiedRoute: typeof EmailVerifiedRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
+  McpRoute: typeof McpRoute
   MobileBillingReturnRoute: typeof MobileBillingReturnRoute
   PricingRoute: typeof PricingRoute
   PrivacyRoute: typeof PrivacyRoute
@@ -465,6 +618,8 @@ export interface RootRouteChildren {
   SignupRoute: typeof SignupRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermsRoute: typeof TermsRoute
+  Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   ApiMobileSubscriptionRoute: typeof ApiMobileSubscriptionRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
   ApiPublicPushDispatchRoute: typeof ApiPublicPushDispatchRoute
@@ -525,6 +680,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/mobile-billing-return': {
       id: '/mobile-billing-return'
       path: '/mobile-billing-return'
@@ -572,6 +734,13 @@ declare module '@tanstack/react-router' {
       path: '/terms'
       fullPath: '/terms'
       preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin': {
@@ -665,12 +834,82 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedStudySessionRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/.lovable/oauth/consent': {
+      id: '/.lovable/oauth/consent'
+      path: '/.lovable/oauth/consent'
+      fullPath: '/.lovable/oauth/consent'
+      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/courses/$courseId': {
       id: '/_authenticated/courses/$courseId'
       path: '/courses/$courseId'
       fullPath: '/courses/$courseId'
       preLoaderRoute: typeof AuthenticatedCoursesCourseIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/settings/': {
+      id: '/_authenticated/settings/'
+      path: '/'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof AuthenticatedSettingsIndexRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/account': {
+      id: '/_authenticated/settings/account'
+      path: '/account'
+      fullPath: '/settings/account'
+      preLoaderRoute: typeof AuthenticatedSettingsAccountRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/ai-assistant': {
+      id: '/_authenticated/settings/ai-assistant'
+      path: '/ai-assistant'
+      fullPath: '/settings/ai-assistant'
+      preLoaderRoute: typeof AuthenticatedSettingsAiAssistantRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/announcements': {
+      id: '/_authenticated/settings/announcements'
+      path: '/announcements'
+      fullPath: '/settings/announcements'
+      preLoaderRoute: typeof AuthenticatedSettingsAnnouncementsRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/appearance': {
+      id: '/_authenticated/settings/appearance'
+      path: '/appearance'
+      fullPath: '/settings/appearance'
+      preLoaderRoute: typeof AuthenticatedSettingsAppearanceRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/canvas': {
+      id: '/_authenticated/settings/canvas'
+      path: '/canvas'
+      fullPath: '/settings/canvas'
+      preLoaderRoute: typeof AuthenticatedSettingsCanvasRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/classes': {
+      id: '/_authenticated/settings/classes'
+      path: '/classes'
+      fullPath: '/settings/classes'
+      preLoaderRoute: typeof AuthenticatedSettingsClassesRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/notifications': {
+      id: '/_authenticated/settings/notifications'
+      path: '/notifications'
+      fullPath: '/settings/notifications'
+      preLoaderRoute: typeof AuthenticatedSettingsNotificationsRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/profile': {
+      id: '/_authenticated/settings/profile'
+      path: '/profile'
+      fullPath: '/settings/profile'
+      preLoaderRoute: typeof AuthenticatedSettingsProfileRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
     }
     '/api/mobile/subscription': {
       id: '/api/mobile/subscription'
@@ -724,6 +963,37 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedSettingsRouteChildren {
+  AuthenticatedSettingsAccountRoute: typeof AuthenticatedSettingsAccountRoute
+  AuthenticatedSettingsAiAssistantRoute: typeof AuthenticatedSettingsAiAssistantRoute
+  AuthenticatedSettingsAnnouncementsRoute: typeof AuthenticatedSettingsAnnouncementsRoute
+  AuthenticatedSettingsAppearanceRoute: typeof AuthenticatedSettingsAppearanceRoute
+  AuthenticatedSettingsCanvasRoute: typeof AuthenticatedSettingsCanvasRoute
+  AuthenticatedSettingsClassesRoute: typeof AuthenticatedSettingsClassesRoute
+  AuthenticatedSettingsNotificationsRoute: typeof AuthenticatedSettingsNotificationsRoute
+  AuthenticatedSettingsProfileRoute: typeof AuthenticatedSettingsProfileRoute
+  AuthenticatedSettingsIndexRoute: typeof AuthenticatedSettingsIndexRoute
+}
+
+const AuthenticatedSettingsRouteChildren: AuthenticatedSettingsRouteChildren = {
+  AuthenticatedSettingsAccountRoute: AuthenticatedSettingsAccountRoute,
+  AuthenticatedSettingsAiAssistantRoute: AuthenticatedSettingsAiAssistantRoute,
+  AuthenticatedSettingsAnnouncementsRoute:
+    AuthenticatedSettingsAnnouncementsRoute,
+  AuthenticatedSettingsAppearanceRoute: AuthenticatedSettingsAppearanceRoute,
+  AuthenticatedSettingsCanvasRoute: AuthenticatedSettingsCanvasRoute,
+  AuthenticatedSettingsClassesRoute: AuthenticatedSettingsClassesRoute,
+  AuthenticatedSettingsNotificationsRoute:
+    AuthenticatedSettingsNotificationsRoute,
+  AuthenticatedSettingsProfileRoute: AuthenticatedSettingsProfileRoute,
+  AuthenticatedSettingsIndexRoute: AuthenticatedSettingsIndexRoute,
+}
+
+const AuthenticatedSettingsRouteWithChildren =
+  AuthenticatedSettingsRoute._addFileChildren(
+    AuthenticatedSettingsRouteChildren,
+  )
+
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedAnnouncementsRoute: typeof AuthenticatedAnnouncementsRoute
@@ -736,7 +1006,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedGradesRoute: typeof AuthenticatedGradesRoute
   AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
   AuthenticatedScheduleRoute: typeof AuthenticatedScheduleRoute
-  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRouteWithChildren
   AuthenticatedStudySessionRoute: typeof AuthenticatedStudySessionRoute
   AuthenticatedCoursesCourseIdRoute: typeof AuthenticatedCoursesCourseIdRoute
 }
@@ -753,7 +1023,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedGradesRoute: AuthenticatedGradesRoute,
   AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
   AuthenticatedScheduleRoute: AuthenticatedScheduleRoute,
-  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedSettingsRoute: AuthenticatedSettingsRouteWithChildren,
   AuthenticatedStudySessionRoute: AuthenticatedStudySessionRoute,
   AuthenticatedCoursesCourseIdRoute: AuthenticatedCoursesCourseIdRoute,
 }
@@ -769,6 +1039,7 @@ const rootRouteChildren: RootRouteChildren = {
   CanvasGradeCalculatorRoute: CanvasGradeCalculatorRoute,
   EmailVerifiedRoute: EmailVerifiedRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
+  McpRoute: McpRoute,
   MobileBillingReturnRoute: MobileBillingReturnRoute,
   PricingRoute: PricingRoute,
   PrivacyRoute: PrivacyRoute,
@@ -776,6 +1047,9 @@ const rootRouteChildren: RootRouteChildren = {
   SignupRoute: SignupRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermsRoute: TermsRoute,
+  Char91DotwellKnownChar93OauthProtectedResourceRoute:
+    Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   ApiMobileSubscriptionRoute: ApiMobileSubscriptionRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
   ApiPublicPushDispatchRoute: ApiPublicPushDispatchRoute,
