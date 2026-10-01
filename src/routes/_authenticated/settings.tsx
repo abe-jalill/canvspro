@@ -297,6 +297,17 @@ function SettingsPage() {
             </GlassCard>
           </section>
 
+          <section className="scroll-mt-5">
+            <GlassCard
+              title="Connect an AI assistant"
+              subtitle="Let an app like Claude or ChatGPT read your classes for you."
+            >
+              <AiConnectionSection />
+            </GlassCard>
+          </section>
+
+
+
           <section id="account" className="scroll-mt-5">
             <GlassCard
               title="Delete account"
@@ -310,6 +321,46 @@ function SettingsPage() {
     </div>
   );
 }
+
+function AiConnectionSection() {
+  const [copied, setCopied] = useState(false);
+  const url =
+    typeof window === "undefined" ? "https://canvaspro.app/mcp" : `${window.location.origin}/mcp`;
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4 text-sm">
+      <p className="text-muted-foreground">
+        Add this address to your assistant's connectors, sign in once, and approve the request. It
+        can then answer questions about your real classes, deadlines, and grades.
+      </p>
+      <div className="glass-inset flex flex-col gap-2 rounded-xl p-3 sm:flex-row sm:items-center">
+        <code className="min-w-0 flex-1 truncate text-foreground">{url}</code>
+        <button
+          type="button"
+          onClick={copy}
+          className="glass-hover min-h-10 rounded-lg px-3 text-xs font-semibold text-foreground"
+        >
+          {copied ? "Copied" : "Copy"}
+        </button>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Read-only. An assistant can never change anything in Canvas or see your Canvas API key, and
+        you can remove the connection from your assistant at any time.
+      </p>
+    </div>
+  );
+}
+
 
 function AnnouncementWindowSection() {
   const { weeks, isLoading, ready, set } = useAnnouncementWindow();
