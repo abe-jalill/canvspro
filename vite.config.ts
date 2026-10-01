@@ -7,6 +7,8 @@
 import path from "node:path";
 import { loadEnv } from "vite";
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/tanstack/vite";
+
 
 // Load non-VITE_ env vars into process.env for server routes only (never into the client bundle).
 Object.assign(process.env, loadEnv(process.env["NODE_ENV"] ?? "development", process.cwd(), ""));
