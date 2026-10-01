@@ -1,10 +1,8 @@
-import { createFileRoute, Link, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import {
   Camera,
   Check,
-  ChevronDown,
   ExternalLink,
   LoaderCircle,
   Sparkles,
@@ -39,27 +37,7 @@ import { DeleteAccountSection } from "@/components/delete-account";
 import { useAnnouncementWindow } from "@/lib/announcement-window";
 import { AppearanceSettings } from "@/components/appearance-settings";
 
-export const Route = createFileRoute("/_authenticated/settings")({
-  head: () => ({
-    meta: [
-      { title: "Settings — CanvasPro" },
-      {
-        name: "description",
-        content: "Save the Canvas API key used to load your courses in CanvasPro.",
-      },
-      { property: "og:title", content: "Settings — CanvasPro" },
-      {
-        property: "og:description",
-        content: "Save the Canvas API key used to load your courses in CanvasPro.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
-  }),
-  component: SettingsPage,
-});
-
-function SettingsPage() {
+export function CanvasConnectionSettings() {
   const { data: savedKey, isLoading } = useCanvasKey();
   const { data: savedDomain, isLoading: domainLoading } = useCanvasDomain();
   const save = useSaveCanvasKey();
@@ -67,13 +45,6 @@ function SettingsPage() {
   const [domainValue, setDomainValue] = useState("");
   const [domainTouched, setDomainTouched] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
-  const hash = useRouterState({ select: (s) => s.location.hash });
-
-  useEffect(() => {
-    if (!hash) return;
-    document.getElementById(hash)?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [hash]);
-
   // Pre-fill the Canvas URL once the saved value arrives, unless the user
   // already started typing their own.
   useEffect(() => {
@@ -121,37 +92,7 @@ function SettingsPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-6 pb-10">
-      <header className="px-1">
-        <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-          Your account
-        </p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">Settings</h1>
-        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          Personalize CanvasPro, manage your Canvas connection, and control what the app can do.
-        </p>
-      </header>
-
-      <div className="settings-layout">
-        <nav className="settings-nav" aria-label="Settings sections">
-          <a href="#appearance">Appearance</a>
-          <a href="#profile">Profile</a>
-          <a href="#canvas">Canvas</a>
-          <a href="#notifications">Notifications</a>
-          <a href="#class-settings">Class settings</a>
-          <a href="#account">Account</a>
-        </nav>
-
-        <div className="min-w-0 space-y-5">
-          <section id="appearance" className="scroll-mt-5">
-            <AppearanceSettings />
-          </section>
-          <section id="profile" className="scroll-mt-5">
-            <ProfileCard />
-          </section>
-
-          <section id="canvas" className="scroll-mt-5">
-            <GlassCard
+    <GlassCard
               title="Canvas connection"
               subtitle="Your school's Canvas URL and API key."
               action={
@@ -257,65 +198,11 @@ function SettingsPage() {
                   </p>
                 )}
               </form>
-            </GlassCard>
-          </section>
-
-          <section id="notifications" className="scroll-mt-5">
-            <GlassCard title="Notifications" subtitle="Choose which alerts you want and when.">
-              <div className="space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  Full controls — due-date lead times, grade thresholds, browser pop-ups, and quiet
-                  hours — live on their own page.
-                </p>
-                <Link
-                  to="/notifications"
-                  className="glass-hover inline-flex min-h-11 items-center rounded-xl bg-foreground px-4 text-sm font-semibold text-background"
-                >
-                  Open notification settings
-                </Link>
-              </div>
-            </GlassCard>
-          </section>
-
-          <section className="scroll-mt-5">
-            <GlassCard
-              title="Announcements"
-              subtitle="How far back the announcements list reaches."
-            >
-              <AnnouncementWindowSection />
-            </GlassCard>
-          </section>
-
-          <section id="class-settings" className="scroll-mt-5">
-            <ClassSettingsSection />
-          </section>
-
-          <section className="scroll-mt-5">
-            <GlassCard
-              title="Connect an AI assistant"
-              subtitle="Let an app like Claude or ChatGPT read your classes for you."
-            >
-              <AiConnectionSection />
-            </GlassCard>
-          </section>
-
-
-
-          <section id="account" className="scroll-mt-5">
-            <GlassCard
-              title="Delete account"
-              subtitle="Permanently remove your account and everything saved with it."
-            >
-              <DeleteAccountSection />
-            </GlassCard>
-          </section>
-        </div>
-      </div>
-    </div>
+    </GlassCard>
   );
 }
 
-function AiConnectionSection() {
+export function AiConnectionSection() {
   const [copied, setCopied] = useState(false);
   const url =
     typeof window === "undefined" ? "https://canvaspro.app/mcp" : `${window.location.origin}/mcp`;
@@ -354,33 +241,12 @@ function AiConnectionSection() {
   );
 }
 
-function ClassSettingsSection() {
-  const [open, setOpen] = useState(false);
+export function ClassSettingsSection() {
   const [tab, setTab] = useState<"names" | "visibility">("names");
 
   return (
-    <section className="glass-panel min-w-0 overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setOpen((current) => !current)}
-        aria-expanded={open}
-        aria-controls="class-settings-panel"
-        className="glass-hover flex min-h-14 w-full items-center justify-between gap-4 px-4 py-3 text-left sm:px-6"
-      >
-        <span className="min-w-0">
-          <span className="block text-base font-medium text-foreground">Class settings</span>
-          <span className="block truncate text-xs text-muted-foreground">
-            Rename classes and choose which ones appear.
-          </span>
-        </span>
-        <ChevronDown
-          className={`h-5 w-5 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
-          aria-hidden="true"
-        />
-      </button>
-
-      {open && (
-        <div id="class-settings-panel" className="border-t border-foreground/10 px-4 pb-5 pt-4 sm:px-6 sm:pb-6">
+    <GlassCard title="Class settings" subtitle="Rename classes and choose which ones appear.">
+        <div>
           <div className="glass-inset mb-5 grid grid-cols-2 gap-1 rounded-xl p-1" role="tablist" aria-label="Class settings">
             <button
               type="button"
@@ -419,13 +285,12 @@ function ClassSettingsSection() {
             {tab === "names" ? <ClassNamesSection /> : <HiddenCoursesSection />}
           </div>
         </div>
-      )}
-    </section>
+    </GlassCard>
   );
 }
 
 
-function AnnouncementWindowSection() {
+export function AnnouncementWindowSection() {
   const { weeks, isLoading, ready, set } = useAnnouncementWindow();
   const options: Array<{ value: 0 | 1 | 2 | 4; label: string }> = [
     { value: 1, label: "1 week" },
@@ -473,7 +338,7 @@ const EMPTY_PROFILE: UserProfile = {
   avatarUrl: "",
 };
 
-function ProfileCard() {
+export function ProfileCard() {
   const queryClient = useQueryClient();
   const { data: profile, isLoading } = useUserProfile();
   const save = useSaveUserProfile();
