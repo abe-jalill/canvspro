@@ -89,7 +89,14 @@ function ConsentPage() {
       try {
         const body = await request(`/oauth/authorizations/${authorizationId}`);
         if (!body || cancelled) return;
+        // Already approved for this app: Supabase hands back the return URL directly.
+        const preApproved = (body as { redirect_url?: string }).redirect_url;
+        if (preApproved) {
+          window.location.replace(preApproved);
+          return;
+        }
         setDetails(body as unknown as AuthorizationDetails);
+
       } catch (e) {
         if (!cancelled) {
           setError(
