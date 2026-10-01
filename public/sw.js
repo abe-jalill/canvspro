@@ -19,8 +19,8 @@ self.addEventListener("push", (event) => {
         body: data.body || "",
         tag: data.tag || title,
         renotify: false,
-        icon: "/icon-192.png",
-        badge: "/icon-192.png",
+        icon: "/canvaspro-icon-v2-192.png",
+        badge: "/canvaspro-icon-v2-192.png",
         timestamp: Date.now(),
         data: { to: data.to || "/dashboard" },
       });

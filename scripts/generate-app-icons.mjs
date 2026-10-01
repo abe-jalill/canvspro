@@ -81,11 +81,16 @@ async function render(size, destination, { rounded = true } = {}) {
 await fs.mkdir(publicDirectory, { recursive: true });
 await Promise.all([
   render(32, path.join(publicDirectory, "favicon-32.png")),
+  render(32, path.join(publicDirectory, "canvaspro-icon-v2-32.png")),
   render(180, path.join(publicDirectory, "apple-touch-icon.png")),
+  render(180, path.join(publicDirectory, "canvaspro-icon-v2-180.png")),
   render(192, path.join(publicDirectory, "icon-192.png")),
+  render(192, path.join(publicDirectory, "canvaspro-icon-v2-192.png")),
   render(512, path.join(publicDirectory, "favicon.png")),
   render(512, path.join(publicDirectory, "icon-512.png")),
+  render(512, path.join(publicDirectory, "canvaspro-icon-v2-512.png")),
   render(512, path.join(publicDirectory, "icon-maskable-512.png"), { rounded: false }),
+  render(512, path.join(publicDirectory, "canvaspro-icon-v2-maskable-512.png"), { rounded: false }),
   render(1024, appIconPath, { rounded: false }),
 ]);
 
