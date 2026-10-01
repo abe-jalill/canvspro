@@ -297,6 +297,17 @@ function SettingsPage() {
             </GlassCard>
           </section>
 
+          <section className="scroll-mt-5">
+            <GlassCard
+              title="Connect an AI assistant"
+              subtitle="Let an app like Claude or ChatGPT read your classes for you."
+            >
+              <AiConnectionSection />
+            </GlassCard>
+          </section>
+
+
+
           <section id="account" className="scroll-mt-5">
             <GlassCard
               title="Delete account"
