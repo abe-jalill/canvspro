@@ -168,7 +168,7 @@ struct NativeMainTabView: View {
             } message: { Text(contentStore.errorMessage ?? featureStore.errorMessage ?? "") }
     }
 
-    private func registerDeviceToken(_ deviceToken: String) async {
+    @MainActor private func registerDeviceToken(_ deviceToken: String) async {
         guard featureStore.notificationPreferences.enabled && featureStore.notificationPreferences.browserPush else { return }
         guard let api = sessionStore.api, let user = sessionStore.session?.user else { return }
         do {
@@ -177,7 +177,7 @@ struct NativeMainTabView: View {
         } catch { featureStore.errorMessage = error.localizedDescription }
     }
 
-    private func refreshAccountData() async {
+    @MainActor private func refreshAccountData() async {
         async let content: Void = contentStore.load()
         async let features: Void = featureStore.load()
         _ = await (content, features)
