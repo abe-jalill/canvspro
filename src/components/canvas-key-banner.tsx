@@ -66,7 +66,7 @@ export function CanvasKeyBanner() {
             }
           />
           <Link
-            to="/settings"
+            to="/settings/canvas"
             className="glass-hover glass-inset inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl px-3 text-xs font-medium text-muted-foreground hover:text-foreground"
           >
             Settings

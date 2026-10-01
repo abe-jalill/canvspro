@@ -33,9 +33,7 @@ import {
 } from "@/lib/user-profile";
 import { ClassNamesSection } from "@/components/class-names-editor";
 import { HiddenCoursesSection } from "@/components/hidden-courses-editor";
-import { DeleteAccountSection } from "@/components/delete-account";
 import { useAnnouncementWindow } from "@/lib/announcement-window";
-import { AppearanceSettings } from "@/components/appearance-settings";
 
 export function CanvasConnectionSettings() {
   const { data: savedKey, isLoading } = useCanvasKey();
@@ -93,23 +91,23 @@ export function CanvasConnectionSettings() {
 
   return (
     <GlassCard
-              title="Canvas connection"
-              subtitle="Your school's Canvas URL and API key."
-              action={
-                <CanvasTokenModal
-                  trigger={
-                    <button
-                      type="button"
-                      className="glass-inset glass-hover inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium text-foreground transition"
-                    >
-                      <Sparkles className="h-3.5 w-3.5 text-primary" />
-                      <span>3-Step Visual Guide</span>
-                    </button>
-                  }
-                />
-              }
+      title="Canvas connection"
+      subtitle="Your school's Canvas URL and API key."
+      action={
+        <CanvasTokenModal
+          trigger={
+            <button
+              type="button"
+              className="glass-inset glass-hover inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium text-foreground transition"
             >
-              <form onSubmit={onSubmit} className="flex w-full flex-col gap-4">
+              <Sparkles className="h-3.5 w-3.5 text-primary" />
+              <span>3-Step Visual Guide</span>
+            </button>
+          }
+        />
+      }
+    >
+      <form onSubmit={onSubmit} className="flex w-full flex-col gap-4">
                 <label className="flex w-full flex-col gap-1.5">
                   <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     API key
@@ -197,7 +195,7 @@ export function CanvasConnectionSettings() {
                       : "No key saved yet"}
                   </p>
                 )}
-              </form>
+      </form>
     </GlassCard>
   );
 }
@@ -246,7 +244,7 @@ export function ClassSettingsSection() {
 
   return (
     <GlassCard title="Class settings" subtitle="Rename classes and choose which ones appear.">
-        <div>
+      <div>
           <div className="glass-inset mb-5 grid grid-cols-2 gap-1 rounded-xl p-1" role="tablist" aria-label="Class settings">
             <button
               type="button"
@@ -284,7 +282,7 @@ export function ClassSettingsSection() {
           >
             {tab === "names" ? <ClassNamesSection /> : <HiddenCoursesSection />}
           </div>
-        </div>
+      </div>
     </GlassCard>
   );
 }

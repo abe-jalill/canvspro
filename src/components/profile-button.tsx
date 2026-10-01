@@ -4,7 +4,7 @@ import { useUserProfile } from "@/lib/user-profile";
 
 /**
  * Circular profile button shown next to the notification bell in the top bars.
- * Leads to the Profile section of the Settings page.
+ * Leads to the Profile settings page.
  */
 export function ProfileButton({ className }: { className?: string }) {
   const { data: profile } = useUserProfile();
@@ -12,8 +12,7 @@ export function ProfileButton({ className }: { className?: string }) {
 
   return (
     <Link
-      to="/settings"
-      hash="profile"
+      to="/settings/profile"
       preload="intent"
       aria-label="Profile settings"
       title="Profile"
