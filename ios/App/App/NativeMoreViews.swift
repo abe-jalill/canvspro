@@ -1,12 +1,13 @@
 import SwiftUI
 import UserNotifications
+import PhotosUI
+import UIKit
 
 struct NativeMoreView: View {
     @Environment(\.colorScheme) private var scheme
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
     @ObservedObject var sessionStore: NativeSessionStore
-    let preview: Bool
 
     var body: some View {
         NavigationStack {
@@ -22,7 +23,7 @@ struct NativeMoreView: View {
                             link("Announcements", "megaphone") { AnnouncementsView(store: store, features: features) }
                         }
                         CPGlassCard {
-                            link("Settings", "gearshape") { NativeSettingsView(contentStore: store, features: features, sessionStore: sessionStore, preview: preview) }
+                            link("Settings", "gearshape") { NativeSettingsView(contentStore: store, features: features, sessionStore: sessionStore) }
                         }
                     }
                     .padding(.horizontal, 14)
@@ -56,35 +57,31 @@ struct NativeSettingsView: View {
     @ObservedObject var contentStore: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
     @ObservedObject var sessionStore: NativeSessionStore
-    let preview: Bool
 
     var body: some View {
         ZStack {
             CPBackdrop()
             ScrollView {
                 LazyVStack(spacing: 18) {
-                    AppearanceSettingsCard()
+                    AppearanceSettingsCard(features: features)
                     CPGlassCard(title: "Classes") {
                         settingsLink("Canvas connection", "link") { CanvasSettingsView(store: contentStore) }
-                        settingsLink("Announcement history", "clock.arrow.circlepath") { AnnouncementWindowSettingsView() }
+                        settingsLink("Announcement history", "clock.arrow.circlepath") { AnnouncementWindowSettingsView(features: features) }
                         settingsLink("Class names", "character.cursor.ibeam") { ClassNamesView(store: contentStore) }
                         settingsLink("Hidden classes", "eye.slash") { HiddenCoursesView(store: contentStore, features: features) }
+                    }
+                    CPGlassCard(title: "Preferences") {
+                        settingsLink("Notifications", "bell") { NotificationsView(sessionStore: sessionStore, features: features) }
                     }
                     CPGlassCard(title: "Legal") {
                         settingsLink("Privacy Policy", "hand.raised") { NativeLegalView(title: "Privacy Policy") }
                         settingsLink("Terms of Service", "doc.text") { NativeLegalView(title: "Terms of Service") }
                     }
-                    if preview {
-                        Text("Preview uses sample data saved on this iPhone.")
-                            .font(.system(size: 11))
-                            .foregroundStyle(CPTheme.muted(scheme))
-                            .frame(maxWidth: .infinity, alignment: .center)
-                    } else {
-                        CPGlassCard(title: "Account") {
-                            Button("Sign out") { Task { await sessionStore.signOut() } }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            settingsLink("Delete account", "trash") { NativeDeleteAccountView(sessionStore: sessionStore) }
-                        }
+                    CPGlassCard(title: "Account") {
+                        settingsLink("Profile", "person.crop.circle") { ProfileView(features: features, email: sessionStore.session?.user.email) }
+                        Button("Sign out") { Task { await sessionStore.signOut() } }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        settingsLink("Delete account", "trash") { NativeDeleteAccountView(sessionStore: sessionStore) }
                     }
                 }
                 .padding(.horizontal, 14)
@@ -109,7 +106,6 @@ private struct NativeDeleteAccountView: View {
         Form {
             Section {
                 Text("This permanently deletes your account, saved Canvas key, classes, and app data. It cannot be undone.")
-                Text("If an old paid subscription still renews, cancel it first or contact support@canvaspro.app.")
             }
             Section("Type DELETE to confirm") {
                 TextField("DELETE", text: $confirmation)
@@ -758,7 +754,6 @@ private struct AnnouncementsView: View {
     @Environment(\.colorScheme) private var scheme
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
-    @AppStorage("CanvasProAnnouncementWeeks") private var weeks = 1
     @AppStorage("CanvasProDismissedAnnouncements") private var dismissedRaw = ""
     @State private var search = ""
     @State private var courseFilter: Int?
@@ -766,7 +761,7 @@ private struct AnnouncementsView: View {
     private var dismissed: Set<Int> { Set(dismissedRaw.split(separator: ",").compactMap { Int($0) }) }
     private var items: [AnnouncementItem] {
         store.bundle.announcements.filter { item in
-            !features.hiddenCourseIDs.contains(item.courseID) && !dismissed.contains(item.id) && item.isWithin(weeks: weeks) && (search.isEmpty || item.title.localizedCaseInsensitiveContains(search) || item.courseName.localizedCaseInsensitiveContains(search))
+            !features.hiddenCourseIDs.contains(item.courseID) && !dismissed.contains(item.id) && item.isWithin(weeks: features.announcementWeeks) && (search.isEmpty || item.title.localizedCaseInsensitiveContains(search) || item.courseName.localizedCaseInsensitiveContains(search))
         }.sorted { $0.postedAt > $1.postedAt }
     }
     private var feed: [AnnouncementItem] { items.filter { courseFilter == nil || $0.courseID == courseFilter } }
@@ -780,7 +775,7 @@ private struct AnnouncementsView: View {
                 LazyVStack(spacing: 14) {
                     CPGlassCard(strong: true) {
                         VStack(alignment: .leading, spacing: 14) {
-                            Text(weeks == 0 ? "All announcements" : weeks == 1 ? "Past week" : weeks == 4 ? "Past month" : "Past \(weeks) weeks").font(.system(size: 15, weight: .regular))
+                            Text(features.announcementWeeks == 0 ? "All announcements" : features.announcementWeeks == 1 ? "Past week" : features.announcementWeeks == 4 ? "Past month" : "Past \(features.announcementWeeks) weeks").font(.system(size: 15, weight: .regular))
                             HStack(spacing: 8) { announcementMetric(items.count, "Recent posts"); announcementMetric(courseCount, "Active courses") }
                         }
                     }.overlay(alignment: .topTrailing) { Circle().fill(CPTheme.primary(scheme: scheme).opacity(0.15)).frame(width: 260, height: 260).blur(radius: 70).offset(x: 95, y: -95).allowsHitTesting(false) }
@@ -825,12 +820,25 @@ private struct NotificationsView: View {
     var body: some View {
         Form {
             Section("Master") {
-                Toggle("Notifications", isOn: bind(\.enabled)); Toggle("App icon badge", isOn: bind(\.badge)); Toggle("Quiet hours", isOn: bind(\.quietEnabled))
+                Toggle("Notifications", isOn: bind(\.enabled)); Toggle("Push notifications", isOn: bind(\.browserPush)); Toggle("App icon badge", isOn: bind(\.badge)); Toggle("Quiet hours", isOn: bind(\.quietEnabled))
                 if features.notificationPreferences.quietEnabled { Stepper("Starts at \(features.notificationPreferences.quietStart):00", value: bind(\.quietStart), in: 0...23); Stepper("Ends at \(features.notificationPreferences.quietEnd):00", value: bind(\.quietEnd), in: 0...23) }
             }
             Section("Due date reminders") { Toggle("1 week before", isOn: bind(\.due1w)); Toggle("3 days before", isOn: bind(\.due3d)); Toggle("2 days before", isOn: bind(\.due2d)); Toggle("1 day before", isOn: bind(\.due1d)) }
             Section("Canvas updates") { Toggle("Grades", isOn: bind(\.grades)); Toggle("Announcements", isOn: bind(\.announcements)); if features.notificationPreferences.grades { Stepper("Grade threshold: \(Int(features.notificationPreferences.gradeThreshold))%", value: bind(\.gradeThreshold), in: 0...100, step: 5) } }
-            Section("Class schedule") { Toggle("Class countdown", isOn: bind(\.countdownClass)); Toggle("Tonight’s deadlines", isOn: bind(\.countdownTonight)) }
+            Section("Class schedule") {
+                Toggle("Class countdown", isOn: bind(\.countdownClass))
+                if features.notificationPreferences.countdownClass {
+                    ForEach([60, 30, 15, 5, 0], id: \.self) { minutes in
+                        Toggle(minutes == 0 ? "When class starts" : "\(minutes) minutes before", isOn: listBinding(\.countdownLeads, minutes))
+                    }
+                }
+                Toggle("Tonight’s deadlines", isOn: bind(\.countdownTonight))
+                if features.notificationPreferences.countdownTonight {
+                    ForEach([15, 18, 21, 23], id: \.self) { hour in
+                        Toggle("\(hour - 12):00 PM", isOn: listBinding(\.countdownTonightHours, hour))
+                    }
+                }
+            }
             Section { Button { save() } label: { HStack { Spacer(); if syncing { ProgressView() } else { Text("Save Notification Settings") }; Spacer() } }.disabled(syncing) }
             Section("History") { ForEach(features.alerts) { alert in VStack(alignment: .leading) { Text(alert.title).font(.system(size: 13, weight: .regular)); Text(alert.body).font(.system(size: 12, weight: .regular)); Text(alert.sentAt == nil ? "Scheduled" : "Sent").font(.system(size: 10, weight: .regular)).foregroundStyle(.secondary) } }; if features.alerts.isEmpty { Text("No notification history").foregroundStyle(.secondary) } }
             if let status { Section { Text(status).foregroundStyle(.secondary) } }
@@ -843,18 +851,21 @@ private struct NotificationsView: View {
         }
     }
     private func bind<T>(_ path: WritableKeyPath<NotificationPreferences, T>) -> Binding<T> { Binding(get: { features.notificationPreferences[keyPath: path] }, set: { features.notificationPreferences[keyPath: path] = $0 }) }
+    private func listBinding(_ path: WritableKeyPath<NotificationPreferences, [Int]>, _ value: Int) -> Binding<Bool> {
+        Binding(get: { features.notificationPreferences[keyPath: path].contains(value) }, set: { selected in
+            var values = features.notificationPreferences[keyPath: path]
+            if selected { values.append(value) } else { values.removeAll { $0 == value } }
+            features.notificationPreferences[keyPath: path] = Array(Set(values)).sorted()
+        })
+    }
     private func save() {
-        if features.isPreview {
-            status = "Preview settings saved on this simulator."
-            return
-        }
         syncing = true
         Task {
             defer { syncing = false }
             do {
-                if features.notificationPreferences.enabled {
+                if features.notificationPreferences.enabled && features.notificationPreferences.browserPush {
                     let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound])
-                    if granted { UIApplication.shared.registerForRemoteNotifications() } else { features.notificationPreferences.enabled = false }
+                    if granted { UIApplication.shared.registerForRemoteNotifications() } else { features.notificationPreferences.browserPush = false }
                 } else {
                     UIApplication.shared.unregisterForRemoteNotifications()
                     if let deviceToken = UserDefaults.standard.string(forKey: "CanvasProNativePushToken"), let api = sessionStore.api {
@@ -874,21 +885,19 @@ private struct NotificationsView: View {
     }
 }
 
-private struct AppearanceView: View {
-    var body: some View { ZStack { CPBackdrop(); ScrollView { AppearanceSettingsCard().padding(14) } }.navigationTitle("Appearance").navigationBarTitleDisplayMode(.inline) }
-}
-
 private struct AppearanceSettingsCard: View {
     @Environment(\.colorScheme) private var resolvedScheme
+    @ObservedObject var features: NativeFeatureStore
     @AppStorage("CanvasProColorScheme") private var scheme = "system"
     @AppStorage("CanvasProPalette") private var palette = "forest"
+    @State private var status: String?
     private let columns = [GridItem(.flexible()), GridItem(.flexible())]
     var body: some View {
         CPGlassCard(title: "Appearance", strong: true) {
                     Text("THEME").font(.system(size: 10, weight: .regular)).tracking(1.5).foregroundStyle(CPTheme.muted(resolvedScheme))
                     LazyVGrid(columns: columns, spacing: 11) {
                         ForEach(CPPalette.allCases) { option in
-                            Button { palette = option.rawValue } label: { PaletteOption(option: option, selected: palette == option.rawValue) }.buttonStyle(.plain)
+                            Button { Task { await save("color_theme", option.rawValue) } } label: { PaletteOption(option: option, selected: palette == option.rawValue) }.buttonStyle(.plain)
                         }
                     }
                     Text("MODE").font(.system(size: 10, weight: .regular)).tracking(1.5).foregroundStyle(CPTheme.muted(resolvedScheme)).padding(.top, 4)
@@ -898,25 +907,32 @@ private struct AppearanceSettingsCard: View {
                         appearanceButton("system", "System", "desktopcomputer")
                     }
                     if scheme == "system" { Text("Follows your iPhone.").font(.system(size: 11)).foregroundStyle(CPTheme.muted(resolvedScheme)) }
+                    if let status { Text(status).font(.system(size: 11)).foregroundStyle(.red) }
         }
     }
     private func appearanceButton(_ value: String, _ title: String, _ symbol: String) -> some View {
-        Button { scheme = value } label: {
+        Button { Task { await save("theme", value) } } label: {
             VStack(spacing: 6) { Image(systemName: symbol).font(.system(size: 14)); Text(title).font(.system(size: 11, weight: .regular)); if scheme == value { Image(systemName: "checkmark").font(.system(size: 9, weight: .regular)) } }
                 .frame(maxWidth: .infinity, minHeight: 66).foregroundStyle(scheme == value ? CPTheme.primary(scheme: resolvedScheme) : CPTheme.foreground(resolvedScheme)).background(scheme == value ? CPTheme.primary(scheme: resolvedScheme).opacity(0.10) : CPTheme.inset(resolvedScheme), in: RoundedRectangle(cornerRadius: 12)).overlay(RoundedRectangle(cornerRadius: 12).stroke(scheme == value ? CPTheme.primary(scheme: resolvedScheme).opacity(0.55) : CPTheme.insetBorder(resolvedScheme)))
         }.buttonStyle(.plain)
+    }
+    private func save(_ key: String, _ value: String) async {
+        do { try await features.savePreference(key, value); status = nil }
+        catch { status = error.localizedDescription }
     }
 }
 
 private struct AnnouncementWindowSettingsView: View {
     @Environment(\.colorScheme) private var scheme
-    @AppStorage("CanvasProAnnouncementWeeks") private var weeks = 1
+    @ObservedObject var features: NativeFeatureStore
+    @State private var status: String?
     var body: some View {
         ZStack {
             CPBackdrop()
             ScrollView {
                 CPGlassCard(title: "Announcement history", strong: true) {
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) { ForEach([1, 2, 4, 0], id: \.self) { value in Button { weeks = value } label: { CPChip(text: value == 0 ? "All" : value == 4 ? "1 month" : "\(value) week\(value == 1 ? "" : "s")", selected: weeks == value).frame(maxWidth: .infinity) }.buttonStyle(.plain) } }
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) { ForEach([1, 2, 4, 0], id: \.self) { value in Button { Task { do { try await features.savePreference("announcement_window_weeks", value); status = nil } catch { status = error.localizedDescription } } } label: { CPChip(text: value == 0 ? "All" : value == 4 ? "1 month" : "\(value) week\(value == 1 ? "" : "s")", selected: features.announcementWeeks == value).frame(maxWidth: .infinity) }.buttonStyle(.plain) } }
+                    if let status { Text(status).foregroundStyle(.red) }
                 }.padding(14)
             }
         }.navigationTitle("Announcements").navigationBarTitleDisplayMode(.inline)
@@ -941,8 +957,58 @@ private struct ProfileView: View {
     @ObservedObject var features: NativeFeatureStore
     let email: String?
     @State private var username = ""
+    @State private var details = NativeAccountDetails()
+    @State private var selectedPhoto: PhotosPickerItem?
+    @State private var photoBusy = false
     @State private var status: String?
-    var body: some View { Form { Section("Account") { LabeledContent("Email", value: email ?? "—"); TextField("Username", text: $username).textInputAutocapitalization(.never); Button("Save username") { Task { do { try await features.saveUsername(username); status = "Profile saved." } catch { status = error.localizedDescription } } } }; if let status { Section { Text(status).foregroundStyle(.secondary) } } }.cpListScreen().navigationTitle("Profile").onAppear { username = features.profile.username ?? "" } }
+    var body: some View {
+        Form {
+            Section("Account") {
+                LabeledContent("Email", value: email ?? "—")
+                TextField("Username", text: $username).textInputAutocapitalization(.never).autocorrectionDisabled()
+            }
+            Section("Photo") {
+                HStack(spacing: 14) {
+                    AsyncImage(url: features.avatarURL) { image in image.resizable().scaledToFill() } placeholder: { Image(systemName: "person.crop.circle.fill").resizable().foregroundStyle(.secondary) }
+                        .frame(width: 64, height: 64).clipShape(Circle())
+                    PhotosPicker(selection: $selectedPhoto, matching: .images) { Text(features.profile.avatarPath == nil ? "Add photo" : "Change photo") }
+                    if photoBusy { ProgressView() }
+                }
+                if features.profile.avatarPath != nil {
+                    Button("Remove photo", role: .destructive) { Task { do { try await features.removeAvatar(); status = "Photo removed." } catch { status = error.localizedDescription } } }
+                }
+            }
+            Section("About you") {
+                TextField("First name", text: $details.firstName).textContentType(.givenName)
+                TextField("Last name", text: $details.lastName).textContentType(.familyName)
+                TextField("Nickname", text: $details.nickname)
+                TextField("School", text: $details.school)
+                TextField("Major", text: $details.major)
+                TextField("Class of", text: $details.classOf)
+            }
+            Section { Button("Save profile") { Task { do { try await features.saveAccountDetails(details, username: username); status = "Profile saved." } catch { status = error.localizedDescription } } } }
+            if let status { Section { Text(status).foregroundStyle(.secondary) } }
+        }
+        .cpListScreen()
+        .navigationTitle("Profile")
+        .onAppear { username = features.profile.username ?? ""; details = features.accountDetails }
+        .onChange(of: features.accountDetails) { old, current in
+            if details == old { details = current }
+        }
+        .onChange(of: selectedPhoto) { _, item in
+            guard let item else { return }
+            photoBusy = true
+            Task {
+                defer { photoBusy = false }
+                do {
+                    guard let data = try await item.loadTransferable(type: Data.self), let image = UIImage(data: data),
+                          let jpeg = image.jpegData(compressionQuality: 0.82) else { throw NativeAppError.server("Could not read that photo.") }
+                    try await features.uploadAvatar(jpeg)
+                    status = "Photo saved."
+                } catch { status = error.localizedDescription }
+            }
+        }
+    }
 }
 
 private struct ClassNamesView: View {
@@ -958,10 +1024,14 @@ private struct HiddenCoursesView: View {
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
     @State private var hidden = Set<Int>()
+    @State private var status: String?
     var body: some View {
-        List(store.bundle.courses) { course in
-            Toggle(store.displayName(courseID: course.id, fallback: course.name), isOn: Binding(get: { hidden.contains(course.id) }, set: { value in if value { hidden.insert(course.id) } else { hidden.remove(course.id) }; Task { try? await features.savePreference("hidden-courses", Array(hidden)) } }))
-        }.cpListScreen().navigationTitle("Hidden Courses").onAppear { if case .some(.array(let values)) = features.preferences["hidden-courses"] { hidden = Set(values.compactMap { if case .number(let id) = $0 { return Int(id) }; return nil }) } }
+        List {
+            ForEach(store.bundle.courses) { course in
+                Toggle(store.displayName(courseID: course.id, fallback: course.name), isOn: Binding(get: { hidden.contains(course.id) }, set: { value in if value { hidden.insert(course.id) } else { hidden.remove(course.id) }; Task { do { try await features.savePreference("hidden_course_ids", Array(hidden).sorted()); status = nil } catch { status = error.localizedDescription; hidden = features.hiddenCourseIDs } } }))
+            }
+            if let status { Text(status).foregroundStyle(.red) }
+        }.cpListScreen().navigationTitle("Hidden Courses").onAppear { hidden = features.hiddenCourseIDs }
     }
 }
 

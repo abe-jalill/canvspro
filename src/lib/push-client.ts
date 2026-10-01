@@ -103,11 +103,11 @@ export async function maintainBackgroundPush(): Promise<void> {
 }
 
 /** Mirrors the local notification preferences to the backend for the cron job. */
-export async function syncPrefsToServer(): Promise<void> {
+export async function syncPrefsToServer(): Promise<boolean> {
   const { data } = await supabase.auth.getUser();
   const user = data.user;
-  if (!user) return;
-  await supabase.from("notification_prefs").upsert(
+  if (!user) return false;
+  const { error } = await supabase.from("notification_prefs").upsert(
     {
       user_id: user.id,
       prefs: JSON.parse(JSON.stringify(readPrefs())),
@@ -116,6 +116,7 @@ export async function syncPrefsToServer(): Promise<void> {
     },
     { onConflict: "user_id" },
   );
+  return !error;
 }
 
 /**

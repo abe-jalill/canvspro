@@ -308,14 +308,14 @@ final class NativeAPI {
     }
 
     func signUp(email: String, password: String, metadata: [String: Any]) async throws {
-        var request = try request(path: "/auth/v1/signup")
+        var request = try request(path: "/auth/v1/signup", query: [.init(name: "redirect_to", value: "https://canvaspro.app/email-verified")])
         request.httpMethod = "POST"
         request.httpBody = try JSONSerialization.data(withJSONObject: ["email": email, "password": password, "data": metadata])
         _ = try await data(request)
     }
 
     func sendPasswordReset(email: String) async throws {
-        var request = try request(path: "/auth/v1/recover")
+        var request = try request(path: "/auth/v1/recover", query: [.init(name: "redirect_to", value: "https://canvaspro.app/reset-password")])
         request.httpMethod = "POST"
         request.httpBody = try JSONSerialization.data(withJSONObject: ["email": email])
         _ = try await data(request)
@@ -615,10 +615,14 @@ final class NativeSessionStore: ObservableObject {
             UserDefaults.standard.removeObject(forKey: "CanvasProNativeContentCache.\(previousUserID)")
             UserDefaults.standard.removeObject(forKey: "CanvasProNativeDigest.\(previousUserID)")
             UserDefaults.standard.removeObject(forKey: "CanvasProNativeGradeHistory.\(previousUserID)")
+            UserDefaults.standard.removeObject(forKey: "CanvasProNativeStudySession.\(previousUserID)")
         }
-        UserDefaults.standard.removeObject(forKey: "CanvasProNativeDigest")
-        UserDefaults.standard.removeObject(forKey: "CanvasProNativeGradeHistory")
-        UserDefaults.standard.removeObject(forKey: "CanvasProNativePushToken")
+        for key in [
+            "CanvasProNativeDigest", "CanvasProNativeGradeHistory", "CanvasProNativePushToken",
+            "CanvasProPreviewStudySession", "CanvasProDismissedAnnouncements",
+            "CanvasProPlanWindow", "CanvasProPlanSkipped", "CanvasProPlanOrder", "CanvasProPlanDate",
+            "CanvasProColorScheme", "CanvasProPalette",
+        ] { UserDefaults.standard.removeObject(forKey: key) }
         SecureSessionStore.clear()
         session = nil
     }
@@ -658,6 +662,7 @@ final class NativeContentStore: ObservableObject {
     func load() async {
         guard !isPreview else { return }
         guard let api = sessionStore.api, let user = sessionStore.session?.user else { return }
+        guard !isLoading else { return }
         isLoading = true
         errorMessage = nil
         syncMessage = nil

@@ -9,14 +9,18 @@ workflows:
     scripts:
       - name: Build native SwiftUI app
         script: |
+          BACKEND_URL="${SUPABASE_URL:-${VITE_SUPABASE_URL:-}}"
+          BACKEND_KEY="${SUPABASE_PUBLISHABLE_KEY:-${VITE_SUPABASE_PUBLISHABLE_KEY:-}}"
+          test -n "$BACKEND_URL" || { echo "SUPABASE_URL is required for account-backed builds"; exit 1; }
+          test -n "$BACKEND_KEY" || { echo "SUPABASE_PUBLISHABLE_KEY is required for account-backed builds"; exit 1; }
           cd ios/App
           xcodebuild build \
             -project App.xcodeproj \
             -scheme App \
             -sdk iphonesimulator \
             -configuration Debug \
-            SUPABASE_URL="${SUPABASE_URL:-$VITE_SUPABASE_URL}" \
-            SUPABASE_PUBLISHABLE_KEY="${SUPABASE_PUBLISHABLE_KEY:-$VITE_SUPABASE_PUBLISHABLE_KEY}" \
+            SUPABASE_URL="$BACKEND_URL" \
+            SUPABASE_PUBLISHABLE_KEY="$BACKEND_KEY" \
             CODE_SIGNING_ALLOWED=NO
 
     artifacts:
@@ -31,12 +35,16 @@ workflows:
     scripts:
       - name: Compile production SwiftUI path
         script: |
+          BACKEND_URL="${SUPABASE_URL:-${VITE_SUPABASE_URL:-}}"
+          BACKEND_KEY="${SUPABASE_PUBLISHABLE_KEY:-${VITE_SUPABASE_PUBLISHABLE_KEY:-}}"
+          test -n "$BACKEND_URL" || { echo "SUPABASE_URL is required for account-backed builds"; exit 1; }
+          test -n "$BACKEND_KEY" || { echo "SUPABASE_PUBLISHABLE_KEY is required for account-backed builds"; exit 1; }
           cd ios/App
           xcodebuild build \
             -project App.xcodeproj \
             -scheme App \
             -sdk iphonesimulator \
             -configuration Release \
-            SUPABASE_URL="${SUPABASE_URL:-$VITE_SUPABASE_URL}" \
-            SUPABASE_PUBLISHABLE_KEY="${SUPABASE_PUBLISHABLE_KEY:-$VITE_SUPABASE_PUBLISHABLE_KEY}" \
+            SUPABASE_URL="$BACKEND_URL" \
+            SUPABASE_PUBLISHABLE_KEY="$BACKEND_KEY" \
             CODE_SIGNING_ALLOWED=NO

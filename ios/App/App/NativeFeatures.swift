@@ -50,6 +50,36 @@ struct AccountProfile: Codable {
     enum CodingKeys: String, CodingKey { case username; case avatarPath = "avatar_path" }
 }
 
+struct NativeAccountDetails: Equatable {
+    var firstName = ""
+    var lastName = ""
+    var nickname = ""
+    var school = ""
+    var major = ""
+    var classOf = ""
+
+    init(_ metadata: [String: Any] = [:]) {
+        firstName = metadata["first_name"] as? String ?? metadata["firstName"] as? String ?? ""
+        lastName = metadata["last_name"] as? String ?? metadata["lastName"] as? String ?? ""
+        nickname = metadata["nickname"] as? String ?? ""
+        school = metadata["school"] as? String ?? ""
+        major = metadata["major"] as? String ?? ""
+        classOf = metadata["class_of"] as? String ?? metadata["classOf"] as? String ?? ""
+    }
+
+    var metadata: [String: Any] { [
+        "first_name": firstName.trimmingCharacters(in: .whitespacesAndNewlines),
+        "last_name": lastName.trimmingCharacters(in: .whitespacesAndNewlines),
+        "nickname": nickname.trimmingCharacters(in: .whitespacesAndNewlines),
+        "school": school.trimmingCharacters(in: .whitespacesAndNewlines),
+        "major": major.trimmingCharacters(in: .whitespacesAndNewlines),
+        "class_of": classOf.trimmingCharacters(in: .whitespacesAndNewlines),
+        "full_name": "\(firstName.trimmingCharacters(in: .whitespacesAndNewlines)) \(lastName.trimmingCharacters(in: .whitespacesAndNewlines))".trimmingCharacters(in: .whitespacesAndNewlines),
+        "profile_setup_prompted": true,
+        "profile_setup_completed": !firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !lastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+    ] }
+}
+
 struct ClassScheduleEntry: Codable, Identifiable, Hashable {
     var id: String
     var code: String
@@ -159,6 +189,60 @@ struct NotificationPreferences: Equatable {
 }
 
 extension NativeAPI {
+    func signedAvatarURL(path: String, token: String) async throws -> URL {
+        var request = try request(path: "/storage/v1/object/sign/profile-avatars/\(path)", token: token)
+        request.httpMethod = "POST"
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["expiresIn": 3600])
+        guard let object = try await json(request) as? [String: Any],
+              let signedPath = object["signedURL"] as? String,
+              let url = URL(string: signedPath.hasPrefix("/storage/v1/") ? signedPath : "/storage/v1\(signedPath.hasPrefix("/") ? "" : "/")\(signedPath)", relativeTo: configuration.supabaseURL)?.absoluteURL else {
+            throw NativeAppError.server("Could not display the profile photo.")
+        }
+        return url
+    }
+
+    func uploadAvatar(_ jpeg: Data, userID: String, token: String) async throws {
+        let path = "\(userID)/avatar"
+        var request = try request(path: "/storage/v1/object/profile-avatars/\(path)", token: token)
+        request.httpMethod = "POST"
+        request.setValue("image/jpeg", forHTTPHeaderField: "Content-Type")
+        request.setValue("true", forHTTPHeaderField: "x-upsert")
+        request.httpBody = jpeg
+        _ = try await data(request)
+        try await setAvatarPath(path, token: token)
+    }
+
+    func removeAvatar(path: String, token: String) async throws {
+        var request = try request(path: "/storage/v1/object/profile-avatars", token: token)
+        request.httpMethod = "DELETE"
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["prefixes": [path]])
+        _ = try await data(request)
+        try await setAvatarPath(nil, token: token)
+    }
+
+    private func setAvatarPath(_ path: String?, token: String) async throws {
+        var request = try request(path: "/rest/v1/rpc/set_avatar_path", token: token)
+        request.httpMethod = "POST"
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["requested_path": path as Any? ?? NSNull()])
+        _ = try await data(request)
+        var metadataRequest = try self.request(path: "/auth/v1/user", token: token)
+        metadataRequest.httpMethod = "PUT"
+        metadataRequest.httpBody = try JSONSerialization.data(withJSONObject: ["data": ["avatar_path": path as Any? ?? NSNull()]])
+        _ = try await data(metadataRequest)
+    }
+
+    func accountDetails(token: String) async throws -> NativeAccountDetails {
+        let object = try await json(request(path: "/auth/v1/user", token: token)) as? [String: Any] ?? [:]
+        return NativeAccountDetails(object["user_metadata"] as? [String: Any] ?? [:])
+    }
+
+    func saveAccountDetails(_ details: NativeAccountDetails, token: String) async throws {
+        var request = try request(path: "/auth/v1/user", token: token)
+        request.httpMethod = "PUT"
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["data": details.metadata])
+        _ = try await data(request)
+    }
+
     func preferences(token: String, userID: String) async throws -> [String: JSONValue] {
         let request = try request(path: "/rest/v1/user_preferences", token: token, query: [
             .init(name: "select", value: "key,value"), .init(name: "user_id", value: "eq.\(userID)"),
@@ -246,6 +330,8 @@ private struct NativePreviewFeatureState: Codable {
 final class NativeFeatureStore: ObservableObject {
     @Published var preferences: [String: JSONValue] = [:]
     @Published var profile = AccountProfile()
+    @Published var accountDetails = NativeAccountDetails()
+    @Published var avatarURL: URL?
     @Published var schedule: [ClassScheduleEntry] = []
     @Published var customAssignments: [CustomAssignment] = []
     @Published var calendarPicks: [CalendarPick] = []
@@ -280,31 +366,51 @@ final class NativeFeatureStore: ObservableObject {
     func load() async {
         guard !isPreview else { return }
         guard let api = sessionStore.api, let user = sessionStore.session?.user else { return }
+        guard !isLoading else { return }
         isLoading = true; errorMessage = nil; defer { isLoading = false }
         do {
             let token = try await sessionStore.accessToken()
-            async let preferenceRows = api.preferences(token: token, userID: user.id)
+            preferences = try await api.preferences(token: token, userID: user.id)
+            decodePreferenceModels()
+            applyAppearancePreferences()
             async let profileRow = api.accountProfile(token: token, userID: user.id)
+            async let detailsRow = api.accountDetails(token: token)
             async let scheduleRows = api.classSchedule(token: token, userID: user.id)
             async let metaRows = api.assignmentMeta(token: token, userID: user.id)
             async let alertRows = api.scheduledAlerts(token: token, userID: user.id)
             async let notificationRow = api.notificationPreferences(token: token, userID: user.id)
-            preferences = try await preferenceRows; profile = try await profileRow; schedule = try await scheduleRows
-            let metas = try await metaRows
-            estimates = Dictionary(uniqueKeysWithValues: metas.map { ($0.assignmentID, $0.estimatedMinutes ?? 0) })
-            alerts = try await alertRows; notificationPreferences = NotificationPreferences(try await notificationRow)
-            decodePreferenceModels()
+            if let value = try? await profileRow {
+                profile = value
+                if let path = value.avatarPath, !path.isEmpty { avatarURL = try? await api.signedAvatarURL(path: path, token: token) }
+                else { avatarURL = nil }
+            }
+            if let value = try? await detailsRow { accountDetails = value }
+            if let value = try? await scheduleRows { schedule = value }
+            if let metas = try? await metaRows { estimates = Dictionary(uniqueKeysWithValues: metas.map { ($0.assignmentID, $0.estimatedMinutes ?? 0) }) }
+            if let value = try? await alertRows { alerts = value }
+            if let value = try? await notificationRow { notificationPreferences = NotificationPreferences(value) }
         } catch { errorMessage = error.localizedDescription }
     }
 
     func savePreference<T: Encodable>(_ key: String, _ value: T) async throws {
         let data = try JSONEncoder().encode(value)
         let json = try JSONDecoder().decode(JSONValue.self, from: data)
+        let previous = preferences[key]
         preferences[key] = json
         if isPreview { decodePreferenceModels(); persistPreviewState(); return }
-        guard let api = sessionStore.api, let user = sessionStore.session?.user else { throw NativeAppError.signedOut }
-        try await api.savePreference(key: key, value: json, token: try await sessionStore.accessToken(), userID: user.id)
         decodePreferenceModels()
+        applyAppearancePreferences()
+        do {
+            guard let api = sessionStore.api, let user = sessionStore.session?.user else { throw NativeAppError.signedOut }
+            try await api.savePreference(key: key, value: json, token: try await sessionStore.accessToken(), userID: user.id)
+        } catch {
+            if preferences[key] == json {
+                if let previous { preferences[key] = previous } else { preferences.removeValue(forKey: key) }
+                decodePreferenceModels()
+                applyAppearancePreferences()
+            }
+            throw error
+        }
     }
 
     func saveNotifications() async throws {
@@ -320,6 +426,39 @@ final class NativeFeatureStore: ObservableObject {
         profile.username = username
     }
 
+    func saveAccountDetails(_ details: NativeAccountDetails, username: String) async throws {
+        guard let api = sessionStore.api else { throw NativeAppError.signedOut }
+        let token = try await sessionStore.accessToken()
+        let normalized = username.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if !normalized.isEmpty && normalized != (profile.username ?? "") {
+            guard normalized.range(of: "^[a-z0-9_]{3,24}$", options: .regularExpression) != nil else {
+                throw NativeAppError.server("Username must be 3–24 lowercase letters, numbers, or underscores.")
+            }
+            try await api.setUsername(normalized, token: token)
+            profile.username = normalized
+        }
+        try await api.saveAccountDetails(details, token: token)
+        accountDetails = details
+    }
+
+    func uploadAvatar(_ jpeg: Data) async throws {
+        guard jpeg.count <= 5 * 1024 * 1024 else { throw NativeAppError.server("Profile photos must be 5 MB or smaller.") }
+        guard let api = sessionStore.api, let user = sessionStore.session?.user else { throw NativeAppError.signedOut }
+        let token = try await sessionStore.accessToken()
+        try await api.uploadAvatar(jpeg, userID: user.id, token: token)
+        let path = "\(user.id)/avatar"
+        profile.avatarPath = path
+        avatarURL = try? await api.signedAvatarURL(path: path, token: token)
+    }
+
+    func removeAvatar() async throws {
+        guard let path = profile.avatarPath, !path.isEmpty else { return }
+        guard let api = sessionStore.api else { throw NativeAppError.signedOut }
+        try await api.removeAvatar(path: path, token: try await sessionStore.accessToken())
+        profile.avatarPath = nil
+        avatarURL = nil
+    }
+
     func saveEstimate(_ minutes: Int?, for assignment: AssignmentItem) async throws {
         if isPreview { estimates[assignment.id] = minutes ?? 0; persistPreviewState(); return }
         guard let api = sessionStore.api, let user = sessionStore.session?.user else { throw NativeAppError.signedOut }
@@ -329,8 +468,50 @@ final class NativeFeatureStore: ObservableObject {
 
     private func decodePreferenceModels() {
         let decoder = JSONDecoder()
-        if let value = preferences["custom-assignments"], let data = try? JSONEncoder().encode(value) { customAssignments = (try? decoder.decode([CustomAssignment].self, from: data)) ?? [] }
-        if let value = preferences["calendar-picks"], let data = try? JSONEncoder().encode(value) { calendarPicks = (try? decoder.decode([CalendarPick].self, from: data)) ?? [] }
+        customAssignments = preferences["custom-assignments"].flatMap { value in (try? JSONEncoder().encode(value)).flatMap { try? decoder.decode([CustomAssignment].self, from: $0) } } ?? []
+        calendarPicks = preferences["calendar-picks"].flatMap { value in (try? JSONEncoder().encode(value)).flatMap { try? decoder.decode([CalendarPick].self, from: $0) } } ?? []
+    }
+
+    private func applyAppearancePreferences() {
+        if case .some(.string(let mode)) = preferences["theme"], ["light", "dark", "system"].contains(mode) {
+            UserDefaults.standard.set(mode, forKey: "CanvasProColorScheme")
+        }
+        if case .some(.string(let palette)) = preferences["color_theme"], CPPalette(rawValue: palette) != nil {
+            UserDefaults.standard.set(palette, forKey: "CanvasProPalette")
+        }
+    }
+
+    var announcementWeeks: Int {
+        guard case .some(.number(let value)) = preferences["announcement_window_weeks"], [0, 1, 2, 4].contains(Int(value)) else { return 1 }
+        return Int(value)
+    }
+
+    private let dashboardWidgets = ["digest", "focus", "classes", "upcoming", "calendar", "announcements", "heatmap"]
+    private var dashboardObject: [String: JSONValue] {
+        if case .some(.object(let value)) = preferences["dashboard-layout"] { return value }
+        return [:]
+    }
+    var dashboardOrder: [String] {
+        let saved: [String]
+        if case .some(.array(let values)) = dashboardObject["order"] {
+            saved = values.compactMap { if case .string(let value) = $0 { return value }; return nil }
+        } else { saved = [] }
+        var order = saved.filter { dashboardWidgets.contains($0) }
+        for widget in dashboardWidgets where !order.contains(widget) { order.append(widget) }
+        return order
+    }
+    var dashboardHidden: Set<String> {
+        guard case .some(.array(let values)) = dashboardObject["hidden"] else { return [] }
+        return Set(values.compactMap { if case .string(let value) = $0 { return value }; return nil })
+    }
+    func updateDashboard(order: [String]? = nil, hidden: Set<String>? = nil) async throws {
+        var layout = dashboardObject
+        let currentOrder = dashboardOrder
+        let websiteOnly = (layout["order"].flatMap { if case .array(let values) = $0 { return values }; return nil } ?? []).compactMap { if case .string(let value) = $0, !dashboardWidgets.contains(value) { return value }; return nil }
+        layout["order"] = .array(((order ?? currentOrder) + websiteOnly).map(JSONValue.string))
+        layout["hidden"] = .array((hidden ?? dashboardHidden).sorted().map(JSONValue.string))
+        if layout["sizes"] == nil { layout["sizes"] = .object([:]) }
+        try await savePreference("dashboard-layout", JSONValue.object(layout))
     }
 
     func persistPreviewState() {
@@ -340,7 +521,7 @@ final class NativeFeatureStore: ObservableObject {
     }
 
     var hiddenCourseIDs: Set<Int> {
-        guard case .some(.array(let values)) = preferences["hidden-courses"] else { return [] }
+        guard case .some(.array(let values)) = preferences["hidden_course_ids"] else { return [] }
         return Set(values.compactMap { if case .number(let id) = $0 { return Int(id) }; return nil })
     }
 }

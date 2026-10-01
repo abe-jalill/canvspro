@@ -252,7 +252,7 @@ export function NotificationCountdowns() {
 
 /** Section 3 — how and when alerts are allowed to reach you. */
 export function NotificationDelivery() {
-  const { prefs, set, toggle } = useNotificationPrefs();
+  const { prefs, set, toggle, ready } = useNotificationPrefs();
   const [permission, setPermission] = useState<string>("default");
   const [background, setBackground] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -267,12 +267,16 @@ export function NotificationDelivery() {
     void isPushEnabled().then(setBackground);
   }, []);
 
-  // Keep the backend copy of the preferences in sync so background alerts match.
+  // The account copy is shared with native iOS even when browser push is off.
   useEffect(() => {
-    if (!background) return;
-    const id = setTimeout(() => void syncPrefsToServer(), 600);
+    if (!ready) return;
+    const id = setTimeout(() => {
+      void syncPrefsToServer()
+        .then((ok) => { if (!ok) toast.error("Notification settings could not sync. Try again."); })
+        .catch(() => toast.error("Notification settings could not sync. Try again."));
+    }, 600);
     return () => clearTimeout(id);
-  }, [prefs, background]);
+  }, [prefs, ready]);
 
   async function requestPermission() {
     if (typeof window === "undefined" || !("Notification" in window)) return;

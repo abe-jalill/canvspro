@@ -9,15 +9,11 @@ struct NativeRootView: View {
 
     var body: some View {
         Group {
-            #if DEBUG
-            NativeMainTabView(sessionStore: sessionStore, preview: true)
-            #else
             if sessionStore.session != nil {
-                NativeMainTabView(sessionStore: sessionStore, preview: false)
+                NativeMainTabView(sessionStore: sessionStore)
             } else {
                 NativeAuthView(sessionStore: sessionStore)
             }
-            #endif
         }
         .font(.system(size: 13, weight: .regular))
         .fontDesign(.rounded)
@@ -131,24 +127,31 @@ private struct PasswordResetSheet: View {
 private enum NativeTab: Hashable { case dashboard, focus, study, grades, more }
 
 struct NativeMainTabView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @ObservedObject var sessionStore: NativeSessionStore
-    let preview: Bool
     @StateObject private var contentStore: NativeContentStore
     @StateObject private var featureStore: NativeFeatureStore
     @State private var selection: NativeTab = .dashboard
 
-    init(sessionStore: NativeSessionStore, preview: Bool = false) {
+    init(sessionStore: NativeSessionStore) {
         self.sessionStore = sessionStore
-        self.preview = preview
-        _contentStore = StateObject(wrappedValue: NativeContentStore(sessionStore: sessionStore, preview: preview))
-        _featureStore = StateObject(wrappedValue: NativeFeatureStore(sessionStore: sessionStore, preview: preview))
+        _contentStore = StateObject(wrappedValue: NativeContentStore(sessionStore: sessionStore))
+        _featureStore = StateObject(wrappedValue: NativeFeatureStore(sessionStore: sessionStore))
     }
 
     var body: some View {
         nativeTabs
-            .task { async let content: Void = contentStore.load(); async let features: Void = featureStore.load(); _ = await (content, features) }
+            .task { await refreshAccountData() }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active {
+                    Task { await refreshAccountData() }
+                }
+            }
             .onReceive(NotificationCenter.default.publisher(for: .nativeDeviceToken)) { note in
-                guard let deviceToken = note.object as? String else { return }
+                guard let deviceToken = note.object as? String else {
+                    if let error = note.object as? Error { featureStore.errorMessage = error.localizedDescription }
+                    return
+                }
                 Task { await registerDeviceToken(deviceToken) }
             }
             .onReceive(NotificationCenter.default.publisher(for: .nativeNotificationPath)) { note in
@@ -166,11 +169,31 @@ struct NativeMainTabView: View {
     }
 
     private func registerDeviceToken(_ deviceToken: String) async {
+        guard featureStore.notificationPreferences.enabled && featureStore.notificationPreferences.browserPush else { return }
         guard let api = sessionStore.api, let user = sessionStore.session?.user else { return }
         do {
             try await api.upsertPushToken(deviceToken, token: try await sessionStore.accessToken(), userID: user.id)
             UserDefaults.standard.set(deviceToken, forKey: "CanvasProNativePushToken")
         } catch { featureStore.errorMessage = error.localizedDescription }
+    }
+
+    private func refreshAccountData() async {
+        async let content: Void = contentStore.load()
+        async let features: Void = featureStore.load()
+        _ = await (content, features)
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        if featureStore.notificationPreferences.enabled && featureStore.notificationPreferences.browserPush &&
+            (settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional) {
+            UIApplication.shared.registerForRemoteNotifications()
+        } else if !featureStore.notificationPreferences.enabled || !featureStore.notificationPreferences.browserPush {
+            UIApplication.shared.unregisterForRemoteNotifications()
+            if let deviceToken = UserDefaults.standard.string(forKey: "CanvasProNativePushToken"), let api = sessionStore.api {
+                do {
+                    try await api.deletePushToken(deviceToken, token: try await sessionStore.accessToken())
+                    UserDefaults.standard.removeObject(forKey: "CanvasProNativePushToken")
+                } catch { featureStore.errorMessage = error.localizedDescription }
+            }
+        }
     }
 
     @ViewBuilder private var nativeTabs: some View {
@@ -183,7 +206,7 @@ struct NativeMainTabView: View {
             NavigationStack { FocusView(store: contentStore, features: featureStore) }.tabItem { Label("Focus", systemImage: "scope") }.tag(NativeTab.focus)
             NativeStudyView(store: contentStore, features: featureStore).tabItem { Label("Study Session", systemImage: "timer") }.tag(NativeTab.study)
             NativeGradesView(store: contentStore, features: featureStore).tabItem { Label("Grades", systemImage: "chart.bar.fill") }.tag(NativeTab.grades)
-            NativeMoreView(store: contentStore, features: featureStore, sessionStore: sessionStore, preview: preview).tabItem { Label("More", systemImage: "square.grid.2x2") }.tag(NativeTab.more)
+            NativeMoreView(store: contentStore, features: featureStore, sessionStore: sessionStore).tabItem { Label("More", systemImage: "square.grid.2x2") }.tag(NativeTab.more)
         }
         .tabBarMinimizeBehavior(.onScrollDown)
     }
@@ -200,16 +223,6 @@ private struct NativeDashboardView: View {
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
     @Binding var selection: NativeTab
-    @AppStorage("NativeDashboardSummary") private var showSummary = true
-    @AppStorage("NativeDashboardCourses") private var showCourses = true
-    @AppStorage("NativeDashboardUpcoming") private var showUpcoming = true
-    @AppStorage("NativeDashboardFocus") private var showFocus = true
-    @AppStorage("NativeDashboardAnnouncements") private var showAnnouncements = true
-    @AppStorage("NativeDashboardWorkload") private var showWorkload = true
-    @AppStorage("NativeDashboardCalendar") private var showCalendar = true
-    @AppStorage("NativeDashboardOrder") private var orderRaw = "digest,focus,classes,upcoming,calendar,announcements,heatmap"
-    @AppStorage("NativeDashboardWidgetOrderV2") private var migratedWidgetOrder = false
-    @AppStorage("CanvasProAnnouncementWeeks") private var announcementWeeks = 1
     @AppStorage("CanvasProDismissedAnnouncements") private var dismissedAnnouncementsRaw = ""
     @State private var digest: NativeDigestSnapshot?
     private var digestKey: String { "CanvasProNativeDigest.\(store.persistenceScope)" }
@@ -224,10 +237,10 @@ private struct NativeDashboardView: View {
     private var todayCount: Int { weekItems.filter { ($0.dueDate ?? .distantFuture) <= Date().addingTimeInterval(86400) && ($0.dueDate ?? .distantFuture) >= Date() }.count }
     private var overdueCount: Int { activeAssignments.filter { ($0.dueDate ?? .distantFuture) < Date() }.count }
     private var greeting: String { let hour = Calendar.current.component(.hour, from: Date()); return hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening" }
-    private var studentName: String { let value = features.profile.username?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""; return value.isEmpty ? "Preview Student" : value }
+    private var studentName: String { let value = features.profile.username?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""; return value.isEmpty ? "there" : value }
     private var gradeMap: [Int: Double] { Dictionary(uniqueKeysWithValues: allAssignments.compactMap { item in item.submission?.score.map { (item.id, $0) } }) }
     private var urgencyMap: [Int: String] { Dictionary(uniqueKeysWithValues: activeAssignments.compactMap { item in urgency(for: item).map { (item.id, $0) } }) }
-    private var newAnnouncements: [AnnouncementItem] { guard let digest else { return [] }; return Array(store.bundle.announcements.filter { item in item.isWithin(weeks: announcementWeeks) && (ISO8601DateFormatter.canvasDate(from: item.postedAt) ?? .distantPast) > digest.lastVisit }.prefix(8)) }
+    private var newAnnouncements: [AnnouncementItem] { guard let digest else { return [] }; return Array(store.bundle.announcements.filter { item in item.isWithin(weeks: features.announcementWeeks) && (ISO8601DateFormatter.canvasDate(from: item.postedAt) ?? .distantPast) > digest.lastVisit }.prefix(8)) }
     private var newGrades: [AssignmentItem] { guard let digest else { return [] }; return Array(allAssignments.filter { item in guard let score = item.submission?.score else { return false }; return digest.grades[item.id] != score }.prefix(8)) }
     private var newlyUrgent: [AssignmentItem] { guard let digest else { return [] }; return Array(activeAssignments.filter { item in guard let value = urgency(for: item) else { return false }; return (value == "today" || value == "soon") && digest.urgency[item.id] != value }.prefix(8)) }
     private var calendarPreview: [NativeCalendarEntry] {
@@ -247,7 +260,7 @@ private struct NativeDashboardView: View {
         }
         return Array(values.sorted { $0.date < $1.date }.prefix(3))
     }
-    private var widgetIDs: [String] { let defaults = ["digest", "focus", "classes", "upcoming", "calendar", "announcements", "heatmap"]; var result = orderRaw.split(separator: ",").map { String($0) }.filter { defaults.contains($0) }; for id in defaults where !result.contains(id) { result.append(id) }; return result }
+    private var widgetIDs: [String] { features.dashboardOrder.filter { !features.dashboardHidden.contains($0) } }
 
     var body: some View {
         NavigationStack {
@@ -261,7 +274,7 @@ private struct NativeDashboardView: View {
                         }
                         HStack {
                             Spacer()
-                            NavigationLink { DashboardCustomizationView() } label: { Label("Customize dashboard", systemImage: "slider.horizontal.3").labelStyle(.iconOnly).foregroundStyle(CPTheme.muted(scheme)).frame(width: 40, height: 40).background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 12)).overlay(RoundedRectangle(cornerRadius: 12).stroke(CPTheme.insetBorder(scheme))) }.buttonStyle(.plain)
+                            NavigationLink { DashboardCustomizationView(features: features) } label: { Label("Customize dashboard", systemImage: "slider.horizontal.3").labelStyle(.iconOnly).foregroundStyle(CPTheme.muted(scheme)).frame(width: 40, height: 40).background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 12)).overlay(RoundedRectangle(cornerRadius: 12).stroke(CPTheme.insetBorder(scheme))) }.buttonStyle(.plain)
                         }.padding(.horizontal, 3)
 
                         ForEach(widgetIDs, id: \.self) { id in dashboardWidget(id) }
@@ -270,7 +283,7 @@ private struct NativeDashboardView: View {
             }
             .navigationTitle("Dashboard").navigationBarTitleDisplayMode(.inline)
             .refreshable { async let a: Void = store.load(); async let b: Void = features.load(); _ = await (a, b) }
-            .onAppear { migrateWidgetOrder(); loadDigest() }
+            .onAppear { loadDigest() }
             .sheet(item: $syllabusCourse) { course in NavigationStack { ScrollView { Text(course.syllabusBody?.strippingHTML ?? "No syllabus available.").font(.system(size: 13)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading).padding() }.navigationTitle("\(course.name) Syllabus").toolbar { Button("Done") { syllabusCourse = nil } } } }
         }
     }
@@ -316,11 +329,11 @@ private struct NativeDashboardView: View {
     private var metricColumns: [GridItem] { [GridItem(.flexible(minimum: 0), spacing: 8), GridItem(.flexible(minimum: 0), spacing: 8)] }
     @ViewBuilder private func dashboardWidget(_ id: String) -> some View {
         switch id {
-        case "digest": if showSummary { digestCard }
-        case "classes": if showCourses { classesWidget }
-        case "upcoming": if showUpcoming { upcomingWidget }
-        case "focus": if showFocus { focusWidget }
-        case "calendar": if showCalendar {
+        case "digest": digestCard
+        case "classes": classesWidget
+        case "upcoming": upcomingWidget
+        case "focus": focusWidget
+        case "calendar":
             CPGlassCard(title: "Calendar", subtitle: "Upcoming deadlines & events") {
                 VStack(spacing: 8) {
                     ForEach(calendarPreview) { item in
@@ -370,9 +383,8 @@ private struct NativeDashboardView: View {
                 }
                 .padding(.top, 4)
             }
-        }
-        case "announcements": if showAnnouncements { CPGlassCard(title: "Announcements") { ForEach(store.bundle.announcements.filter { !features.hiddenCourseIDs.contains($0.courseID) && $0.isWithin(weeks: announcementWeeks) && !dismissedAnnouncements.contains($0.id) }.prefix(3)) { item in NavigationLink { AnnouncementDetailView(item: item) } label: { CPInsetRow { VStack(alignment: .leading, spacing: 3) { Text(item.title).font(.system(size: 13, weight: .regular)); Text(item.courseName).font(.system(size: 10, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)); Text(item.message.strippingHTML).font(.system(size: 11, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)).lineLimit(2) } } }.buttonStyle(.plain) } } }
-        case "heatmap": if showWorkload { CPGlassCard(title: "Workload") { WorkloadView(assignments: activeAssignments) } }
+        case "announcements": CPGlassCard(title: "Announcements") { ForEach(store.bundle.announcements.filter { !features.hiddenCourseIDs.contains($0.courseID) && $0.isWithin(weeks: features.announcementWeeks) && !dismissedAnnouncements.contains($0.id) }.prefix(3)) { item in NavigationLink { AnnouncementDetailView(item: item) } label: { CPInsetRow { VStack(alignment: .leading, spacing: 3) { Text(item.title).font(.system(size: 13, weight: .regular)); Text(item.courseName).font(.system(size: 10, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)); Text(item.message.strippingHTML).font(.system(size: 11, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)).lineLimit(2) } } }.buttonStyle(.plain) } }
+        case "heatmap": CPGlassCard(title: "Workload") { WorkloadView(assignments: activeAssignments) }
         default: EmptyView()
         }
     }
@@ -522,17 +534,6 @@ private struct NativeDashboardView: View {
     private func courseColor(_ course: CourseSummary) -> Color {
         guard let score = course.currentScore else { return CPTheme.muted(scheme) }
         return score >= 80 ? CPTheme.primary(scheme: scheme) : score >= 70 ? CPTheme.warning : CPTheme.danger
-    }
-
-    private func migrateWidgetOrder() {
-        guard !migratedWidgetOrder else { return }
-        if orderRaw == "digest,classes,upcoming,focus,calendar,announcements,heatmap" {
-            orderRaw = "digest,focus,classes,upcoming,calendar,announcements,heatmap"
-        }
-        showCourses = true
-        showUpcoming = true
-        showFocus = true
-        migratedWidgetOrder = true
     }
 
     private var digestCard: some View {
@@ -695,35 +696,25 @@ struct NativeSyncStatusCard: View {
 }
 
 private struct DashboardCustomizationView: View {
-    @AppStorage("NativeDashboardSummary") private var showSummary = true
-    @AppStorage("NativeDashboardCourses") private var showCourses = true
-    @AppStorage("NativeDashboardUpcoming") private var showUpcoming = true
-    @AppStorage("NativeDashboardFocus") private var showFocus = true
-    @AppStorage("NativeDashboardAnnouncements") private var showAnnouncements = true
-    @AppStorage("NativeDashboardWorkload") private var showWorkload = true
-    @AppStorage("NativeDashboardCalendar") private var showCalendar = true
-    @AppStorage("NativeDashboardOrder") private var orderRaw = "digest,focus,classes,upcoming,calendar,announcements,heatmap"
-    private let defaults = ["digest", "focus", "classes", "upcoming", "calendar", "announcements", "heatmap"]
-    private var order: [String] { var result = orderRaw.split(separator: ",").map { String($0) }.filter { defaults.contains($0) }; for id in defaults where !result.contains(id) { result.append(id) }; return result }
+    @ObservedObject var features: NativeFeatureStore
+    @State private var status: String?
+    private var order: [String] { features.dashboardOrder }
 
     var body: some View {
         Form {
             Section("Dashboard widgets") {
-                Toggle("Summary", isOn: $showSummary)
-                Toggle("Classes & Grades", isOn: $showCourses)
-                Toggle("Upcoming Assignments", isOn: $showUpcoming)
-                Toggle("Focus", isOn: $showFocus)
-                Toggle("Announcements", isOn: $showAnnouncements)
-                Toggle("Workload", isOn: $showWorkload)
-                Toggle("Calendar", isOn: $showCalendar)
+                ForEach(order, id: \.self) { id in Toggle(title(for: id), isOn: Binding(get: { !features.dashboardHidden.contains(id) }, set: { setVisible(id, $0) })) }
             }
             Section("Order") { ForEach(order.indices, id: \.self) { index in HStack { Text(title(for: order[index])); Spacer(); Button { move(index, -1) } label: { Image(systemName: "arrow.up") }.disabled(index == 0); Button { move(index, 1) } label: { Image(systemName: "arrow.down") }.disabled(index == order.count - 1) } } }
-            Section { Button("Reset dashboard") { showSummary = true; showCourses = true; showUpcoming = true; showFocus = true; showCalendar = true; showAnnouncements = true; showWorkload = true; orderRaw = defaults.joined(separator: ",") } }
-            Section { Text("Choose what appears on your dashboard. These choices are saved on this iPhone.").foregroundStyle(.secondary) }
+            Section { Button("Reset dashboard") { Task { await save(order: ["digest", "focus", "classes", "upcoming", "calendar", "announcements", "heatmap"], hidden: []) } } }
+            if let status { Section { Text(status).foregroundStyle(.secondary) } }
         }.cpListScreen().navigationTitle("Customize Dashboard")
     }
+
     private func title(for id: String) -> String { ["digest": "Since your last visit", "classes": "Classes & Grades", "upcoming": "Upcoming Assignments", "focus": "Focus", "calendar": "Calendar", "announcements": "Announcements", "heatmap": "Workload"][id] ?? id }
-    private func move(_ index: Int, _ direction: Int) { var values = order; guard values.indices.contains(index + direction) else { return }; values.swapAt(index, index + direction); orderRaw = values.joined(separator: ",") }
+    private func setVisible(_ id: String, _ visible: Bool) { var hidden = features.dashboardHidden; if visible { hidden.remove(id) } else { hidden.insert(id) }; Task { await save(hidden: hidden) } }
+    private func move(_ index: Int, _ direction: Int) { var values = order; guard values.indices.contains(index + direction) else { return }; values.swapAt(index, index + direction); Task { await save(order: values) } }
+    private func save(order: [String]? = nil, hidden: Set<String>? = nil) async { do { try await features.updateDashboard(order: order, hidden: hidden); status = nil } catch { status = error.localizedDescription } }
 }
 
 struct NativeAssignmentsView: View {
@@ -1077,7 +1068,6 @@ struct CourseDetailView: View {
     @State private var section: CourseDetailSection
     @State private var showAllUpcoming = false
     @State private var showAllAnnouncements = false
-    @AppStorage("CanvasProAnnouncementWeeks") private var announcementWeeks = 1
 
     init(course: CourseSummary, store: NativeContentStore, features: NativeFeatureStore, initialSection: CourseDetailSection = .upcoming) {
         self.course = course
@@ -1104,7 +1094,7 @@ struct CourseDetailView: View {
             .sorted { ($0.submission?.submittedAt ?? $0.dueAt ?? "") > ($1.submission?.submittedAt ?? $1.dueAt ?? "") }
     }
     private var announcements: [AnnouncementItem] {
-        store.bundle.announcements.filter { $0.courseID == course.id && $0.isWithin(weeks: announcementWeeks) }
+        store.bundle.announcements.filter { $0.courseID == course.id && $0.isWithin(weeks: features.announcementWeeks) }
             .sorted { $0.postedAt > $1.postedAt }
     }
     private var recentAnnouncements: [AnnouncementItem] { announcements.filter { item in ISO8601DateFormatter.canvasDate(from: item.postedAt).map { $0 >= Date().addingTimeInterval(-21 * 86400) } ?? true } }
@@ -1353,13 +1343,13 @@ private struct NativeStudyView: View {
     @State private var duration: Int; @State private var remaining: Int; @State private var running: Bool; @State private var currentIndex: Int; @State private var showCompleted = false
     @State private var manualName = ""; @State private var search = ""
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-    private let sessionKey = "CanvasProPreviewStudySession"
+    private var sessionKey: String { "CanvasProNativeStudySession.\(store.persistenceScope)" }
     private var availableItems: [AssignmentItem] { (store.bundle.assignments + features.customAssignments.map { item in AssignmentItem.custom(item, course: store.bundle.courses.first { $0.id == item.courseID }) } + manualTasks).filter { !features.hiddenCourseIDs.contains($0.courseID) || $0.courseID == 0 } }
     private var items: [AssignmentItem] { selectedOrder.compactMap { id in availableItems.first { $0.id == id && selected.contains(id) } } }
 
     init(store: NativeContentStore, features: NativeFeatureStore) {
         self.store = store; self.features = features
-        let key = "CanvasProPreviewStudySession"
+        let key = "CanvasProNativeStudySession.\(store.persistenceScope)"
         let saved = UserDefaults.standard.data(forKey: key).flatMap { try? JSONDecoder().decode(StoredNativeStudySession.self, from: $0) }
         let elapsed = saved?.running == true ? max(0, Int(Date().timeIntervalSince(saved?.savedAt ?? Date()))) : 0
         let restoredRemaining = max(0, (saved?.remaining ?? 25 * 60) - elapsed)
