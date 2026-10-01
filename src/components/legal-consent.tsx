@@ -30,7 +30,7 @@ export function LegalConsent({
             rel="noopener noreferrer"
             className="text-foreground underline underline-offset-4"
           >
-            Terms of Use (new tab)
+            Terms of Use
           </a>
           <a
             href="/privacy"
@@ -38,7 +38,7 @@ export function LegalConsent({
             rel="noopener noreferrer"
             className="text-foreground underline underline-offset-4"
           >
-            Privacy Policy (new tab)
+            Privacy Policy
           </a>
         </p>
       </div>
