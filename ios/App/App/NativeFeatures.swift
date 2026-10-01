@@ -278,7 +278,8 @@ extension NativeAPI {
         var request = try request(path: "/rest/v1/rpc/username_available", token: token)
         request.httpMethod = "POST"
         request.httpBody = try JSONSerialization.data(withJSONObject: ["requested_username": username])
-        return (try await json(request)) as? Bool ?? false
+        // Supabase returns a top-level JSON boolean for this RPC.
+        return try JSONDecoder().decode(Bool.self, from: await data(request))
     }
 
     func classSchedule(token: String, userID: String) async throws -> [ClassScheduleEntry] {
