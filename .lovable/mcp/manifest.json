@@ -1,0 +1,124 @@
+{
+  "version": 1,
+  "sdk_version": "3.0.4",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://vqmzhzvugzhmtprklzfm.supabase.co/auth/v1",
+    "resource": "https://canvaspro.app/mcp",
+    "resource_name": "CanvasPro",
+    "resource_documentation": "https://canvaspro.app",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "canvaspro",
+      "version": "0.1.0",
+      "title": "CanvasPro"
+    },
+    "tools": [
+      {
+        "name": "list_courses",
+        "title": "List courses and grades",
+        "description": "List the student's active Canvas courses with their current grade in each one. Use this to answer questions about classes, course names, or current grades/GPA.",
+        "annotations": {
+          "readOnlyHint": true,
+          "openWorldHint": true
+        },
+        "inputSchema": null,
+        "outputSchema": null
+      },
+      {
+        "name": "list_assignments",
+        "title": "List assignments",
+        "description": "List the student's Canvas assignments with due dates, points and whether they are turned in. Defaults to work due in the next 14 days that is not yet submitted. Use this for questions about what is due, upcoming deadlines, missing work, or study planning.",
+        "annotations": {
+          "readOnlyHint": true,
+          "openWorldHint": true
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "days_ahead": {
+              "description": "How many days ahead to include. Default 14.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 180
+            },
+            "include_submitted": {
+              "description": "Include assignments already turned in or graded. Default false.",
+              "type": "boolean"
+            },
+            "include_overdue": {
+              "description": "Include past-due assignments that are still not turned in. Default true.",
+              "type": "boolean"
+            },
+            "course_id": {
+              "description": "Limit to one course id from list_courses.",
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          "additionalProperties": false
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_announcements",
+        "title": "List course announcements",
+        "description": "List recent Canvas announcements posted by the student's instructors, newest first. Use this to summarise class news, schedule changes or instructor instructions.",
+        "annotations": {
+          "readOnlyHint": true,
+          "openWorldHint": true
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "days_back": {
+              "description": "How many days back to include. Default 14.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 90
+            },
+            "course_id": {
+              "description": "Limit to one course id from list_courses.",
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          "additionalProperties": false
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_calendar_events",
+        "title": "List calendar events",
+        "description": "List the student's upcoming Canvas calendar events such as lectures, labs, exams and meetings. Assignment due dates come from list_assignments instead.",
+        "annotations": {
+          "readOnlyHint": true,
+          "openWorldHint": true
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "days_ahead": {
+              "description": "How many days ahead to include. Default 14.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 60
+            }
+          },
+          "additionalProperties": false
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}

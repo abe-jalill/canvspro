@@ -16,12 +16,14 @@ import { Route as CanvasDashboardGuideRouteImport } from './routes/canvas-dashbo
 import { Route as CanvasGradeCalculatorRouteImport } from './routes/canvas-grade-calculator'
 import { Route as EmailVerifiedRouteImport } from './routes/email-verified'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as McpRouteImport } from './routes/mcp'
 import { Route as MobileBillingReturnRouteImport } from './routes/mobile-billing-return'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedAnnouncementsRouteImport } from './routes/_authenticated/announcements'
 import { Route as AuthenticatedAssignmentsRouteImport } from './routes/_authenticated/assignments'
@@ -34,6 +36,7 @@ import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authen
 import { Route as AuthenticatedScheduleRouteImport } from './routes/_authenticated/schedule'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedStudySessionRouteImport } from './routes/_authenticated/study-session'
+import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable/oauth/consent'
 import { Route as AuthenticatedCoursesCourseIdRouteImport } from './routes/_authenticated/courses.$courseId'
 import { Route as ApiPublicPushDispatchRouteImport } from './routes/api/public/push/dispatch'
 import { Route as ApiPublicPushKeyRouteImport } from './routes/api/public/push/key'
@@ -75,6 +78,11 @@ const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
   path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MobileBillingReturnRoute = MobileBillingReturnRouteImport.update({
   id: '/mobile-billing-return',
   path: '/mobile-billing-return',
@@ -105,6 +113,12 @@ const TermsRoute = TermsRouteImport.update({
   path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
+const Char91DotwellKnownChar93OauthProtectedResourceRoute =
+  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -170,6 +184,11 @@ const AuthenticatedStudySessionRoute =
     path: '/study-session',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
+  id: '/.lovable/oauth/consent',
+  path: '/.lovable/oauth/consent',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedCoursesCourseIdRoute =
   AuthenticatedCoursesCourseIdRouteImport.update({
     id: '/courses/$courseId',
@@ -210,12 +229,14 @@ export interface FileRoutesByFullPath {
   '/canvas-grade-calculator': typeof CanvasGradeCalculatorRoute
   '/email-verified': typeof EmailVerifiedRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/mcp': typeof McpRoute
   '/mobile-billing-return': typeof MobileBillingReturnRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/announcements': typeof AuthenticatedAnnouncementsRoute
   '/assignments': typeof AuthenticatedAssignmentsRoute
@@ -228,6 +249,7 @@ export interface FileRoutesByFullPath {
   '/schedule': typeof AuthenticatedScheduleRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/study-session': typeof AuthenticatedStudySessionRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/courses/$courseId': typeof AuthenticatedCoursesCourseIdRoute
   '/api/public/push/dispatch': typeof ApiPublicPushDispatchRoute
   '/api/public/push/key': typeof ApiPublicPushKeyRoute
@@ -242,12 +264,14 @@ export interface FileRoutesByTo {
   '/canvas-grade-calculator': typeof CanvasGradeCalculatorRoute
   '/email-verified': typeof EmailVerifiedRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/mcp': typeof McpRoute
   '/mobile-billing-return': typeof MobileBillingReturnRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/announcements': typeof AuthenticatedAnnouncementsRoute
   '/assignments': typeof AuthenticatedAssignmentsRoute
@@ -260,6 +284,7 @@ export interface FileRoutesByTo {
   '/schedule': typeof AuthenticatedScheduleRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/study-session': typeof AuthenticatedStudySessionRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/courses/$courseId': typeof AuthenticatedCoursesCourseIdRoute
   '/api/public/push/dispatch': typeof ApiPublicPushDispatchRoute
   '/api/public/push/key': typeof ApiPublicPushKeyRoute
@@ -276,12 +301,14 @@ export interface FileRoutesById {
   '/canvas-grade-calculator': typeof CanvasGradeCalculatorRoute
   '/email-verified': typeof EmailVerifiedRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/mcp': typeof McpRoute
   '/mobile-billing-return': typeof MobileBillingReturnRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/announcements': typeof AuthenticatedAnnouncementsRoute
   '/_authenticated/assignments': typeof AuthenticatedAssignmentsRoute
@@ -294,6 +321,7 @@ export interface FileRoutesById {
   '/_authenticated/schedule': typeof AuthenticatedScheduleRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/study-session': typeof AuthenticatedStudySessionRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/_authenticated/courses/$courseId': typeof AuthenticatedCoursesCourseIdRoute
   '/api/public/push/dispatch': typeof ApiPublicPushDispatchRoute
   '/api/public/push/key': typeof ApiPublicPushKeyRoute
@@ -310,12 +338,14 @@ export interface FileRouteTypes {
     | '/canvas-grade-calculator'
     | '/email-verified'
     | '/forgot-password'
+    | '/mcp'
     | '/mobile-billing-return'
     | '/privacy'
     | '/reset-password'
     | '/signup'
     | '/sitemap.xml'
     | '/terms'
+    | '/.well-known/oauth-protected-resource'
     | '/admin'
     | '/announcements'
     | '/assignments'
@@ -328,6 +358,7 @@ export interface FileRouteTypes {
     | '/schedule'
     | '/settings'
     | '/study-session'
+    | '/.lovable/oauth/consent'
     | '/courses/$courseId'
     | '/api/public/push/dispatch'
     | '/api/public/push/key'
@@ -342,12 +373,14 @@ export interface FileRouteTypes {
     | '/canvas-grade-calculator'
     | '/email-verified'
     | '/forgot-password'
+    | '/mcp'
     | '/mobile-billing-return'
     | '/privacy'
     | '/reset-password'
     | '/signup'
     | '/sitemap.xml'
     | '/terms'
+    | '/.well-known/oauth-protected-resource'
     | '/admin'
     | '/announcements'
     | '/assignments'
@@ -360,6 +393,7 @@ export interface FileRouteTypes {
     | '/schedule'
     | '/settings'
     | '/study-session'
+    | '/.lovable/oauth/consent'
     | '/courses/$courseId'
     | '/api/public/push/dispatch'
     | '/api/public/push/key'
@@ -375,12 +409,14 @@ export interface FileRouteTypes {
     | '/canvas-grade-calculator'
     | '/email-verified'
     | '/forgot-password'
+    | '/mcp'
     | '/mobile-billing-return'
     | '/privacy'
     | '/reset-password'
     | '/signup'
     | '/sitemap.xml'
     | '/terms'
+    | '/.well-known/oauth-protected-resource'
     | '/_authenticated/admin'
     | '/_authenticated/announcements'
     | '/_authenticated/assignments'
@@ -393,6 +429,7 @@ export interface FileRouteTypes {
     | '/_authenticated/schedule'
     | '/_authenticated/settings'
     | '/_authenticated/study-session'
+    | '/.lovable/oauth/consent'
     | '/_authenticated/courses/$courseId'
     | '/api/public/push/dispatch'
     | '/api/public/push/key'
@@ -409,12 +446,15 @@ export interface RootRouteChildren {
   CanvasGradeCalculatorRoute: typeof CanvasGradeCalculatorRoute
   EmailVerifiedRoute: typeof EmailVerifiedRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
+  McpRoute: typeof McpRoute
   MobileBillingReturnRoute: typeof MobileBillingReturnRoute
   PrivacyRoute: typeof PrivacyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermsRoute: typeof TermsRoute
+  Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   ApiPublicPushDispatchRoute: typeof ApiPublicPushDispatchRoute
   ApiPublicPushKeyRoute: typeof ApiPublicPushKeyRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
@@ -473,6 +513,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/mobile-billing-return': {
       id: '/mobile-billing-return'
       path: '/mobile-billing-return'
@@ -513,6 +560,13 @@ declare module '@tanstack/react-router' {
       path: '/terms'
       fullPath: '/terms'
       preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin': {
@@ -598,6 +652,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/study-session'
       preLoaderRoute: typeof AuthenticatedStudySessionRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/.lovable/oauth/consent': {
+      id: '/.lovable/oauth/consent'
+      path: '/.lovable/oauth/consent'
+      fullPath: '/.lovable/oauth/consent'
+      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/courses/$courseId': {
       id: '/_authenticated/courses/$courseId'
@@ -687,12 +748,16 @@ const rootRouteChildren: RootRouteChildren = {
   CanvasGradeCalculatorRoute: CanvasGradeCalculatorRoute,
   EmailVerifiedRoute: EmailVerifiedRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
+  McpRoute: McpRoute,
   MobileBillingReturnRoute: MobileBillingReturnRoute,
   PrivacyRoute: PrivacyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermsRoute: TermsRoute,
+  Char91DotwellKnownChar93OauthProtectedResourceRoute:
+    Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   ApiPublicPushDispatchRoute: ApiPublicPushDispatchRoute,
   ApiPublicPushKeyRoute: ApiPublicPushKeyRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
