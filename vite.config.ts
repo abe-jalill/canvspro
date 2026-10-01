@@ -34,7 +34,9 @@ export default defineConfig({
    server: { entry: "server" },
 },
   vite: {
-    plugins: [mcpPlugin()],
+    // The MCP generator's containment check mixes POSIX and Windows paths.
+    // Its generated routes are committed; keep generation enabled on Linux builds.
+    plugins: process.platform === "win32" ? [] : [mcpPlugin()],
     resolve: {
       alias: {
         "entities/lib/decode.js": path.resolve(
