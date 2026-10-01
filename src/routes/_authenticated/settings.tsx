@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "r
 import {
   Camera,
   Check,
+  ChevronDown,
   ExternalLink,
   LoaderCircle,
   Sparkles,
@@ -137,7 +138,7 @@ function SettingsPage() {
           <a href="#profile">Profile</a>
           <a href="#canvas">Canvas</a>
           <a href="#notifications">Notifications</a>
-          <a href="#courses">Courses</a>
+          <a href="#class-settings">Class settings</a>
           <a href="#account">Account</a>
         </nav>
 
@@ -276,25 +277,17 @@ function SettingsPage() {
             </GlassCard>
           </section>
 
-          <section id="courses" className="scroll-mt-5 space-y-5">
+          <section className="scroll-mt-5">
             <GlassCard
               title="Announcements"
               subtitle="How far back the announcements list reaches."
             >
               <AnnouncementWindowSection />
             </GlassCard>
-            <GlassCard
-              title="Class names"
-              subtitle="Rename your Canvas courses to something friendlier."
-            >
-              <ClassNamesSection />
-            </GlassCard>
-            <GlassCard
-              title="Which classes to show"
-              subtitle="Hide classes you don't want anywhere in the app."
-            >
-              <HiddenCoursesSection />
-            </GlassCard>
+          </section>
+
+          <section id="class-settings" className="scroll-mt-5">
+            <ClassSettingsSection />
           </section>
 
           <section className="scroll-mt-5">
@@ -358,6 +351,76 @@ function AiConnectionSection() {
         you can remove the connection from your assistant at any time.
       </p>
     </div>
+  );
+}
+
+function ClassSettingsSection() {
+  const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<"names" | "visibility">("names");
+
+  return (
+    <section className="glass-panel min-w-0 overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        aria-expanded={open}
+        aria-controls="class-settings-panel"
+        className="glass-hover flex min-h-14 w-full items-center justify-between gap-4 px-4 py-3 text-left sm:px-6"
+      >
+        <span className="min-w-0">
+          <span className="block text-base font-medium text-foreground">Class settings</span>
+          <span className="block truncate text-xs text-muted-foreground">
+            Rename classes and choose which ones appear.
+          </span>
+        </span>
+        <ChevronDown
+          className={`h-5 w-5 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+          aria-hidden="true"
+        />
+      </button>
+
+      {open && (
+        <div id="class-settings-panel" className="border-t border-foreground/10 px-4 pb-5 pt-4 sm:px-6 sm:pb-6">
+          <div className="glass-inset mb-5 grid grid-cols-2 gap-1 rounded-xl p-1" role="tablist" aria-label="Class settings">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "names"}
+              aria-controls="class-names-panel"
+              onClick={() => setTab("names")}
+              className={
+                tab === "names"
+                  ? "min-h-10 rounded-lg bg-foreground px-3 text-sm font-semibold text-background"
+                  : "glass-hover min-h-10 rounded-lg px-3 text-sm font-medium text-muted-foreground"
+              }
+            >
+              Class names
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "visibility"}
+              aria-controls="classes-shown-panel"
+              onClick={() => setTab("visibility")}
+              className={
+                tab === "visibility"
+                  ? "min-h-10 rounded-lg bg-foreground px-3 text-sm font-semibold text-background"
+                  : "glass-hover min-h-10 rounded-lg px-3 text-sm font-medium text-muted-foreground"
+              }
+            >
+              Classes shown
+            </button>
+          </div>
+
+          <div
+            id={tab === "names" ? "class-names-panel" : "classes-shown-panel"}
+            role="tabpanel"
+          >
+            {tab === "names" ? <ClassNamesSection /> : <HiddenCoursesSection />}
+          </div>
+        </div>
+      )}
+    </section>
   );
 }
 
