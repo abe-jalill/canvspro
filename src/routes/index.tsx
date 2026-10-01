@@ -113,7 +113,6 @@ function useStoryMotion() {
 
   useEffect(() => {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
-    if (reduce.matches) return;
 
     let frame = 0;
     const sceneProgress = { focus: 0, study: 0 };
@@ -126,6 +125,7 @@ function useStoryMotion() {
     const parallax = document.querySelectorAll<HTMLElement>(".cp-story [data-parallax]");
     const update = () => {
       frame = 0;
+      if (reduce.matches) return;
       needsFrame = false;
       const sequence = sequenceRef.current;
       const stage = stageRef.current;
@@ -253,9 +253,11 @@ function useStoryMotion() {
     update();
     window.addEventListener("scroll", request, { passive: true });
     window.addEventListener("resize", request);
+    reduce.addEventListener("change", request);
     return () => {
       window.removeEventListener("scroll", request);
       window.removeEventListener("resize", request);
+      reduce.removeEventListener("change", request);
       if (frame) window.cancelAnimationFrame(frame);
     };
   }, []);
@@ -570,7 +572,11 @@ function LandingPage() {
                     ["02", "CAD Assignment", "45 min", "Tomorrow"],
                     ["03", "English Reading", "25 min", "Friday"],
                   ].map(([number, title, duration, due]) => (
-                    <div className="cp-plan-row" key={number}>
+                    <div
+                      className="cp-plan-row"
+                      key={number}
+                      style={{ animationDelay: `${80 + Number(number) * 80}ms` }}
+                    >
                       <span>{number}</span>
                       <div>
                         <strong>{title}</strong>
@@ -794,7 +800,7 @@ function LandingPage() {
                 </button>
               </div>
               {view === "week" ? (
-                <div className="cp-week" role="tabpanel">
+                <div className="cp-week" role="tabpanel" key="week">
                   <div className="cp-week__days">
                     {[
                       ["MON", "21"],
@@ -841,7 +847,7 @@ function LandingPage() {
                   </div>
                 </div>
               ) : (
-                <div className="cp-grades" role="tabpanel">
+                <div className="cp-grades" role="tabpanel" key="grades">
                   {[
                     ["Physics II", "94.2%", "A"],
                     ["Calculus III", "88.7%", "B+"],
@@ -894,9 +900,11 @@ function LandingPage() {
                 88.4<small>%</small>
               </span>
             </div>
-            <div className="cp-calculator__card" data-parallax="36">
+            <div className="cp-calculator__card" data-parallax="36" aria-live="polite" aria-atomic="true">
               <span>FINAL GRADE PREDICTOR</span>
-              <strong>{finalNeeded > 100 ? "Over 100%" : finalNeeded.toFixed(1) + "%"}</strong>
+              <strong key={targetGrade} className="cp-calculator__result">
+                {finalNeeded > 100 ? "Over 100%" : finalNeeded.toFixed(1) + "%"}
+              </strong>
               <small>needed on your final exam</small>
             </div>
           </div>

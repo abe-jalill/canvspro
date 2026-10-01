@@ -1850,6 +1850,100 @@ html:has(.cp-story) {
   }
 }
 
+/* Entrance and interaction details complement the scroll-driven product chapters.
+   All sequences settle; nothing runs continuously while the visitor is reading. */
+@keyframes cp-arrive {
+  from { opacity: 0; translate: 0 16px; }
+  to { opacity: 1; translate: 0 0; }
+}
+@keyframes cp-line-draw {
+  from { scale: 0 1; }
+  to { scale: 1 1; }
+}
+@keyframes cp-result-change {
+  from { opacity: 0.3; translate: 0 7px; }
+  to { opacity: 1; translate: 0 0; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .cp-hero__eyebrow,
+  .cp-hero h1,
+  .cp-hero__intro,
+  .cp-hero__actions,
+  .cp-orbit {
+    animation: cp-arrive 700ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  }
+  .cp-hero h1 { animation-delay: 70ms; }
+  .cp-hero__intro { animation-delay: 140ms; }
+  .cp-hero__actions { animation-delay: 210ms; }
+  .cp-orbit--one { animation-delay: 220ms; }
+  .cp-orbit--two { animation-delay: 310ms; }
+  .cp-orbit--three { animation-delay: 400ms; }
+  .cp-orbit--four { animation-delay: 490ms; }
+  .cp-eyebrow-line {
+    transform-origin: left;
+    animation: cp-line-draw 650ms 100ms ease-out backwards;
+  }
+
+  .cp-plan__visual.is-visible .cp-plan-row,
+  .cp-workspace__stage.is-visible .cp-week__assignment,
+  .cp-workspace__stage.is-visible .cp-grades > div,
+  .cp-workspace__details.is-visible > span,
+  .cp-finale__content.is-visible > * {
+    animation: cp-arrive 550ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  }
+  .cp-workspace__stage.is-visible .cp-week__assignment:nth-child(2),
+  .cp-workspace__stage.is-visible .cp-grades > div:nth-child(1),
+  .cp-workspace__details.is-visible > span:nth-child(2) { animation-delay: 60ms; }
+  .cp-workspace__stage.is-visible .cp-week__assignment:nth-child(3),
+  .cp-workspace__stage.is-visible .cp-grades > div:nth-child(2),
+  .cp-workspace__details.is-visible > span:nth-child(3) { animation-delay: 130ms; }
+  .cp-workspace__stage.is-visible .cp-week__assignment:nth-child(4),
+  .cp-workspace__stage.is-visible .cp-grades > div:nth-child(3),
+  .cp-workspace__details.is-visible > span:nth-child(4) { animation-delay: 200ms; }
+
+  .cp-workspace__tabs button {
+    transition: background-color 180ms ease, color 180ms ease, box-shadow 180ms ease;
+  }
+  .cp-calculator__result { animation: cp-result-change 300ms ease-out; }
+  .cp-step { position: relative; }
+  .cp-step::after {
+    content: "";
+    position: absolute;
+    inset: auto 0 -1px;
+    height: 1px;
+    background: linear-gradient(90deg, #a6dfb599, transparent);
+    transform-origin: left;
+    pointer-events: none;
+    scale: 0 1;
+  }
+  .cp-step.is-visible::after {
+    animation: cp-line-draw 800ms 150ms ease-out forwards;
+  }
+  .cp-finale__content.is-visible > h2 { animation-delay: 80ms; }
+  .cp-finale__content.is-visible > p { animation-delay: 150ms; }
+  .cp-finale__content.is-visible > a { animation-delay: 220ms; }
+  .cp-finale__content.is-visible > .cp-finale__fineprint { animation-delay: 280ms; }
+
+  .cp-button { position: relative; overflow: hidden; }
+  .cp-button::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(110deg, transparent 20%, #a6dfb540 50%, transparent 80%);
+    transform: translateX(-110%);
+    transition: transform 550ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    pointer-events: none;
+  }
+  .cp-button svg { transition: transform 220ms ease; }
+  .cp-button:focus-visible::after { transform: translateX(110%); }
+  .cp-button:active { transform: translateY(0) scale(0.975); }
+}
+@media (prefers-reduced-motion: no-preference) and (hover: hover) {
+  .cp-button:hover::after { transform: translateX(110%); }
+  .cp-button:hover svg { transform: translateX(3px); }
+}
+
 /* Forest palette and two scroll-led product chapters. Kept inside the marketing scope. */
 .cp-story {
   --cp-ink: #102119;
