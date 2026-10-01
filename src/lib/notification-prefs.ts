@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { scopedKey, subscribeToUserScope } from "@/lib/user-scope";
 
 
@@ -129,22 +130,50 @@ export function allowBrowserPush(prefs = readPrefs()): boolean {
 
 export function useNotificationPrefs() {
   const [prefs, setPrefs] = useState<NotificationPrefs>(DEFAULT_PREFS);
+  const [ready, setReady] = useState(false);
+  const editRevision = useRef(0);
 
   useEffect(() => {
+    let active = true;
+    let requestRevision = 0;
+    async function hydrate() {
+      const request = ++requestRevision;
+      const edits = editRevision.current;
+      setReady(false);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!active || request !== requestRevision) return;
+      if (!session) return;
+      const { data, error } = await supabase.from("notification_prefs")
+        .select("prefs")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+      if (!active || request !== requestRevision || error) return;
+      if (data?.prefs && typeof data.prefs === "object" && !Array.isArray(data.prefs) && edits === editRevision.current) {
+        writePrefs({ ...DEFAULT_PREFS, ...(data.prefs as Partial<NotificationPrefs>) });
+      }
+      setReady(true);
+    }
     setPrefs(readPrefs());
-    const sync = () => setPrefs(readPrefs());
+    void hydrate();
+    const sync = () => { editRevision.current += 1; setPrefs(readPrefs()); };
+    const switchAccount = () => { sync(); void hydrate(); };
+    const onFocus = () => { void hydrate(); };
     window.addEventListener(EVENT, sync);
     window.addEventListener("storage", sync);
-    const unsub = subscribeToUserScope(sync);
+    window.addEventListener("focus", onFocus);
+    const unsub = subscribeToUserScope(switchAccount);
     return () => {
+      active = false;
       window.removeEventListener(EVENT, sync);
       window.removeEventListener("storage", sync);
+      window.removeEventListener("focus", onFocus);
       unsub();
     };
   }, []);
 
 
   const set = useCallback(<K extends keyof NotificationPrefs>(key: K, value: NotificationPrefs[K]) => {
+    editRevision.current += 1;
     setPrefs((prev) => {
       const next = { ...prev, [key]: value };
       writePrefs(next);
@@ -153,6 +182,7 @@ export function useNotificationPrefs() {
   }, []);
 
   const toggle = useCallback((key: BooleanPrefKey) => {
+    editRevision.current += 1;
     setPrefs((prev) => {
       const next = { ...prev, [key]: !prev[key] };
       writePrefs(next);
@@ -161,9 +191,10 @@ export function useNotificationPrefs() {
   }, []);
 
   const reset = useCallback(() => {
+    editRevision.current += 1;
     setPrefs(DEFAULT_PREFS);
     writePrefs(DEFAULT_PREFS);
   }, []);
 
-  return { prefs, set, toggle, reset };
+  return { prefs, set, toggle, reset, ready };
 }
