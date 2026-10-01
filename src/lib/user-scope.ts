@@ -43,8 +43,8 @@ export function getUserScope(): string | null {
 }
 
 /**
- * Intentionally device-specific state that survives sign out on this device:
- * notification preferences (never synced, by design) and UI chrome.
+ * Local notification preference cache (also synced with the account) and UI
+ * chrome survive sign-out on this device, still isolated by account scope.
  */
 const DEVICE_LOCAL_BASES = ["notification-prefs", "sidebar-mode"];
 
