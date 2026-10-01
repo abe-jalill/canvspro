@@ -106,7 +106,7 @@ function AnnouncementsPage() {
 
   return (
     <div className="space-y-5 sm:space-y-6">
-      <section className="glass-panel-strong relative isolate overflow-hidden rounded-[2rem] border border-primary/15 p-5 sm:p-7">
+      <section className="glass-panel-strong premium-reveal relative isolate overflow-hidden rounded-[2rem] border border-primary/15 p-5 sm:p-7">
         <div className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-primary/15 blur-3xl" />
         <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
           <div className="max-w-2xl">
@@ -207,7 +207,10 @@ function AnnouncementsPage() {
       )}
 
       {!isLoading && !isError && feed.length > 0 && (
-        <section className="glass-panel overflow-hidden rounded-[1.75rem] border border-foreground/10">
+        <section
+          className="glass-panel premium-card overflow-hidden rounded-[1.75rem] border border-foreground/10"
+          style={{ animationDelay: "80ms" }}
+        >
           {feed.map((item, index) => {
             const body = htmlToText(item.message);
             const bodyOpen = expandedBody.has(item.id);

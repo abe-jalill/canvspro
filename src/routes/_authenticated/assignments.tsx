@@ -12,15 +12,7 @@ import { GlassCard, Skeleton, ErrorState, EmptyState } from "@/components/glass-
 import { cn } from "@/lib/utils";
 import { displayCourseName } from "@/lib/course-display";
 import { useLocalSet, COMPLETED_ASSIGNMENTS_KEY } from "@/lib/local-state";
-import {
-  Search,
-  Sparkles,
-  Plus,
-  Trash2,
-  ListTodo,
-  Clock3,
-  ChevronDown,
-} from "lucide-react";
+import { Search, Sparkles, Plus, Trash2, ListTodo, Clock3, ChevronDown } from "lucide-react";
 import {
   useCustomAssignments,
   customToAssignmentItem,
@@ -397,7 +389,7 @@ function AssignmentsPage() {
 
   return (
     <div className="space-y-6">
-      <section className="glass-panel-strong relative isolate overflow-hidden rounded-[2rem] border border-primary/15 p-5 sm:p-7">
+      <section className="glass-panel-strong premium-reveal relative isolate overflow-hidden rounded-[2rem] border border-primary/15 p-5 sm:p-7">
         <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-primary/15 blur-3xl" />
         <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
           <div className="max-w-2xl">
@@ -437,7 +429,10 @@ function AssignmentsPage() {
         </div>
       </section>
 
-      <div className="glass-panel-strong relative flex flex-wrap items-center gap-3 rounded-2xl px-4 py-3">
+      <div
+        className="glass-panel-strong premium-reveal relative flex flex-wrap items-center gap-3 rounded-2xl px-4 py-3"
+        style={{ animationDelay: "65ms" }}
+      >
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
           <input
@@ -465,7 +460,7 @@ function AssignmentsPage() {
       {selectedAssignment && (
         <section
           id="selected-assignment-description"
-          className="glass-panel-strong scroll-mt-6 rounded-[1.75rem] border border-primary/25 p-5 sm:p-6"
+          className="glass-panel-strong premium-reveal scroll-mt-6 rounded-[1.75rem] border border-primary/25 p-5 sm:p-6"
         >
           <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-primary">
             Assignment description
@@ -532,7 +527,10 @@ function AssignmentsPage() {
       )}
 
       {!isLoading && !isError && agendaSections.length > 0 && (
-        <section className="glass-panel overflow-hidden rounded-[1.75rem] border border-foreground/10">
+        <section
+          className="glass-panel premium-card overflow-hidden rounded-[1.75rem] border border-foreground/10"
+          style={{ animationDelay: "100ms" }}
+        >
           {agendaSections.map((section) => (
             <div key={section.title} className="border-b border-foreground/10 last:border-0">
               <div className="flex items-end justify-between gap-3 bg-foreground/[0.025] px-4 py-4 sm:px-6">

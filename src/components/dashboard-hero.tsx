@@ -74,10 +74,14 @@ export function DashboardHero() {
     day: "numeric",
   });
 
-  const summary = summarize([
-    ...(assignments.data ?? []),
-    ...custom.list.map((item) => customToAssignmentItem(item, undefined)),
-  ], completed.has, now);
+  const summary = summarize(
+    [
+      ...(assignments.data ?? []),
+      ...custom.list.map((item) => customToAssignmentItem(item, undefined)),
+    ],
+    completed.has,
+    now,
+  );
   const loading = assignments.isLoading || completed.isLoading || custom.isLoading;
   const todayCount = summary?.today ?? 0;
   const weekCount = summary?.week ?? 0;
@@ -86,17 +90,17 @@ export function DashboardHero() {
   const message = assignments.isError
     ? "Couldn't load your assignments. Refresh Canvas to try again."
     : loading
-    ? "Bringing your Canvas schedule into focus."
-    : overdueCount > 0
-      ? `${overdueCount} past-due item${overdueCount === 1 ? " needs" : "s need"} attention, with ${weekCount} ahead this week.`
-      : todayCount > 0
-        ? `${todayCount} assignment${todayCount === 1 ? " is" : "s are"} due in the next 24 hours. Everything else can wait.`
-        : weekCount > 0
-          ? `Today is clear. ${weekCount} item${weekCount === 1 ? " is" : "s are"} coming up over the next seven days.`
-          : "Your next seven days are clear. Take the win.";
+      ? "Bringing your Canvas schedule into focus."
+      : overdueCount > 0
+        ? `${overdueCount} past-due item${overdueCount === 1 ? " needs" : "s need"} attention, with ${weekCount} ahead this week.`
+        : todayCount > 0
+          ? `${todayCount} assignment${todayCount === 1 ? " is" : "s are"} due in the next 24 hours. Everything else can wait.`
+          : weekCount > 0
+            ? `Today is clear. ${weekCount} item${weekCount === 1 ? " is" : "s are"} coming up over the next seven days.`
+            : "Your next seven days are clear. Take the win.";
 
   return (
-    <section className="dashboard-hero relative isolate overflow-hidden rounded-[2rem]">
+    <section className="dashboard-hero premium-reveal relative isolate overflow-hidden rounded-[2rem]">
       <div className="relative grid gap-4 p-4 sm:p-5 lg:grid-cols-[minmax(0,1.25fr)_minmax(21rem,0.75fr)] lg:gap-5 lg:p-6">
         <div className="flex min-h-56 flex-col justify-between px-2 py-3 sm:px-3 sm:py-4 lg:min-h-64 lg:px-5">
           <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">

@@ -392,7 +392,7 @@ function Header({
   onWindowDaysChange: (days: AssignmentWindow) => void;
 }) {
   return (
-    <header className="flex flex-wrap items-end justify-between gap-4 px-1 pt-2">
+    <header className="premium-reveal flex flex-wrap items-end justify-between gap-4 px-1 pt-2">
       <div>
         <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
           Get It Done

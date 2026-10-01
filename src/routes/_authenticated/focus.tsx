@@ -83,9 +83,7 @@ function FocusPage() {
     ...custom.list.map((item) => customToAssignmentItem(item, courseById.get(item.course_id))),
   ];
   const dueInWindow = allAssignments.filter((a) => isDueInFocusWindow(a, win, now));
-  const completedInWindow = dueInWindow.filter((a) =>
-    isAssignmentComplete(a, completed.has(a.id)),
-  );
+  const completedInWindow = dueInWindow.filter((a) => isAssignmentComplete(a, completed.has(a.id)));
   const unfinished = dueInWindow.filter((a) =>
     isAssignmentVisible(a, completed.has(a.id), false, now),
   );
@@ -138,7 +136,7 @@ function FocusPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-4 px-1 pt-2">
+      <header className="premium-reveal flex flex-wrap items-end justify-between gap-4 px-1 pt-2">
         <div>
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
             Focus
@@ -166,7 +164,10 @@ function FocusPage() {
         />
       </header>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 px-1 text-xs text-muted-foreground">
+      <div
+        className="premium-reveal flex flex-wrap items-center justify-between gap-3 px-1 text-xs text-muted-foreground"
+        style={{ animationDelay: "55ms" }}
+      >
         <span>
           {hiddenCompleteCount > 0
             ? `${hiddenCompleteCount} completed or submitted in this window`
@@ -231,108 +232,114 @@ function FocusPage() {
             {remaining} remaining across {groups.length} {groups.length === 1 ? "class" : "classes"}
           </div>
           <div className="space-y-5">
-            {groups.map((g) => {
+            {groups.map((g, index) => {
               const total = g.items.reduce((s, a) => s + (a.points_possible ?? 0), 0);
               return (
-                <GlassCard key={g.id}>
-                  <div className="mb-3 flex items-baseline justify-between px-1">
-                    <h2 className="text-base font-semibold tracking-tight">
-                      {displayCourseName(g.name, g.code)}
-                    </h2>
-                    <span className="text-xs text-muted-foreground">
-                      {g.items.length} {g.items.length === 1 ? "item" : "items"} ·{" "}
-                      {Math.round(total)} pt
-                    </span>
-                  </div>
-                  <ul className="space-y-2">
-                    {g.items.map((a) => {
-                      const done = isAssignmentComplete(a, completed.has(a.id));
-                      const cd = getCountdown(a.due_at, { completed: done });
-                      const canvasDone = isAssignmentComplete(a, false);
-                      return (
-                        <li
-                          key={a.id}
-                          className={cn(
-                            "glass-inset glass-hover flex items-center justify-between gap-3 p-3 transition-all duration-300",
-                            cd && urgencyAccentClass(cd.urgency),
-                          )}
-                        >
-                          <div className="flex min-w-0 items-center gap-3">
-                            <button
-                              onClick={() => toggleComplete(a)}
-                              disabled={!completed.ready || canvasDone}
-                              aria-label={`Mark ${a.name} ${done ? "incomplete" : "complete"}`}
-                              aria-pressed={done}
-                              className="group flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-foreground/30 transition-colors hover:border-foreground/60"
-                            >
-                              <Check
-                                className={cn(
-                                  "h-3.5 w-3.5 transition-opacity group-hover:opacity-100",
-                                  done ? "opacity-100" : "opacity-0",
+                <div
+                  key={g.id}
+                  className="premium-card"
+                  style={{ animationDelay: `${Math.min(index, 5) * 55 + 90}ms` }}
+                >
+                  <GlassCard>
+                    <div className="mb-3 flex items-baseline justify-between px-1">
+                      <h2 className="text-base font-semibold tracking-tight">
+                        {displayCourseName(g.name, g.code)}
+                      </h2>
+                      <span className="text-xs text-muted-foreground">
+                        {g.items.length} {g.items.length === 1 ? "item" : "items"} ·{" "}
+                        {Math.round(total)} pt
+                      </span>
+                    </div>
+                    <ul className="space-y-2">
+                      {g.items.map((a) => {
+                        const done = isAssignmentComplete(a, completed.has(a.id));
+                        const cd = getCountdown(a.due_at, { completed: done });
+                        const canvasDone = isAssignmentComplete(a, false);
+                        return (
+                          <li
+                            key={a.id}
+                            className={cn(
+                              "glass-inset glass-hover flex items-center justify-between gap-3 p-3 transition-all duration-300",
+                              cd && urgencyAccentClass(cd.urgency),
+                            )}
+                          >
+                            <div className="flex min-w-0 items-center gap-3">
+                              <button
+                                onClick={() => toggleComplete(a)}
+                                disabled={!completed.ready || canvasDone}
+                                aria-label={`Mark ${a.name} ${done ? "incomplete" : "complete"}`}
+                                aria-pressed={done}
+                                className="group flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-foreground/30 transition-colors hover:border-foreground/60"
+                              >
+                                <Check
+                                  className={cn(
+                                    "h-3.5 w-3.5 transition-opacity group-hover:opacity-100",
+                                    done ? "opacity-100" : "opacity-0",
+                                  )}
+                                  aria-hidden="true"
+                                />
+                              </button>
+                              <div className="min-w-0">
+                                <p
+                                  className={cn(
+                                    "truncate text-sm font-medium",
+                                    done && "line-through opacity-60",
+                                  )}
+                                >
+                                  {a.name}
+                                </p>
+                                {done && (
+                                  <p className="text-xs text-muted-foreground">
+                                    {canvasDone
+                                      ? "Completed in Canvas"
+                                      : "Marked complete in CanvasPro"}
+                                  </p>
                                 )}
-                                aria-hidden="true"
-                              />
-                            </button>
-                            <div className="min-w-0">
+                                {!done && a.submission?.missing && (
+                                  <p className="text-xs text-rose-400">Missing in Canvas</p>
+                                )}
+                                <AssignmentDescriptionLink
+                                  assignmentId={a.id}
+                                  className="mt-1 mr-3"
+                                />
+                                {a.html_url && (
+                                  <a
+                                    href={a.html_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                                  >
+                                    Open in Canvas <ExternalLink className="h-3 w-3" />
+                                  </a>
+                                )}
+                                {a.points_possible != null && (
+                                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                                    {a.points_possible} pt
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-right">
                               <p
                                 className={cn(
-                                  "truncate text-sm font-medium",
-                                  done && "line-through opacity-60",
+                                  "whitespace-nowrap text-sm tabular-nums",
+                                  cd ? urgencyTextClass(cd.urgency) : "text-muted-foreground",
                                 )}
                               >
-                                {a.name}
+                                {cd ? cd.label : "No due date"}
                               </p>
-                              {done && (
-                                <p className="text-xs text-muted-foreground">
-                                  {canvasDone
-                                    ? "Completed in Canvas"
-                                    : "Marked complete in CanvasPro"}
-                                </p>
-                              )}
-                              {!done && a.submission?.missing && (
-                                <p className="text-xs text-rose-400">Missing in Canvas</p>
-                              )}
-                              <AssignmentDescriptionLink
-                                assignmentId={a.id}
-                                className="mt-1 mr-3"
-                              />
-                              {a.html_url && (
-                                <a
-                                  href={a.html_url}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-                                >
-                                  Open in Canvas <ExternalLink className="h-3 w-3" />
-                                </a>
-                              )}
-                              {a.points_possible != null && (
-                                <p className="mt-0.5 text-[11px] text-muted-foreground">
-                                  {a.points_possible} pt
+                              {cd && (
+                                <p className="mt-0.5 whitespace-nowrap text-[10px] tabular-nums text-muted-foreground/80">
+                                  {cd.fullDate}
                                 </p>
                               )}
                             </div>
-                          </div>
-                          <div className="text-right">
-                            <p
-                              className={cn(
-                                "whitespace-nowrap text-sm tabular-nums",
-                                cd ? urgencyTextClass(cd.urgency) : "text-muted-foreground",
-                              )}
-                            >
-                              {cd ? cd.label : "No due date"}
-                            </p>
-                            {cd && (
-                              <p className="mt-0.5 whitespace-nowrap text-[10px] tabular-nums text-muted-foreground/80">
-                                {cd.fullDate}
-                              </p>
-                            )}
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </GlassCard>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </GlassCard>
+                </div>
               );
             })}
           </div>

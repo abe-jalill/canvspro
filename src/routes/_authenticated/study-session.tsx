@@ -245,7 +245,7 @@ function StudySessionPage() {
 
     return (
       <div className="mx-auto max-w-6xl space-y-5 pb-24 md:pb-8">
-        <header className="px-1">
+        <header className="premium-reveal px-1">
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
             Study Session
           </p>
@@ -258,7 +258,7 @@ function StudySessionPage() {
         </header>
 
         <div className="study-active-layout">
-          <GlassCard strong className="study-timer-panel">
+          <GlassCard strong className="study-timer-panel premium-card">
             <div className="flex items-center justify-between gap-4 text-xs text-muted-foreground">
               <span>{completed.size} finished</span>
               <span>{Math.round(progress)}% of session</span>
@@ -319,7 +319,7 @@ function StudySessionPage() {
           <GlassCard
             title="Up next"
             subtitle={`${completed.size} of ${session.items.length} finished`}
-            className="study-queue"
+            className="study-queue premium-card"
           >
             <ol className="space-y-2">
               {session.items.map((item, index) => (
@@ -389,7 +389,7 @@ function StudySessionPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-5 pb-24 md:pb-8">
-      <header className="px-1">
+      <header className="premium-reveal px-1">
         <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
           Study Session
         </p>

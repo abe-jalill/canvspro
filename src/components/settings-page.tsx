@@ -13,7 +13,7 @@ export function SettingsPage({
 }) {
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 pb-10">
-      <header className="px-1">
+      <header className="premium-reveal px-1">
         <Link
           to="/settings"
           className="glass-hover mb-4 inline-flex min-h-10 items-center gap-2 rounded-xl px-3 text-sm text-muted-foreground hover:text-foreground"
