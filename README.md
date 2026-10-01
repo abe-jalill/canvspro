@@ -1,126 +1,185 @@
 # CanvasPro
 
-Here's the full, detailed prompt — copy this directly into Lovable:
+CanvasPro is a productivity platform built for college students who want a faster, cleaner, and more organized way to manage their coursework. It brings assignments, classes, deadlines, and daily priorities into one streamlined experience so students can spend less time navigating between pages and more time getting work done.
 
-Prompt for Lovable:
+CanvasPro integrates with Canvas LMS and is designed to provide a more focused student experience across web and iOS. The platform emphasizes speed, simplicity, clean design, and practical tools that help students understand what they need to complete next.
 
-Build a personal student dashboard web app that pulls live data from the Canvas LMS REST API and displays my schedule, grades, assignments, and announcements.
+## Features
 
-Design — Apple "Liquid Glass" UI (this is the top priority for visual design)
+- View Canvas courses and assignments in one place
+- Track completed and upcoming assignments
+- Organize coursework by class and deadline
+- Create a personalized daily plan
+- Identify what assignment should be worked on next
+- Customize class names and preferences
+- Sync supported account data across devices
+- Access CanvasPro through both web and iOS
+- Manage account and subscription settings
+- Clean, responsive interface designed specifically for students
 
-This needs to genuinely feel like a native Apple interface, not a generic web dashboard with rounded corners slapped on. Specifically:
+## Getting Started
 
-Frosted glass panels everywhere: every card/widget/sidebar should use translucent backgrounds with backdrop blur (like backdrop-filter: blur(20px) with a semi-transparent white/gray fill), so content behind it softly shows through
+### 1. Create an Account
 
-Layered depth: subtle drop shadows and soft borders (thin, ~1px, low-opacity white or gray) to give each panel a sense of floating above the background, like iOS/macOS Control Center or widgets
+Open CanvasPro and create an account using your email address.
 
-Monochrome palette only: black, white, and a full range of grays — no blue, no colored accents anywhere, including buttons, links, and status indicators (use grayscale weight/opacity to show emphasis instead of color)
+During setup, you may be asked to provide basic profile information such as:
 
-Typography: clean sans-serif (SF Pro-style — use Inter or system-ui as the closest web equivalent), generous letter spacing, clear size hierarchy between headers and body text
+- First name
+- Last name
+- Graduation year
+- Major
 
-Rounded corners on all cards/buttons (Apple-style continuous corner radius, ~16-24px)
+### 2. Connect Canvas
 
-Micro-interactions: smooth, subtle transitions on hover/click (fade, slight scale, no jarring movement) — like Apple's spring animations
+CanvasPro connects to Canvas LMS using your personal Canvas API access token.
 
-Generous white space — don't cram widgets together; let panels breathe
+To connect your account:
 
-Background: consider a very subtle gradient or blurred gradient blob background (like macOS Sonoma wallpapers) behind the glass panels so the blur effect actually has something to show through
+1. Sign in to your school's Canvas website.
+2. Open **Account**.
+3. Select **Settings**.
+4. Scroll to **Approved Integrations**.
+5. Select **New Access Token**.
+6. Create a token for CanvasPro.
+7. Copy the generated token.
+8. Return to CanvasPro.
+9. Paste the token into the Canvas connection field.
+10. Save your settings.
 
-Navigation
+CanvasPro will then use the connection to retrieve supported course and assignment information from your Canvas account.
 
-Left sidebar, frosted glass style, containing only simple text links (no extra widgets):
+> Keep your Canvas API token private. Do not post it publicly, commit it to GitHub, or share it with other users.
 
-Dashboard
+## Local Development
 
-Schedule
+### Requirements
 
-Grades
+Before running CanvasPro locally, make sure you have:
 
-Assignments
+- Node.js
+- npm
+- Git
+- A Supabase project
+- Required environment variables
+- Access to the Canvas LMS API
 
-Announcements
+### Clone the Repository
 
-Pages
+```bash
+git clone <repository-url>
+cd canvaspro
+```
 
-1. Dashboard (home page) — overview with distinct glass-panel widget cards:
+### Install Dependencies
 
-"Classes & Grades" widget (~25-35% of page width) — lists all active courses with current grade for each
+```bash
+npm install
+```
 
-"Upcoming Assignments" widget — everything due within the next 7 days
+### Configure Environment Variables
 
-"Announcements" widget — recent course announcements across all classes
+Create the appropriate environment configuration file for your development environment.
 
-2. Schedule page — full calendar/agenda view of classes and events
+Example:
 
-3. Grades page — detailed breakdown per course, assignment-by-assignment where available
+```env
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
 
-4. Assignments page — complete list of all assignments (not just upcoming), with due dates and submission status
+Additional environment variables may be required depending on the features you are working with.
 
-5. Announcements page — full list of announcements across all courses
+Do not commit production secrets, private API keys, Stripe secret keys, service-role keys, or user credentials to the repository.
 
-Data & API integration
+### Start the Development Server
 
-Canvas domain: use environment variable CANVAS_DOMAIN (value: lawrencetech.instructure.com)
-
-The Canvas proxy sends student tokens only to `*.instructure.com`, `CANVAS_DOMAIN`,
-or school vanity hosts explicitly listed in the comma-separated
-`CANVAS_ALLOWED_DOMAINS` Edge Function secret. Add a school's custom Canvas
-hostname there before asking students to connect it. The proxy rejects
-cross-host redirects.
-
-Canvas API token: each user saves their own token in account settings. Never hardcode a token or expose another user's token in client-side code.
-
-Fetch data on page load only — no polling, no auto-refresh timers
-
-Only show active enrollments — filter out courses where access_restricted_by_date is true or workflow_state isn't available
-
-Use these endpoints:
-
-Courses: /api/v1/courses?enrollment_state=active
-
-Assignments per course: /api/v1/courses/:id/assignments
-
-Calendar events: /api/v1/calendar_events
-
-Announcements: /api/v1/announcements?context_codes[]=course_:id
-
-The server-side Canvas proxy sends each user's saved token as an Authorization: Bearer header.
-
-Handle loading and error states gracefully — show a subtle glass-style loading skeleton while fetching, and a clean "couldn't load" message on failure instead of crashing
-
-Security note
-
-This app displays private academic data (grades). The Canvas token must be stored as a secret/environment variable, never committed to code, never rendered in the browser's dev tools or network tab if avoidable (route calls through a backend function if Lovable supports it, rather than calling Canvas directly from the client).
-
-Build priority
-
-Dashboard page with real Canvas data pulling correctly (courses + grades widget first)
-
-Upcoming assignments widget
-
-Announcements widget
-
-Then build out the four sub-pages
-
-This project was built with [Lovable](https://lovable.dev).
-
-**Live app**: https://canvspro.lovable.app
-
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/affbea3f-cfe8-4941-aebb-24d8872c528c).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
-
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
-
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
+```bash
 npm run dev
 ```
+
+The development server will provide a local URL that you can open in your browser.
+
+### Production Build
+
+To create a production build:
+
+```bash
+npm run build
+```
+
+## Project Structure
+
+The project is separated into web, backend, and platform-specific functionality.
+
+Major areas include:
+
+- Authentication
+- Canvas API integration
+- Dashboard
+- Assignments
+- Courses
+- Daily productivity tools
+- User profile and settings
+- Subscription management
+- Supabase backend services
+- iOS application
+
+## Backend
+
+CanvasPro uses Supabase for backend functionality including authentication, database storage, and server-side operations.
+
+Sensitive operations should always be validated server-side rather than relying on values supplied directly by the client.
+
+## iOS
+
+CanvasPro also includes a native iOS experience designed to provide the same core functionality as the web application while following native iOS interface conventions.
+
+The web and iOS versions should remain functionally aligned so users do not receive significantly different feature sets depending on the platform they use.
+
+## Security
+
+When contributing to CanvasPro:
+
+- Never commit API tokens
+- Never expose Supabase service-role keys
+- Never expose Stripe secret keys
+- Do not store user passwords manually
+- Validate privileged operations on the server
+- Keep production and development environments separated
+- Review authentication and authorization before deploying backend changes
+
+If credentials are accidentally committed, revoke and rotate them immediately.
+
+## Contributing
+
+When making changes:
+
+1. Create or switch to the appropriate development branch.
+2. Pull the latest changes.
+3. Install dependencies if necessary.
+4. Make your changes.
+5. Test the affected functionality.
+6. Verify that no credentials or private data are included.
+7. Commit the changes with a clear commit message.
+8. Push the branch.
+9. Open a pull request when appropriate.
+
+Example:
+
+```bash
+git checkout -b feature/example-feature
+git add .
+git commit -m "Add example feature"
+git push origin feature/example-feature
+```
+
+## Disclaimer
+
+CanvasPro is an independent product and is not affiliated with, endorsed by, sponsored by, or officially associated with Instructure, Inc. or Canvas LMS.
+
+Canvas and Canvas LMS are trademarks of their respective owners.
+
+## Website
+
+**[https://canvaspro.app](https://canvaspro.app)**
