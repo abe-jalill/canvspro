@@ -21,6 +21,7 @@ struct NativeMoreView: View {
                             link("Calendar", "calendar") { CalendarView(store: store, features: features) }
                             link("Class Schedule", "calendar.badge.clock") { ClassScheduleView(features: features) }
                             link("Announcements", "megaphone") { AnnouncementsView(store: store, features: features) }
+                            link("Notifications", "bell") { NotificationsView(sessionStore: sessionStore, features: features) }
                         }
                         CPGlassCard {
                             link("Settings", "gearshape") { NativeSettingsView(contentStore: store, features: features, sessionStore: sessionStore) }
@@ -48,12 +49,13 @@ struct NativeMoreView: View {
                 .frame(minHeight: 32)
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(CPPressStyle())
     }
 }
 
 struct NativeSettingsView: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject var contentStore: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
     @ObservedObject var sessionStore: NativeSessionStore
@@ -63,25 +65,38 @@ struct NativeSettingsView: View {
             CPBackdrop()
             ScrollView {
                 LazyVStack(spacing: 18) {
-                    AppearanceSettingsCard(features: features)
-                    CPGlassCard(title: "Classes") {
+                    CPPageHeader(eyebrow: "Your account", title: "Settings", detail: "Choose a section to view or change its details.")
+                    CPGlassCard {
+                        settingsLink("Appearance", "paintpalette") { NativeAppearanceView(features: features) }
+                        NavigationLink { ProfileView(features: features, email: sessionStore.session?.user.email) } label: {
+                            CPInsetRow {
+                                HStack(spacing: 11) {
+                                    AsyncImage(url: features.avatarURL) { image in image.resizable().scaledToFill().transition(.opacity) } placeholder: { Image(systemName: "person.crop.circle.fill").resizable().foregroundStyle(CPTheme.muted(scheme)) }
+                                        .frame(width: 36, height: 36).clipShape(Circle())
+                                        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: features.avatarURL)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Profile").font(.system(size: 13))
+                                        Text("Photo, name, school, and major").font(.system(size: 10)).foregroundStyle(CPTheme.muted(scheme))
+                                    }
+                                    Spacer(minLength: 4)
+                                    Image(systemName: "chevron.right").font(.system(size: 10)).foregroundStyle(CPTheme.muted(scheme))
+                                }
+                            }
+                        }.buttonStyle(CPPressStyle())
                         settingsLink("Canvas connection", "link") { CanvasSettingsView(store: contentStore) }
-                        settingsLink("Announcement history", "clock.arrow.circlepath") { AnnouncementWindowSettingsView(features: features) }
-                        settingsLink("Class names", "character.cursor.ibeam") { ClassNamesView(store: contentStore) }
-                        settingsLink("Hidden classes", "eye.slash") { HiddenCoursesView(store: contentStore, features: features) }
-                    }
-                    CPGlassCard(title: "Preferences") {
                         settingsLink("Notifications", "bell") { NotificationsView(sessionStore: sessionStore, features: features) }
+                        settingsLink("Announcements", "megaphone") { AnnouncementWindowSettingsView(features: features) }
+                        settingsLink("Class settings", "graduationcap") { NativeClassSettingsView(store: contentStore, features: features) }
+                        settingsLink("AI assistant", "sparkles") { NativeAIConnectionView() }
+                        settingsLink("Account", "person.crop.circle.badge.xmark") { NativeDeleteAccountView(sessionStore: sessionStore) }
                     }
                     CPGlassCard(title: "Legal") {
                         settingsLink("Privacy Policy", "hand.raised") { NativeLegalView(title: "Privacy Policy") }
                         settingsLink("Terms of Service", "doc.text") { NativeLegalView(title: "Terms of Service") }
                     }
-                    CPGlassCard(title: "Account") {
-                        settingsLink("Profile", "person.crop.circle") { ProfileView(features: features, email: sessionStore.session?.user.email) }
+                    CPGlassCard {
                         Button("Sign out") { Task { await sessionStore.signOut() } }
                             .frame(maxWidth: .infinity, alignment: .leading)
-                        settingsLink("Delete account", "trash") { NativeDeleteAccountView(sessionStore: sessionStore) }
                     }
                 }
                 .padding(.horizontal, 14)
@@ -94,7 +109,70 @@ struct NativeSettingsView: View {
     }
 
     private func settingsLink<Destination: View>(_ title: String, _ symbol: String, @ViewBuilder destination: () -> Destination) -> some View {
-        NavigationLink(destination: destination()) { CPInsetRow { HStack(spacing: 10) { Image(systemName: symbol).font(.system(size: 14)).frame(width: 20).foregroundStyle(CPTheme.primary(scheme: scheme)); Text(title).font(.system(size: 13, weight: .regular)); Spacer(); Image(systemName: "chevron.right").font(.system(size: 10, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)) } } }.buttonStyle(.plain)
+        NavigationLink(destination: destination()) { CPInsetRow { HStack(spacing: 10) { Image(systemName: symbol).font(.system(size: 14)).frame(width: 20).foregroundStyle(CPTheme.primary(scheme: scheme)); Text(title).font(.system(size: 13, weight: .regular)); Spacer(); Image(systemName: "chevron.right").font(.system(size: 10, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)) } } }.buttonStyle(CPPressStyle())
+    }
+}
+
+private struct NativeAppearanceView: View {
+    @ObservedObject var features: NativeFeatureStore
+    var body: some View {
+        ZStack { CPBackdrop(); ScrollView { AppearanceSettingsCard(features: features).padding(14) } }
+            .navigationTitle("Appearance")
+            .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private struct NativeClassSettingsView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ObservedObject var store: NativeContentStore
+    @ObservedObject var features: NativeFeatureStore
+    @State private var section = 0
+    var body: some View {
+        ZStack {
+            CPBackdrop()
+            VStack(spacing: 16) {
+                Picker("Class settings", selection: $section) {
+                    Text("Class names").tag(0)
+                    Text("Classes shown").tag(1)
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal, 14)
+                if section == 0 { ClassNamesView(store: store) }
+                else { HiddenCoursesView(store: store, features: features) }
+            }
+        }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: section)
+        .navigationTitle("Class settings")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private struct NativeAIConnectionView: View {
+    @State private var copied = false
+    private let address = "https://canvaspro.app/mcp"
+    var body: some View {
+        ZStack {
+            CPBackdrop()
+            ScrollView {
+                CPGlassCard(title: "Connect an AI assistant", subtitle: "Read-only access to your CanvasPro information.") {
+                    Text("Add this address to an assistant's connectors, sign in, and approve the request. It can then answer questions about your classes, deadlines, and grades.")
+                    HStack {
+                        Text(address).lineLimit(1).textSelection(.enabled)
+                        Spacer(minLength: 8)
+                        Button(copied ? "Copied" : "Copy") {
+                            UIPasteboard.general.string = address
+                            copied = true
+                        }
+                        .buttonStyle(CPPressStyle())
+                    }
+                    Text("Read-only. An assistant cannot change Canvas data or see your Canvas API key. Remove access from the assistant at any time.")
+                        .foregroundStyle(.secondary)
+                }
+                .padding(14)
+            }
+        }
+        .navigationTitle("AI assistant")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
@@ -241,6 +319,7 @@ private struct GetItDoneView: View {
 
 struct FocusView: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
     @State private var window = "7"
@@ -258,7 +337,7 @@ struct FocusView: View {
             CPBackdrop()
             ScrollView {
                 LazyVStack(spacing: 14) {
-                    ScrollView(.horizontal, showsIndicators: false) { HStack(spacing: 8) { ForEach(["all", "7", "overdue", "3", "2", "1"], id: \.self) { value in Button { window = value } label: { CPChip(text: focusLabel(value), selected: window == value) }.buttonStyle(.plain) } } }
+                    ScrollView(.horizontal, showsIndicators: false) { HStack(spacing: 8) { ForEach(["all", "7", "overdue", "3", "2", "1"], id: \.self) { value in Button { withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.18)) { window = value } } label: { CPChip(text: focusLabel(value), selected: window == value) }.buttonStyle(CPPressStyle()) } } }
                     Toggle("Show completed", isOn: $showCompleted).font(.system(size: 12, weight: .regular))
                     CPGlassCard {
                         if items.isEmpty { NativeEmptyState(title: "You’re all caught up.", symbol: "checkmark", detail: "No assignments match this view. Choose All dates to check other deadlines.") }
@@ -954,28 +1033,62 @@ private struct PaletteOption: View {
 }
 
 private struct ProfileView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject var features: NativeFeatureStore
     let email: String?
     @State private var username = ""
     @State private var details = NativeAccountDetails()
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var photoBusy = false
+    @State private var saving = false
+    @State private var usernameState = "idle"
     @State private var status: String?
+    private var normalizedUsername: String { username.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+    private var usernameError: String? {
+        guard !normalizedUsername.isEmpty else { return nil }
+        guard (3...24).contains(normalizedUsername.count) else { return "Use 3–24 characters." }
+        guard normalizedUsername.range(of: "^[a-z0-9_]+$", options: .regularExpression) != nil else { return "Use only lowercase letters, numbers, and underscores." }
+        return nil
+    }
     var body: some View {
         Form {
             Section("Account") {
                 LabeledContent("Email", value: email ?? "—")
-                TextField("Username", text: $username).textInputAutocapitalization(.never).autocorrectionDisabled()
+                TextField("Username", text: $username)
+                    .textInputAutocapitalization(.never).autocorrectionDisabled()
+                    .textContentType(.username)
+                    .onChange(of: username) { _, value in
+                        let lowered = value.lowercased()
+                        if value != lowered { username = lowered }
+                    }
+                HStack(spacing: 6) {
+                    if usernameState == "checking" { ProgressView().controlSize(.mini) }
+                    else if usernameState == "available" { Image(systemName: "checkmark.circle.fill").foregroundStyle(.green) }
+                    else if usernameState == "taken" || usernameState == "invalid" { Image(systemName: "xmark.circle.fill").foregroundStyle(.red) }
+                    Text(usernameState == "taken" ? "That username is already taken." : usernameState == "invalid" ? (usernameError ?? "Invalid username.") : usernameState == "available" ? "Username is available. You can use it to sign in." : "3–24 lowercase letters, numbers, or underscores.")
+                        .font(.caption)
+                        .foregroundStyle(usernameState == "taken" || usernameState == "invalid" ? Color.red : Color.secondary)
+                }
             }
             Section("Photo") {
                 HStack(spacing: 14) {
-                    AsyncImage(url: features.avatarURL) { image in image.resizable().scaledToFill() } placeholder: { Image(systemName: "person.crop.circle.fill").resizable().foregroundStyle(.secondary) }
-                        .frame(width: 64, height: 64).clipShape(Circle())
-                    PhotosPicker(selection: $selectedPhoto, matching: .images) { Text(features.profile.avatarPath == nil ? "Add photo" : "Change photo") }
+                    AsyncImage(url: features.avatarURL) { phase in
+                        switch phase {
+                        case .success(let image): image.resizable().scaledToFill().transition(.opacity)
+                        case .empty: Image(systemName: "person.crop.circle.fill").resizable().foregroundStyle(.secondary)
+                        case .failure: Image(systemName: "person.crop.circle.badge.exclamationmark").resizable().foregroundStyle(.secondary)
+                        @unknown default: Image(systemName: "person.crop.circle.fill").resizable().foregroundStyle(.secondary)
+                        }
+                    }
+                    .frame(width: 80, height: 80).clipShape(Circle())
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: features.avatarURL)
+                    PhotosPicker(selection: $selectedPhoto, matching: .images) { Label(features.profile.avatarPath == nil ? "Add photo" : "Change photo", systemImage: "camera") }
+                        .disabled(photoBusy)
                     if photoBusy { ProgressView() }
                 }
+                Text("JPEG, PNG, WebP, or GIF. Maximum 5 MB.").font(.caption).foregroundStyle(.secondary)
                 if features.profile.avatarPath != nil {
-                    Button("Remove photo", role: .destructive) { Task { do { try await features.removeAvatar(); status = "Photo removed." } catch { status = error.localizedDescription } } }
+                    Button("Remove photo", role: .destructive) { Task { do { photoBusy = true; defer { photoBusy = false }; try await features.removeAvatar(); status = "Photo removed." } catch { status = error.localizedDescription } } }.disabled(photoBusy)
                 }
             }
             Section("About you") {
@@ -986,14 +1099,42 @@ private struct ProfileView: View {
                 TextField("Major", text: $details.major)
                 TextField("Class of", text: $details.classOf)
             }
-            Section { Button("Save profile") { Task { do { try await features.saveAccountDetails(details, username: username); status = "Profile saved." } catch { status = error.localizedDescription } } } }
+            Section {
+                Button {
+                    Task {
+                        saving = true
+                        defer { saving = false }
+                        do {
+                            try await features.saveAccountDetails(details, username: normalizedUsername)
+                            status = "Profile saved."
+                            UINotificationFeedbackGenerator().notificationOccurred(.success)
+                        } catch { status = error.localizedDescription }
+                    }
+                } label: { HStack { Spacer(); if saving { ProgressView() } else { Text("Save profile") }; Spacer() } }
+                    .disabled(saving || usernameState == "checking" || usernameState == "taken" || usernameState == "invalid")
+            }
             if let status { Section { Text(status).foregroundStyle(.secondary) } }
         }
         .cpListScreen()
         .navigationTitle("Profile")
         .onAppear { username = features.profile.username ?? ""; details = features.accountDetails }
+        .onChange(of: features.profile.username) { previous, current in
+            if username.isEmpty || username == previous { username = current ?? "" }
+        }
         .onChange(of: features.accountDetails) { old, current in
             if details == old { details = current }
+        }
+        .task(id: username) {
+            let value = normalizedUsername
+            if value.isEmpty || value == features.profile.username { usernameState = "idle"; return }
+            if usernameError != nil { usernameState = "invalid"; return }
+            usernameState = "checking"
+            do {
+                try await Task.sleep(for: .milliseconds(350))
+                let available = try await features.usernameAvailable(value)
+                if !Task.isCancelled { usernameState = available ? "available" : "taken" }
+            } catch is CancellationError { }
+            catch { if !Task.isCancelled { usernameState = "idle"; status = error.localizedDescription } }
         }
         .onChange(of: selectedPhoto) { _, item in
             guard let item else { return }
@@ -1001,13 +1142,36 @@ private struct ProfileView: View {
             Task {
                 defer { photoBusy = false }
                 do {
-                    guard let data = try await item.loadTransferable(type: Data.self), let image = UIImage(data: data),
-                          let jpeg = image.jpegData(compressionQuality: 0.82) else { throw NativeAppError.server("Could not read that photo.") }
-                    try await features.uploadAvatar(jpeg)
+                    guard let data = try await item.loadTransferable(type: Data.self) else { throw NativeAppError.server("Could not read that photo.") }
+                    let (imageData, contentType) = try preparedAvatar(data)
+                    try await features.uploadAvatar(imageData, contentType: contentType)
                     status = "Photo saved."
                 } catch { status = error.localizedDescription }
             }
         }
+    }
+
+    private func preparedAvatar(_ data: Data) throws -> (Data, String) {
+        let contentType: String?
+        if data.starts(with: [0xFF, 0xD8, 0xFF]) { contentType = "image/jpeg" }
+        else if data.starts(with: [0x89, 0x50, 0x4E, 0x47]) { contentType = "image/png" }
+        else if data.starts(with: Array("GIF8".utf8)) { contentType = "image/gif" }
+        else if data.count >= 12 && data.prefix(4).elementsEqual("RIFF".utf8) && data.dropFirst(8).prefix(4).elementsEqual("WEBP".utf8) { contentType = "image/webp" }
+        else { contentType = nil }
+
+        if let contentType {
+            guard data.count <= 5 * 1024 * 1024 else { throw NativeAppError.server("Profile photos must be 5 MB or smaller.") }
+            return (data, contentType)
+        }
+
+        // iPhone libraries commonly contain HEIC; convert it for the same avatar service.
+        guard let image = UIImage(data: data) else { throw NativeAppError.server("Choose a JPEG, PNG, WebP, or GIF image.") }
+        let scale = min(1, 1200 / max(image.size.width, image.size.height))
+        let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+        guard size.width > 0 && size.height > 0 else { throw NativeAppError.server("Could not read that photo.") }
+        let jpeg = UIGraphicsImageRenderer(size: size).jpegData(withCompressionQuality: 0.82) { _ in image.draw(in: CGRect(origin: .zero, size: size)) }
+        guard jpeg.count <= 5 * 1024 * 1024 else { throw NativeAppError.server("Profile photos must be 5 MB or smaller.") }
+        return (jpeg, "image/jpeg")
     }
 }
 
@@ -1015,7 +1179,7 @@ private struct ClassNamesView: View {
     @ObservedObject var store: NativeContentStore
     @State private var drafts: [Int: String] = [:]
     @State private var status: String?
-    var body: some View { Form { Section("Class names") { ForEach(store.bundle.courses) { course in VStack(alignment: .leading) { Text(course.name).font(.caption).foregroundStyle(.secondary); TextField("Nickname", text: Binding(get: { drafts[course.id] ?? store.nicknames[course.id]?.customName ?? "" }, set: { drafts[course.id] = $0 })).onSubmit { save(course) } } } }; Section { Button("Save Class Names") { saveAll() }.disabled(drafts.isEmpty) }; if let status { Section { Text(status) } } }.cpListScreen().navigationTitle("Class Names") }
+    var body: some View { Form { Section("Class names") { ForEach(store.bundle.courses) { course in VStack(alignment: .leading) { Text(course.name).font(.caption).foregroundStyle(.secondary); TextField("Nickname", text: Binding(get: { drafts[course.id] ?? store.nicknames[course.id]?.customName ?? "" }, set: { drafts[course.id] = $0 })).onSubmit { save(course) } } } }; Section { Button("Save Class Names") { saveAll() }.disabled(drafts.isEmpty) }; if let status { Section { Text(status) } } }.cpListScreen() }
     private func save(_ course: CourseSummary) { Task { do { try await store.saveNickname(course: course, name: drafts[course.id] ?? ""); status = "Saved." } catch { status = error.localizedDescription } } }
     private func saveAll() { Task { do { for course in store.bundle.courses where drafts[course.id] != nil { try await store.saveNickname(course: course, name: drafts[course.id] ?? "") }; drafts.removeAll(); status = "Class names saved." } catch { status = error.localizedDescription } } }
 }
@@ -1031,7 +1195,7 @@ private struct HiddenCoursesView: View {
                 Toggle(store.displayName(courseID: course.id, fallback: course.name), isOn: Binding(get: { hidden.contains(course.id) }, set: { value in if value { hidden.insert(course.id) } else { hidden.remove(course.id) }; Task { do { try await features.savePreference("hidden_course_ids", Array(hidden).sorted()); status = nil } catch { status = error.localizedDescription; hidden = features.hiddenCourseIDs } } }))
             }
             if let status { Text(status).foregroundStyle(.red) }
-        }.cpListScreen().navigationTitle("Hidden Courses").onAppear { hidden = features.hiddenCourseIDs }
+        }.cpListScreen().onAppear { hidden = features.hiddenCourseIDs }
     }
 }
 

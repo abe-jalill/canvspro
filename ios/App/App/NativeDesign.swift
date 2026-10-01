@@ -158,6 +158,40 @@ struct CPInsetRow<Content: View>: View {
     }
 }
 
+struct CPPressStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(reduceMotion || !configuration.isPressed ? 1 : 0.985)
+            .opacity(configuration.isPressed ? 0.82 : 1)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: configuration.isPressed)
+    }
+}
+
+struct CPSkeletonCard: View {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var visible = false
+
+    var body: some View {
+        CPGlassCard {
+            VStack(alignment: .leading, spacing: 13) {
+                RoundedRectangle(cornerRadius: 5).frame(width: 124, height: 12)
+                RoundedRectangle(cornerRadius: 5).frame(height: 18)
+                RoundedRectangle(cornerRadius: 5).frame(maxWidth: 210).frame(height: 12)
+            }
+            .foregroundStyle(CPTheme.foreground(scheme).opacity(visible ? 0.13 : 0.07))
+        }
+        .accessibilityLabel("Loading")
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) { visible = true }
+        }
+        .onDisappear { visible = false }
+    }
+}
+
 struct CPPageHeader: View {
     @Environment(\.colorScheme) private var scheme
     let eyebrow: String; let title: String; let detail: String?

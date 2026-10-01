@@ -201,13 +201,13 @@ extension NativeAPI {
         return url
     }
 
-    func uploadAvatar(_ jpeg: Data, userID: String, token: String) async throws {
+    func uploadAvatar(_ imageData: Data, contentType: String, userID: String, token: String) async throws {
         let path = "\(userID)/avatar"
         var request = try request(path: "/storage/v1/object/profile-avatars/\(path)", token: token)
         request.httpMethod = "POST"
-        request.setValue("image/jpeg", forHTTPHeaderField: "Content-Type")
+        request.setValue(contentType, forHTTPHeaderField: "Content-Type")
         request.setValue("true", forHTTPHeaderField: "x-upsert")
-        request.httpBody = jpeg
+        request.httpBody = imageData
         _ = try await data(request)
         try await setAvatarPath(path, token: token)
     }
@@ -236,10 +236,13 @@ extension NativeAPI {
         return NativeAccountDetails(object["user_metadata"] as? [String: Any] ?? [:])
     }
 
-    func saveAccountDetails(_ details: NativeAccountDetails, token: String) async throws {
+    func saveAccountDetails(_ details: NativeAccountDetails, username: String, avatarPath: String?, token: String) async throws {
+        var metadata = details.metadata
+        metadata["username"] = username
+        metadata["avatar_path"] = avatarPath as Any? ?? NSNull()
         var request = try request(path: "/auth/v1/user", token: token)
         request.httpMethod = "PUT"
-        request.httpBody = try JSONSerialization.data(withJSONObject: ["data": details.metadata])
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["data": metadata])
         _ = try await data(request)
     }
 
@@ -269,6 +272,13 @@ extension NativeAPI {
         request.httpMethod = "POST"
         request.httpBody = try JSONSerialization.data(withJSONObject: ["requested_username": username])
         _ = try await data(request)
+    }
+
+    func usernameAvailable(_ username: String, token: String) async throws -> Bool {
+        var request = try request(path: "/rest/v1/rpc/username_available", token: token)
+        request.httpMethod = "POST"
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["requested_username": username])
+        return (try await json(request)) as? Bool ?? false
     }
 
     func classSchedule(token: String, userID: String) async throws -> [ClassScheduleEntry] {
@@ -437,15 +447,20 @@ final class NativeFeatureStore: ObservableObject {
             try await api.setUsername(normalized, token: token)
             profile.username = normalized
         }
-        try await api.saveAccountDetails(details, token: token)
+        try await api.saveAccountDetails(details, username: normalized, avatarPath: profile.avatarPath, token: token)
         accountDetails = details
     }
 
-    func uploadAvatar(_ jpeg: Data) async throws {
-        guard jpeg.count <= 5 * 1024 * 1024 else { throw NativeAppError.server("Profile photos must be 5 MB or smaller.") }
+    func usernameAvailable(_ username: String) async throws -> Bool {
+        guard let api = sessionStore.api else { throw NativeAppError.signedOut }
+        return try await api.usernameAvailable(username, token: try await sessionStore.accessToken())
+    }
+
+    func uploadAvatar(_ imageData: Data, contentType: String) async throws {
+        guard imageData.count <= 5 * 1024 * 1024 else { throw NativeAppError.server("Profile photos must be 5 MB or smaller.") }
         guard let api = sessionStore.api, let user = sessionStore.session?.user else { throw NativeAppError.signedOut }
         let token = try await sessionStore.accessToken()
-        try await api.uploadAvatar(jpeg, userID: user.id, token: token)
+        try await api.uploadAvatar(imageData, contentType: contentType, userID: user.id, token: token)
         let path = "\(user.id)/avatar"
         profile.avatarPath = path
         avatarURL = try? await api.signedAvatarURL(path: path, token: token)
