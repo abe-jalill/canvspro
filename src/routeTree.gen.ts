@@ -38,6 +38,15 @@ import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedStudySessionRouteImport } from './routes/_authenticated/study-session'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable/oauth/consent'
 import { Route as AuthenticatedCoursesCourseIdRouteImport } from './routes/_authenticated/courses.$courseId'
+import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings.index'
+import { Route as AuthenticatedSettingsAccountRouteImport } from './routes/_authenticated/settings.account'
+import { Route as AuthenticatedSettingsAiAssistantRouteImport } from './routes/_authenticated/settings.ai-assistant'
+import { Route as AuthenticatedSettingsAnnouncementsRouteImport } from './routes/_authenticated/settings.announcements'
+import { Route as AuthenticatedSettingsAppearanceRouteImport } from './routes/_authenticated/settings.appearance'
+import { Route as AuthenticatedSettingsCanvasRouteImport } from './routes/_authenticated/settings.canvas'
+import { Route as AuthenticatedSettingsClassesRouteImport } from './routes/_authenticated/settings.classes'
+import { Route as AuthenticatedSettingsNotificationsRouteImport } from './routes/_authenticated/settings.notifications'
+import { Route as AuthenticatedSettingsProfileRouteImport } from './routes/_authenticated/settings.profile'
 import { Route as ApiPublicPushDispatchRouteImport } from './routes/api/public/push/dispatch'
 import { Route as ApiPublicPushKeyRouteImport } from './routes/api/public/push/key'
 import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
@@ -195,6 +204,60 @@ const AuthenticatedCoursesCourseIdRoute =
     path: '/courses/$courseId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedSettingsIndexRoute =
+  AuthenticatedSettingsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsAccountRoute =
+  AuthenticatedSettingsAccountRouteImport.update({
+    id: '/account',
+    path: '/account',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsAiAssistantRoute =
+  AuthenticatedSettingsAiAssistantRouteImport.update({
+    id: '/ai-assistant',
+    path: '/ai-assistant',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsAnnouncementsRoute =
+  AuthenticatedSettingsAnnouncementsRouteImport.update({
+    id: '/announcements',
+    path: '/announcements',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsAppearanceRoute =
+  AuthenticatedSettingsAppearanceRouteImport.update({
+    id: '/appearance',
+    path: '/appearance',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsCanvasRoute =
+  AuthenticatedSettingsCanvasRouteImport.update({
+    id: '/canvas',
+    path: '/canvas',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsClassesRoute =
+  AuthenticatedSettingsClassesRouteImport.update({
+    id: '/classes',
+    path: '/classes',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsNotificationsRoute =
+  AuthenticatedSettingsNotificationsRouteImport.update({
+    id: '/notifications',
+    path: '/notifications',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsProfileRoute =
+  AuthenticatedSettingsProfileRouteImport.update({
+    id: '/profile',
+    path: '/profile',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
 const ApiPublicPushDispatchRoute = ApiPublicPushDispatchRouteImport.update({
   id: '/api/public/push/dispatch',
   path: '/api/public/push/dispatch',
@@ -247,10 +310,19 @@ export interface FileRoutesByFullPath {
   '/grades': typeof AuthenticatedGradesRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/schedule': typeof AuthenticatedScheduleRoute
-  '/settings': typeof AuthenticatedSettingsRoute
+  '/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/study-session': typeof AuthenticatedStudySessionRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/courses/$courseId': typeof AuthenticatedCoursesCourseIdRoute
+  '/settings/account': typeof AuthenticatedSettingsAccountRoute
+  '/settings/ai-assistant': typeof AuthenticatedSettingsAiAssistantRoute
+  '/settings/announcements': typeof AuthenticatedSettingsAnnouncementsRoute
+  '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
+  '/settings/canvas': typeof AuthenticatedSettingsCanvasRoute
+  '/settings/classes': typeof AuthenticatedSettingsClassesRoute
+  '/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
+  '/settings/profile': typeof AuthenticatedSettingsProfileRoute
+  '/settings/': typeof AuthenticatedSettingsIndexRoute
   '/api/public/push/dispatch': typeof ApiPublicPushDispatchRoute
   '/api/public/push/key': typeof ApiPublicPushKeyRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -282,10 +354,18 @@ export interface FileRoutesByTo {
   '/grades': typeof AuthenticatedGradesRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/schedule': typeof AuthenticatedScheduleRoute
-  '/settings': typeof AuthenticatedSettingsRoute
   '/study-session': typeof AuthenticatedStudySessionRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/courses/$courseId': typeof AuthenticatedCoursesCourseIdRoute
+  '/settings/account': typeof AuthenticatedSettingsAccountRoute
+  '/settings/ai-assistant': typeof AuthenticatedSettingsAiAssistantRoute
+  '/settings/announcements': typeof AuthenticatedSettingsAnnouncementsRoute
+  '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
+  '/settings/canvas': typeof AuthenticatedSettingsCanvasRoute
+  '/settings/classes': typeof AuthenticatedSettingsClassesRoute
+  '/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
+  '/settings/profile': typeof AuthenticatedSettingsProfileRoute
+  '/settings': typeof AuthenticatedSettingsIndexRoute
   '/api/public/push/dispatch': typeof ApiPublicPushDispatchRoute
   '/api/public/push/key': typeof ApiPublicPushKeyRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -319,10 +399,19 @@ export interface FileRoutesById {
   '/_authenticated/grades': typeof AuthenticatedGradesRoute
   '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
   '/_authenticated/schedule': typeof AuthenticatedScheduleRoute
-  '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/_authenticated/study-session': typeof AuthenticatedStudySessionRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/_authenticated/courses/$courseId': typeof AuthenticatedCoursesCourseIdRoute
+  '/_authenticated/settings/account': typeof AuthenticatedSettingsAccountRoute
+  '/_authenticated/settings/ai-assistant': typeof AuthenticatedSettingsAiAssistantRoute
+  '/_authenticated/settings/announcements': typeof AuthenticatedSettingsAnnouncementsRoute
+  '/_authenticated/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
+  '/_authenticated/settings/canvas': typeof AuthenticatedSettingsCanvasRoute
+  '/_authenticated/settings/classes': typeof AuthenticatedSettingsClassesRoute
+  '/_authenticated/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
+  '/_authenticated/settings/profile': typeof AuthenticatedSettingsProfileRoute
+  '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
   '/api/public/push/dispatch': typeof ApiPublicPushDispatchRoute
   '/api/public/push/key': typeof ApiPublicPushKeyRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -360,6 +449,15 @@ export interface FileRouteTypes {
     | '/study-session'
     | '/.lovable/oauth/consent'
     | '/courses/$courseId'
+    | '/settings/account'
+    | '/settings/ai-assistant'
+    | '/settings/announcements'
+    | '/settings/appearance'
+    | '/settings/canvas'
+    | '/settings/classes'
+    | '/settings/notifications'
+    | '/settings/profile'
+    | '/settings/'
     | '/api/public/push/dispatch'
     | '/api/public/push/key'
     | '/lovable/email/auth/preview'
@@ -391,10 +489,18 @@ export interface FileRouteTypes {
     | '/grades'
     | '/notifications'
     | '/schedule'
-    | '/settings'
     | '/study-session'
     | '/.lovable/oauth/consent'
     | '/courses/$courseId'
+    | '/settings/account'
+    | '/settings/ai-assistant'
+    | '/settings/announcements'
+    | '/settings/appearance'
+    | '/settings/canvas'
+    | '/settings/classes'
+    | '/settings/notifications'
+    | '/settings/profile'
+    | '/settings'
     | '/api/public/push/dispatch'
     | '/api/public/push/key'
     | '/lovable/email/auth/preview'
@@ -431,6 +537,15 @@ export interface FileRouteTypes {
     | '/_authenticated/study-session'
     | '/.lovable/oauth/consent'
     | '/_authenticated/courses/$courseId'
+    | '/_authenticated/settings/account'
+    | '/_authenticated/settings/ai-assistant'
+    | '/_authenticated/settings/announcements'
+    | '/_authenticated/settings/appearance'
+    | '/_authenticated/settings/canvas'
+    | '/_authenticated/settings/classes'
+    | '/_authenticated/settings/notifications'
+    | '/_authenticated/settings/profile'
+    | '/_authenticated/settings/'
     | '/api/public/push/dispatch'
     | '/api/public/push/key'
     | '/lovable/email/auth/preview'
@@ -667,6 +782,69 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCoursesCourseIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/settings/': {
+      id: '/_authenticated/settings/'
+      path: '/'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof AuthenticatedSettingsIndexRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/account': {
+      id: '/_authenticated/settings/account'
+      path: '/account'
+      fullPath: '/settings/account'
+      preLoaderRoute: typeof AuthenticatedSettingsAccountRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/ai-assistant': {
+      id: '/_authenticated/settings/ai-assistant'
+      path: '/ai-assistant'
+      fullPath: '/settings/ai-assistant'
+      preLoaderRoute: typeof AuthenticatedSettingsAiAssistantRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/announcements': {
+      id: '/_authenticated/settings/announcements'
+      path: '/announcements'
+      fullPath: '/settings/announcements'
+      preLoaderRoute: typeof AuthenticatedSettingsAnnouncementsRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/appearance': {
+      id: '/_authenticated/settings/appearance'
+      path: '/appearance'
+      fullPath: '/settings/appearance'
+      preLoaderRoute: typeof AuthenticatedSettingsAppearanceRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/canvas': {
+      id: '/_authenticated/settings/canvas'
+      path: '/canvas'
+      fullPath: '/settings/canvas'
+      preLoaderRoute: typeof AuthenticatedSettingsCanvasRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/classes': {
+      id: '/_authenticated/settings/classes'
+      path: '/classes'
+      fullPath: '/settings/classes'
+      preLoaderRoute: typeof AuthenticatedSettingsClassesRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/notifications': {
+      id: '/_authenticated/settings/notifications'
+      path: '/notifications'
+      fullPath: '/settings/notifications'
+      preLoaderRoute: typeof AuthenticatedSettingsNotificationsRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/profile': {
+      id: '/_authenticated/settings/profile'
+      path: '/profile'
+      fullPath: '/settings/profile'
+      preLoaderRoute: typeof AuthenticatedSettingsProfileRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
     '/api/public/push/dispatch': {
       id: '/api/public/push/dispatch'
       path: '/api/public/push/dispatch'
@@ -705,6 +883,37 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedSettingsRouteChildren {
+  AuthenticatedSettingsAccountRoute: typeof AuthenticatedSettingsAccountRoute
+  AuthenticatedSettingsAiAssistantRoute: typeof AuthenticatedSettingsAiAssistantRoute
+  AuthenticatedSettingsAnnouncementsRoute: typeof AuthenticatedSettingsAnnouncementsRoute
+  AuthenticatedSettingsAppearanceRoute: typeof AuthenticatedSettingsAppearanceRoute
+  AuthenticatedSettingsCanvasRoute: typeof AuthenticatedSettingsCanvasRoute
+  AuthenticatedSettingsClassesRoute: typeof AuthenticatedSettingsClassesRoute
+  AuthenticatedSettingsNotificationsRoute: typeof AuthenticatedSettingsNotificationsRoute
+  AuthenticatedSettingsProfileRoute: typeof AuthenticatedSettingsProfileRoute
+  AuthenticatedSettingsIndexRoute: typeof AuthenticatedSettingsIndexRoute
+}
+
+const AuthenticatedSettingsRouteChildren: AuthenticatedSettingsRouteChildren = {
+  AuthenticatedSettingsAccountRoute: AuthenticatedSettingsAccountRoute,
+  AuthenticatedSettingsAiAssistantRoute: AuthenticatedSettingsAiAssistantRoute,
+  AuthenticatedSettingsAnnouncementsRoute:
+    AuthenticatedSettingsAnnouncementsRoute,
+  AuthenticatedSettingsAppearanceRoute: AuthenticatedSettingsAppearanceRoute,
+  AuthenticatedSettingsCanvasRoute: AuthenticatedSettingsCanvasRoute,
+  AuthenticatedSettingsClassesRoute: AuthenticatedSettingsClassesRoute,
+  AuthenticatedSettingsNotificationsRoute:
+    AuthenticatedSettingsNotificationsRoute,
+  AuthenticatedSettingsProfileRoute: AuthenticatedSettingsProfileRoute,
+  AuthenticatedSettingsIndexRoute: AuthenticatedSettingsIndexRoute,
+}
+
+const AuthenticatedSettingsRouteWithChildren =
+  AuthenticatedSettingsRoute._addFileChildren(
+    AuthenticatedSettingsRouteChildren,
+  )
+
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedAnnouncementsRoute: typeof AuthenticatedAnnouncementsRoute
@@ -716,7 +925,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedGradesRoute: typeof AuthenticatedGradesRoute
   AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
   AuthenticatedScheduleRoute: typeof AuthenticatedScheduleRoute
-  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRouteWithChildren
   AuthenticatedStudySessionRoute: typeof AuthenticatedStudySessionRoute
   AuthenticatedCoursesCourseIdRoute: typeof AuthenticatedCoursesCourseIdRoute
 }
@@ -732,7 +941,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedGradesRoute: AuthenticatedGradesRoute,
   AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
   AuthenticatedScheduleRoute: AuthenticatedScheduleRoute,
-  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedSettingsRoute: AuthenticatedSettingsRouteWithChildren,
   AuthenticatedStudySessionRoute: AuthenticatedStudySessionRoute,
   AuthenticatedCoursesCourseIdRoute: AuthenticatedCoursesCourseIdRoute,
 }
