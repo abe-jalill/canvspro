@@ -53,13 +53,13 @@ import { SkeletonBlock } from "@/components/skeletons/dashboard-skeletons";
 export const Route = createFileRoute("/_authenticated/get-it-done")({
   head: () => ({
     meta: [
-      { title: "Get It Done - CanvasPro" },
+      { title: "Get It Done — CanvasPro" },
       {
         name: "description",
         content:
           "A simple CanvasPro plan that recommends the best assignment to start now and builds a realistic plan for today.",
       },
-      { property: "og:title", content: "Get It Done - CanvasPro" },
+      { property: "og:title", content: "Get It Done — CanvasPro" },
       {
         property: "og:description",
         content:

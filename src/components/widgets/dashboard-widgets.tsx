@@ -28,8 +28,9 @@ import { DigestCard } from "@/components/digest-card";
 import { WorkloadHeatmap } from "@/components/workload-heatmap";
 import { GpaCalculator } from "@/components/gpa-calculator";
 import { getCalendarEventsFn } from "@/lib/canvas.functions";
-import { getGradeColor } from "@/lib/grade-color";
+import { courseLetter, getGradeColor } from "@/lib/grade-color";
 import { isInFocusWindow } from "@/lib/focus-window";
+import { isAssignmentVisible } from "@/lib/assignment-window";
 import { useAnnouncementWindow, withinAnnouncementWindow } from "@/lib/announcement-window";
 import { customToAssignmentItem, useCustomAssignments } from "@/lib/custom-assignments";
 
@@ -149,7 +150,7 @@ function CoursesWidget() {
                       className="whitespace-nowrap text-xs font-normal tabular-nums"
                       style={{ color }}
                     >
-                      {formatScore(c.current_score, c.current_grade)}
+                      {formatScore(c.current_score, courseLetter(c.current_grade, c.current_score))}
                     </span>
                   </div>
                 </li>
@@ -659,11 +660,17 @@ function CalendarWidget() {
 
 function HeatmapWidget() {
   const { data, isLoading, isError, error } = useQuery(assignmentsQO);
+  const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
+  // Same visibility rule as the Calendar page, so both heatmaps agree.
+  const now = Date.now();
+  const visible = data?.filter((assignment) =>
+    isAssignmentVisible(assignment, completed.has(assignment.id), false, now),
+  );
   return (
     <GlassCard title="Workload" subtitle="Assignment density by week">
       {isLoading && <WorkloadHeatmapSkeleton />}
       {isError && <ErrorState message={(error as Error).message} />}
-      {data && <WorkloadHeatmap assignments={data} />}
+      {visible && <WorkloadHeatmap assignments={visible} />}
     </GlassCard>
   );
 }

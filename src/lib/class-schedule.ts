@@ -145,3 +145,32 @@ export function conflictLabel(c: ScheduleConflict): string {
   const b = `${c.b.title || "Untitled class"} (${timeRangeLabel(c.b.startMinutes, c.b.endMinutes)})`;
   return `${DAY_LABELS[c.day]}: ${a} overlaps ${b}`;
 }
+
+function looseName(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+/**
+ * Finds the Canvas course a schedule entry refers to, so the timetable can
+ * show the same class name as every other page. Matches when the entry's
+ * title (or code) appears inside the course's raw name/code, ignoring case and
+ * punctuation. Returns undefined unless exactly one course matches.
+ */
+export function matchScheduleCourse<
+  T extends { name: string; course_code: string; display?: string },
+>(
+  title: string,
+  code: string,
+  courses: readonly T[],
+): T | undefined {
+  const needles = [title, code].map(looseName).filter((n) => n.length >= 4);
+  if (needles.length === 0) return undefined;
+  // An entry already named exactly like a course's display name wins outright.
+  const exact = courses.filter((c) => c.display && looseName(c.display) === looseName(title));
+  if (exact.length === 1) return exact[0];
+  const hits = courses.filter((course) => {
+    const hay = looseName(`${course.name} ${course.course_code}`);
+    return needles.some((needle) => hay.includes(needle));
+  });
+  return hits.length === 1 ? hits[0] : undefined;
+}

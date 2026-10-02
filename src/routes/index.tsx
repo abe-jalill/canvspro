@@ -96,7 +96,7 @@ const faq = [
   {
     question: "What happens to an existing subscription?",
     answer:
-      "You can manage or cancel it from Billing after signing in. CanvasPro access remains free after cancellation.",
+      "Email support@canvaspro.app and we'll cancel it for you. CanvasPro stays free after cancellation.",
   },
 ];
 

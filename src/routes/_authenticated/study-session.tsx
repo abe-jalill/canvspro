@@ -24,7 +24,11 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { studySelectionFeedback, studySuccessFeedback } from "@/lib/study-session-feedback";
 import { useStudySession } from "@/hooks/use-study-session";
-import { isAssignmentComplete, isAssignmentVisible } from "@/lib/assignment-window";
+import {
+  compareByDueDate,
+  isAssignmentComplete,
+  isAssignmentVisible,
+} from "@/lib/assignment-window";
 import { COMPLETED_ASSIGNMENTS_KEY, useLocalSet } from "@/lib/local-state";
 import {
   createStudySession,
@@ -125,6 +129,7 @@ function StudySessionPage() {
   const [manualName, setManualName] = useState("");
   const [search, setSearch] = useState("");
   const [showCompleted, setShowCompleted] = useState(false);
+  const [showUndated, setShowUndated] = useState(false);
   const [duration, setDuration] = useState(25);
   const [now, setNow] = useState(() => Date.now());
   const [summary, setSummary] = useState<StudySessionSnapshot | null>(null);
@@ -157,9 +162,9 @@ function StudySessionPage() {
     toast.success("Study session complete");
   }, [now, session, setSession]);
 
-  const candidates = useMemo(() => {
+  const { candidates, hiddenUndated } = useMemo(() => {
     const needle = search.trim().toLowerCase();
-    return (assignments.data ?? [])
+    const matching = (assignments.data ?? [])
       .filter((item) => {
         if (!isAssignmentVisible(item, completed.has(item.id), showCompleted, Date.now())) {
           return false;
@@ -169,12 +174,13 @@ function StudySessionPage() {
           .toLowerCase()
           .includes(needle);
       })
-      .sort((a, b) => {
-        if (!a.due_at) return 1;
-        if (!b.due_at) return -1;
-        return new Date(a.due_at).getTime() - new Date(b.due_at).getTime();
-      });
-  }, [assignments.data, completed, search, showCompleted]);
+      .sort(compareByDueDate);
+    // Work with no due date is tucked away until asked for (or searched for),
+    // so the list starts with what is actually coming up.
+    if (needle || showUndated) return { candidates: matching, hiddenUndated: 0 };
+    const dated = matching.filter((item) => item.due_at);
+    return { candidates: dated, hiddenUndated: matching.length - dated.length };
+  }, [assignments.data, completed, search, showCompleted, showUndated]);
 
   const selectedIds = useMemo(() => new Set(selected.map((item) => item.id)), [selected]);
 
@@ -466,7 +472,21 @@ function StudySessionPage() {
                 />
                 Show submitted
               </label>
+              <label className="flex min-h-10 items-center gap-2 text-sm text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={showUndated}
+                  onChange={(event) => setShowUndated(event.target.checked)}
+                  className="h-4 w-4 accent-primary"
+                />
+                No due date
+              </label>
             </div>
+            {hiddenUndated > 0 && (
+              <p className="mb-3 text-xs text-muted-foreground">
+                {hiddenUndated} item{hiddenUndated === 1 ? "" : "s"} with no due date hidden.
+              </p>
+            )}
             {assignments.isPending ? (
               <div className="space-y-2">
                 <Skeleton className="h-14" />

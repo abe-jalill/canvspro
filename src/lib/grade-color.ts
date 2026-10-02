@@ -41,3 +41,17 @@ export function letterFromScore(score: number | null | undefined): string {
   if (score >= 60) return "D-";
   return "F";
 }
+
+/**
+ * The letter shown next to a course score everywhere in the app: Canvas's own
+ * letter when the course provides one, otherwise the standard scale. Returns
+ * null when there is no score to describe.
+ */
+export function courseLetter(
+  canvasGrade: string | null | undefined,
+  score: number | null | undefined,
+): string | null {
+  if (canvasGrade) return canvasGrade;
+  if (score == null || Number.isNaN(score)) return null;
+  return letterFromScore(score);
+}

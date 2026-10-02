@@ -99,7 +99,7 @@ export default function ClassScheduleView({
               <article key={g.key} className="glass-panel p-5">
                 <div className="flex items-start justify-between gap-3">
                   <h3 className="min-w-0 text-base font-semibold tracking-tight">
-                    {c.title}
+                    {c.displayName || c.title}
                   </h3>
                   {c.credits > 0 ? (
                     <span className="glass-inset shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">

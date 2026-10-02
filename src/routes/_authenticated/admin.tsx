@@ -32,6 +32,10 @@ function relativeTime(iso: string): string {
   return `${days}d ago`;
 }
 
+function visits(n: number): string {
+  return `${n} ${n === 1 ? "visit" : "visits"}`;
+}
+
 function weekdayLabel(date: string): string {
   const d = new Date(`${date}T12:00:00Z`);
   return d.toLocaleDateString(undefined, { weekday: "short", timeZone: "UTC" });
@@ -133,17 +137,17 @@ function AdminUsagePage() {
             <Stat
               label="Today"
               value={stats.data.today.users}
-              detail={`${stats.data.today.interactions} visits`}
+              detail={visits(stats.data.today.interactions)}
             />
             <Stat
-              label="This week"
+              label="Last 7 days"
               value={stats.data.week.users}
-              detail={`${stats.data.week.interactions} visits`}
+              detail={visits(stats.data.week.interactions)}
             />
             <Stat
-              label="This month"
+              label="Last 30 days"
               value={stats.data.month.users}
-              detail={`${stats.data.month.interactions} visits`}
+              detail={visits(stats.data.month.interactions)}
             />
             <Stat label="Accounts" value={stats.data.totalAccounts} />
           </div>
@@ -172,7 +176,7 @@ function AdminUsagePage() {
                   >
                     <span className="min-w-0 truncate text-sm">{row.label}</span>
                     <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                      {relativeTime(row.lastSeenAt)} · {row.interactions} visits
+                      {relativeTime(row.lastSeenAt)} · {visits(row.interactions)}
                     </span>
                   </li>
                 ))}

@@ -30,7 +30,11 @@ const AddToCalendarButton = ({ assignment }: { assignment: AssignmentItem }) => 
 import { useCourseHighlight, validateCourseSearch } from "@/lib/course-highlight";
 import { buildPriorityList, describePriorityList } from "@/lib/priority";
 import { useAssignmentMetaMap } from "@/hooks/use-assignment-meta";
-import { isAssignmentComplete, isAssignmentVisible } from "@/lib/assignment-window";
+import {
+  compareByDueDate,
+  isAssignmentComplete,
+  isAssignmentVisible,
+} from "@/lib/assignment-window";
 import { htmlToText } from "@/lib/html-text";
 
 import {
@@ -207,6 +211,7 @@ function AssignmentsPage() {
   const { data, isLoading, isError, error } = useQuery(assignmentsQO);
   const courses = useQuery(coursesQO);
   const [search, setSearch] = useState("");
+  const [undatedOpen, setUndatedOpen] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
@@ -286,11 +291,7 @@ function AssignmentsPage() {
       g.items = g.items.filter((a) =>
         isAssignmentVisible(a, completed.has(a.id), showCompleted, now),
       );
-      g.items.sort((a, b) => {
-        if (!a.due_at) return 1;
-        if (!b.due_at) return -1;
-        return new Date(a.due_at).getTime() - new Date(b.due_at).getTime();
-      });
+      g.items.sort(compareByDueDate);
       for (const a of g.items) {
         if (!a.due_at) continue;
         const t = new Date(a.due_at).getTime();
@@ -336,9 +337,11 @@ function AssignmentsPage() {
     : groups.filter((g) => g.items.length > 0);
 
   const now = Date.now();
-  const agendaItems = visibleGroups.flatMap((group) =>
-    group.items.map((assignment) => ({ assignment, course: group.label })),
-  );
+  // Flatten across classes, then order by deadline so the agenda reads in
+  // true urgency order rather than grouped by class name.
+  const agendaItems = visibleGroups
+    .flatMap((group) => group.items.map((assignment) => ({ assignment, course: group.label })))
+    .sort((a, b) => compareByDueDate(a.assignment, b.assignment));
   const agendaSections = [
     {
       title: "Overdue",
@@ -549,7 +552,19 @@ function AssignmentsPage() {
                   {section.items.length}
                 </span>
               </div>
-              <ul>
+              {section.title === "No due date" && !q && (
+                <div className="px-4 py-3 sm:px-6">
+                  <button
+                    type="button"
+                    onClick={() => setUndatedOpen((open) => !open)}
+                    aria-expanded={undatedOpen}
+                    className="glass-hover inline-flex min-h-9 items-center rounded-lg px-3 text-xs font-medium text-muted-foreground hover:text-foreground"
+                  >
+                    {undatedOpen ? "Hide" : `Show ${section.items.length}`} with no due date
+                  </button>
+                </div>
+              )}
+              <ul hidden={section.title === "No due date" && !q && !undatedOpen}>
                 {section.items.map(({ assignment: a, course }) => {
                   const done = isDone(a, completed.has(a.id));
                   const canvasDone = isAssignmentComplete(a, false);
@@ -604,7 +619,7 @@ function AssignmentsPage() {
                         {a.description && (
                           <details className="mt-2 text-xs">
                             <summary className="cursor-pointer font-medium text-muted-foreground hover:text-foreground">
-                              Assignment description
+                              See description
                             </summary>
                             <p className="mt-2 whitespace-pre-line leading-5 text-foreground/75">
                               {htmlToText(a.description)}

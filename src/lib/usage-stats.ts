@@ -77,8 +77,11 @@ export function summarizeUsageActivity(
 
   return {
     today: period(rows, today, today),
-    week: period(rows, utcWeekStart(now), today),
-    month: period(rows, utcMonthStart(now), today),
+    // Rolling windows, so the 30-day figure always includes the 7-day one.
+    // (Calendar week/month made "this month" smaller than "this week" in the
+    // first days of a month.)
+    week: period(rows, utcDate(now, -6), today),
+    month: period(rows, utcDate(now, -29), today),
     daily,
   };
 }

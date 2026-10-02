@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { getGradeColor } from "@/lib/grade-color";
+import { courseLetter, getGradeColor } from "@/lib/grade-color";
 import { useQuery, queryOptions } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { getCoursesFn, getAllAssignmentsFn } from "@/lib/canvas.functions";
@@ -304,9 +304,9 @@ function GradesPage() {
                         >
                           {fmt(score)}
                         </span>
-                        {course.current_grade && (
+                        {courseLetter(course.current_grade, score) && (
                           <span className="text-sm font-semibold" style={{ color }}>
-                            {course.current_grade}
+                            {courseLetter(course.current_grade, score)}
                           </span>
                         )}
                       </div>
@@ -315,13 +315,18 @@ function GradesPage() {
                       <span
                         className="inline-flex items-center gap-1 rounded-full border border-foreground/10 bg-foreground/[0.04] px-2.5 py-1 text-xs"
                         style={{ color }}
+                        title={`Previously ${trend.prev.toFixed(1)}%`}
+                        aria-label={`${trend.dir === "up" ? "Up" : "Down"} ${Math.abs(
+                          (score ?? 0) - trend.prev,
+                        ).toFixed(1)} points since your last grade change`}
                       >
                         {trend.dir === "up" ? (
-                          <ArrowUp className="h-3.5 w-3.5" />
+                          <ArrowUp className="h-3.5 w-3.5" aria-hidden="true" />
                         ) : (
-                          <ArrowDown className="h-3.5 w-3.5" />
+                          <ArrowDown className="h-3.5 w-3.5" aria-hidden="true" />
                         )}
-                        {Math.abs((score ?? 0) - trend.prev).toFixed(1)}
+                        {trend.dir === "up" ? "+" : "−"}
+                        {Math.abs((score ?? 0) - trend.prev).toFixed(1)} pts
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 rounded-full bg-foreground/[0.04] px-2.5 py-1 text-xs text-muted-foreground">
@@ -455,9 +460,9 @@ function GradesPage() {
                         />
                       )}
                       {fmt(c.current_score)}
-                      {c.current_grade ? (
+                      {courseLetter(c.current_grade, c.current_score) ? (
                         <span className="ml-1.5 text-sm font-normal opacity-85" style={{ color }}>
-                          {c.current_grade}
+                          {courseLetter(c.current_grade, c.current_score)}
                         </span>
                       ) : null}
                     </span>

@@ -12,7 +12,7 @@ import {
 } from "@/lib/canvas.functions";
 import { GlassCard, Skeleton, EmptyState } from "@/components/glass-card";
 import { displayCourseNameForCourse } from "@/lib/course-display";
-import { getGradeColor, getGradeBg, letterFromScore } from "@/lib/grade-color";
+import { getGradeColor, getGradeBg, courseLetter } from "@/lib/grade-color";
 import { useClassSchedule } from "@/lib/user-class-schedule";
 import { DAY_LABELS } from "@/lib/class-schedule";
 import { ArrowLeft, Calendar, Clock, ExternalLink, CheckCircle2, CalendarPlus } from "lucide-react";
@@ -33,20 +33,33 @@ import {
 import { SkeletonBlock, AssignmentRowSkeleton } from "@/components/skeletons/dashboard-skeletons";
 
 export const Route = createFileRoute("/_authenticated/courses/$courseId")({
-  head: () => ({
+  head: ({ loaderData }) => ({
     meta: [
-      { title: "Class Details — CanvasPro" },
+      {
+        title: loaderData?.courseTitle
+          ? `${loaderData.courseTitle} — CanvasPro`
+          : "Class Details — CanvasPro",
+      },
       {
         name: "description",
         content: "Individual course overview, grades, assignments, and announcements.",
       },
     ],
   }),
-  loader: ({ context }) => {
-    if (context?.queryClient) {
-      void context.queryClient.ensureQueryData(coursesQO);
-      void context.queryClient.ensureQueryData(assignmentsQO);
-    }
+  loader: ({ context, params }) => {
+    if (!context?.queryClient) return { courseTitle: null };
+    void context.queryClient.ensureQueryData(coursesQO);
+    void context.queryClient.ensureQueryData(assignmentsQO);
+    // Name the browser tab after the class when its details are already cached
+    // (they almost always are, since the sidebar loads every course).
+    const course = context.queryClient
+      .getQueryData(coursesQO.queryKey)
+      ?.find((item) => String(item.id) === params.courseId);
+    return {
+      courseTitle: course
+        ? displayCourseNameForCourse(course.id, course.name, course.course_code)
+        : null,
+    };
   },
   component: CourseDetailPage,
 });
@@ -266,7 +279,7 @@ function CourseDetailPage() {
   const score = course?.current_score;
   const gradeColor = getGradeColor(score);
   const gradeBg = getGradeBg(score);
-  const letterGrade = course?.current_grade || letterFromScore(score);
+  const letterGrade = courseLetter(course?.current_grade, score) ?? "—";
 
   const loading = coursesQueryState.isLoading || assignmentsQueryState.isLoading;
 

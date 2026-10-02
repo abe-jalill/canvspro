@@ -1,6 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Suspense, lazy, useState } from "react";
+import { Suspense, lazy, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useClassSchedule } from "@/lib/user-class-schedule";
+import { coursesQueryOptions } from "@/lib/canvas.queries";
+import { matchScheduleCourse } from "@/lib/class-schedule";
+import { displayCourseNameForCourse } from "@/lib/course-display";
 
 // Both views are lazy so the timetable UI isn't in the shared first-load bundle.
 const ClassScheduleView = lazy(() => import("@/components/class-schedule-view"));
@@ -37,7 +41,25 @@ export const Route = createFileRoute("/_authenticated/class-schedule")({
 
 function ClassSchedulePage() {
   const { data, isLoading, error } = useClassSchedule();
+  const courses = useQuery(coursesQueryOptions);
   const [editing, setEditing] = useState(false);
+  // Show each class under the same name used on every other page (including
+  // any rename from Settings), falling back to the title typed in the editor.
+  const named = useMemo(() => {
+    const list = (courses.data ?? []).map((course) => ({
+      ...course,
+      display: displayCourseNameForCourse(course.id, course.name, course.course_code),
+    }));
+    return (data ?? []).map((session) => {
+      const course = matchScheduleCourse(session.title, session.code, list);
+      return course
+        ? {
+            ...session,
+            displayName: course.display,
+          }
+        : session;
+    });
+  }, [data, courses.data]);
 
   if (isLoading) {
     return <ScheduleSkeleton />;
@@ -70,7 +92,7 @@ function ClassSchedulePage() {
 
   return (
     <Suspense fallback={<ScheduleSkeleton />}>
-      <ClassScheduleView sessions={sessions} onEdit={() => setEditing(true)} />
+      <ClassScheduleView sessions={named} onEdit={() => setEditing(true)} />
     </Suspense>
   );
 }
