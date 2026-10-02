@@ -28,6 +28,7 @@ import { studySelectionFeedback, studySuccessFeedback } from "@/lib/study-sessio
 import { useStudySession } from "@/hooks/use-study-session";
 import {
   compareByDueDate,
+  endOfUpcomingMonth,
   isAssignmentComplete,
   isAssignmentVisible,
 } from "@/lib/assignment-window";
@@ -164,11 +165,12 @@ function StudySessionPage() {
     toast.success("Study session complete");
   }, [now, session, setSession]);
 
-  const { candidates, hiddenUndated } = useMemo(() => {
+  const { candidates, hiddenUndated, hiddenLater } = useMemo(() => {
     const needle = search.trim().toLowerCase();
+    const now = Date.now();
     const matching = (assignments.data ?? [])
       .filter((item) => {
-        if (!isAssignmentVisible(item, completed.has(item.id), showCompleted, Date.now())) {
+        if (!isAssignmentVisible(item, completed.has(item.id), showCompleted, now)) {
           return false;
         }
         if (!needle) return true;
@@ -177,11 +179,18 @@ function StudySessionPage() {
           .includes(needle);
       })
       .sort(compareByDueDate);
-    // Work with no due date is tucked away until asked for (or searched for),
-    // so the list starts with what is actually coming up.
-    if (needle || showUndated) return { candidates: matching, hiddenUndated: 0 };
-    const dated = matching.filter((item) => item.due_at);
-    return { candidates: dated, hiddenUndated: matching.length - dated.length };
+    // A study session is about what is coming up. Work due more than a month
+    // away, and work with no due date, is tucked away until asked for (or
+    // searched for), so the list starts short.
+    if (needle) return { candidates: matching, hiddenUndated: 0, hiddenLater: 0 };
+    const monthEnd = endOfUpcomingMonth(now);
+    const within = matching.filter(
+      (item) => !item.due_at || new Date(item.due_at).getTime() <= monthEnd,
+    );
+    const hiddenLater = matching.length - within.length;
+    if (showUndated) return { candidates: within, hiddenUndated: 0, hiddenLater };
+    const dated = within.filter((item) => item.due_at);
+    return { candidates: dated, hiddenUndated: within.length - dated.length, hiddenLater };
   }, [assignments.data, completed, search, showCompleted, showUndated]);
 
   const selectedIds = useMemo(() => new Set(selected.map((item) => item.id)), [selected]);
@@ -485,9 +494,13 @@ function StudySessionPage() {
                 No due date
               </label>
             </div>
-            {hiddenUndated > 0 && (
+            {(hiddenUndated > 0 || hiddenLater > 0) && (
               <p className="mb-3 text-xs text-muted-foreground">
-                {hiddenUndated} item{hiddenUndated === 1 ? "" : "s"} with no due date hidden.
+                Showing work due in the next month.
+                {hiddenLater > 0 && ` ${hiddenLater} due later.`}
+                {hiddenUndated > 0 &&
+                  ` ${hiddenUndated} with no due date hidden.`}{" "}
+                Search to find any assignment.
               </p>
             )}
             {assignments.isPending ? (

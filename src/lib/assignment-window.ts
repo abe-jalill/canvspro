@@ -10,6 +10,18 @@ export function endOfUpcomingDay(now: number, days: number): number {
   return end.getTime();
 }
 
+/** End of the local calendar day one month from `now` (Jan 31 -> Feb 28/29). */
+export function endOfUpcomingMonth(now: number): number {
+  const end = new Date(now);
+  const day = end.getDate();
+  end.setDate(1);
+  end.setMonth(end.getMonth() + 1);
+  const lastDay = new Date(end.getFullYear(), end.getMonth() + 1, 0).getDate();
+  end.setDate(Math.min(day, lastDay));
+  end.setHours(23, 59, 59, 999);
+  return end.getTime();
+}
+
 export function isAssignmentComplete(a: AssignmentItem, manuallyCompleted: boolean): boolean {
   if (manuallyCompleted) return true;
   const submission = a.submission;
