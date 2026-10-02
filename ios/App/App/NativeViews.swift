@@ -7,46 +7,67 @@ struct NativeRootView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showingLaunch = true
     @State private var launchHasDismissed = false
-    @State private var startupReady = false
+    @State private var readyUserID: String?
+    @State private var transitionUserID: String?
+    @State private var hasCompletedLaunch = false
     @AppStorage("CanvasProColorScheme") private var colorScheme = "dark"
     @AppStorage("CanvasProPalette") private var palette = "forest"
+
+    private var userID: String? { sessionStore.session?.user.id }
+    // Cover a newly mounted account immediately, before its transition task starts.
+    private var handoffPending: Bool { userID != nil && userID != transitionUserID }
+    private var contentIsInteractive: Bool { launchHasDismissed && !handoffPending }
 
     var body: some View {
         ZStack {
             Group {
                 if sessionStore.session != nil {
                     NativeMainTabView(sessionStore: sessionStore)
+                        .id(userID)
                 } else {
                     NativeAuthView(sessionStore: sessionStore)
                 }
             }
-            .opacity(showingLaunch ? 0 : 1)
-            .allowsHitTesting(launchHasDismissed)
-            .accessibilityHidden(!launchHasDismissed)
-            .environment(\.nativeLaunchIsVisible, !launchHasDismissed)
-            .onPreferenceChange(NativeStartupReadyKey.self) { startupReady = $0 }
-            if showingLaunch {
+            .opacity(showingLaunch || handoffPending ? 0 : 1)
+            .allowsHitTesting(contentIsInteractive)
+            .accessibilityHidden(!contentIsInteractive)
+            .environment(\.nativeLaunchIsVisible, !contentIsInteractive)
+            .onPreferenceChange(NativeStartupReadyKey.self) { readyUserID = $0 }
+            if showingLaunch || handoffPending {
                 NativeLaunchView().transition(.opacity).zIndex(1)
             }
         }
-        .task {
-            guard showingLaunch else { return }
+        .task(id: userID) {
+            let destinationUserID = userID
+            let isColdLaunch = !hasCompletedLaunch
+            transitionUserID = destinationUserID
+            // Signing out should return directly to authentication, not replay launch.
+            guard isColdLaunch || destinationUserID != nil else {
+                showingLaunch = false
+                launchHasDismissed = true
+                return
+            }
+            showingLaunch = true
+            launchHasDismissed = false
             do {
-                try await Task.sleep(for: .seconds(3))
-                // The destination stays mounted and fetching throughout the animation.
-                // Reserve 450ms of the five-second budget for the final crossfade.
-                // Slow requests continue after the launch overlay dismisses.
-                for _ in 0..<15 {
-                    if sessionStore.session == nil || startupReady { break }
+                // Cold launch keeps its 3–5s branding. Login uses a shorter handoff;
+                // Reduce Motion avoids holding a static logo unnecessarily.
+                try await Task.sleep(for: .milliseconds(isColdLaunch ? 3000 : reduceMotion ? 150 : 900))
+                // Content and preferences fetch behind the overlay. Cap the wait so
+                // slow/offline requests reveal the existing loading/error UI.
+                for _ in 0..<(isColdLaunch ? 15 : 26) {
+                    if destinationUserID == nil || readyUserID == destinationUserID { break }
                     try await Task.sleep(for: .milliseconds(100))
                 }
-                guard !Task.isCancelled else { return }
+                guard !Task.isCancelled, userID == destinationUserID else { return }
                 withAnimation(.easeOut(duration: reduceMotion ? 0.15 : 0.45)) {
                     showingLaunch = false
                 } completion: {
+                    guard userID == destinationUserID, !showingLaunch else { return }
                     launchHasDismissed = true
+                    hasCompletedLaunch = true
                 }
-            } catch { /* Cancelled with the root view. */ }
+            } catch { /* Account changes cancel the previous handoff. */ }
         }
         .font(.system(size: 13, weight: .regular))
         .fontDesign(.rounded)
@@ -58,8 +79,8 @@ struct NativeRootView: View {
 }
 
 private struct NativeStartupReadyKey: PreferenceKey {
-    static var defaultValue: Bool { false }
-    static func reduce(value: inout Bool, nextValue: () -> Bool) { value = value || nextValue() }
+    static var defaultValue: String? { nil }
+    static func reduce(value: inout String?, nextValue: () -> String?) { value = nextValue() ?? value }
 }
 
 private struct NativeLaunchVisibilityKey: EnvironmentKey {
@@ -255,7 +276,7 @@ struct NativeMainTabView: View {
     var body: some View {
         nativeTabs
             .task { await refreshAccountData() }
-            .preference(key: NativeStartupReadyKey.self, value: initialLoadFinished)
+            .preference(key: NativeStartupReadyKey.self, value: initialLoadFinished ? sessionStore.session?.user.id : nil)
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active {
                     Task { await refreshAccountData() }
