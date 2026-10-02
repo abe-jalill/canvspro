@@ -34,6 +34,7 @@ import {
   type PriorityQueueItem,
 } from "@/lib/get-it-done";
 import { PriorityBadge } from "@/components/priority-badge";
+import { buildAgendaView, type AgendaHorizon } from "@/lib/assignment-agenda";
 import { useAssignmentMetaMap } from "@/hooks/use-assignment-meta";
 import {
   compareByDueDate,
@@ -209,6 +210,7 @@ function AssignmentsPage() {
   const [search, setSearch] = useState("");
   const [undatedOpen, setUndatedOpen] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
+  const [horizon, setHorizon] = useState<AgendaHorizon>(14);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
   const highlight = useCourseHighlight();
@@ -230,6 +232,7 @@ function AssignmentsPage() {
     );
     // This is the complete Assignments page. Time limits used by Get It Done,
     // Focus, Schedule, or a course page must never narrow this source list.
+    // The two/four-week display window is applied only when grouping the agenda.
     return [
       ...(data ?? []),
       ...custom.list.map((c) => customToAssignmentItem(c, courseById.get(c.course_id))),
@@ -328,46 +331,15 @@ function AssignmentsPage() {
   const agendaItems = visibleGroups
     .flatMap((group) => group.items.map((assignment) => ({ assignment, course: group.label })))
     .sort((a, b) => compareByDueDate(a.assignment, b.assignment));
-  const agendaSections = [
-    {
-      title: "Overdue",
-      detail: "Needs attention first",
-      tone: "text-red-500",
-      items: agendaItems.filter(
-        ({ assignment }) => assignment.due_at && new Date(assignment.due_at).getTime() < now,
-      ),
-    },
-    {
-      title: "Next 7 days",
-      detail: "Your immediate runway",
-      tone: "text-primary",
-      items: agendaItems.filter(({ assignment }) => {
-        if (!assignment.due_at) return false;
-        const due = new Date(assignment.due_at).getTime();
-        return due >= now && due <= now + 7 * 24 * 60 * 60 * 1_000;
-      }),
-    },
-    {
-      title: "Later",
-      detail: "Beyond this week",
-      tone: "text-muted-foreground",
-      items: agendaItems.filter(
-        ({ assignment }) =>
-          assignment.due_at &&
-          new Date(assignment.due_at).getTime() > now + 7 * 24 * 60 * 60 * 1_000,
-      ),
-    },
-    {
-      title: "No due date",
-      detail: "Keep these on your radar",
-      tone: "text-muted-foreground",
-      items: agendaItems.filter(({ assignment }) => !assignment.due_at),
-    },
-  ].filter((section) => section.items.length > 0);
-  const overdueCount =
-    agendaSections.find((section) => section.title === "Overdue")?.items.length ?? 0;
-  const weekCount =
-    agendaSections.find((section) => section.title === "Next 7 days")?.items.length ?? 0;
+  const { sections: agendaSections, hiddenWeeks34, hiddenBeyond } = buildAgendaView(
+    agendaItems,
+    now,
+    horizon,
+    Boolean(q),
+  );
+  const shownItems = agendaSections.flatMap((section) => section.items);
+  const overdueCount = agendaSections.find((section) => section.key === "overdue")?.items.length ?? 0;
+  const weekCount = agendaSections.find((section) => section.key === "week1")?.items.length ?? 0;
   const toggle = (id: number) =>
     setExpanded((previous) => {
       const next = new Set(previous);
@@ -402,8 +374,20 @@ function AssignmentsPage() {
               </p>
               <p className="mt-1 text-xs text-muted-foreground">Remaining</p>
             </div>
-            <div className="rounded-2xl border border-red-500/15 bg-red-500/[0.06] p-4 backdrop-blur-md">
-              <p className="text-3xl font-medium tabular-nums tracking-[-0.05em] text-red-500">
+            <div
+              className={cn(
+                "rounded-2xl border p-4 backdrop-blur-md",
+                overdueCount > 0
+                  ? "border-rose-300/20 bg-rose-300/[0.05]"
+                  : "border-foreground/10 bg-background/35",
+              )}
+            >
+              <p
+                className={cn(
+                  "text-3xl font-medium tabular-nums tracking-[-0.05em]",
+                  overdueCount > 0 ? "text-rose-300" : "text-muted-foreground",
+                )}
+              >
                 {overdueCount}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">Overdue</p>
@@ -442,7 +426,7 @@ function AssignmentsPage() {
           Show completed
         </label>
         <span className="hidden text-xs tabular-nums text-muted-foreground sm:block">
-          {agendaItems.length} shown
+          {shownItems.length} shown
         </span>
       </div>
 
@@ -521,13 +505,15 @@ function AssignmentsPage() {
           style={{ animationDelay: "100ms" }}
         >
           {agendaSections.map((section) => (
-            <div key={section.title} className="border-b border-foreground/10 last:border-0">
+            <div key={section.key} className="border-b border-foreground/10 last:border-0">
               <div className="flex items-end justify-between gap-3 bg-foreground/[0.025] px-4 py-4 sm:px-6">
                 <div>
                   <h2
                     className={cn(
                       "text-sm font-semibold uppercase tracking-[0.14em]",
-                      section.tone,
+                      section.key === "overdue" && "text-foreground",
+                      section.key === "week1" && "text-primary",
+                      section.key !== "overdue" && section.key !== "week1" && "text-muted-foreground",
                     )}
                   >
                     {section.title}
@@ -538,7 +524,7 @@ function AssignmentsPage() {
                   {section.items.length}
                 </span>
               </div>
-              {section.title === "No due date" && !q && (
+              {section.key === "undated" && !q && (
                 <div className="px-4 py-3 sm:px-6">
                   <button
                     type="button"
@@ -550,7 +536,7 @@ function AssignmentsPage() {
                   </button>
                 </div>
               )}
-              <ul hidden={section.title === "No due date" && !q && !undatedOpen}>
+              <ul hidden={section.key === "undated" && !q && !undatedOpen}>
                 {section.items.map(({ assignment: a, course }) => {
                   const done = isDone(a, completed.has(a.id));
                   const canvasDone = isAssignmentComplete(a, false);
@@ -559,7 +545,7 @@ function AssignmentsPage() {
                   const notes = custom.notesById.get(a.id);
                   const highlightProps = highlight(course);
                   const firstForCourse =
-                    agendaItems.find((entry) => entry.course === course)?.assignment.id === a.id;
+                    shownItems.find((entry) => entry.course === course)?.assignment.id === a.id;
                   return (
                     <li
                       key={a.id}
@@ -649,6 +635,38 @@ function AssignmentsPage() {
             </div>
           ))}
         </section>
+      )}
+
+      {!isLoading && !isError && !q && (hiddenWeeks34 > 0 || horizon === 28 || hiddenBeyond > 0) && (
+        <div className="flex flex-col items-center gap-2 pb-2 text-center">
+          {horizon === 14 && hiddenWeeks34 > 0 && (
+            <button
+              type="button"
+              onClick={() => setHorizon(28)}
+              className="glass-hover glass-inset inline-flex min-h-10 items-center rounded-xl px-5 text-sm font-medium"
+            >
+              Show weeks 3 and 4
+              <span className="ml-2 text-xs font-normal text-muted-foreground">
+                {hiddenWeeks34} more
+              </span>
+            </button>
+          )}
+          {horizon === 28 && (
+            <button
+              type="button"
+              onClick={() => setHorizon(14)}
+              className="glass-hover glass-inset inline-flex min-h-10 items-center rounded-xl px-5 text-sm font-medium text-muted-foreground hover:text-foreground"
+            >
+              Show less
+            </button>
+          )}
+          {hiddenBeyond > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {hiddenBeyond} more {hiddenBeyond === 1 ? "is" : "are"} due after four weeks. Search
+              to find any assignment.
+            </p>
+          )}
+        </div>
       )}
 
       {LEGACY_CLASS_LAYOUT_ENABLED && (
