@@ -300,7 +300,7 @@ function GetItDonePage() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto w-full max-w-3xl space-y-5">
+      <div className="mx-auto w-full max-w-5xl space-y-5">
         <Header windowDays={prefs.windowDays} onWindowDaysChange={setWindowDays} />
         {/* Keep the final hierarchy while Canvas data loads so the page never jumps. */}
         <GlassCard strong className="space-y-4 p-6 sm:p-7">
@@ -337,7 +337,7 @@ function GetItDonePage() {
 
   if (error) {
     return (
-      <div className="mx-auto w-full max-w-3xl space-y-5">
+      <div className="mx-auto w-full max-w-5xl space-y-5">
         <Header windowDays={prefs.windowDays} onWindowDaysChange={setWindowDays} />
         <GlassCard>
           <ErrorState message={error.message} />
@@ -351,7 +351,7 @@ function GetItDonePage() {
     .reduce((sum, item) => sum + item.plannedMinutes, 0);
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-5 pb-10">
+    <div className="mx-auto w-full max-w-5xl space-y-5 pb-24 md:pb-8">
       <Header
         windowDays={prefs.windowDays}
         onWindowDaysChange={setWindowDays}

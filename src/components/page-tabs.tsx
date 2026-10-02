@@ -16,7 +16,7 @@ export function PageTabs({ tabs, label }: { tabs: PageTab[]; label: string }) {
   return (
     <nav
       aria-label={label}
-      className="premium-reveal inline-flex max-w-full gap-1 overflow-x-auto rounded-2xl bg-foreground/[0.04] p-1"
+      className="inline-flex max-w-full gap-1 overflow-x-auto rounded-2xl bg-foreground/[0.04] p-1"
     >
       {tabs.map((tab) => {
         const active = pathname === tab.to || pathname.startsWith(tab.to + "/");
