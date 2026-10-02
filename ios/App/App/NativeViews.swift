@@ -1188,7 +1188,13 @@ private struct NativeGradesView: View {
                     }
                     HStack(alignment: .bottom) { VStack(alignment: .leading) { Text("CURRENT GRADE").font(.system(size: 9)).foregroundStyle(CPTheme.muted(scheme)); CountUpGrade(value: course.currentScore, size: 31, color: gradeColor(course.currentScore)) }; Spacer(); Text(course.currentGrade ?? "—").font(.system(size: 12)).foregroundStyle(gradeColor(course.currentScore)); if let trend = trend(for: course) { Label("\(abs(trend).formatted(.number.precision(.fractionLength(1))))", systemImage: trend > 0 ? "arrow.up" : "arrow.down").font(.system(size: 11)).foregroundStyle(trend > 0 ? CPTheme.primary(scheme: scheme) : CPTheme.danger) } else { Label("Steady", systemImage: "minus").font(.system(size: 10)).foregroundStyle(CPTheme.muted(scheme)) } }
                     Text("\(graded.count) graded assignment\(graded.count == 1 ? "" : "s")").font(.system(size: 10)).foregroundStyle(CPTheme.muted(scheme))
-                    ProgressView(value: max(0, min(100, course.currentScore ?? 0)), total: 100).tint(gradeColor(course.currentScore))
+                    if let score = course.currentScore {
+                        ProgressView(value: max(0, min(100, score)), total: 100)
+                            .tint(gradeColor(score))
+                            .cpStateChange(score)
+                            .accessibilityLabel("Current grade")
+                            .accessibilityValue("\(score.formatted(.number.precision(.fractionLength(1)))) percent")
+                    }
                 }
             }.buttonStyle(CPPressStyle())
             Button { withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) { if expanded.contains(course.id) { expanded.remove(course.id) } else { expanded.insert(course.id) } } } label: { HStack { Text(expanded.contains(course.id) ? "Hide graded work" : "Show graded work"); Spacer(); Image(systemName: expanded.contains(course.id) ? "chevron.up" : "chevron.down") }.font(.system(size: 11)).foregroundStyle(CPTheme.primary(scheme: scheme)) }.buttonStyle(CPPressStyle())

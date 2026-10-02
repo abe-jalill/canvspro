@@ -31,3 +31,14 @@ test("shared backdrop avoids large blur passes and card headings wrap", () => {
   assert.match(backdrop, /\.clipped\(\)/);
   assert.match(design, /Text\(title\).*\.fixedSize\(horizontal: false, vertical: true\)/);
 });
+
+test("refined cards and selections preserve accessibility", () => {
+  assert.match(design, /@ScaledMetric\(relativeTo: \.headline\)/);
+  assert.match(design, /@Environment\(\\.accessibilityReduceTransparency\)/);
+  assert.match(design, /contrast == \.increased/);
+  const chip = design.slice(design.indexOf("struct CPChip"), design.indexOf("struct CPIconBadge"));
+  assert.match(chip, /minHeight: 44/);
+  assert.match(chip, /reduceMotion \? nil/);
+  assert.match(chip, /accessibilityAddTraits\(selected \? \.isSelected : \[\]\)/);
+  assert.match(views, /if let score = course.currentScore \{\s+ProgressView/);
+});

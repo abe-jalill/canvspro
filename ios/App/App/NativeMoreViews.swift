@@ -41,7 +41,7 @@ struct NativeMoreView: View {
         NavigationLink(destination: destination()) {
             CPInsetRow {
                 HStack(spacing: 12) {
-                    Image(systemName: symbol).font(.system(size: 16)).frame(width: 24).foregroundStyle(CPTheme.primary(scheme: scheme))
+                    CPIconBadge(symbol: symbol)
                     Text(title).font(.system(size: 14, weight: .regular))
                     Spacer()
                     Image(systemName: "chevron.right").font(.system(size: 10)).foregroundStyle(CPTheme.muted(scheme))

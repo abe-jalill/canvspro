@@ -104,6 +104,10 @@ struct CPBackdrop: View {
 
 struct CPGlassCard<Content: View>: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+    @ScaledMetric(relativeTo: .headline) private var titleSize = 16.0
+    @ScaledMetric(relativeTo: .caption) private var subtitleSize = 11.0
     let title: String?; let subtitle: String?; let strong: Bool; let content: Content
     init(title: String? = nil, subtitle: String? = nil, strong: Bool = false, @ViewBuilder content: () -> Content) { self.title = title; self.subtitle = subtitle; self.strong = strong; self.content = content() }
     var body: some View {
@@ -111,10 +115,10 @@ struct CPGlassCard<Content: View>: View {
             if title != nil || subtitle != nil {
                 VStack(alignment: .leading, spacing: 4) {
                     if let title {
-                        Text(title).font(.system(size: 16, weight: .regular)).tracking(-0.3).foregroundStyle(CPTheme.foreground(scheme)).fixedSize(horizontal: false, vertical: true)
+                        Text(title).font(.system(size: titleSize, weight: .regular)).tracking(-0.3).foregroundStyle(CPTheme.foreground(scheme)).fixedSize(horizontal: false, vertical: true)
                     }
                     if let subtitle {
-                        Text(subtitle).font(.system(size: 11, weight: .regular)).foregroundStyle(CPTheme.muted(scheme))
+                        Text(subtitle).font(.system(size: subtitleSize, weight: .regular)).foregroundStyle(contrast == .increased ? CPTheme.foreground(scheme) : CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
                     }
                 }
             }
@@ -123,16 +127,22 @@ struct CPGlassCard<Content: View>: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(CPTheme.glass(scheme, strong: strong))
+            let shape = RoundedRectangle(cornerRadius: 22, style: .continuous)
+            ZStack {
+                shape.fill(CPTheme.background(scheme))
+                shape.fill(CPTheme.glass(scheme, strong: strong))
+                if !reduceTransparency {
+                    shape.fill(LinearGradient(colors: [CPTheme.primary(scheme: scheme).opacity(strong ? 0.08 : 0.025), .clear], startPoint: .topLeading, endPoint: .bottomTrailing))
+                }
+            }
         }
         .overlay(
             RoundedRectangle(cornerRadius: 22, style: .continuous)
                 .stroke(
                     LinearGradient(
                         colors: [
-                            Color.white.opacity(scheme == .dark ? 0.12 : 0.45),
-                            Color.white.opacity(scheme == .dark ? 0.03 : 0.08)
+                            contrast == .increased ? CPTheme.foreground(scheme).opacity(0.45) : Color.white.opacity(scheme == .dark ? 0.12 : 0.45),
+                            contrast == .increased ? CPTheme.foreground(scheme).opacity(0.30) : CPTheme.foreground(scheme).opacity(0.06)
                         ],
                         startPoint: .top,
                         endPoint: .bottom
@@ -141,9 +151,9 @@ struct CPGlassCard<Content: View>: View {
                 )
         )
         .shadow(
-            color: Color.black.opacity(scheme == .dark ? (strong ? 0.35 : 0.22) : 0.06),
-            radius: strong ? 24 : 14,
-            y: strong ? 12 : 6
+            color: Color.black.opacity(scheme == .dark ? (strong ? 0.22 : 0.12) : 0.045),
+            radius: strong ? 18 : 10,
+            y: strong ? 8 : 4
         )
     }
 }
@@ -163,11 +173,12 @@ struct CPInsetRow<Content: View>: View {
 
 struct CPPressStyle: ButtonStyle {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .scaleEffect(reduceMotion || !configuration.isPressed ? 1 : 0.985)
-            .opacity(configuration.isPressed ? 0.82 : 1)
+            .opacity(!isEnabled ? 0.45 : configuration.isPressed ? 0.88 : 1)
             .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: configuration.isPressed)
     }
 }
@@ -203,8 +214,34 @@ struct CPPageHeader: View {
 
 struct CPChip: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ScaledMetric(relativeTo: .subheadline) private var textSize = 12.0
     let text: String; let selected: Bool
-    var body: some View { Text(text).font(.system(size: 12, weight: .regular)).padding(.horizontal, 12).frame(minHeight: 36).foregroundStyle(selected ? CPTheme.background(scheme) : CPTheme.foreground(scheme)).background(selected ? CPTheme.foreground(scheme) : CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 10, style: .continuous)).overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(CPTheme.insetBorder(scheme), lineWidth: selected ? 0 : 1)) }
+    var body: some View {
+        Text(text)
+            .font(.system(size: textSize, weight: .regular))
+            .padding(.horizontal, 14).padding(.vertical, 10)
+            .frame(minHeight: 44)
+            .foregroundStyle(selected ? CPTheme.background(scheme) : CPTheme.foreground(scheme))
+            .background(selected ? CPTheme.primary(scheme: scheme) : CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous).stroke(CPTheme.insetBorder(scheme), lineWidth: selected ? 0 : 1))
+            .contentShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: selected)
+            .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+
+struct CPIconBadge: View {
+    @Environment(\.colorScheme) private var scheme
+    let symbol: String
+    var body: some View {
+        Image(systemName: symbol)
+            .font(.system(size: 15, weight: .regular))
+            .foregroundStyle(CPTheme.primary(scheme: scheme))
+            .frame(width: 34, height: 34)
+            .background(CPTheme.primary(scheme: scheme).opacity(0.10), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+            .accessibilityHidden(true)
+    }
 }
 
 struct CPListScreenModifier: ViewModifier {
