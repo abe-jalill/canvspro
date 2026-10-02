@@ -925,6 +925,28 @@
   }
 }
 
+/* Marks the assignment a "See description" link points at, then fades away.
+   A fade rather than movement, so it stays on for reduced-motion users too. */
+@keyframes assignment-flash {
+  0%,
+  55% {
+    box-shadow:
+      0 0 0 2px hsl(var(--primary) / 0.6),
+      0 0 28px hsl(var(--primary) / 0.25),
+      inset 0 0 0 999px hsl(var(--primary) / 0.12);
+  }
+  100% {
+    box-shadow:
+      0 0 0 2px hsl(var(--primary) / 0),
+      0 0 28px hsl(var(--primary) / 0),
+      inset 0 0 0 999px hsl(var(--primary) / 0);
+  }
+}
+
+.assignment-flash {
+  animation: assignment-flash 3.2s ease-out backwards;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .premium-reveal {
     animation: premium-reveal 360ms cubic-bezier(0.16, 1, 0.3, 1) both;
