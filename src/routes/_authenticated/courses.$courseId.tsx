@@ -33,19 +33,7 @@ import {
 import { SkeletonBlock, AssignmentRowSkeleton } from "@/components/skeletons/dashboard-skeletons";
 
 export const Route = createFileRoute("/_authenticated/courses/$courseId")({
-  head: ({ loaderData }) => ({
-    meta: [
-      {
-        title: loaderData?.courseTitle
-          ? `${loaderData.courseTitle} — CanvasPro`
-          : "Class Details — CanvasPro",
-      },
-      {
-        name: "description",
-        content: "Individual course overview, grades, assignments, and announcements.",
-      },
-    ],
-  }),
+  // `loader` must be declared before `head` so `loaderData` is inferred in `head`.
   loader: ({ context, params }) => {
     if (!context?.queryClient) return { courseTitle: null };
     void context.queryClient.ensureQueryData(coursesQO);
@@ -61,6 +49,19 @@ export const Route = createFileRoute("/_authenticated/courses/$courseId")({
         : null,
     };
   },
+  head: ({ loaderData }) => ({
+    meta: [
+      {
+        title: loaderData?.courseTitle
+          ? `${loaderData.courseTitle} — CanvasPro`
+          : "Class Details — CanvasPro",
+      },
+      {
+        name: "description",
+        content: "Individual course overview, grades, assignments, and announcements.",
+      },
+    ],
+  }),
   component: CourseDetailPage,
 });
 
