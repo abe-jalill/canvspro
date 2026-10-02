@@ -1,5 +1,10 @@
 import type { AssignmentItem } from "@/lib/canvas.functions";
-import { endOfUpcomingDay, isAssignmentComplete, isStaleOverdue } from "./assignment-window.ts";
+import {
+  endOfUpcomingDay,
+  isAssignmentComplete,
+  isAssignmentVisible,
+  isStaleOverdue,
+} from "./assignment-window.ts";
 
 export interface PlanInput {
   assignments: AssignmentItem[];
@@ -161,6 +166,62 @@ export function rankGetItDoneAssignments(input: PlanInput): RankedAssignment[] {
       const bd = dueTime(b.assignment) ?? Number.POSITIVE_INFINITY;
       return ad - bd;
     });
+}
+
+export type PriorityUrgency = "critical" | "high" | "medium" | "low";
+
+/**
+ * Label shown beside an assignment, from time until the due date alone.
+ * Position in the list also weighs points and estimates, so a heavy item due
+ * in two days can occasionally sit above a light one due tonight.
+ */
+export function urgencyForAssignment(assignment: AssignmentItem, now: number): PriorityUrgency {
+  const due = dueTime(assignment);
+  if (due == null) return "low";
+  const hours = (due - now) / 36e5;
+  if (hours <= 24) return "critical";
+  if (hours <= 72) return "high";
+  if (hours <= 168) return "medium";
+  return "low";
+}
+
+export interface PriorityQueueItem extends RankedAssignment {
+  urgency: PriorityUrgency;
+}
+
+/**
+ * Every class's open work in one list, ordered by the same scorer Get It Done
+ * uses. The Assignments page and the dashboard widget both read this, so the
+ * same assignment is never ranked differently on different pages.
+ */
+export function buildPriorityQueue(input: {
+  assignments: AssignmentItem[];
+  completed: (id: string | number) => boolean;
+  estimates?: Map<number, number | null>;
+  now?: number;
+}): PriorityQueueItem[] {
+  const now = input.now ?? Date.now();
+  const visible = input.assignments.filter((assignment) =>
+    isAssignmentVisible(assignment, input.completed(assignment.id), false, now),
+  );
+  return rankGetItDoneAssignments({
+    assignments: visible,
+    completed: input.completed,
+    estimates: input.estimates,
+    now,
+  }).map((item) => ({ ...item, urgency: urgencyForAssignment(item.assignment, now) }));
+}
+
+/** One-line summary of what to do next, e.g. "Right now, finish A (Bio), then B (Chem)." */
+export function describePriorityQueue(
+  queue: PriorityQueueItem[],
+  courseLabel: (assignment: AssignmentItem) => string = (a) => a.course_name,
+): string {
+  if (queue.length === 0) return "No unfinished assignments right now.";
+  const [first, ...rest] = queue.slice(0, 3).map(
+    ({ assignment }) => `${assignment.name} (${courseLabel(assignment)})`,
+  );
+  return `Right now, finish ${first}${rest.length ? `, then ${rest.join(", then ")}` : ""}.`;
 }
 
 export function buildTodayPlan(input: PlanInput): PlanItem[] {

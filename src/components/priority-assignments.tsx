@@ -6,7 +6,8 @@ import { getAllAssignmentsFn, getCoursesFn, type AssignmentItem } from "@/lib/ca
 import { GlassCard, Skeleton, ErrorState } from "@/components/glass-card";
 import { useLocalSet, COMPLETED_ASSIGNMENTS_KEY } from "@/lib/local-state";
 import { displayCourseName } from "@/lib/course-display";
-import { buildPriorityList, describePriorityList } from "@/lib/priority";
+import { buildPriorityQueue, describePriorityQueue } from "@/lib/get-it-done";
+import { PriorityBadge } from "@/components/priority-badge";
 import { cn } from "@/lib/utils";
 import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
 import { useAssignmentMetaMap, useSetAssignmentEstimate } from "@/hooks/use-assignment-meta";
@@ -25,19 +26,6 @@ const coursesQO = queryOptions({
   queryFn: () => getCoursesFn(),
   staleTime: 5 * 60_000,
 });
-
-function urgencyClass(urgency: string) {
-  switch (urgency) {
-    case "critical":
-      return "text-red-400 bg-red-400/10 border-red-400/20";
-    case "high":
-      return "text-amber-400 bg-amber-400/10 border-amber-400/20";
-    case "medium":
-      return "text-blue-400 bg-blue-400/10 border-blue-400/20";
-    default:
-      return "text-muted-foreground bg-foreground/5 border-foreground/10";
-  }
-}
 
 function EstimateEditor({
   assignmentId,
@@ -85,27 +73,23 @@ export function PriorityAssignmentsWidget() {
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
   const metaMap = useAssignmentMetaMap();
 
-  const groups = useMemo(() => {
-    const estimates: Record<number, number | null> = {};
+  const queue = useMemo(() => {
+    const estimates = new Map<number, number | null>();
     for (const [id, meta] of metaMap.entries()) {
-      estimates[id] = meta.estimatedMinutes;
+      estimates.set(id, meta.estimatedMinutes);
     }
-    return buildPriorityList(
-      assignments.data ?? [],
-      (courses.data ?? []).map((c) => ({
-        id: c.id,
-        name: displayCourseName(c.name, c.course_code),
-        course_code: c.course_code,
-      })),
-      completed.has,
-      Date.now(),
-      { estimates },
-    );
-  }, [assignments.data, courses.data, completed.has, metaMap]);
+    return buildPriorityQueue({
+      assignments: assignments.data ?? [],
+      completed: completed.has,
+      estimates,
+    });
+  }, [assignments.data, completed.has, metaMap]);
 
-  const summary = describePriorityList(groups);
+  const summary = describePriorityQueue(queue, (a) =>
+    displayCourseName(a.course_name, a.course_code),
+  );
 
-  const topItems = groups.flatMap((g) => g.items.slice(0, 2)).slice(0, 5);
+  const topItems = queue.slice(0, 5);
 
   if (assignments.isLoading || courses.isLoading) {
     return (
@@ -171,14 +155,7 @@ export function PriorityAssignmentsWidget() {
                   </p>
                   <AssignmentDescriptionLink assignmentId={p.assignment.id} className="mt-1" />
                 </div>
-                <span
-                  className={cn(
-                    "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide",
-                    urgencyClass(p.urgency),
-                  )}
-                >
-                  {p.urgency}
-                </span>
+                <PriorityBadge urgency={p.urgency} />
               </div>
               <EstimateEditor
                 assignmentId={p.assignment.id}

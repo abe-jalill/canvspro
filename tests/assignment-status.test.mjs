@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { isAssignmentComplete } from "../src/lib/assignment-window.ts";
 import { isDueInFocusWindow, isInFocusWindow } from "../src/lib/focus-window.ts";
-import { buildPriorityList } from "../src/lib/priority.ts";
+import { buildPriorityQueue } from "../src/lib/get-it-done.ts";
 
 const now = new Date(2026, 8, 26, 10).getTime();
 const assignment = (id, submission) => ({
@@ -19,8 +19,8 @@ test("Canvas missing zeros and cleared grades remain actionable", () => {
     assert.equal(isAssignmentComplete(item, false), false);
     assert.equal(isInFocusWindow(item, "7", now, false), true);
   }
-  const groups = buildPriorityList([missing, cleared, unsubmitted], [], () => false, now);
-  assert.equal(groups[0].items.length, 3);
+  const queue = buildPriorityQueue({ assignments: [missing, cleared, unsubmitted], completed: () => false, now });
+  assert.equal(queue.length, 3);
 });
 
 test("submitted, pending review, excused, and actual graded work are complete", () => {

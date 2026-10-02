@@ -28,7 +28,12 @@ const AddToCalendarButton = ({ assignment }: { assignment: AssignmentItem }) => 
   />
 );
 import { useCourseHighlight, validateCourseSearch } from "@/lib/course-highlight";
-import { buildPriorityList, describePriorityList } from "@/lib/priority";
+import {
+  buildPriorityQueue,
+  describePriorityQueue,
+  type PriorityQueueItem,
+} from "@/lib/get-it-done";
+import { PriorityBadge } from "@/components/priority-badge";
 import { useAssignmentMetaMap } from "@/hooks/use-assignment-meta";
 import {
   compareByDueDate,
@@ -105,13 +110,13 @@ interface ClassGroup {
 }
 
 function PriorityAssignmentsCard({
-  groups,
+  queue,
   loading,
   error,
   isDone,
   onToggleDone,
 }: {
-  groups: ReturnType<typeof buildPriorityList>;
+  queue: PriorityQueueItem[];
   loading: boolean;
   error: Error | null;
   isDone: (id: number) => boolean;
@@ -143,8 +148,10 @@ function PriorityAssignmentsCard({
     );
   }
 
-  const summary = describePriorityList(groups);
-  const topItems = groups.flatMap((g) => g.items.slice(0, 2)).slice(0, 5);
+  const summary = describePriorityQueue(queue, (a) =>
+    displayCourseName(a.course_name, a.course_code),
+  );
+  const topItems = queue.slice(0, 5);
 
   return (
     <GlassCard
@@ -187,18 +194,7 @@ function PriorityAssignmentsCard({
                   {displayCourseName(p.assignment.course_name, p.assignment.course_code)}
                 </p>
               </div>
-              <span
-                className={cn(
-                  "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide",
-                  p.urgency === "critical" && "text-red-400 bg-red-400/10 border-red-400/20",
-                  p.urgency === "high" && "text-amber-400 bg-amber-400/10 border-amber-400/20",
-                  p.urgency === "medium" && "text-blue-400 bg-blue-400/10 border-blue-400/20",
-                  p.urgency === "low" &&
-                    "text-muted-foreground bg-foreground/5 border-foreground/10",
-                )}
-              >
-                {p.urgency}
-              </span>
+              <PriorityBadge urgency={p.urgency} />
             </li>
           ))}
         </ul>
@@ -306,23 +302,13 @@ function AssignmentsPage() {
   }, [courses.data, allAssignments, completed, showCompleted]);
 
   const metaMap = useAssignmentMetaMap();
-  const priorityGroups = useMemo(() => {
-    const estimates: Record<number, number | null> = {};
+  const priorityQueue = useMemo(() => {
+    const estimates = new Map<number, number | null>();
     for (const [id, meta] of metaMap.entries()) {
-      estimates[id] = meta.estimatedMinutes;
+      estimates.set(id, meta.estimatedMinutes);
     }
-    return buildPriorityList(
-      allAssignments,
-      (courses.data ?? []).map((c) => ({
-        id: c.id,
-        name: displayCourseName(c.name, c.course_code),
-        course_code: c.course_code,
-      })),
-      completed.has,
-      Date.now(),
-      { estimates },
-    );
-  }, [allAssignments, courses.data, completed.has, metaMap]);
+    return buildPriorityQueue({ assignments: allAssignments, completed: completed.has, estimates });
+  }, [allAssignments, completed.has, metaMap]);
 
   const q = search.trim().toLowerCase();
   const visibleGroups = q
@@ -492,7 +478,7 @@ function AssignmentsPage() {
       )}
 
       <PriorityAssignmentsCard
-        groups={priorityGroups}
+        queue={priorityQueue}
         loading={isLoading}
         error={isError ? (error as Error) : null}
         isDone={(id) => completed.has(id)}
