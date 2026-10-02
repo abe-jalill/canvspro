@@ -207,7 +207,7 @@ private struct NativeAuthView: View {
                 }
             }
             .cpListScreen()
-            .navigationTitle("Welcome")
+            .cpNavigationTitle("Welcome")
             .sheet(isPresented: $showReset) { PasswordResetSheet(sessionStore: sessionStore, email: email) }
         }
     }
@@ -247,7 +247,7 @@ private struct PasswordResetSheet: View {
                 if sent { Section { Text("Password reset email sent.").foregroundStyle(.green) } }
             }
             .cpListScreen()
-            .navigationTitle("Forgot Password")
+            .cpNavigationTitle("Forgot Password")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) { Button("Send") { Task { sent = await sessionStore.sendPasswordReset(email: email) } }.disabled(email.isEmpty) }
@@ -404,7 +404,7 @@ private struct NativeDashboardView: View {
             ZStack {
                 CPBackdrop()
                 ScrollView {
-                    LazyVStack(spacing: 12) {
+                    LazyVStack(spacing: 16) {
                         if store.isLoading && store.bundle.courses.isEmpty {
                             CPSkeletonCard()
                             CPSkeletonCard()
@@ -424,10 +424,11 @@ private struct NativeDashboardView: View {
                     }.padding(.horizontal, 14).padding(.top, 6).padding(.bottom, 24)
                 }
             }
-            .navigationTitle("Dashboard").navigationBarTitleDisplayMode(.inline)
+            .cpStateChange(store.isLoading && store.bundle.courses.isEmpty)
+            .cpNavigationTitle("Dashboard").navigationBarTitleDisplayMode(.inline)
             .refreshable { async let a: Void = store.load(); async let b: Void = features.load(); _ = await (a, b) }
             .onAppear { loadDigest() }
-            .sheet(item: $syllabusCourse) { course in NavigationStack { ScrollView { Text(course.syllabusBody?.strippingHTML ?? "No syllabus available.").font(.system(size: 13)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading).padding() }.navigationTitle("\(course.name) Syllabus").toolbar { Button("Done") { syllabusCourse = nil } } } }
+            .sheet(item: $syllabusCourse) { course in NavigationStack { ScrollView { Text(course.syllabusBody?.strippingHTML ?? "No syllabus available.").font(.system(size: 13)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading).padding() }.cpNavigationTitle("\(course.name) Syllabus").toolbar { Button("Done") { syllabusCourse = nil } } } }
         }
     }
 
@@ -851,7 +852,7 @@ private struct DashboardCustomizationView: View {
             Section("Order") { ForEach(order.indices, id: \.self) { index in HStack { Text(title(for: order[index])); Spacer(); Button { move(index, -1) } label: { Image(systemName: "arrow.up") }.disabled(index == 0); Button { move(index, 1) } label: { Image(systemName: "arrow.down") }.disabled(index == order.count - 1) } } }
             Section { Button("Reset dashboard") { Task { await save(order: ["digest", "focus", "classes", "upcoming", "calendar", "announcements", "heatmap"], hidden: []) } } }
             if let status { Section { Text(status).foregroundStyle(.secondary) } }
-        }.cpListScreen().navigationTitle("Customize Dashboard")
+        }.cpListScreen().cpNavigationTitle("Customize Dashboard")
     }
 
     private func title(for id: String) -> String { ["digest": "Since your last visit", "classes": "Classes & Grades", "upcoming": "Upcoming Assignments", "focus": "Focus", "calendar": "Calendar", "announcements": "Announcements", "heatmap": "Workload"][id] ?? id }
@@ -949,7 +950,8 @@ struct NativeAssignmentsView: View {
                     .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: assignments.map(\.id))
                 }
         }
-        .navigationTitle("Assignments").navigationBarTitleDisplayMode(.inline).searchable(text: $search, prompt: "Assignment or class")
+        .cpStateChange(store.isLoading && store.bundle.assignments.isEmpty)
+        .cpNavigationTitle("Assignments").navigationBarTitleDisplayMode(.inline).searchable(text: $search, prompt: "Assignment or class")
         .toolbar { Button { showAdd = true } label: { Image(systemName: "plus") } }
         .sheet(isPresented: $showAdd) { AddAssignmentView(courses: visibleCourses, features: features) }
         .refreshable { async let a: Void = store.load(); async let b: Void = features.load(); _ = await (a, b) }
@@ -1073,7 +1075,7 @@ struct AssignmentDetailView: View {
             if let url = URL(string: assignment.htmlURL), !assignment.htmlURL.isEmpty { Section { Link("Open in Canvas", destination: url) } }
             if assignment.id < 0, features.customAssignments.contains(where: { $0.id == assignment.id }) { Section { Button("Delete custom assignment", role: .destructive) { Task { do { try await features.savePreference("custom-assignments", features.customAssignments.filter { $0.id != assignment.id }); dismiss() } catch { status = error.localizedDescription } } } } }
             if let status { Section { Text(status).foregroundStyle(.secondary) } }
-        }.cpListScreen().navigationTitle("Assignment").onAppear { estimate = features.estimates[assignment.id].flatMap { $0 > 0 ? $0 : nil } ?? 25 }
+        }.cpListScreen().cpNavigationTitle("Assignment").onAppear { estimate = features.estimates[assignment.id].flatMap { $0 > 0 ? $0 : nil } ?? 25 }
     }
     private func addToCalendar() {
         guard !features.calendarPicks.contains(where: { $0.assignmentID == assignment.id }) else { status = "Already on your calendar."; return }
@@ -1101,7 +1103,7 @@ private struct AddAssignmentView: View {
                 if let error { Section { Text(error).foregroundStyle(.red) } }
             }
             .cpListScreen()
-            .navigationTitle("New Assignment")
+            .cpNavigationTitle("New Assignment")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) { Button("Save") { save() }.disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || courseID == nil) }
@@ -1149,7 +1151,8 @@ private struct NativeGradesView: View {
                     }.padding(.horizontal, 15).padding(.vertical, 10).padding(.bottom, 24)
                 }
             }
-            .navigationTitle("Grades").navigationBarTitleDisplayMode(.inline).searchable(text: $search, prompt: "Course or assignment").refreshable { await store.load() }
+            .cpStateChange(store.isLoading && store.bundle.courses.isEmpty)
+            .cpNavigationTitle("Grades").navigationBarTitleDisplayMode(.inline).searchable(text: $search, prompt: "Course or assignment").refreshable { await store.load() }
             .onAppear { loadAndRecordGrades() }.onChange(of: gradeSignature) { _, _ in loadAndRecordGrades() }
         }
     }
@@ -1297,7 +1300,7 @@ struct CourseDetailView: View {
                 .padding(.horizontal, 14).padding(.top, 8).padding(.bottom, 28)
             }
         }
-        .navigationTitle(courseName)
+        .cpNavigationTitle(courseName)
         .navigationBarTitleDisplayMode(.inline)
     }
 
@@ -1538,7 +1541,7 @@ private struct GradeCalculatorView: View {
                 if let needed { Text(needed > 100 ? "You would need \(needed.formatted(.number.precision(.fractionLength(1))))% on remaining work, above 100%." : "Average \(needed.formatted(.number.precision(.fractionLength(1))))% on remaining work to finish at your target.") }
                 else { Text("Leave at least one score blank and enter a target grade.").foregroundStyle(.secondary) }
             }
-        }.cpListScreen().navigationTitle("Grade Calculator")
+        }.cpListScreen().cpNavigationTitle("Grade Calculator")
     }
 }
 
@@ -1587,8 +1590,14 @@ private struct NativeStudyView: View {
 
     var body: some View {
         NavigationStack {
-            Group { if sessionFinished { summary } else if sessionStarted { activeSession } else { setup } }
-                .navigationTitle("Study Session")
+            ZStack {
+                if sessionFinished { summary.transition(.opacity) }
+                else if sessionStarted { activeSession.transition(.opacity) }
+                else { setup.transition(.opacity) }
+            }
+                .cpStateChange(sessionFinished)
+                .cpStateChange(sessionStarted)
+                .cpNavigationTitle("Study Session")
                 .onReceive(timer) { _ in guard running, remaining > 0 else { return }; remaining -= 1; if remaining == 0 { running = false; UINotificationFeedbackGenerator().notificationOccurred(.success) } }
                 .onChange(of: selected) { _, _ in persistSession() }
                 .onChange(of: selectedOrder) { _, _ in persistSession() }

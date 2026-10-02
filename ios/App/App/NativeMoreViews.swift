@@ -32,7 +32,7 @@ struct NativeMoreView: View {
                     .padding(.bottom, 28)
                 }
             }
-            .navigationTitle("More")
+            .cpNavigationTitle("More")
             .navigationBarTitleDisplayMode(.inline)
         }
     }
@@ -71,7 +71,10 @@ struct NativeSettingsView: View {
                         NavigationLink { ProfileView(features: features, email: sessionStore.session?.user.email) } label: {
                             CPInsetRow {
                                 HStack(spacing: 11) {
-                                    AsyncImage(url: features.avatarURL) { image in image.resizable().scaledToFill().transition(.opacity) } placeholder: { Image(systemName: "person.crop.circle.fill").resizable().foregroundStyle(CPTheme.muted(scheme)) }
+                                    AsyncImage(url: features.avatarURL, transaction: Transaction(animation: reduceMotion ? nil : .easeInOut(duration: 0.2))) { phase in
+                                        if let image = phase.image { image.resizable().scaledToFill().transition(.opacity) }
+                                        else { Image(systemName: "person.crop.circle.fill").resizable().foregroundStyle(CPTheme.muted(scheme)) }
+                                    }
                                         .frame(width: 36, height: 36).clipShape(Circle())
                                         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: features.avatarURL)
                                     VStack(alignment: .leading, spacing: 2) {
@@ -104,7 +107,7 @@ struct NativeSettingsView: View {
                 .padding(.bottom, 28)
             }
         }
-        .navigationTitle("Settings")
+        .cpNavigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
     }
 
@@ -117,7 +120,7 @@ private struct NativeAppearanceView: View {
     @ObservedObject var features: NativeFeatureStore
     var body: some View {
         ZStack { CPBackdrop(); ScrollView { AppearanceSettingsCard(features: features).padding(14) } }
-            .navigationTitle("Appearance")
+            .cpNavigationTitle("Appearance")
             .navigationBarTitleDisplayMode(.inline)
     }
 }
@@ -142,7 +145,7 @@ private struct NativeClassSettingsView: View {
             }
         }
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: section)
-        .navigationTitle("Class settings")
+        .cpNavigationTitle("Class settings")
         .navigationBarTitleDisplayMode(.inline)
     }
 }
@@ -171,7 +174,7 @@ private struct NativeAIConnectionView: View {
                 .padding(14)
             }
         }
-        .navigationTitle("AI assistant")
+        .cpNavigationTitle("AI assistant")
         .navigationBarTitleDisplayMode(.inline)
     }
 }
@@ -199,7 +202,7 @@ private struct NativeDeleteAccountView: View {
             }
         }
         .cpListScreen()
-        .navigationTitle("Delete account")
+        .cpNavigationTitle("Delete account")
     }
 }
 
@@ -276,7 +279,7 @@ private struct GetItDoneView: View {
                     } else { CPGlassCard(strong: true) { NativeEmptyState(title: "Nothing needs your attention right now.", symbol: "checkmark.circle") } }
                 }.padding(14).padding(.bottom, 20)
             }
-        }.navigationTitle("Get It Done").navigationBarTitleDisplayMode(.inline)
+        }.cpNavigationTitle("Get It Done").navigationBarTitleDisplayMode(.inline)
             .onAppear { let today = String(Int(Calendar.current.startOfDay(for: Date()).timeIntervalSince1970)); if planDate != today { skippedRaw = ""; orderRaw = ""; planDate = today } }
             .alert("Estimated time", isPresented: Binding(get: { editingEstimate != nil }, set: { if !$0 { editingEstimate = nil } })) {
                 TextField("Minutes", value: $estimateMinutes, format: .number).keyboardType(.numberPad)
@@ -345,7 +348,7 @@ struct FocusView: View {
                     }
                 }.padding(14).padding(.bottom, 20)
             }
-        }.navigationTitle("Focus").navigationBarTitleDisplayMode(.inline)
+        }.cpNavigationTitle("Focus").navigationBarTitleDisplayMode(.inline)
     }
     private func focusLabel(_ value: String) -> String { value == "all" ? "All dates" : value == "7" ? "1 week" : value == "overdue" ? "Overdue" : "\(value) day\(value == "1" ? "" : "s")" }
 }
@@ -502,14 +505,14 @@ struct CalendarView: View {
                 .padding(.bottom, 24)
             }
         }
-        .navigationTitle("Calendar")
+        .cpNavigationTitle("Calendar")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(item: $editingPick) { pick in
             NavigationStack {
                 Form {
                     DatePicker("Planned time", selection: $pickedTime)
                 }
-                .navigationTitle("Change time")
+                .cpNavigationTitle("Change time")
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Cancel") { editingPick = nil }
@@ -870,7 +873,7 @@ private struct AnnouncementsView: View {
                     }
                 }.padding(14).padding(.bottom, 20)
             }.searchable(text: $search).refreshable { await store.load() }
-        }.navigationTitle("Announcements").navigationBarTitleDisplayMode(.inline)
+        }.cpNavigationTitle("Announcements").navigationBarTitleDisplayMode(.inline)
     }
     private func announcementMetric(_ value: Int, _ label: String) -> some View { VStack(alignment: .leading, spacing: 3) { Text("\(value)").font(.system(size: 21, weight: .regular)).tracking(-0.6); Text(label).font(.system(size: 10, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)) }.padding(10).frame(maxWidth: .infinity, alignment: .leading).background(CPTheme.background(scheme).opacity(0.35), in: RoundedRectangle(cornerRadius: 14)).overlay(RoundedRectangle(cornerRadius: 14).stroke(CPTheme.foreground(scheme).opacity(0.10))) }
     private func announcementDate(_ item: AnnouncementItem) -> String { ISO8601DateFormatter.canvasDate(from: item.postedAt)?.formatted(.dateTime.month(.abbreviated).day()) ?? "Recent" }
@@ -879,7 +882,7 @@ private struct AnnouncementsView: View {
 
 struct AnnouncementDetailView: View {
     let item: AnnouncementItem
-    var body: some View { ZStack { CPBackdrop(); ScrollView { CPGlassCard(title: item.title, subtitle: item.courseName, strong: true) { Text(item.message.strippingHTML).textSelection(.enabled); if let url = URL(string: item.htmlURL), !item.htmlURL.isEmpty { Link("Open in Canvas", destination: url) } }.padding() } }.navigationTitle("Announcement").navigationBarTitleDisplayMode(.inline) }
+    var body: some View { ZStack { CPBackdrop(); ScrollView { CPGlassCard(title: item.title, subtitle: item.courseName, strong: true) { Text(item.message.strippingHTML).textSelection(.enabled); if let url = URL(string: item.htmlURL), !item.htmlURL.isEmpty { Link("Open in Canvas", destination: url) } }.padding() } }.cpNavigationTitle("Announcement").navigationBarTitleDisplayMode(.inline) }
 }
 
 private struct NotificationsView: View {
@@ -914,7 +917,7 @@ private struct NotificationsView: View {
             if let status { Section { Text(status).foregroundStyle(.secondary) } }
         }
         .cpListScreen()
-        .navigationTitle("Notifications")
+        .cpNavigationTitle("Notifications")
         .onReceive(NotificationCenter.default.publisher(for: .nativeDeviceToken)) { note in
             if let token = note.object as? String { Task { await register(token) } }
             else if let error = note.object as? Error { status = error.localizedDescription }
@@ -1005,7 +1008,7 @@ private struct AnnouncementWindowSettingsView: View {
                     if let status { Text(status).foregroundStyle(.red) }
                 }.padding(14)
             }
-        }.navigationTitle("Announcements").navigationBarTitleDisplayMode(.inline)
+        }.cpNavigationTitle("Announcements").navigationBarTitleDisplayMode(.inline)
     }
 }
 
@@ -1063,7 +1066,7 @@ private struct ProfileView: View {
             }
             Section("Photo") {
                 HStack(spacing: 14) {
-                    AsyncImage(url: features.avatarURL) { phase in
+                    AsyncImage(url: features.avatarURL, transaction: Transaction(animation: reduceMotion ? nil : .easeInOut(duration: 0.2))) { phase in
                         switch phase {
                         case .success(let image): image.resizable().scaledToFill().transition(.opacity)
                         case .empty: Image(systemName: "person.crop.circle.fill").resizable().foregroundStyle(.secondary)
@@ -1107,7 +1110,7 @@ private struct ProfileView: View {
             if let status { Section { Text(status).foregroundStyle(.secondary) } }
         }
         .cpListScreen()
-        .navigationTitle("Profile")
+        .cpNavigationTitle("Profile")
         .onAppear { username = features.profile.username ?? ""; details = features.accountDetails }
         .onChange(of: features.profile.username) { previous, current in
             if username.isEmpty || username == previous { username = current ?? "" }
@@ -1247,7 +1250,7 @@ private struct CanvasSettingsView: View {
             }
             if let status { Section { Text(status).foregroundStyle(status.localizedCaseInsensitiveContains("saved") ? CPTheme.primary(scheme: scheme) : CPTheme.warning) } }
             Section("How to get a token") { Text("In Canvas on the web, open Account → Settings → Approved Integrations → New Access Token. Copy it here once; CanvasPro cannot read it back later.") }
-        }.cpListScreen().navigationTitle("Canvas")
+        }.cpListScreen().cpNavigationTitle("Canvas")
     }
 
     private func save() {
@@ -1296,7 +1299,7 @@ struct ClassScheduleView: View {
                     await features.load()
                 } } }
             if features.schedule.isEmpty { NativeEmptyState(title: "No class schedule", symbol: "calendar.badge.plus") }
-        }.cpListScreen().navigationTitle("Class Schedule").toolbar { Button { showAdd = true } label: { Image(systemName: "plus") } }.sheet(isPresented: $showAdd) { AddScheduleView(features: features) }.sheet(item: $editing) { AddScheduleView(features: features, editing: $0) }
+        }.cpListScreen().cpNavigationTitle("Class Schedule").toolbar { Button { showAdd = true } label: { Image(systemName: "plus") } }.sheet(isPresented: $showAdd) { AddScheduleView(features: features) }.sheet(item: $editing) { AddScheduleView(features: features, editing: $0) }
     }
     private func time(_ minutes: Int) -> String { let hour = minutes / 60; let minute = minutes % 60; return String(format: "%d:%02d %@", hour % 12 == 0 ? 12 : hour % 12, minute, hour < 12 ? "AM" : "PM") }
 }
@@ -1317,7 +1320,7 @@ private struct AddScheduleView: View {
                 Section("Class") { TextField("Title", text: $title); TextField("Course code", text: $code); TextField("Credits", text: $credits).keyboardType(.decimalPad); TextField("Location", text: $location); TextField("Instructor", text: $instructor) }
                 Section("Meets") { LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 0)), count: 4), spacing: 8) { ForEach(days, id: \.self) { day in Button(day) { if selectedDays.contains(day) { selectedDays.remove(day) } else { selectedDays.insert(day); dayStarts[day] = start; dayEnds[day] = end } }.buttonStyle(.borderedProminent).tint(selectedDays.contains(day) ? Color.accentColor : .gray).frame(maxWidth: .infinity) } }; Toggle("Different times by day", isOn: $perDay); if perDay { ForEach(days.filter { selectedDays.contains($0) }, id: \.self) { day in Text(day).font(.system(size: 11)).foregroundStyle(.secondary); DatePicker("Starts", selection: Binding(get: { dayStarts[day] ?? start }, set: { dayStarts[day] = $0 }), displayedComponents: .hourAndMinute); DatePicker("Ends", selection: Binding(get: { dayEnds[day] ?? end }, set: { dayEnds[day] = $0 }), displayedComponents: .hourAndMinute) } } else { DatePicker("Starts", selection: $start, displayedComponents: .hourAndMinute); DatePicker("Ends", selection: $end, displayedComponents: .hourAndMinute) } }
                 if let error { Section { Text(error).foregroundStyle(.red) } }
-            }.cpListScreen().navigationTitle(editing == nil ? "Add Class" : "Edit Class").toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }; ToolbarItem(placement: .confirmationAction) { Button("Save") { save() }.disabled(title.trimmingCharacters(in: .whitespaces).isEmpty || selectedDays.isEmpty) } }.onAppear { loadEditing() }
+            }.cpListScreen().cpNavigationTitle(editing == nil ? "Add Class" : "Edit Class").toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }; ToolbarItem(placement: .confirmationAction) { Button("Save") { save() }.disabled(title.trimmingCharacters(in: .whitespaces).isEmpty || selectedDays.isEmpty) } }.onAppear { loadEditing() }
         }
     }
     private func save() {
@@ -1366,6 +1369,6 @@ struct NativeLegalView: View {
                     if let url = URL(string: title == "Privacy Policy" ? "https://canvaspro.app/privacy" : "https://canvaspro.app/terms") { Link("View current \(title)", destination: url) }
                 }.padding()
             }
-        }.navigationTitle(title).navigationBarTitleDisplayMode(.inline)
+        }.cpNavigationTitle(title).navigationBarTitleDisplayMode(.inline)
     }
 }

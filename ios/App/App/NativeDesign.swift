@@ -89,8 +89,11 @@ struct CPBackdrop: View {
         GeometryReader { proxy in
             ZStack {
                 CPTheme.background(scheme)
-                Circle().fill(CPTheme.primary(scheme: scheme).opacity(0.05)).frame(width: 480, height: 480).blur(radius: 120).offset(x: -160, y: -320)
-                Circle().fill(CPTheme.primary(scheme: scheme).opacity(0.03)).frame(width: 400, height: 400).blur(radius: 130).offset(x: 180, y: -80)
+                // Soft gradients avoid large offscreen blur passes during navigation.
+                RadialGradient(colors: [CPTheme.primary(scheme: scheme).opacity(0.07), .clear], startRadius: 0, endRadius: 380)
+                    .frame(width: 760, height: 760).offset(x: -160, y: -320)
+                RadialGradient(colors: [CPTheme.primary(scheme: scheme).opacity(0.04), .clear], startRadius: 0, endRadius: 330)
+                    .frame(width: 660, height: 660).offset(x: 180, y: -80)
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
             .clipped()
@@ -106,9 +109,9 @@ struct CPGlassCard<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             if title != nil || subtitle != nil {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 4) {
                     if let title {
-                        Text(title).font(.system(size: 16, weight: .semibold)).tracking(-0.3).foregroundStyle(CPTheme.foreground(scheme))
+                        Text(title).font(.system(size: 16, weight: .regular)).tracking(-0.3).foregroundStyle(CPTheme.foreground(scheme)).fixedSize(horizontal: false, vertical: true)
                     }
                     if let subtitle {
                         Text(subtitle).font(.system(size: 11, weight: .regular)).foregroundStyle(CPTheme.muted(scheme))
@@ -117,7 +120,7 @@ struct CPGlassCard<Content: View>: View {
             }
             content
         }
-        .padding(15)
+        .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
             RoundedRectangle(cornerRadius: 22, style: .continuous)
@@ -209,4 +212,35 @@ struct CPListScreenModifier: ViewModifier {
     func body(content: Content) -> some View { content.scrollContentBackground(.hidden).foregroundStyle(CPTheme.foreground(scheme)).tint(CPTheme.primary(scheme: scheme)).background(CPBackdrop()) }
 }
 
-extension View { func cpListScreen() -> some View { modifier(CPListScreenModifier()) } }
+private struct CPPageSurface: ViewModifier {
+    @Environment(\.colorScheme) private var scheme
+
+    func body(content: Content) -> some View {
+        content
+            .background(CPTheme.background(scheme).ignoresSafeArea())
+            .presentationBackground(CPTheme.background(scheme))
+    }
+}
+
+private struct CPStateChange<Value: Equatable>: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let value: Value
+
+    func body(content: Content) -> some View {
+        content.animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: value)
+    }
+}
+
+extension View {
+    func cpListScreen() -> some View { modifier(CPListScreenModifier()) }
+
+    // Keep NavigationStack's interactive push/pop and TabView's native selection.
+    // A stable surface stays behind content during page and sheet transitions.
+    func cpNavigationTitle<S: StringProtocol>(_ title: S) -> some View {
+        modifier(CPPageSurface()).navigationTitle(String(title))
+    }
+
+    func cpStateChange<Value: Equatable>(_ value: Value) -> some View {
+        modifier(CPStateChange(value: value))
+    }
+}
