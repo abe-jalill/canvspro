@@ -20,7 +20,7 @@ import {
   DISMISSED_ANNOUNCEMENTS_KEY,
   COMPLETED_ASSIGNMENTS_KEY,
 } from "@/lib/local-state";
-import { Check, X, FileText, ChevronDown } from "lucide-react";
+import { Check, CheckCircle2, X, FileText, ChevronDown } from "lucide-react";
 import { getCountdown, urgencyTextClass, urgencyAccentClass } from "@/lib/countdown";
 import { AddToCalendarButton } from "@/components/add-to-calendar-button";
 import { SyllabusModal } from "@/components/syllabus-modal";
@@ -221,6 +221,9 @@ function UpcomingWidget() {
       return new Date(a.due_at as string).getTime() - new Date(b.due_at as string).getTime();
     });
   });
+  // Only classes with something due get a row; the rest become one quiet line.
+  const activeGroups = groups.filter((g) => g.items.length > 0);
+  const quietCount = groups.length - activeGroups.length;
 
   return (
     <GlassCard
@@ -239,9 +242,16 @@ function UpcomingWidget() {
       {isLoading && <UpcomingWidgetSkeleton groupCount={3} />}
       {isError && <ErrorState message={(error as Error).message} />}
       {data && groups.length === 0 && <EmptyState message="No active courses." />}
-      {groups.length > 0 && (
+      {data && groups.length > 0 && activeGroups.length === 0 && (
+        <EmptyState
+          title="You're all clear"
+          message="Nothing is due in the next 7 days. Enjoy the breathing room."
+          icon={<CheckCircle2 className="h-5 w-5" />}
+        />
+      )}
+      {activeGroups.length > 0 && (
         <div className="divide-y divide-foreground/10">
-          {groups.map((g) => {
+          {activeGroups.map((g) => {
             const isOpen = expanded.includes(g.id);
             return (
               <div key={g.id} className="py-1.5">
@@ -334,15 +344,15 @@ function UpcomingWidget() {
                     })}
                   </ul>
                 )}
-                {isOpen && g.items.length === 0 && (
-                  <p className="px-2 py-3 text-xs text-muted-foreground/80">
-                    No upcoming assignments
-                  </p>
-                )}
               </div>
             );
           })}
         </div>
+      )}
+      {activeGroups.length > 0 && quietCount > 0 && (
+        <p className="mt-3 px-1.5 text-xs text-muted-foreground">
+          {quietCount} other {quietCount === 1 ? "class has" : "classes have"} nothing due.
+        </p>
       )}
     </GlassCard>
   );

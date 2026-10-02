@@ -1,15 +1,16 @@
 /**
  * Computes dynamic grade color interpolation:
- * - Scores >= 93% (A) map to vibrant emerald green (hue ~142deg)
- * - Scores <= 63% map to vibrant red (hue ~0deg)
- * - Intermediate scores smoothly transition through orange, amber, and lime.
+ * - Scores >= 93% (A) map to a soft sage green (hue ~142deg)
+ * - Scores <= 63% map to a muted rose (hue ~0deg)
+ * - Intermediate scores smoothly transition through clay, sand, and moss.
+ * Saturation stays low so a row of grades reads as calm, not as alarms.
  */
 export function getGradeColor(score: number | null | undefined): string {
   if (score == null || isNaN(score)) return "hsl(215, 15%, 60%)";
   const clamped = Math.min(Math.max(score, 63), 93);
   const ratio = (clamped - 63) / (93 - 63); // 0 at 63%, 1 at 93%
   const hue = Math.round(ratio * 142);
-  return `hsl(${hue}, 78%, 52%)`;
+  return `hsl(${hue}, 42%, 58%)`;
 }
 
 /**
@@ -20,7 +21,7 @@ export function getGradeBg(score: number | null | undefined, alpha = 0.12): stri
   const clamped = Math.min(Math.max(score, 63), 93);
   const ratio = (clamped - 63) / (93 - 63);
   const hue = Math.round(ratio * 142);
-  return `hsla(${hue}, 78%, 52%, ${alpha})`;
+  return `hsla(${hue}, 42%, 58%, ${alpha})`;
 }
 
 /**

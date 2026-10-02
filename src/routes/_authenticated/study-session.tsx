@@ -570,7 +570,7 @@ function StudySessionPage() {
           >
             {selected.length === 0 ? (
               <p className="rounded-xl bg-foreground/[0.04] p-5 text-center text-sm text-muted-foreground">
-                Add at least one assignment to begin.
+                Nothing chosen yet. Pick an assignment from the list to begin.
               </p>
             ) : (
               <ol className="space-y-2">
@@ -666,7 +666,7 @@ function StudySessionPage() {
               </label>
             </div>
             <Button
-              className="mt-5 min-h-12 w-full"
+              className="mt-5 min-h-12 w-full disabled:bg-foreground/10 disabled:text-muted-foreground disabled:opacity-100"
               size="lg"
               disabled={!selected.length || !Number.isFinite(duration) || duration < 1}
               onClick={start}
