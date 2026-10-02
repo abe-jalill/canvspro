@@ -1,19 +1,26 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, queryOptions } from "@tanstack/react-query";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowDown,
   ArrowUp,
   CheckCircle2,
+  Clock,
+  FileText,
   ExternalLink,
-  GripVertical,
-  Pencil,
-  RefreshCw,
+  MoreHorizontal,
+  RotateCcw,
   Shuffle,
   SkipForward,
-  Sparkles,
   TimerReset,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { getAllAssignmentsFn, getCoursesFn, type AssignmentItem } from "@/lib/canvas.functions";
 import { CANVAS_DATA_GC_MS, CANVAS_DATA_STALE_MS } from "@/lib/query-policy";
 import { GlassCard, Skeleton, ErrorState, EmptyState } from "@/components/glass-card";
@@ -111,28 +118,31 @@ function useStoredPrefs() {
   return [prefs, write] as const;
 }
 
-function dueLabel(dueAt: string | null, options?: Intl.DateTimeFormatOptions) {
+function dueLabel(dueAt: string | null) {
   if (!dueAt) return "No due date";
   const due = new Date(dueAt);
   if (Number.isNaN(due.getTime())) return "No due date";
-  return new Intl.DateTimeFormat(undefined, {
+  const time = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(due);
+  const startOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const days = Math.round((startOf(due) - startOf(new Date())) / 86_400_000);
+  if (days < 0) return `Was due ${new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(due)}`;
+  if (days === 0) return `Due today, ${time}`;
+  if (days === 1) return `Due tomorrow, ${time}`;
+  const day = new Intl.DateTimeFormat(undefined, {
     weekday: "short",
     month: "short",
     day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    ...options,
   }).format(due);
+  return `Due ${day}, ${time}`;
 }
 
-function statusLabel(assignment: AssignmentItem, done: boolean) {
-  if (done) return "Complete";
+/** Only states that need attention get a tag; "not started" is the default. */
+function attentionTag(assignment: AssignmentItem, done: boolean): string | null {
+  if (done) return null;
   const submission = assignment.submission;
   if (submission?.missing) return "Missing";
-  if (submission?.workflow_state === "graded") return "Graded";
-  if (submission?.submitted_at) return submission.late ? "Submitted late" : "Submitted";
   if (assignment.due_at && new Date(assignment.due_at).getTime() < Date.now()) return "Overdue";
-  return "Not started";
+  return null;
 }
 
 function openAssignment(assignment: AssignmentItem) {
@@ -288,9 +298,20 @@ function GetItDonePage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <div className="mx-auto w-full max-w-3xl space-y-5">
         <Header windowDays={prefs.windowDays} onWindowDaysChange={setWindowDays} />
         {/* Keep the final hierarchy while Canvas data loads so the page never jumps. */}
+        <GlassCard strong className="space-y-4 p-6 sm:p-7">
+          <SkeletonBlock className="h-5 w-44 rounded-full" />
+          <div className="space-y-2">
+            <SkeletonBlock className="h-7 w-2/3" />
+            <SkeletonBlock className="h-4 w-1/3" />
+          </div>
+          <div className="flex flex-wrap gap-2 pt-2">
+            <SkeletonBlock className="h-11 w-44 rounded-xl" />
+            <SkeletonBlock className="h-11 w-28 rounded-xl" />
+          </div>
+        </GlassCard>
         <GlassCard className="p-6 space-y-4">
           <div className="flex items-center justify-between border-b border-foreground/10 pb-3">
             <SkeletonBlock className="h-5 w-32" />
@@ -308,24 +329,13 @@ function GetItDonePage() {
             ))}
           </div>
         </GlassCard>
-        <GlassCard strong className="space-y-4 p-6 sm:p-7">
-          <SkeletonBlock className="h-5 w-44 rounded-full" />
-          <div className="space-y-2">
-            <SkeletonBlock className="h-7 w-2/3" />
-            <SkeletonBlock className="h-4 w-1/3" />
-          </div>
-          <div className="flex flex-wrap gap-2 pt-2">
-            <SkeletonBlock className="h-11 w-44 rounded-xl" />
-            <SkeletonBlock className="h-11 w-28 rounded-xl" />
-          </div>
-        </GlassCard>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="space-y-6">
+      <div className="mx-auto w-full max-w-3xl space-y-5">
         <Header windowDays={prefs.windowDays} onWindowDaysChange={setWindowDays} />
         <GlassCard>
           <ErrorState message={error.message} />
@@ -334,15 +344,52 @@ function GetItDonePage() {
     );
   }
 
+  const remainingMinutes = plan
+    .filter((item) => !completed.has(item.assignment.id))
+    .reduce((sum, item) => sum + item.plannedMinutes, 0);
+
   return (
-    <div className="space-y-6 pb-10">
-      <Header windowDays={prefs.windowDays} onWindowDaysChange={setWindowDays} />
+    <div className="mx-auto w-full max-w-3xl space-y-5 pb-10">
+      <Header
+        windowDays={prefs.windowDays}
+        onWindowDaysChange={setWindowDays}
+        summary={
+          plan.length > 0
+            ? `${plan.length - completeCount} of ${plan.length} left today · about ${formatMinutes(remainingMinutes)}`
+            : undefined
+        }
+      />
+
+      {recommendation ? (
+        <RecommendationCard
+          item={recommendation}
+          completed={completed.has(recommendation.assignment.id)}
+          onComplete={() => completed.toggle(recommendation.assignment.id)}
+          onSkip={() => skipAssignment(recommendation.assignment.id)}
+          onChooseAnother={ranked.length > 1 ? chooseAnother : undefined}
+        />
+      ) : (
+        <GlassCard strong>
+          <EmptyState
+            title="Nothing needs your attention right now."
+            message={
+              allAssignments.length === 0
+                ? "Canvas did not return any assignments. Refresh Canvas data or check your Canvas connection in Settings."
+                : visibleAssignments.length === 0
+                  ? `Nothing is due in the next ${prefs.windowDays === "7" ? "week" : "two weeks"}.`
+                  : "Everything due in this window is done or skipped for today."
+            }
+            icon={<CheckCircle2 className="h-5 w-5" />}
+          />
+        </GlassCard>
+      )}
 
       <TodayPlanCard
         plan={plan}
         totalMinutes={totalMinutes}
         completeCount={completeCount}
         completed={completed}
+        upNextId={recommendation?.assignment.id ?? null}
         onStart={openAssignment}
         onSkip={skipAssignment}
         onMove={movePlanItem}
@@ -356,30 +403,6 @@ function GetItDonePage() {
         }
         estimatePending={setEstimate.isPending}
       />
-
-      {recommendation ? (
-        <RecommendationCard
-          item={recommendation}
-          completed={completed.has(recommendation.assignment.id)}
-          onComplete={() => completed.toggle(recommendation.assignment.id)}
-          onSkip={() => skipAssignment(recommendation.assignment.id)}
-          onChooseAnother={chooseAnother}
-        />
-      ) : (
-        <GlassCard strong title="What Should I Do Now?">
-          <EmptyState
-            title="Nothing needs your attention right now."
-            message={
-              allAssignments.length === 0
-                ? "Canvas did not return any assignments. Refresh Canvas data or check your Canvas connection in Settings."
-                : visibleAssignments.length === 0
-                  ? `${allAssignments.length} assignment${allAssignments.length === 1 ? " is" : "s are"} loaded, but none are due in the next ${prefs.windowDays === "7" ? "week" : "two weeks"}.`
-                  : `${visibleAssignments.length} assignment${visibleAssignments.length === 1 ? " is" : "s are"} due in this window, but all are completed or skipped for today.`
-            }
-            icon={<CheckCircle2 className="h-5 w-5" />}
-          />
-        </GlassCard>
-      )}
     </div>
   );
 }
@@ -387,26 +410,37 @@ function GetItDonePage() {
 function Header({
   windowDays,
   onWindowDaysChange,
+  summary,
 }: {
   windowDays: AssignmentWindow;
   onWindowDaysChange: (days: AssignmentWindow) => void;
+  summary?: string;
 }) {
+  const today = new Intl.DateTimeFormat(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  }).format(new Date());
   return (
     <header className="premium-reveal flex flex-wrap items-end justify-between gap-4 px-1 pt-2">
-      <div>
+      <div className="min-w-0">
         <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-          Get It Done
+          {today}
         </p>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">Get It Done</h1>
+        {summary && <p className="mt-1.5 text-sm text-muted-foreground">{summary}</p>}
       </div>
-      <Segmented<AssignmentWindow>
-        value={windowDays}
-        onChange={onWindowDaysChange}
-        options={[
-          { id: "7", label: "1 week" },
-          { id: "14", label: "2 weeks" },
-        ]}
-      />
+      <div className="flex items-center gap-2">
+        <span className="hidden text-xs text-muted-foreground sm:inline">Looking ahead</span>
+        <Segmented<AssignmentWindow>
+          value={windowDays}
+          onChange={onWindowDaysChange}
+          options={[
+            { id: "7", label: "1 week" },
+            { id: "14", label: "2 weeks" },
+          ]}
+        />
+      </div>
     </header>
   );
 }
@@ -422,93 +456,85 @@ function RecommendationCard({
   completed: boolean;
   onComplete: () => void;
   onSkip: () => void;
-  onChooseAnother: () => void;
+  onChooseAnother?: () => void;
 }) {
   const assignment = item.assignment;
-  const estimate = item.estimatedMinutes;
+  const estimate = item.estimatedMinutes ?? defaultEstimateMinutes(assignment);
 
   return (
-    <GlassCard
-      strong
-      title="What Should I Do Now?"
-      subtitle="One clear next step, chosen from deadlines, workload, priority, and the rest of your week."
-      className="get-it-done-next relative"
-      action={
-        <div className="glass-inset flex h-9 w-9 items-center justify-center rounded-xl">
-          <Sparkles className="h-4 w-4" />
-        </div>
-      }
-    >
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-        <div className="min-w-0">
-          <div className="flex items-start gap-3">
-            <CompleteToggle done={completed} onToggle={onComplete} label={assignment.name} />
-            <div className="min-w-0">
-              <h2
-                className={cn(
-                  "text-2xl font-semibold tracking-tight text-foreground sm:text-3xl",
-                  completed && "line-through opacity-70",
-                )}
-              >
-                {assignment.name}
-              </h2>
-              <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-                <span>{displayCourseName(assignment.course_name, assignment.course_code)}</span>
-                <span className="opacity-40">·</span>
-                <span>{dueLabel(assignment.due_at)}</span>
-                {estimate != null && (
-                  <>
-                    <span className="opacity-40">·</span>
-                    <span>{formatMinutes(estimate)}</span>
-                  </>
-                )}
-              </p>
-              <AssignmentDescriptionLink assignmentId={assignment.id} className="mt-2" />
-            </div>
-          </div>
-          <p className="mt-5 max-w-2xl text-sm leading-relaxed text-foreground/85">
-            {item.explanation}
-          </p>
-        </div>
+    <section className="glass-panel-strong get-it-done-next relative min-w-0 overflow-hidden p-5 sm:p-7">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary">Start here</p>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            aria-label="More options for this suggestion"
+            className="glass-hover flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground"
+          >
+            <MoreHorizontal className="h-4 w-4" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {onChooseAnother && (
+              <DropdownMenuItem onSelect={onChooseAnother}>
+                <Shuffle className="mr-2 h-4 w-4" /> Suggest something else
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem onSelect={onSkip}>
+              <SkipForward className="mr-2 h-4 w-4" /> Skip for today
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
 
-        <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
-          <Link
-            to="/study-session"
-            search={{ assignment: assignment.id }}
-            className="glass-hover inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-foreground px-4 text-sm font-semibold text-background transition disabled:opacity-50"
+      <div className="mt-3 flex items-start gap-3">
+        <CompleteToggle
+          done={completed}
+          onToggle={onComplete}
+          label={assignment.name}
+          className="mt-1.5"
+        />
+        <div className="min-w-0">
+          <h2
+            className={cn(
+              "text-balance text-2xl font-semibold tracking-tight text-foreground sm:text-3xl",
+              completed && "line-through opacity-70",
+            )}
           >
-            <TimerReset className="h-4 w-4" />
-            Open study session
-          </Link>
-          {assignment.html_url && (
-            <button
-              type="button"
-              onClick={() => window.open(assignment.html_url!, "_blank", "noopener,noreferrer")}
-              className="glass-hover inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-glass-border px-4 text-sm font-medium"
-            >
-              <ExternalLink className="h-4 w-4" />
-              Open in Canvas
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={onChooseAnother}
-            className="glass-hover inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-glass-border px-4 text-sm font-medium"
-          >
-            <Shuffle className="h-4 w-4" />
-            Choose another
-          </button>
-          <button
-            type="button"
-            onClick={onSkip}
-            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-3 text-sm text-muted-foreground transition hover:text-foreground"
-          >
-            <SkipForward className="h-4 w-4" />
-            Skip today
-          </button>
+            {assignment.name}
+          </h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {displayCourseName(assignment.course_name, assignment.course_code)}
+            <span className="mx-2 opacity-40">·</span>
+            {dueLabel(assignment.due_at)}
+            <span className="mx-2 opacity-40">·</span>
+            about {formatMinutes(estimate)}
+          </p>
+          <p className="mt-3 text-sm leading-relaxed text-foreground/80">{item.explanation}</p>
         </div>
       </div>
-    </GlassCard>
+
+      <div className="mt-6 flex flex-wrap items-center gap-2 sm:pl-9">
+        <Link
+          to="/study-session"
+          search={{ assignment: assignment.id }}
+          className="glass-hover inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-foreground px-5 text-sm font-semibold text-background"
+        >
+          <TimerReset className="h-4 w-4" />
+          Start a study session
+        </Link>
+        {assignment.html_url && (
+          <a
+            href={assignment.html_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="glass-hover inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-glass-border px-4 text-sm font-medium"
+          >
+            <ExternalLink className="h-4 w-4" />
+            Open in Canvas
+          </a>
+        )}
+        <AssignmentDescriptionLink assignmentId={assignment.id} className="ml-1" />
+      </div>
+    </section>
   );
 }
 
@@ -517,6 +543,7 @@ function TodayPlanCard({
   totalMinutes,
   completeCount,
   completed,
+  upNextId,
   onStart,
   onSkip,
   onMove,
@@ -528,6 +555,7 @@ function TodayPlanCard({
   totalMinutes: number;
   completeCount: number;
   completed: ReturnType<typeof useLocalSet>;
+  upNextId: number | null;
   onStart: (assignment: AssignmentItem) => void;
   onSkip: (id: number) => void;
   onMove: (id: number, direction: -1 | 1) => void;
@@ -538,40 +566,58 @@ function TodayPlanCard({
   const progress = plan.length === 0 ? 0 : Math.round((completeCount / plan.length) * 100);
 
   return (
-    <GlassCard
-      title="Today's Plan"
-      subtitle="A realistic order for the work CanvasPro thinks you can make progress on today."
-      action={
+    <section className="glass-panel min-w-0 overflow-hidden">
+      <header className="flex flex-wrap items-center justify-between gap-3 px-5 pt-5 sm:px-6">
+        <div className="min-w-0">
+          <h2 className="text-lg font-semibold tracking-tight">Today&apos;s plan</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {plan.length === 0
+              ? "Nothing scheduled for today."
+              : `${completeCount} of ${plan.length} done · ${formatMinutes(totalMinutes)} planned`}
+          </p>
+        </div>
         <button
           type="button"
           onClick={onRegenerate}
-          className="glass-hover inline-flex min-h-10 items-center gap-2 rounded-xl border border-glass-border px-3 text-xs font-medium"
+          className="glass-hover inline-flex min-h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-medium text-muted-foreground hover:text-foreground"
+          title="Rebuild the plan and bring back skipped work"
         >
-          <RefreshCw className="h-3.5 w-3.5" />
-          Regenerate
+          <RotateCcw className="h-3.5 w-3.5" />
+          Reset plan
         </button>
-      }
-    >
+      </header>
+
       {plan.length === 0 ? (
-        <EmptyState
-          title="No plan needed."
-          message="Everything urgent is complete, skipped, or already submitted."
-          icon={<CheckCircle2 className="h-5 w-5" />}
-        />
+        <div className="px-5 pb-5 pt-3 sm:px-6">
+          <EmptyState
+            title="No plan needed."
+            message="Everything urgent is complete, skipped, or already submitted."
+            icon={<CheckCircle2 className="h-5 w-5" />}
+          />
+        </div>
       ) : (
         <>
-          <div className="mb-4 grid gap-3 sm:grid-cols-3">
-            <Stat label="Remaining workload" value={formatMinutes(totalMinutes)} />
-            <Stat label="Plan progress" value={`${progress}%`} />
-            <Stat label="Tasks" value={`${completeCount}/${plan.length} complete`} />
+          <div
+            className="mx-5 mt-4 h-1 overflow-hidden rounded-full bg-foreground/10 sm:mx-6"
+            role="progressbar"
+            aria-valuenow={progress}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="Today's plan progress"
+          >
+            <div
+              className="h-full rounded-full bg-primary transition-[width] duration-500"
+              style={{ width: `${progress}%` }}
+            />
           </div>
-          <ul className="space-y-2">
+          <ol className="mt-3 divide-y divide-foreground/[0.07]">
             {plan.map((item, index) => (
               <PlanRow
                 key={item.assignment.id}
                 item={item}
                 index={index}
                 count={plan.length}
+                upNext={item.assignment.id === upNextId}
                 done={completed.has(item.assignment.id)}
                 onToggle={() => completed.toggle(item.assignment.id)}
                 onStart={() => onStart(item.assignment)}
@@ -581,21 +627,10 @@ function TodayPlanCard({
                 estimatePending={estimatePending}
               />
             ))}
-          </ul>
+          </ol>
         </>
       )}
-    </GlassCard>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="glass-inset p-3">
-      <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-        {label}
-      </p>
-      <p className="mt-1 text-lg font-semibold tabular-nums tracking-tight">{value}</p>
-    </div>
+    </section>
   );
 }
 
@@ -603,6 +638,7 @@ function PlanRow({
   item,
   index,
   count,
+  upNext,
   done,
   onToggle,
   onStart,
@@ -614,6 +650,7 @@ function PlanRow({
   item: PlanItem;
   index: number;
   count: number;
+  upNext: boolean;
   done: boolean;
   onToggle: () => void;
   onStart: () => void;
@@ -625,6 +662,7 @@ function PlanRow({
   const [editing, setEditing] = useState(false);
   const [minutes, setMinutes] = useState(String(item.estimatedMinutes ?? item.plannedMinutes));
   const assignment = item.assignment;
+  const tag = attentionTag(assignment, done);
 
   useEffect(() => {
     setMinutes(String(item.estimatedMinutes ?? item.plannedMinutes));
@@ -639,114 +677,109 @@ function PlanRow({
   return (
     <li
       className={cn(
-        "glass-inset grid gap-3 p-3 transition-opacity sm:grid-cols-[auto_minmax(0,1fr)_auto]",
-        done && "opacity-60",
+        "grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3 px-5 py-4 transition-colors hover:bg-foreground/[0.02] sm:px-6",
+        done && "opacity-55",
       )}
     >
-      <div className="hidden items-center gap-2 sm:flex">
-        <GripVertical className="h-4 w-4 text-muted-foreground/70" />
-        <span className="text-sm tabular-nums text-muted-foreground">{index + 1}</span>
-      </div>
+      <CompleteToggle done={done} onToggle={onToggle} label={assignment.name} className="mt-0.5" />
 
       <div className="min-w-0">
-        <div className="flex min-w-0 items-start gap-3">
-          <CompleteToggle done={done} onToggle={onToggle} label={assignment.name} />
-          <div className="min-w-0">
-            <p className={cn("truncate text-sm font-medium", done && "line-through")}>
-              {assignment.name}
-            </p>
-            <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-              <span>{displayCourseName(assignment.course_name, assignment.course_code)}</span>
-              <span className="opacity-40">·</span>
-              <span>{dueLabel(assignment.due_at)}</span>
-              <span className="opacity-40">·</span>
-              <span>{statusLabel(assignment, done)}</span>
-            </p>
-            <AssignmentDescriptionLink assignmentId={assignment.id} className="mt-1" />
-          </div>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <p className={cn("text-sm font-medium leading-snug", done && "line-through")}>
+            {assignment.name}
+          </p>
+          {upNext && !done && (
+            <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
+              Up next
+            </span>
+          )}
+          {tag && (
+            <span className="rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-red-500">
+              {tag}
+            </span>
+          )}
         </div>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {displayCourseName(assignment.course_name, assignment.course_code)}
+          <span className="mx-1.5 opacity-40">·</span>
+          {dueLabel(assignment.due_at)}
+        </p>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
+      <div className="flex items-center gap-1">
         {editing ? (
-          <div className="flex items-center gap-2">
+          <form
+            className="flex items-center gap-1.5"
+            onSubmit={(event) => {
+              event.preventDefault();
+              saveEstimate();
+            }}
+          >
             <input
               type="number"
               min={5}
               step={5}
               value={minutes}
+              autoFocus
               onChange={(event) => setMinutes(event.target.value)}
-              className="h-9 w-20 rounded-lg border border-glass-border bg-background/50 px-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+              className="h-8 w-16 rounded-lg border border-glass-border bg-background/50 px-2 text-xs outline-none focus:ring-1 focus:ring-primary"
               aria-label={`Estimated minutes for ${assignment.name}`}
             />
             <button
-              type="button"
-              onClick={saveEstimate}
+              type="submit"
               disabled={estimatePending}
-              className="glass-hover h-9 rounded-lg border border-glass-border px-3 text-xs font-medium disabled:opacity-50"
+              className="glass-hover h-8 rounded-lg border border-glass-border px-2.5 text-xs font-medium disabled:opacity-50"
             >
               Save
             </button>
-          </div>
+          </form>
         ) : (
           <button
             type="button"
             onClick={() => setEditing(true)}
-            className="glass-hover inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-glass-border px-2.5 text-xs font-medium"
+            title="Change time estimate"
+            aria-label={`Time estimate for ${assignment.name}: ${formatMinutes(
+              item.estimatedMinutes ?? defaultEstimateMinutes(assignment),
+            )}. Change`}
+            className="glass-hover inline-flex h-8 items-center gap-1 rounded-lg px-2 text-xs tabular-nums text-muted-foreground hover:text-foreground"
           >
-            <Pencil className="h-3.5 w-3.5" />
+            <Clock className="h-3.5 w-3.5" />
             {formatMinutes(item.estimatedMinutes ?? defaultEstimateMinutes(assignment))}
           </button>
         )}
 
-        <div className="flex items-center gap-1">
-          <IconButton
-            label={`Move ${assignment.name} earlier`}
-            onClick={() => onMove(-1)}
-            disabled={index === 0}
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            aria-label={`More options for ${assignment.name}`}
+            className="glass-hover flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground"
           >
-            <ArrowUp className="h-3.5 w-3.5" />
-          </IconButton>
-          <IconButton
-            label={`Move ${assignment.name} later`}
-            onClick={() => onMove(1)}
-            disabled={index === count - 1}
-          >
-            <ArrowDown className="h-3.5 w-3.5" />
-          </IconButton>
-          <IconButton label={`Start ${assignment.name}`} onClick={onStart}>
-            <ExternalLink className="h-3.5 w-3.5" />
-          </IconButton>
-          <IconButton label={`Skip ${assignment.name}`} onClick={onSkip}>
-            <SkipForward className="h-3.5 w-3.5" />
-          </IconButton>
-        </div>
+            <MoreHorizontal className="h-4 w-4" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {assignment.html_url && (
+              <DropdownMenuItem onSelect={onStart}>
+                <ExternalLink className="mr-2 h-4 w-4" /> Open in Canvas
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem asChild>
+              <Link to="/assignments" search={{ assignment: String(assignment.id) }}>
+                <FileText className="mr-2 h-4 w-4" /> See description
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem disabled={index === 0} onSelect={() => onMove(-1)}>
+              <ArrowUp className="mr-2 h-4 w-4" /> Move up
+            </DropdownMenuItem>
+            <DropdownMenuItem disabled={index === count - 1} onSelect={() => onMove(1)}>
+              <ArrowDown className="mr-2 h-4 w-4" /> Move down
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={onSkip}>
+              <SkipForward className="mr-2 h-4 w-4" /> Skip for today
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </li>
-  );
-}
-
-function IconButton({
-  label,
-  onClick,
-  disabled,
-  children,
-}: {
-  label: string;
-  onClick: () => void;
-  disabled?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      title={label}
-      aria-label={label}
-      className="glass-hover flex h-9 w-9 items-center justify-center rounded-lg border border-glass-border text-muted-foreground transition hover:text-foreground disabled:opacity-35"
-    >
-      {children}
-    </button>
   );
 }
