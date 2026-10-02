@@ -26,6 +26,8 @@ import { CANVAS_DATA_GC_MS, CANVAS_DATA_STALE_MS } from "@/lib/query-policy";
 import { GlassCard, Skeleton, ErrorState, EmptyState } from "@/components/glass-card";
 import { CompleteToggle } from "@/components/complete-toggle";
 import { Segmented } from "@/components/segmented";
+import { PageTabs } from "@/components/page-tabs";
+import { STUDY_TABS } from "@/lib/page-tab-sets";
 import { cn } from "@/lib/utils";
 import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
 import { displayCourseName } from "@/lib/course-display";
@@ -422,7 +424,9 @@ function Header({
     day: "numeric",
   }).format(new Date());
   return (
-    <header className="premium-reveal flex flex-wrap items-end justify-between gap-4 px-1 pt-2">
+    <>
+    <PageTabs tabs={STUDY_TABS} label="Study sections" />
+    <header className="premium-reveal flex flex-wrap items-end justify-between gap-4 px-1">
       <div className="min-w-0">
         <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
           {today}
@@ -442,6 +446,7 @@ function Header({
         />
       </div>
     </header>
+    </>
   );
 }
 

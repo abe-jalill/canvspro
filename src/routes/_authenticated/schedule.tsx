@@ -6,6 +6,8 @@ import { CANVAS_DATA_GC_MS, CANVAS_DATA_STALE_MS } from "@/lib/query-policy";
 import { GlassCard, Skeleton, ErrorState, EmptyState } from "@/components/glass-card";
 import { displayCourseName } from "@/lib/course-display";
 import { Segmented } from "@/components/segmented";
+import { PageTabs } from "@/components/page-tabs";
+import { CALENDAR_TABS } from "@/lib/page-tab-sets";
 import { WorkloadHeatmap } from "@/components/workload-heatmap";
 import { endOfUpcomingDay, isAssignmentVisible } from "@/lib/assignment-window";
 import { COMPLETED_ASSIGNMENTS_KEY, useLocalSet } from "@/lib/local-state";
@@ -126,7 +128,8 @@ function SchedulePage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-4 px-1 pt-2">
+      <PageTabs tabs={CALENDAR_TABS} label="Calendar sections" />
+      <header className="flex flex-wrap items-end justify-between gap-4 px-1">
         <div>
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
             {range === "week" ? "Next 7 days" : "Full semester"}

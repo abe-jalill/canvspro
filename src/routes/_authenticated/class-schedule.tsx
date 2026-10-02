@@ -5,6 +5,8 @@ import { useClassSchedule } from "@/lib/user-class-schedule";
 import { coursesQueryOptions } from "@/lib/canvas.queries";
 import { matchScheduleCourse } from "@/lib/class-schedule";
 import { displayCourseNameForCourse } from "@/lib/course-display";
+import { PageTabs } from "@/components/page-tabs";
+import { CALENDAR_TABS } from "@/lib/page-tab-sets";
 
 // Both views are lazy so the timetable UI isn't in the shared first-load bundle.
 const ClassScheduleView = lazy(() => import("@/components/class-schedule-view"));
@@ -40,6 +42,15 @@ export const Route = createFileRoute("/_authenticated/class-schedule")({
 });
 
 function ClassSchedulePage() {
+  return (
+    <div className="space-y-6">
+      <PageTabs tabs={CALENDAR_TABS} label="Calendar sections" />
+      <ClassScheduleContent />
+    </div>
+  );
+}
+
+function ClassScheduleContent() {
   const { data, isLoading, error } = useClassSchedule();
   const courses = useQuery(coursesQueryOptions);
   const [editing, setEditing] = useState(false);

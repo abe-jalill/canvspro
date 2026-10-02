@@ -6,9 +6,7 @@ import {
   BarChart3,
   Bell,
   BellOff,
-  CalendarClock,
   CalendarDays,
-  ClipboardCheck,
   Crosshair,
   GraduationCap,
   LayoutDashboard,
@@ -37,11 +35,9 @@ import { useIsAdmin } from "@/hooks/use-is-admin";
 
 const items = [
   { title: "Dashboard", to: "/dashboard" as const, icon: LayoutDashboard },
-  { title: "Get It Done", to: "/get-it-done" as const, icon: ClipboardCheck },
   { title: "Focus", to: "/focus" as const, icon: Crosshair },
   { title: "Study Session", to: "/study-session" as const, icon: TimerReset },
   { title: "Calendar", to: "/schedule" as const, icon: CalendarDays },
-  { title: "Class Schedule", to: "/class-schedule" as const, icon: CalendarClock },
   { title: "Grades", to: "/grades" as const, icon: GraduationCap },
   { title: "Assignments", to: "/assignments" as const, icon: ListChecks },
   { title: "Announcements", to: "/announcements" as const, icon: Megaphone },
@@ -64,6 +60,16 @@ function useActivePath() {
 
 function isActive(pathname: string, to: string) {
   return pathname === to || pathname.startsWith(to + "/");
+}
+
+// Pages reached through in-page tabs keep their parent sidebar entry lit.
+const NESTED_PATHS: Record<string, string[]> = {
+  "/study-session": ["/get-it-done"],
+  "/schedule": ["/class-schedule"],
+};
+
+function isItemActive(pathname: string, to: string) {
+  return isActive(pathname, to) || (NESTED_PATHS[to] ?? []).some((p) => isActive(pathname, p));
 }
 
 function ReminderToggle({ compact = false }: { compact?: boolean }) {
@@ -217,7 +223,7 @@ export function AppSidebar() {
                       aria-label={item.title}
                       className={cn(
                         "press flex h-9 w-9 items-center justify-center rounded-xl transition-all",
-                        isActive(pathname, item.to)
+                        isItemActive(pathname, item.to)
                           ? "bg-foreground/[0.08] text-foreground shadow-sm"
                           : "text-muted-foreground/80 hover:bg-foreground/[0.04] hover:text-foreground",
                       )}
@@ -295,7 +301,7 @@ export function AppSidebar() {
                     onFocus={() => prefetchRouteQueries(queryClient, item.to)}
                     className={cn(
                       "press rounded-xl px-3 py-2 text-sm transition-all",
-                      isActive(pathname, item.to)
+                      isItemActive(pathname, item.to)
                         ? "bg-foreground/[0.08] text-foreground font-medium shadow-sm"
                         : "text-muted-foreground/80 hover:bg-foreground/[0.04] hover:text-foreground font-normal",
                     )}
@@ -306,7 +312,7 @@ export function AppSidebar() {
                           aria-hidden="true"
                           className={cn(
                             "h-1 w-1 shrink-0 rounded-full bg-primary transition-[opacity,transform] duration-200",
-                            isActive(pathname, item.to)
+                            isItemActive(pathname, item.to)
                               ? "scale-100 opacity-100"
                               : "scale-50 opacity-0",
                           )}
@@ -453,7 +459,7 @@ export function MobileNav() {
             onClick={() => setOpen(false)}
             className={cn(
               "press flex min-h-11 items-center rounded-xl px-3 text-sm font-normal",
-              isActive(pathname, item.to)
+              isItemActive(pathname, item.to)
                 ? "bg-foreground/[0.08] text-foreground font-medium"
                 : "text-muted-foreground",
             )}
