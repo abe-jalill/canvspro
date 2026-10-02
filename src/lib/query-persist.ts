@@ -3,6 +3,9 @@ import { dehydrate, hydrate, useQueryClient, type QueryClient } from "@tanstack/
 import { getUserScope, useUserScope } from "./user-scope.ts";
 
 const MAX_AGE = 24 * 60 * 60_000;
+// Offline there is nothing fresher to fall back to, so older data beats a blank
+// screen. The "last synced" notice tells the person how old it is.
+const OFFLINE_MAX_AGE = 7 * MAX_AGE;
 // Version 6 refreshes assignment bundles so newly exposed descriptions are
 // available immediately after this release.
 const VERSION = 6;
@@ -26,11 +29,12 @@ export function restoreQueryCache(client: QueryClient, userId: string) {
     const saved = JSON.parse(raw);
     const savedAt = saved.savedAt;
     const state = saved.state;
+    const maxAge = navigator.onLine === false ? OFFLINE_MAX_AGE : MAX_AGE;
     if (
       saved.version !== VERSION ||
       saved.userId !== userId ||
       !Number.isFinite(savedAt) ||
-      Date.now() - savedAt > MAX_AGE ||
+      Date.now() - savedAt > maxAge ||
       savedAt > Date.now()
     )
       return;
