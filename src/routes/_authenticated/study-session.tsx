@@ -19,8 +19,6 @@ import { toast } from "sonner";
 import { getAllAssignmentsFn, type AssignmentItem } from "@/lib/canvas.functions";
 import { displayCourseName } from "@/lib/course-display";
 import { GlassCard, ErrorState, Skeleton } from "@/components/glass-card";
-import { PageTabs } from "@/components/page-tabs";
-import { STUDY_TABS } from "@/lib/page-tab-sets";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -406,7 +404,6 @@ function StudySessionPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-5 pb-24 md:pb-8">
-      <PageTabs tabs={STUDY_TABS} label="Study sections" />
       <header className="premium-reveal px-1">
         <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
           Study Session

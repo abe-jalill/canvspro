@@ -14,6 +14,9 @@ export function PageTabs({ tabs, label }: { tabs: PageTab[]; label: string }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   return (
+    // Centered, so the tabs sit in the same place on every page of a group
+    // even when the pages below them have different widths.
+    <div className="flex justify-center">
     <nav
       aria-label={label}
       className="inline-flex max-w-full gap-1 overflow-x-auto rounded-2xl bg-foreground/[0.04] p-1"
@@ -40,5 +43,6 @@ export function PageTabs({ tabs, label }: { tabs: PageTab[]; label: string }) {
         );
       })}
     </nav>
+    </div>
   );
 }

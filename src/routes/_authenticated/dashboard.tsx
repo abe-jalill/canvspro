@@ -5,6 +5,8 @@ import { cn } from "@/lib/utils";
 import { useDashboardLayout, type WidgetId, type WidgetSize } from "@/lib/dashboard-layout";
 import { WIDGETS } from "@/components/widgets/dashboard-widgets";
 import { DashboardHero } from "@/components/dashboard-hero";
+import { PageTabs } from "@/components/page-tabs";
+import { TODAY_TABS } from "@/lib/page-tab-sets";
 
 import {
   coursesQueryOptions,
@@ -69,6 +71,7 @@ function Dashboard() {
 
   return (
     <div className="w-full min-w-0 space-y-4 pb-12 sm:space-y-5">
+      <PageTabs tabs={TODAY_TABS} label="Today sections" />
       <DashboardHero />
 
       <header

@@ -6,6 +6,8 @@ import { getAllAssignmentsFn, getCoursesFn, type AssignmentItem } from "@/lib/ca
 import { CANVAS_DATA_GC_MS, CANVAS_DATA_STALE_MS } from "@/lib/query-policy";
 import { GlassCard, Skeleton, ErrorState } from "@/components/glass-card";
 import { Segmented } from "@/components/segmented";
+import { PageTabs } from "@/components/page-tabs";
+import { TODAY_TABS } from "@/lib/page-tab-sets";
 import { cn } from "@/lib/utils";
 import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
 import { displayCourseName } from "@/lib/course-display";
@@ -208,7 +210,8 @@ function FocusPage() {
 
   return (
     <div className="mx-auto w-full max-w-4xl space-y-5 pb-10">
-      <header className="premium-reveal flex flex-wrap items-end justify-between gap-4 px-1 pt-2">
+      <PageTabs tabs={TODAY_TABS} label="Today sections" />
+      <header className="premium-reveal flex flex-wrap items-end justify-between gap-4 px-1">
         <div className="min-w-0">
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
             Focus

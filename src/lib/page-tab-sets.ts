@@ -1,14 +1,15 @@
 export interface PageTab {
-  to: "/schedule" | "/class-schedule" | "/study-session" | "/get-it-done";
+  to: "/dashboard" | "/focus" | "/get-it-done" | "/schedule" | "/class-schedule";
   label: string;
 }
+
+export const TODAY_TABS: PageTab[] = [
+  { to: "/dashboard", label: "Dashboard" },
+  { to: "/focus", label: "Focus" },
+  { to: "/get-it-done", label: "Get It Done" },
+];
 
 export const CALENDAR_TABS: PageTab[] = [
   { to: "/schedule", label: "Calendar" },
   { to: "/class-schedule", label: "My classes" },
-];
-
-export const STUDY_TABS: PageTab[] = [
-  { to: "/get-it-done", label: "Get It Done" },
-  { to: "/study-session", label: "Study Session" },
 ];

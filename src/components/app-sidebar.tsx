@@ -7,7 +7,6 @@ import {
   Bell,
   BellOff,
   CalendarDays,
-  Crosshair,
   GraduationCap,
   LayoutDashboard,
   ListChecks,
@@ -34,8 +33,7 @@ import { useSidebarMode } from "@/lib/sidebar-state";
 import { useIsAdmin } from "@/hooks/use-is-admin";
 
 const items = [
-  { title: "Dashboard", to: "/dashboard" as const, icon: LayoutDashboard },
-  { title: "Focus", to: "/focus" as const, icon: Crosshair },
+  { title: "Today", to: "/dashboard" as const, icon: LayoutDashboard },
   { title: "Study Session", to: "/study-session" as const, icon: TimerReset },
   { title: "Calendar", to: "/schedule" as const, icon: CalendarDays },
   { title: "Grades", to: "/grades" as const, icon: GraduationCap },
@@ -64,7 +62,7 @@ function isActive(pathname: string, to: string) {
 
 // Pages reached through in-page tabs keep their parent sidebar entry lit.
 const NESTED_PATHS: Record<string, string[]> = {
-  "/study-session": ["/get-it-done"],
+  "/dashboard": ["/focus", "/get-it-done"],
   "/schedule": ["/class-schedule"],
 };
 
