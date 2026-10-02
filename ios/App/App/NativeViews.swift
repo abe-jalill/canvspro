@@ -8,7 +8,7 @@ struct NativeRootView: View {
     @State private var showingLaunch = true
     @State private var launchHasDismissed = false
     @State private var startupReady = false
-    @AppStorage("CanvasProColorScheme") private var colorScheme = "system"
+    @AppStorage("CanvasProColorScheme") private var colorScheme = "dark"
     @AppStorage("CanvasProPalette") private var palette = "forest"
 
     var body: some View {
@@ -1198,7 +1198,6 @@ enum CourseDetailSection: String, CaseIterable {
 struct CourseDetailView: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.dismiss) private var dismiss
     let course: CourseSummary
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
@@ -1268,7 +1267,6 @@ struct CourseDetailView: View {
             CPBackdrop()
             ScrollView {
                 LazyVStack(spacing: 14) {
-                    scheduleBar
                     hero
                     sectionPicker
                     sectionContent
@@ -1282,43 +1280,73 @@ struct CourseDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    private var scheduleBar: some View {
-        HStack {
-            Button { dismiss() } label: { Label("Back", systemImage: "chevron.left").font(.system(size: 12, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)) }.buttonStyle(.plain)
-            Spacer()
-            if let scheduleText { Label(scheduleText, systemImage: "calendar").font(.system(size: 11, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)).lineLimit(2).multilineTextAlignment(.trailing) }
-            else { NavigationLink { ClassScheduleView(features: features) } label: { Label("Enter class time/days", systemImage: "calendar.badge.plus").font(.system(size: 11, weight: .regular)) } }
-        }
-    }
-
     private var hero: some View {
         CPGlassCard(strong: true) {
-            VStack(alignment: .leading, spacing: 14) {
-                Text(course.courseCode.isEmpty ? "COURSE" : course.courseCode).font(.system(size: 10, weight: .regular)).tracking(1.1).foregroundStyle(CPTheme.muted(scheme)).padding(.horizontal, 10).frame(minHeight: 26).background(CPTheme.inset(scheme), in: Capsule())
-                Text(courseName).font(.system(size: 27, weight: .regular)).tracking(-0.8).fixedSize(horizontal: false, vertical: true)
-                if let scheduleText { Label(scheduleText, systemImage: "clock").font(.system(size: 12, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true) }
-                else { NavigationLink { ClassScheduleView(features: features) } label: { Label("Enter class time/days", systemImage: "calendar.badge.plus").font(.system(size: 12, weight: .regular)) } }
-                Divider().overlay(CPTheme.foreground(scheme).opacity(0.10))
-                VStack(spacing: 8) {
-                    Text("CURRENT GRADE").font(.system(size: 10, weight: .regular)).tracking(1.5).foregroundStyle(CPTheme.muted(scheme))
-                    CountUpGrade(value: course.currentScore, size: 44, color: gradeColor)
-                    HStack(spacing: 8) {
-                        Text(course.currentGrade ?? letterGrade(course.currentScore)).foregroundStyle(gradeColor).padding(.horizontal, 9).frame(minHeight: 25).background(gradeColor.opacity(0.12), in: Capsule())
-                        Text("\(courseAssignments.count) assignment\(courseAssignments.count == 1 ? "" : "s")").foregroundStyle(CPTheme.muted(scheme))
-                    }.font(.system(size: 11, weight: .regular))
-                }.frame(maxWidth: .infinity).padding(14).background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 18, style: .continuous)).overlay(RoundedRectangle(cornerRadius: 18).stroke(CPTheme.insetBorder(scheme)))
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .center, spacing: 18) {
+                    courseIdentity
+                    Spacer(minLength: 0)
+                    courseGrade
+                }
+                VStack(alignment: .leading, spacing: 16) { courseIdentity; courseGrade }
             }
-        }.overlay(alignment: .topTrailing) { Circle().fill(gradeColor.opacity(0.14)).frame(width: 240, height: 240).blur(radius: 70).offset(x: 100, y: -100).allowsHitTesting(false) }
-    }
-
-    private var sectionPicker: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(CourseDetailSection.allCases, id: \.self) { option in
-                    Button { withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.18)) { section = option } } label: { HStack(spacing: 6) { Text(option.rawValue); Text("\(count(for: option))").font(.system(size: 10, weight: .regular)).padding(.horizontal, 6).frame(minHeight: 20).background(CPTheme.inset(scheme), in: Capsule()) }.font(.system(size: 12, weight: .regular)).padding(.horizontal, 12).frame(minHeight: 38).foregroundStyle(section == option ? CPTheme.background(scheme) : CPTheme.muted(scheme)).background(section == option ? CPTheme.foreground(scheme) : CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 12)).overlay(RoundedRectangle(cornerRadius: 12).stroke(CPTheme.insetBorder(scheme))) }.buttonStyle(CPPressStyle())
+            Divider().overlay(CPTheme.border(scheme))
+            if let scheduleText {
+                Label(scheduleText, systemImage: "clock")
+                    .font(.system(size: 12)).foregroundStyle(CPTheme.muted(scheme))
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                NavigationLink { ClassScheduleView(features: features) } label: {
+                    Label("Add class schedule", systemImage: "calendar.badge.plus")
+                        .font(.system(size: 12)).frame(minHeight: 32)
                 }
             }
         }
+    }
+
+    private var courseIdentity: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(course.courseCode.isEmpty ? "YOUR CLASS" : course.courseCode)
+                .font(.system(size: 10)).foregroundStyle(CPTheme.muted(scheme))
+                .lineLimit(2)
+            Text(courseName).font(.system(size: 22, weight: .regular)).tracking(-0.5)
+                .fixedSize(horizontal: false, vertical: true)
+            Text("\(courseAssignments.count) assignments")
+                .font(.system(size: 11)).foregroundStyle(CPTheme.muted(scheme))
+        }.frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var courseGrade: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text("Current grade").font(.system(size: 10)).foregroundStyle(CPTheme.muted(scheme))
+            CountUpGrade(value: course.currentScore, size: 32, color: gradeColor)
+            Text(course.currentGrade ?? letterGrade(course.currentScore))
+                .font(.system(size: 12)).foregroundStyle(gradeColor)
+        }
+        .fixedSize(horizontal: true, vertical: false)
+        .padding(12)
+        .background(gradeColor.opacity(0.07), in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    private var sectionPicker: some View {
+        HStack(spacing: 4) {
+            ForEach(CourseDetailSection.allCases, id: \.self) { option in
+                Button {
+                    withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.18)) { section = option }
+                } label: {
+                    VStack(spacing: 4) {
+                        Text(option.rawValue).font(.system(size: 11)).lineLimit(1).minimumScaleFactor(0.85)
+                        Text("\(count(for: option))").font(.system(size: 10)).monospacedDigit()
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 48)
+                    .foregroundStyle(section == option ? CPTheme.primary(scheme: scheme) : CPTheme.muted(scheme))
+                    .background(section == option ? CPTheme.primary(scheme: scheme).opacity(0.12) : .clear, in: RoundedRectangle(cornerRadius: 12))
+                }
+                .buttonStyle(CPPressStyle())
+                .accessibilityAddTraits(section == option ? [.isSelected] : [])
+            }
+        }
+        .padding(4).background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 16))
     }
 
     @ViewBuilder private var sectionContent: some View {
@@ -1336,7 +1364,14 @@ struct CourseDetailView: View {
             if upcoming.isEmpty { CPGlassCard { NativeEmptyState(title: "All caught up", symbol: "checkmark.circle", detail: "No upcoming assignments due for this class.") } }
             else {
                 if upcoming.count > upcomingThreeWeeks.count { Button(showAllUpcoming ? "Show less" : "Only showing the next 3 weeks · View all") { showAllUpcoming.toggle() }.font(.system(size: 11, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)) }
-                ForEach(items) { assignment in courseAssignmentCard(assignment, graded: false) }
+                CPGlassCard {
+                    LazyVStack(spacing: 0) {
+                        ForEach(items) { assignment in
+                            courseAssignmentCard(assignment, graded: false)
+                            if assignment.id != items.last?.id { Divider().overlay(CPTheme.border(scheme)) }
+                        }
+                    }
+                }
             }
         }
     }
@@ -1345,7 +1380,16 @@ struct CourseDetailView: View {
         VStack(alignment: .leading, spacing: 10) {
             sectionHeading("Graded")
             if graded.isEmpty { CPGlassCard { NativeEmptyState(title: "No graded assignments", symbol: "checkmark.circle", detail: "No graded assignments are recorded yet.") } }
-            else { ForEach(graded) { assignment in courseAssignmentCard(assignment, graded: true) } }
+            else {
+                CPGlassCard {
+                    LazyVStack(spacing: 0) {
+                        ForEach(graded) { assignment in
+                            courseAssignmentCard(assignment, graded: true)
+                            if assignment.id != graded.last?.id { Divider().overlay(CPTheme.border(scheme)) }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -1362,20 +1406,31 @@ struct CourseDetailView: View {
     }
 
     private func courseAssignmentCard(_ assignment: AssignmentItem, graded isGraded: Bool) -> some View {
-        CPGlassCard {
-            HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 7) {
-                    Text(assignment.name).font(.system(size: 14, weight: .regular)).fixedSize(horizontal: false, vertical: true)
-                    NavigationLink { AssignmentDetailView(assignment: assignment, store: store, features: features) } label: { Label("Description", systemImage: "doc.text").font(.system(size: 10, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)) }
-                    HStack(spacing: 8) {
-                        if let date = assignment.dueDate { Label(date.formatted(.dateTime.month(.abbreviated).day().hour().minute()), systemImage: isGraded ? "checkmark.circle" : "calendar").font(.system(size: 11, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)) }
-                        if let points = assignment.pointsPossible { Text("\(points.formatted()) pts").font(.system(size: 10, weight: .regular)).padding(.horizontal, 7).frame(minHeight: 22).background(CPTheme.inset(scheme), in: Capsule()) }
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 7) {
+                NavigationLink {
+                    AssignmentDetailView(assignment: assignment, store: store, features: features)
+                } label: {
+                    HStack(spacing: 6) {
+                        Text(assignment.name).font(.system(size: 14, weight: .regular))
+                            .fixedSize(horizontal: false, vertical: true)
+                        Image(systemName: "chevron.right").font(.system(size: 9)).foregroundStyle(CPTheme.muted(scheme))
                     }
-                }.frame(maxWidth: .infinity, alignment: .leading)
-                if isGraded { gradeResult(assignment) }
-                else if let url = URL(string: assignment.htmlURL), !assignment.htmlURL.isEmpty { Link(destination: url) { Label("Open", systemImage: "arrow.up.right").font(.system(size: 11, weight: .regular)).padding(.horizontal, 10).frame(minHeight: 34).background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 11)) } }
+                    .foregroundStyle(CPTheme.foreground(scheme))
+                    .frame(minHeight: 44, alignment: .leading).contentShape(Rectangle())
+                }.buttonStyle(.plain)
+                VStack(alignment: .leading, spacing: 5) {
+                    if let date = assignment.dueDate { Label(date.formatted(.dateTime.month(.abbreviated).day().hour().minute()), systemImage: isGraded ? "checkmark.circle" : "calendar").font(.system(size: 11, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)) }
+                    if let points = assignment.pointsPossible { Text("\(points.formatted()) pts").font(.system(size: 10, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)) }
+                }
+            }.frame(maxWidth: .infinity, alignment: .leading)
+            if isGraded { gradeResult(assignment) }
+            else if let url = URL(string: assignment.htmlURL), !assignment.htmlURL.isEmpty {
+                Link(destination: url) { Image(systemName: "arrow.up.right").font(.system(size: 13)).frame(width: 44, height: 44).background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 12)) }
+                    .accessibilityLabel("Open \(assignment.name) in Canvas")
             }
         }
+        .padding(.vertical, 10)
     }
 
     private func gradeResult(_ assignment: AssignmentItem) -> some View {

@@ -37,14 +37,14 @@ enum CPTheme {
     static let danger = Color.hsl(0, 0.70, 0.60)
 
     private static var currentScheme: ColorScheme {
-        let mode = UserDefaults.standard.string(forKey: "CanvasProColorScheme") ?? "system"
+        let mode = UserDefaults.standard.string(forKey: "CanvasProColorScheme") ?? "dark"
         if mode == "light" { return .light }
         if mode == "dark" { return .dark }
         return UITraitCollection.current.userInterfaceStyle == .dark ? .dark : .light
     }
 
     static func background(_ scheme: ColorScheme, palette: CPPalette = currentPalette) -> Color {
-        scheme == .dark ? Color(red: 12.0 / 255, green: 14.0 / 255, blue: 13.0 / 255) : .hsl(palette.hue, 0.15, 0.98)
+        scheme == .dark ? .hsl(palette.hue, 0.38, 0.065) : .hsl(palette.hue, 0.15, 0.98)
     }
     static func foreground(_ scheme: ColorScheme, palette: CPPalette = currentPalette) -> Color {
         scheme == .dark ? .hsl(palette.hue, 0.02, 0.97) : .hsl(palette.hue, 0.20, 0.12)
@@ -57,7 +57,7 @@ enum CPTheme {
     }
     static func glass(_ scheme: ColorScheme, strong: Bool = false, palette: CPPalette = currentPalette) -> Color {
         scheme == .dark
-            ? Color(white: strong ? 0.16 : 0.12).opacity(strong ? 0.85 : 0.70)
+            ? Color.hsl(palette.hue, strong ? 0.30 : 0.24, strong ? 0.14 : 0.105).opacity(0.96)
             : Color.white.opacity(strong ? 0.90 : 0.75)
     }
     static func border(_ scheme: ColorScheme, palette: CPPalette = currentPalette) -> Color {

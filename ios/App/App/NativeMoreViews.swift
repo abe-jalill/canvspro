@@ -374,6 +374,7 @@ private struct CalendarDayGroup: Identifiable {
 
 struct CalendarView: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
     @State private var showCompleted = false
@@ -381,6 +382,7 @@ struct CalendarView: View {
     @State private var pickedTime = Date()
     @State private var selectedDate: Date? = Calendar.current.startOfDay(for: Date())
     @State private var currentWeekOffset = 0
+    @State private var showWorkload = false
 
     private var calendar: Calendar { Calendar.current }
     private var today: Date { calendar.startOfDay(for: Date()) }
@@ -485,8 +487,15 @@ struct CalendarView: View {
                         }
                     }
 
-                    CPGlassCard(title: "Workload Overview", subtitle: "Assignment load over next 4 weeks") {
-                        WorkloadView(assignments: visibleAssignments)
+                    CPGlassCard {
+                        DisclosureGroup(isExpanded: $showWorkload) {
+                            WorkloadView(assignments: visibleAssignments).padding(.top, 12)
+                        } label: {
+                            Label("Workload · next 4 weeks", systemImage: "chart.bar.xaxis")
+                                .font(.system(size: 13)).foregroundStyle(CPTheme.foreground(scheme))
+                                .frame(minHeight: 32)
+                        }
+                        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: showWorkload)
                     }
                 }
                 .padding(14)
@@ -526,31 +535,31 @@ struct CalendarView: View {
     }
 
     private var calendarStrip: some View {
-        CPGlassCard(strong: true) {
+        let counts = Dictionary(grouping: agenda, by: { calendar.startOfDay(for: $0.date) }).mapValues { $0.count }
+        return CPGlassCard(strong: true) {
             VStack(spacing: 12) {
                 // Header with Month and Week Navigation
                 HStack {
                     if let firstDate = weekDates.first {
                         Text(firstDate.formatted(.dateTime.month(.wide).year()))
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(.system(size: 18, weight: .regular))
                             .foregroundStyle(CPTheme.foreground(scheme))
                     }
                     Spacer()
                     HStack(spacing: 6) {
                         Button {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                currentWeekOffset -= 1
-                            }
+                            changeWeek(by: -1)
                         } label: {
                             Image(systemName: "chevron.left")
                                 .font(.system(size: 12, weight: .semibold))
-                                .frame(width: 30, height: 30)
+                                .frame(width: 44, height: 44)
                                 .background(CPTheme.inset(scheme), in: Circle())
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel("Previous week")
 
                         Button {
-                            withAnimation(.easeInOut(duration: 0.2)) {
+                            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
                                 currentWeekOffset = 0
                                 selectedDate = today
                             }
@@ -558,36 +567,35 @@ struct CalendarView: View {
                             Text("Today")
                                 .font(.system(size: 11, weight: .medium))
                                 .padding(.horizontal, 8)
-                                .frame(height: 30)
+                                .frame(height: 44)
                                 .background(CPTheme.inset(scheme), in: Capsule())
                         }
                         .buttonStyle(.plain)
 
                         Button {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                currentWeekOffset += 1
-                            }
+                            changeWeek(by: 1)
                         } label: {
                             Image(systemName: "chevron.right")
                                 .font(.system(size: 12, weight: .semibold))
-                                .frame(width: 30, height: 30)
+                                .frame(width: 44, height: 44)
                                 .background(CPTheme.inset(scheme), in: Circle())
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel("Next week")
                     }
                 }
 
                 // 7-day row
                 HStack(spacing: 4) {
                     ForEach(weekDates, id: \.self) { date in
-                        dateButton(date)
+                        dateButton(date, count: counts[calendar.startOfDay(for: date)] ?? 0)
                     }
                 }
 
                 // Filter / View selector row
                 HStack(spacing: 8) {
                     Button {
-                        withAnimation { selectedDate = nil }
+                        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) { selectedDate = nil }
                     } label: {
                         CPChip(text: "All Upcoming", selected: selectedDate == nil)
                     }
@@ -595,7 +603,7 @@ struct CalendarView: View {
 
                     Spacer()
 
-                    Toggle("Completed", isOn: $showCompleted)
+                    Toggle("Show completed", isOn: $showCompleted)
                         .font(.system(size: 12, weight: .regular))
                         .tint(CPTheme.primary(scheme: scheme))
                 }
@@ -603,19 +611,23 @@ struct CalendarView: View {
         }
     }
 
+    private func changeWeek(by offset: Int) {
+        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
+            currentWeekOffset += offset
+            if let selectedDate {
+                self.selectedDate = calendar.date(byAdding: .day, value: offset * 7, to: selectedDate)
+            }
+        }
+    }
+
     @ViewBuilder
-    private func dateButton(_ date: Date) -> some View {
+    private func dateButton(_ date: Date, count: Int) -> some View {
         let isSelected = selectedDate != nil && calendar.isDate(selectedDate!, inSameDayAs: date)
         let isToday = calendar.isDate(date, inSameDayAs: today)
-        let hasItems = !itemsFor(day: date).isEmpty
 
         Button {
-            withAnimation(.easeInOut(duration: 0.15)) {
-                if isSelected {
-                    selectedDate = nil
-                } else {
-                    selectedDate = date
-                }
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.18)) {
+                selectedDate = date
             }
         } label: {
             VStack(spacing: 5) {
@@ -635,7 +647,7 @@ struct CalendarView: View {
                     }
 
                     Text("\(calendar.component(.day, from: date))")
-                        .font(.system(size: 13, weight: isSelected || isToday ? .bold : .medium))
+                        .font(.system(size: 14, weight: .regular))
                         .foregroundStyle(
                             isSelected ? CPTheme.background(scheme) :
                             isToday ? CPTheme.primary(scheme: scheme) :
@@ -644,13 +656,9 @@ struct CalendarView: View {
                 }
                 .frame(height: 32)
 
-                Circle()
-                    .fill(
-                        isSelected ? CPTheme.background(scheme) :
-                        hasItems ? CPTheme.primary(scheme: scheme) :
-                        Color.clear
-                    )
-                    .frame(width: 4, height: 4)
+                Text(count == 0 ? "·" : "\(count)")
+                    .font(.system(size: 10)).monospacedDigit()
+                    .foregroundStyle(count == 0 ? CPTheme.muted(scheme) : CPTheme.primary(scheme: scheme))
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 6)
@@ -660,31 +668,25 @@ struct CalendarView: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(date.formatted(.dateTime.weekday(.wide).month().day())), \(count) items")
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 
     private func agendaItemRow(_ item: NativeCalendarEntry) -> some View {
         HStack(alignment: .top, spacing: 12) {
-            ZStack {
-                Circle()
-                    .fill(
-                        item.kind.contains("Assignment")
-                            ? CPTheme.primary(scheme: scheme).opacity(0.14)
-                            : Color.blue.opacity(0.14)
-                    )
-                    .frame(width: 32, height: 32)
-
-                Image(systemName: item.kind.contains("Assignment") ? "checklist" : "calendar")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(
-                        item.kind.contains("Assignment")
-                            ? CPTheme.primary(scheme: scheme)
-                            : Color.blue
-                    )
+            VStack(alignment: .leading, spacing: 6) {
+                Text(item.date, format: .dateTime.hour().minute())
+                    .font(.system(size: 12)).monospacedDigit()
+                    .foregroundStyle(CPTheme.foreground(scheme))
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(item.pickID != nil ? "Planned" : item.kind.contains("Assignment") ? "Due" : "Event")
+                    .font(.system(size: 10)).foregroundStyle(CPTheme.primary(scheme: scheme))
             }
+            .frame(width: 64, alignment: .leading)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(item.title)
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.system(size: 14, weight: .regular))
                     .foregroundStyle(CPTheme.foreground(scheme))
                     .fixedSize(horizontal: false, vertical: true)
 
@@ -721,18 +723,7 @@ struct CalendarView: View {
                 .padding(.top, 2)
             }
 
-            Spacer(minLength: 8)
-
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(item.date, format: .dateTime.hour().minute())
-                    .font(.system(size: 13, weight: .semibold))
-                    .monospacedDigit()
-                    .foregroundStyle(CPTheme.foreground(scheme))
-
-                Text(item.kind.contains("Assignment") ? "Due" : "Event")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(CPTheme.muted(scheme))
-            }
+            Spacer(minLength: 0)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
@@ -967,7 +958,7 @@ private struct NotificationsView: View {
 private struct AppearanceSettingsCard: View {
     @Environment(\.colorScheme) private var resolvedScheme
     @ObservedObject var features: NativeFeatureStore
-    @AppStorage("CanvasProColorScheme") private var scheme = "system"
+    @AppStorage("CanvasProColorScheme") private var scheme = "dark"
     @AppStorage("CanvasProPalette") private var palette = "forest"
     @State private var status: String?
     private let columns = [GridItem(.flexible()), GridItem(.flexible())]
