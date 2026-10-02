@@ -15,19 +15,7 @@
                 <viewController id="01J-lp-oVM" sceneMemberID="viewController">
                     <view key="view" contentMode="scaleToFill" id="snD-IY-ifK">
                         <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
-                        <subviews>
-                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="CanvasPro" textAlignment="center" translatesAutoresizingMaskIntoConstraints="NO" id="cpL-aU-nch">
-                                <rect key="frame" x="116" y="408" width="161" height="36"/>
-                                <fontDescription key="fontDescription" type="system" pointSize="28" weight="regular"/>
-                                <color key="textColor" name="LaunchForeground"/>
-                                <nil key="highlightedColor"/>
-                            </label>
-                        </subviews>
                         <color key="backgroundColor" name="LaunchBackground"/>
-                        <constraints>
-                            <constraint firstItem="cpL-aU-nch" firstAttribute="centerX" secondItem="snD-IY-ifK" secondAttribute="centerX" id="cpL-cX"/>
-                            <constraint firstItem="cpL-aU-nch" firstAttribute="centerY" secondItem="snD-IY-ifK" secondAttribute="centerY" id="cpL-cY"/>
-                        </constraints>
                     </view>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="iYj-Kq-Ea1" userLabel="First Responder" sceneMemberID="firstResponder"/>
@@ -37,10 +25,10 @@
     </scenes>
     <resources>
         <namedColor name="LaunchBackground">
-            <color red="0.965" green="0.976" blue="0.969" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+            <color red="0.000" green="0.184" blue="0.125" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
         </namedColor>
         <namedColor name="LaunchForeground">
-            <color red="0.090" green="0.153" blue="0.118" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+            <color red="1.000" green="1.000" blue="1.000" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
         </namedColor>
     </resources>
 </document>

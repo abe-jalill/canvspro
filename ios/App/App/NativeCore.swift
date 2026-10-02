@@ -669,18 +669,21 @@ final class NativeContentStore: ObservableObject {
         defer { isLoading = false }
         do {
             let token = try await sessionStore.accessToken()
-            let freshBundle = try await api.canvasBundle(token: token)
+            async let bundleRequest = api.canvasBundle(token: token)
+            async let completionRequest = api.completionIDs(token: token, userID: user.id)
+            async let nicknameRequest = api.nicknames(token: token, userID: user.id)
+            let freshBundle = try await bundleRequest
             var freshCompleted = completed
             var savedPreferenceWarning: String?
 
             do {
-                freshCompleted = try await api.completionIDs(token: token, userID: user.id)
+                freshCompleted = try await completionRequest
             } catch {
                 savedPreferenceWarning = "Coursework refreshed. Saved completion state could not update."
             }
 
             do {
-                let nicknameValues = try await api.nicknames(token: token, userID: user.id)
+                let nicknameValues = try await nicknameRequest
                 nicknames = Dictionary(uniqueKeysWithValues: nicknameValues.map { ($0.canvasCourseID, $0) })
             } catch {
                 savedPreferenceWarning = savedPreferenceWarning ?? "Coursework refreshed. Class nicknames could not update."

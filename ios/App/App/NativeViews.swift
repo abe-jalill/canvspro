@@ -4,16 +4,49 @@ import UserNotifications
 
 struct NativeRootView: View {
     @StateObject private var sessionStore = NativeSessionStore()
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var showingLaunch = true
+    @State private var launchHasDismissed = false
+    @State private var startupReady = false
     @AppStorage("CanvasProColorScheme") private var colorScheme = "system"
     @AppStorage("CanvasProPalette") private var palette = "forest"
 
     var body: some View {
-        Group {
-            if sessionStore.session != nil {
-                NativeMainTabView(sessionStore: sessionStore)
-            } else {
-                NativeAuthView(sessionStore: sessionStore)
+        ZStack {
+            Group {
+                if sessionStore.session != nil {
+                    NativeMainTabView(sessionStore: sessionStore)
+                } else {
+                    NativeAuthView(sessionStore: sessionStore)
+                }
             }
+            .opacity(showingLaunch ? 0 : 1)
+            .allowsHitTesting(launchHasDismissed)
+            .accessibilityHidden(!launchHasDismissed)
+            .environment(\.nativeLaunchIsVisible, !launchHasDismissed)
+            .onPreferenceChange(NativeStartupReadyKey.self) { startupReady = $0 }
+            if showingLaunch {
+                NativeLaunchView().transition(.opacity).zIndex(1)
+            }
+        }
+        .task {
+            guard showingLaunch else { return }
+            do {
+                try await Task.sleep(for: .seconds(3))
+                // The destination stays mounted and fetching throughout the animation.
+                // Reserve 450ms of the five-second budget for the final crossfade.
+                // Slow requests continue after the launch overlay dismisses.
+                for _ in 0..<15 {
+                    if sessionStore.session == nil || startupReady { break }
+                    try await Task.sleep(for: .milliseconds(100))
+                }
+                guard !Task.isCancelled else { return }
+                withAnimation(.easeOut(duration: reduceMotion ? 0.15 : 0.45)) {
+                    showingLaunch = false
+                } completion: {
+                    launchHasDismissed = true
+                }
+            } catch { /* Cancelled with the root view. */ }
         }
         .font(.system(size: 13, weight: .regular))
         .fontDesign(.rounded)
@@ -21,6 +54,83 @@ struct NativeRootView: View {
         .tint(CPTheme.primary(CPPalette(rawValue: palette) ?? .forest, scheme: colorScheme == "dark" ? .dark : colorScheme == "light" ? .light : UITraitCollection.current.userInterfaceStyle == .dark ? .dark : .light))
         .preferredColorScheme(colorScheme == "dark" ? .dark : colorScheme == "light" ? .light : nil)
         .background(CPTheme.background(colorScheme == "dark" ? .dark : colorScheme == "light" ? .light : UITraitCollection.current.userInterfaceStyle == .dark ? .dark : .light).ignoresSafeArea())
+    }
+}
+
+private struct NativeStartupReadyKey: PreferenceKey {
+    static var defaultValue: Bool { false }
+    static func reduce(value: inout Bool, nextValue: () -> Bool) { value = value || nextValue() }
+}
+
+private struct NativeLaunchVisibilityKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+private extension EnvironmentValues {
+    var nativeLaunchIsVisible: Bool {
+        get { self[NativeLaunchVisibilityKey.self] }
+        set { self[NativeLaunchVisibilityKey.self] = newValue }
+    }
+}
+
+/// Apple's static launch screen shares this background; SwiftUI owns the animated phase.
+private struct NativeLaunchView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var appeared = false
+    @State private var swept = false
+    private let heights: [CGFloat] = [44, 96, 70]
+
+    var body: some View {
+        ZStack {
+            Color(red: 0, green: 0.184, blue: 0.125).ignoresSafeArea()
+            Circle()
+                .fill(RadialGradient(colors: [Color.mint.opacity(0.16), .clear], startRadius: 0, endRadius: 140))
+                .frame(width: 280, height: 280)
+                .scaleEffect(reduceMotion ? 1 : appeared ? 1 : 0.7)
+                .opacity(appeared ? 1 : 0)
+                .animation(reduceMotion ? nil : .easeOut(duration: 1.8), value: appeared)
+            VStack(spacing: 26) {
+                HStack(alignment: .bottom, spacing: 13) {
+                    ForEach(0..<3, id: \.self) { index in
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(.white)
+                            .frame(width: 26, height: heights[index])
+                            .scaleEffect(x: 1, y: reduceMotion || appeared ? 1 : 0.25, anchor: .bottom)
+                            .offset(y: reduceMotion || appeared ? 0 : 16)
+                            .opacity(reduceMotion || appeared ? 1 : 0)
+                            .animation(reduceMotion ? nil : .spring(duration: 0.85, bounce: 0.12).delay(Double(index) * 0.13), value: appeared)
+                    }
+                }
+                .rotationEffect(.degrees(-16))
+                .frame(width: 140, height: 112)
+                .overlay {
+                    if !reduceMotion {
+                        LinearGradient(colors: [.clear, .white.opacity(0.5), .clear], startPoint: .leading, endPoint: .trailing)
+                            .frame(width: 35, height: 140)
+                            .rotationEffect(.degrees(18))
+                            .offset(x: swept ? 125 : -125)
+                            .blendMode(.softLight)
+                            .animation(.easeInOut(duration: 1.5).delay(0.8), value: swept)
+                    }
+                }
+                .clipped()
+                Text("CanvasPro")
+                    .font(.system(size: 28, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white)
+                    .opacity(reduceMotion || appeared ? 1 : 0)
+                    .animation(reduceMotion ? nil : .easeOut(duration: 0.6).delay(0.35), value: appeared)
+            }
+        }
+        .overlay(alignment: .bottom) {
+            ProgressView()
+                .tint(.white.opacity(0.7))
+                .controlSize(.small)
+                .padding(.bottom, 52)
+                .accessibilityHidden(true)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("CanvasPro. Loading.")
+        .task { appeared = true; swept = true }
     }
 }
 
@@ -129,10 +239,12 @@ private enum NativeTab: Hashable { case dashboard, focus, study, grades, more }
 
 struct NativeMainTabView: View {
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.nativeLaunchIsVisible) private var launchIsVisible
     @ObservedObject var sessionStore: NativeSessionStore
     @StateObject private var contentStore: NativeContentStore
     @StateObject private var featureStore: NativeFeatureStore
     @State private var selection: NativeTab = .dashboard
+    @State private var initialLoadFinished = false
 
     init(sessionStore: NativeSessionStore) {
         self.sessionStore = sessionStore
@@ -143,6 +255,7 @@ struct NativeMainTabView: View {
     var body: some View {
         nativeTabs
             .task { await refreshAccountData() }
+            .preference(key: NativeStartupReadyKey.self, value: initialLoadFinished)
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active {
                     Task { await refreshAccountData() }
@@ -164,7 +277,7 @@ struct NativeMainTabView: View {
                 else if path.contains("notification") || path.contains("settings") || path.contains("schedule") || path.contains("announcement") { selection = .more }
                 else { selection = .dashboard }
             }
-            .alert("CanvasPro", isPresented: Binding(get: { contentStore.errorMessage != nil || featureStore.errorMessage != nil }, set: { if !$0 { contentStore.errorMessage = nil; featureStore.errorMessage = nil } })) {
+            .alert("CanvasPro", isPresented: Binding(get: { !launchIsVisible && (contentStore.errorMessage != nil || featureStore.errorMessage != nil) }, set: { if !$0 && !launchIsVisible { contentStore.errorMessage = nil; featureStore.errorMessage = nil } })) {
                 Button("OK", role: .cancel) {}
             } message: { Text(contentStore.errorMessage ?? featureStore.errorMessage ?? "") }
     }
@@ -182,6 +295,7 @@ struct NativeMainTabView: View {
         async let content: Void = contentStore.load()
         async let features: Void = featureStore.load()
         _ = await (content, features)
+        if !contentStore.isLoading && !featureStore.isLoading { initialLoadFinished = true }
         let settings = await UNUserNotificationCenter.current().notificationSettings()
         if featureStore.notificationPreferences.enabled && featureStore.notificationPreferences.browserPush &&
             (settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional) {

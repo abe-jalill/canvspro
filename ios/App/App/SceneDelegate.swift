@@ -8,7 +8,10 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         guard let windowScene = scene as? UIWindowScene else { return }
 
         window = UIWindow(windowScene: windowScene)
-        window?.rootViewController = UIHostingController(rootView: NativeRootView())
+        let host = UIHostingController(rootView: NativeRootView())
+        host.view.backgroundColor = UIColor(named: "LaunchBackground")
+        window?.backgroundColor = UIColor(named: "LaunchBackground")
+        window?.rootViewController = host
         window?.makeKeyAndVisible()
     }
 
