@@ -31,6 +31,11 @@ enum CPPalette: String, CaseIterable, Identifiable {
 }
 
 enum CPTheme {
+    static func gradeColor(_ score: Double?) -> Color {
+        guard let score, score.isFinite else { return .hsl(215, 0.15, 0.60) }
+        let hue = (((min(93, max(63, score)) - 63) / 30) * 142).rounded()
+        return .hsl(hue, 0.42, 0.58)
+    }
     static var currentPalette: CPPalette { CPPalette(rawValue: UserDefaults.standard.string(forKey: "CanvasProPalette") ?? "forest") ?? .forest }
     static var accent: Color { primary(currentPalette, scheme: currentScheme) }
     static let warning = Color.hsl(43, 0.92, 0.55)

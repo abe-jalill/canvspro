@@ -15,9 +15,13 @@ test("native tabs remain a compact projection of website navigation", () => {
   }
   assert.equal((tabs.match(/\.tabItem\s*\{/g) ?? []).length, 5);
   assert.ok(!tabs.includes('Label("Profile"'), "Profile is not a bottom tab");
-  for (const title of ["Assignments", "Get It Done", "Calendar", "Class Schedule", "Announcements", "Notifications", "Settings"]) {
+  for (const title of ["Assignments", "Calendar", "Announcements", "Notifications", "Settings"]) {
     assert.ok(more.includes(`link("${title}"`), `${title} is reachable through More`);
   }
+  assert.ok(!more.includes('link("Get It Done"'), "Get It Done belongs inside Study");
+  assert.ok(!more.includes('link("Class Schedule"'), "My classes belongs inside Calendar");
+  assert.ok(tabs.includes('options: ["Get It Done", "Study Session"]'));
+  assert.ok(more.includes('options: ["Calendar", "My classes"]'));
 });
 
 test("website settings sections and profile fields stay reachable in native Settings", () => {

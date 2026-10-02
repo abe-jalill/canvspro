@@ -590,22 +590,30 @@ enum NativeParity {
         return 30
     }
 
-    static func priority(_ item: AssignmentItem, courseTotalPoints: Double, estimate: Int?, now: Date = Date()) -> Double {
-        let hours = item.dueDate.map { $0.timeIntervalSince(now) / 3600 }
-        let timeScore: Double
-        if let hours {
-            if hours < 0 { timeScore = 100 + min(abs(hours) / 24, 5) * 2 }
-            else if hours <= 24 { timeScore = 80 + (24 - hours) / 24 * 20 }
-            else if hours <= 72 { timeScore = 50 + (72 - hours) / 48 * 30 }
-            else if hours <= 168 { timeScore = 20 + (168 - hours) / 96 * 30 }
-            else { timeScore = max(0, 20 - (hours - 168) / 24) }
-        } else { timeScore = 5 }
-        let points = item.pointsPossible ?? 0
-        let relativeWeight = courseTotalPoints > 0 ? points / courseTotalPoints * 100 : 0
-        let weightScore = points > 0 ? min(points / 200, 1) * 15 : 0
-        let estimateScore = estimate.map { $0 > 0 ? min(Double($0) / 120, 1) * 8 : 0 } ?? 0
-        return timeScore + weightScore + relativeWeight * 0.5 + estimateScore
+    static func rankedAssignments(_ items: [AssignmentItem], estimates: [Int: Int], now: Date = Date()) -> [AssignmentItem] {
+        let dueSoon = Dictionary(grouping: items.filter {
+            guard let due = $0.dueDate else { return false }
+            return due >= now && due <= now.addingTimeInterval(3 * 86400)
+        }, by: \.courseID).mapValues(\.count)
+        return items.sorted { left, right in
+            let a = getItDoneScore(left, estimate: estimates[left.id], dueSoonCount: dueSoon[left.courseID] ?? 0, now: now)
+            let b = getItDoneScore(right, estimate: estimates[right.id], dueSoonCount: dueSoon[right.courseID] ?? 0, now: now)
+            return a == b ? AssignmentItem.dueSort(left, right) : a > b
+        }
     }
+
+    static func priorityLabel(_ item: AssignmentItem, now: Date = Date()) -> String {
+        guard let due = item.dueDate else { return "Later" }
+        let hours = due.timeIntervalSince(now) / 3600
+        return hours <= 24 ? "Do first" : hours <= 72 ? "Soon" : hours <= 168 ? "This week" : "Later"
+    }
+
+    static func courseLetter(_ supplied: String?, score: Double?) -> String {
+        if let supplied, !supplied.isEmpty { return supplied }
+        guard let score, score.isFinite else { return "—" }
+        return score >= 93 ? "A" : score >= 90 ? "A-" : score >= 87 ? "B+" : score >= 83 ? "B" : score >= 80 ? "B-" : score >= 77 ? "C+" : score >= 73 ? "C" : score >= 70 ? "C-" : score >= 67 ? "D+" : score >= 63 ? "D" : score >= 60 ? "D-" : "F"
+    }
+
 
     static func getItDoneScore(_ item: AssignmentItem, estimate: Int?, dueSoonCount: Int, now: Date = Date()) -> Double {
         let hours = item.dueDate.map { $0.timeIntervalSince(now) / 3600 }
