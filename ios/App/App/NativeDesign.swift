@@ -37,16 +37,8 @@ enum CPTheme {
         return .hsl(hue, 0.42, 0.58)
     }
     static var currentPalette: CPPalette { CPPalette(rawValue: UserDefaults.standard.string(forKey: "CanvasProPalette") ?? "forest") ?? .forest }
-    static var accent: Color { primary(currentPalette, scheme: currentScheme) }
     static let warning = Color.hsl(43, 0.92, 0.55)
     static let danger = Color.hsl(0, 0.70, 0.60)
-
-    private static var currentScheme: ColorScheme {
-        let mode = UserDefaults.standard.string(forKey: "CanvasProColorScheme") ?? "dark"
-        if mode == "light" { return .light }
-        if mode == "dark" { return .dark }
-        return UITraitCollection.current.userInterfaceStyle == .dark ? .dark : .light
-    }
 
     static func background(_ scheme: ColorScheme, palette: CPPalette = currentPalette) -> Color {
         scheme == .dark ? .hsl(palette.hue, 0.38, 0.065) : .hsl(palette.hue, 0.15, 0.98)
@@ -214,7 +206,7 @@ struct CPSkeletonCard: View {
 struct CPPageHeader: View {
     @Environment(\.colorScheme) private var scheme
     let eyebrow: String; let title: String; let detail: String?
-    var body: some View { VStack(alignment: .leading, spacing: 6) { Text(eyebrow.uppercased()).font(.system(size: 10, weight: .regular)).tracking(1.6).foregroundStyle(CPTheme.muted(scheme)); Text(title).font(.system(size: 28, weight: .regular)).tracking(-0.8).foregroundStyle(CPTheme.foreground(scheme)).fixedSize(horizontal: false, vertical: true); if let detail { Text(detail).font(.system(size: 12, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)).lineSpacing(2).fixedSize(horizontal: false, vertical: true) } }.frame(maxWidth: .infinity, alignment: .leading) }
+    var body: some View { VStack(alignment: .leading, spacing: 6) { Text(eyebrow.uppercased()).cpFont(10, .regular).tracking(1.6).foregroundStyle(CPTheme.muted(scheme)); Text(title).cpFont(28, .regular).tracking(-0.8).foregroundStyle(CPTheme.foreground(scheme)).fixedSize(horizontal: false, vertical: true); if let detail { Text(detail).cpFont(12, .regular).foregroundStyle(CPTheme.muted(scheme)).lineSpacing(2).fixedSize(horizontal: false, vertical: true) } }.frame(maxWidth: .infinity, alignment: .leading) }
 }
 
 struct CPChip: View {
@@ -241,7 +233,7 @@ struct CPIconBadge: View {
     let symbol: String
     var body: some View {
         Image(systemName: symbol)
-            .font(.system(size: 15, weight: .regular))
+            .cpFont(15, .regular)
             .foregroundStyle(CPTheme.primary(scheme: scheme))
             .frame(width: 34, height: 34)
             .background(CPTheme.primary(scheme: scheme).opacity(0.10), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
@@ -273,8 +265,43 @@ private struct CPStateChange<Value: Equatable>: ViewModifier {
     }
 }
 
+/// System text at the design's point size, scaled with the reader's Text Size
+/// setting. Nothing renders below 11 pt, Apple's smallest legible size.
+private struct CPScaledFont: ViewModifier {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    let size: CGFloat
+    let weight: Font.Weight?
+    let design: Font.Design?
+
+    func body(content: Content) -> some View {
+        let base = max(11, size)
+        let style: UIFont.TextStyle = base >= 28 ? .largeTitle : base >= 20 ? .title2 : base >= 16 ? .headline : base >= 13 ? .body : .footnote
+        let traits = UITraitCollection(preferredContentSizeCategory: UIContentSizeCategory(dynamicTypeSize))
+        let scaled = UIFontMetrics(forTextStyle: style).scaledValue(for: base, compatibleWith: traits)
+        return content.font(.system(size: scaled, weight: weight, design: design))
+    }
+}
+
+/// Tints and backs the app with the palette, following the color scheme that is
+/// actually showing, including the iPhone's own light/dark switch in System mode.
+struct CPThemeModifier: ViewModifier {
+    @Environment(\.colorScheme) private var scheme
+    let palette: CPPalette
+
+    func body(content: Content) -> some View {
+        content
+            .tint(CPTheme.primary(palette, scheme: scheme))
+            .background(CPTheme.background(scheme, palette: palette).ignoresSafeArea())
+    }
+}
+
 extension View {
     func cpListScreen() -> some View { modifier(CPListScreenModifier()) }
+
+    /// Use instead of a fixed `.font(.system(size:))` so text follows Dynamic Type.
+    func cpFont(_ size: CGFloat, _ weight: Font.Weight? = nil, design: Font.Design? = nil) -> some View {
+        modifier(CPScaledFont(size: size, weight: weight, design: design))
+    }
 
     // Keep NavigationStack's interactive push/pop and TabView's native selection.
     // A stable surface stays behind content during page and sheet transitions.

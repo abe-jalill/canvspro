@@ -29,6 +29,6 @@ test("both authentication forms check agreement before authenticating", () => {
 });
 
 test("account deletion explicitly includes account-linked usage history", () => {
-  const source = readFileSync(new URL("../src/lib/account.functions.ts", import.meta.url), "utf8");
+  const source = readFileSync(new URL("../src/lib/account-deletion.server.ts", import.meta.url), "utf8");
   assert.match(source, /"user_activity_daily"/);
 });

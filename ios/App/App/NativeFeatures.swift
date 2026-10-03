@@ -251,7 +251,7 @@ extension NativeAPI {
             .init(name: "select", value: "key,value"), .init(name: "user_id", value: "eq.\(userID)"),
         ])
         let rows = try decoder.decode([UserPreferenceRow].self, from: await data(request))
-        return Dictionary(uniqueKeysWithValues: rows.map { ($0.key, $0.value) })
+        return Dictionary(rows.map { ($0.key, $0.value) }, uniquingKeysWith: { first, _ in first })
     }
 
     func savePreference(key: String, value: JSONValue, token: String, userID: String) async throws {
@@ -397,7 +397,7 @@ final class NativeFeatureStore: ObservableObject {
             }
             if let value = try? await detailsRow { accountDetails = value }
             if let value = try? await scheduleRows { schedule = value }
-            if let metas = try? await metaRows { estimates = Dictionary(uniqueKeysWithValues: metas.map { ($0.assignmentID, $0.estimatedMinutes ?? 0) }) }
+            if let metas = try? await metaRows { estimates = Dictionary(metas.map { ($0.assignmentID, $0.estimatedMinutes ?? 0) }, uniquingKeysWith: { first, _ in first }) }
             if let value = try? await alertRows { alerts = value }
             if let value = try? await notificationRow { notificationPreferences = NotificationPreferences(value) }
         } catch { errorMessage = error.localizedDescription }
@@ -502,7 +502,12 @@ final class NativeFeatureStore: ObservableObject {
         return Int(value)
     }
 
-    private let dashboardWidgets = ["digest", "focus", "classes", "upcoming", "calendar", "announcements", "heatmap"]
+    /// Widgets this app draws, in the website's default order.
+    static let defaultDashboardOrder = ["digest", "classes", "upcoming", "focus", "calendar", "announcements", "heatmap"]
+    private var dashboardWidgets: [String] { Self.defaultDashboardOrder }
+    /// The website's full default order. It also has a GPA widget, which this app
+    /// doesn't draw but whose saved position it keeps.
+    private let websiteDashboardOrder = ["digest", "classes", "upcoming", "focus", "calendar", "announcements", "gpa", "heatmap"]
     private var dashboardObject: [String: JSONValue] {
         if case .some(.object(let value)) = preferences["dashboard-layout"] { return value }
         return [:]
@@ -522,18 +527,18 @@ final class NativeFeatureStore: ObservableObject {
     }
     func updateDashboard(order: [String]? = nil, hidden: Set<String>? = nil) async throws {
         var layout = dashboardObject
-        let currentOrder = dashboardOrder
-        let savedOrder: [JSONValue]
+        var full: [String] = []
         if case .some(.array(let values)) = layout["order"] {
-            savedOrder = values
-        } else {
-            savedOrder = []
+            full = values.compactMap { if case .string(let value) = $0 { return value }; return nil }
         }
-        let websiteOnly: [String] = savedOrder.compactMap { value -> String? in
-            guard case .string(let widget) = value, !dashboardWidgets.contains(widget) else { return nil }
-            return widget
-        }
-        layout["order"] = .array(((order ?? currentOrder) + websiteOnly).map(JSONValue.string))
+        if full.isEmpty { full = websiteDashboardOrder }
+        for widget in websiteDashboardOrder where !full.contains(widget) { full.append(widget) }
+        // Put this app's widgets, in their new order, into the slots they already
+        // hold, so website-only widgets such as GPA keep their place.
+        var queue = ArraySlice(order ?? dashboardOrder)
+        full = full.map { widget in dashboardWidgets.contains(widget) ? (queue.popFirst() ?? widget) : widget }
+        for widget in queue where !full.contains(widget) { full.append(widget) }
+        layout["order"] = .array(full.map(JSONValue.string))
         layout["hidden"] = .array((hidden ?? dashboardHidden).sorted().map(JSONValue.string))
         if layout["sizes"] == nil { layout["sizes"] = .object([:]) }
         try await savePreference("dashboard-layout", JSONValue.object(layout))
@@ -547,7 +552,22 @@ final class NativeFeatureStore: ObservableObject {
 
     var hiddenCourseIDs: Set<Int> {
         guard case .some(.array(let values)) = preferences["hidden_course_ids"] else { return [] }
-        return Set(values.compactMap { if case .number(let id) = $0 { return Int(id) }; return nil })
+        return Set(values.compactMap { value -> Int? in
+            switch value {
+            case .number(let id): return id.isFinite ? Int(id) : nil
+            case .string(let id): return Int(id)
+            default: return nil
+            }
+        })
+    }
+
+    /// Canvas and custom assignments for every class the student hasn't hidden.
+    /// Every screen lists work through this, so hiding a class hides it everywhere.
+    func shownAssignments(in store: NativeContentStore) -> [AssignmentItem] {
+        let hidden = hiddenCourseIDs
+        let courses = Dictionary(store.bundle.courses.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let custom = customAssignments.map { AssignmentItem.custom($0, course: courses[$0.courseID]) }
+        return (store.bundle.assignments + custom).filter { !hidden.contains($0.courseID) }
     }
 }
 
@@ -599,6 +619,21 @@ enum NativeParity {
         guard let days = Int(window) else { return false }
         let end = days == 7 ? endOfUpcomingDay(7, from: now) : now.addingTimeInterval(Double(days) * 86400)
         return due >= now && due <= end
+    }
+
+    /// The student's saved estimate, or the default for the assignment's size.
+    /// A cleared estimate is stored as 0 and falls back to the default.
+    static func estimate(_ item: AssignmentItem, estimates: [Int: Int]) -> Int {
+        if let saved = estimates[item.id], saved > 0 { return saved }
+        return defaultEstimate(item)
+    }
+
+    /// Planned work goes on the calendar at noon on the due day (today when there
+    /// is no due date), the same as on the website.
+    static func plannedTime(for dueAt: String?, now: Date = Date()) -> String {
+        let day = dueAt.flatMap { ISO8601DateFormatter.canvasDate(from: $0) } ?? now
+        let noon = Calendar.current.date(bySettingHour: 12, minute: 0, second: 0, of: day) ?? day
+        return ISO8601DateFormatter().string(from: noon)
     }
 
     static func defaultEstimate(_ item: AssignmentItem) -> Int {

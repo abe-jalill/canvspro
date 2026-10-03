@@ -23,7 +23,7 @@ test("session storage preserves existing credentials and confines volatile fallb
 });
 
 test("successful login still authenticates remotely and saves before publishing the session", () => {
-  const signIn = core.slice(core.indexOf("    func signIn(email", core.indexOf("final class NativeSessionStore")), core.indexOf("    func signUp(email", core.indexOf("final class NativeSessionStore")));
+  const signIn = core.slice(core.indexOf("    func signIn(identifier", core.indexOf("final class NativeSessionStore")), core.indexOf("    func signUp(email", core.indexOf("final class NativeSessionStore")));
   const request = signIn.indexOf("try await api.signIn");
   const save = signIn.indexOf("try SecureSessionStore.save");
   const publish = signIn.indexOf("session = newSession");
@@ -57,5 +57,8 @@ test("reset failures are visible and duplicate reset requests are disabled", () 
   assert.match(reset, /!sessionStore.isWorking/);
   assert.match(reset, /guard canSend else/);
   const workflow = read("codemagic.yaml");
-  assert.equal((workflow.match(/python3 scripts\/test-native-session-store.py/g) ?? []).length, 2);
+  // Every Codemagic workflow runs the session-store failure checks.
+  const workflowCount = (workflow.match(/^ {2}[a-z-]+:\s*$/gm) ?? []).length;
+  assert.ok(workflowCount >= 3);
+  assert.equal((workflow.match(/python3 scripts\/test-native-session-store.py/g) ?? []).length, workflowCount);
 });

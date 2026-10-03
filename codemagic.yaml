@@ -54,3 +54,49 @@ workflows:
             SUPABASE_URL="$BACKEND_URL" \
             SUPABASE_PUBLISHABLE_KEY="$BACKEND_KEY" \
             CODE_SIGNING_ALLOWED=NO
+
+  ios-testflight:
+    # Signed App Store build uploaded to TestFlight. One-time setup in Codemagic:
+    # 1. Teams > Integrations > App Store Connect: add an API key named
+    #    "CanvasPro App Store Connect".
+    # 2. Code signing identities: let Codemagic fetch (or upload) an App Store
+    #    distribution certificate and profile for app.canvaspro.mobile.
+    # 3. Environment variables: add APP_STORE_APPLE_ID (the app's numeric Apple ID
+    #    from App Store Connect > App Information) to the "canvaspro_app_store" group.
+    name: CanvasPro iOS TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 90
+    integrations:
+      app_store_connect: CanvasPro App Store Connect
+    environment:
+      xcode: latest
+      groups:
+        - canvaspro_app_store
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: app.canvaspro.mobile
+    scripts:
+      - name: Check native session storage failure paths
+        script: python3 scripts/test-native-session-store.py
+      - name: Use signing profiles
+        script: xcode-project use-profiles
+      - name: Build signed IPA
+        script: |
+          . ios/backend-public.env
+          BACKEND_URL="${SUPABASE_URL:-${VITE_SUPABASE_URL:-${CANVASPRO_DEFAULT_SUPABASE_URL:-}}}"
+          BACKEND_KEY="${SUPABASE_PUBLISHABLE_KEY:-${VITE_SUPABASE_PUBLISHABLE_KEY:-${CANVASPRO_DEFAULT_SUPABASE_PUBLISHABLE_KEY:-}}}"
+          test -n "$BACKEND_URL" || { echo "Set SUPABASE_URL in Codemagic or ios/backend-public.env"; exit 1; }
+          test -n "$BACKEND_KEY" || { echo "Set SUPABASE_PUBLISHABLE_KEY in Codemagic or ios/backend-public.env"; exit 1; }
+          LATEST=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" || echo 0)
+          BUILD_NUMBER=$((LATEST + 1))
+          xcode-project build-ipa \
+            --project ios/App/App.xcodeproj \
+            --scheme App \
+            --archive-xcargs "SUPABASE_URL=$BACKEND_URL SUPABASE_PUBLISHABLE_KEY=$BACKEND_KEY CURRENT_PROJECT_VERSION=$BUILD_NUMBER"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true

@@ -6,19 +6,82 @@ import Combine
 enum NativeAppError: LocalizedError {
     case configuration(String)
     case server(String)
+    /// A response the server rejected. `code` is the raw value it sent, kept for
+    /// decisions; `message` is what a student should read.
+    case http(status: Int, code: String, message: String)
     case signedOut
 
     var errorDescription: String? {
         switch self {
         case .configuration(let message), .server(let message): return message
+        case .http(_, _, let message): return message
         case .signedOut: return "Please sign in again."
         }
+    }
+
+    /// The account has no Canvas URL or token saved yet.
+    var isCanvasNotConnected: Bool {
+        guard case .http(let status, let code, _) = self else { return false }
+        return status == 428 || code == "NO_CANVAS_KEY" || code == "NO_CANVAS_DOMAIN"
+    }
+
+    /// The saved sign-in can no longer be renewed, so the student must sign in again.
+    var isExpiredSignIn: Bool {
+        guard case .http(let status, let code, _) = self else { return false }
+        if status == 401 { return true }
+        guard status == 400 || status == 403 else { return false }
+        let value = code.lowercased()
+        return value.contains("refresh") || value.contains("invalid_grant") || value.contains("session")
+    }
+}
+
+/// Turns server error codes into sentences a student can act on.
+enum NativeErrorText {
+    static func friendly(code: String, status: Int) -> String {
+        let raw = code.trimmingCharacters(in: .whitespacesAndNewlines)
+        switch raw {
+        case "NO_CANVAS_KEY", "NO_CANVAS_DOMAIN":
+            return "Connect your Canvas account to see your classes."
+        case "INVALID_DOMAIN":
+            return "That doesn’t look like a Canvas address. Enter it like yourschool.instructure.com."
+        case "CANVAS_DOMAIN_NOT_ALLOWED":
+            return "CanvasPro can’t connect to that Canvas address yet. Check it, or email support@canvaspro.app to add your school."
+        case "NOT_AUTHENTICATED":
+            return "Please sign in again."
+        default:
+            break
+        }
+        let lower = raw.lowercased()
+        if raw.hasPrefix("Canvas API 401") || raw.hasPrefix("Canvas API 403") {
+            return "Canvas didn’t accept that access token. Create a new token in Canvas and try again."
+        }
+        if raw.hasPrefix("Canvas API 404") {
+            return "Canvas couldn’t find that address. Check your Canvas URL."
+        }
+        if raw.hasPrefix("Canvas API") {
+            return "Canvas had a problem responding. Please try again in a moment."
+        }
+        if lower.contains("invalid login credentials") || lower == "invalid_credentials" || lower.contains("invalid username or password") {
+            return "That email, username, or password isn’t right."
+        }
+        if lower.contains("email not confirmed") {
+            return "Confirm your email first. Check your inbox for the link we sent."
+        }
+        if lower.contains("user already registered") {
+            return "An account with that email already exists. Sign in instead."
+        }
+        if status >= 500 || raw.isEmpty {
+            return "CanvasPro had a problem. Please try again in a moment."
+        }
+        return raw
     }
 }
 
 struct NativeConfiguration {
     let supabaseURL: URL
     let publishableKey: String
+    /// The website hosts the endpoints that need server-side secrets.
+    static let websiteURL = URL(string: "https://canvaspro.app")!
 
     static func load() throws -> NativeConfiguration {
         let info = Bundle.main.infoDictionary ?? [:]
@@ -236,6 +299,101 @@ struct CanvasBundle: Codable {
     let announcements: [AnnouncementItem]
     let calendar: [CalendarEventItem]
     let errors: [String: String]?
+
+    enum CodingKeys: String, CodingKey { case courses, assignments, announcements, calendar, errors }
+}
+
+/// Decodes a list one element at a time, skipping any element that can't be read,
+/// so one unusual Canvas record never blanks the whole app.
+private struct LossyList<Element: Decodable>: Decodable {
+    let values: [Element]
+
+    init(from decoder: Decoder) throws {
+        var container = try decoder.unkeyedContainer()
+        var values: [Element] = []
+        while !container.isAtEnd {
+            if let value = try? container.decode(Element.self) {
+                values.append(value)
+            } else if (try? container.decode(JSONValue.self)) == nil {
+                // Nothing could consume this element, so stop rather than loop.
+                break
+            }
+        }
+        self.values = values
+    }
+}
+
+private func uniqueByID<Item: Identifiable>(_ items: [Item]) -> [Item] {
+    var seen = Set<Item.ID>()
+    return items.filter { seen.insert($0.id).inserted }
+}
+
+extension CanvasBundle {
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        func list<Element: Decodable>(_ key: CodingKeys, _ type: Element.Type) -> [Element] {
+            (try? container.decodeIfPresent(LossyList<Element>.self, forKey: key))?.values ?? []
+        }
+        self.init(
+            courses: uniqueByID(list(.courses, CourseSummary.self)),
+            assignments: uniqueByID(list(.assignments, AssignmentItem.self)),
+            announcements: uniqueByID(list(.announcements, AnnouncementItem.self)),
+            calendar: uniqueByID(list(.calendar, CalendarEventItem.self)),
+            errors: (try? container.decodeIfPresent([String: String].self, forKey: .errors))
+        )
+    }
+}
+
+extension CourseSummary {
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            id: try c.decode(Int.self, forKey: .id),
+            name: (try? c.decodeIfPresent(String.self, forKey: .name)) ?? "Course",
+            courseCode: (try? c.decodeIfPresent(String.self, forKey: .courseCode)) ?? "",
+            currentScore: (try? c.decodeIfPresent(Double.self, forKey: .currentScore)),
+            currentGrade: (try? c.decodeIfPresent(String.self, forKey: .currentGrade)),
+            finalScore: (try? c.decodeIfPresent(Double.self, forKey: .finalScore)),
+            syllabusBody: (try? c.decodeIfPresent(String.self, forKey: .syllabusBody))
+        )
+    }
+}
+
+extension AssignmentItem {
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            id: try c.decode(Int.self, forKey: .id),
+            name: (try? c.decodeIfPresent(String.self, forKey: .name)) ?? "Untitled assignment",
+            description: (try? c.decodeIfPresent(String.self, forKey: .description)),
+            dueAt: (try? c.decodeIfPresent(String.self, forKey: .dueAt)),
+            htmlURL: (try? c.decodeIfPresent(String.self, forKey: .htmlURL)) ?? "",
+            pointsPossible: (try? c.decodeIfPresent(Double.self, forKey: .pointsPossible)),
+            courseID: try c.decode(Int.self, forKey: .courseID),
+            courseName: (try? c.decodeIfPresent(String.self, forKey: .courseName)) ?? "",
+            courseCode: (try? c.decodeIfPresent(String.self, forKey: .courseCode)) ?? "",
+            submission: (try? c.decodeIfPresent(AssignmentSubmission.self, forKey: .submission))
+        )
+    }
+}
+
+extension AnnouncementItem {
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let contextCode = (try? c.decodeIfPresent(String.self, forKey: .contextCode)) ?? ""
+        let fallbackCourseID = Int(contextCode.replacingOccurrences(of: "course_", with: "")) ?? 0
+        self.init(
+            id: try c.decode(Int.self, forKey: .id),
+            title: (try? c.decodeIfPresent(String.self, forKey: .title)) ?? "Announcement",
+            message: (try? c.decodeIfPresent(String.self, forKey: .message)) ?? "",
+            postedAt: (try? c.decodeIfPresent(String.self, forKey: .postedAt)) ?? "",
+            htmlURL: (try? c.decodeIfPresent(String.self, forKey: .htmlURL)) ?? "",
+            contextCode: contextCode,
+            courseID: (try? c.decodeIfPresent(Int.self, forKey: .courseID)) ?? fallbackCourseID,
+            courseName: (try? c.decodeIfPresent(String.self, forKey: .courseName)) ?? "",
+            courseCode: (try? c.decodeIfPresent(String.self, forKey: .courseCode)) ?? ""
+        )
+    }
 }
 
 private struct NativeContentCache: Codable {
@@ -339,12 +497,21 @@ final class NativeAPI {
         decoder = JSONDecoder()
     }
 
-    func signIn(email: String, password: String) async throws -> NativeSession {
-        var request = try request(path: "/auth/v1/token", query: [URLQueryItem(name: "grant_type", value: "password")])
-        request.httpMethod = "POST"
-        request.httpBody = try JSONSerialization.data(withJSONObject: ["email": email, "password": password])
-        let json = try await json(request)
-        return try session(from: json)
+    /// Signs in with an email address, or with a username like the website does.
+    /// A username is resolved on the server so the account's email is never exposed.
+    func signIn(identifier: String, password: String) async throws -> NativeSession {
+        if identifier.contains("@") {
+            var request = try request(path: "/auth/v1/token", query: [URLQueryItem(name: "grant_type", value: "password")])
+            request.httpMethod = "POST"
+            request.httpBody = try JSONSerialization.data(withJSONObject: ["email": identifier, "password": password])
+            return try session(from: try await json(request))
+        }
+        var usernameRequest = URLRequest(url: NativeConfiguration.websiteURL.appendingPathComponent("api/mobile/sign-in"))
+        usernameRequest.httpMethod = "POST"
+        usernameRequest.timeoutInterval = 20
+        usernameRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        usernameRequest.httpBody = try JSONSerialization.data(withJSONObject: ["username": identifier.lowercased(), "password": password])
+        return try session(from: try await json(usernameRequest))
     }
 
     func signUp(email: String, password: String, metadata: [String: Any]) async throws {
@@ -367,11 +534,27 @@ final class NativeAPI {
         _ = try await data(request)
     }
 
+    /// Uses the website's account deletion, so the app and the website remove
+    /// exactly the same data.
     func deleteAccount(token: String) async throws {
-        var request = try request(path: "/functions/v1/delete-account", token: token)
-        request.httpMethod = "POST"
-        request.httpBody = try JSONSerialization.data(withJSONObject: ["confirm": "DELETE"])
-        _ = try await data(request)
+        var deleteRequest = URLRequest(url: NativeConfiguration.websiteURL.appendingPathComponent("api/mobile/delete-account"))
+        deleteRequest.httpMethod = "POST"
+        deleteRequest.timeoutInterval = 30
+        deleteRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        deleteRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        deleteRequest.httpBody = try JSONSerialization.data(withJSONObject: ["confirm": "DELETE"])
+        _ = try await data(deleteRequest)
+    }
+
+    /// The school address saved for this account (the token itself is never readable).
+    func canvasDomain(token: String, userID: String) async throws -> String? {
+        let rows = try await restRows(path: "/rest/v1/user_settings", token: token, query: [
+            .init(name: "select", value: "canvas_domain"),
+            .init(name: "user_id", value: "eq.\(userID)"),
+            .init(name: "limit", value: "1"),
+        ])
+        let value = (rows.first?["canvas_domain"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return value?.isEmpty == false ? value : nil
     }
 
     func refresh(_ refreshToken: String) async throws -> NativeSession {
@@ -543,10 +726,18 @@ final class NativeAPI {
             default: throw error
             }
         }
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+        guard let http = response as? HTTPURLResponse else {
+            throw NativeAppError.server("CanvasPro sent an unexpected response. Please try again.")
+        }
+        guard (200..<300).contains(http.statusCode) else {
             let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-            let message = object?["msg"] as? String ?? object?["error_description"] as? String ?? object?["message"] as? String ?? object?["error"] as? String ?? "The server rejected this request."
-            throw NativeAppError.server(message)
+            let text = object?["msg"] as? String ?? object?["error_description"] as? String ?? object?["message"] as? String ?? object?["error"] as? String ?? ""
+            let code = object?["error_code"] as? String ?? (object?["code"] as? String) ?? text
+            throw NativeAppError.http(
+                status: http.statusCode,
+                code: code,
+                message: NativeErrorText.friendly(code: text.isEmpty ? code : text, status: http.statusCode)
+            )
         }
         return data
     }
@@ -575,8 +766,15 @@ final class NativeSessionStore: ObservableObject {
     let configurationError: String?
     private var refreshTask: Task<NativeSession, Error>?
     private var refreshingToken: String?
+    private static let installMarkerKey = "CanvasProInstalled"
 
     init() {
+        // Keychain items outlive deleting the app. A fresh install starts signed out
+        // instead of silently restoring whoever used the app before.
+        if !UserDefaults.standard.bool(forKey: Self.installMarkerKey) {
+            SecureSessionStore.clear()
+            UserDefaults.standard.set(true, forKey: Self.installMarkerKey)
+        }
         do {
             let api = NativeAPI(configuration: try NativeConfiguration.load())
             self.api = api
@@ -589,14 +787,15 @@ final class NativeSessionStore: ObservableObject {
         }
     }
 
-    func signIn(email: String, password: String) async {
+    /// Accepts an email address or a CanvasPro username, like the website.
+    func signIn(identifier: String, password: String) async {
         guard !isWorking else { return }
         guard let api else { errorMessage = configurationError; return }
         isWorking = true
         errorMessage = nil
         defer { isWorking = false }
         do {
-            let newSession = try await api.signIn(email: email.trimmingCharacters(in: .whitespacesAndNewlines), password: password)
+            let newSession = try await api.signIn(identifier: identifier.trimmingCharacters(in: .whitespacesAndNewlines), password: password)
             try SecureSessionStore.save(newSession)
             session = newSession
         } catch { errorMessage = error.localizedDescription }
@@ -649,7 +848,15 @@ final class NativeSessionStore: ObservableObject {
         defer {
             if refreshingToken == originalToken { refreshTask = nil; refreshingToken = nil }
         }
-        let refreshed = try await task.value
+        let refreshed: NativeSession
+        do {
+            refreshed = try await task.value
+        } catch let error as NativeAppError where error.isExpiredSignIn {
+            // The server no longer accepts this sign-in (revoked, expired, or used
+            // elsewhere). Retrying can never succeed, so return to the sign-in screen.
+            if session?.refreshToken == originalToken { clearLocalSession() }
+            throw NativeAppError.signedOut
+        }
         guard let active = session, active.user.id == current.user.id else { throw NativeAppError.signedOut }
         // Another waiter may already have saved the result. An account change
         // must never let a delayed refresh overwrite the new session.
@@ -698,13 +905,16 @@ final class NativeSessionStore: ObservableObject {
             UserDefaults.standard.removeObject(forKey: "CanvasProNativeDigest.\(previousUserID)")
             UserDefaults.standard.removeObject(forKey: "CanvasProNativeGradeHistory.\(previousUserID)")
             UserDefaults.standard.removeObject(forKey: "CanvasProNativeStudySession.\(previousUserID)")
+            for part in ["window", "skipped", "order", "date"] {
+                UserDefaults.standard.removeObject(forKey: "CanvasProNativePlan.\(previousUserID).\(part)")
+            }
         }
         for key in [
             "CanvasProNativeDigest", "CanvasProNativeGradeHistory", "CanvasProNativePushToken",
             "CanvasProPreviewStudySession", "CanvasProDismissedAnnouncements",
             "CanvasProPlanWindow", "CanvasProPlanSkipped", "CanvasProPlanOrder", "CanvasProPlanDate",
-            "CanvasProColorScheme", "CanvasProPalette",
         ] { UserDefaults.standard.removeObject(forKey: key) }
+        // Light/dark mode and palette are this device's display choices, so they stay.
         SecureSessionStore.clear()
         session = nil
     }
@@ -722,6 +932,9 @@ final class NativeContentStore: ObservableObject {
     @Published var lastSyncedAt: Date?
     @Published var syncMessage: String?
     @Published var errorMessage: String?
+    /// True when the account has no Canvas connection yet. The app shows a
+    /// "Connect Canvas" step instead of an error.
+    @Published var needsCanvasConnection = false
     let isPreview: Bool
     private unowned let sessionStore: NativeSessionStore
     var persistenceScope: String { isPreview ? "preview" : (sessionStore.session?.user.id ?? "signed-out") }
@@ -771,7 +984,7 @@ final class NativeContentStore: ObservableObject {
 
             do {
                 let nicknameValues = try await nicknameRequest
-                nicknames = Dictionary(uniqueKeysWithValues: nicknameValues.map { ($0.canvasCourseID, $0) })
+                nicknames = Dictionary(nicknameValues.map { ($0.canvasCourseID, $0) }, uniquingKeysWith: { first, _ in first })
             } catch {
                 savedPreferenceWarning = savedPreferenceWarning ?? "Coursework refreshed. Class nicknames could not update."
             }
@@ -781,8 +994,20 @@ final class NativeContentStore: ObservableObject {
             reopenedAt = freshReopenedAt
             lastSyncedAt = Date()
             isShowingCachedData = false
+            needsCanvasConnection = false
             syncMessage = savedPreferenceWarning
             persistContentCache()
+        } catch let error as NativeAppError where error.isCanvasNotConnected {
+            // Not an error: this account simply hasn't connected Canvas yet.
+            needsCanvasConnection = true
+            isShowingCachedData = false
+            syncMessage = nil
+        } catch NativeAppError.signedOut {
+            // The session store has already returned to the sign-in screen.
+        } catch is CancellationError {
+            // The screen went away mid-refresh; nothing to report.
+        } catch let error as URLError where error.code == .cancelled {
+            // A pull-to-refresh that was let go early; nothing to report.
         } catch {
             if bundle.courses.isEmpty && bundle.assignments.isEmpty {
                 errorMessage = friendlySyncError(error)
@@ -800,8 +1025,6 @@ final class NativeContentStore: ObservableObject {
         let course = bundle.courses.first { $0.id == courseID }
         let name = course?.name ?? fallback
         let code = course?.courseCode ?? ""
-        if [name, code].contains(where: { $0.range(of: "(?i)PHY\\s*1154", options: .regularExpression) != nil }) { return "Physics" }
-        if [name, code].contains(where: { $0.range(of: "(?i)HUM\\s*1213", options: .regularExpression) != nil }) { return "Humanities" }
         return cleanCourseTitle(name.isEmpty ? (code.isEmpty ? "Course" : code) : name)
     }
 
@@ -878,7 +1101,15 @@ final class NativeContentStore: ObservableObject {
             throw NativeAppError.server("Paste the full Canvas API token.")
         }
         try await api.saveCanvas(domain: cleanDomain, canvasToken: cleanToken, token: try await sessionStore.accessToken(), userID: user.id)
+        needsCanvasConnection = false
         await load()
+    }
+
+    /// The school address this account is connected to, if any.
+    func connectedCanvasDomain() async -> String? {
+        guard !isPreview, let api = sessionStore.api, let user = sessionStore.session?.user,
+              let token = try? await sessionStore.accessToken() else { return nil }
+        return try? await api.canvasDomain(token: token, userID: user.id)
     }
 
     private func loadCachedContent() {
@@ -911,8 +1142,8 @@ final class NativeContentStore: ObservableObject {
     }
 
     private func sanitizedCompletedIDs(_ ids: Set<Int>, in bundle: CanvasBundle) -> Set<Int> {
-        let assignments = Dictionary(uniqueKeysWithValues: bundle.assignments.map { ($0.id, $0) })
-        return Set(ids.filter { assignments[$0] != nil || $0 < 0 })
+        let assignmentIDs = Set(bundle.assignments.map(\.id))
+        return ids.filter { assignmentIDs.contains($0) || $0 < 0 }
     }
 
     private static func normalizedCanvasDomain(_ raw: String) -> String {
@@ -924,13 +1155,18 @@ final class NativeContentStore: ObservableObject {
     }
 
     private func friendlySyncError(_ error: Error) -> String {
-        let raw = error.localizedDescription
-        if raw.localizedCaseInsensitiveContains("timed out") || raw.localizedCaseInsensitiveContains("offline") || raw.localizedCaseInsensitiveContains("network") {
-            return "Could not refresh Canvas. Check your connection and try again."
+        if let urlError = error as? URLError {
+            switch urlError.code {
+            case .notConnectedToInternet, .networkConnectionLost, .timedOut, .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed:
+                return "Could not refresh Canvas. Check your connection and try again."
+            default:
+                break
+            }
         }
-        if raw.contains("401") || raw.contains("403") || raw.localizedCaseInsensitiveContains("invalid") || raw.localizedCaseInsensitiveContains("revoked") {
-            return "Canvas rejected the saved connection. Recheck your Canvas URL and API token."
+        if let appError = error as? NativeAppError, case .http(let status, let code, _) = appError,
+           code.hasPrefix("Canvas API 401") || code.hasPrefix("Canvas API 403") || (status == 400 && code.hasPrefix("Canvas API")) {
+            return "Canvas rejected the saved connection. Update your Canvas URL and token in Settings → Canvas connection."
         }
-        return raw
+        return error.localizedDescription
     }
 }
