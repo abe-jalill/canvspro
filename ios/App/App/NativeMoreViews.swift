@@ -16,7 +16,6 @@ struct NativeMoreView: View {
                 ScrollView {
                     VStack(spacing: 18) {
                         CPGlassCard {
-                            link("Assignments", "checklist") { NativeAssignmentsView(store: store, features: features) }
                             link("Calendar", "calendar") { NativeCalendarHub(store: store, features: features) }
                             link("Announcements", "megaphone") { AnnouncementsView(store: store, features: features) }
                             link("Notifications", "bell") { NotificationsView(sessionStore: sessionStore, features: features) }
@@ -206,14 +205,32 @@ private struct NativeDeleteAccountView: View {
 
 struct NativeSectionPicker: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var selection: String
     let options: [String]
     let label: String
     var body: some View {
-        Picker(label, selection: $selection) {
-            ForEach(options, id: \.self) { Text($0).tag($0) }
+        HStack(spacing: 6) {
+            ForEach(options, id: \.self) { option in
+                Button {
+                    withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.18)) { selection = option }
+                } label: {
+                    Text(option)
+                        .font(.system(size: 11, weight: selection == option ? .medium : .regular))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.82)
+                        .frame(maxWidth: .infinity, minHeight: 40)
+                        .foregroundStyle(selection == option ? CPTheme.foreground(scheme) : CPTheme.muted(scheme))
+                        .background(selection == option ? CPTheme.inset(scheme) : Color.clear, in: RoundedRectangle(cornerRadius: 11))
+                        .overlay(RoundedRectangle(cornerRadius: 11).stroke(selection == option ? CPTheme.primary(scheme: scheme).opacity(0.55) : Color.clear))
+                }
+                .buttonStyle(CPPressStyle())
+                .accessibilityAddTraits(selection == option ? .isSelected : [])
+            }
         }
-        .pickerStyle(.segmented).padding(.horizontal, 14).padding(.vertical, 10)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(label)
+        .padding(.horizontal, 14).padding(.vertical, 8)
         .background(CPTheme.background(scheme))
     }
 }
@@ -238,13 +255,36 @@ struct GetItDoneView: View {
     @Environment(\.colorScheme) private var scheme
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
-    @AppStorage("CanvasProPlanWindow") private var window = 7
-    @AppStorage("CanvasProPlanSkipped") private var skippedRaw = ""
-    @AppStorage("CanvasProPlanOrder") private var orderRaw = ""
-    @AppStorage("CanvasProPlanDate") private var planDate = ""
+    @State private var window = 7
+    @State private var skippedRaw = ""
+    @State private var orderRaw = ""
+    @State private var planDate = ""
+    @State private var planLoaded = false
     @State private var choiceOffset = 0
     @State private var editingEstimate: Int?
     @State private var estimateMinutes = 30
+
+    private var planKey: String { "CanvasProNativePlan.\(store.persistenceScope)." }
+    private func savePlan() {
+        guard planLoaded else { return }
+        let defaults = UserDefaults.standard
+        defaults.set(window, forKey: planKey + "window")
+        defaults.set(skippedRaw, forKey: planKey + "skipped")
+        defaults.set(orderRaw, forKey: planKey + "order")
+        defaults.set(planDate, forKey: planKey + "date")
+    }
+    private func loadPlan() {
+        let defaults = UserDefaults.standard
+        let savedWindow = defaults.integer(forKey: planKey + "window")
+        window = savedWindow == 14 ? 14 : 7
+        skippedRaw = defaults.string(forKey: planKey + "skipped") ?? ""
+        orderRaw = defaults.string(forKey: planKey + "order") ?? ""
+        planDate = defaults.string(forKey: planKey + "date") ?? ""
+        let today = String(Int(Calendar.current.startOfDay(for: Date()).timeIntervalSince1970))
+        if planDate != today { skippedRaw = ""; orderRaw = ""; planDate = today }
+        planLoaded = true
+        savePlan()
+    }
     private var skipped: Set<Int> { Set(skippedRaw.split(separator: ",").compactMap { Int($0) }) }
     private var manualOrder: [Int] { orderRaw.split(separator: ",").compactMap { Int($0) } }
     private var allAssignments: [AssignmentItem] {
@@ -253,7 +293,7 @@ struct GetItDoneView: View {
     private var visibleAssignments: [AssignmentItem] {
         let end = NativeParity.endOfUpcomingDay(window)
         return allAssignments.filter { item in
-            guard !features.hiddenCourseIDs.contains(item.courseID), let due = item.dueDate else { return false }
+            guard let due = item.dueDate else { return false }
             return due >= Date() && due <= end
         }
     }
@@ -295,31 +335,49 @@ struct GetItDoneView: View {
             CPBackdrop()
             ScrollView {
                 LazyVStack(spacing: 14) {
-                    HStack(spacing: 8) { ForEach([7, 14], id: \.self) { value in Button { window = value; choiceOffset = 0; orderRaw = "" } label: { CPChip(text: value == 7 ? "1 week" : "2 weeks", selected: window == value) }.buttonStyle(.plain) } }
+                    Text(Date().formatted(.dateTime.weekday(.wide).month(.wide).day())).font(.system(size: 12)).foregroundStyle(CPTheme.muted(scheme)).frame(maxWidth: .infinity, alignment: .leading)
+                    Text("Up next").font(.system(size: 25, weight: .regular)).frame(maxWidth: .infinity, alignment: .leading)
                     if store.isLoading && allAssignments.isEmpty {
                         CPSkeletonCard()
                     } else if let first = recommendation {
-                        CPGlassCard(title: "Up next", strong: true) {
-                            Text(first.name).font(.system(size: 22, weight: .regular)).fixedSize(horizontal: false, vertical: true)
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack(alignment: .top) {
+                                Text(first.name).font(.system(size: 20, weight: .regular)).fixedSize(horizontal: false, vertical: true)
+                                Spacer(minLength: 8)
+                                Menu {
+                                    if candidates.count > 1 { Button("Suggest something else") { choiceOffset = (choiceOffset + 1) % candidates.count } }
+                                    Button("Skip for today") { skip(first.id) }
+                                } label: { Image(systemName: "ellipsis").frame(width: 36, height: 36) }
+                                    .accessibilityLabel("More options for this suggestion")
+                            }
                             Text(store.displayName(courseID: first.courseID, fallback: first.courseName)).font(.system(size: 12)).foregroundStyle(CPTheme.muted(scheme))
                             if let due = first.dueDate {
                                 Text(due.formatted(.dateTime.month(.abbreviated).day().hour().minute())).font(.system(size: 11)).foregroundStyle(CPTheme.muted(scheme))
                             }
-                            Text(NativeParity.recommendationReason(first, estimate: features.estimates[first.id], dueSoonCount: candidatesDueSoonCount(for: first))).font(.system(size: 12, weight: .regular)).foregroundStyle(CPTheme.muted(scheme))
+                            Text("About \(estimate(for: first)) min").font(.system(size: 11)).foregroundStyle(CPTheme.muted(scheme))
                             HStack {
-                                if let url = URL(string: first.htmlURL), url.scheme == "https" { Link("Start assignment", destination: url).buttonStyle(.borderedProminent) }
-                                Button("Mark complete") { Task { await store.toggle(first) } }.buttonStyle(.bordered)
+                                Button("Start") { NotificationCenter.default.post(name: .nativeStudyAssignment, object: first) }.buttonStyle(.borderedProminent)
+                                if let url = URL(string: first.htmlURL), url.scheme == "https" { Link("Canvas", destination: url).buttonStyle(.bordered) }
                             }.font(.system(size: 12))
                             NativeAssignmentDescriptionLink(assignment: first, store: store, features: features)
-                            HStack { Button("Choose another") { choiceOffset = candidates.count <= 1 ? 0 : (choiceOffset + 1) % candidates.count }; Spacer(); Button("Skip today") { skip(first.id) } }.font(.system(size: 12, weight: .regular))
                         }
+                        .padding(16)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 15))
+                        .overlay(RoundedRectangle(cornerRadius: 15).stroke(CPTheme.insetBorder(scheme)))
                     } else { CPGlassCard(strong: true) { NativeEmptyState(title: "Nothing needs your attention right now.", symbol: "checkmark.circle") } }
                     if !store.isLoading || !allAssignments.isEmpty { planCard }
+                    HStack(spacing: 16) { ForEach([7, 14], id: \.self) { value in Button(value == 7 ? "Next week" : "Next 2 weeks") { window = value; choiceOffset = 0; orderRaw = "" }.foregroundStyle(window == value ? CPTheme.foreground(scheme) : CPTheme.muted(scheme)) } }.font(.system(size: 12)).frame(maxWidth: .infinity)
                 }.padding(14).padding(.bottom, 20)
                 .cpStateChange(recommendation?.id)
             }
         }.cpNavigationTitle("Get It Done").navigationBarTitleDisplayMode(.inline)
-            .onAppear { let today = String(Int(Calendar.current.startOfDay(for: Date()).timeIntervalSince1970)); if planDate != today { skippedRaw = ""; orderRaw = ""; planDate = today } }
+            .onAppear { if !planLoaded { loadPlan() } }
+            .onChange(of: store.persistenceScope) { _, _ in planLoaded = false; loadPlan() }
+            .onChange(of: window) { _, _ in savePlan() }
+            .onChange(of: skippedRaw) { _, _ in savePlan() }
+            .onChange(of: orderRaw) { _, _ in savePlan() }
+            .onChange(of: planDate) { _, _ in savePlan() }
             .alert("Estimated time", isPresented: Binding(get: { editingEstimate != nil }, set: { if !$0 { editingEstimate = nil } })) {
                 TextField("Minutes", value: $estimateMinutes, format: .number).keyboardType(.numberPad)
                 Button("Save") { if let id = editingEstimate, let item = allAssignments.first(where: { $0.id == id }) { Task { try? await features.saveEstimate(max(5, estimateMinutes), for: item) } }; editingEstimate = nil }
@@ -327,9 +385,10 @@ struct GetItDoneView: View {
             }
     }
     private var planCard: some View {
-        CPGlassCard(title: "Today’s plan", subtitle: "\(plan.count) left · about \(plan.reduce(0) { $0 + estimate(for: $1) }) minutes") {
-            HStack { Spacer(); Button("Regenerate plan") { skippedRaw = ""; orderRaw = ""; choiceOffset = 0 }.font(.system(size: 11, weight: .regular)) }
-            ForEach(plan.indices, id: \.self) { index in planRow(plan[index], index: index) }
+        CPGlassCard(title: "The rest of today", subtitle: "\(plan.filter { $0.id != recommendation?.id }.count) left") {
+            HStack { Spacer(); Button("Reset plan") { skippedRaw = ""; orderRaw = ""; choiceOffset = 0 }.font(.system(size: 11, weight: .regular)) }
+            ForEach(plan.indices.filter { plan[$0].id != recommendation?.id }, id: \.self) { index in planRow(plan[index], index: index) }
+            if plan.count == 1 && plan.first?.id == recommendation?.id { Text("Nothing else planned.").font(.system(size: 12)).foregroundStyle(CPTheme.muted(scheme)) }
             if plan.isEmpty { NativeEmptyState(title: "No plan needed.", symbol: "checkmark.circle", detail: "Everything urgent is complete, skipped, or already submitted.") }
         }
     }
@@ -352,7 +411,6 @@ struct GetItDoneView: View {
     private func estimate(for item: AssignmentItem) -> Int { features.estimates[item.id].flatMap { $0 > 0 ? $0 : nil } ?? NativeParity.defaultEstimate(item) }
     private func skip(_ id: Int) { skippedRaw = (skipped.union([id])).sorted().map { String($0) }.joined(separator: ","); orderRaw = manualOrder.filter { $0 != id }.map { String($0) }.joined(separator: ","); choiceOffset = 0 }
     private func move(_ id: Int, direction: Int) { var ids = plan.map(\.id); guard let index = ids.firstIndex(of: id), ids.indices.contains(index + direction) else { return }; ids.swapAt(index, index + direction); orderRaw = ids.map { String($0) }.joined(separator: ",") }
-    private var phoneMetricColumns: [GridItem] { [GridItem(.flexible(minimum: 0), spacing: 8), GridItem(.flexible(minimum: 0), spacing: 8)] }
 }
 
 struct FocusView: View {
@@ -367,7 +425,7 @@ struct FocusView: View {
     private var allItems: [AssignmentItem] {
         (store.bundle.assignments + features.customAssignments.map { item in
             AssignmentItem.custom(item, course: store.bundle.courses.first { $0.id == item.courseID })
-        }).filter { !features.hiddenCourseIDs.contains($0.courseID) }
+        })
     }
     private var unfinished: [AssignmentItem] {
         allItems.filter { NativeParity.isInFocusWindow($0, window: window) && $0.isVisible(in: store) }.sorted(by: AssignmentItem.dueSort)
@@ -375,14 +433,18 @@ struct FocusView: View {
     private var items: [AssignmentItem] {
         allItems.filter { NativeParity.isInFocusWindow($0, window: window) && $0.isVisible(in: store, showCompleted: showCompleted) }.sorted(by: AssignmentItem.dueSort)
     }
+    private var listItems: [AssignmentItem] {
+        guard let selectedDay else { return items }
+        return items.filter { $0.dueDate.map { Calendar.current.isDate($0, inSameDayAs: selectedDay) } ?? false }
+    }
     private var groups: [(String, [AssignmentItem])] {
         if grouping == "By class" {
-            return Dictionary(grouping: items, by: \.courseID).map { id, rows in
+            return Dictionary(grouping: listItems, by: \.courseID).map { id, rows in
                 (store.displayName(courseID: id, fallback: rows.first?.courseName ?? "Class"), rows)
             }.sorted { $0.0.localizedStandardCompare($1.0) == .orderedAscending }
         }
         let calendar = Calendar.current
-        return Dictionary(grouping: items) { item -> Date in
+        return Dictionary(grouping: listItems) { item -> Date in
             guard let due = item.dueDate else { return .distantFuture }
             return due < Date() ? .distantPast : calendar.startOfDay(for: due)
         }.sorted { $0.key < $1.key }.map { date, rows in
@@ -402,35 +464,48 @@ struct FocusView: View {
             TimelineView(.periodic(from: .now, by: 30)) { _ in
                 ScrollView {
                     LazyVStack(spacing: 16) {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 8) {
-                                ForEach(["overdue", "1", "3", "7", "all"], id: \.self) { value in
-                                    Button { window = value } label: { CPChip(text: focusLabel(value), selected: window == value) }.buttonStyle(CPPressStyle())
+                        HStack(alignment: .top) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Coming up").font(.system(size: 25, weight: .regular))
+                                if !unfinished.isEmpty {
+                                    Text("\(unfinished.count) \(window == "overdue" ? "overdue" : "due") · about \(unfinished.reduce(0) { $0 + estimate($1) }) min")
+                                        .font(.system(size: 12)).foregroundStyle(CPTheme.muted(scheme))
                                 }
                             }
+                            Spacer(minLength: 8)
+                            Menu {
+                                ForEach(["overdue", "1", "2", "3", "7", "all"], id: \.self) { value in
+                                    Button(focusLabel(value)) { window = value; selectedDay = nil }
+                                }
+                            } label: { Label(focusLabel(window), systemImage: "chevron.down").font(.system(size: 12)).padding(9).overlay(RoundedRectangle(cornerRadius: 10).stroke(CPTheme.insetBorder(scheme))) }
                         }
                         if store.isLoading && allItems.isEmpty {
                             CPSkeletonCard()
                             CPSkeletonCard()
                         } else {
-                            deadlineCard
-                            weekCard
-                            Picker("Group by", selection: $grouping) {
-                                Text("By day").tag("By day")
-                                Text("By class").tag("By class")
-                            }.pickerStyle(.segmented)
-                            Toggle("Show finished", isOn: $showCompleted).font(.system(size: 12))
+                            if window != "overdue" { weekStrip }
+                            HStack(spacing: 8) {
+                                ForEach(["By day", "By class"], id: \.self) { option in
+                                    Button(option) { grouping = option }
+                                        .font(.system(size: 12))
+                                        .padding(.horizontal, 11).frame(minHeight: 36)
+                                        .background(grouping == option ? CPTheme.inset(scheme) : Color.clear, in: RoundedRectangle(cornerRadius: 10))
+                                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(grouping == option ? CPTheme.primary(scheme: scheme).opacity(0.55) : CPTheme.insetBorder(scheme)))
+                                }
+                                Spacer(minLength: 4)
+                                Toggle("Show finished", isOn: $showCompleted).labelsHidden()
+                                    .accessibilityLabel("Show finished")
+                            }
+                            if listItems.isEmpty {
+                                NativeEmptyState(title: selectedDay != nil ? "Nothing due this day." : window == "overdue" ? "Nothing overdue." : "You're all clear.", symbol: "checkmark.circle")
+                                    .padding(.vertical, 24)
+                            }
                             ForEach(groups.indices, id: \.self) { index in
                                 let group = groups[index]
-                                CPGlassCard(title: group.0, subtitle: "\(group.1.count) items") {
-                                    if grouping == "By class" {
-                                        let points = group.1.reduce(0) { $0 + ($1.pointsPossible ?? 0) }
-                                        Text("\(points.formatted()) points").font(.caption).foregroundStyle(CPTheme.muted(scheme))
-                                        ProgressView(value: min(points, max(1, unfinished.reduce(0) { $0 + ($1.pointsPossible ?? 0) })), total: max(1, unfinished.reduce(0) { $0 + ($1.pointsPossible ?? 0) })).tint(CPTheme.primary(scheme: scheme))
-                                    }
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text(group.0).font(.system(size: 12)).foregroundStyle(CPTheme.muted(scheme))
                                     ForEach(group.1) { item in
-                                        focusRow(item)
-                                        if item.id != group.1.last?.id { Divider() }
+                                        CPInsetRow { focusRow(item) }
                                     }
                                 }
                             }
@@ -440,7 +515,7 @@ struct FocusView: View {
                 }
             }
         }
-        .cpNavigationTitle("Focus").navigationBarTitleDisplayMode(.inline)
+        .cpNavigationTitle("Coming Up").navigationBarTitleDisplayMode(.inline)
         .safeAreaInset(edge: .bottom) {
             if let item = recentlyCompleted {
                 HStack {
@@ -448,7 +523,7 @@ struct FocusView: View {
                     Spacer()
                     Button("Undo") {
                         Task {
-                            if item.isFinished(in: store) && !item.isCanvasFinished { await store.toggle(item) }
+                            if item.isFinished(in: store) { await store.toggle(item) }
                             recentlyCompleted = nil
                         }
                     }
@@ -457,63 +532,26 @@ struct FocusView: View {
             }
         }
     }
-    private var deadlineCard: some View {
-        CPGlassCard(strong: true) {
-            if let next = unfinished.first(where: { ($0.dueDate ?? .distantPast) >= Date() }) ?? unfinished.first {
-                Text(next.dueDate.map { $0 < Date() } == true ? "Overdue" : "Next deadline").font(.caption).foregroundStyle(CPTheme.muted(scheme))
-                Text(next.name).font(.system(size: 22, weight: .regular)).fixedSize(horizontal: false, vertical: true)
-                Text(store.displayName(courseID: next.courseID, fallback: next.courseName)).font(.system(size: 12)).foregroundStyle(CPTheme.muted(scheme))
-                if let due = next.dueDate {
-                    if due > Date() {
-                        Text(due, style: .relative).font(.system(size: 25)).monospacedDigit().foregroundStyle(CPTheme.primary(scheme: scheme))
-                    } else { Text("Past due").font(.system(size: 20)).foregroundStyle(CPTheme.danger) }
+    private var weekStrip: some View {
+        HStack(spacing: 4) {
+            ForEach(0..<7, id: \.self) { offset in
+                let day = Calendar.current.date(byAdding: .day, value: offset, to: Calendar.current.startOfDay(for: Date())) ?? Date()
+                let count = dayItems(day).count
+                Button { selectedDay = selectedDay == day ? nil : day } label: {
+                    VStack(spacing: 5) {
+                        Text(offset == 0 ? "Today" : day.formatted(.dateTime.weekday(.abbreviated)))
+                            .font(.system(size: 9)).lineLimit(1).minimumScaleFactor(0.7)
+                        Text(day.formatted(.dateTime.day())).font(.system(size: 14)).monospacedDigit()
+                        Circle().fill(CPTheme.foreground(scheme).opacity(count > 0 ? 0.55 : 0)).frame(width: 4, height: 4)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 58)
+                    .background(selectedDay == day ? CPTheme.inset(scheme) : Color.clear, in: RoundedRectangle(cornerRadius: 10))
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(selectedDay == day ? CPTheme.primary(scheme: scheme).opacity(0.6) : CPTheme.insetBorder(scheme)))
                 }
-                ViewThatFits(in: .horizontal) {
-                    HStack { studyButton(next); canvasLink(next) }
-                    VStack(alignment: .leading) { studyButton(next); canvasLink(next) }
-                }
-            } else {
-                NativeEmptyState(title: window == "overdue" ? "Nothing overdue." : "Nothing left in this window.", symbol: "checkmark.circle", detail: "Choose a longer range to look further ahead.")
-            }
-            Divider()
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 90))], spacing: 8) {
-                PlanMetricTile(value: "\(unfinished.count)", label: "Left to do")
-                PlanMetricTile(value: "\(unfinished.reduce(0) { $0 + ($1.pointsPossible ?? 0) }.formatted())", label: "Points at stake")
-                PlanMetricTile(value: "\(unfinished.reduce(0) { $0 + estimate($1) })m", label: "Time needed")
+                .buttonStyle(CPPressStyle())
+                .accessibilityLabel("\(day.formatted(date: .complete, time: .omitted)), \(count) due")
             }
         }
-    }
-    private func studyButton(_ item: AssignmentItem) -> some View {
-        Button { NotificationCenter.default.post(name: .nativeStudyAssignment, object: item) } label: { Label("Study for \(estimate(item))m", systemImage: "timer").padding(.vertical, 6) }.buttonStyle(.borderedProminent)
-    }
-    @ViewBuilder private func canvasLink(_ item: AssignmentItem) -> some View {
-        if let url = URL(string: item.htmlURL), url.scheme == "https" { Link("Open in Canvas", destination: url).font(.system(size: 12)).padding(.vertical, 12) }
-    }
-    private var weekCard: some View {
-        CPGlassCard(title: "Next 7 days") {
-            HStack(spacing: 4) {
-                ForEach(0..<7, id: \.self) { offset in
-                    let day = Calendar.current.date(byAdding: .day, value: offset, to: Calendar.current.startOfDay(for: Date())) ?? Date()
-                    let count = dayItems(day).count
-                    Button { selectedDay = selectedDay == day ? nil : day } label: {
-                        VStack(spacing: 7) {
-                            Text(day.formatted(.dateTime.weekday(.narrow))).font(.system(size: 10))
-                            Text(day.formatted(.dateTime.day())).font(.system(size: 13)).monospacedDigit()
-                            Text("\(count)").font(.system(size: 10)).foregroundStyle(CPTheme.muted(scheme))
-                        }.frame(maxWidth: .infinity).padding(.vertical, 10)
-                            .background(selectedDay == day ? CPTheme.primary(scheme: scheme).opacity(0.16) : CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 11))
-                    }.buttonStyle(CPPressStyle())
-                        .accessibilityLabel("\(day.formatted(date: .complete, time: .omitted)), \(count) assignments")
-                        .accessibilityAddTraits(selectedDay == day ? .isSelected : [])
-                }
-            }
-            if let day = selectedDay {
-                Divider()
-                Text(day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())).font(.system(size: 13))
-                if dayItems(day).isEmpty { Text("Nothing due.").foregroundStyle(CPTheme.muted(scheme)) }
-                ForEach(dayItems(day)) { focusRow($0) }
-            }
-        }.cpStateChange(selectedDay)
     }
     private func focusRow(_ item: AssignmentItem) -> some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -528,12 +566,6 @@ struct FocusView: View {
     private func focusLabel(_ value: String) -> String {
         value == "all" ? "All" : value == "7" ? "1 week" : value == "overdue" ? "Overdue" : "\(value) day\(value == "1" ? "" : "s")"
     }
-}
-
-private struct PlanMetricTile: View {
-    @Environment(\.colorScheme) private var scheme
-    let value: String; let label: String
-    var body: some View { VStack(alignment: .leading, spacing: 4) { Text(label.uppercased()).font(.system(size: 8, weight: .regular)).tracking(1).foregroundStyle(CPTheme.muted(scheme)).lineLimit(2); Text(value).font(.system(size: 16, weight: .regular)).monospacedDigit() }.padding(10).frame(maxWidth: .infinity, minHeight: 64, alignment: .leading).background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 15)).overlay(RoundedRectangle(cornerRadius: 15).stroke(CPTheme.insetBorder(scheme))) }
 }
 
 struct NativeCalendarEntry: Identifiable {

@@ -5,23 +5,23 @@ import { readFileSync } from "node:fs";
 const source = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
 test("native tabs remain a compact projection of website navigation", () => {
-  const website = source("src/components/app-sidebar.tsx");
   const tabs = source("ios/App/App/NativeViews.swift");
   const more = source("ios/App/App/NativeMoreViews.swift");
 
-  for (const title of ["Dashboard", "Focus", "Study Session", "Grades"]) {
-    assert.ok(website.includes(`title: "${title}"`), `${title} is a website destination`);
+  for (const title of ["Today", "Study Session", "Grades", "Assignments", "More"]) {
     assert.ok(tabs.includes(`Label("${title}"`), `${title} is a native tab`);
   }
   assert.equal((tabs.match(/\.tabItem\s*\{/g) ?? []).length, 5);
   assert.ok(!tabs.includes('Label("Profile"'), "Profile is not a bottom tab");
-  for (const title of ["Assignments", "Calendar", "Announcements", "Notifications", "Settings"]) {
+  for (const title of ["Calendar", "Announcements", "Notifications", "Settings"]) {
     assert.ok(more.includes(`link("${title}"`), `${title} is reachable through More`);
   }
-  assert.ok(!more.includes('link("Get It Done"'), "Get It Done belongs inside Study");
+  assert.ok(!more.includes('link("Assignments"'), "Assignments has its own tab");
+  assert.ok(!more.includes('link("Get It Done"'), "Get It Done belongs inside Today");
   assert.ok(!more.includes('link("Class Schedule"'), "My classes belongs inside Calendar");
-  assert.ok(tabs.includes('options: ["Get It Done", "Study Session"]'));
+  assert.ok(tabs.includes('options: ["Dashboard", "Coming Up", "Get It Done"]'));
   assert.ok(more.includes('options: ["Calendar", "My classes"]'));
+  assert.ok(tabs.includes('selection = .assignments'));
 });
 
 test("website settings sections and profile fields stay reachable in native Settings", () => {

@@ -208,7 +208,13 @@ private struct NativeContentCache: Codable {
     let savedAt: Date
     let bundle: CanvasBundle
     let completed: [Int]
+    let reopenedAt: [Int: Date]?
     let nicknames: [Int: ClassNickname]
+}
+
+struct NativeCompletionState {
+    let completed: Set<Int>
+    let reopenedAt: [Int: Date]
 }
 
 private enum NativeCourseworkCacheStore {
@@ -349,29 +355,32 @@ final class NativeAPI {
         return try decoder.decode(CanvasBundle.self, from: data)
     }
 
-    func completionIDs(token: String, userID: String) async throws -> Set<Int> {
+    func completionState(token: String, userID: String) async throws -> NativeCompletionState {
         let rows = try await restRows(path: "/rest/v1/user_preferences", token: token, query: [
             .init(name: "select", value: "key,value"),
             .init(name: "user_id", value: "eq.\(userID)"),
             .init(name: "key", value: "like.assignment-completion:%"),
         ])
         var result = Set<Int>()
+        var reopenedAt: [Int: Date] = [:]
         for row in rows {
             guard let key = row["key"] as? String,
                   let value = row["value"] as? [String: Any],
-                  value["completed"] as? Bool == true,
                   let id = Int(key.replacingOccurrences(of: "assignment-completion:", with: "")) else { continue }
-            result.insert(id)
+            if value["completed"] as? Bool == true { result.insert(id) }
+            else if let text = value["reopenedAt"] as? String,
+                    let date = ISO8601DateFormatter.canvasDate(from: text) { reopenedAt[id] = date }
         }
-        return result
+        return NativeCompletionState(completed: result, reopenedAt: reopenedAt)
     }
 
-    func setCompletion(_ completed: Bool, assignment: AssignmentItem, token: String, userID: String) async throws {
-        let value: [String: Any] = [
+    func setCompletion(_ completed: Bool, assignment: AssignmentItem, reopenedAt: Date?, token: String, userID: String) async throws {
+        var value: [String: Any] = [
             "completed": completed,
             "completedAt": completed ? ISO8601DateFormatter().string(from: Date()) : NSNull(),
             "dueAt": assignment.dueAt as Any? ?? NSNull(),
         ]
+        if let reopenedAt { value["reopenedAt"] = ISO8601DateFormatter.canvas.string(from: reopenedAt) }
         try await upsert(table: "user_preferences", token: token, conflict: "user_id,key", rows: [[
             "user_id": userID,
             "key": "assignment-completion:\(assignment.id)",
@@ -632,6 +641,8 @@ final class NativeSessionStore: ObservableObject {
 final class NativeContentStore: ObservableObject {
     @Published var bundle = CanvasBundle(courses: [], assignments: [], announcements: [], calendar: [], errors: nil)
     @Published var completed = Set<Int>()
+    @Published var reopenedAt: [Int: Date] = [:]
+    @Published var completionSavesInFlight = Set<Int>()
     @Published var nicknames: [Int: ClassNickname] = [:]
     @Published var isLoading = false
     @Published var isShowingCachedData = false
@@ -670,14 +681,17 @@ final class NativeContentStore: ObservableObject {
         do {
             let token = try await sessionStore.accessToken()
             async let bundleRequest = api.canvasBundle(token: token)
-            async let completionRequest = api.completionIDs(token: token, userID: user.id)
+            async let completionRequest = api.completionState(token: token, userID: user.id)
             async let nicknameRequest = api.nicknames(token: token, userID: user.id)
             let freshBundle = try await bundleRequest
             var freshCompleted = completed
+            var freshReopenedAt = reopenedAt
             var savedPreferenceWarning: String?
 
             do {
-                freshCompleted = try await completionRequest
+                let state = try await completionRequest
+                freshCompleted = state.completed
+                freshReopenedAt = state.reopenedAt
             } catch {
                 savedPreferenceWarning = "Coursework refreshed. Saved completion state could not update."
             }
@@ -691,6 +705,7 @@ final class NativeContentStore: ObservableObject {
 
             bundle = freshBundle
             completed = sanitizedCompletedIDs(freshCompleted, in: freshBundle)
+            reopenedAt = freshReopenedAt
             lastSyncedAt = Date()
             isShowingCachedData = false
             syncMessage = savedPreferenceWarning
@@ -734,20 +749,31 @@ final class NativeContentStore: ObservableObject {
     }
 
     func toggle(_ assignment: AssignmentItem) async {
-        guard !assignment.isCanvasFinished else { return }
         if isPreview {
-            if completed.contains(assignment.id) { completed.remove(assignment.id) } else { completed.insert(assignment.id) }
+            if assignment.isFinished(in: self) { completed.remove(assignment.id); reopenedAt[assignment.id] = Date() }
+            else { completed.insert(assignment.id); reopenedAt.removeValue(forKey: assignment.id) }
             UserDefaults.standard.set(Array(completed), forKey: previewCompletedKey)
             return
         }
         guard let api = sessionStore.api, let user = sessionStore.session?.user else { return }
-        let next = !completed.contains(assignment.id)
-        if next { completed.insert(assignment.id) } else { completed.remove(assignment.id) }
+        guard !completionSavesInFlight.contains(assignment.id) else { return }
+        completionSavesInFlight.insert(assignment.id)
+        defer { completionSavesInFlight.remove(assignment.id) }
+        let next = !assignment.isFinished(in: self)
+        let previousCompleted = completed.contains(assignment.id)
+        let previousReopen = reopenedAt[assignment.id]
+        if next { completed.insert(assignment.id); reopenedAt.removeValue(forKey: assignment.id) }
+        else {
+            completed.remove(assignment.id)
+            if assignment.isCanvasFinished { reopenedAt[assignment.id] = Date() }
+            else { reopenedAt.removeValue(forKey: assignment.id) }
+        }
         do {
-            try await api.setCompletion(next, assignment: assignment, token: try await sessionStore.accessToken(), userID: user.id)
+            try await api.setCompletion(next, assignment: assignment, reopenedAt: reopenedAt[assignment.id], token: try await sessionStore.accessToken(), userID: user.id)
             persistContentCache()
         } catch {
-            if next { completed.remove(assignment.id) } else { completed.insert(assignment.id) }
+            if previousCompleted { completed.insert(assignment.id) } else { completed.remove(assignment.id) }
+            reopenedAt[assignment.id] = previousReopen
             errorMessage = error.localizedDescription
         }
     }
@@ -791,6 +817,7 @@ final class NativeContentStore: ObservableObject {
         }
         bundle = cache.bundle
         completed = sanitizedCompletedIDs(Set(cache.completed), in: cache.bundle)
+        reopenedAt = cache.reopenedAt ?? [:]
         nicknames = cache.nicknames
         lastSyncedAt = cache.savedAt
         isShowingCachedData = true
@@ -800,7 +827,7 @@ final class NativeContentStore: ObservableObject {
     private func persistContentCache() {
         guard !isPreview, let userID = sessionStore.session?.user.id else { return }
         let savedAt = lastSyncedAt ?? Date()
-        let cache = NativeContentCache(savedAt: savedAt, bundle: bundle, completed: Array(sanitizedCompletedIDs(completed, in: bundle)), nicknames: nicknames)
+        let cache = NativeContentCache(savedAt: savedAt, bundle: bundle, completed: Array(sanitizedCompletedIDs(completed, in: bundle)), reopenedAt: reopenedAt, nicknames: nicknames)
         if let data = try? JSONEncoder().encode(cache) {
             NativeCourseworkCacheStore.save(data, userID: userID)
         }
@@ -812,10 +839,7 @@ final class NativeContentStore: ObservableObject {
 
     private func sanitizedCompletedIDs(_ ids: Set<Int>, in bundle: CanvasBundle) -> Set<Int> {
         let assignments = Dictionary(uniqueKeysWithValues: bundle.assignments.map { ($0.id, $0) })
-        return Set(ids.filter { id in
-            guard let assignment = assignments[id] else { return id < 0 }
-            return !assignment.isCanvasFinished
-        })
+        return Set(ids.filter { assignments[$0] != nil || $0 < 0 })
     }
 
     private static func normalizedCanvasDomain(_ raw: String) -> String {

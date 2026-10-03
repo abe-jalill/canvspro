@@ -256,7 +256,7 @@ private struct PasswordResetSheet: View {
     }
 }
 
-private enum NativeTab: Hashable { case dashboard, focus, study, grades, more }
+private enum NativeTab: Hashable { case today, study, grades, assignments, more }
 
 extension Notification.Name {
     static let nativeStudyAssignment = Notification.Name("CanvasProNativeStudyAssignment")
@@ -268,10 +268,10 @@ struct NativeMainTabView: View {
     @ObservedObject var sessionStore: NativeSessionStore
     @StateObject private var contentStore: NativeContentStore
     @StateObject private var featureStore: NativeFeatureStore
-    @State private var selection: NativeTab = .dashboard
+    @State private var selection: NativeTab = .today
+    @State private var todaySection = "Dashboard"
     @State private var initialLoadFinished = false
     @State private var studyRequest: AssignmentItem?
-    @State private var studySection = "Study Session"
 
     init(sessionStore: NativeSessionStore) {
         self.sessionStore = sessionStore
@@ -286,7 +286,6 @@ struct NativeMainTabView: View {
             .onReceive(NotificationCenter.default.publisher(for: .nativeStudyAssignment)) { note in
                 guard let item = note.object as? AssignmentItem else { return }
                 studyRequest = item
-                studySection = "Study Session"
                 selection = .study
             }
             .onChange(of: scenePhase) { _, phase in
@@ -303,13 +302,13 @@ struct NativeMainTabView: View {
             }
             .onReceive(NotificationCenter.default.publisher(for: .nativeNotificationPath)) { note in
                 guard let path = note.object as? String else { return }
-                if path.contains("focus") { selection = .focus }
-                else if path.contains("get-it-done") { studySection = "Get It Done"; selection = .study }
-                else if path.contains("assignment") { selection = .more }
+                if path.contains("focus") { todaySection = "Coming Up"; selection = .today }
+                else if path.contains("get-it-done") { todaySection = "Get It Done"; selection = .today }
+                else if path.contains("assignment") { selection = .assignments }
                 else if path.contains("grade") { selection = .grades }
-                else if path.contains("study") { studySection = "Study Session"; selection = .study }
+                else if path.contains("study") { selection = .study }
                 else if path.contains("notification") || path.contains("settings") || path.contains("schedule") || path.contains("announcement") { selection = .more }
-                else { selection = .dashboard }
+                else { todaySection = "Dashboard"; selection = .today }
             }
             .alert("CanvasPro", isPresented: Binding(get: { !launchIsVisible && (contentStore.errorMessage != nil || featureStore.errorMessage != nil) }, set: { if !$0 && !launchIsVisible { contentStore.errorMessage = nil; featureStore.errorMessage = nil } })) {
                 Button("OK", role: .cancel) {}
@@ -351,14 +350,37 @@ struct NativeMainTabView: View {
 
     private var tabs: some View {
         TabView(selection: $selection) {
-            NativeDashboardView(store: contentStore, features: featureStore, selection: $selection).tabItem { Label("Dashboard", systemImage: "house.fill") }.tag(NativeTab.dashboard)
-            NavigationStack { FocusView(store: contentStore, features: featureStore) }.tabItem { Label("Focus", systemImage: "scope") }.tag(NativeTab.focus)
-            NativeStudyView(store: contentStore, features: featureStore, studySection: $studySection, requestedAssignment: $studyRequest).tabItem { Label("Study Session", systemImage: "timer") }.tag(NativeTab.study)
+            NativeTodayView(store: contentStore, features: featureStore, selection: $selection, section: $todaySection).tabItem { Label("Today", systemImage: "house.fill") }.tag(NativeTab.today)
+            NativeStudyView(store: contentStore, features: featureStore, requestedAssignment: $studyRequest).tabItem { Label("Study Session", systemImage: "timer") }.tag(NativeTab.study)
             NativeGradesView(store: contentStore, features: featureStore).tabItem { Label("Grades", systemImage: "chart.bar.fill") }.tag(NativeTab.grades)
+            NavigationStack { NativeAssignmentsView(store: contentStore, features: featureStore) }.tabItem { Label("Assignments", systemImage: "checklist") }.tag(NativeTab.assignments)
             NativeMoreView(store: contentStore, features: featureStore, sessionStore: sessionStore).tabItem { Label("More", systemImage: "square.grid.2x2") }.tag(NativeTab.more)
         }
         .tabBarMinimizeBehavior(.onScrollDown)
         .sensoryFeedback(.selection, trigger: selection)
+    }
+}
+
+private struct NativeTodayView: View {
+    @ObservedObject var store: NativeContentStore
+    @ObservedObject var features: NativeFeatureStore
+    @Binding var selection: NativeTab
+    @Binding var section: String
+
+    var body: some View {
+        Group {
+            if section == "Coming Up" {
+                NavigationStack { FocusView(store: store, features: features) }
+            } else if section == "Get It Done" {
+                NavigationStack { GetItDoneView(store: store, features: features) }
+            } else {
+                NativeDashboardView(store: store, features: features, selection: $selection, todaySection: $section)
+            }
+        }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            NativeSectionPicker(selection: $section, options: ["Dashboard", "Coming Up", "Get It Done"], label: "Today sections")
+        }
+        .cpStateChange(section)
     }
 }
 
@@ -373,6 +395,7 @@ private struct NativeDashboardView: View {
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
     @Binding var selection: NativeTab
+    @Binding var todaySection: String
     @AppStorage("CanvasProDismissedAnnouncements") private var dismissedAnnouncementsRaw = ""
     @State private var digest: NativeDigestSnapshot?
     private var digestKey: String { "CanvasProNativeDigest.\(store.persistenceScope)" }
@@ -570,10 +593,10 @@ private struct NativeDashboardView: View {
                         .font(.system(size: 11)).foregroundStyle(CPTheme.muted(scheme))
                 }
                 Spacer(minLength: 8)
-                Button { selection = .focus } label: {
+                Button { todaySection = "Coming Up" } label: {
                     Image(systemName: "arrow.up.right").font(.system(size: 12))
                         .frame(width: 32, height: 32).background(CPTheme.inset(scheme), in: Circle())
-                }.accessibilityLabel("Open Focus")
+                }.accessibilityLabel("Open Coming Up")
             }
             ForEach(weekItems.sorted(by: AssignmentItem.dueSort).prefix(2)) { assignment in
                 CPInsetRow { NativeAssignmentRow(assignment: assignment, store: store) }
@@ -886,24 +909,23 @@ struct NativeAssignmentsView: View {
     @ObservedObject var features: NativeFeatureStore
     @State private var search = ""
     @State private var showCompleted = false
-    @State private var courseID: Int?
+    @State private var undatedOpen = false
     @State private var showAdd = false
 
-    private var visibleCourses: [CourseSummary] { store.bundle.courses.filter { !features.hiddenCourseIDs.contains($0.id) } }
-    private var allAssignments: [AssignmentItem] { (store.bundle.assignments + features.customAssignments.map { item in AssignmentItem.custom(item, course: store.bundle.courses.first { $0.id == item.courseID }) }).filter { !features.hiddenCourseIDs.contains($0.courseID) } }
+    private var visibleCourses: [CourseSummary] { store.bundle.courses }
+    private var allAssignments: [AssignmentItem] { store.bundle.assignments + features.customAssignments.map { item in AssignmentItem.custom(item, course: store.bundle.courses.first { $0.id == item.courseID }) } }
     private var remaining: [AssignmentItem] { allAssignments.filter { $0.isVisible(in: store) } }
     private var overdueCount: Int { assignments.filter { ($0.dueDate ?? .distantFuture) < Date() }.count }
-    private var weekCount: Int { assignments.filter { guard let due = $0.dueDate else { return false }; return due >= Date() && due <= Date().addingTimeInterval(7 * 86400) }.count }
+    private var weekCount: Int { assignments.filter { guard let due = $0.dueDate else { return false }; return due >= Date() && due <= NativeParity.endOfUpcomingDay(7) }.count }
     private var priorityAssignments: [AssignmentItem] {
-        Array(NativeParity.rankedAssignments(remaining, estimates: features.estimates).prefix(5))
+        Array(NativeParity.rankedAssignments(remaining.filter { $0.dueDate != nil }, estimates: features.estimates).prefix(5))
     }
     @State private var horizon = 14
 
     private var assignments: [AssignmentItem] {
         return allAssignments.filter { item in
             let matches = search.isEmpty || item.name.localizedCaseInsensitiveContains(search) || store.displayName(courseID: item.courseID, fallback: item.courseName).localizedCaseInsensitiveContains(search)
-            let courseMatches = courseID == nil || item.courseID == courseID
-            return matches && courseMatches && item.isVisible(in: store, showCompleted: showCompleted)
+            return matches && item.isVisible(in: store, showCompleted: showCompleted)
         }.sorted(by: AssignmentItem.dueSort)
     }
     private var agendaSections: [(String, String, [AssignmentItem])] {
@@ -935,13 +957,11 @@ struct NativeAssignmentsView: View {
                         } else {
                         assignmentsHero
                         CPGlassCard(title: "Priority") {
-                            HStack(alignment: .top, spacing: 10) { Image(systemName: "sparkles").font(.system(size: 13)).foregroundStyle(CPTheme.foreground(scheme).opacity(0.8)).frame(width: 28, height: 28).background(CPTheme.foreground(scheme).opacity(0.10), in: RoundedRectangle(cornerRadius: 8)); Text(prioritySummary).font(.system(size: 12, weight: .regular)).foregroundStyle(CPTheme.foreground(scheme).opacity(0.90)).lineSpacing(2) }
-                            VStack(spacing: 8) { ForEach(priorityAssignments) { item in CPInsetRow { VStack(alignment: .leading, spacing: 4) { NativeAssignmentRow(assignment: item, store: store); Text(NativeParity.priorityLabel(item)).font(.system(size: 11)).foregroundStyle(CPTheme.muted(scheme)).padding(6).background(CPTheme.inset(scheme), in: Capsule()) } } } }
+                            Text(prioritySummary).font(.system(size: 12)).foregroundStyle(CPTheme.muted(scheme))
+                            VStack(spacing: 8) { ForEach(priorityAssignments) { item in CPInsetRow { VStack(alignment: .leading, spacing: 4) { NativeAssignmentRow(assignment: item, store: store); Text(NativeParity.priorityLabel(item)).font(.system(size: 11)).foregroundStyle(CPTheme.muted(scheme)) } } } }
                         }
                         HStack { Toggle("Show completed", isOn: $showCompleted).font(.system(size: 11)); Spacer(); Text("\(agendaSections.reduce(0) { $0 + $1.2.count }) shown").font(.system(size: 10)).foregroundStyle(CPTheme.muted(scheme)) }
-                        CPGlassCard(strong: true) {
-                            Picker("Class", selection: $courseID) { Text("All classes").tag(Int?.none); ForEach(visibleCourses) { Text(store.displayName(courseID: $0.id, fallback: $0.name)).tag(Optional($0.id)) } }.pickerStyle(.menu).tint(CPTheme.foreground(scheme))
-                        }
+                        if !visibleCourses.isEmpty { Button { showAdd = true } label: { Label("Add something Canvas doesn't have", systemImage: "plus").font(.system(size: 12)) }.frame(maxWidth: .infinity, alignment: .leading).buttonStyle(CPPressStyle()) }
                         if assignments.isEmpty && !store.isLoading { CPGlassCard { NativeEmptyState(title: search.isEmpty ? "No assignments" : "No matches", symbol: "magnifyingglass") } }
                         if search.isEmpty {
                             Button(horizon == 14 ? "Show weeks 3 and 4" : "Show next 2 weeks") { horizon = horizon == 14 ? 28 : 14 }
@@ -952,7 +972,13 @@ struct NativeAssignmentsView: View {
                         }
                         ForEach(agendaSections.indices, id: \.self) { sectionIndex in
                             let section = agendaSections[sectionIndex]
-                            CPGlassCard(title: "\(section.0) · \(section.2.count)") {
+                            VStack(alignment: .leading, spacing: 9) {
+                                HStack {
+                                    Text("\(section.0) · \(section.2.count)").font(.system(size: 12)).foregroundStyle(CPTheme.muted(scheme))
+                                    Spacer()
+                                    if section.0 == "No due date" && search.isEmpty { Button(undatedOpen ? "Hide" : "Show") { undatedOpen.toggle() }.font(.system(size: 11)) }
+                                }
+                                if section.0 != "No due date" || undatedOpen || !search.isEmpty {
                                 ForEach(section.2) { item in CPInsetRow { VStack(alignment: .leading, spacing: 7) {
                                     NativeAssignmentRow(assignment: item, store: store)
                                     HStack(spacing: 12) {
@@ -962,6 +988,7 @@ struct NativeAssignmentsView: View {
                                         if let url = URL(string: item.htmlURL), url.scheme == "https" { Link("Canvas", destination: url) }
                                     }.font(.system(size: 10, weight: .regular))
                                 } } }
+                                }
                             }
                         }
                         }
@@ -978,10 +1005,11 @@ struct NativeAssignmentsView: View {
 
     private var assignmentsHero: some View {
         CPGlassCard(strong: true) {
+            Text("Complete workload").font(.system(size: 10)).tracking(1).foregroundStyle(CPTheme.muted(scheme))
+            Text("One agenda. Every assignment.").font(.system(size: 21, weight: .regular)).fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 8) {
-                workloadMetric(assignments.count, "Remaining")
+                workloadMetric(weekCount, "Due this week", color: CPTheme.primary(scheme: scheme))
                 workloadMetric(overdueCount, "Overdue", color: CPTheme.danger)
-                workloadMetric(weekCount, "This week", color: CPTheme.primary(scheme: scheme))
             }
         }
     }
@@ -1017,7 +1045,7 @@ struct NativeAssignmentRow: View {
                     .foregroundStyle(isComplete ? CPTheme.primary(scheme: scheme) : CPTheme.muted(scheme).opacity(0.6))
             }
             .buttonStyle(.plain)
-            .disabled(assignment.isCanvasFinished)
+            .disabled(store.completionSavesInFlight.contains(assignment.id))
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(assignment.name)
@@ -1625,10 +1653,24 @@ private struct StoredNativeStudySession: Codable {
     let completedIDs: [Int]?
     let finished: Bool?
     let started: Bool?
+    let pomodoroPlan: NativePomodoroPlan?
+    let phase: String?
+    let round: Int?
+    let blockEndsAt: Date?
+}
+
+private struct NativePomodoroPlan: Codable {
+    let focus: Int
+    let shortBreak: Int
+    let longBreak: Int
+    let rounds: Int
+
+    func minutes(for phase: String) -> Int {
+        phase == "short-break" ? shortBreak : phase == "long-break" ? longBreak : focus
+    }
 }
 
 struct NativeStudyView: View {
-    @Binding private var studySection: String
     @Binding private var requestedAssignment: AssignmentItem?
     @Environment(\.colorScheme) private var scheme
     @ObservedObject var store: NativeContentStore
@@ -1636,14 +1678,23 @@ struct NativeStudyView: View {
     @State private var selected: Set<Int>; @State private var selectedOrder: [Int]; @State private var manualTasks: [AssignmentItem]; @State private var completedIDs: Set<Int>; @State private var sessionFinished: Bool; @State private var sessionStarted: Bool
     @State private var duration: Int; @State private var remaining: Int; @State private var running: Bool; @State private var currentIndex: Int; @State private var showCompleted = false
     @State private var manualName = ""; @State private var search = ""
+    @AppStorage("CanvasProNativePomodoroEnabled") private var pomodoroEnabled = true
+    @AppStorage("CanvasProNativePomodoroPreset") private var pomodoroPreset = "classic"
+    @AppStorage("CanvasProNativeCustomFocus") private var customFocus = 25
+    @AppStorage("CanvasProNativeCustomShortBreak") private var customShortBreak = 5
+    @AppStorage("CanvasProNativeCustomLongBreak") private var customLongBreak = 15
+    @AppStorage("CanvasProNativeCustomRounds") private var customRounds = 4
+    @State private var activePlan: NativePomodoroPlan?
+    @State private var phase: String
+    @State private var round: Int
+    @State private var blockEndsAt: Date?
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     private var sessionKey: String { "CanvasProNativeStudySession.\(store.persistenceScope)" }
-    private var availableItems: [AssignmentItem] { (store.bundle.assignments + features.customAssignments.map { item in AssignmentItem.custom(item, course: store.bundle.courses.first { $0.id == item.courseID }) } + manualTasks).filter { !features.hiddenCourseIDs.contains($0.courseID) || $0.courseID == 0 } }
+    private var availableItems: [AssignmentItem] { store.bundle.assignments + features.customAssignments.map { item in AssignmentItem.custom(item, course: store.bundle.courses.first { $0.id == item.courseID }) } + manualTasks }
     private var items: [AssignmentItem] { selectedOrder.compactMap { id in availableItems.first { $0.id == id && selected.contains(id) } } }
 
-    init(store: NativeContentStore, features: NativeFeatureStore, studySection: Binding<String>, requestedAssignment: Binding<AssignmentItem?> = .constant(nil)) {
+    init(store: NativeContentStore, features: NativeFeatureStore, requestedAssignment: Binding<AssignmentItem?> = .constant(nil)) {
         self.store = store; self.features = features
-        _studySection = studySection
         _requestedAssignment = requestedAssignment
         let key = "CanvasProNativeStudySession.\(store.persistenceScope)"
         let saved = UserDefaults.standard.data(forKey: key).flatMap { try? JSONDecoder().decode(StoredNativeStudySession.self, from: $0) }
@@ -1657,28 +1708,26 @@ struct NativeStudyView: View {
         _sessionStarted = State(initialValue: saved?.started ?? (saved?.running == true || restoredRemaining != (saved?.duration ?? 25) * 60))
         _duration = State(initialValue: saved?.duration ?? 25)
         _remaining = State(initialValue: restoredRemaining)
-        _running = State(initialValue: saved?.running == true && restoredRemaining > 0)
+        _running = State(initialValue: saved?.running == true)
         _currentIndex = State(initialValue: saved?.currentIndex ?? 0)
+        _activePlan = State(initialValue: saved?.pomodoroPlan)
+        _phase = State(initialValue: saved?.phase ?? "focus")
+        _round = State(initialValue: saved?.round ?? 0)
+        _blockEndsAt = State(initialValue: saved?.running == true ? (saved?.blockEndsAt ?? saved?.savedAt.addingTimeInterval(TimeInterval(saved?.remaining ?? 0))) : nil)
     }
 
     var body: some View {
         NavigationStack {
             ZStack {
-                if studySection == "Get It Done" { GetItDoneView(store: store, features: features).transition(.opacity) }
-                else if sessionFinished { summary.transition(.opacity) }
+                if sessionFinished { summary.transition(.opacity) }
                 else if sessionStarted { activeSession.transition(.opacity) }
                 else { setup.transition(.opacity) }
             }
                 .cpStateChange(sessionFinished)
                 .cpStateChange(sessionStarted)
-                .cpNavigationTitle(studySection)
-                .safeAreaInset(edge: .top, spacing: 0) {
-                    NativeSectionPicker(selection: $studySection, options: ["Get It Done", "Study Session"], label: "Study sections")
-                }
-                .cpStateChange(studySection)
+                .cpNavigationTitle("Study Session")
                 .task(id: requestedAssignment?.id) {
                     guard let item = requestedAssignment else { return }
-                    studySection = "Study Session"
                     // Keep a running or paused session intact; otherwise seed setup.
                     if !sessionStarted || sessionFinished {
                         selected = [item.id]; selectedOrder = [item.id]
@@ -1690,7 +1739,9 @@ struct NativeStudyView: View {
                     }
                     requestedAssignment = nil
                 }
-                .onReceive(timer) { _ in guard running, remaining > 0 else { return }; remaining -= 1; if remaining == 0 { running = false; UINotificationFeedbackGenerator().notificationOccurred(.success) } }
+                .onReceive(timer) { _ in tick() }
+                .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in tick() }
+                .onAppear { tick() }
                 .onChange(of: selected) { _, _ in persistSession() }
                 .onChange(of: selectedOrder) { _, _ in persistSession() }
                 .onChange(of: manualTasks) { _, _ in persistSession() }
@@ -1701,11 +1752,14 @@ struct NativeStudyView: View {
                 .onChange(of: remaining) { _, _ in persistSession() }
                 .onChange(of: running) { _, _ in persistSession() }
                 .onChange(of: currentIndex) { _, _ in persistSession() }
+                .onChange(of: phase) { _, _ in persistSession() }
+                .onChange(of: round) { _, _ in persistSession() }
+                .onChange(of: blockEndsAt) { _, _ in persistSession() }
         }
     }
 
     private func persistSession() {
-        let value = StoredNativeStudySession(selected: selectedOrder, duration: duration, remaining: remaining, running: running, currentIndex: currentIndex, savedAt: Date(), manualTasks: manualTasks, completedIDs: Array(completedIDs), finished: sessionFinished, started: sessionStarted)
+        let value = StoredNativeStudySession(selected: selectedOrder, duration: duration, remaining: remaining, running: running, currentIndex: currentIndex, savedAt: Date(), manualTasks: manualTasks, completedIDs: Array(completedIDs), finished: sessionFinished, started: sessionStarted, pomodoroPlan: activePlan, phase: phase, round: round, blockEndsAt: blockEndsAt)
         if let data = try? JSONEncoder().encode(value) { UserDefaults.standard.set(data, forKey: sessionKey) }
     }
     private var setup: some View {
@@ -1717,13 +1771,36 @@ struct NativeStudyView: View {
                         Toggle("Show completed", isOn: $showCompleted).font(.system(size: 12, weight: .regular))
                         HStack { TextField("Add a task of your own", text: $manualName); Button("Add") { addManualTask() }.disabled(manualName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) }
                         TextField("Search assignments", text: $search)
-                        VStack(spacing: 8) { ForEach(availableItems.filter { item in (item.courseID == 0 || item.isVisible(in: store, showCompleted: showCompleted)) && (search.isEmpty || item.name.localizedCaseInsensitiveContains(search) || item.courseName.localizedCaseInsensitiveContains(search)) }.sorted(by: AssignmentItem.dueSort)) { item in Button { if selected.contains(item.id) { selected.remove(item.id); selectedOrder.removeAll { $0 == item.id } } else { selected.insert(item.id); selectedOrder.append(item.id) } } label: { CPInsetRow { HStack(spacing: 10) { Image(systemName: selected.contains(item.id) ? "checkmark.square.fill" : "square").foregroundStyle(selected.contains(item.id) ? CPTheme.primary(scheme: scheme) : CPTheme.muted(scheme)); VStack(alignment: .leading, spacing: 3) { Text(item.name).font(.system(size: 13, weight: .regular)); Text(item.courseName).font(.system(size: 11, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)) }; Spacer() } } }.buttonStyle(.plain) } }
+                        VStack(spacing: 8) { ForEach(availableItems.filter { item in
+                            let matches = search.isEmpty || item.name.localizedCaseInsensitiveContains(search) || item.courseName.localizedCaseInsensitiveContains(search)
+                            let inRange = item.courseID == 0 || !search.isEmpty || (item.dueDate.map { $0 <= NativeParity.endOfUpcomingDay(28) } ?? false)
+                            return matches && inRange && (item.courseID == 0 || item.isVisible(in: store, showCompleted: showCompleted))
+                        }.sorted(by: AssignmentItem.dueSort)) { item in Button { if selected.contains(item.id) { selected.remove(item.id); selectedOrder.removeAll { $0 == item.id } } else { selected.insert(item.id); selectedOrder.append(item.id) } } label: { CPInsetRow { HStack(spacing: 10) { Image(systemName: selected.contains(item.id) ? "checkmark.square.fill" : "square").foregroundStyle(selected.contains(item.id) ? CPTheme.primary(scheme: scheme) : CPTheme.muted(scheme)); VStack(alignment: .leading, spacing: 3) { Text(item.name).font(.system(size: 13, weight: .regular)); Text(item.courseName).font(.system(size: 11, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)) }; Spacer() } } }.buttonStyle(.plain) } }
                         if !items.isEmpty { VStack(alignment: .leading, spacing: 8) { Text("SELECTED ORDER").font(.system(size: 10)).foregroundStyle(CPTheme.muted(scheme)); ForEach(items.indices, id: \.self) { index in let item = items[index]; HStack { Text(item.name).font(.system(size: 12)); Spacer(); Button { moveSelection(index, -1) } label: { Image(systemName: "arrow.up") }.disabled(index == 0); Button { moveSelection(index, 1) } label: { Image(systemName: "arrow.down") }.disabled(index == items.count - 1); Button { selected.remove(item.id); selectedOrder.removeAll { $0 == item.id } } label: { Image(systemName: "xmark") } }.buttonStyle(.plain) } } }
                     }
                     CPGlassCard(title: "Duration", strong: true) {
-                        VStack(spacing: 2) { Text("\(duration)").font(.system(size: 32, weight: .regular)).tracking(-1).monospacedDigit(); Text("MINUTES").font(.system(size: 10, weight: .regular)).tracking(1.4).foregroundStyle(CPTheme.muted(scheme)) }.frame(maxWidth: .infinity).padding(.vertical, 12).background(CPTheme.foreground(scheme).opacity(0.05), in: RoundedRectangle(cornerRadius: 14))
-                        LazyVGrid(columns: [GridItem(.flexible(minimum: 0), spacing: 8), GridItem(.flexible(minimum: 0), spacing: 8)], spacing: 8) { ForEach([15, 25, 45, 60], id: \.self) { value in Button { duration = value; remaining = value * 60 } label: { CPChip(text: "\(value)m", selected: duration == value).frame(maxWidth: .infinity) }.buttonStyle(.plain) } }
-                        Button { completedIDs.removeAll(); currentIndex = 0; remaining = duration * 60; sessionStarted = true; running = true } label: { Label(selected.isEmpty ? "Choose a task to begin" : "Start session", systemImage: "timer").font(.system(size: 13, weight: .regular)).frame(maxWidth: .infinity, minHeight: 42).foregroundStyle(CPTheme.background(scheme)).background(CPTheme.foreground(scheme), in: RoundedRectangle(cornerRadius: 11)) }.buttonStyle(.plain).disabled(selected.isEmpty).opacity(selected.isEmpty ? 0.5 : 1)
+                        Toggle("Pomodoro", isOn: $pomodoroEnabled)
+                            .font(.system(size: 13))
+                        if pomodoroEnabled {
+                            Picker("Focus and break length", selection: $pomodoroPreset) {
+                                Text("25 / 5").tag("classic")
+                                Text("50 / 10").tag("deep")
+                                Text("Custom").tag("custom")
+                            }.pickerStyle(.segmented)
+                            if pomodoroPreset == "custom" {
+                                LabeledContent("Focus minutes") { TextField("25", value: $customFocus, format: .number).keyboardType(.numberPad).multilineTextAlignment(.trailing) }
+                                LabeledContent("Short break") { TextField("5", value: $customShortBreak, format: .number).keyboardType(.numberPad).multilineTextAlignment(.trailing) }
+                                LabeledContent("Long break") { TextField("15", value: $customLongBreak, format: .number).keyboardType(.numberPad).multilineTextAlignment(.trailing) }
+                                LabeledContent("Long break every") { TextField("4", value: $customRounds, format: .number).keyboardType(.numberPad).multilineTextAlignment(.trailing) }
+                            }
+                            Text("\(chosenPlan.focus)m focus · \(chosenPlan.shortBreak)m break · longer break after \(chosenPlan.rounds) blocks")
+                                .font(.system(size: 11)).foregroundStyle(CPTheme.muted(scheme))
+                        } else {
+                            TextField("Minutes", value: $duration, format: .number).keyboardType(.numberPad)
+                            HStack(spacing: 8) { ForEach([15, 25, 45, 60], id: \.self) { value in Button("\(value)m") { duration = value }.buttonStyle(.bordered) } }
+                            Text("1 to 480 minutes").font(.system(size: 11)).foregroundStyle(CPTheme.muted(scheme))
+                        }
+                        Button(action: startSession) { Label(selected.isEmpty ? "Choose a task to begin" : "Start session", systemImage: "timer").font(.system(size: 13, weight: .regular)).frame(maxWidth: .infinity, minHeight: 42).foregroundStyle(CPTheme.background(scheme)).background(CPTheme.foreground(scheme), in: RoundedRectangle(cornerRadius: 11)) }.buttonStyle(.plain).disabled(selected.isEmpty).opacity(selected.isEmpty ? 0.5 : 1)
                     }
                 }.padding(.horizontal, 14).padding(.vertical, 8).padding(.bottom, 24)
             }
@@ -1735,24 +1812,86 @@ struct NativeStudyView: View {
             ScrollView {
                 VStack(spacing: 14) {
                     CPGlassCard(strong: true) {
-                        HStack { Text("\(completedIDs.count) finished"); Spacer(); Text("\(Int((Double(duration * 60 - remaining) / Double(max(1, duration * 60))) * 100))% of session") }.font(.system(size: 12)).foregroundStyle(CPTheme.muted(scheme))
+                        HStack { Text("\(completedIDs.count) finished"); Spacer(); if let plan = activePlan { Text("\(round % plan.rounds) of \(plan.rounds) focus blocks") } else { Text("\(Int((Double(duration * 60 - remaining) / Double(max(1, duration * 60))) * 100))% of session") } }.font(.system(size: 12)).foregroundStyle(CPTheme.muted(scheme))
                         ZStack {
-                            Circle().stroke(CPTheme.foreground(scheme).opacity(0.08), lineWidth: 10)
-                            Circle().trim(from: 0, to: Double(duration * 60 - remaining) / Double(max(1, duration * 60))).stroke(CPTheme.primary(scheme: scheme), style: StrokeStyle(lineWidth: 10, lineCap: .round)).rotationEffect(.degrees(-90))
-                            VStack(spacing: 6) { Text(String(format: "%02d:%02d", remaining / 60, remaining % 60)).font(.system(size: 38, weight: .regular)).tracking(-1.5).monospacedDigit(); Text(running ? "FOCUS TIME" : "PAUSED").font(.system(size: 10, weight: .regular)).tracking(1.4).foregroundStyle(CPTheme.muted(scheme)) }
+                            Circle().stroke(CPTheme.foreground(scheme).opacity(0.08), lineWidth: 5)
+                            Circle().trim(from: 0, to: max(0, min(1, Double(blockMinutes * 60 - remaining) / Double(max(1, blockMinutes * 60))))).stroke(CPTheme.primary(scheme: scheme), style: StrokeStyle(lineWidth: 5, lineCap: .round)).rotationEffect(.degrees(-90))
+                            VStack(spacing: 6) { Text(String(format: "%02d:%02d", remaining / 60, remaining % 60)).font(.system(size: 38, weight: .regular)).tracking(-1.5).monospacedDigit(); Text(running ? phaseLabel : "PAUSED").font(.system(size: 10, weight: .regular)).tracking(1.4).foregroundStyle(CPTheme.muted(scheme)) }
                         }.frame(width: 180, height: 180).frame(maxWidth: .infinity).padding(.vertical, 8)
-                        if !items.isEmpty { VStack(spacing: 5) { Text("NOW STUDYING").font(.system(size: 10, weight: .regular)).tracking(1.4).foregroundStyle(CPTheme.muted(scheme)); Text(items[min(currentIndex, items.count - 1)].name).font(.system(size: 17, weight: .regular)).multilineTextAlignment(.center); Text(items[min(currentIndex, items.count - 1)].courseName).font(.system(size: 11, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)) }.frame(maxWidth: .infinity) }
-                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) { Button("Previous") { navigateTask(-1) }; Button(running ? "Pause" : "Resume") { running.toggle() }.buttonStyle(.borderedProminent); Button("Next") { navigateTask(1) }; Button("Finish task") { finishTask() }.disabled(items.isEmpty) }.font(.system(size: 11, weight: .regular)).frame(maxWidth: .infinity)
+                        if !items.isEmpty { VStack(spacing: 5) { Text(phase == "focus" ? "NOW STUDYING" : "ON BREAK").font(.system(size: 10, weight: .regular)).tracking(1.4).foregroundStyle(CPTheme.muted(scheme)); Text(items[min(currentIndex, items.count - 1)].name).font(.system(size: 17, weight: .regular)).multilineTextAlignment(.center); Text(items[min(currentIndex, items.count - 1)].courseName).font(.system(size: 11, weight: .regular)).foregroundStyle(CPTheme.muted(scheme)) }.frame(maxWidth: .infinity) }
+                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) { Button("Previous") { navigateTask(-1) }; Button(running ? "Pause" : "Resume") { togglePause() }.buttonStyle(.borderedProminent); Button("Next") { navigateTask(1) }; Button("Finish task") { finishTask() }.disabled(items.isEmpty) }.font(.system(size: 11, weight: .regular)).frame(maxWidth: .infinity)
+                        if activePlan != nil && phase != "focus" { Button("Skip break") { skipBreak() }.font(.system(size: 12)).frame(maxWidth: .infinity) }
                     }
                     CPGlassCard(title: "Up next", subtitle: "\(completedIDs.count) of \(items.count) finished") { ForEach(items.indices, id: \.self) { index in let item = items[index]; Button { currentIndex = index } label: { CPInsetRow { HStack { Text("\(index + 1)").frame(width: 22); VStack(alignment: .leading) { Text(item.name).strikethrough(completedIDs.contains(item.id)); if !item.courseName.isEmpty { Text(item.courseName).font(.system(size: 10)).foregroundStyle(CPTheme.muted(scheme)) } }; Spacer(); if currentIndex == index { Image(systemName: "arrowtriangle.right.fill") }; if completedIDs.contains(item.id) { Image(systemName: "checkmark") } } } }.buttonStyle(.plain) } }
-                    Button("End session", role: .destructive) { running = false; sessionFinished = true }.frame(maxWidth: .infinity)
+                    Button("End session", role: .destructive) { running = false; blockEndsAt = nil; sessionFinished = true }.frame(maxWidth: .infinity)
                 }.padding(.horizontal, 14).padding(.vertical, 8).padding(.bottom, 24)
             }
         }
     }
 
     private var summary: some View {
-        ZStack { CPBackdrop(); ScrollView { VStack(spacing: 14) { CPGlassCard(title: "Session complete", subtitle: "\(completedIDs.count) of \(items.count) tasks finished") { Button("Plan another") { resetSession(keepSelection: true) }; Button("Dismiss") { resetSession(keepSelection: false) } } }.padding(14) } }
+        ZStack { CPBackdrop(); ScrollView { VStack(spacing: 14) { CPGlassCard(title: "Session complete", subtitle: "\(completedIDs.count) of \(items.count) tasks finished") { if activePlan != nil && round > 0 { Text("\(round) focus blocks completed").font(.system(size: 12)).foregroundStyle(CPTheme.muted(scheme)) }; Button("Plan another") { resetSession(keepSelection: true) }; Button("Dismiss") { resetSession(keepSelection: false) } } }.padding(14) } }
+    }
+
+    private var chosenPlan: NativePomodoroPlan {
+        switch pomodoroPreset {
+        case "deep": return NativePomodoroPlan(focus: 50, shortBreak: 10, longBreak: 30, rounds: 4)
+        case "custom": return NativePomodoroPlan(focus: min(120, max(1, customFocus)), shortBreak: min(30, max(1, customShortBreak)), longBreak: min(60, max(1, customLongBreak)), rounds: min(8, max(2, customRounds)))
+        default: return NativePomodoroPlan(focus: 25, shortBreak: 5, longBreak: 15, rounds: 4)
+        }
+    }
+    private var blockMinutes: Int { activePlan?.minutes(for: phase) ?? duration }
+    private var phaseLabel: String {
+        phase == "long-break" ? "LONG BREAK" : phase == "short-break" ? "SHORT BREAK" : "FOCUS TIME"
+    }
+    private func startSession() {
+        guard !selected.isEmpty else { return }
+        duration = min(480, max(1, duration))
+        activePlan = pomodoroEnabled ? chosenPlan : nil
+        phase = "focus"; round = 0
+        completedIDs.removeAll(); currentIndex = 0
+        remaining = blockMinutes * 60
+        blockEndsAt = Date().addingTimeInterval(TimeInterval(remaining))
+        sessionStarted = true; sessionFinished = false; running = true
+    }
+    private func togglePause() {
+        if running {
+            tick(); running = false; blockEndsAt = nil
+        } else {
+            blockEndsAt = Date().addingTimeInterval(TimeInterval(remaining)); running = true
+        }
+    }
+    private func tick() {
+        guard sessionStarted, !sessionFinished, running, let end = blockEndsAt else { return }
+        let now = Date()
+        if now < end { remaining = max(1, Int(ceil(end.timeIntervalSince(now)))); return }
+        guard let plan = activePlan else {
+            remaining = 0; running = false; blockEndsAt = nil; sessionFinished = true
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            return
+        }
+        var nextEnd = end
+        var nextPhase = phase
+        var nextRound = round
+        for _ in 0..<24 {
+            if now < nextEnd { break }
+            if nextPhase == "focus" {
+                nextRound += 1
+                nextPhase = nextRound % plan.rounds == 0 ? "long-break" : "short-break"
+            } else { nextPhase = "focus" }
+            nextEnd = nextEnd.addingTimeInterval(TimeInterval(plan.minutes(for: nextPhase) * 60))
+        }
+        if now >= nextEnd { nextEnd = now.addingTimeInterval(TimeInterval(plan.minutes(for: nextPhase) * 60)) }
+        if nextPhase != phase { UINotificationFeedbackGenerator().notificationOccurred(.success) }
+        phase = nextPhase; round = nextRound; blockEndsAt = nextEnd
+        remaining = max(1, Int(ceil(nextEnd.timeIntervalSince(now))))
+    }
+    private func skipBreak() {
+        guard let plan = activePlan, phase != "focus" else { return }
+        phase = "focus"; remaining = plan.focus * 60
+        blockEndsAt = Date().addingTimeInterval(TimeInterval(remaining))
+        running = true
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 
     private func addManualTask() {
@@ -1764,8 +1903,8 @@ struct NativeStudyView: View {
     }
     private func moveSelection(_ index: Int, _ direction: Int) { guard selectedOrder.indices.contains(index + direction) else { return }; selectedOrder.swapAt(index, index + direction) }
     private func navigateTask(_ direction: Int) { guard !items.isEmpty else { return }; currentIndex = (currentIndex + direction + items.count) % items.count }
-    private func finishTask() { guard items.indices.contains(currentIndex) else { return }; completedIDs.insert(items[currentIndex].id); if completedIDs.count >= items.count { running = false; sessionFinished = true; UINotificationFeedbackGenerator().notificationOccurred(.success) } else { for step in 1...items.count { let next = (currentIndex + step) % items.count; if !completedIDs.contains(items[next].id) { currentIndex = next; break } } } }
-    private func resetSession(keepSelection: Bool) { running = false; sessionFinished = false; sessionStarted = false; completedIDs.removeAll(); remaining = duration * 60; currentIndex = 0; if !keepSelection { selected.removeAll(); selectedOrder.removeAll(); manualTasks.removeAll() } }
+    private func finishTask() { guard items.indices.contains(currentIndex) else { return }; completedIDs.insert(items[currentIndex].id); if completedIDs.count >= items.count { running = false; blockEndsAt = nil; sessionFinished = true; UINotificationFeedbackGenerator().notificationOccurred(.success) } else { for step in 1...items.count { let next = (currentIndex + step) % items.count; if !completedIDs.contains(items[next].id) { currentIndex = next; break } } } }
+    private func resetSession(keepSelection: Bool) { running = false; blockEndsAt = nil; activePlan = nil; phase = "focus"; round = 0; sessionFinished = false; sessionStarted = false; completedIDs.removeAll(); remaining = duration * 60; currentIndex = 0; if !keepSelection { selected.removeAll(); selectedOrder.removeAll(); manualTasks.removeAll() } }
 }
 
 extension AssignmentItem {
@@ -1777,10 +1916,15 @@ extension AssignmentItem {
         if submission.submittedAt != nil || submission.workflowState == "submitted" || submission.workflowState == "pending_review" { return true }
         return submission.workflowState == "graded" && (submission.score != nil || !(submission.grade ?? "").isEmpty)
     }
-    var isStaleOverdue: Bool { dueDate.map { $0 < Date().addingTimeInterval(-86400) } ?? false }
-    @MainActor func isFinished(in store: NativeContentStore) -> Bool { store.completed.contains(id) || isCanvasFinished }
+    var isStaleOverdue: Bool { dueDate.map { $0 < NativeParity.startOfRecentWindow() } ?? false }
+    @MainActor func isFinished(in store: NativeContentStore) -> Bool {
+        if store.completed.contains(id) { return true }
+        guard isCanvasFinished else { return false }
+        guard let reopened = store.reopenedAt[id] else { return true }
+        return submission?.submittedAt.flatMap { ISO8601DateFormatter.canvasDate(from: $0) }.map { $0 > reopened } ?? false
+    }
     @MainActor func isVisible(in store: NativeContentStore, showCompleted: Bool = false) -> Bool {
-        if isFinished(in: store) { return showCompleted }
+        if isFinished(in: store) { return showCompleted && NativeParity.isInDisplayWindow(self) }
         if dueAt == nil && (pointsPossible ?? 0) <= 0 { return showCompleted }
         return !isStaleOverdue
     }

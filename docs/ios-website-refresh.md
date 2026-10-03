@@ -1,47 +1,47 @@
-# Native website refresh
+# Native website parity update
 
-Reference: local canvspro-full main at acf76ba (October 2, 2026).
-Only SwiftUI files and native checks were changed; React source, authentication,
-settings synchronization, and notification preferences were not modified.
-Uncommitted website offline/service-worker changes are deliberately excluded.
+Reference: GitHub `main` at `8dc55ad` (October 3, 2026). The local
+`canvspro-full` checkout was at `783443c`; the remote adds the "Coming Up"
+Today label and a website preview auth storage fix. The iOS implementation
+remains SwiftUI.
 
-## Implemented
+## Navigation
 
-- Study Session contains Get It Done and Study Session selectors. Calendar contains
-  Calendar and My classes. The existing five Apple-native bottom tabs remain.
-- Focus: next deadline, study shortcut, counts/points/estimated effort, seven local
-  calendar days with drill-down, day/class grouping, completion and Undo.
-- Study shortcuts seed the existing study setup without replacing an active session.
-- Get It Done: recommendation first, actions and description link, then a quieter
-  daily plan with existing skip, reorder, regenerate and estimate controls.
-- Assignments: two-week agenda, optional weeks 3–4, later work searchable, shared
-  Get It Done scorer, quiet priority labels, hidden undated zero-point placeholders.
-- Dashboard: suppress zero-assignment class rows and summarize them; distinguish
-  no new activity from urgent work still remaining.
-- Class descriptions: enter the relevant class section, expand/scroll to the
-  assignment, briefly highlight it, keep full assignment details reachable.
-- Muted website grade colors and letter fallback; schedule uses class nicknames.
+The five native bottom tabs are Today, Study Session, Grades, Assignments,
+and More. Today contains Dashboard, Coming Up, and Get It Done. More contains
+Calendar (Calendar and My classes), Announcements, Notifications, and Settings.
+Profile stays inside Settings. Website admin Usage is a privileged route and
+is not yet implemented as a native owner screen.
 
-## Verification status
+## Updated behavior
 
-Node source regression tests pass. These are NOT Swift compilation or UI tests.
-No Xcode/simulator is available on this Windows machine.
+- Coming Up uses the website's compact summary, range menu, seven-day picker,
+  day/class grouping, and finished toggle. Selecting a day filters the list.
+- Get It Done shows a quiet suggestion and its remaining plan. Suggestion Start
+  seeds Study Session; Canvas remains a separate link.
+- Assignments is a global deadline-ordered agenda with a due-only priority
+  list, two/four-week expansion, search for later work, and collapsed undated
+  section. Students can add custom assignments.
+- The shared recent window starts at local midnight three days ago. Completed
+  work is shown only on request and only through four weeks ahead. Canvas work
+  marked not done now saves a `reopenedAt` override to the same preference key
+  as the website. A newer Canvas submission restores completion.
+- Study Session has 25/5 and 50/10 Pomodoro presets, bounded custom focus/break
+  lengths, automatic phase changes, skip break, and account-scoped saved state.
+  The ordinary 1–480-minute timer remains available.
+- Existing native cached coursework and account synchronization remain in place.
+  Browser service-worker and preview auth storage changes have no native
+  counterpart.
 
-## Required native verification
+## Verification
 
-Run Codemagic ios-workflow (Debug app artifact) and ios-release-check (Release).
-Then check the following on small and large supported iPhones:
+Node source checks and the main branch's Pomodoro/reopen tests pass. Windows
+cannot compile or run SwiftUI, so a Codemagic build and device inspection are
+still required before calling the app visually or functionally verified.
 
-- Sign in, allow data to load, switch all five tabs; verify launch handoff.
-- Switch Study sections while a timer runs; ensure timer/state remain intact.
-- Use Focus Study shortcut with no active session, then with one already running.
-- Switch Calendar/My classes, edit a meeting, check nicknames and return navigation.
-- Focus: every date window, day/class grouping, empty week/day, completion and Undo.
-- Assignments due at midnight, day 7/14/28 boundaries, undated tasks and search
-  beyond four weeks; ensure completed and >24h overdue filtering is unchanged.
-- Description links for normal, graded, completed, custom, and far-future work;
-  confirm scroll/highlight and access to the full assignment details.
-- Light/dark, all palettes, Reduce Motion, larger text, long course/assignment names.
-- Slow network, cached data, failed loading, account sign-out/re-entry.
-
-This checklist is pending device execution, not a claim of pixel-perfect parity.
+On a Codemagic iOS build, check all five tabs on a small and large iPhone,
+Today section transitions, Calendar in More, profile/settings access, light
+and dark themes, and Reduce Motion. Exercise Pomodoro through a short break,
+long break, pause/resume, app background/foreground, and skip break. Test
+assignment search, the local day 3/7/14/28 boundaries, Canvas-submitted
+reopen and resubmission, cached data, and account switching.

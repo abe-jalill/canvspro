@@ -573,8 +573,18 @@ enum NativeParity {
         return Calendar.current.date(bySettingHour: 23, minute: 59, second: 59, of: day) ?? day
     }
 
+    static func startOfRecentWindow(from now: Date = Date()) -> Date {
+        let recent = Calendar.current.date(byAdding: .day, value: -3, to: now) ?? now
+        return Calendar.current.startOfDay(for: recent)
+    }
+
+    static func isInDisplayWindow(_ item: AssignmentItem, now: Date = Date()) -> Bool {
+        guard let due = item.dueDate else { return false }
+        return due >= startOfRecentWindow(from: now) && due <= endOfUpcomingDay(28, from: now)
+    }
+
     static func isInFocusWindow(_ item: AssignmentItem, window: String, now: Date = Date()) -> Bool {
-        if window == "all" { return true }
+        if window == "all" { return item.dueDate.map { $0 <= endOfUpcomingDay(28, from: now) } ?? true }
         guard let due = item.dueDate else { return false }
         if window == "overdue" { return due < now }
         guard let days = Int(window) else { return false }
