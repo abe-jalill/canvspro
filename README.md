@@ -87,11 +87,12 @@ Announcements: /api/v1/announcements?context_codes[]=course_:id
 The server-side Canvas proxy sends each user's saved token as an Authorization: Bearer header.
 
 Native iOS builds: Codemagic's `ios-workflow` is a Debug simulator build that
-requires a real account and live Supabase data. Set `SUPABASE_URL` and
-`SUPABASE_PUBLISHABLE_KEY` (or their `VITE_` equivalents) in Codemagic before
-building. Before release, run `ios-release-check`; it compiles
-the SwiftUI Release path, which uses real Supabase sign-in and requires
-`SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`. Deploy the `canvas` and
+requires a real account and live Supabase data. Both iOS workflows use the
+public Supabase URL and publishable client key in `ios/backend-public.env` by
+default. Codemagic `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` variables (or
+their `VITE_` equivalents) override those defaults. Never put a service-role
+or secret key in the app. Before release, run `ios-release-check`; it compiles
+the SwiftUI Release path with real Supabase sign-in. Deploy the `canvas` and
 `delete-account` Supabase Edge Functions before testing a live account.
 
 Handle loading and error states gracefully — show a subtle glass-style loading skeleton while fetching, and a clean "couldn't load" message on failure instead of crashing

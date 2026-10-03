@@ -36,3 +36,13 @@ test("Codemagic checks the Release SwiftUI path separately", () => {
   assert.match(workflow, /ios-release-check:/);
   assert.match(workflow, /-configuration Release/);
 });
+
+test("both Codemagic workflows have public backend defaults when account variables are absent", () => {
+  const defaults = readFileSync(new URL("../ios/backend-public.env", import.meta.url), "utf8");
+  const config = Object.fromEntries(defaults.trim().split(/\r?\n/).map(line => line.split(/=(.*)/s).slice(0, 2)));
+  assert.match(config.CANVASPRO_DEFAULT_SUPABASE_URL, /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/);
+  assert.match(config.CANVASPRO_DEFAULT_SUPABASE_PUBLISHABLE_KEY, /^sb_publishable_[A-Za-z0-9_-]+$/);
+  assert.equal((workflow.match(/\. ios\/backend-public\.env/g) ?? []).length, 2);
+  assert.equal((workflow.match(/SUPABASE_URL:-\$\{VITE_SUPABASE_URL:-\$\{CANVASPRO_DEFAULT_SUPABASE_URL:-\}\}/g) ?? []).length, 2);
+  assert.equal((workflow.match(/SUPABASE_PUBLISHABLE_KEY:-\$\{VITE_SUPABASE_PUBLISHABLE_KEY:-\$\{CANVASPRO_DEFAULT_SUPABASE_PUBLISHABLE_KEY:-\}\}/g) ?? []).length, 2);
+});

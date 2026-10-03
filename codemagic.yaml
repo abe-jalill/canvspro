@@ -9,10 +9,11 @@ workflows:
     scripts:
       - name: Build native SwiftUI app
         script: |
-          BACKEND_URL="${SUPABASE_URL:-${VITE_SUPABASE_URL:-}}"
-          BACKEND_KEY="${SUPABASE_PUBLISHABLE_KEY:-${VITE_SUPABASE_PUBLISHABLE_KEY:-}}"
-          test -n "$BACKEND_URL" || { echo "SUPABASE_URL is required for account-backed builds"; exit 1; }
-          test -n "$BACKEND_KEY" || { echo "SUPABASE_PUBLISHABLE_KEY is required for account-backed builds"; exit 1; }
+          . ios/backend-public.env
+          BACKEND_URL="${SUPABASE_URL:-${VITE_SUPABASE_URL:-${CANVASPRO_DEFAULT_SUPABASE_URL:-}}}"
+          BACKEND_KEY="${SUPABASE_PUBLISHABLE_KEY:-${VITE_SUPABASE_PUBLISHABLE_KEY:-${CANVASPRO_DEFAULT_SUPABASE_PUBLISHABLE_KEY:-}}}"
+          test -n "$BACKEND_URL" || { echo "Set SUPABASE_URL in Codemagic or ios/backend-public.env"; exit 1; }
+          test -n "$BACKEND_KEY" || { echo "Set SUPABASE_PUBLISHABLE_KEY in Codemagic or ios/backend-public.env"; exit 1; }
           cd ios/App
           xcodebuild build \
             -project App.xcodeproj \
@@ -35,10 +36,11 @@ workflows:
     scripts:
       - name: Compile production SwiftUI path
         script: |
-          BACKEND_URL="${SUPABASE_URL:-${VITE_SUPABASE_URL:-}}"
-          BACKEND_KEY="${SUPABASE_PUBLISHABLE_KEY:-${VITE_SUPABASE_PUBLISHABLE_KEY:-}}"
-          test -n "$BACKEND_URL" || { echo "SUPABASE_URL is required for account-backed builds"; exit 1; }
-          test -n "$BACKEND_KEY" || { echo "SUPABASE_PUBLISHABLE_KEY is required for account-backed builds"; exit 1; }
+          . ios/backend-public.env
+          BACKEND_URL="${SUPABASE_URL:-${VITE_SUPABASE_URL:-${CANVASPRO_DEFAULT_SUPABASE_URL:-}}}"
+          BACKEND_KEY="${SUPABASE_PUBLISHABLE_KEY:-${VITE_SUPABASE_PUBLISHABLE_KEY:-${CANVASPRO_DEFAULT_SUPABASE_PUBLISHABLE_KEY:-}}}"
+          test -n "$BACKEND_URL" || { echo "Set SUPABASE_URL in Codemagic or ios/backend-public.env"; exit 1; }
+          test -n "$BACKEND_KEY" || { echo "Set SUPABASE_PUBLISHABLE_KEY in Codemagic or ios/backend-public.env"; exit 1; }
           cd ios/App
           xcodebuild build \
             -project App.xcodeproj \
