@@ -19,7 +19,11 @@ import { displayCourseName } from "@/lib/course-display";
 import { ErrorState, Skeleton } from "@/components/glass-card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { studySelectionFeedback, studySuccessFeedback } from "@/lib/study-session-feedback";
+import {
+  studyPhaseFeedback,
+  studySelectionFeedback,
+  studySuccessFeedback,
+} from "@/lib/study-session-feedback";
 import { useStudySession } from "@/hooks/use-study-session";
 import {
   compareByDueDate,
@@ -29,16 +33,42 @@ import {
 } from "@/lib/assignment-window";
 import { COMPLETED_ASSIGNMENTS_KEY, useLocalSet } from "@/lib/local-state";
 import {
+  POMODORO_LIMITS,
+  POMODORO_PRESETS,
+  advanceSession,
+  buildPomodoroPlan,
   createStudySession,
+  isBreak,
+  phaseOf,
   remainingForSession,
+  skipBreak,
+  type PomodoroPresetId,
   type StudySessionItem,
   type StudySessionSnapshot,
 } from "@/lib/study-session";
+import { Switch } from "@/components/ui/switch";
 
 import { assignmentsQueryOptions as assignmentsQO } from "@/lib/canvas.queries";
 import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
 
 const PRESETS = [15, 25, 45, 60];
+const POMODORO_PREF_KEY = "canvas:study-pomodoro";
+const POMODORO_PRESET_KEY = "canvas:study-pomodoro-preset";
+const POMODORO_CUSTOM_KEY = "canvas:study-pomodoro-custom";
+
+type PomodoroChoice = PomodoroPresetId | "custom";
+type CustomField = "focus" | "shortBreak" | "longBreak" | "rounds";
+
+const CUSTOM_FIELDS: { key: CustomField; label: string; unit: string }[] = [
+  { key: "focus", label: "Focus", unit: "min" },
+  { key: "shortBreak", label: "Short break", unit: "min" },
+  { key: "longBreak", label: "Long break", unit: "min" },
+  { key: "rounds", label: "Long break every", unit: "blocks" },
+];
+
+const CUSTOM_DEFAULTS: Record<CustomField, string> = Object.fromEntries(
+  CUSTOM_FIELDS.map(({ key }) => [key, String(POMODORO_LIMITS[key].fallback)]),
+) as Record<CustomField, string>;
 
 const pillButton =
   "inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-foreground px-8 text-sm font-medium text-background transition-opacity hover:opacity-90 disabled:border disabled:border-foreground/15 disabled:bg-transparent disabled:text-muted-foreground disabled:opacity-100 disabled:hover:opacity-100";
@@ -94,11 +124,11 @@ function nextUnfinished(session: StudySessionSnapshot, from: number) {
 function StudyClock({
   remaining,
   total,
-  paused,
+  label,
 }: {
   remaining: number;
   total: number;
-  paused: boolean;
+  label: string;
 }) {
   const radius = 54;
   const circumference = 2 * Math.PI * radius;
@@ -119,7 +149,7 @@ function StudyClock({
       </svg>
       <div className="study-clock__time">
         <span>{formatTime(remaining)}</span>
-        <small>{paused ? "Paused" : "Focus time"}</small>
+        <small>{label}</small>
       </div>
     </div>
   );
@@ -135,6 +165,10 @@ function StudySessionPage() {
   const [search, setSearch] = useState("");
   const [showCompleted, setShowCompleted] = useState(false);
   const [duration, setDuration] = useState(25);
+  const [pomodoroOn, setPomodoroOn] = useState(true);
+  const [presetId, setPresetId] = useState<PomodoroChoice>("classic");
+  // Kept as text while typing so a field can be empty for a moment.
+  const [custom, setCustom] = useState<Record<CustomField, string>>(CUSTOM_DEFAULTS);
   const [now, setNow] = useState(() => Date.now());
   const [summary, setSummary] = useState<StudySessionSnapshot | null>(null);
   const selectedFromLink = useRef<number | null>(null);
@@ -150,6 +184,60 @@ function StudySessionPage() {
     selectedFromLink.current = requestedAssignment;
   }, [assignments.data, requestedAssignment]);
 
+  // Pomodoro is on unless the person turned it off, and the choice is remembered.
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem(POMODORO_PREF_KEY) === "off") setPomodoroOn(false);
+      const saved = window.localStorage.getItem(POMODORO_PRESET_KEY);
+      if (saved === "custom" || POMODORO_PRESETS.some((preset) => preset.id === saved)) {
+        setPresetId(saved as PomodoroChoice);
+      }
+      const savedCustom = JSON.parse(window.localStorage.getItem(POMODORO_CUSTOM_KEY) ?? "null");
+      if (savedCustom && typeof savedCustom === "object") {
+        setCustom(
+          Object.fromEntries(
+            CUSTOM_FIELDS.map(({ key }) => [key, String(savedCustom[key] ?? CUSTOM_DEFAULTS[key])]),
+          ) as Record<CustomField, string>,
+        );
+      }
+    } catch {
+      /* the defaults are fine */
+    }
+  }, []);
+
+  function changePomodoro(on: boolean) {
+    setPomodoroOn(on);
+    try {
+      window.localStorage.setItem(POMODORO_PREF_KEY, on ? "on" : "off");
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function changePreset(id: PomodoroChoice) {
+    setPresetId(id);
+    try {
+      window.localStorage.setItem(POMODORO_PRESET_KEY, id);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function changeCustom(key: CustomField, value: string) {
+    const next = { ...custom, [key]: value };
+    setCustom(next);
+    try {
+      window.localStorage.setItem(POMODORO_CUSTOM_KEY, JSON.stringify(next));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  /** The plan for the choice on screen; custom fields are clamped to safe values. */
+  const chosenPlan = presetId === "custom"
+    ? buildPomodoroPlan(custom)
+    : (POMODORO_PRESETS.find((preset) => preset.id === presetId) ?? POMODORO_PRESETS[0]).plan;
+
   useEffect(() => {
     if (!session || session.status !== "running") return;
     const tick = () => setNow(Date.now());
@@ -160,6 +248,19 @@ function StudySessionPage() {
 
   useEffect(() => {
     if (!session || session.status !== "running" || remainingForSession(session, now) > 0) return;
+    if (session.pomodoro) {
+      // A pomodoro keeps going: focus flows into a break and back again.
+      const result = advanceSession(session, now);
+      if (!result.changed) return;
+      setSession(result.session);
+      void studyPhaseFeedback();
+      toast(isBreak(result.session) ? "Time for a break" : "Back to focus", {
+        description: isBreak(result.session)
+          ? `${formatTime(result.session.durationMs)} to rest. You've earned it.`
+          : "Your next focus block has started.",
+      });
+      return;
+    }
     setSummary(session);
     setSession(null);
     void studySuccessFeedback();
@@ -213,7 +314,9 @@ function StudySessionPage() {
     const boundedDuration = Math.min(480, Math.max(1, Math.round(duration)));
     setDuration(boundedDuration);
     setSummary(null);
-    setSession(createStudySession(selected, boundedDuration));
+    setSession(
+      createStudySession(selected, boundedDuration, Date.now(), pomodoroOn ? chosenPlan : undefined),
+    );
     setNow(Date.now());
     void studySuccessFeedback();
   }
@@ -254,19 +357,71 @@ function StudySessionPage() {
       void studySuccessFeedback();
     };
 
+    const plan = session.pomodoro;
+    const phase = phaseOf(session);
+    const onBreak = isBreak(session);
+    const rounds = plan?.roundsBeforeLongBreak ?? 0;
+    // Focus blocks finished in the current cycle (a long break closes a full cycle).
+    const cycleDone = plan ? (phase === "long-break" ? rounds : (session.round ?? 0) % rounds) : 0;
+    const clockLabel =
+      session.status === "paused"
+        ? "Paused"
+        : !plan
+          ? "Focus time"
+          : phase === "focus"
+            ? "Focus"
+            : phase === "long-break"
+              ? "Long break"
+              : "Short break";
+    const endBreak = () => {
+      setSession(skipBreak(session, Date.now()));
+      setNow(Date.now());
+      void studySelectionFeedback();
+    };
+
     return (
       <div className="mx-auto max-w-xl pb-24 md:pb-8">
         <section className="premium-reveal flex flex-col items-center pt-2 text-center">
-          <StudyClock
-            remaining={remaining}
-            total={session.durationMs}
-            paused={session.status === "paused"}
-          />
+          <StudyClock remaining={remaining} total={session.durationMs} label={clockLabel} />
+
+          {plan && (
+            <div
+              className="mb-7 -mt-4 flex items-center gap-3 text-xs text-muted-foreground"
+              role="img"
+              aria-label={`${cycleDone} of ${rounds} focus rounds done`}
+            >
+              <span className="flex gap-1.5" aria-hidden="true">
+                {Array.from({ length: rounds }).map((_, index) => (
+                  <span
+                    key={index}
+                    className={cn(
+                      "h-1.5 w-5 rounded-sm border border-foreground/30",
+                      index < cycleDone && "border-foreground/60 bg-foreground/60",
+                      index === cycleDone && !onBreak && "border-foreground/60",
+                    )}
+                  />
+                ))}
+              </span>
+              <span>
+                {onBreak ? `${cycleDone} of ${rounds} rounds done` : `Round ${cycleDone + 1} of ${rounds}`}
+              </span>
+            </div>
+          )}
 
           <div className="study-now">
-            <span>Now studying</span>
-            <strong className="font-normal">{current.name}</strong>
-            {current.courseName && <small>{current.courseName}</small>}
+            {onBreak ? (
+              <>
+                <span>{phase === "long-break" ? "Long break" : "Break time"}</span>
+                <strong className="font-normal">Step away for a moment.</strong>
+                <small>Up next: {current.name}</small>
+              </>
+            ) : (
+              <>
+                <span>Now studying</span>
+                <strong className="font-normal">{current.name}</strong>
+                {current.courseName && <small>{current.courseName}</small>}
+              </>
+            )}
           </div>
 
           <div className="mt-8 flex items-center gap-3">
@@ -301,13 +456,19 @@ function StudySessionPage() {
             </button>
           </div>
 
-          <button
-            type="button"
-            onClick={finishItem}
-            className={cn(textButton, "mt-5 inline-flex items-center gap-1.5")}
-          >
-            <Check className="h-4 w-4" /> Finish this task
-          </button>
+          {onBreak ? (
+            <button type="button" onClick={endBreak} className={cn(textButton, "mt-5")}>
+              Skip break
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={finishItem}
+              className={cn(textButton, "mt-5 inline-flex items-center gap-1.5")}
+            >
+              <Check className="h-4 w-4" /> Finish this task
+            </button>
+          )}
         </section>
 
         <section className="mt-12 px-1">
@@ -395,8 +556,7 @@ function StudySessionPage() {
       <header className="premium-reveal px-1">
         <h1 className="text-3xl font-medium tracking-tight md:text-4xl">Study session</h1>
         <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-          Choose what to work on and for how long. CanvasPro keeps your place, even if you close
-          the app.
+          Choose what to work on. CanvasPro keeps your place, even if you close the app.
         </p>
       </header>
 
@@ -404,7 +564,11 @@ function StudySessionPage() {
         <div className="rounded-lg border border-foreground/15 p-5">
           <p className="text-base">Session finished</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            {summary.completedItemIds.length} of {summary.items.length} tasks completed.
+            {summary.completedItemIds.length} of {summary.items.length} tasks completed
+            {summary.pomodoro && (summary.round ?? 0) > 0
+              ? `, ${summary.round} focus ${summary.round === 1 ? "block" : "blocks"} done`
+              : ""}
+            .
           </p>
           <div className="mt-3 flex gap-5">
             <button
@@ -623,7 +787,108 @@ function StudySessionPage() {
             )}
 
             <div className="mt-6">
-              <p className="text-sm text-muted-foreground">How long?</p>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p id="pomodoro-label" className="text-sm">
+                    Pomodoro
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {pomodoroOn
+                      ? `Focus in blocks with a break between each, and a longer break after every ${chosenPlan.roundsBeforeLongBreak}.`
+                      : "One timer for the whole session."}
+                  </p>
+                </div>
+                <Switch
+                  checked={pomodoroOn}
+                  onCheckedChange={changePomodoro}
+                  aria-labelledby="pomodoro-label"
+                />
+              </div>
+
+              {pomodoroOn ? (
+                <>
+                <div className="mt-4 grid gap-2" role="radiogroup" aria-label="Pomodoro length">
+                  {POMODORO_PRESETS.map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={presetId === preset.id}
+                      onClick={() => changePreset(preset.id)}
+                      className={cn(
+                        "min-h-10 rounded-lg border px-3 text-left text-sm transition-colors",
+                        presetId === preset.id
+                          ? "border-foreground/60 text-foreground"
+                          : "border-foreground/15 text-muted-foreground hover:border-foreground/30 hover:text-foreground",
+                      )}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={presetId === "custom"}
+                    onClick={() => changePreset("custom")}
+                    className={cn(
+                      "min-h-10 rounded-lg border px-3 text-left text-sm transition-colors",
+                      presetId === "custom"
+                        ? "border-foreground/60 text-foreground"
+                        : "border-foreground/15 text-muted-foreground hover:border-foreground/30 hover:text-foreground",
+                    )}
+                  >
+                    Custom
+                  </button>
+                </div>
+
+                {presetId === "custom" && (
+                  <div className="mt-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      {CUSTOM_FIELDS.map(({ key, label, unit }) => (
+                        <label key={key} className="block text-xs text-muted-foreground">
+                          {label}
+                          <span className="mt-1 flex items-center gap-2">
+                            <Input
+                              type="number"
+                              inputMode="numeric"
+                              min={POMODORO_LIMITS[key].min}
+                              max={POMODORO_LIMITS[key].max}
+                              value={custom[key]}
+                              onChange={(event) => changeCustom(key, event.target.value)}
+                              onBlur={() =>
+                                changeCustom(
+                                  key,
+                                  String(
+                                    key === "focus"
+                                      ? chosenPlan.focusMs / 60_000
+                                      : key === "shortBreak"
+                                        ? chosenPlan.shortBreakMs / 60_000
+                                        : key === "longBreak"
+                                          ? chosenPlan.longBreakMs / 60_000
+                                          : chosenPlan.roundsBeforeLongBreak,
+                                  ),
+                                )
+                              }
+                              className="h-9 w-full text-center text-sm text-foreground"
+                              aria-label={`${label} (${unit})`}
+                            />
+                            <span className="shrink-0">{unit}</span>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      Focus {chosenPlan.focusMs / 60_000} min, break{" "}
+                      {chosenPlan.shortBreakMs / 60_000} min. After{" "}
+                      {chosenPlan.roundsBeforeLongBreak} blocks, break{" "}
+                      {chosenPlan.longBreakMs / 60_000} min.
+                    </p>
+                  </div>
+                )}
+                </>
+              ) : (
+                <>
+              <p className="mt-4 text-sm text-muted-foreground">How long?</p>
               <div className="mt-2 grid grid-cols-4 gap-2">
                 {PRESETS.map((minutes) => (
                   <button
@@ -654,16 +919,21 @@ function StudySessionPage() {
                   aria-label="Custom session minutes"
                 />
               </label>
+                </>
+              )}
             </div>
 
             <button
               type="button"
               className={cn(pillButton, "mt-6 w-full")}
-              disabled={!selected.length || !Number.isFinite(duration) || duration < 1}
+              disabled={
+                !selected.length || (!pomodoroOn && (!Number.isFinite(duration) || duration < 1))
+              }
               onClick={start}
             >
-              Start {Number.isFinite(duration) && duration >= 1 ? `${Math.round(duration)} min` : ""}{" "}
-              session
+              {pomodoroOn
+                ? "Start pomodoro"
+                : `Start ${Number.isFinite(duration) && duration >= 1 ? `${Math.round(duration)} min ` : ""}session`}
             </button>
           </div>
         </aside>

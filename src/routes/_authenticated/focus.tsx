@@ -161,7 +161,8 @@ function FocusPage() {
     metaMap.get(a.id)?.estimatedMinutes ?? defaultEstimateMinutes(a);
 
   function toggleComplete(assignment: AssignmentItem) {
-    const wasComplete = completed.has(assignment.id);
+    // Done by the student's own mark or by Canvas: what they see on screen.
+    const wasComplete = isAssignmentComplete(assignment, completed.has(assignment.id));
     completed.toggle(assignment.id);
     if (!wasComplete)
       toast.success("Marked complete", {
@@ -473,7 +474,7 @@ function FocusRow({
       <button
         type="button"
         onClick={onToggle}
-        disabled={!ready || canvasDone}
+        disabled={!ready}
         aria-label={`Mark ${a.name} ${done ? "incomplete" : "complete"}`}
         aria-pressed={done}
         className="group/check mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-foreground/30 transition-colors hover:border-foreground/60 disabled:cursor-default"

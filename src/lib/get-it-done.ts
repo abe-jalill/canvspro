@@ -201,8 +201,11 @@ export function buildPriorityQueue(input: {
   now?: number;
 }): PriorityQueueItem[] {
   const now = input.now ?? Date.now();
-  const visible = input.assignments.filter((assignment) =>
-    isAssignmentVisible(assignment, input.completed(assignment.id), false, now),
+  // Priority is about deadlines, so work with no due date is left out.
+  const visible = input.assignments.filter(
+    (assignment) =>
+      assignment.due_at != null &&
+      isAssignmentVisible(assignment, input.completed(assignment.id), false, now),
   );
   return rankGetItDoneAssignments({
     assignments: visible,

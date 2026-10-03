@@ -33,8 +33,18 @@ export function isInDisplayWindow(a: Pick<AssignmentItem, "due_at">, now = Date.
   return due >= startOfRecentWindow(now) && due <= endOfAheadWindow(now);
 }
 
-export function isAssignmentComplete(a: AssignmentItem, manuallyCompleted: boolean): boolean {
-  if (manuallyCompleted) return true;
+// Work the student marked "not done" although Canvas shows it as submitted:
+// assignment id -> time reopened (ms). It is kept current from the saved
+// preferences (see reopened-assignments.ts) so every list agrees without
+// each page having to pass it along.
+let reopenedAt: ReadonlyMap<string, number> = new Map();
+
+export function setReopenedAssignments(times: ReadonlyMap<string, number>) {
+  reopenedAt = times;
+}
+
+/** What Canvas alone says: submitted, excused or graded. Ignores the student's own marks. */
+export function canvasSaysComplete(a: AssignmentItem): boolean {
   const submission = a.submission;
   if (!submission) return false;
   if (submission.excused) return true;
@@ -45,6 +55,20 @@ export function isAssignmentComplete(a: AssignmentItem, manuallyCompleted: boole
       submission.workflow_state === "pending_review") return true;
   return submission.workflow_state === "graded" &&
     (submission.score != null || (submission.grade != null && submission.grade !== ""));
+}
+
+/**
+ * Done if the student marked it done, or Canvas says so, unless the student
+ * reopened it. A reopen overrides Canvas only until Canvas records a newer
+ * submission, so genuinely resubmitting work puts it back to done.
+ */
+export function isAssignmentComplete(a: AssignmentItem, manuallyCompleted: boolean): boolean {
+  if (manuallyCompleted) return true;
+  if (!canvasSaysComplete(a)) return false;
+  const reopened = reopenedAt.get(String(a.id));
+  if (reopened == null) return true;
+  const submittedAt = a.submission?.submitted_at ? Date.parse(a.submission.submitted_at) : Number.NaN;
+  return Number.isFinite(submittedAt) && submittedAt > reopened;
 }
 
 /**

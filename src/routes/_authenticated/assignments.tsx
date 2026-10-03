@@ -12,7 +12,7 @@ import { GlassCard, Skeleton, ErrorState, EmptyState } from "@/components/glass-
 import { cn } from "@/lib/utils";
 import { displayCourseName } from "@/lib/course-display";
 import { useLocalSet, COMPLETED_ASSIGNMENTS_KEY } from "@/lib/local-state";
-import { Search, Sparkles, Plus, Trash2, ListTodo, Clock3, ChevronDown } from "lucide-react";
+import { Search, Sparkles, Plus, Trash2, ListTodo, ChevronDown } from "lucide-react";
 import {
   useCustomAssignments,
   customToAssignmentItem,
@@ -24,7 +24,8 @@ import { AddToCalendarButton as SharedCalBtn } from "@/components/add-to-calenda
 const AddToCalendarButton = ({ assignment }: { assignment: AssignmentItem }) => (
   <SharedCalBtn
     assignment={assignment}
-    className="glass-hover flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-glass-border text-muted-foreground hover:text-foreground"
+    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-foreground/15 text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+    iconClassName="h-3.5 w-3.5"
   />
 );
 import { useCourseHighlight, validateCourseSearch } from "@/lib/course-highlight";
@@ -35,6 +36,7 @@ import {
 } from "@/lib/get-it-done";
 import { PriorityBadge } from "@/components/priority-badge";
 import { searchText } from "@/lib/search-params";
+import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
 import { buildAgendaView, type AgendaHorizon } from "@/lib/assignment-agenda";
 import { useAssignmentMetaMap } from "@/hooks/use-assignment-meta";
 import {
@@ -368,12 +370,12 @@ function AssignmentsPage() {
               Work is ordered by urgency across every class, so the next deadline is always obvious.
             </p>
           </div>
-          <div className="grid grid-cols-3 gap-2 sm:min-w-[24rem]">
-            <div className="rounded-2xl border border-foreground/10 bg-background/35 p-4 backdrop-blur-md">
-              <p className="text-3xl font-medium tabular-nums tracking-[-0.05em]">
-                {agendaItems.length}
+          <div className="grid grid-cols-2 gap-2 sm:min-w-[18rem]">
+            <div className="rounded-2xl border border-primary/15 bg-primary/[0.06] p-4 backdrop-blur-md">
+              <p className="text-3xl font-medium tabular-nums tracking-[-0.05em] text-primary">
+                {weekCount}
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">Remaining</p>
+              <p className="mt-1 text-xs text-muted-foreground">Due this week</p>
             </div>
             <div
               className={cn(
@@ -392,12 +394,6 @@ function AssignmentsPage() {
                 {overdueCount}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">Overdue</p>
-            </div>
-            <div className="rounded-2xl border border-primary/15 bg-primary/[0.06] p-4 backdrop-blur-md">
-              <p className="text-3xl font-medium tabular-nums tracking-[-0.05em] text-primary">
-                {weekCount}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">This week</p>
             </div>
           </div>
         </div>
@@ -501,141 +497,116 @@ function AssignmentsPage() {
       )}
 
       {!isLoading && !isError && agendaSections.length > 0 && (
-        <section
-          className="glass-panel premium-card overflow-hidden rounded-[1.75rem] border border-foreground/10"
-          style={{ animationDelay: "100ms" }}
-        >
-          {agendaSections.map((section) => (
-            <div key={section.key} className="border-b border-foreground/10 last:border-0">
-              <div className="flex items-end justify-between gap-3 bg-foreground/[0.025] px-4 py-4 sm:px-6">
-                <div>
-                  <h2
-                    className={cn(
-                      "text-sm font-semibold uppercase tracking-[0.14em]",
-                      section.key === "overdue" && "text-foreground",
-                      section.key === "week1" && "text-primary",
-                      section.key !== "overdue" && section.key !== "week1" && "text-muted-foreground",
-                    )}
-                  >
+        <div className="premium-card space-y-8 px-1" style={{ animationDelay: "100ms" }}>
+          {agendaSections.map((section) => {
+            const undatedCollapsed = section.key === "undated" && !q && !undatedOpen;
+            return (
+              <section key={section.key}>
+                <div className="flex items-baseline justify-between gap-3">
+                  <h2 className="text-sm text-muted-foreground">
                     {section.title}
+                    <span className="ml-2 opacity-70">{section.items.length}</span>
                   </h2>
-                  <p className="mt-1 text-xs text-muted-foreground">{section.detail}</p>
-                </div>
-                <span className="text-2xl font-medium tabular-nums tracking-[-0.05em]">
-                  {section.items.length}
-                </span>
-              </div>
-              {section.key === "undated" && !q && (
-                <div className="px-4 py-3 sm:px-6">
-                  <button
-                    type="button"
-                    onClick={() => setUndatedOpen((open) => !open)}
-                    aria-expanded={undatedOpen}
-                    className="glass-hover inline-flex min-h-9 items-center rounded-lg px-3 text-xs font-medium text-muted-foreground hover:text-foreground"
-                  >
-                    {undatedOpen ? "Hide" : `Show ${section.items.length}`} with no due date
-                  </button>
-                </div>
-              )}
-              <ul hidden={section.key === "undated" && !q && !undatedOpen}>
-                {section.items.map(({ assignment: a, course }) => {
-                  const done = isDone(a, completed.has(a.id));
-                  const canvasDone = isAssignmentComplete(a, false);
-                  const cd = getCountdown(a.due_at, { completed: done });
-                  const mine = isCustomAssignmentId(a.id);
-                  const notes = custom.notesById.get(a.id);
-                  const highlightProps = highlight(course);
-                  const firstForCourse =
-                    shownItems.find((entry) => entry.course === course)?.assignment.id === a.id;
-                  return (
-                    <li
-                      key={a.id}
-                      id={firstForCourse ? highlightProps.id : undefined}
-                      className={cn(
-                        "group grid gap-3 border-t border-foreground/[0.07] px-4 py-4 transition-colors first:border-0 hover:bg-foreground/[0.025] sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center sm:px-6",
-                        done && "opacity-60",
-                        highlightProps.className,
-                      )}
+                  {section.key === "undated" && !q && (
+                    <button
+                      type="button"
+                      onClick={() => setUndatedOpen((open) => !open)}
+                      aria-expanded={undatedOpen}
+                      className="text-xs text-muted-foreground transition-colors hover:text-foreground"
                     >
-                      <CompleteToggle
-                        done={done}
-                        onToggle={() => completed.toggle(a.id)}
-                        label={a.name}
-                        disabled={!completed.ready || canvasDone}
-                        className="h-5 w-5"
-                      />
-                      <div className="min-w-0">
-                        <p
-                          className={cn(
-                            "truncate text-sm font-medium sm:text-base",
-                            done && "line-through",
-                          )}
-                        >
-                          {a.name}
-                        </p>
-                        <p className="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
-                          <span className="truncate text-primary/90">{course}</span>
-                          <span className="opacity-40">·</span>
-                          <span>{done ? "Completed" : mine ? "Added by you" : statusLabel(a)}</span>
-                          {a.points_possible != null && (
-                            <>
-                              <span className="opacity-40">·</span>
-                              <span>{a.points_possible} pts</span>
-                            </>
-                          )}
-                        </p>
-                        {notes && (
-                          <p className="mt-1 line-clamp-2 whitespace-pre-wrap text-xs text-foreground/70">
-                            {notes}
+                      {undatedOpen ? "Hide" : "Show"}
+                    </button>
+                  )}
+                </div>
+                <ul className="mt-2 space-y-2" hidden={undatedCollapsed}>
+                  {section.items.map(({ assignment: a, course }) => {
+                    const done = isDone(a, completed.has(a.id));
+                    const mine = isCustomAssignmentId(a.id);
+                    const notes = custom.notesById.get(a.id);
+                    const highlightProps = highlight(course);
+                    const firstForCourse =
+                      shownItems.find((entry) => entry.course === course)?.assignment.id === a.id;
+                    const due = a.due_at ? Date.parse(a.due_at) : null;
+                    const dueText =
+                      due != null
+                        ? `${new Intl.DateTimeFormat(undefined, {
+                            weekday: "short",
+                            month: "short",
+                            day: "numeric",
+                          }).format(due)} · ${new Intl.DateTimeFormat(undefined, {
+                            hour: "numeric",
+                            minute: "2-digit",
+                          }).format(due)}`
+                        : "No due date";
+                    return (
+                      <li
+                        key={a.id}
+                        id={firstForCourse ? highlightProps.id : undefined}
+                        className={cn(
+                          "group grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3.5 rounded-lg border border-foreground/15 px-4 py-3.5",
+                          done && "opacity-55",
+                          highlightProps.className,
+                        )}
+                      >
+                        <CompleteToggle
+                          done={done}
+                          onToggle={() => completed.toggle(a.id)}
+                          label={a.name}
+                          disabled={!completed.ready}
+                          className="mt-0.5 h-5 w-5"
+                        />
+                        <div className="min-w-0">
+                          <p className={cn("text-[15px] leading-snug", done && "line-through")}>
+                            {a.name}
                           </p>
-                        )}
-                        {a.description && (
-                          <details className="mt-2 text-xs">
-                            <summary className="cursor-pointer font-medium text-muted-foreground hover:text-foreground">
-                              See description
-                            </summary>
-                            <p className="mt-2 whitespace-pre-line leading-5 text-foreground/75">
-                              {htmlToText(a.description)}
-                            </p>
-                          </details>
-                        )}
-                      </div>
-                      <div className="flex items-center justify-between gap-2 pl-8 sm:justify-end sm:pl-0">
-                        <div className="text-left sm:text-right">
-                          <p
-                            className={cn(
-                              "inline-flex items-center gap-1.5 text-sm tabular-nums",
-                              cd ? urgencyTextClass(cd.urgency) : "text-muted-foreground",
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {course}
+                            <span className="mx-1.5 opacity-40">·</span>
+                            {done ? "Completed" : mine ? "Added by you" : statusLabel(a)}
+                            {a.points_possible != null && (
+                              <>
+                                <span className="mx-1.5 opacity-40">·</span>
+                                {a.points_possible} pts
+                              </>
                             )}
-                          >
-                            <Clock3 className="h-3.5 w-3.5" />
-                            {cd ? cd.label : "No due date"}
                           </p>
-                          {cd && (
-                            <p className="mt-0.5 text-[10px] text-muted-foreground">
-                              {cd.fullDate}
+                          {notes && (
+                            <p className="mt-1 line-clamp-2 whitespace-pre-wrap text-xs text-foreground/70">
+                              {notes}
                             </p>
+                          )}
+                          {!mine && (
+                            <div className="mt-1.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100">
+                              <AssignmentDescriptionLink assignmentId={a.id} />
+                            </div>
                           )}
                         </div>
-                        {a.due_at && <AddToCalendarButton assignment={a} />}
-                        {mine && (
-                          <button
-                            type="button"
-                            onClick={() => custom.remove(a.id)}
-                            aria-label={`Delete ${a.name}`}
-                            className="glass-hover flex h-8 w-8 items-center justify-center rounded-xl border border-glass-border text-muted-foreground hover:text-foreground"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          ))}
-        </section>
+                        <div className="flex items-start gap-2">
+                          <p className="whitespace-nowrap pt-0.5 text-right text-xs tabular-nums text-muted-foreground">
+                            {dueText}
+                          </p>
+                          <span className="flex items-center gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100">
+                            {a.due_at && <AddToCalendarButton assignment={a} />}
+                            {mine && (
+                              <button
+                                type="button"
+                                onClick={() => custom.remove(a.id)}
+                                aria-label={`Delete ${a.name}`}
+                                className="flex h-7 w-7 items-center justify-center rounded-lg border border-foreground/15 text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </span>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            );
+          })}
+        </div>
       )}
 
       {!isLoading && !isError && !q && (hiddenWeeks34 > 0 || horizon === 28 || hiddenBeyond > 0) && (
@@ -644,19 +615,17 @@ function AssignmentsPage() {
             <button
               type="button"
               onClick={() => setHorizon(28)}
-              className="glass-hover glass-inset inline-flex min-h-10 items-center rounded-xl px-5 text-sm font-medium"
+              className="inline-flex min-h-10 items-center rounded-lg border border-foreground/15 px-5 text-sm transition-colors hover:border-foreground/30"
             >
               Show weeks 3 and 4
-              <span className="ml-2 text-xs font-normal text-muted-foreground">
-                {hiddenWeeks34} more
-              </span>
+              <span className="ml-2 text-xs text-muted-foreground">{hiddenWeeks34} more</span>
             </button>
           )}
           {horizon === 28 && (
             <button
               type="button"
               onClick={() => setHorizon(14)}
-              className="glass-hover glass-inset inline-flex min-h-10 items-center rounded-xl px-5 text-sm font-medium text-muted-foreground hover:text-foreground"
+              className="inline-flex min-h-10 items-center rounded-lg border border-foreground/15 px-5 text-sm text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
             >
               Show less
             </button>
