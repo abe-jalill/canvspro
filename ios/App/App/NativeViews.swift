@@ -105,7 +105,7 @@ private struct NativeLaunchView: View {
         ZStack {
             Color(red: 0, green: 0.184, blue: 0.125).ignoresSafeArea()
             Circle()
-                .fill(RadialGradient(colors: [Color.mint.opacity(0.16), .clear], startRadius: 0, endRadius: 140))
+                .fill(RadialGradient(colors: [Color.mint.opacity(0.16), .clear], center: .center, startRadius: 0, endRadius: 140))
                 .frame(width: 280, height: 280)
                 .scaleEffect(reduceMotion ? 1 : appeared ? 1 : 0.7)
                 .opacity(appeared ? 1 : 0)

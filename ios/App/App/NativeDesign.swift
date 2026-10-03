@@ -95,9 +95,9 @@ struct CPBackdrop: View {
             ZStack {
                 CPTheme.background(scheme)
                 // Soft gradients avoid large offscreen blur passes during navigation.
-                RadialGradient(colors: [CPTheme.primary(scheme: scheme).opacity(0.07), .clear], startRadius: 0, endRadius: 380)
+                RadialGradient(colors: [CPTheme.primary(scheme: scheme).opacity(0.07), .clear], center: .center, startRadius: 0, endRadius: 380)
                     .frame(width: 760, height: 760).offset(x: -160, y: -320)
-                RadialGradient(colors: [CPTheme.primary(scheme: scheme).opacity(0.04), .clear], startRadius: 0, endRadius: 330)
+                RadialGradient(colors: [CPTheme.primary(scheme: scheme).opacity(0.04), .clear], center: .center, startRadius: 0, endRadius: 330)
                     .frame(width: 660, height: 660).offset(x: 180, y: -80)
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
