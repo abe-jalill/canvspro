@@ -5,7 +5,7 @@ export interface PageTab {
 
 export const TODAY_TABS: PageTab[] = [
   { to: "/dashboard", label: "Dashboard" },
-  { to: "/focus", label: "Focus" },
+  { to: "/focus", label: "Coming Up" },
   { to: "/get-it-done", label: "Get It Done" },
 ];
 
