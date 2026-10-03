@@ -9,6 +9,7 @@ import { useQuery, type QueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { setUserScope } from "@/lib/user-scope";
 import { restoreQueryCache } from "@/lib/query-persist";
+import { isOfflineLike } from "@/lib/offline-session";
 import { setNicknameLookup, type NicknameLookupRow } from "@/lib/course-display";
 
 export const authUserQueryKey = ["auth-user"] as const;
@@ -25,7 +26,10 @@ export function getActiveIdentity(): string | null | undefined {
  * was populated for, the cache is wiped synchronously so no component can
  * observe the previous account's data — not even for a single render.
  */
-export function syncAuthIdentity(queryClient: QueryClient, userId: string | null): void {
+export function syncAuthIdentity(
+  queryClient: QueryClient,
+  userId: string | null,
+): void {
   setUserScope(userId);
   if (activeIdentity === userId) return;
   activeIdentity = userId;
@@ -38,7 +42,10 @@ export function syncAuthIdentity(queryClient: QueryClient, userId: string | null
 async function fetchAuthUserId(): Promise<string | null> {
   const { data, error } = await supabase.auth.getUser();
   if (error) {
-    // Treat an auth error as "signed out" rather than pretending to know.
+    // A network failure says nothing about who is signed in. Throw so the last
+    // known identity stays in place instead of flipping everything to "anon".
+    if (isOfflineLike(error)) throw error;
+    // Treat any other auth error as "signed out" rather than pretending to know.
     return null;
   }
   return data.user?.id ?? null;
@@ -53,12 +60,9 @@ export function useAuthUserId(): {
   isPending: boolean;
   isError: boolean;
 } {
-  const knownIdentity = getActiveIdentity();
   const query = useQuery({
     queryKey: authUserQueryKey,
     queryFn: fetchAuthUserId,
-    initialData: knownIdentity === undefined ? undefined : knownIdentity,
-    initialDataUpdatedAt: knownIdentity === undefined ? undefined : Date.now(),
     staleTime: 60_000,
     refetchOnMount: false,
     retry: 1,
@@ -71,6 +75,9 @@ export function useAuthUserId(): {
 }
 
 /** Query key helper: `userKey(["subscription"], userId)`. */
-export function userKey(base: readonly unknown[], userId: string | null): readonly unknown[] {
+export function userKey(
+  base: readonly unknown[],
+  userId: string | null,
+): readonly unknown[] {
   return [...base, userId ?? "anon"];
 }

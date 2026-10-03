@@ -1,14 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { readPrefs } from "@/lib/notification-prefs";
-import { PushNotifications } from "@capacitor/push-notifications";
-import { isNativeApp } from "@/lib/native";
-import { scopedKey } from "@/lib/user-scope";
-
-const NATIVE_TOKEN_KEY = "native-push-token";
-export const pushDispatchUrl = () =>
-  isNativeApp()
-    ? "https://canvaspro.app/api/public/push/dispatch"
-    : "/api/public/push/dispatch";
+import { setBackgroundPushDevice } from "@/lib/background-push-device";
 
 /**
  * The application-server public key comes from the server itself, so the key a
@@ -46,7 +38,6 @@ export function inEditorPreview(): boolean {
 }
 
 export function pushSupported(): boolean {
-  if (isNativeApp()) return true;
   return (
     typeof window !== "undefined" &&
     "serviceWorker" in navigator &&
@@ -84,7 +75,10 @@ export async function maintainBackgroundPush(): Promise<void> {
   const registration = await getRegistration();
   await registration.update().catch(() => undefined);
   const subscription = await registration.pushManager.getSubscription();
-  if (!subscription) return;
+  if (!subscription) {
+    setBackgroundPushDevice(false);
+    return;
+  }
 
   const { data } = await supabase.auth.getUser();
   if (!data.user) return;
@@ -99,7 +93,10 @@ export async function maintainBackgroundPush(): Promise<void> {
     },
     { onConflict: "endpoint" },
   );
-  if (!error) await syncPrefsToServer();
+  if (!error) {
+    setBackgroundPushDevice(true);
+    await syncPrefsToServer();
+  }
 }
 
 /** Mirrors the local notification preferences to the backend for the cron job. */
@@ -127,20 +124,13 @@ export async function syncPrefsToServer(): Promise<boolean> {
  * subscription so toggling back on re-registers cleanly.
  */
 export async function isPushEnabled(): Promise<boolean> {
-  if (isNativeApp()) {
-    const token = window.localStorage.getItem(scopedKey(NATIVE_TOKEN_KEY));
-    if (!token) return false;
-    const { data, error } = await supabase
-      .from("native_push_tokens")
-      .select("id")
-      .eq("token", token)
-      .limit(1);
-    return error ? true : !!data?.length;
-  }
   if (!pushSupported()) return false;
   const reg = await navigator.serviceWorker.getRegistration("/");
   const sub = await reg?.pushManager.getSubscription();
-  if (!sub) return false;
+  if (!sub) {
+    setBackgroundPushDevice(false);
+    return false;
+  }
 
   const { data } = await supabase.auth.getUser();
   if (!data.user) return false;
@@ -152,58 +142,19 @@ export async function isPushEnabled(): Promise<boolean> {
     .limit(1);
   // On a network/permission error, don't claim the switch is off.
   if (error) return true;
-  if (rows && rows.length > 0) return true;
+  if (rows && rows.length > 0) {
+    setBackgroundPushDevice(true);
+    return true;
+  }
 
   await sub.unsubscribe().catch(() => undefined);
+  setBackgroundPushDevice(false);
   return false;
 }
 
 export async function enableBackgroundPush(): Promise<
   { ok: true } | { ok: false; reason: string }
 > {
-  if (isNativeApp()) {
-    const permission = await PushNotifications.requestPermissions();
-    if (permission.receive !== "granted") {
-      return { ok: false, reason: "Notification permission was denied in iOS Settings." };
-    }
-    const token = await new Promise<string>((resolve, reject) => {
-      let settled = false;
-      const timeout = window.setTimeout(() => {
-        if (!settled) reject(new Error("Apple Push Notification registration timed out."));
-      }, 15_000);
-      void PushNotifications.addListener("registration", (result) => {
-        if (settled) return;
-        settled = true;
-        window.clearTimeout(timeout);
-        resolve(result.value);
-      });
-      void PushNotifications.addListener("registrationError", (error) => {
-        if (settled) return;
-        settled = true;
-        window.clearTimeout(timeout);
-        reject(new Error(error.error));
-      });
-      void PushNotifications.register();
-    }).catch((error) => {
-      throw error;
-    });
-    const { data } = await supabase.auth.getUser();
-    if (!data.user) return { ok: false, reason: "You need to be signed in." };
-    const { error } = await supabase.from("native_push_tokens").upsert(
-      {
-        user_id: data.user.id,
-        token,
-        platform: "ios",
-        environment: import.meta.env.DEV ? "sandbox" : "production",
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "token" },
-    );
-    if (error) return { ok: false, reason: error.message };
-    window.localStorage.setItem(scopedKey(NATIVE_TOKEN_KEY), token);
-    await syncPrefsToServer();
-    return { ok: true };
-  }
   if (inEditorPreview()) {
     return {
       ok: false,
@@ -266,18 +217,13 @@ export async function enableBackgroundPush(): Promise<
   );
   if (error) return { ok: false, reason: error.message };
 
+  setBackgroundPushDevice(true);
   await syncPrefsToServer();
   return { ok: true };
 }
 
 export async function disableBackgroundPush(): Promise<void> {
-  if (isNativeApp()) {
-    const token = window.localStorage.getItem(scopedKey(NATIVE_TOKEN_KEY));
-    if (token) await supabase.from("native_push_tokens").delete().eq("token", token);
-    window.localStorage.removeItem(scopedKey(NATIVE_TOKEN_KEY));
-    await PushNotifications.unregister().catch(() => undefined);
-    return;
-  }
+  setBackgroundPushDevice(false);
   if (!pushSupported()) return;
   const reg = await navigator.serviceWorker.getRegistration("/");
   const sub = await reg?.pushManager.getSubscription();

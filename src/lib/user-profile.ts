@@ -72,10 +72,10 @@ export function saveLocalProfile(profile: UserProfile) {
 }
 
 export async function fetchUserProfile(): Promise<UserProfile> {
-  const { data: sessionData } = await supabase.auth.getSession();
-  const meta = sessionData.session?.user.user_metadata ?? {};
+  const { data: userData } = await supabase.auth.getUser();
+  const meta = userData.user?.user_metadata ?? {};
   const local = getLocalProfile();
-  const userId = sessionData.session?.user.id;
+  const userId = userData.user?.id;
   const { data: accountProfile } = userId
     ? await supabase
         .from("account_profiles")

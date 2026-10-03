@@ -12,15 +12,7 @@ import { GlassCard, Skeleton, ErrorState, EmptyState } from "@/components/glass-
 import { cn } from "@/lib/utils";
 import { displayCourseName } from "@/lib/course-display";
 import { useLocalSet, COMPLETED_ASSIGNMENTS_KEY } from "@/lib/local-state";
-import {
-  Search,
-  Sparkles,
-  Plus,
-  Trash2,
-  ListTodo,
-  Clock3,
-  ChevronDown,
-} from "lucide-react";
+import { Search, Sparkles, Plus, Trash2, ListTodo, ChevronDown } from "lucide-react";
 import {
   useCustomAssignments,
   customToAssignmentItem,
@@ -32,13 +24,26 @@ import { AddToCalendarButton as SharedCalBtn } from "@/components/add-to-calenda
 const AddToCalendarButton = ({ assignment }: { assignment: AssignmentItem }) => (
   <SharedCalBtn
     assignment={assignment}
-    className="glass-hover flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-glass-border text-muted-foreground hover:text-foreground"
+    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-foreground/15 text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+    iconClassName="h-3.5 w-3.5"
   />
 );
 import { useCourseHighlight, validateCourseSearch } from "@/lib/course-highlight";
-import { buildPriorityList, describePriorityList } from "@/lib/priority";
+import {
+  buildPriorityQueue,
+  describePriorityQueue,
+  type PriorityQueueItem,
+} from "@/lib/get-it-done";
+import { PriorityBadge } from "@/components/priority-badge";
+import { searchText } from "@/lib/search-params";
+import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
+import { buildAgendaView, type AgendaHorizon } from "@/lib/assignment-agenda";
 import { useAssignmentMetaMap } from "@/hooks/use-assignment-meta";
-import { isAssignmentComplete, isAssignmentVisible } from "@/lib/assignment-window";
+import {
+  compareByDueDate,
+  isAssignmentComplete,
+  isAssignmentVisible,
+} from "@/lib/assignment-window";
 import { htmlToText } from "@/lib/html-text";
 
 import {
@@ -72,10 +77,10 @@ export const Route = createFileRoute("/_authenticated/assignments")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  validateSearch: (search: { course?: unknown; assignment?: unknown }) => ({
-    ...validateCourseSearch(search),
-    ...(typeof search.assignment === "string" ? { assignment: search.assignment } : {}),
-  }),
+  validateSearch: (search: { course?: unknown; assignment?: unknown }) => {
+    const assignment = searchText(search.assignment);
+    return { ...validateCourseSearch(search), ...(assignment ? { assignment } : {}) };
+  },
   loader: ({ context }) => {
     if (context?.queryClient) {
       void context.queryClient.ensureQueryData(assignmentsQO);
@@ -109,13 +114,13 @@ interface ClassGroup {
 }
 
 function PriorityAssignmentsCard({
-  groups,
+  queue,
   loading,
   error,
   isDone,
   onToggleDone,
 }: {
-  groups: ReturnType<typeof buildPriorityList>;
+  queue: PriorityQueueItem[];
   loading: boolean;
   error: Error | null;
   isDone: (id: number) => boolean;
@@ -147,8 +152,10 @@ function PriorityAssignmentsCard({
     );
   }
 
-  const summary = describePriorityList(groups);
-  const topItems = groups.flatMap((g) => g.items.slice(0, 2)).slice(0, 5);
+  const summary = describePriorityQueue(queue, (a) =>
+    displayCourseName(a.course_name, a.course_code),
+  );
+  const topItems = queue.slice(0, 5);
 
   return (
     <GlassCard
@@ -191,18 +198,7 @@ function PriorityAssignmentsCard({
                   {displayCourseName(p.assignment.course_name, p.assignment.course_code)}
                 </p>
               </div>
-              <span
-                className={cn(
-                  "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide",
-                  p.urgency === "critical" && "text-red-400 bg-red-400/10 border-red-400/20",
-                  p.urgency === "high" && "text-amber-400 bg-amber-400/10 border-amber-400/20",
-                  p.urgency === "medium" && "text-blue-400 bg-blue-400/10 border-blue-400/20",
-                  p.urgency === "low" &&
-                    "text-muted-foreground bg-foreground/5 border-foreground/10",
-                )}
-              >
-                {p.urgency}
-              </span>
+              <PriorityBadge urgency={p.urgency} />
             </li>
           ))}
         </ul>
@@ -215,7 +211,9 @@ function AssignmentsPage() {
   const { data, isLoading, isError, error } = useQuery(assignmentsQO);
   const courses = useQuery(coursesQO);
   const [search, setSearch] = useState("");
+  const [undatedOpen, setUndatedOpen] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
+  const [horizon, setHorizon] = useState<AgendaHorizon>(14);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
   const highlight = useCourseHighlight();
@@ -237,6 +235,7 @@ function AssignmentsPage() {
     );
     // This is the complete Assignments page. Time limits used by Get It Done,
     // Focus, Schedule, or a course page must never narrow this source list.
+    // The two/four-week display window is applied only when grouping the agenda.
     return [
       ...(data ?? []),
       ...custom.list.map((c) => customToAssignmentItem(c, courseById.get(c.course_id))),
@@ -294,11 +293,7 @@ function AssignmentsPage() {
       g.items = g.items.filter((a) =>
         isAssignmentVisible(a, completed.has(a.id), showCompleted, now),
       );
-      g.items.sort((a, b) => {
-        if (!a.due_at) return 1;
-        if (!b.due_at) return -1;
-        return new Date(a.due_at).getTime() - new Date(b.due_at).getTime();
-      });
+      g.items.sort(compareByDueDate);
       for (const a of g.items) {
         if (!a.due_at) continue;
         const t = new Date(a.due_at).getTime();
@@ -313,23 +308,13 @@ function AssignmentsPage() {
   }, [courses.data, allAssignments, completed, showCompleted]);
 
   const metaMap = useAssignmentMetaMap();
-  const priorityGroups = useMemo(() => {
-    const estimates: Record<number, number | null> = {};
+  const priorityQueue = useMemo(() => {
+    const estimates = new Map<number, number | null>();
     for (const [id, meta] of metaMap.entries()) {
-      estimates[id] = meta.estimatedMinutes;
+      estimates.set(id, meta.estimatedMinutes);
     }
-    return buildPriorityList(
-      allAssignments,
-      (courses.data ?? []).map((c) => ({
-        id: c.id,
-        name: displayCourseName(c.name, c.course_code),
-        course_code: c.course_code,
-      })),
-      completed.has,
-      Date.now(),
-      { estimates },
-    );
-  }, [allAssignments, courses.data, completed.has, metaMap]);
+    return buildPriorityQueue({ assignments: allAssignments, completed: completed.has, estimates });
+  }, [allAssignments, completed.has, metaMap]);
 
   const q = search.trim().toLowerCase();
   const visibleGroups = q
@@ -344,49 +329,20 @@ function AssignmentsPage() {
     : groups.filter((g) => g.items.length > 0);
 
   const now = Date.now();
-  const agendaItems = visibleGroups.flatMap((group) =>
-    group.items.map((assignment) => ({ assignment, course: group.label })),
+  // Flatten across classes, then order by deadline so the agenda reads in
+  // true urgency order rather than grouped by class name.
+  const agendaItems = visibleGroups
+    .flatMap((group) => group.items.map((assignment) => ({ assignment, course: group.label })))
+    .sort((a, b) => compareByDueDate(a.assignment, b.assignment));
+  const { sections: agendaSections, hiddenWeeks34, hiddenBeyond } = buildAgendaView(
+    agendaItems,
+    now,
+    horizon,
+    Boolean(q),
   );
-  const agendaSections = [
-    {
-      title: "Overdue",
-      detail: "Needs attention first",
-      tone: "text-red-500",
-      items: agendaItems.filter(
-        ({ assignment }) => assignment.due_at && new Date(assignment.due_at).getTime() < now,
-      ),
-    },
-    {
-      title: "Next 7 days",
-      detail: "Your immediate runway",
-      tone: "text-primary",
-      items: agendaItems.filter(({ assignment }) => {
-        if (!assignment.due_at) return false;
-        const due = new Date(assignment.due_at).getTime();
-        return due >= now && due <= now + 7 * 24 * 60 * 60 * 1_000;
-      }),
-    },
-    {
-      title: "Later",
-      detail: "Beyond this week",
-      tone: "text-muted-foreground",
-      items: agendaItems.filter(
-        ({ assignment }) =>
-          assignment.due_at &&
-          new Date(assignment.due_at).getTime() > now + 7 * 24 * 60 * 60 * 1_000,
-      ),
-    },
-    {
-      title: "No due date",
-      detail: "Keep these on your radar",
-      tone: "text-muted-foreground",
-      items: agendaItems.filter(({ assignment }) => !assignment.due_at),
-    },
-  ].filter((section) => section.items.length > 0);
-  const overdueCount =
-    agendaSections.find((section) => section.title === "Overdue")?.items.length ?? 0;
-  const weekCount =
-    agendaSections.find((section) => section.title === "Next 7 days")?.items.length ?? 0;
+  const shownItems = agendaSections.flatMap((section) => section.items);
+  const overdueCount = agendaSections.find((section) => section.key === "overdue")?.items.length ?? 0;
+  const weekCount = agendaSections.find((section) => section.key === "week1")?.items.length ?? 0;
   const toggle = (id: number) =>
     setExpanded((previous) => {
       const next = new Set(previous);
@@ -397,7 +353,7 @@ function AssignmentsPage() {
 
   return (
     <div className="space-y-6">
-      <section className="glass-panel-strong relative isolate overflow-hidden rounded-[2rem] border border-primary/15 p-5 sm:p-7">
+      <section className="glass-panel-strong premium-reveal relative isolate overflow-hidden rounded-[2rem] border border-primary/15 p-5 sm:p-7">
         <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-primary/15 blur-3xl" />
         <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
           <div className="max-w-2xl">
@@ -414,30 +370,39 @@ function AssignmentsPage() {
               Work is ordered by urgency across every class, so the next deadline is always obvious.
             </p>
           </div>
-          <div className="grid grid-cols-3 gap-2 sm:min-w-[24rem]">
-            <div className="rounded-2xl border border-foreground/10 bg-background/35 p-4 backdrop-blur-md">
-              <p className="text-3xl font-medium tabular-nums tracking-[-0.05em]">
-                {agendaItems.length}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">Remaining</p>
-            </div>
-            <div className="rounded-2xl border border-red-500/15 bg-red-500/[0.06] p-4 backdrop-blur-md">
-              <p className="text-3xl font-medium tabular-nums tracking-[-0.05em] text-red-500">
-                {overdueCount}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">Overdue</p>
-            </div>
+          <div className="grid grid-cols-2 gap-2 sm:min-w-[18rem]">
             <div className="rounded-2xl border border-primary/15 bg-primary/[0.06] p-4 backdrop-blur-md">
               <p className="text-3xl font-medium tabular-nums tracking-[-0.05em] text-primary">
                 {weekCount}
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">This week</p>
+              <p className="mt-1 text-xs text-muted-foreground">Due this week</p>
+            </div>
+            <div
+              className={cn(
+                "rounded-2xl border p-4 backdrop-blur-md",
+                overdueCount > 0
+                  ? "border-rose-300/20 bg-rose-300/[0.05]"
+                  : "border-foreground/10 bg-background/35",
+              )}
+            >
+              <p
+                className={cn(
+                  "text-3xl font-medium tabular-nums tracking-[-0.05em]",
+                  overdueCount > 0 ? "text-rose-300" : "text-muted-foreground",
+                )}
+              >
+                {overdueCount}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">Overdue</p>
             </div>
           </div>
         </div>
       </section>
 
-      <div className="glass-panel-strong relative flex flex-wrap items-center gap-3 rounded-2xl px-4 py-3">
+      <div
+        className="glass-panel-strong premium-reveal relative flex flex-wrap items-center gap-3 rounded-2xl px-4 py-3"
+        style={{ animationDelay: "65ms" }}
+      >
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
           <input
@@ -458,14 +423,14 @@ function AssignmentsPage() {
           Show completed
         </label>
         <span className="hidden text-xs tabular-nums text-muted-foreground sm:block">
-          {agendaItems.length} shown
+          {shownItems.length} shown
         </span>
       </div>
 
       {selectedAssignment && (
         <section
           id="selected-assignment-description"
-          className="glass-panel-strong scroll-mt-6 rounded-[1.75rem] border border-primary/25 p-5 sm:p-6"
+          className="glass-panel-strong premium-reveal scroll-mt-6 rounded-[1.75rem] border border-primary/25 p-5 sm:p-6"
         >
           <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-primary">
             Assignment description
@@ -494,7 +459,7 @@ function AssignmentsPage() {
       )}
 
       <PriorityAssignmentsCard
-        groups={priorityGroups}
+        queue={priorityQueue}
         loading={isLoading}
         error={isError ? (error as Error) : null}
         isDone={(id) => completed.has(id)}
@@ -532,124 +497,146 @@ function AssignmentsPage() {
       )}
 
       {!isLoading && !isError && agendaSections.length > 0 && (
-        <section className="glass-panel overflow-hidden rounded-[1.75rem] border border-foreground/10">
-          {agendaSections.map((section) => (
-            <div key={section.title} className="border-b border-foreground/10 last:border-0">
-              <div className="flex items-end justify-between gap-3 bg-foreground/[0.025] px-4 py-4 sm:px-6">
-                <div>
-                  <h2
-                    className={cn(
-                      "text-sm font-semibold uppercase tracking-[0.14em]",
-                      section.tone,
-                    )}
-                  >
+        <div className="premium-card space-y-8 px-1" style={{ animationDelay: "100ms" }}>
+          {agendaSections.map((section) => {
+            const undatedCollapsed = section.key === "undated" && !q && !undatedOpen;
+            return (
+              <section key={section.key}>
+                <div className="flex items-baseline justify-between gap-3">
+                  <h2 className="text-sm text-muted-foreground">
                     {section.title}
+                    <span className="ml-2 opacity-70">{section.items.length}</span>
                   </h2>
-                  <p className="mt-1 text-xs text-muted-foreground">{section.detail}</p>
-                </div>
-                <span className="text-2xl font-medium tabular-nums tracking-[-0.05em]">
-                  {section.items.length}
-                </span>
-              </div>
-              <ul>
-                {section.items.map(({ assignment: a, course }) => {
-                  const done = isDone(a, completed.has(a.id));
-                  const canvasDone = isAssignmentComplete(a, false);
-                  const cd = getCountdown(a.due_at, { completed: done });
-                  const mine = isCustomAssignmentId(a.id);
-                  const notes = custom.notesById.get(a.id);
-                  const highlightProps = highlight(course);
-                  const firstForCourse =
-                    agendaItems.find((entry) => entry.course === course)?.assignment.id === a.id;
-                  return (
-                    <li
-                      key={a.id}
-                      id={firstForCourse ? highlightProps.id : undefined}
-                      className={cn(
-                        "group grid gap-3 border-t border-foreground/[0.07] px-4 py-4 transition-colors first:border-0 hover:bg-foreground/[0.025] sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center sm:px-6",
-                        done && "opacity-60",
-                        highlightProps.className,
-                      )}
+                  {section.key === "undated" && !q && (
+                    <button
+                      type="button"
+                      onClick={() => setUndatedOpen((open) => !open)}
+                      aria-expanded={undatedOpen}
+                      className="text-xs text-muted-foreground transition-colors hover:text-foreground"
                     >
-                      <CompleteToggle
-                        done={done}
-                        onToggle={() => completed.toggle(a.id)}
-                        label={a.name}
-                        disabled={!completed.ready || canvasDone}
-                        className="h-5 w-5"
-                      />
-                      <div className="min-w-0">
-                        <p
-                          className={cn(
-                            "truncate text-sm font-medium sm:text-base",
-                            done && "line-through",
-                          )}
-                        >
-                          {a.name}
-                        </p>
-                        <p className="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
-                          <span className="truncate text-primary/90">{course}</span>
-                          <span className="opacity-40">·</span>
-                          <span>{done ? "Completed" : mine ? "Added by you" : statusLabel(a)}</span>
-                          {a.points_possible != null && (
-                            <>
-                              <span className="opacity-40">·</span>
-                              <span>{a.points_possible} pts</span>
-                            </>
-                          )}
-                        </p>
-                        {notes && (
-                          <p className="mt-1 line-clamp-2 whitespace-pre-wrap text-xs text-foreground/70">
-                            {notes}
+                      {undatedOpen ? "Hide" : "Show"}
+                    </button>
+                  )}
+                </div>
+                <ul className="mt-2 space-y-2" hidden={undatedCollapsed}>
+                  {section.items.map(({ assignment: a, course }) => {
+                    const done = isDone(a, completed.has(a.id));
+                    const mine = isCustomAssignmentId(a.id);
+                    const notes = custom.notesById.get(a.id);
+                    const highlightProps = highlight(course);
+                    const firstForCourse =
+                      shownItems.find((entry) => entry.course === course)?.assignment.id === a.id;
+                    const due = a.due_at ? Date.parse(a.due_at) : null;
+                    const dueText =
+                      due != null
+                        ? `${new Intl.DateTimeFormat(undefined, {
+                            weekday: "short",
+                            month: "short",
+                            day: "numeric",
+                          }).format(due)} · ${new Intl.DateTimeFormat(undefined, {
+                            hour: "numeric",
+                            minute: "2-digit",
+                          }).format(due)}`
+                        : "No due date";
+                    return (
+                      <li
+                        key={a.id}
+                        id={firstForCourse ? highlightProps.id : undefined}
+                        className={cn(
+                          "group grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3.5 rounded-lg border border-foreground/15 px-4 py-3.5",
+                          done && "opacity-55",
+                          highlightProps.className,
+                        )}
+                      >
+                        <CompleteToggle
+                          done={done}
+                          onToggle={() => completed.toggle(a.id)}
+                          label={a.name}
+                          disabled={!completed.ready}
+                          className="mt-0.5 h-5 w-5"
+                        />
+                        <div className="min-w-0">
+                          <p className={cn("text-[15px] leading-snug", done && "line-through")}>
+                            {a.name}
                           </p>
-                        )}
-                        {a.description && (
-                          <details className="mt-2 text-xs">
-                            <summary className="cursor-pointer font-medium text-muted-foreground hover:text-foreground">
-                              Assignment description
-                            </summary>
-                            <p className="mt-2 whitespace-pre-line leading-5 text-foreground/75">
-                              {htmlToText(a.description)}
-                            </p>
-                          </details>
-                        )}
-                      </div>
-                      <div className="flex items-center justify-between gap-2 pl-8 sm:justify-end sm:pl-0">
-                        <div className="text-left sm:text-right">
-                          <p
-                            className={cn(
-                              "inline-flex items-center gap-1.5 text-sm tabular-nums",
-                              cd ? urgencyTextClass(cd.urgency) : "text-muted-foreground",
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {course}
+                            <span className="mx-1.5 opacity-40">·</span>
+                            {done ? "Completed" : mine ? "Added by you" : statusLabel(a)}
+                            {a.points_possible != null && (
+                              <>
+                                <span className="mx-1.5 opacity-40">·</span>
+                                {a.points_possible} pts
+                              </>
                             )}
-                          >
-                            <Clock3 className="h-3.5 w-3.5" />
-                            {cd ? cd.label : "No due date"}
                           </p>
-                          {cd && (
-                            <p className="mt-0.5 text-[10px] text-muted-foreground">
-                              {cd.fullDate}
+                          {notes && (
+                            <p className="mt-1 line-clamp-2 whitespace-pre-wrap text-xs text-foreground/70">
+                              {notes}
                             </p>
+                          )}
+                          {!mine && (
+                            <div className="mt-1.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100">
+                              <AssignmentDescriptionLink assignmentId={a.id} />
+                            </div>
                           )}
                         </div>
-                        {a.due_at && <AddToCalendarButton assignment={a} />}
-                        {mine && (
-                          <button
-                            type="button"
-                            onClick={() => custom.remove(a.id)}
-                            aria-label={`Delete ${a.name}`}
-                            className="glass-hover flex h-8 w-8 items-center justify-center rounded-xl border border-glass-border text-muted-foreground hover:text-foreground"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          ))}
-        </section>
+                        <div className="flex items-start gap-2">
+                          <p className="whitespace-nowrap pt-0.5 text-right text-xs tabular-nums text-muted-foreground">
+                            {dueText}
+                          </p>
+                          <span className="flex items-center gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100">
+                            {a.due_at && <AddToCalendarButton assignment={a} />}
+                            {mine && (
+                              <button
+                                type="button"
+                                onClick={() => custom.remove(a.id)}
+                                aria-label={`Delete ${a.name}`}
+                                className="flex h-7 w-7 items-center justify-center rounded-lg border border-foreground/15 text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </span>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            );
+          })}
+        </div>
+      )}
+
+      {!isLoading && !isError && !q && (hiddenWeeks34 > 0 || horizon === 28 || hiddenBeyond > 0) && (
+        <div className="flex flex-col items-center gap-2 pb-2 text-center">
+          {horizon === 14 && hiddenWeeks34 > 0 && (
+            <button
+              type="button"
+              onClick={() => setHorizon(28)}
+              className="inline-flex min-h-10 items-center rounded-lg border border-foreground/15 px-5 text-sm transition-colors hover:border-foreground/30"
+            >
+              Show weeks 3 and 4
+              <span className="ml-2 text-xs text-muted-foreground">{hiddenWeeks34} more</span>
+            </button>
+          )}
+          {horizon === 28 && (
+            <button
+              type="button"
+              onClick={() => setHorizon(14)}
+              className="inline-flex min-h-10 items-center rounded-lg border border-foreground/15 px-5 text-sm text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+            >
+              Show less
+            </button>
+          )}
+          {hiddenBeyond > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {hiddenBeyond} more {hiddenBeyond === 1 ? "is" : "are"} due after four weeks. Search
+              to find any assignment.
+            </p>
+          )}
+        </div>
       )}
 
       {LEGACY_CLASS_LAYOUT_ENABLED && (

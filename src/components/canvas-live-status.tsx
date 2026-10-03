@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, RefreshCw } from "lucide-react";
+import { AlertCircle, RefreshCw, WifiOff } from "lucide-react";
 import { useCanvasSync } from "@/hooks/use-canvas-sync";
+import { useOnlineStatus } from "@/lib/offline";
 import { cn } from "@/lib/utils";
 
 const FIVE_MINUTES = 5 * 60_000;
-const TEN_MINUTES = 10 * 60_000;
+// A few minutes old is normal, not a warning; only genuinely old data gets a color.
+const THIRTY_MINUTES = 30 * 60_000;
 
 type CanvasStatus = {
   updatedAt: number;
@@ -40,6 +42,7 @@ function elapsedLabel(age: number) {
 export function CanvasLiveStatus() {
   const queryClient = useQueryClient();
   const { sync, isSyncing } = useCanvasSync();
+  const online = useOnlineStatus();
   const [now, setNow] = useState(Date.now());
   const [status, setStatus] = useState(() => readStatus(queryClient));
 
@@ -70,10 +73,24 @@ export function CanvasLiveStatus() {
   const age = status.updatedAt ? now - status.updatedAt : 0;
   const freshness = useMemo(() => {
     if (!status.updatedAt) return "checking";
-    if (age > TEN_MINUTES) return "stale";
+    if (age > THIRTY_MINUTES) return "stale";
     if (age >= FIVE_MINUTES) return "recent";
     return "live";
   }, [age, status.updatedAt]);
+
+  // Offline outranks any error: a failed request with no connection is expected.
+  if (!online) {
+    return (
+      <span
+        className="glass-inset flex min-h-8 items-center justify-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase text-muted-foreground"
+        title="You're offline. Showing what you last synced."
+        aria-label={`Offline. ${status.updatedAt ? elapsedLabel(age) : "Showing saved data"}.`}
+      >
+        <WifiOff className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+        <span>{status.updatedAt ? `Offline · ${elapsedLabel(age).replace("Updated ", "")}` : "Offline"}</span>
+      </span>
+    );
+  }
 
   if (status.error) {
     return (
@@ -107,8 +124,8 @@ export function CanvasLiveStatus() {
         className={cn(
           "h-2 w-2 shrink-0 rounded-full",
           freshness === "live" && "bg-status-live shadow-status-live",
-          freshness === "recent" && "bg-status-warning",
-          freshness === "stale" && "bg-destructive",
+          freshness === "recent" && "bg-muted-foreground/60",
+          freshness === "stale" && "bg-status-warning",
           freshness === "checking" && "animate-pulse bg-muted-foreground",
         )}
       />

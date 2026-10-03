@@ -8,6 +8,8 @@ import { DUE_WINDOWS, readPrefs } from "@/lib/notification-prefs";
 import { useUserPreferences } from "@/hooks/use-user-preferences";
 import { completedAssignmentIds } from "@/lib/completion-records";
 import { scopedKey } from "@/lib/user-scope";
+import { hasBackgroundPushDevice } from "@/lib/background-push-device";
+import { pageShouldPopUp } from "@/lib/push-heartbeat";
 
 const SEEN_GRADES_KEY = "canvas:seen-graded";
 const SEEN_ANNOUNCEMENTS_KEY = "canvas:seen-announcements";
@@ -31,7 +33,7 @@ function writeSet(baseKey: string, set: Set<string>) {
   }
 }
 
-function runDueChecks(assignments: AssignmentItem[], completed: Set<string>) {
+function runDueChecks(assignments: AssignmentItem[], completed: Set<string>, popUp: boolean) {
   const prefs = readPrefs();
   if (!prefs.enabled) return;
   const now = Date.now();
@@ -55,7 +57,7 @@ function runDueChecks(assignments: AssignmentItem[], completed: Set<string>) {
           to: "/assignments",
           ts: due,
           body: `was due ${new Date(a.due_at).toLocaleString()}`,
-        });
+        }, { popUp });
       }
       continue;
     }
@@ -79,12 +81,12 @@ function runDueChecks(assignments: AssignmentItem[], completed: Set<string>) {
         course_code: a.course_code,
         to: "/assignments",
         body: `due ${new Date(a.due_at).toLocaleString()}`,
-      });
+      }, { popUp });
     }
   }
 }
 
-function runGradeChecks(assignments: AssignmentItem[]) {
+function runGradeChecks(assignments: AssignmentItem[], popUp: boolean) {
   const prefs = readPrefs();
   const seen = readSet(SEEN_GRADES_KEY);
   const first = seen.size === 0;
@@ -121,13 +123,13 @@ function runGradeChecks(assignments: AssignmentItem[]) {
       course_code: a.course_code,
       to: "/grades",
       ts: a.submission?.graded_at ? new Date(a.submission.graded_at).getTime() : undefined,
-    });
+    }, { popUp });
   }
 
   if (changed) writeSet(SEEN_GRADES_KEY, seen);
 }
 
-function runAnnouncementChecks(items: AnnouncementItem[]) {
+function runAnnouncementChecks(items: AnnouncementItem[], popUp: boolean) {
   const prefs = readPrefs();
   const seen = readSet(SEEN_ANNOUNCEMENTS_KEY);
   const first = seen.size === 0;
@@ -158,7 +160,7 @@ function runAnnouncementChecks(items: AnnouncementItem[]) {
       to: "/announcements",
       ts: a.posted_at ? new Date(a.posted_at).getTime() : undefined,
       body: "New announcement",
-    });
+    }, { popUp });
   }
 
   if (changed) writeSet(SEEN_ANNOUNCEMENTS_KEY, seen);
@@ -170,19 +172,33 @@ export function useNotificationEngine(enabled = true) {
   const announcements = useQuery({ ...announcementsQueryOptions, enabled });
   const preferences = useUserPreferences();
   const completed = useMemo(() => completedAssignmentIds(preferences.data), [preferences.data]);
+  const preferenceData = preferences.data;
+  const preferencesUpdatedAt = preferences.dataUpdatedAt;
+  // Decided per pass, so a device that also gets closed-app pushes only
+  // collects these in the bell instead of repeating them when the app opens.
+  const popUp = () =>
+    pageShouldPopUp({
+      deviceHasBackgroundPush: hasBackgroundPushDevice(),
+      preferences: preferenceData,
+      preferencesUpdatedAt,
+      now: Date.now(),
+    });
 
   useEffect(() => {
     if (!enabled || !assignments.data || !preferences.ready) return;
-    runGradeChecks(assignments.data);
-    runDueChecks(assignments.data, completed);
+    runGradeChecks(assignments.data, popUp());
+    runDueChecks(assignments.data, completed, popUp());
     const id = setInterval(() => {
-      if (assignments.data) runDueChecks(assignments.data, completed);
+      if (assignments.data) runDueChecks(assignments.data, completed, popUp());
     }, 15 * 60_000);
     return () => clearInterval(id);
-  }, [assignments.data, enabled, completed, preferences.ready]);
+    // popUp reads the preference values listed here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assignments.data, enabled, completed, preferences.ready, preferenceData, preferencesUpdatedAt]);
 
   useEffect(() => {
     if (!enabled || !announcements.data) return;
-    runAnnouncementChecks(announcements.data);
+    runAnnouncementChecks(announcements.data, popUp());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [announcements.data, enabled]);
 }

@@ -5,6 +5,7 @@ import { useCanvasSync } from "@/hooks/use-canvas-sync";
 
 interface GlassCardProps {
   children: ReactNode;
+  id?: string;
   className?: string;
   title?: ReactNode;
   subtitle?: string;
@@ -12,9 +13,10 @@ interface GlassCardProps {
   strong?: boolean;
 }
 
-export function GlassCard({ children, className, title, subtitle, action, strong }: GlassCardProps) {
+export function GlassCard({ children, id, className, title, subtitle, action, strong }: GlassCardProps) {
   return (
     <section
+      id={id}
       className={cn(
         strong ? "glass-panel-strong" : "glass-panel",
         "min-w-0 overflow-hidden p-4 sm:p-6 md:p-7",

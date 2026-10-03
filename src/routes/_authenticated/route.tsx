@@ -24,13 +24,25 @@ import { RouteProgress } from "@/components/route-progress";
 import { ProfileCompletionDialog } from "@/components/profile-completion-dialog";
 import { CanvasTrademarkNotice } from "@/components/canvas-trademark-notice";
 import { maintainBackgroundPush } from "@/lib/push-client";
-import { isNativeApp } from "@/lib/native";
+import { isOfflineLike, readStoredUser } from "@/lib/offline-session";
+import { registerOfflineSupport } from "@/lib/offline";
+import { OfflineNotice } from "@/components/offline-notice";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async ({ context }) => {
     // Local session gates the UI; APIs still validate the token and enforce RLS.
     const { data, error } = await supabase.auth.getSession();
+    // No connection means the token cannot be refreshed, which looks like "no
+    // session". Keep using the one saved on this device so the app still opens
+    // offline; the next online request re-validates it.
+    if (!data.session && isOfflineLike(error)) {
+      const storedUser = readStoredUser(window.localStorage);
+      if (storedUser) {
+        syncAuthIdentity(context.queryClient, storedUser.id);
+        return { user: storedUser };
+      }
+    }
     if (error || !data.session) {
       purgeScopedStorage();
       syncAuthIdentity(context.queryClient, null);
@@ -58,6 +70,10 @@ function AuthenticatedLayout() {
   useDueTodayBadge(startupReady);
   useWelcomeEmail(true);
   useActivityHeartbeat(true);
+
+  useEffect(() => {
+    registerOfflineSupport();
+  }, []);
 
   useEffect(() => {
     const idleCallback = (
@@ -90,12 +106,7 @@ function AuthenticatedLayout() {
           sidebarMode === "hidden" && "md:pl-4",
         )}
       >
-        <div
-          className={cn(
-            "mx-auto w-full min-w-0 max-w-6xl px-3 py-4 sm:px-4 md:p-6",
-            isNativeApp() && "pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-6",
-          )}
-        >
+        <div className="mx-auto w-full min-w-0 max-w-6xl px-3 py-4 sm:px-4 md:p-6">
           <div className="mb-2 flex min-w-0 items-center justify-end gap-2">
             <CanvasLiveStatus />
             {/* Bell and profile already live in the mobile top bar — avoid duplicates on phones */}
@@ -104,6 +115,7 @@ function AuthenticatedLayout() {
               <ProfileButton />
             </span>
           </div>
+          <OfflineNotice />
           <CanvasKeyBanner />
           <CanvasKeyGate>
             <ClassNamesGate>

@@ -1,7 +1,17 @@
 import { QueryClient } from "@tanstack/react-query";
-import { createRouter } from "@tanstack/react-router";
+import { createRouter, parseSearchWith, stringifySearchWith } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
 import { CANVAS_DATA_GC_MS, CANVAS_DATA_STALE_MS } from "@/lib/query-policy";
+import { watchReopenedAssignments } from "@/lib/reopened-assignments";
+
+// Keep plain search values (like ?window=7 or ?assignment=123) readable in the
+// address bar. The default JSON encoding wrapped number-like strings in quotes
+// (?window=%227%22). Only objects, arrays and already-quoted legacy values are
+// JSON; throwing for everything else tells the router to leave it as text.
+function parseSearchValue(value: string): unknown {
+  if (/^[[{"]/.test(value)) return JSON.parse(value);
+  throw new Error("plain search value");
+}
 
 export const getRouter = () => {
   const queryClient = new QueryClient({
@@ -17,9 +27,13 @@ export const getRouter = () => {
     },
   });
 
+  watchReopenedAssignments(queryClient);
+
   const router = createRouter({
     routeTree,
     context: { queryClient },
+    parseSearch: parseSearchWith(parseSearchValue),
+    stringifySearch: stringifySearchWith(JSON.stringify, parseSearchValue),
     scrollRestoration: true,
     scrollToTopSelectors: ["#app-main"],
     defaultPreload: "intent",

@@ -19,7 +19,6 @@ import { getActiveIdentity, syncAuthIdentity } from "@/lib/auth-user";
 import { SiteFooter } from "@/components/site-footer";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/lib/theme";
-import { NativeAppEvents } from "@/components/native-app-events";
 
 const themeBootScript = `try{var t=localStorage.getItem("canvas:theme"),p=localStorage.getItem("canvas:palette");document.documentElement.classList.add(t==="dark"||t!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.palette=["forest","blue","violet","rose"].includes(p)?p:"forest"}catch(e){document.documentElement.classList.add("light");document.documentElement.dataset.palette="forest"}`;
 
@@ -70,10 +69,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      {
-        name: "viewport",
-        content: "width=device-width, initial-scale=1, viewport-fit=cover",
-      },
+      { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "CanvasPro — A Better Canvas Dashboard for Students" },
       {
         name: "description",
@@ -92,9 +88,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      { rel: "icon", href: "/favicon-32.png", type: "image/png", sizes: "32x32" },
-      { rel: "icon", href: "/favicon.png", type: "image/png", sizes: "512x512" },
-      { rel: "apple-touch-icon", href: "/apple-touch-icon.png", sizes: "180x180" },
+      { rel: "icon", href: "/canvaspro-icon-v2-32.png", type: "image/png", sizes: "32x32" },
+      { rel: "icon", href: "/canvaspro-icon-v2-512.png", type: "image/png", sizes: "512x512" },
+      { rel: "shortcut icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "apple-touch-icon", href: "/canvaspro-icon-v2-180.png", sizes: "180x180" },
       { rel: "manifest", href: "/manifest.webmanifest" },
     ],
   }),
@@ -201,12 +198,11 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <NativeAppEvents />
         <div className="site-shell">
           <div id="main-content" tabIndex={-1} className="site-content outline-none">
             <Outlet />
           </div>
-          {showFooter && !Capacitor.isNativePlatform() && <SiteFooter />}
+          {showFooter && <SiteFooter />}
         </div>
         <Toaster position="top-center" richColors closeButton />
       </ThemeProvider>

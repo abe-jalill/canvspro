@@ -1,6 +1,5 @@
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { successHaptic } from "@/lib/native";
 
 export function CompleteToggle({
   done,
@@ -19,15 +18,12 @@ export function CompleteToggle({
   return (
     <button
       type="button"
-      onClick={() => {
-        onToggle();
-        if (!done) void successHaptic();
-      }}
+      onClick={onToggle}
       disabled={disabled}
       aria-label={done ? `Mark ${label} incomplete` : `Mark ${label} complete`}
       aria-pressed={done}
       className={cn(
-        "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border transition-colors sm:h-9 sm:w-9",
+        "flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-colors",
         disabled && "cursor-wait opacity-50",
         done
           ? "border-foreground/60 bg-foreground/80 text-background"

@@ -6,6 +6,8 @@ import { GlassCard } from "@/components/glass-card";
 import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
 import { displayCourseName } from "@/lib/course-display";
 import { getCountdown } from "@/lib/countdown";
+import { isAssignmentVisible } from "@/lib/assignment-window";
+import { COMPLETED_ASSIGNMENTS_KEY, useLocalSet } from "@/lib/local-state";
 import {
   useLocalNumber,
   useLocalNumberMap,
@@ -87,6 +89,18 @@ export function DigestCard({ announcements, assignments, courses }: Props) {
 
   const total = newAnnouncements.length + gradeChanges.length + newlyUrgent.length;
 
+  // Deadlines that are still urgent but were already seen. Nothing is "new",
+  // but the empty state must not claim there are no urgent deadlines.
+  const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
+  const stillUrgent = useMemo(() => {
+    const now = Date.now();
+    return assignments.filter((a) => {
+      if (!isAssignmentVisible(a, completed.has(a.id), false, now)) return false;
+      const cd = getCountdown(a.due_at);
+      return cd != null && (cd.urgency === "today" || cd.urgency === "soon");
+    }).length;
+  }, [assignments, completed]);
+
   // On mount (or when the data landed) treat this as first render of this
   // snapshot — but do NOT immediately mark seen; user should see the digest.
   // Marking seen happens on user action.
@@ -114,13 +128,34 @@ export function DigestCard({ announcements, assignments, courses }: Props) {
 
   if (total === 0) {
     return (
-      <GlassCard title="Since your last visit" subtitle="0 updates">
-        <div className="flex flex-col items-center justify-center gap-2 py-4 text-center">
-          <Check className="h-6 w-6 text-primary/60" />
-          <p className="text-sm font-medium">All caught up.</p>
-          <p className="max-w-xs text-xs text-muted-foreground">
-            No new announcements, grades, or urgent deadlines since your last visit.
-          </p>
+      <GlassCard>
+        <div className="glass-hover flex items-center justify-between rounded-2xl px-1 py-1">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="glass-inset flex h-9 w-9 shrink-0 items-center justify-center rounded-xl">
+              <Check className="h-4 w-4" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold">
+                {stillUrgent > 0 ? "Nothing new since your last visit." : "All caught up."}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {stillUrgent > 0
+                  ? `No new announcements or grades. ${stillUrgent} assignment${
+                      stillUrgent === 1 ? " is" : "s are"
+                    } still due soon.`
+                  : "No new announcements, grades, or urgent deadlines since your last visit."}
+              </p>
+            </div>
+          </div>
+          {stillUrgent > 0 && (
+            <Link
+              to="/get-it-done"
+              preload="intent"
+              className="shrink-0 text-xs font-medium text-muted-foreground hover:text-foreground"
+            >
+              Plan it
+            </Link>
+          )}
         </div>
       </GlassCard>
     );

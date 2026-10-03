@@ -5,6 +5,8 @@ import { cn } from "@/lib/utils";
 import { useDashboardLayout, type WidgetId, type WidgetSize } from "@/lib/dashboard-layout";
 import { WIDGETS } from "@/components/widgets/dashboard-widgets";
 import { DashboardHero } from "@/components/dashboard-hero";
+import { PageTabs } from "@/components/page-tabs";
+import { TODAY_TABS } from "@/lib/page-tab-sets";
 
 import {
   coursesQueryOptions,
@@ -69,9 +71,13 @@ function Dashboard() {
 
   return (
     <div className="w-full min-w-0 space-y-4 pb-12 sm:space-y-5">
+      <PageTabs tabs={TODAY_TABS} label="Today sections" />
       <DashboardHero />
 
-      <header className="flex flex-wrap items-center justify-between gap-3 px-1">
+      <header
+        className="premium-reveal flex flex-wrap items-center justify-between gap-3 px-1"
+        style={{ animationDelay: "65ms" }}
+      >
         <div className="min-w-0">
           <h2 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
             Your dashboard
@@ -95,7 +101,7 @@ function Dashboard() {
       </header>
 
       {customizing && (
-        <section className="glass-panel-strong overflow-hidden rounded-2xl border border-primary/20">
+        <section className="glass-panel-strong premium-reveal overflow-hidden rounded-2xl border border-primary/20">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-foreground/10 px-4 py-3 sm:px-5">
             <div>
               <h3 className="text-sm font-semibold">Edit widgets</h3>
@@ -196,13 +202,17 @@ function Dashboard() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-5 min-w-0 [grid-auto-flow:dense]">
-        {visible.map((id) => {
+        {visible.map((id, index) => {
           const meta = WIDGETS[id];
           return (
             <div
               key={id}
               data-widget-card
-              className={cn(colSpanClass(sizeOf(id)), "min-w-0 transition-all duration-200")}
+              className={cn(
+                colSpanClass(sizeOf(id)),
+                "premium-card min-w-0 transition-all duration-200",
+              )}
+              style={{ animationDelay: `${Math.min(index, 5) * 55 + 90}ms` }}
             >
               {meta.render()}
             </div>

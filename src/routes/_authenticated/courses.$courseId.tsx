@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, queryOptions } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   getCoursesFn,
   getAllAssignmentsFn,
@@ -12,12 +12,13 @@ import {
 } from "@/lib/canvas.functions";
 import { GlassCard, Skeleton, EmptyState } from "@/components/glass-card";
 import { displayCourseNameForCourse } from "@/lib/course-display";
-import { getGradeColor, getGradeBg, letterFromScore } from "@/lib/grade-color";
+import { getGradeColor, getGradeBg, courseLetter } from "@/lib/grade-color";
 import { useClassSchedule } from "@/lib/user-class-schedule";
 import { DAY_LABELS } from "@/lib/class-schedule";
 import { ArrowLeft, Calendar, Clock, ExternalLink, CheckCircle2, CalendarPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
+import { htmlToText } from "@/lib/html-text";
+import { searchText } from "@/lib/search-params";
 import { COMPLETED_ASSIGNMENTS_KEY, useLocalSet } from "@/lib/local-state";
 import { isAssignmentVisible } from "@/lib/assignment-window";
 import { useAnnouncementWindow, withinAnnouncementWindow } from "@/lib/announcement-window";
@@ -33,21 +34,40 @@ import {
 import { SkeletonBlock, AssignmentRowSkeleton } from "@/components/skeletons/dashboard-skeletons";
 
 export const Route = createFileRoute("/_authenticated/courses/$courseId")({
-  head: () => ({
+  // `?assignment=<id>` scrolls to that assignment, opens its description and flashes it.
+  validateSearch: (search: { assignment?: unknown }) => {
+    const assignment = searchText(search.assignment);
+    return assignment ? { assignment } : {};
+  },
+  // `loader` must be declared before `head` so `loaderData` is inferred in `head`.
+  loader: ({ context, params }) => {
+    if (!context?.queryClient) return { courseTitle: null };
+    void context.queryClient.ensureQueryData(coursesQO);
+    void context.queryClient.ensureQueryData(assignmentsQO);
+    // Name the browser tab after the class when its details are already cached
+    // (they almost always are, since the sidebar loads every course).
+    const course = context.queryClient
+      .getQueryData(coursesQO.queryKey)
+      ?.find((item) => String(item.id) === params.courseId);
+    return {
+      courseTitle: course
+        ? displayCourseNameForCourse(course.id, course.name, course.course_code)
+        : null,
+    };
+  },
+  head: ({ loaderData }) => ({
     meta: [
-      { title: "Class Details — CanvasPro" },
+      {
+        title: loaderData?.courseTitle
+          ? `${loaderData.courseTitle} — CanvasPro`
+          : "Class Details — CanvasPro",
+      },
       {
         name: "description",
         content: "Individual course overview, grades, assignments, and announcements.",
       },
     ],
   }),
-  loader: ({ context }) => {
-    if (context?.queryClient) {
-      void context.queryClient.ensureQueryData(coursesQO);
-      void context.queryClient.ensureQueryData(assignmentsQO);
-    }
-  },
   component: CourseDetailPage,
 });
 
@@ -102,6 +122,41 @@ function AnimatedGradeCounter({
   );
 }
 
+function DescriptionToggle({
+  open,
+  onToggle,
+  className,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={open}
+      className={cn(
+        "inline-flex text-[11px] font-medium text-muted-foreground underline decoration-foreground/20 underline-offset-2 transition-colors hover:text-foreground",
+        className,
+      )}
+    >
+      {open ? "Hide description" : "See description"}
+    </button>
+  );
+}
+
+function AssignmentDescriptionPanel({ assignment }: { assignment: AssignmentItem }) {
+  const text = htmlToText(assignment.description ?? "");
+  return (
+    <div className="mt-3 rounded-xl bg-foreground/[0.04] p-3.5">
+      <p className="whitespace-pre-line text-sm leading-6 text-foreground/80">
+        {text || "Canvas does not provide a description for this assignment."}
+      </p>
+    </div>
+  );
+}
+
 function CourseDetailPage() {
   const params = Route.useParams() as { courseId?: string };
   const courseIdStr = params?.courseId ?? "";
@@ -120,6 +175,9 @@ function CourseDetailPage() {
   );
   const [showAllUpcoming, setShowAllUpcoming] = useState(false);
   const [showAllAnnouncements, setShowAllAnnouncements] = useState(false);
+  const search = Route.useSearch() as { assignment?: string };
+  const [openDescriptions, setOpenDescriptions] = useState<Set<number>>(new Set());
+  const [flashId, setFlashId] = useState<number | null>(null);
 
   const course: CourseSummary | undefined = useMemo(() => {
     return coursesQueryState.data?.find(
@@ -266,9 +324,55 @@ function CourseDetailPage() {
   const score = course?.current_score;
   const gradeColor = getGradeColor(score);
   const gradeBg = getGradeBg(score);
-  const letterGrade = course?.current_grade || letterFromScore(score);
+  const letterGrade = courseLetter(course?.current_grade, score) ?? "—";
 
   const loading = coursesQueryState.isLoading || assignmentsQueryState.isLoading;
+
+  // Arriving from a "See description" link: switch to the right tab, open that
+  // assignment's description and flash it, then scroll it into view.
+  const targetId = search.assignment ? Number(search.assignment) : null;
+  const handledTarget = useRef<number | null>(null);
+  const targetInUpcoming = targetId != null && upcomingAssignments.some((a) => a.id === targetId);
+  const targetInGraded = targetId != null && gradedAssignments.some((a) => a.id === targetId);
+  const targetInWindow = targetId != null && upcomingWithinWindow.some((a) => a.id === targetId);
+  const targetAssignment =
+    targetId != null ? courseAssignments.find((a) => a.id === targetId) : undefined;
+
+  useEffect(() => {
+    if (targetId == null || !Number.isFinite(targetId)) {
+      handledTarget.current = null;
+      return;
+    }
+    if (!targetAssignment || handledTarget.current === targetId) return;
+    handledTarget.current = targetId;
+    setActiveTab(targetInGraded && !targetInUpcoming ? "graded" : "upcoming");
+    if (targetInUpcoming && !targetInWindow) setShowAllUpcoming(true);
+    setOpenDescriptions((prev) => new Set(prev).add(targetId));
+    setFlashId(targetId);
+  }, [targetId, targetAssignment, targetInGraded, targetInUpcoming, targetInWindow]);
+
+  useEffect(() => {
+    if (flashId == null) return;
+    // Wait a beat so the tab, list and description have rendered before scrolling.
+    const scroll = window.setTimeout(() => {
+      document
+        .getElementById(`assignment-${flashId}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 200);
+    const clear = window.setTimeout(() => setFlashId(null), 3_600);
+    return () => {
+      window.clearTimeout(scroll);
+      window.clearTimeout(clear);
+    };
+  }, [flashId]);
+
+  const toggleDescription = (id: number) =>
+    setOpenDescriptions((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   if (loading && !course) {
     return (
@@ -469,6 +573,31 @@ function CourseDetailPage() {
         </button>
       </div>
 
+      {/* A linked assignment that is in neither list (finished but ungraded, or long overdue) */}
+      {targetAssignment && !targetInUpcoming && !targetInGraded && (
+        <GlassCard
+          id={`assignment-${targetAssignment.id}`}
+          className={cn("scroll-mt-24 p-4", flashId === targetAssignment.id && "assignment-flash")}
+        >
+          <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+            Linked assignment
+          </p>
+          <p className="mt-1 text-sm font-medium text-foreground">{targetAssignment.name}</p>
+          <AssignmentDescriptionPanel assignment={targetAssignment} />
+          {targetAssignment.html_url && (
+            <a
+              href={targetAssignment.html_url}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+            >
+              Open in Canvas
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          )}
+        </GlassCard>
+      )}
+
       {/* Section 1: Upcoming Assignments */}
       {activeTab === "upcoming" && (
         <section className="space-y-3">
@@ -522,11 +651,19 @@ function CourseDetailPage() {
                     : "No due date";
 
                   return (
-                    <GlassCard key={a.id} className="hover-scale p-4">
+                    <GlassCard
+                      key={a.id}
+                      id={`assignment-${a.id}`}
+                      className={cn("hover-scale scroll-mt-24 p-4", flashId === a.id && "assignment-flash")}
+                    >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="truncate text-sm font-medium text-foreground">{a.name}</p>
-                          <AssignmentDescriptionLink assignmentId={a.id} className="mt-1" />
+                          <DescriptionToggle
+                            open={openDescriptions.has(a.id)}
+                            onToggle={() => toggleDescription(a.id)}
+                            className="mt-1"
+                          />
 
                           <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                             <span className="inline-flex items-center gap-1">
@@ -553,6 +690,7 @@ function CourseDetailPage() {
                           </a>
                         )}
                       </div>
+                      {openDescriptions.has(a.id) && <AssignmentDescriptionPanel assignment={a} />}
                     </GlassCard>
                   );
                 })}
@@ -583,14 +721,22 @@ function CourseDetailPage() {
                 const itemColor = getGradeColor(pct);
 
                 return (
-                  <GlassCard key={a.id} className="hover-scale p-4">
+                  <GlassCard
+                    key={a.id}
+                    id={`assignment-${a.id}`}
+                    className={cn("hover-scale scroll-mt-24 p-4", flashId === a.id && "assignment-flash")}
+                  >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
                           <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                           <p className="truncate text-sm font-medium text-foreground">{a.name}</p>
                         </div>
-                        <AssignmentDescriptionLink assignmentId={a.id} className="mt-1" />
+                        <DescriptionToggle
+                          open={openDescriptions.has(a.id)}
+                          onToggle={() => toggleDescription(a.id)}
+                          className="mt-1"
+                        />
 
                         <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                           {a.submission?.submitted_at && (
@@ -638,6 +784,7 @@ function CourseDetailPage() {
                         )}
                       </div>
                     </div>
+                    {openDescriptions.has(a.id) && <AssignmentDescriptionPanel assignment={a} />}
                   </GlassCard>
                 );
               })}

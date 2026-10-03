@@ -79,7 +79,8 @@ function inputClass() {
 function CalculatorPage() {
   const [rows, setRows] = useState<Row[]>(START_ROWS);
   const [nextId, setNextId] = useState(5);
-  const [target, setTarget] = useState("90");
+  // Default to a reachable goal for the sample data (current grade is a B).
+  const [target, setTarget] = useState("85");
 
   const update = (id: number, patch: Partial<Row>) =>
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));

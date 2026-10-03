@@ -23,3 +23,14 @@ test("the installable web app has a background push worker", async () => {
   assert.match(worker, /showNotification/);
   assert.equal(JSON.parse(manifest).display, "standalone");
 });
+
+test("the dispatch route checks accounts in parallel and records each check", async () => {
+  const route = await readFile(
+    new URL("../src/routes/api/public/push/dispatch.ts", import.meta.url),
+    "utf8",
+  );
+  // The route still requires the cron secret, and takes an optional user id.
+  assert.match(route, /constantTimeEqual\(provided, expected\)/);
+  assert.match(route, /run\(userId \|\| undefined\)/);
+  assert.match(route, /recordHeartbeat\(admin, userId\)/);
+});

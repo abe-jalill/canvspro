@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { getGradeColor } from "@/lib/grade-color";
+import { courseLetter, getGradeColor } from "@/lib/grade-color";
 import { useQuery, queryOptions } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { getCoursesFn, getAllAssignmentsFn } from "@/lib/canvas.functions";
@@ -25,6 +25,7 @@ import {
 } from "@/lib/canvas.queries";
 import { CourseGradeCardSkeleton } from "@/components/skeletons/dashboard-skeletons";
 import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
+import { AnimatedNumber } from "@/components/animated-number";
 
 const LEGACY_GRADE_LAYOUT_ENABLED = false;
 
@@ -154,7 +155,7 @@ function GradesPage() {
 
   return (
     <div className="space-y-6">
-      <section className="glass-panel-strong relative isolate overflow-hidden rounded-[2rem] border border-primary/15 p-5 sm:p-7">
+      <section className="glass-panel-strong premium-reveal relative isolate overflow-hidden rounded-[2rem] border border-primary/15 p-5 sm:p-7">
         <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-primary/15 blur-3xl" />
         <div className="relative grid gap-7 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
           <div className="max-w-2xl">
@@ -180,7 +181,7 @@ function GradesPage() {
                 className="mt-1 text-6xl font-medium tabular-nums tracking-[-0.075em]"
                 style={{ color: getGradeColor(average) }}
               >
-                {average == null ? "—" : average.toFixed(1)}
+                {average == null ? "—" : <AnimatedNumber value={average} decimals={1} />}
               </p>
             </div>
             {average != null && <span className="mb-2 text-lg text-muted-foreground">%</span>}
@@ -205,7 +206,10 @@ function GradesPage() {
         </div>
       </section>
 
-      <div className="glass-panel-strong flex items-center gap-3 rounded-2xl px-4 py-3">
+      <div
+        className="glass-panel-strong premium-reveal flex items-center gap-3 rounded-2xl px-4 py-3"
+        style={{ animationDelay: "65ms" }}
+      >
         <Search className="h-4 w-4 text-muted-foreground" />
         <input
           type="search"
@@ -245,7 +249,7 @@ function GradesPage() {
 
       {!loading && !error && filteredCourses.length > 0 && (
         <section className="grid items-start gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {filteredCourses.map((course) => {
+          {filteredCourses.map((course, index) => {
             const trend = trends.get(course.id);
             const expanded = expandedCourses.has(course.id);
             const score = course.current_score;
@@ -261,15 +265,16 @@ function GradesPage() {
                 key={course.id}
                 id={highlightProps.id}
                 className={cn(
-                  "glass-panel group overflow-hidden rounded-[1.65rem] border border-foreground/10 transition-[border-color,transform,box-shadow] duration-300 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-lg",
+                  "glass-panel premium-card group overflow-hidden rounded-[1.65rem] border border-foreground/10 transition-[border-color,transform,box-shadow] duration-300 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-lg",
                   highlightProps.className,
                 )}
+                style={{ animationDelay: `${Math.min(index, 5) * 55 + 90}ms` }}
               >
                 <button
                   type="button"
                   onClick={() => toggleExpanded(course.id)}
                   aria-expanded={expanded}
-                  className="relative flex min-h-64 w-full flex-col p-5 text-left transition-colors hover:bg-foreground/[0.02] sm:p-6"
+                  className="premium-press relative flex min-h-64 w-full flex-col p-5 text-left transition-colors hover:bg-foreground/[0.02] sm:p-6"
                 >
                   <div className="flex w-full items-start justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3">
@@ -299,9 +304,9 @@ function GradesPage() {
                         >
                           {fmt(score)}
                         </span>
-                        {course.current_grade && (
+                        {courseLetter(course.current_grade, score) && (
                           <span className="text-sm font-semibold" style={{ color }}>
-                            {course.current_grade}
+                            {courseLetter(course.current_grade, score)}
                           </span>
                         )}
                       </div>
@@ -310,13 +315,18 @@ function GradesPage() {
                       <span
                         className="inline-flex items-center gap-1 rounded-full border border-foreground/10 bg-foreground/[0.04] px-2.5 py-1 text-xs"
                         style={{ color }}
+                        title={`Previously ${trend.prev.toFixed(1)}%`}
+                        aria-label={`${trend.dir === "up" ? "Up" : "Down"} ${Math.abs(
+                          (score ?? 0) - trend.prev,
+                        ).toFixed(1)} points since your last grade change`}
                       >
                         {trend.dir === "up" ? (
-                          <ArrowUp className="h-3.5 w-3.5" />
+                          <ArrowUp className="h-3.5 w-3.5" aria-hidden="true" />
                         ) : (
-                          <ArrowDown className="h-3.5 w-3.5" />
+                          <ArrowDown className="h-3.5 w-3.5" aria-hidden="true" />
                         )}
-                        {Math.abs((score ?? 0) - trend.prev).toFixed(1)}
+                        {trend.dir === "up" ? "+" : "−"}
+                        {Math.abs((score ?? 0) - trend.prev).toFixed(1)} pts
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 rounded-full bg-foreground/[0.04] px-2.5 py-1 text-xs text-muted-foreground">
@@ -332,7 +342,7 @@ function GradesPage() {
                     </div>
                     <div className="h-1.5 overflow-hidden rounded-full bg-foreground/10">
                       <div
-                        className="h-full rounded-full transition-[width] duration-500"
+                        className="premium-progress h-full rounded-full transition-[width] duration-500"
                         style={{
                           width: `${Math.max(0, Math.min(100, score ?? 0))}%`,
                           backgroundColor: color,
@@ -342,7 +352,7 @@ function GradesPage() {
                   </div>
                 </button>
                 {expanded && (
-                  <div className="border-t border-foreground/[0.07] bg-foreground/[0.02] px-5 py-4 sm:px-6">
+                  <div className="premium-reveal border-t border-foreground/[0.07] bg-foreground/[0.02] px-5 py-4 sm:px-6">
                     <div className="mb-2 flex items-center justify-between">
                       <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
                         Graded work
@@ -450,9 +460,9 @@ function GradesPage() {
                         />
                       )}
                       {fmt(c.current_score)}
-                      {c.current_grade ? (
+                      {courseLetter(c.current_grade, c.current_score) ? (
                         <span className="ml-1.5 text-sm font-normal opacity-85" style={{ color }}>
-                          {c.current_grade}
+                          {courseLetter(c.current_grade, c.current_score)}
                         </span>
                       ) : null}
                     </span>

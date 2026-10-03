@@ -6,15 +6,11 @@ import {
   BarChart3,
   Bell,
   BellOff,
-  CalendarClock,
   CalendarDays,
-  ClipboardCheck,
-  Crosshair,
   GraduationCap,
   LayoutDashboard,
   ListChecks,
   LogOut,
-  Menu,
   Megaphone,
   Moon,
   Settings,
@@ -35,19 +31,14 @@ import { displayCourseNameForCourse } from "@/lib/course-display";
 import { getGradeColor } from "@/lib/grade-color";
 import { useSidebarMode } from "@/lib/sidebar-state";
 import { useIsAdmin } from "@/hooks/use-is-admin";
-import { isNativeApp } from "@/lib/native";
 
 const items = [
-  { title: "Dashboard", to: "/dashboard" as const, icon: LayoutDashboard },
-  { title: "Get It Done", to: "/get-it-done" as const, icon: ClipboardCheck },
-  { title: "Focus", to: "/focus" as const, icon: Crosshair },
+  { title: "Today", to: "/dashboard" as const, icon: LayoutDashboard },
   { title: "Study Session", to: "/study-session" as const, icon: TimerReset },
   { title: "Calendar", to: "/schedule" as const, icon: CalendarDays },
-  { title: "Class Schedule", to: "/class-schedule" as const, icon: CalendarClock },
   { title: "Grades", to: "/grades" as const, icon: GraduationCap },
   { title: "Assignments", to: "/assignments" as const, icon: ListChecks },
   { title: "Announcements", to: "/announcements" as const, icon: Megaphone },
-  { title: "Notifications", to: "/notifications" as const, icon: Bell },
   { title: "Settings", to: "/settings" as const, icon: Settings },
 ];
 
@@ -67,6 +58,16 @@ function useActivePath() {
 
 function isActive(pathname: string, to: string) {
   return pathname === to || pathname.startsWith(to + "/");
+}
+
+// Pages reached through in-page tabs keep their parent sidebar entry lit.
+const NESTED_PATHS: Record<string, string[]> = {
+  "/dashboard": ["/focus", "/get-it-done"],
+  "/schedule": ["/class-schedule"],
+};
+
+function isItemActive(pathname: string, to: string) {
+  return isActive(pathname, to) || (NESTED_PATHS[to] ?? []).some((p) => isActive(pathname, p));
 }
 
 function ReminderToggle({ compact = false }: { compact?: boolean }) {
@@ -220,7 +221,7 @@ export function AppSidebar() {
                       aria-label={item.title}
                       className={cn(
                         "press flex h-9 w-9 items-center justify-center rounded-xl transition-all",
-                        isActive(pathname, item.to)
+                        isItemActive(pathname, item.to)
                           ? "bg-foreground/[0.08] text-foreground shadow-sm"
                           : "text-muted-foreground/80 hover:bg-foreground/[0.04] hover:text-foreground",
                       )}
@@ -298,7 +299,7 @@ export function AppSidebar() {
                     onFocus={() => prefetchRouteQueries(queryClient, item.to)}
                     className={cn(
                       "press rounded-xl px-3 py-2 text-sm transition-all",
-                      isActive(pathname, item.to)
+                      isItemActive(pathname, item.to)
                         ? "bg-foreground/[0.08] text-foreground font-medium shadow-sm"
                         : "text-muted-foreground/80 hover:bg-foreground/[0.04] hover:text-foreground font-normal",
                     )}
@@ -309,7 +310,7 @@ export function AppSidebar() {
                           aria-hidden="true"
                           className={cn(
                             "h-1 w-1 shrink-0 rounded-full bg-primary transition-[opacity,transform] duration-200",
-                            isActive(pathname, item.to)
+                            isItemActive(pathname, item.to)
                               ? "scale-100 opacity-100"
                               : "scale-50 opacity-0",
                           )}
@@ -356,15 +357,12 @@ export function AppSidebar() {
                         >
                           <span className="flex min-w-0 items-center gap-2">
                             <span
-                              className="h-2 w-2 shrink-0 rounded-full transition-transform group-hover:scale-110"
-                              style={{ backgroundColor: color, boxShadow: `0 0 6px ${color}66` }}
+                              className="h-1.5 w-1.5 shrink-0 rounded-full opacity-80"
+                              style={{ backgroundColor: color }}
                             />
                             <span className="truncate">{courseName}</span>
                           </span>
-                          <span
-                            className="shrink-0 text-[11px] font-normal tabular-nums"
-                            style={{ color }}
-                          >
+                          <span className="shrink-0 text-[11px] font-normal tabular-nums text-muted-foreground">
                             {score != null ? `${Math.round(score)}%` : "—"}
                           </span>
                         </Link>
@@ -372,10 +370,10 @@ export function AppSidebar() {
                     })}
                 </div>
               </nav>
-              <div className="mt-auto space-y-2 pt-4">
-                <ReminderToggle />
-                <ThemeToggle />
-                <SignOutButton />
+              <div className="mt-auto flex items-center justify-center gap-2 pt-4">
+                <ReminderToggle compact />
+                <ThemeToggle compact />
+                <SignOutButton compact />
               </div>
             </>
           )}
@@ -385,7 +383,7 @@ export function AppSidebar() {
   );
 }
 
-function WebMobileNav() {
+export function MobileNav() {
   const queryClient = useQueryClient();
   const pathname = useActivePath();
   const navItems = useNavItems();
@@ -456,7 +454,7 @@ function WebMobileNav() {
             onClick={() => setOpen(false)}
             className={cn(
               "press flex min-h-11 items-center rounded-xl px-3 text-sm font-normal",
-              isActive(pathname, item.to)
+              isItemActive(pathname, item.to)
                 ? "bg-foreground/[0.08] text-foreground font-medium"
                 : "text-muted-foreground",
             )}
@@ -523,114 +521,4 @@ function WebMobileNav() {
       </div>
     </div>
   );
-}
-
-function NativeMobileNav() {
-  const pathname = useActivePath();
-  const locationHref = useRouterState({ select: (state) => state.location.href });
-  const navItems = useNavItems();
-  const [open, setOpen] = useState(false);
-  const primaryPaths = new Set(["/dashboard", "/assignments", "/study-session", "/grades"]);
-  const primary = navItems.filter((item) => primaryPaths.has(item.to));
-  const secondary = navItems.filter((item) => !primaryPaths.has(item.to));
-
-  useEffect(() => setOpen(false), [locationHref]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (event: KeyboardEvent) => event.key === "Escape" && setOpen(false);
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [open]);
-
-  return (
-    <div className="md:hidden">
-      <button
-        type="button"
-        aria-label="Close navigation"
-        onClick={() => setOpen(false)}
-        className={cn(
-          "fixed inset-0 z-40 bg-black/45 backdrop-blur-sm transition-opacity",
-          open ? "opacity-100" : "pointer-events-none opacity-0",
-        )}
-      />
-
-      <div
-        inert={!open}
-        aria-hidden={!open}
-        className={cn(
-          "glass-panel-strong fixed inset-x-2 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-50 max-h-[min(70dvh,34rem)] overflow-y-auto rounded-3xl p-3 transition-[opacity,transform] duration-200",
-          open ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-4 opacity-0",
-        )}
-      >
-        <div className="mb-2 px-2">
-          <p className="text-sm font-medium">More</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Profile, appearance, notification controls, and account options are in Settings.
-          </p>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          {secondary.map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              preload="intent"
-              className={cn(
-                "press glass-inset flex min-h-12 items-center gap-2 rounded-xl px-3 text-sm",
-                isActive(pathname, item.to) && "bg-foreground/[0.08] text-foreground",
-              )}
-            >
-              <item.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span className="min-w-0 truncate">{item.title}</span>
-            </Link>
-          ))}
-        </div>
-        <div className="mt-3">
-          <SignOutButton />
-        </div>
-      </div>
-
-      <nav
-        aria-label="Primary"
-        className="fixed inset-x-0 bottom-0 z-50 border-t border-foreground/[0.06] bg-background/80 px-2 pb-[max(.35rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-3xl backdrop-saturate-150"
-      >
-        <div className="mx-auto grid max-w-lg grid-cols-5">
-          {primary.map((item) => {
-            const active = isActive(pathname, item.to);
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                preload="intent"
-                aria-current={active ? "page" : undefined}
-                className={cn(
-                  "press flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-medium",
-                  active ? "text-primary" : "text-muted-foreground",
-                )}
-              >
-                <item.icon className="h-5 w-5" aria-hidden="true" />
-                <span>{item.title === "Study Session" ? "Study" : item.title}</span>
-              </Link>
-            );
-          })}
-          <button
-            type="button"
-            onClick={() => setOpen((value) => !value)}
-            aria-expanded={open}
-            className={cn(
-              "press flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-medium",
-              open ? "text-primary" : "text-muted-foreground",
-            )}
-          >
-            <Menu className="h-5 w-5" aria-hidden="true" />
-            <span>More</span>
-          </button>
-        </div>
-      </nav>
-    </div>
-  );
-}
-
-export function MobileNav() {
-  return isNativeApp() ? <NativeMobileNav /> : <WebMobileNav />;
 }

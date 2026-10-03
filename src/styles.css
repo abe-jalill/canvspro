@@ -67,7 +67,9 @@
   --color-status-warning: var(--status-warning);
   --shadow-status-live: 0 0 8px hsl(var(--status-live) / 0.7);
 
-  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-display: var(--font-sans);
   --font-mono: var(--font-sans);
 
@@ -297,23 +299,23 @@
 /* Frosted glass surfaces */
 @utility glass-panel {
   background: hsl(var(--glass));
-  backdrop-filter: blur(20px) saturate(150%);
+  backdrop-filter: blur(14px) saturate(180%);
   border: 1px solid hsl(var(--glass-border));
-  box-shadow: 0 1px 0 0 rgb(255 255 255 / 0.05) inset, 0 8px 24px -8px rgb(0 0 0 / 0.3);
+  box-shadow: var(--shadow-glass);
   border-radius: var(--radius-2xl);
 }
 
 @utility glass-panel-strong {
   background: hsl(var(--glass-strong));
-  backdrop-filter: blur(24px) saturate(160%);
+  backdrop-filter: blur(16px) saturate(190%);
   border: 1px solid hsl(var(--glass-border));
-  box-shadow: 0 1px 0 0 rgb(255 255 255 / 0.06) inset, 0 12px 32px -10px rgb(0 0 0 / 0.35);
+  box-shadow: var(--shadow-glass-lg);
   border-radius: var(--radius-2xl);
 }
 
 @utility glass-inset {
-  background: hsl(0 0% 100% / 0.045);
-  border: 1px solid hsl(0 0% 100% / 0.07);
+  background: hsl(0 0% 100% / 0.035);
+  border: 1px solid hsl(0 0% 100% / 0.06);
   border-radius: var(--radius-lg);
 }
 
@@ -538,8 +540,12 @@
   animation: route-enter 200ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 @keyframes route-crossfade {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 @keyframes route-exit {
   to {
@@ -622,7 +628,9 @@
 }
 
 [data-ui-dialog] {
-  max-height: calc(100dvh - 2rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  max-height: calc(
+    100dvh - 2rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)
+  );
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -635,7 +643,9 @@
     padding-top: env(safe-area-inset-top, 0px);
   }
   .mobile-navigation-panel {
-    max-height: calc(100dvh - 6rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    max-height: calc(
+      100dvh - 6rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)
+    );
   }
   #app-main {
     padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
@@ -670,19 +680,20 @@
 .dashboard-hero {
   --hero-hue: var(--palette-hue, 148);
   --hero-saturation: var(--palette-saturation, 34%);
-  --hero-sat-low: calc(var(--hero-saturation) * 0.45);
-  border: 1px solid hsl(var(--primary) / 0.18);
+  border: 1px solid hsl(var(--primary) / 0.28);
   background:
-    radial-gradient(ellipse 55% 95% at 23% 47%, hsl(var(--primary) / 0.14), transparent 75%),
-    radial-gradient(ellipse 50% 95% at 92% -10%, hsl(var(--primary) / 0.10), transparent 75%),
-    linear-gradient(128deg,
-      hsl(var(--hero-hue) var(--hero-sat-low) 17%) 0%,
-      hsl(var(--hero-hue) var(--hero-sat-low) 12%) 52%,
-      hsl(var(--hero-hue) var(--hero-sat-low) 7%) 100%);
+    radial-gradient(ellipse 55% 95% at 23% 47%, hsl(var(--primary) / 0.24), transparent 75%),
+    radial-gradient(ellipse 50% 95% at 92% -10%, hsl(var(--primary) / 0.18), transparent 75%),
+    linear-gradient(
+      128deg,
+      hsl(var(--hero-hue) var(--hero-saturation) 19%) 0%,
+      hsl(var(--hero-hue) var(--hero-saturation) 13%) 52%,
+      hsl(var(--hero-hue) var(--hero-saturation) 8%) 100%
+    );
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.06),
-    0 20px 50px -25px rgb(0 0 0 / 0.5),
-    0 6px 18px -10px rgb(0 0 0 / 0.3);
+    inset 0 1px 0 rgb(255 255 255 / 0.1),
+    0 28px 60px -30px rgb(0 0 0 / 0.7),
+    0 8px 24px -14px rgb(0 0 0 / 0.45);
 }
 
 .dashboard-hero::before {
@@ -710,11 +721,12 @@
 }
 
 .dashboard-hero__cta {
-  border: 1px solid hsl(var(--primary) / 0.35);
-  background: linear-gradient(145deg, hsl(var(--primary) / 0.16), hsl(var(--primary) / 0.05));
+  border: 1px solid hsl(var(--primary) / 0.5);
+  background: linear-gradient(145deg, hsl(var(--primary) / 0.23), hsl(var(--primary) / 0.08));
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.12),
-    0 4px 12px rgb(0 0 0 / 0.14);
+    inset 0 1px 0 rgb(255 255 255 / 0.19),
+    0 5px 14px rgb(0 0 0 / 0.18),
+    0 0 18px rgb(255 255 255 / 0.06);
   transition:
     border-color 250ms ease,
     box-shadow 250ms ease,
@@ -722,27 +734,29 @@
 }
 
 .dashboard-hero__stat-shell {
-  border: 1px solid hsl(var(--primary) / 0.12);
-  background: linear-gradient(145deg, hsl(var(--primary) / 0.08), hsl(var(--primary) / 0.02) 55%);
+  border: 1px solid hsl(var(--primary) / 0.2);
+  background: linear-gradient(145deg, hsl(var(--primary) / 0.13), hsl(var(--primary) / 0.035) 55%);
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.04),
-    0 8px 20px rgb(0 0 0 / 0.12);
+    inset 0 1px 0 rgb(255 255 255 / 0.06),
+    0 12px 28px rgb(0 0 0 / 0.18);
 }
 
 .dashboard-hero__stat-card {
   isolation: isolate;
   overflow: hidden;
-  border: 1px solid hsl(var(--primary) / 0.18);
+  border: 1px solid hsl(var(--primary) / 0.3);
   background:
-    radial-gradient(ellipse 85% 100% at 8% 0%, hsl(var(--primary) / 0.12), transparent 72%),
-    linear-gradient(145deg,
-      hsl(var(--hero-hue) var(--hero-sat-low) 20%) 0%,
-      hsl(var(--hero-hue) var(--hero-sat-low) 14%) 52%,
-      hsl(var(--hero-hue) var(--hero-sat-low) 9%) 100%);
+    radial-gradient(ellipse 85% 100% at 8% 0%, hsl(var(--primary) / 0.22), transparent 72%),
+    linear-gradient(
+      145deg,
+      hsl(var(--hero-hue) var(--hero-saturation) 23%) 0%,
+      hsl(var(--hero-hue) var(--hero-saturation) 16%) 52%,
+      hsl(var(--hero-hue) var(--hero-saturation) 11%) 100%
+    );
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.08),
-    0 8px 18px -8px rgb(0 0 0 / 0.4),
-    0 2px 6px rgb(0 0 0 / 0.12);
+    inset 0 1px 0 rgb(255 255 255 / 0.13),
+    0 11px 21px -10px rgb(0 0 0 / 0.5),
+    0 3px 7px rgb(0 0 0 / 0.16);
   transition:
     border-color 250ms ease,
     box-shadow 250ms ease,
@@ -799,9 +813,11 @@
   background:
     radial-gradient(ellipse 50% 90% at 20% 44%, hsl(var(--primary) / 0.2), transparent 76%),
     radial-gradient(ellipse 50% 90% at 92% -10%, hsl(var(--primary) / 0.16), transparent 74%),
-    linear-gradient(130deg,
+    linear-gradient(
+      130deg,
       hsl(var(--hero-hue) var(--hero-saturation) 97%),
-      hsl(var(--hero-hue) var(--hero-saturation) 88%));
+      hsl(var(--hero-hue) var(--hero-saturation) 88%)
+    );
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.9),
     0 24px 56px -30px rgb(28 45 72 / 0.28);
@@ -836,9 +852,11 @@
   border-color: hsl(var(--primary) / 0.23);
   background:
     radial-gradient(ellipse 85% 100% at 8% 0%, hsl(var(--primary) / 0.12), transparent 72%),
-    linear-gradient(145deg,
+    linear-gradient(
+      145deg,
       hsl(var(--hero-hue) var(--hero-saturation) 98%),
-      hsl(var(--hero-hue) var(--hero-saturation) 92%));
+      hsl(var(--hero-hue) var(--hero-saturation) 92%)
+    );
   box-shadow:
     inset 0 1px 0 white,
     0 10px 20px -10px rgb(31 47 69 / 0.25);
@@ -874,5 +892,98 @@
   .dashboard-hero__stat-card,
   .dashboard-hero__stat-card::before {
     transition: none;
+  }
+}
+
+/* One-shot, content-led motion for the signed-in pages. Keep navigation instant. */
+@keyframes premium-reveal {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes premium-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes premium-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* Marks the assignment a "See description" link points at, then fades away.
+   A fade rather than movement, so it stays on for reduced-motion users too. */
+@keyframes assignment-flash {
+  0%,
+  55% {
+    box-shadow:
+      0 0 0 2px hsl(var(--primary) / 0.6),
+      0 0 28px hsl(var(--primary) / 0.25),
+      inset 0 0 0 999px hsl(var(--primary) / 0.12);
+  }
+  100% {
+    box-shadow:
+      0 0 0 2px hsl(var(--primary) / 0),
+      0 0 28px hsl(var(--primary) / 0),
+      inset 0 0 0 999px hsl(var(--primary) / 0);
+  }
+}
+
+.assignment-flash {
+  animation: assignment-flash 3.2s ease-out backwards;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .premium-reveal {
+    animation: premium-reveal 360ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: var(--premium-delay, 0ms);
+  }
+
+  /* Cards retain their own hover transform, so only their opacity is animated. */
+  .premium-card {
+    animation: premium-fade 340ms ease-out both;
+    animation-delay: var(--premium-delay, 0ms);
+  }
+
+  .premium-press {
+    transition:
+      transform 170ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      border-color 170ms ease,
+      box-shadow 170ms ease;
+  }
+
+  .premium-press:active {
+    transform: scale(0.985);
+  }
+
+  .premium-icon {
+    transition:
+      transform 240ms cubic-bezier(0.16, 1, 0.3, 1),
+      color 180ms ease;
+  }
+
+  .premium-progress {
+    transform-origin: left center;
+    animation: premium-progress 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  @media (hover: hover) {
+    .group:hover .premium-icon {
+      transform: translateY(-2px) rotate(-4deg);
+    }
   }
 }

@@ -296,7 +296,7 @@ export default function ClassScheduleEditor({
 
   return (
     <form onSubmit={onSubmit} className="space-y-5">
-      <header className="glass-panel-strong p-4 sm:p-6">
+      <header className="glass-panel-strong p-6">
         <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
           {firstTime ? "Add your class times" : "Edit your class schedule"}
         </h1>
@@ -487,9 +487,9 @@ export default function ClassScheduleEditor({
                     return (
                       <div
                         key={d}
-                        className="glass-inset grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded-xl p-3"
+                        className="glass-inset flex flex-wrap items-center gap-2 rounded-xl p-3"
                       >
-                        <span className="col-span-3 text-[11px] font-medium uppercase tracking-wider text-muted-foreground sm:col-span-1 sm:w-20">
+                        <span className="w-20 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                           {DAY_LABELS[d]}
                         </span>
                         <input
@@ -497,7 +497,7 @@ export default function ClassScheduleEditor({
                           value={t.start}
                           onChange={(e) => setDayTime(r.key, d, { start: e.target.value })}
                           aria-label={`${DAY_LABELS[d]} start time`}
-                          className="field min-w-0 w-full"
+                          className="field w-auto flex-1 min-w-[7rem]"
                         />
                         <span className="text-xs text-muted-foreground">to</span>
                         <input
@@ -505,7 +505,7 @@ export default function ClassScheduleEditor({
                           value={t.end}
                           onChange={(e) => setDayTime(r.key, d, { end: e.target.value })}
                           aria-label={`${DAY_LABELS[d]} end time`}
-                          className="field min-w-0 w-full"
+                          className="field w-auto flex-1 min-w-[7rem]"
                         />
                       </div>
                     );

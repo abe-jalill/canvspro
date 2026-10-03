@@ -2,6 +2,7 @@ import { createFileRoute, Link, useSearch } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowUpRight, Clock3, Megaphone, RotateCcw, X } from "lucide-react";
+import { searchText } from "@/lib/search-params";
 import { GlassCard, ErrorState, EmptyState } from "@/components/glass-card";
 import { SkeletonBlock } from "@/components/skeletons/dashboard-skeletons";
 import { announcementsQueryOptions as announcementsQO } from "@/lib/canvas.queries";
@@ -22,10 +23,11 @@ export const Route = createFileRoute("/_authenticated/announcements")({
       },
     ],
   }),
-  validateSearch: (search: { course?: unknown; expand?: unknown }) => ({
-    ...(typeof search?.course === "string" ? { course: search.course } : {}),
-    ...(typeof search?.expand === "string" ? { expand: search.expand } : {}),
-  }),
+  validateSearch: (search: { course?: unknown; expand?: unknown }) => {
+    const course = searchText(search?.course);
+    const expand = searchText(search?.expand);
+    return { ...(course ? { course } : {}), ...(expand ? { expand } : {}) };
+  },
   loader: ({ context }) => {
     if (context?.queryClient) void context.queryClient.ensureQueryData(announcementsQO);
   },
@@ -106,7 +108,7 @@ function AnnouncementsPage() {
 
   return (
     <div className="space-y-5 sm:space-y-6">
-      <section className="glass-panel-strong relative isolate overflow-hidden rounded-[2rem] border border-primary/15 p-5 sm:p-7">
+      <section className="glass-panel-strong premium-reveal relative isolate overflow-hidden rounded-[2rem] border border-primary/15 p-5 sm:p-7">
         <div className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-primary/15 blur-3xl" />
         <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
           <div className="max-w-2xl">
@@ -207,7 +209,10 @@ function AnnouncementsPage() {
       )}
 
       {!isLoading && !isError && feed.length > 0 && (
-        <section className="glass-panel overflow-hidden rounded-[1.75rem] border border-foreground/10">
+        <section
+          className="glass-panel premium-card overflow-hidden rounded-[1.75rem] border border-foreground/10"
+          style={{ animationDelay: "80ms" }}
+        >
           {feed.map((item, index) => {
             const body = htmlToText(item.message);
             const bodyOpen = expandedBody.has(item.id);

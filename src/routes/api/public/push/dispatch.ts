@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { completedAssignmentIds } from "@/lib/completion-records";
+import { PUSH_HEARTBEAT_PREF } from "@/lib/push-heartbeat";
 import {
   buildAlertsForUser,
   deliver,
@@ -16,7 +17,6 @@ import {
   type ScheduleRow,
   type TonightItem,
 } from "@/lib/countdown-alerts.server";
-import { apnsConfigFromEnv, deliverApns, type NativePushToken } from "@/lib/apns.server";
 
 interface SubRow {
   id: string;
@@ -122,7 +122,191 @@ async function clearCanvasKeyStatus(admin: Admin, userId: string): Promise<void>
     .eq("key", CANVAS_KEY_STATUS_PREF);
 }
 
-async function run(): Promise<Response> {
+type Vapid = { publicKey: string; privateKey: string; subject: string };
+
+/** Accounts checked at the same time when one request handles everyone. */
+const USER_CONCURRENCY = 4;
+const USER_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Records that the background check looked at this account just now. */
+async function recordHeartbeat(admin: Admin, userId: string): Promise<void> {
+  const { error } = await admin.from("user_preferences").upsert(
+    { user_id: userId, key: PUSH_HEARTBEAT_PREF, value: { checkedAt: new Date().toISOString() } },
+    { onConflict: "user_id,key" },
+  );
+  if (error) console.warn(`[push-dispatch] heartbeat failed user=${userId} (${error.message})`);
+}
+
+/** Builds and delivers one account's due alerts. */
+async function dispatchUser(
+  admin: Admin,
+  userId: string,
+  userSubs: SubRow[],
+  vapid: Vapid,
+  defaultDomain: string,
+): Promise<{ sent: number; failures: number }> {
+  const result = { sent: 0, failures: 0 };
+  try {
+    const [{ data: prefRow }, { data: settings }, { data: preferenceRows, error: preferenceError }] = await Promise.all([
+      admin
+        .from("notification_prefs")
+        .select("prefs,timezone_offset_minutes")
+        .eq("user_id", userId)
+        .maybeSingle(),
+      admin
+        .from("user_settings")
+        .select("canvas_api_key,canvas_domain")
+        .eq("user_id", userId)
+        .maybeSingle(),
+      admin
+        .from("user_preferences")
+        .select("key,value")
+        .eq("user_id", userId),
+    ]);
+
+    if (preferenceError) throw preferenceError;
+    const userPreferences = Object.fromEntries((preferenceRows ?? []).map((row) => [row.key, row.value]));
+    const hiddenRow = { value: userPreferences.hidden_course_ids };
+
+    const hiddenIds = new Set<number>(
+      Array.isArray(hiddenRow?.value)
+        ? (hiddenRow.value as unknown[])
+            .map((v) => Number(v))
+            .filter((n) => Number.isFinite(n))
+        : [],
+    );
+
+    const token = (settings?.canvas_api_key ?? "").trim();
+    if (!token) return result;
+    // The student's own school URL, falling back to the global default for
+    // accounts saved before per-school URLs existed.
+    const userDomain = normalizeCanvasDomain(settings?.canvas_domain) || defaultDomain;
+    if (!userDomain) return result;
+
+    const prefs: ServerPrefs = {
+      ...SERVER_DEFAULT_PREFS,
+      ...((prefRow?.prefs ?? {}) as Partial<ServerPrefs>),
+    };
+    if (!prefs.enabled || !prefs.browserPush) return result;
+    const tz = prefRow?.timezone_offset_minutes ?? 0;
+    if (isQuiet(prefs, tz)) return result;
+
+    let alerts: Alert[];
+    let tonight: TonightItem[];
+    try {
+      const built = await buildAlertsForUser(userDomain, token, prefs, tz, hiddenIds, completedAssignmentIds(userPreferences));
+      alerts = built.alerts;
+      tonight = built.tonight;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      // Canvas rejecting the stored token is a user-fixable problem, not a
+      // server fault: flag it so the app can ask for a fresh key instead of
+      // failing silently every 15 minutes.
+      // Canvas uses 403 both for a bad token AND for throttling
+      // ("Rate Limit Exceeded"), and 403 also appears for courses the
+      // student simply can't read. Only a real authentication rejection
+      // should ask the user for a new key.
+      const authRejected =
+        /Canvas 401/.test(message) ||
+        (/Canvas 403/.test(message) &&
+          /invalid access token|unauthori[sz]ed|not authori[sz]ed|valid user id|insufficient scopes|revoked|expired/i.test(message));
+      if (authRejected) {
+        await setCanvasKeyStatus(admin, userId, message.includes("401") ? 401 : 403);
+        console.warn(`[push-dispatch] canvas key rejected user=${userId} (${message})`);
+        return result;
+      }
+      if (/Canvas 4\d\d|Canvas 5\d\d/.test(message)) {
+        // Transient/permission problem — never blame the key.
+        console.warn(`[push-dispatch] canvas request failed user=${userId} (${message})`);
+        return result;
+      }
+      throw err;
+    }
+    await clearCanvasKeyStatus(admin, userId);
+
+    // Queue exact-time countdown pushes for the next few hours, then collect
+    // any queued row whose moment has arrived.
+    const countdowns = await enqueueCountdowns(admin, userId, prefs, tz, tonight);
+    const due = [...countdowns, ...alerts];
+    if (due.length === 0) return result;
+
+    const { data: sentRows } = await admin
+      .from("push_sent_log")
+      .select("alert_id")
+      .eq("user_id", userId)
+      .in(
+        "alert_id",
+        due.map((a) => a.id),
+      );
+    const already = new Set((sentRows ?? []).map((r) => r.alert_id as string));
+    const fresh = due.filter((a) => !already.has(a.id)).slice(0, 12);
+    if (fresh.length === 0) return result;
+
+    const dead = new Set<string>();
+    const failedSubs = new Set<string>();
+    const okSubs = new Set<string>();
+    const loggable: typeof fresh = [];
+    for (const alert of fresh) {
+      const targets = userSubs.filter((s) => !dead.has(s.id));
+      if (targets.length === 0) break;
+      const report = await deliver(targets, alert, vapid);
+      report.dead.forEach((id) => dead.add(id));
+      report.failed.forEach((id) => failedSubs.add(id));
+      report.delivered.forEach((id) => okSubs.add(id));
+      if (report.delivered.length > 0) {
+        loggable.push(alert);
+        result.sent += 1;
+      } else {
+        result.failures += 1;
+        console.error(
+          `[push-dispatch] alert not delivered user=${userId} alert=${alert.id} targets=${targets.length}`,
+        );
+      }
+    }
+
+    // Only mark alerts as sent when at least one device actually got them,
+    // so a transient outage doesn't permanently suppress the notification.
+    if (loggable.length > 0) {
+      await admin
+        .from("push_sent_log")
+        .upsert(loggable.map((a) => ({ user_id: userId, alert_id: a.id })));
+    }
+    if (dead.size > 0) {
+      console.warn(
+        `[push-dispatch] removing ${dead.size} expired subscription(s) user=${userId}`,
+      );
+      await admin.from("push_subscriptions").delete().in("id", Array.from(dead));
+    }
+    if (okSubs.size > 0) {
+      await admin
+        .from("push_subscriptions")
+        .update({ failure_count: 0, last_success_at: new Date().toISOString() })
+        .in("id", Array.from(okSubs));
+    }
+    for (const id of failedSubs) {
+      if (okSubs.has(id)) continue;
+      const row = userSubs.find((s) => s.id === id);
+      await admin
+        .from("push_subscriptions")
+        .update({ failure_count: (row?.failure_count ?? 0) + 1 })
+        .eq("id", id);
+    }
+  } catch (err) {
+    result.failures += 1;
+    console.error("[push-dispatch]", userId, err instanceof Error ? err.message : err);
+  } finally {
+    await recordHeartbeat(admin, userId);
+  }
+  return result;
+}
+
+/**
+ * Checks every account with a registered device, or just `onlyUserId`.
+ * Accounts are checked a few at a time rather than one after another, so a
+ * slow Canvas school can't run the cron request out of time before later
+ * accounts are reached.
+ */
+async function run(onlyUserId?: string): Promise<Response> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   // Global fallback only — each user's own Canvas URL takes priority, so
   // students from any school can receive alerts.
@@ -131,16 +315,19 @@ async function run(): Promise<Response> {
   if (!vapid.publicKey || !vapid.privateKey) {
     return Response.json({ error: "push not configured" }, { status: 500 });
   }
+  const keys: Vapid = { publicKey: vapid.publicKey, privateKey: vapid.privateKey, subject: vapid.subject };
 
-  const { data: subs } = await supabaseAdmin
+  let query = supabaseAdmin
     .from("push_subscriptions")
     .select("id,user_id,endpoint,p256dh,auth,failure_count");
+  if (onlyUserId) query = query.eq("user_id", onlyUserId);
+  const { data: subs, error } = await query;
+  if (error) {
+    console.error("[push-dispatch] subscription lookup failed", error.message);
+    return Response.json({ error: "subscription lookup failed" }, { status: 500 });
+  }
   const rows = (subs ?? []) as SubRow[];
-  const { data: nativeRowsRaw } = await supabaseAdmin
-    .from("native_push_tokens")
-    .select("id,user_id,token,environment,failure_count");
-  const nativeRows = (nativeRowsRaw ?? []) as Array<NativePushToken & { user_id: string; failure_count: number }>;
-  if (rows.length === 0 && nativeRows.length === 0) return Response.json({ users: 0, sent: 0 });
+  if (rows.length === 0) return Response.json({ users: 0, sent: 0 });
 
   const byUser = new Map<string, SubRow[]>();
   for (const r of rows) {
@@ -148,177 +335,23 @@ async function run(): Promise<Response> {
     list.push(r);
     byUser.set(r.user_id, list);
   }
-  const nativeByUser = new Map<string, Array<NativePushToken & { failure_count: number }>>();
-  for (const row of nativeRows) {
-    const list = nativeByUser.get(row.user_id) ?? [];
-    list.push(row);
-    nativeByUser.set(row.user_id, list);
-    if (!byUser.has(row.user_id)) byUser.set(row.user_id, []);
-  }
-  const apns = apnsConfigFromEnv();
 
+  const users = Array.from(byUser);
   let sent = 0;
   let failures = 0;
-  for (const [userId, userSubs] of byUser) {
-    try {
-      const [{ data: prefRow }, { data: settings }, { data: preferenceRows, error: preferenceError }] = await Promise.all([
-        supabaseAdmin
-          .from("notification_prefs")
-          .select("prefs,timezone_offset_minutes")
-          .eq("user_id", userId)
-          .maybeSingle(),
-        supabaseAdmin
-          .from("user_settings")
-          .select("canvas_api_key,canvas_domain")
-          .eq("user_id", userId)
-          .maybeSingle(),
-        supabaseAdmin
-          .from("user_preferences")
-          .select("key,value")
-          .eq("user_id", userId),
-      ]);
-
-      if (preferenceError) throw preferenceError;
-      const userPreferences = Object.fromEntries((preferenceRows ?? []).map((row) => [row.key, row.value]));
-      const hiddenRow = { value: userPreferences.hidden_course_ids };
-
-      const hiddenIds = new Set<number>(
-        Array.isArray(hiddenRow?.value)
-          ? (hiddenRow.value as unknown[])
-              .map((v) => Number(v))
-              .filter((n) => Number.isFinite(n))
-          : [],
-      );
-
-      const token = (settings?.canvas_api_key ?? "").trim();
-      if (!token) continue;
-      // The student's own school URL, falling back to the global default for
-      // accounts saved before per-school URLs existed.
-      const userDomain = normalizeCanvasDomain(settings?.canvas_domain) || defaultDomain;
-      if (!userDomain) continue;
-
-      const prefs: ServerPrefs = {
-        ...SERVER_DEFAULT_PREFS,
-        ...((prefRow?.prefs ?? {}) as Partial<ServerPrefs>),
-      };
-      if (!prefs.enabled || !prefs.browserPush) continue;
-      const tz = prefRow?.timezone_offset_minutes ?? 0;
-      if (isQuiet(prefs, tz)) continue;
-
-      let alerts: Alert[];
-      let tonight: TonightItem[];
-      try {
-        const built = await buildAlertsForUser(userDomain, token, prefs, tz, hiddenIds, completedAssignmentIds(userPreferences));
-        alerts = built.alerts;
-        tonight = built.tonight;
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        // Canvas rejecting the stored token is a user-fixable problem, not a
-        // server fault: flag it so the app can ask for a fresh key instead of
-        // failing silently every 15 minutes.
-        // Canvas uses 403 both for a bad token AND for throttling
-        // ("Rate Limit Exceeded"), and 403 also appears for courses the
-        // student simply can't read. Only a real authentication rejection
-        // should ask the user for a new key.
-        const authRejected =
-          /Canvas 401/.test(message) ||
-          (/Canvas 403/.test(message) &&
-            /invalid access token|unauthori[sz]ed|not authori[sz]ed|valid user id|insufficient scopes|revoked|expired/i.test(message));
-        if (authRejected) {
-          await setCanvasKeyStatus(supabaseAdmin, userId, message.includes("401") ? 401 : 403);
-          console.warn(`[push-dispatch] canvas key rejected user=${userId} (${message})`);
-          continue;
-        }
-        if (/Canvas 4\d\d|Canvas 5\d\d/.test(message)) {
-          // Transient/permission problem — never blame the key.
-          console.warn(`[push-dispatch] canvas request failed user=${userId} (${message})`);
-          continue;
-        }
-        throw err;
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(USER_CONCURRENCY, users.length) }, async () => {
+      for (;;) {
+        const i = next++;
+        if (i >= users.length) return;
+        const [userId, userSubs] = users[i]!;
+        const r = await dispatchUser(supabaseAdmin, userId, userSubs, keys, defaultDomain);
+        sent += r.sent;
+        failures += r.failures;
       }
-      await clearCanvasKeyStatus(supabaseAdmin, userId);
-
-      // Queue exact-time countdown pushes for the next few hours, then collect
-      // any queued row whose moment has arrived.
-      const countdowns = await enqueueCountdowns(supabaseAdmin, userId, prefs, tz, tonight);
-      const due = [...countdowns, ...alerts];
-      if (due.length === 0) continue;
-
-      const { data: sentRows } = await supabaseAdmin
-        .from("push_sent_log")
-        .select("alert_id")
-        .eq("user_id", userId)
-        .in(
-          "alert_id",
-          due.map((a) => a.id),
-        );
-      const already = new Set((sentRows ?? []).map((r) => r.alert_id as string));
-      const fresh = due.filter((a) => !already.has(a.id)).slice(0, 12);
-      if (fresh.length === 0) continue;
-
-      const dead = new Set<string>();
-      const deadNative = new Set<string>();
-      const failedSubs = new Set<string>();
-      const okSubs = new Set<string>();
-      const loggable: typeof fresh = [];
-      for (const alert of fresh) {
-        const targets = userSubs.filter((s) => !dead.has(s.id));
-        const nativeTargets = (nativeByUser.get(userId) ?? []).filter((s) => !deadNative.has(s.id));
-        if (targets.length === 0 && nativeTargets.length === 0) break;
-        const report = targets.length ? await deliver(targets, alert, vapid) : { dead: [], failed: [], delivered: [] };
-        const nativeReport = apns && nativeTargets.length
-          ? await deliverApns(nativeTargets, alert, apns)
-          : { dead: [], failed: [], delivered: [] };
-        report.dead.forEach((id) => dead.add(id));
-        nativeReport.dead.forEach((id) => deadNative.add(id));
-        report.failed.forEach((id) => failedSubs.add(id));
-        report.delivered.forEach((id) => okSubs.add(id));
-        if (report.delivered.length > 0 || nativeReport.delivered.length > 0) {
-          loggable.push(alert);
-          sent += 1;
-        } else {
-          failures += 1;
-          console.error(
-            `[push-dispatch] alert not delivered user=${userId} alert=${alert.id} targets=${targets.length}`,
-          );
-        }
-      }
-
-      // Only mark alerts as sent when at least one device actually got them,
-      // so a transient outage doesn't permanently suppress the notification.
-      if (loggable.length > 0) {
-        await supabaseAdmin
-          .from("push_sent_log")
-          .upsert(loggable.map((a) => ({ user_id: userId, alert_id: a.id })));
-      }
-      if (dead.size > 0) {
-        console.warn(
-          `[push-dispatch] removing ${dead.size} expired subscription(s) user=${userId}`,
-        );
-        await supabaseAdmin.from("push_subscriptions").delete().in("id", Array.from(dead));
-      }
-      if (deadNative.size > 0) {
-        await supabaseAdmin.from("native_push_tokens").delete().in("id", Array.from(deadNative));
-      }
-      if (okSubs.size > 0) {
-        await supabaseAdmin
-          .from("push_subscriptions")
-          .update({ failure_count: 0, last_success_at: new Date().toISOString() })
-          .in("id", Array.from(okSubs));
-      }
-      for (const id of failedSubs) {
-        if (okSubs.has(id)) continue;
-        const row = userSubs.find((s) => s.id === id);
-        await supabaseAdmin
-          .from("push_subscriptions")
-          .update({ failure_count: (row?.failure_count ?? 0) + 1 })
-          .eq("id", id);
-      }
-    } catch (err) {
-      failures += 1;
-      console.error("[push-dispatch]", userId, err instanceof Error ? err.message : err);
-    }
-  }
+    }),
+  );
 
   console.info(`[push-dispatch] done users=${byUser.size} sent=${sent} failures=${failures}`);
   return Response.json({ users: byUser.size, sent, failures });
@@ -342,12 +375,7 @@ async function runTest(accessToken: string): Promise<Response> {
     return Response.json({ ok: false, message: "Couldn't read your devices." });
   }
   const subs = (data ?? []) as Array<{ id: string; endpoint: string; p256dh: string; auth: string }>;
-  const { data: nativeData } = await supabaseAdmin
-    .from("native_push_tokens")
-    .select("id,token,environment")
-    .eq("user_id", user.id);
-  const nativeTokens = (nativeData ?? []) as NativePushToken[];
-  if (subs.length === 0 && nativeTokens.length === 0) {
+  if (subs.length === 0) {
     return Response.json({
       ok: false,
       message: "No device registered yet — turn on “Alerts when CanvasPro is closed” first.",
@@ -378,18 +406,6 @@ async function runTest(accessToken: string): Promise<Response> {
       else if (res.expired) dead.push(s.id);
     }),
   );
-  const apns = apnsConfigFromEnv();
-  if (apns && nativeTokens.length > 0) {
-    const nativeReport = await deliverApns(nativeTokens, {
-      title: "CanvasPro test notification",
-      body: "Native push delivery is working on this iPhone.",
-      to: "/notifications",
-    }, apns);
-    delivered += nativeReport.delivered.length;
-    if (nativeReport.dead.length > 0) {
-      await supabaseAdmin.from("native_push_tokens").delete().in("id", nativeReport.dead);
-    }
-  }
   if (dead.length > 0) {
     console.warn(`[push-test] removing ${dead.length} expired subscription(s) user=${user.id}`);
     await supabaseAdmin.from("push_subscriptions").delete().in("id", dead);
@@ -399,7 +415,7 @@ async function runTest(accessToken: string): Promise<Response> {
   return Response.json({
     ok: delivered > 0,
     delivered,
-    devices: subs.length + nativeTokens.length,
+    devices: subs.length,
     message:
       delivered > 0
         ? `Test notification sent to ${delivered} device${delivered === 1 ? "" : "s"}.`
@@ -414,9 +430,11 @@ export const Route = createFileRoute("/api/public/push/dispatch")({
     handlers: {
       POST: async ({ request }) => {
         let action = "";
+        let userId = "";
         try {
-          const body = (await request.json()) as { action?: string } | null;
+          const body = (await request.json()) as { action?: string; user_id?: string } | null;
           action = String(body?.action ?? "");
+          userId = String(body?.user_id ?? "");
         } catch {
           action = "";
         }
@@ -451,7 +469,10 @@ export const Route = createFileRoute("/api/public/push/dispatch")({
         if (!expected || !constantTimeEqual(provided, expected)) {
           return new Response("Unauthorized", { status: 401 });
         }
-        return run();
+        if (userId && !USER_ID.test(userId)) {
+          return Response.json({ error: "invalid user_id" }, { status: 400 });
+        }
+        return run(userId || undefined);
       },
     },
   },

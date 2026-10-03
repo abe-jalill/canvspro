@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAuthUserId, userKey } from "@/lib/auth-user";
 import { completedAssignmentIds, COMPLETION_PREFIX } from "@/lib/completion-records";
 import type { AssignmentItem } from "@/lib/canvas.functions";
+import { canvasSaysComplete, isAssignmentComplete } from "@/lib/assignment-window";
 import {
   useUserPreferenceKey,
   useSetUserPreference,
@@ -42,14 +43,21 @@ export function useSyncedSet(baseKey: string) {
     const current = qc.getQueryData<PrefMap>(userKey(userPreferencesQueryKey, userId));
     const ids = baseKey === COMPLETED_ASSIGNMENTS_KEY ? completedAssignmentIds(current) : readSet(current?.[baseKey]);
     const k = String(id);
-    const completed = operation === "add" || (operation === "toggle" && !ids.has(k));
     if (baseKey === COMPLETED_ASSIGNMENTS_KEY) {
       const assignment = qc.getQueryData<AssignmentItem[]>(["canvas", "assignments"])?.find((a) => String(a.id) === k);
+      // Toggle from what the person sees: done by their own mark OR by Canvas.
+      const doneNow = assignment ? isAssignmentComplete(assignment, ids.has(k)) : ids.has(k);
+      const completed = operation === "add" || (operation === "toggle" && !doneNow);
+      // Marking not-done over a Canvas submission is remembered as a reopen, so
+      // Canvas's status stops overriding it (until a newer submission arrives).
+      const reopen = !completed && assignment != null && canvasSaysComplete(assignment);
       save.mutate({ key: `${COMPLETION_PREFIX}${k}`, value: {
         completed, completedAt: completed ? new Date().toISOString() : null,
         dueAt: assignment?.due_at ?? null,
+        ...(reopen ? { reopenedAt: new Date().toISOString() } : {}),
       } });
     } else {
+      const completed = operation === "add" || (operation === "toggle" && !ids.has(k));
       if (completed) ids.add(k); else ids.delete(k);
       set(Array.from(ids));
     }

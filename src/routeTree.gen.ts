@@ -18,7 +18,6 @@ import { Route as EmailVerifiedRouteImport } from './routes/email-verified'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as MobileBillingReturnRouteImport } from './routes/mobile-billing-return'
-import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SignupRouteImport } from './routes/signup'
@@ -28,7 +27,6 @@ import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } fr
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedAnnouncementsRouteImport } from './routes/_authenticated/announcements'
 import { Route as AuthenticatedAssignmentsRouteImport } from './routes/_authenticated/assignments'
-import { Route as AuthenticatedBillingRouteImport } from './routes/_authenticated/billing'
 import { Route as AuthenticatedClassScheduleRouteImport } from './routes/_authenticated/class-schedule'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedFocusRouteImport } from './routes/_authenticated/focus'
@@ -49,8 +47,6 @@ import { Route as AuthenticatedSettingsCanvasRouteImport } from './routes/_authe
 import { Route as AuthenticatedSettingsClassesRouteImport } from './routes/_authenticated/settings.classes'
 import { Route as AuthenticatedSettingsNotificationsRouteImport } from './routes/_authenticated/settings.notifications'
 import { Route as AuthenticatedSettingsProfileRouteImport } from './routes/_authenticated/settings.profile'
-import { Route as ApiMobileSubscriptionRouteImport } from './routes/api/mobile/subscription'
-import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as ApiPublicPushDispatchRouteImport } from './routes/api/public/push/dispatch'
 import { Route as ApiPublicPushKeyRouteImport } from './routes/api/public/push/key'
 import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
@@ -101,11 +97,6 @@ const MobileBillingReturnRoute = MobileBillingReturnRouteImport.update({
   path: '/mobile-billing-return',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PricingRoute = PricingRouteImport.update({
-  id: '/pricing',
-  path: '/pricing',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
@@ -154,11 +145,6 @@ const AuthenticatedAssignmentsRoute =
     path: '/assignments',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedBillingRoute = AuthenticatedBillingRouteImport.update({
-  id: '/billing',
-  path: '/billing',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedClassScheduleRoute =
   AuthenticatedClassScheduleRouteImport.update({
     id: '/class-schedule',
@@ -272,17 +258,6 @@ const AuthenticatedSettingsProfileRoute =
     path: '/profile',
     getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
-const ApiMobileSubscriptionRoute = ApiMobileSubscriptionRouteImport.update({
-  id: '/api/mobile/subscription',
-  path: '/api/mobile/subscription',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublicPaymentsWebhookRoute =
-  ApiPublicPaymentsWebhookRouteImport.update({
-    id: '/api/public/payments/webhook',
-    path: '/api/public/payments/webhook',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const ApiPublicPushDispatchRoute = ApiPublicPushDispatchRouteImport.update({
   id: '/api/public/push/dispatch',
   path: '/api/public/push/dispatch',
@@ -319,7 +294,6 @@ export interface FileRoutesByFullPath {
   '/forgot-password': typeof ForgotPasswordRoute
   '/mcp': typeof McpRoute
   '/mobile-billing-return': typeof MobileBillingReturnRoute
-  '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
@@ -329,7 +303,6 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AuthenticatedAdminRoute
   '/announcements': typeof AuthenticatedAnnouncementsRoute
   '/assignments': typeof AuthenticatedAssignmentsRoute
-  '/billing': typeof AuthenticatedBillingRoute
   '/class-schedule': typeof AuthenticatedClassScheduleRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/focus': typeof AuthenticatedFocusRoute
@@ -349,9 +322,7 @@ export interface FileRoutesByFullPath {
   '/settings/classes': typeof AuthenticatedSettingsClassesRoute
   '/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
   '/settings/profile': typeof AuthenticatedSettingsProfileRoute
-  '/api/mobile/subscription': typeof ApiMobileSubscriptionRoute
   '/settings/': typeof AuthenticatedSettingsIndexRoute
-  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/push/dispatch': typeof ApiPublicPushDispatchRoute
   '/api/public/push/key': typeof ApiPublicPushKeyRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -367,7 +338,6 @@ export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
   '/mcp': typeof McpRoute
   '/mobile-billing-return': typeof MobileBillingReturnRoute
-  '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
@@ -377,7 +347,6 @@ export interface FileRoutesByTo {
   '/admin': typeof AuthenticatedAdminRoute
   '/announcements': typeof AuthenticatedAnnouncementsRoute
   '/assignments': typeof AuthenticatedAssignmentsRoute
-  '/billing': typeof AuthenticatedBillingRoute
   '/class-schedule': typeof AuthenticatedClassScheduleRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/focus': typeof AuthenticatedFocusRoute
@@ -396,9 +365,7 @@ export interface FileRoutesByTo {
   '/settings/classes': typeof AuthenticatedSettingsClassesRoute
   '/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
   '/settings/profile': typeof AuthenticatedSettingsProfileRoute
-  '/api/mobile/subscription': typeof ApiMobileSubscriptionRoute
   '/settings': typeof AuthenticatedSettingsIndexRoute
-  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/push/dispatch': typeof ApiPublicPushDispatchRoute
   '/api/public/push/key': typeof ApiPublicPushKeyRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -416,7 +383,6 @@ export interface FileRoutesById {
   '/forgot-password': typeof ForgotPasswordRoute
   '/mcp': typeof McpRoute
   '/mobile-billing-return': typeof MobileBillingReturnRoute
-  '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
@@ -426,7 +392,6 @@ export interface FileRoutesById {
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/announcements': typeof AuthenticatedAnnouncementsRoute
   '/_authenticated/assignments': typeof AuthenticatedAssignmentsRoute
-  '/_authenticated/billing': typeof AuthenticatedBillingRoute
   '/_authenticated/class-schedule': typeof AuthenticatedClassScheduleRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/focus': typeof AuthenticatedFocusRoute
@@ -446,9 +411,7 @@ export interface FileRoutesById {
   '/_authenticated/settings/classes': typeof AuthenticatedSettingsClassesRoute
   '/_authenticated/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
   '/_authenticated/settings/profile': typeof AuthenticatedSettingsProfileRoute
-  '/api/mobile/subscription': typeof ApiMobileSubscriptionRoute
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
-  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/push/dispatch': typeof ApiPublicPushDispatchRoute
   '/api/public/push/key': typeof ApiPublicPushKeyRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -466,7 +429,6 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/mcp'
     | '/mobile-billing-return'
-    | '/pricing'
     | '/privacy'
     | '/reset-password'
     | '/signup'
@@ -476,7 +438,6 @@ export interface FileRouteTypes {
     | '/admin'
     | '/announcements'
     | '/assignments'
-    | '/billing'
     | '/class-schedule'
     | '/dashboard'
     | '/focus'
@@ -496,9 +457,7 @@ export interface FileRouteTypes {
     | '/settings/classes'
     | '/settings/notifications'
     | '/settings/profile'
-    | '/api/mobile/subscription'
     | '/settings/'
-    | '/api/public/payments/webhook'
     | '/api/public/push/dispatch'
     | '/api/public/push/key'
     | '/lovable/email/auth/preview'
@@ -514,7 +473,6 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/mcp'
     | '/mobile-billing-return'
-    | '/pricing'
     | '/privacy'
     | '/reset-password'
     | '/signup'
@@ -524,7 +482,6 @@ export interface FileRouteTypes {
     | '/admin'
     | '/announcements'
     | '/assignments'
-    | '/billing'
     | '/class-schedule'
     | '/dashboard'
     | '/focus'
@@ -543,9 +500,7 @@ export interface FileRouteTypes {
     | '/settings/classes'
     | '/settings/notifications'
     | '/settings/profile'
-    | '/api/mobile/subscription'
     | '/settings'
-    | '/api/public/payments/webhook'
     | '/api/public/push/dispatch'
     | '/api/public/push/key'
     | '/lovable/email/auth/preview'
@@ -562,7 +517,6 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/mcp'
     | '/mobile-billing-return'
-    | '/pricing'
     | '/privacy'
     | '/reset-password'
     | '/signup'
@@ -572,7 +526,6 @@ export interface FileRouteTypes {
     | '/_authenticated/admin'
     | '/_authenticated/announcements'
     | '/_authenticated/assignments'
-    | '/_authenticated/billing'
     | '/_authenticated/class-schedule'
     | '/_authenticated/dashboard'
     | '/_authenticated/focus'
@@ -592,9 +545,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings/classes'
     | '/_authenticated/settings/notifications'
     | '/_authenticated/settings/profile'
-    | '/api/mobile/subscription'
     | '/_authenticated/settings/'
-    | '/api/public/payments/webhook'
     | '/api/public/push/dispatch'
     | '/api/public/push/key'
     | '/lovable/email/auth/preview'
@@ -612,7 +563,6 @@ export interface RootRouteChildren {
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   McpRoute: typeof McpRoute
   MobileBillingReturnRoute: typeof MobileBillingReturnRoute
-  PricingRoute: typeof PricingRoute
   PrivacyRoute: typeof PrivacyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRoute
@@ -620,8 +570,6 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
-  ApiMobileSubscriptionRoute: typeof ApiMobileSubscriptionRoute
-  ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
   ApiPublicPushDispatchRoute: typeof ApiPublicPushDispatchRoute
   ApiPublicPushKeyRoute: typeof ApiPublicPushKeyRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
@@ -694,13 +642,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MobileBillingReturnRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/pricing': {
-      id: '/pricing'
-      path: '/pricing'
-      fullPath: '/pricing'
-      preLoaderRoute: typeof PricingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/privacy': {
       id: '/privacy'
       path: '/privacy'
@@ -762,13 +703,6 @@ declare module '@tanstack/react-router' {
       path: '/assignments'
       fullPath: '/assignments'
       preLoaderRoute: typeof AuthenticatedAssignmentsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/billing': {
-      id: '/_authenticated/billing'
-      path: '/billing'
-      fullPath: '/billing'
-      preLoaderRoute: typeof AuthenticatedBillingRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/class-schedule': {
@@ -911,20 +845,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsProfileRouteImport
       parentRoute: typeof AuthenticatedSettingsRoute
     }
-    '/api/mobile/subscription': {
-      id: '/api/mobile/subscription'
-      path: '/api/mobile/subscription'
-      fullPath: '/api/mobile/subscription'
-      preLoaderRoute: typeof ApiMobileSubscriptionRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/payments/webhook': {
-      id: '/api/public/payments/webhook'
-      path: '/api/public/payments/webhook'
-      fullPath: '/api/public/payments/webhook'
-      preLoaderRoute: typeof ApiPublicPaymentsWebhookRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/push/dispatch': {
       id: '/api/public/push/dispatch'
       path: '/api/public/push/dispatch'
@@ -998,7 +918,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedAnnouncementsRoute: typeof AuthenticatedAnnouncementsRoute
   AuthenticatedAssignmentsRoute: typeof AuthenticatedAssignmentsRoute
-  AuthenticatedBillingRoute: typeof AuthenticatedBillingRoute
   AuthenticatedClassScheduleRoute: typeof AuthenticatedClassScheduleRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedFocusRoute: typeof AuthenticatedFocusRoute
@@ -1015,7 +934,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedAnnouncementsRoute: AuthenticatedAnnouncementsRoute,
   AuthenticatedAssignmentsRoute: AuthenticatedAssignmentsRoute,
-  AuthenticatedBillingRoute: AuthenticatedBillingRoute,
   AuthenticatedClassScheduleRoute: AuthenticatedClassScheduleRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedFocusRoute: AuthenticatedFocusRoute,
@@ -1041,7 +959,6 @@ const rootRouteChildren: RootRouteChildren = {
   ForgotPasswordRoute: ForgotPasswordRoute,
   McpRoute: McpRoute,
   MobileBillingReturnRoute: MobileBillingReturnRoute,
-  PricingRoute: PricingRoute,
   PrivacyRoute: PrivacyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRoute,
@@ -1050,8 +967,6 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
-  ApiMobileSubscriptionRoute: ApiMobileSubscriptionRoute,
-  ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
   ApiPublicPushDispatchRoute: ApiPublicPushDispatchRoute,
   ApiPublicPushKeyRoute: ApiPublicPushKeyRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,

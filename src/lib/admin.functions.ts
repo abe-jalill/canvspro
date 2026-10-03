@@ -4,7 +4,6 @@ import { isAdminEmail } from "@/lib/admin";
 import {
   summarizeUsageActivity,
   utcDate,
-  utcMonthStart,
   type ActivityRow,
   type UsagePeriod,
   type DailyCount,
@@ -36,9 +35,8 @@ export const getUsageStatsFn = createServerFn({ method: "GET" })
     }
 
     const now = new Date();
-    const chartSince = utcDate(now, -29);
-    const monthSince = utcMonthStart(now);
-    const since = chartSince < monthSince ? chartSince : monthSince;
+    // Covers the 30-day chart and the rolling 7/30-day totals.
+    const since = utcDate(now, -29);
     const { data: rows, error } = await supabaseAdmin
       .from("user_activity_daily")
       .select("user_id, activity_date, last_seen_at, interactions")

@@ -5,14 +5,6 @@ import { useCanvasSync } from "@/hooks/use-canvas-sync";
 
 const TRIGGER = 72;
 const MAX = 110;
-const DIRECTION_THRESHOLD = 12;
-const INTERACTIVE_SELECTOR =
-  'input, textarea, select, button, a, [contenteditable="true"], [role="button"], [role="textbox"]';
-
-interface TouchOrigin {
-  x: number;
-  y: number;
-}
 
 function scrollTopOf(el: HTMLElement | null) {
   let node: HTMLElement | null = el;
@@ -32,7 +24,7 @@ function scrollTopOf(el: HTMLElement | null) {
  */
 export function PullToRefresh({ children }: { children: ReactNode }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
-  const origin = useRef<TouchOrigin | null>(null);
+  const startY = useRef<number | null>(null);
   const [pull, setPull] = useState(0);
   const { sync, isSyncing } = useCanvasSync();
 
@@ -46,69 +38,40 @@ export function PullToRefresh({ children }: { children: ReactNode }) {
     if (!window.matchMedia("(pointer: coarse)").matches) return;
 
     const onStart = (e: TouchEvent) => {
-      origin.current = null;
       if (isSyncing || e.touches.length !== 1) return;
-      const target = e.target instanceof Element ? e.target : null;
-      if (!target || target.closest(INTERACTIVE_SELECTOR)) return;
-      if (scrollTopOf(target as HTMLElement) > 0) return;
-      origin.current = {
-        x: e.touches[0].clientX,
-        y: e.touches[0].clientY,
-      };
+      if (scrollTopOf(e.target as HTMLElement) > 0) return;
+      startY.current = e.touches[0].clientY;
     };
 
     const onMove = (e: TouchEvent) => {
-      const start = origin.current;
-      if (!start || e.touches.length !== 1) return;
-
-      const deltaX = e.touches[0].clientX - start.x;
-      const deltaY = e.touches[0].clientY - start.y;
-      const distanceX = Math.abs(deltaX);
-      const distanceY = Math.abs(deltaY);
-
-      if (Math.max(distanceX, distanceY) < DIRECTION_THRESHOLD) return;
-
-      // Hand horizontal swipes (including the dashboard carousel) back to iOS.
-      if (distanceX > distanceY) {
-        origin.current = null;
+      if (startY.current == null) return;
+      const delta = e.touches[0].clientY - startY.current;
+      if (delta <= 0) {
         setPull(0);
         return;
       }
-
-      // An upward gesture is regular page scrolling, not pull-to-refresh.
-      if (deltaY <= 0) {
-        origin.current = null;
-        setPull(0);
-        return;
-      }
-
       // Rubber-band resistance.
-      const next = Math.min(MAX, (deltaY - DIRECTION_THRESHOLD) * 0.5);
-      if (next > 0 && e.cancelable) e.preventDefault();
+      const next = Math.min(MAX, delta * 0.5);
+      if (next > 4 && e.cancelable) e.preventDefault();
       setPull(next);
     };
 
     const onEnd = async () => {
       const shouldRefresh = pullRef.current >= TRIGGER;
-      origin.current = null;
+      startY.current = null;
       setPull(0);
       if (shouldRefresh) await sync();
-    };
-
-    const onCancel = () => {
-      origin.current = null;
-      setPull(0);
     };
 
     host.addEventListener("touchstart", onStart, { passive: true });
     host.addEventListener("touchmove", onMove, { passive: false });
     host.addEventListener("touchend", onEnd, { passive: true });
-    host.addEventListener("touchcancel", onCancel, { passive: true });
+    host.addEventListener("touchcancel", onEnd, { passive: true });
     return () => {
       host.removeEventListener("touchstart", onStart);
       host.removeEventListener("touchmove", onMove);
       host.removeEventListener("touchend", onEnd);
-      host.removeEventListener("touchcancel", onCancel);
+      host.removeEventListener("touchcancel", onEnd);
     };
   }, [isSyncing, sync]);
 
@@ -123,10 +86,8 @@ export function PullToRefresh({ children }: { children: ReactNode }) {
         style={{ height: isSyncing ? 44 : pull }}
       >
         <span
-          role="status"
-          aria-live="polite"
           className={cn(
-            "glass-inset flex h-9 items-center justify-center gap-2 rounded-full px-3 text-muted-foreground",
+            "glass-inset flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground",
             (progress >= 1 || isSyncing) && "text-foreground",
           )}
           style={{ opacity: isSyncing ? 1 : progress }}
@@ -135,9 +96,6 @@ export function PullToRefresh({ children }: { children: ReactNode }) {
             className={cn("h-4 w-4", isSyncing && "animate-spin")}
             style={{ transform: isSyncing ? undefined : `rotate(${progress * 270}deg)` }}
           />
-          <span className="text-[11px] font-medium">
-            {isSyncing ? "Refreshing…" : progress >= 1 ? "Release to refresh" : "Pull to refresh"}
-          </span>
         </span>
       </div>
       <div

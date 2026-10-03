@@ -1,0 +1,907 @@
+/* Homepage: scroll-linked chapters and previews drawn the way the signed-in app looks.
+   Loaded after landing.css and scoped to .cp-story. Every scroll effect reads a
+   progress value set from the element's real position, so it runs forwards and
+   backwards with the scroll and settles in place. With reduced motion, every
+   value falls back to its finished state. */
+
+/* ---------- Reading progress and the nav pill ---------- */
+.cp-progress {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 60;
+  height: 2px;
+  pointer-events: none;
+}
+.cp-progress span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #79c998, #c9f0cf);
+  transform: scaleX(var(--page-progress, 0));
+  transform-origin: left;
+}
+.cp-nav {
+  position: fixed;
+  isolation: isolate;
+  transition: height 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.cp-nav::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 10px clamp(0.6rem, 2.6vw, 3.2rem);
+  border: 1px solid #ffffff1c;
+  border-radius: 18px;
+  background: #07130fd9;
+  box-shadow: 0 18px 40px #0004;
+  backdrop-filter: blur(16px);
+  opacity: 0;
+  transform: translateY(-10px);
+  transition:
+    opacity 0.35s ease,
+    transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+  pointer-events: none;
+}
+.cp-story--scrolled .cp-nav {
+  height: 74px;
+}
+.cp-story--scrolled .cp-nav::before {
+  opacity: 1;
+  transform: none;
+}
+.cp-nav__links a {
+  position: relative;
+}
+.cp-nav__links a[href^="#"]::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -6px;
+  height: 1px;
+  background: #a6dfb5;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.cp-nav__links a.is-current {
+  color: #fff;
+}
+.cp-nav__links a.is-current::after {
+  transform: scaleX(1);
+}
+.cp-story section[id] {
+  scroll-margin-top: 84px;
+}
+
+/* ---------- Hero: the lines peel away at different speeds as you scroll ---------- */
+.cp-hero h1 {
+  animation: none !important;
+}
+.cp-hero__line {
+  display: block;
+}
+.cp-hero__eyebrow,
+.cp-hero__line,
+.cp-hero__intro,
+.cp-hero__actions {
+  /* Upper elements always rise at least as fast as the ones below them, so the
+     gaps between them only ever grow. */
+  transform: translate3d(0, calc(var(--hero-scroll, 0) * var(--rise, 0px)), 0);
+  opacity: calc(1 - var(--hero-scroll, 0) * var(--fade, 1.2));
+}
+.cp-hero__eyebrow {
+  --rise: -170px;
+  --fade: 1.6;
+}
+.cp-hero__line--one {
+  --rise: -130px;
+}
+.cp-hero__line--two {
+  --rise: -90px;
+}
+.cp-hero__intro {
+  --rise: -55px;
+  --fade: 1.5;
+}
+.cp-hero__actions {
+  --rise: -30px;
+  --fade: 1.6;
+}
+.cp-hero__objects {
+  transform: none;
+}
+.cp-orbit--one {
+  translate: calc(var(--hero-scroll, 0) * 70px) calc(var(--hero-scroll, 0) * -150px);
+}
+.cp-orbit--two {
+  translate: calc(var(--hero-scroll, 0) * 110px) calc(var(--hero-scroll, 0) * -80px);
+}
+.cp-orbit--three {
+  translate: calc(var(--hero-scroll, 0) * 60px) calc(var(--hero-scroll, 0) * -30px);
+}
+.cp-orbit--four {
+  translate: calc(var(--hero-scroll, 0) * 20px) calc(var(--hero-scroll, 0) * -200px);
+}
+.cp-hero__grid {
+  transform: translate3d(0, calc(var(--hero-scroll, 0) * 60px), 0);
+}
+.cp-hero__halo {
+  transform: scale(calc(1 + var(--hero-scroll, 0) * 0.25));
+}
+
+/* ---------- Headings that rise in line by line ---------- */
+.cp-line {
+  display: block;
+  overflow: hidden;
+  /* Room for ascenders and descenders, given back so spacing is unchanged. */
+  padding: 0.12em 0.08em 0.18em;
+  margin: -0.12em -0.08em -0.18em;
+}
+.cp-line > span {
+  display: block;
+}
+.cp-story--motion [data-lines] .cp-line > span {
+  transform: translate3d(0, 125%, 0);
+  transition: transform 1s cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: calc(var(--line, 0) * 110ms + 60ms);
+}
+.cp-story--motion [data-lines].is-visible .cp-line > span {
+  transform: none;
+}
+.cp-story--motion [data-reveal] > .cp-kicker {
+  opacity: 0;
+  translate: -16px 0;
+  transition:
+    opacity 0.6s ease,
+    translate 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.cp-story--motion [data-reveal].is-visible > .cp-kicker {
+  opacity: 1;
+  translate: 0 0;
+}
+
+/* ---------- 01-02: the caption only appears once the cards have lined up ---------- */
+.cp-sequence__caption {
+  opacity: clamp(0, calc((var(--story-tidy) - 0.6) * 2.5), 1);
+}
+
+/* ---------- Shared: the app's Today tabs ---------- */
+.cp-app-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 0.35rem;
+  letter-spacing: 0;
+}
+.cp-app-tabs span {
+  padding: 0.42rem 0.75rem;
+  border: 1px solid #dde7e0;
+  border-radius: 8px;
+  color: #5f7b69;
+  font-size: 0.66rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.cp-app-tabs span.is-active {
+  border-color: #27432f;
+  background: #f1f7f2;
+  color: #10261a;
+}
+
+/* ---------- 03: Get It Done, checked off as you scroll ---------- */
+.cp-plan__visual {
+  min-height: 0;
+  flex-direction: column;
+  padding: 3rem 0;
+}
+.cp-product-panel {
+  transform: translate3d(0, calc((1 - var(--plan-enter, 1)) * 48px), 0)
+    rotate(calc((1 - var(--plan-enter, 1)) * -4deg));
+}
+.cp-product-panel__content {
+  padding-top: 1.3rem;
+}
+.cp-product-panel .cp-app-tabs {
+  margin-bottom: 1.5rem;
+}
+.cp-up-next {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.3rem 1rem;
+  margin: 0.7rem 0 1.6rem;
+  padding: 1.05rem 1.15rem;
+  border: 1px solid #d9e5dc;
+  border-radius: 14px;
+  background: #f6faf6;
+}
+.cp-up-next h3 {
+  grid-column: 1;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cp-up-next p {
+  grid-column: 1;
+  overflow: hidden;
+  color: #648b73;
+  font-size: 0.74rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cp-up-next .cp-panel-primary {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  margin: 0;
+  gap: 0.8rem;
+}
+.cp-product-panel--plan.is-complete .cp-up-next h3 {
+  color: #24704a;
+}
+.cp-product-panel--plan.is-complete .cp-panel-primary {
+  opacity: 0;
+}
+.cp-up-next.is-swapping h3,
+.cp-up-next.is-swapping p {
+  animation: cp-swap 480ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes cp-swap {
+  from {
+    opacity: 0;
+    translate: 0 8px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+.cp-plan-row {
+  grid-template-columns: 1.15rem minmax(0, 1fr) auto;
+  margin-bottom: 0.45rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid #e1eae4;
+  border-radius: 10px;
+  transition:
+    border-color 0.35s ease,
+    background-color 0.35s ease;
+}
+.cp-plan-row__check {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid #b6cbbd;
+  border-radius: 50%;
+  color: #fff;
+  transition:
+    background-color 0.3s ease,
+    border-color 0.3s ease;
+}
+.cp-plan-row__check svg {
+  opacity: 0;
+  transform: scale(0.4);
+  transition:
+    opacity 0.25s ease,
+    transform 0.35s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+.cp-plan-row strong {
+  position: relative;
+  width: fit-content;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color 0.3s ease;
+}
+.cp-plan-row strong::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 52%;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.cp-plan-row.is-done {
+  border-color: #cfe3d5;
+  background: #f4f9f5;
+}
+.cp-plan-row.is-done .cp-plan-row__check {
+  border-color: #2f7a50;
+  background: #2f7a50;
+}
+.cp-plan-row.is-done .cp-plan-row__check svg {
+  opacity: 1;
+  transform: none;
+}
+.cp-plan-row.is-done strong {
+  color: #7c9886;
+}
+.cp-plan-row.is-done strong::after {
+  transform: scaleX(1);
+}
+.cp-panel-progress {
+  margin-top: 1rem;
+}
+.cp-panel-progress i {
+  width: calc(var(--plan-done, 0) * 100%);
+  background: #2f7a50;
+  transition: width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.cp-plan__side-note {
+  position: static;
+  margin-top: 1.8rem;
+  text-align: center;
+  transform: none;
+}
+
+/* ---------- 04: Coming Up ---------- */
+.cp-focus-demo__header {
+  gap: 0.75rem;
+}
+.cp-focus-demo__header .cp-app-tabs {
+  justify-content: flex-start;
+}
+
+/* ---------- 05: Study Session with pomodoro rounds ---------- */
+.cp-study-demo__selection > span {
+  display: flex;
+  justify-content: space-between;
+}
+.cp-study-demo__selection > span small {
+  margin: 0;
+  color: #467553;
+  font-size: inherit;
+}
+.cp-study-demo__plan {
+  padding-top: 1rem;
+  border-top: 1px solid #cddfce;
+  color: #467553;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+.cp-study-demo__rounds {
+  display: flex;
+  gap: 6px;
+  margin-top: 1.2rem;
+}
+.cp-study-demo__rounds span {
+  position: relative;
+  overflow: hidden;
+  width: 38px;
+  height: 8px;
+  border: 1px solid #a0dfae66;
+  border-radius: 3px;
+}
+.cp-study-demo__rounds span.is-current i {
+  position: absolute;
+  inset: 0;
+  background: #a0dfae;
+  transform: scaleX(var(--study-round, 0.48));
+  transform-origin: left;
+}
+.cp-study-demo__next {
+  margin-top: 1.1rem;
+}
+
+/* ---------- 06: the dashboard, assembled by the scroll ---------- */
+.cp-workspace__stage {
+  grid-template-columns: 196px minmax(0, 1fr);
+  min-height: 0;
+  transform-origin: 50% 0%;
+  transform: perspective(1400px) rotateX(calc((1 - var(--workspace-enter, 1)) * 14deg))
+    translate3d(0, calc((1 - var(--workspace-enter, 1)) * 70px), 0)
+    scale(calc(0.94 + var(--workspace-enter, 1) * 0.06));
+  opacity: calc(0.3 + var(--workspace-enter, 1) * 0.7);
+}
+.cp-workspace__rail {
+  align-items: stretch;
+  padding: 1.5rem 0.9rem;
+}
+.cp-workspace__rail-title {
+  padding: 0 0.55rem;
+}
+.cp-workspace__rail-title .cp-brand {
+  font-size: 1rem;
+}
+.cp-workspace__rail-title .cp-brand > span:last-child {
+  display: inline;
+}
+.cp-workspace__rail-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-top: 2.2rem;
+}
+.cp-workspace__rail-items > span {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  color: #93b19f;
+  font-size: 0.78rem;
+  opacity: clamp(0, calc(var(--workspace-enter, 1) * 3 - var(--item, 0) * 0.32), 1);
+  translate: calc(
+      (1 - clamp(0, calc(var(--workspace-enter, 1) * 3 - var(--item, 0) * 0.32), 1)) * -14px
+    )
+    0;
+}
+.cp-workspace__rail-items b {
+  overflow: hidden;
+  font-weight: 550;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cp-workspace__rail-items > span.is-active {
+  border-color: #ffffff2a;
+  background: #ffffff0f;
+  color: #fff;
+}
+.cp-workspace__rail-bottom {
+  align-self: center;
+}
+.cp-workspace__window {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 210px;
+  gap: 1.5rem;
+}
+.cp-workspace__tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+  margin-top: 1.5rem;
+}
+.cp-workspace__tiles > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid #ffffff1f;
+  border-radius: 12px;
+}
+.cp-workspace__tiles small {
+  color: #a4bdae;
+  font-size: 0.57rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+.cp-workspace__tiles strong {
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+}
+.cp-workspace__tabs {
+  gap: 0.4rem;
+  margin: 1.2rem 0 1.2rem;
+  border-bottom: 0;
+}
+.cp-workspace__tabs button {
+  padding: 0.5rem 0.9rem;
+  border: 1px solid #ffffff1c;
+  border-radius: 8px;
+}
+.cp-workspace__tabs button[aria-selected="true"] {
+  border-color: #ffffff7a;
+  background: #ffffff12;
+}
+.cp-week__days {
+  gap: 0.5rem;
+}
+.cp-week__days div {
+  padding: 0.8rem 0.4rem;
+  background: transparent;
+}
+.cp-week__assignment {
+  grid-template-columns: 2.6rem minmax(0, 1fr) auto;
+  min-height: 60px;
+  margin-bottom: 0.45rem;
+  border: 1px solid #ffffff17;
+  border-radius: 10px;
+  background: transparent;
+}
+.cp-week__assignment strong,
+.cp-week__assignment small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cp-workspace__side {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding-top: 3.6rem;
+}
+.cp-workspace__card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1rem 1.05rem;
+  border: 1px solid #ffffff1f;
+  border-radius: 12px;
+  color: #eef6f0;
+  opacity: clamp(0, calc(var(--workspace-enter, 1) * 2.4 - var(--card, 0) * 0.35 - 0.4), 1);
+  translate: calc(
+      (1 - clamp(0, calc(var(--workspace-enter, 1) * 2.4 - var(--card, 0) * 0.35 - 0.4), 1)) * 26px
+    )
+    0;
+}
+.cp-workspace__card--notice {
+  --card: 1;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.7rem;
+}
+.cp-workspace__card--class {
+  --card: 2;
+}
+.cp-workspace__card > span,
+.cp-workspace__card small {
+  color: #a4bdae;
+  font-size: 0.57rem;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+}
+.cp-workspace__card small {
+  font-size: 0.66rem;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+.cp-workspace__card--grade strong {
+  font-size: 1.9rem;
+  font-weight: 600;
+  letter-spacing: -0.05em;
+}
+.cp-workspace__card--class strong {
+  font-size: 1rem;
+  font-weight: 600;
+}
+.cp-workspace__card--notice > svg {
+  flex: 0 0 auto;
+  color: #a6dfb5;
+}
+.cp-workspace__card--notice div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.cp-workspace__card--notice strong {
+  font-size: 0.78rem;
+}
+.cp-workspace__card--notice span {
+  color: #a4bdae;
+  font-size: 0.68rem;
+}
+
+/* ---------- 07: the grade ring fills to the current grade ---------- */
+.cp-calculator__visual {
+  min-height: 0;
+  padding: 2rem 0;
+}
+.cp-calculator__ring {
+  position: relative;
+  box-shadow:
+    0 0 0 26px #d4f0e75e,
+    0 0 0 52px #d9f2ea59;
+}
+.cp-calculator__arc {
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  background: conic-gradient(
+    #2f7a5a calc(var(--calc-value, 88.4) * 3.6deg),
+    transparent calc(var(--calc-value, 88.4) * 3.6deg)
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+}
+.cp-calculator__ring b {
+  font-weight: inherit;
+  font-variant-numeric: tabular-nums;
+}
+.cp-calculator__card {
+  position: relative;
+  right: auto;
+  bottom: auto;
+  margin-top: 4.6rem;
+}
+
+/* ---------- 08: a rail that fills as you read down the steps ---------- */
+.cp-steps__list {
+  position: relative;
+  padding-left: 2.8rem;
+}
+.cp-steps__rail {
+  position: absolute;
+  left: 0.6rem;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  border-radius: 2px;
+  background: #ffffff1a;
+}
+.cp-steps__rail i {
+  display: block;
+  width: 100%;
+  height: calc(var(--steps-fill, 1) * 100%);
+  border-radius: inherit;
+  background: linear-gradient(#79c998, #c9f0cf);
+}
+.cp-step {
+  position: relative;
+}
+.cp-step::before {
+  content: "";
+  position: absolute;
+  left: calc(-2.8rem + 0.6rem - 6px);
+  top: calc(50% - 7px);
+  width: 14px;
+  height: 14px;
+  border: 2px solid #ffffff38;
+  border-radius: 50%;
+  background: #07130f;
+  transition:
+    background-color 0.35s ease,
+    border-color 0.35s ease,
+    transform 0.45s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+.cp-step > span,
+.cp-step strong {
+  transition: color 0.35s ease;
+}
+.cp-step.is-reached::before {
+  border-color: #a6dfb5;
+  background: #a6dfb5;
+  transform: scale(1.15);
+}
+.cp-step:not(.is-reached) strong {
+  color: #cfdcd3;
+}
+
+/* ---------- Questions arrive one after another ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  .cp-questions__list.is-visible > * {
+    animation: cp-arrive 600ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  }
+  .cp-questions__list.is-visible > :nth-child(2) {
+    animation-delay: 70ms;
+  }
+  .cp-questions__list.is-visible > :nth-child(3) {
+    animation-delay: 140ms;
+  }
+  .cp-questions__list.is-visible > :nth-child(4) {
+    animation-delay: 210ms;
+  }
+  .cp-questions__list.is-visible > :nth-child(5) {
+    animation-delay: 280ms;
+  }
+}
+
+/* ---------- Finale: the orb turns to face you ---------- */
+.cp-finale__orb {
+  transform: rotate(calc(-24deg + var(--finale-enter, 1) * 10deg))
+    scale(calc(0.8 + var(--finale-enter, 1) * 0.2));
+}
+.cp-finale__glow {
+  opacity: calc(0.35 + var(--finale-enter, 1) * 0.65);
+}
+
+/* ---------- Narrower screens ---------- */
+@media (max-width: 1100px) {
+  .cp-workspace__stage {
+    grid-template-columns: 64px minmax(0, 1fr);
+  }
+  .cp-workspace__rail {
+    align-items: center;
+    padding: 1.5rem 0.4rem;
+  }
+  .cp-workspace__rail-title .cp-brand > span:last-child,
+  .cp-workspace__rail-items b {
+    display: none;
+  }
+  .cp-workspace__window {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cp-workspace__side {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    padding-top: 0;
+  }
+}
+@media (max-width: 760px) {
+  .cp-nav::before {
+    inset: 8px 0.5rem;
+    border-radius: 16px;
+  }
+  .cp-story--scrolled .cp-nav {
+    height: 68px;
+  }
+  .cp-nav__links a[href^="#"]::after {
+    display: none;
+  }
+  .cp-hero__eyebrow {
+    --rise: -120px;
+  }
+  .cp-hero__line--one {
+    --rise: -95px;
+  }
+  .cp-hero__line--two {
+    --rise: -70px;
+  }
+  .cp-hero__intro {
+    --rise: -45px;
+  }
+  .cp-hero__actions {
+    --rise: -25px;
+  }
+  .cp-plan__visual {
+    padding: 1rem 0 0;
+  }
+  .cp-app-tabs span {
+    padding: 0.38rem 0.5rem;
+    font-size: 0.6rem;
+  }
+  .cp-focus-demo__header .cp-app-tabs {
+    justify-content: center;
+    width: 100%;
+  }
+  .cp-focus-demo__live {
+    display: none;
+  }
+  .cp-up-next {
+    padding: 0.9rem;
+  }
+  .cp-workspace__stage {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+  .cp-workspace__rail-items {
+    margin-top: 1.6rem;
+  }
+  .cp-workspace__rail-items > span {
+    justify-content: center;
+    padding: 0.5rem 0;
+  }
+  .cp-workspace__side {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cp-workspace__card--class {
+    display: none;
+  }
+  .cp-calculator__ring {
+    box-shadow:
+      0 0 0 20px #d4f0e75e,
+      0 0 0 40px #d9f2ea59;
+  }
+  .cp-calculator__card {
+    margin-top: 3.6rem;
+  }
+  .cp-steps__list {
+    padding-left: 2rem;
+  }
+  .cp-steps__rail {
+    left: 0.35rem;
+  }
+  .cp-step::before {
+    left: calc(-2rem + 0.35rem - 6px);
+  }
+  .cp-finale__orb {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    width: min(70vw, 300px);
+    align-self: center;
+    opacity: 1;
+  }
+}
+@media (max-width: 420px) {
+  .cp-workspace__stage {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cp-workspace__tiles strong {
+    font-size: 1.25rem;
+  }
+  .cp-calculator__card {
+    width: min(250px, 80%);
+    padding: 1.1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-progress {
+    display: none;
+  }
+  .cp-step::before {
+    border-color: #a6dfb5;
+    background: #a6dfb5;
+  }
+  .cp-step:not(.is-reached) strong {
+    color: inherit;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .cp-hero__line {
+    animation: cp-arrive 900ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+    animation-delay: 80ms;
+  }
+  .cp-hero__line--two {
+    animation-delay: 190ms;
+  }
+}
+
+/* ---------- Fixes found by the overlap check ---------- */
+.cp-feature-copy--focus .cp-kicker {
+  color: #26704a;
+}
+.cp-focus-demo .cp-focus-demo__detail {
+  top: var(--detail-top, 226px);
+}
+.cp-plan {
+  padding-bottom: clamp(4rem, 7vw, 7rem);
+}
+/* The rail dot belongs to the step number, so it lines up on any layout. */
+.cp-step::before {
+  content: none;
+}
+.cp-step > span {
+  position: relative;
+}
+.cp-step > span::before {
+  content: "";
+  position: absolute;
+  left: calc(-2.8rem + 0.6rem - 7px);
+  top: calc(50% - 7px);
+  width: 14px;
+  height: 14px;
+  border: 2px solid #ffffff38;
+  border-radius: 50%;
+  background: #07130f;
+  transition:
+    background-color 0.35s ease,
+    border-color 0.35s ease,
+    transform 0.45s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+.cp-step.is-reached > span::before {
+  border-color: #a6dfb5;
+  background: #a6dfb5;
+  transform: scale(1.15);
+}
+@media (max-width: 760px) {
+  .cp-step > span::before {
+    left: calc(-2rem + 0.35rem - 7px);
+  }
+  .cp-focus-demo {
+    height: 430px;
+  }
+}
+@media (max-width: 520px) {
+  .cp-hero__objects {
+    display: none;
+  }
+  .cp-up-next {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cp-up-next .cp-panel-primary {
+    grid-column: 1;
+    grid-row: auto;
+    justify-self: start;
+    margin-top: 0.6rem;
+  }
+}
+@media (max-width: 420px) and (max-height: 720px) {
+  .cp-focus-demo {
+    height: 340px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cp-step > span::before {
+    border-color: #a6dfb5;
+    background: #a6dfb5;
+  }
+}

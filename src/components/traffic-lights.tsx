@@ -16,13 +16,15 @@ export function TrafficLights({
   onGreen?: () => void;
   className?: string;
 }) {
+  // Soft until the controls are hovered or focused, so three bright dots
+  // don't sit at the top of every screen.
   const dot =
-    "group/dot flex h-4 w-4 items-center justify-center rounded-full transition-transform duration-150 active:scale-90 [&_svg]:opacity-0 [&_svg]:transition-opacity hover:[&_svg]:opacity-100";
+    "group/dot flex h-4 w-4 items-center justify-center rounded-full opacity-50 transition-[transform,opacity] duration-300 group-hover/lights:opacity-100 focus-visible:opacity-100 active:scale-90 [&_svg]:opacity-0 [&_svg]:transition-opacity hover:[&_svg]:opacity-100";
   const icon = "h-2.5 w-2.5 text-black/60";
   return (
     <div
       className={cn(
-        "glass-inset flex items-center gap-1.5 rounded-full px-2 py-1.5 shadow-sm",
+        "group/lights glass-inset flex items-center gap-1.5 rounded-full px-2 py-1.5 shadow-sm",
         className,
       )}
       role="group"
