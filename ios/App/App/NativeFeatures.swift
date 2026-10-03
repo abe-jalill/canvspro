@@ -523,7 +523,16 @@ final class NativeFeatureStore: ObservableObject {
     func updateDashboard(order: [String]? = nil, hidden: Set<String>? = nil) async throws {
         var layout = dashboardObject
         let currentOrder = dashboardOrder
-        let websiteOnly = (layout["order"].flatMap { if case .array(let values) = $0 { return values }; return nil } ?? []).compactMap { if case .string(let value) = $0, !dashboardWidgets.contains(value) { return value }; return nil }
+        let savedOrder: [JSONValue]
+        if case .some(.array(let values)) = layout["order"] {
+            savedOrder = values
+        } else {
+            savedOrder = []
+        }
+        let websiteOnly: [String] = savedOrder.compactMap { value -> String? in
+            guard case .string(let widget) = value, !dashboardWidgets.contains(widget) else { return nil }
+            return widget
+        }
         layout["order"] = .array(((order ?? currentOrder) + websiteOnly).map(JSONValue.string))
         layout["hidden"] = .array((hidden ?? dashboardHidden).sorted().map(JSONValue.string))
         if layout["sizes"] == nil { layout["sizes"] = .object([:]) }
