@@ -301,10 +301,10 @@ async function dispatchUser(
 }
 
 /**
- * Checks every account with a registered device, or just `onlyUserId`. The
- * cron job sends one request per account, so a slow Canvas school or a large
- * user count can't run one shared request out of time before later accounts
- * are reached. A request with no user id still handles everyone.
+ * Checks every account with a registered device, or just `onlyUserId`.
+ * Accounts are checked a few at a time rather than one after another, so a
+ * slow Canvas school can't run the cron request out of time before later
+ * accounts are reached.
  */
 async function run(onlyUserId?: string): Promise<Response> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

@@ -21,7 +21,7 @@ test("reads the server's last check from preferences", () => {
 });
 
 test("the server counts as checking for one missed run, not longer", () => {
-  assert.equal(serverIsChecking(checkedAgo(15 * 60_000), now), true);
+  assert.equal(serverIsChecking(checkedAgo(65 * 60_000), now), true);
   assert.equal(serverIsChecking(checkedAgo(HEARTBEAT_FRESH_MS + 1), now), false);
   assert.equal(serverIsChecking({}, now), false);
 });

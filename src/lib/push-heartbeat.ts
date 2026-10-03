@@ -1,11 +1,11 @@
-// The background check (cron, every 15 minutes) writes a timestamp into the
+// The background check (cron, hourly during waking hours) writes a timestamp into the
 // account's preferences each time it looks at that account. The app reads it
 // to know whether closed-app alerts are actually running.
 
 export const PUSH_HEARTBEAT_PREF = "push_last_check";
 
-/** Two missed 15-minute runs plus slack before the check counts as stopped. */
-export const HEARTBEAT_FRESH_MS = 40 * 60_000;
+/** One missed hourly run plus slack before the check counts as stopped. */
+export const HEARTBEAT_FRESH_MS = 150 * 60_000;
 
 /** Preferences older than this (e.g. restored from the offline cache) are not trusted. */
 export const PREFERENCES_FRESH_MS = 5 * 60_000;
