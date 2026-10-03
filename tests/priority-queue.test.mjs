@@ -64,7 +64,7 @@ test("done work, stale overdue work and empty placeholders are left out", () => 
   const queue = buildPriorityQueue({
     assignments: [
       item(1, 1, hours(5), 10, "Done"),
-      item(2, 1, hours(-30), 10, "Long gone"),
+      item(2, 1, hours(-100), 10, "Long gone"),
       item(3, 1, null, 0, "Checkpoint"),
       item(4, 1, hours(8), 10, "Open"),
     ],

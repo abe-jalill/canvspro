@@ -34,6 +34,7 @@ import {
   type PriorityQueueItem,
 } from "@/lib/get-it-done";
 import { PriorityBadge } from "@/components/priority-badge";
+import { searchText } from "@/lib/search-params";
 import { buildAgendaView, type AgendaHorizon } from "@/lib/assignment-agenda";
 import { useAssignmentMetaMap } from "@/hooks/use-assignment-meta";
 import {
@@ -74,10 +75,10 @@ export const Route = createFileRoute("/_authenticated/assignments")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  validateSearch: (search: { course?: unknown; assignment?: unknown }) => ({
-    ...validateCourseSearch(search),
-    ...(typeof search.assignment === "string" ? { assignment: search.assignment } : {}),
-  }),
+  validateSearch: (search: { course?: unknown; assignment?: unknown }) => {
+    const assignment = searchText(search.assignment);
+    return { ...validateCourseSearch(search), ...(assignment ? { assignment } : {}) };
+  },
   loader: ({ context }) => {
     if (context?.queryClient) {
       void context.queryClient.ensureQueryData(assignmentsQO);

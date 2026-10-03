@@ -41,13 +41,13 @@ test("completion can be reviewed without changing date filters and undone", () =
   assert.equal(isInFocusWindow(item, "7", now, false), true);
 });
 
-test("all dates includes custom, undated, overdue, and distant assignments", () => {
+test("all dates includes custom, undated and overdue work, but nothing beyond four weeks", () => {
   const items = [
     assignment(-1, undefined),
     { ...assignment(2, {}), due_at: null },
     { ...assignment(3, {}), due_at: new Date(now - 86400000).toISOString() },
     { ...assignment(4, {}), due_at: new Date(now + 60 * 86400000).toISOString() },
   ];
-  assert.equal(items.filter((item) => isInFocusWindow(item, "all", now, false)).length, 4);
+  assert.equal(items.filter((item) => isInFocusWindow(item, "all", now, false)).length, 3);
   assert.equal(items.filter((item) => isInFocusWindow(item, "7", now, false)).length, 1);
 });

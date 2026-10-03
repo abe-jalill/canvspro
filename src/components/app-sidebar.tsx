@@ -357,15 +357,12 @@ export function AppSidebar() {
                         >
                           <span className="flex min-w-0 items-center gap-2">
                             <span
-                              className="h-2 w-2 shrink-0 rounded-full transition-transform group-hover:scale-110"
-                              style={{ backgroundColor: color, boxShadow: `0 0 6px ${color}66` }}
+                              className="h-1.5 w-1.5 shrink-0 rounded-full opacity-80"
+                              style={{ backgroundColor: color }}
                             />
                             <span className="truncate">{courseName}</span>
                           </span>
-                          <span
-                            className="shrink-0 text-[11px] font-normal tabular-nums"
-                            style={{ color }}
-                          >
+                          <span className="shrink-0 text-[11px] font-normal tabular-nums text-muted-foreground">
                             {score != null ? `${Math.round(score)}%` : "—"}
                           </span>
                         </Link>
@@ -373,10 +370,10 @@ export function AppSidebar() {
                     })}
                 </div>
               </nav>
-              <div className="mt-auto space-y-2 pt-4">
-                <ReminderToggle />
-                <ThemeToggle />
-                <SignOutButton />
+              <div className="mt-auto flex items-center justify-center gap-2 pt-4">
+                <ReminderToggle compact />
+                <ThemeToggle compact />
+                <SignOutButton compact />
               </div>
             </>
           )}

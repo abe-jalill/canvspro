@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSearch } from "@tanstack/react-router";
+import { searchText } from "./search-params.ts";
 
 /** Stable slug used for per-class anchors so notifications can deep link. */
 export function courseSlug(name: string): string {
@@ -50,5 +51,6 @@ export function useCourseHighlight() {
 export function validateCourseSearch(
   search: { course?: unknown } | undefined,
 ): { course?: string } {
-  return typeof search?.course === "string" ? { course: search.course } : {};
+  const course = searchText(search?.course);
+  return course ? { course } : {};
 }

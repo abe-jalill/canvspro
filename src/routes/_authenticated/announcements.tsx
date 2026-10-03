@@ -2,6 +2,7 @@ import { createFileRoute, Link, useSearch } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowUpRight, Clock3, Megaphone, RotateCcw, X } from "lucide-react";
+import { searchText } from "@/lib/search-params";
 import { GlassCard, ErrorState, EmptyState } from "@/components/glass-card";
 import { SkeletonBlock } from "@/components/skeletons/dashboard-skeletons";
 import { announcementsQueryOptions as announcementsQO } from "@/lib/canvas.queries";
@@ -22,10 +23,11 @@ export const Route = createFileRoute("/_authenticated/announcements")({
       },
     ],
   }),
-  validateSearch: (search: { course?: unknown; expand?: unknown }) => ({
-    ...(typeof search?.course === "string" ? { course: search.course } : {}),
-    ...(typeof search?.expand === "string" ? { expand: search.expand } : {}),
-  }),
+  validateSearch: (search: { course?: unknown; expand?: unknown }) => {
+    const course = searchText(search?.course);
+    const expand = searchText(search?.expand);
+    return { ...(course ? { course } : {}), ...(expand ? { expand } : {}) };
+  },
   loader: ({ context }) => {
     if (context?.queryClient) void context.queryClient.ensureQueryData(announcementsQO);
   },

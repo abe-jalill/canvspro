@@ -18,6 +18,7 @@ import { DAY_LABELS } from "@/lib/class-schedule";
 import { ArrowLeft, Calendar, Clock, ExternalLink, CheckCircle2, CalendarPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { htmlToText } from "@/lib/html-text";
+import { searchText } from "@/lib/search-params";
 import { COMPLETED_ASSIGNMENTS_KEY, useLocalSet } from "@/lib/local-state";
 import { isAssignmentVisible } from "@/lib/assignment-window";
 import { useAnnouncementWindow, withinAnnouncementWindow } from "@/lib/announcement-window";
@@ -34,9 +35,10 @@ import { SkeletonBlock, AssignmentRowSkeleton } from "@/components/skeletons/das
 
 export const Route = createFileRoute("/_authenticated/courses/$courseId")({
   // `?assignment=<id>` scrolls to that assignment, opens its description and flashes it.
-  validateSearch: (search: { assignment?: unknown }) => ({
-    ...(typeof search.assignment === "string" ? { assignment: search.assignment } : {}),
-  }),
+  validateSearch: (search: { assignment?: unknown }) => {
+    const assignment = searchText(search.assignment);
+    return assignment ? { assignment } : {};
+  },
   // `loader` must be declared before `head` so `loaderData` is inferred in `head`.
   loader: ({ context, params }) => {
     if (!context?.queryClient) return { courseTitle: null };

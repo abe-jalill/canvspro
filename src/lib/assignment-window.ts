@@ -1,6 +1,8 @@
 import type { AssignmentItem } from "@/lib/canvas.functions";
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+/** The one window every list uses: a few days back, a few weeks ahead. */
+export const RECENT_DAYS = 3;
+export const AHEAD_DAYS = 28;
 
 /** End of the student's local calendar day, including late-night deadlines. */
 export function endOfUpcomingDay(now: number, days: number): number {
@@ -10,16 +12,25 @@ export function endOfUpcomingDay(now: number, days: number): number {
   return end.getTime();
 }
 
-/** End of the local calendar day one month from `now` (Jan 31 -> Feb 28/29). */
-export function endOfUpcomingMonth(now: number): number {
-  const end = new Date(now);
-  const day = end.getDate();
-  end.setDate(1);
-  end.setMonth(end.getMonth() + 1);
-  const lastDay = new Date(end.getFullYear(), end.getMonth() + 1, 0).getDate();
-  end.setDate(Math.min(day, lastDay));
-  end.setHours(23, 59, 59, 999);
-  return end.getTime();
+/** Start of the local day `RECENT_DAYS` ago: nothing due before this is listed. */
+export function startOfRecentWindow(now: number): number {
+  const start = new Date(now);
+  start.setDate(start.getDate() - RECENT_DAYS);
+  start.setHours(0, 0, 0, 0);
+  return start.getTime();
+}
+
+/** End of the last day shown ahead (four weeks out). */
+export function endOfAheadWindow(now: number): number {
+  return endOfUpcomingDay(now, AHEAD_DAYS);
+}
+
+/** Dated work inside the shared window: from 3 days ago to 4 weeks ahead. */
+export function isInDisplayWindow(a: Pick<AssignmentItem, "due_at">, now = Date.now()): boolean {
+  if (!a.due_at) return false;
+  const due = new Date(a.due_at).getTime();
+  if (Number.isNaN(due)) return false;
+  return due >= startOfRecentWindow(now) && due <= endOfAheadWindow(now);
 }
 
 export function isAssignmentComplete(a: AssignmentItem, manuallyCompleted: boolean): boolean {
@@ -37,14 +48,14 @@ export function isAssignmentComplete(a: AssignmentItem, manuallyCompleted: boole
 }
 
 /**
- * Assignments whose due date passed a full day or more ago are treated as gone:
- * they are no longer actionable, so the app stops listing them.
+ * Unfinished work that was due before the recent window (3 days ago) is treated
+ * as gone: it is no longer actionable, so the app stops listing it.
  */
 export function isStaleOverdue(a: AssignmentItem, now = Date.now()): boolean {
   if (!a.due_at) return false;
   const due = new Date(a.due_at).getTime();
   if (Number.isNaN(due)) return false;
-  return due < now - DAY_MS;
+  return due < startOfRecentWindow(now);
 }
 
 /**
@@ -68,7 +79,8 @@ export function compareByDueDate(
 
 /**
  * Shared visibility rule for every assignment surface. Completed work is only
- * visible by explicit request; unfinished work disappears after 24h overdue.
+ * visible by explicit request, and then only inside the shared window (3 days
+ * back to 4 weeks ahead); unfinished work disappears once it is 3 days overdue.
  * Undated, zero-point placeholders only appear when everything is requested.
  */
 export function isAssignmentVisible(
@@ -78,7 +90,7 @@ export function isAssignmentVisible(
   now = Date.now(),
 ): boolean {
   const complete = isAssignmentComplete(a, manuallyCompleted);
-  if (complete) return showCompleted;
+  if (complete) return showCompleted && isInDisplayWindow(a, now);
   if (isPlaceholderAssignment(a)) return showCompleted;
   return !isStaleOverdue(a, now);
 }

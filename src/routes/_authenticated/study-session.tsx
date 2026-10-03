@@ -10,23 +10,20 @@ import {
   CirclePause,
   CirclePlay,
   Plus,
-  RotateCcw,
   Search,
-  TimerReset,
-  Trash2,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { getAllAssignmentsFn, type AssignmentItem } from "@/lib/canvas.functions";
 import { displayCourseName } from "@/lib/course-display";
-import { GlassCard, ErrorState, Skeleton } from "@/components/glass-card";
-import { Button } from "@/components/ui/button";
+import { ErrorState, Skeleton } from "@/components/glass-card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { studySelectionFeedback, studySuccessFeedback } from "@/lib/study-session-feedback";
 import { useStudySession } from "@/hooks/use-study-session";
 import {
   compareByDueDate,
-  endOfUpcomingMonth,
+  endOfAheadWindow,
   isAssignmentComplete,
   isAssignmentVisible,
 } from "@/lib/assignment-window";
@@ -42,6 +39,13 @@ import { assignmentsQueryOptions as assignmentsQO } from "@/lib/canvas.queries";
 import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
 
 const PRESETS = [15, 25, 45, 60];
+
+const pillButton =
+  "inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-foreground px-8 text-sm font-medium text-background transition-opacity hover:opacity-90 disabled:border disabled:border-foreground/15 disabled:bg-transparent disabled:text-muted-foreground disabled:opacity-100 disabled:hover:opacity-100";
+const roundIconButton =
+  "flex h-11 w-11 items-center justify-center rounded-lg border border-foreground/15 text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground disabled:opacity-30";
+const textButton =
+  "text-sm text-muted-foreground transition-colors hover:text-foreground";
 
 export const Route = createFileRoute("/_authenticated/study-session")({
   validateSearch: (search: Record<string, unknown>) => {
@@ -130,7 +134,6 @@ function StudySessionPage() {
   const [manualName, setManualName] = useState("");
   const [search, setSearch] = useState("");
   const [showCompleted, setShowCompleted] = useState(false);
-  const [showUndated, setShowUndated] = useState(false);
   const [duration, setDuration] = useState(25);
   const [now, setNow] = useState(() => Date.now());
   const [summary, setSummary] = useState<StudySessionSnapshot | null>(null);
@@ -163,7 +166,7 @@ function StudySessionPage() {
     toast.success("Study session complete");
   }, [now, session, setSession]);
 
-  const { candidates, hiddenUndated, hiddenLater } = useMemo(() => {
+  const { candidates, hiddenCount } = useMemo(() => {
     const needle = search.trim().toLowerCase();
     const now = Date.now();
     const matching = (assignments.data ?? [])
@@ -177,19 +180,16 @@ function StudySessionPage() {
           .includes(needle);
       })
       .sort(compareByDueDate);
-    // A study session is about what is coming up. Work due more than a month
-    // away, and work with no due date, is tucked away until asked for (or
-    // searched for), so the list starts short.
-    if (needle) return { candidates: matching, hiddenUndated: 0, hiddenLater: 0 };
-    const monthEnd = endOfUpcomingMonth(now);
-    const within = matching.filter(
-      (item) => !item.due_at || new Date(item.due_at).getTime() <= monthEnd,
+    // A study session is about what is coming up. Searching finds anything;
+    // otherwise the list stays inside the shared window (3 days back to 4
+    // weeks ahead), which leaves out undated and far-off work.
+    if (needle) return { candidates: matching, hiddenCount: 0 };
+    const end = endOfAheadWindow(now);
+    const inWindow = matching.filter(
+      (item) => item.due_at && new Date(item.due_at).getTime() <= end,
     );
-    const hiddenLater = matching.length - within.length;
-    if (showUndated) return { candidates: within, hiddenUndated: 0, hiddenLater };
-    const dated = within.filter((item) => item.due_at);
-    return { candidates: dated, hiddenUndated: within.length - dated.length, hiddenLater };
-  }, [assignments.data, completed, search, showCompleted, showUndated]);
+    return { candidates: inWindow, hiddenCount: matching.length - inWindow.length };
+  }, [assignments.data, completed, search, showCompleted]);
 
   const selectedIds = useMemo(() => new Set(selected.map((item) => item.id)), [selected]);
 
@@ -226,10 +226,6 @@ function StudySessionPage() {
     const remaining = remainingForSession(session, now);
     const current = session.items[Math.min(session.currentIndex, session.items.length - 1)];
     const completed = new Set(session.completedItemIds);
-    const progress = Math.min(
-      100,
-      Math.max(0, ((session.durationMs - remaining) / session.durationMs) * 100),
-    );
 
     const update = (patch: Partial<StudySessionSnapshot>) => setSession({ ...session, ...patch });
     const pauseOrResume = () => {
@@ -259,109 +255,103 @@ function StudySessionPage() {
     };
 
     return (
-      <div className="mx-auto max-w-6xl space-y-5 pb-24 md:pb-8">
-        <header className="premium-reveal px-1">
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            Study Session
-          </p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">
-            One thing at a time.
-          </h1>
-          <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-            The plan stays out of the way while you focus on the assignment in front of you.
-          </p>
-        </header>
+      <div className="mx-auto max-w-xl pb-24 md:pb-8">
+        <section className="premium-reveal flex flex-col items-center pt-2 text-center">
+          <StudyClock
+            remaining={remaining}
+            total={session.durationMs}
+            paused={session.status === "paused"}
+          />
 
-        <div className="study-active-layout">
-          <GlassCard strong className="study-timer-panel premium-card">
-            <div className="flex items-center justify-between gap-4 text-xs text-muted-foreground">
-              <span>{completed.size} finished</span>
-              <span>{Math.round(progress)}% of session</span>
-            </div>
-            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-foreground/10">
-              <div
-                className="h-full rounded-full bg-primary transition-[width] duration-1000"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
+          <div className="study-now">
+            <span>Now studying</span>
+            <strong className="font-normal">{current.name}</strong>
+            {current.courseName && <small>{current.courseName}</small>}
+          </div>
 
-            <StudyClock
-              remaining={remaining}
-              total={session.durationMs}
-              paused={session.status === "paused"}
-            />
+          <div className="mt-8 flex items-center gap-3">
+            <button
+              type="button"
+              className={roundIconButton}
+              onClick={() =>
+                update({
+                  currentIndex:
+                    (session.currentIndex - 1 + session.items.length) % session.items.length,
+                })
+              }
+              aria-label="Previous assignment"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            <button type="button" className={pillButton} onClick={pauseOrResume}>
+              {session.status === "running" ? (
+                <CirclePause className="h-4 w-4" />
+              ) : (
+                <CirclePlay className="h-4 w-4" />
+              )}
+              {session.status === "running" ? "Pause" : "Resume"}
+            </button>
+            <button
+              type="button"
+              className={roundIconButton}
+              onClick={() => update({ currentIndex: nextUnfinished(session, session.currentIndex) })}
+              aria-label="Next assignment"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          </div>
 
-            <div className="study-now">
-              <span>Now studying</span>
-              <strong>{current.name}</strong>
-              {current.courseName && <small>{current.courseName}</small>}
-            </div>
-
-            <div className="mt-5 flex flex-wrap justify-center gap-2">
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={() =>
-                  update({
-                    currentIndex:
-                      (session.currentIndex - 1 + session.items.length) % session.items.length,
-                  })
-                }
-                aria-label="Previous assignment"
-              >
-                <ChevronLeft />
-              </Button>
-              <Button size="lg" onClick={pauseOrResume}>
-                {session.status === "running" ? <CirclePause /> : <CirclePlay />}
-                {session.status === "running" ? "Pause" : "Resume"}
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={() =>
-                  update({ currentIndex: nextUnfinished(session, session.currentIndex) })
-                }
-                aria-label="Next assignment"
-              >
-                <ChevronRight />
-              </Button>
-              <Button size="lg" onClick={finishItem}>
-                <Check /> Finish task
-              </Button>
-            </div>
-          </GlassCard>
-
-          <GlassCard
-            title="Up next"
-            subtitle={`${completed.size} of ${session.items.length} finished`}
-            className="study-queue premium-card"
+          <button
+            type="button"
+            onClick={finishItem}
+            className={cn(textButton, "mt-5 inline-flex items-center gap-1.5")}
           >
-            <ol className="space-y-2">
-              {session.items.map((item, index) => (
-                <li key={item.id}>
+            <Check className="h-4 w-4" /> Finish this task
+          </button>
+        </section>
+
+        <section className="mt-12 px-1">
+          <header className="flex items-baseline justify-between gap-3">
+            <h2 className="text-sm text-muted-foreground">Up next</h2>
+            <span className="text-xs text-muted-foreground">
+              {completed.size} of {session.items.length} finished
+            </span>
+          </header>
+          <ol className="mt-2 space-y-2">
+            {session.items.map((item, index) => {
+              const done = completed.has(item.id);
+              const isCurrent = index === session.currentIndex;
+              return (
+                <li
+                  key={item.id}
+                  className={cn(
+                    "rounded-lg border px-4",
+                    isCurrent && !done ? "border-foreground/50" : "border-foreground/15",
+                  )}
+                >
                   <button
                     type="button"
                     onClick={() => update({ currentIndex: index })}
-                    className={cn(
-                      "glass-inset flex min-h-14 w-full items-center gap-3 rounded-xl px-3 text-left transition",
-                      index === session.currentIndex && "ring-1 ring-primary/60",
-                      completed.has(item.id) && "opacity-55",
-                    )}
+                    className="flex min-h-14 w-full items-center gap-3.5 py-3 text-left"
                   >
                     <span
                       className={cn(
-                        "flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs",
-                        completed.has(item.id) &&
-                          "border-primary bg-primary text-primary-foreground",
+                        "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[11px] tabular-nums",
+                        done
+                          ? "border-foreground/40 bg-foreground/10"
+                          : isCurrent
+                            ? "border-foreground/60"
+                            : "border-foreground/25 text-muted-foreground",
                       )}
                     >
-                      {completed.has(item.id) ? <Check className="h-3.5 w-3.5" /> : index + 1}
+                      {done ? <Check className="h-3 w-3" /> : index + 1}
                     </span>
                     <span className="min-w-0 flex-1">
                       <span
                         className={cn(
-                          "block truncate text-sm font-medium",
-                          completed.has(item.id) && "line-through",
+                          "block truncate text-[15px]",
+                          done && "line-through opacity-55",
+                          !isCurrent && !done && "text-foreground/80",
                         )}
                       >
                         {item.name}
@@ -376,135 +366,121 @@ function StudySessionPage() {
                   {item.source === "canvas" && (
                     <AssignmentDescriptionLink
                       assignmentId={Number(item.id.replace("canvas:", ""))}
-                      className="ml-11 mt-1"
+                      className="mb-3 ml-[2.125rem]"
                     />
                   )}
                 </li>
-              ))}
-            </ol>
-            <Button
-              variant="ghost"
-              className="mt-4 text-destructive"
-              onClick={() => {
-                if (
-                  window.confirm("End this study session? Your timer progress will be cleared.")
-                ) {
-                  setSummary(session);
-                  setSession(null);
-                }
-              }}
-            >
-              <Trash2 /> End session
-            </Button>
-          </GlassCard>
-        </div>
+              );
+            })}
+          </ol>
+          <button
+            type="button"
+            className={cn(textButton, "mt-6")}
+            onClick={() => {
+              if (window.confirm("End this study session? Your timer progress will be cleared.")) {
+                setSummary(session);
+                setSession(null);
+              }
+            }}
+          >
+            End session
+          </button>
+        </section>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-5 pb-24 md:pb-8">
+    <div className="mx-auto max-w-5xl space-y-8 pb-24 md:pb-8">
       <header className="premium-reveal px-1">
-        <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-          Study Session
-        </p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">
-          Build a focused session.
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          Choose the work, set a finish line, and let CanvasPro hold your place—even if you close
+        <h1 className="text-3xl font-medium tracking-tight md:text-4xl">Study session</h1>
+        <p className="mt-2 max-w-xl text-sm text-muted-foreground">
+          Choose what to work on and for how long. CanvasPro keeps your place, even if you close
           the app.
         </p>
       </header>
 
       {summary && (
-        <GlassCard
-          title="Session finished"
-          subtitle={`${summary.completedItemIds.length} of ${summary.items.length} assignments completed`}
-        >
-          <div className="flex flex-wrap gap-2">
-            <Button
+        <div className="rounded-lg border border-foreground/15 p-5">
+          <p className="text-base">Session finished</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {summary.completedItemIds.length} of {summary.items.length} tasks completed.
+          </p>
+          <div className="mt-3 flex gap-5">
+            <button
+              type="button"
+              className={cn(textButton, "underline decoration-foreground/25 underline-offset-2")}
               onClick={() => {
                 setSummary(null);
                 setSelected(summary.items);
               }}
             >
-              <RotateCcw /> Plan another
-            </Button>
-            <Button variant="outline" onClick={() => setSummary(null)}>
+              Plan another
+            </button>
+            <button type="button" className={textButton} onClick={() => setSummary(null)}>
               Dismiss
-            </Button>
+            </button>
           </div>
-        </GlassCard>
+        </div>
       )}
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
-        <div>
-          <GlassCard
-            title="1 · Choose your focus"
-            subtitle="Select Canvas work or add one task of your own."
+      <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_21rem]">
+        <section className="min-w-0 px-1">
+          <form
+            className="flex items-center gap-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              addManual();
+            }}
           >
-            <form
-              className="mb-5 flex gap-2 border-b border-foreground/10 pb-5"
-              onSubmit={(event) => {
-                event.preventDefault();
-                addManual();
-              }}
+            <Input
+              value={manualName}
+              onChange={(event) => setManualName(event.target.value)}
+              maxLength={160}
+              placeholder="Add your own task"
+              aria-label="Add your own task"
+            />
+            <button
+              type="submit"
+              disabled={!manualName.trim()}
+              className="inline-flex min-h-10 shrink-0 items-center rounded-lg border border-foreground/15 px-4 text-sm text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground disabled:opacity-40"
             >
+              Add
+            </button>
+          </form>
+
+          <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
+            <label className="relative min-w-[12rem] flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                value={manualName}
-                onChange={(event) => setManualName(event.target.value)}
-                maxLength={160}
-                placeholder="e.g. Draft history introduction"
-                aria-label="Assignment name"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search assignments or classes"
+                aria-label="Search assignments or classes"
+                className="pl-9"
               />
-              <Button type="submit" disabled={!manualName.trim()}>
-                <Plus /> Add
-              </Button>
-            </form>
-            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <label className="relative flex-1">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search assignments or courses"
-                  className="pl-9"
-                />
-              </label>
-              <label className="flex min-h-10 items-center gap-2 text-sm text-muted-foreground">
-                <input
-                  type="checkbox"
-                  checked={showCompleted}
-                  onChange={(event) => setShowCompleted(event.target.checked)}
-                  className="h-4 w-4 accent-primary"
-                />
-                Show submitted
-              </label>
-              <label className="flex min-h-10 items-center gap-2 text-sm text-muted-foreground">
-                <input
-                  type="checkbox"
-                  checked={showUndated}
-                  onChange={(event) => setShowUndated(event.target.checked)}
-                  className="h-4 w-4 accent-primary"
-                />
-                No due date
-              </label>
-            </div>
-            {(hiddenUndated > 0 || hiddenLater > 0) && (
-              <p className="mb-3 text-xs text-muted-foreground">
-                Showing work due in the next month.
-                {hiddenLater > 0 && ` ${hiddenLater} due later.`}
-                {hiddenUndated > 0 &&
-                  ` ${hiddenUndated} with no due date hidden.`}{" "}
-                Search to find any assignment.
-              </p>
-            )}
+            </label>
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={showCompleted}
+                onChange={(event) => setShowCompleted(event.target.checked)}
+                className="h-4 w-4 accent-primary"
+              />
+              Include submitted
+            </label>
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Showing the last 3 days through the next 4 weeks.
+            {hiddenCount > 0 && ` Search to find ${hiddenCount} more.`}
+          </p>
+
+          <div className="mt-4">
             {assignments.isPending ? (
-              <div className="space-y-2">
-                <Skeleton className="h-14" />
-                <Skeleton className="h-14" />
-                <Skeleton className="h-14" />
+              <div className="space-y-4">
+                <Skeleton className="h-10" />
+                <Skeleton className="h-10" />
+                <Skeleton className="h-10" />
               </div>
             ) : assignments.error ? (
               <ErrorState
@@ -512,16 +488,19 @@ function StudySessionPage() {
                 onRetry={() => void assignments.refetch()}
               />
             ) : candidates.length === 0 ? (
-              <p className="rounded-xl bg-foreground/[0.04] p-5 text-center text-sm text-muted-foreground">
+              <p className="py-12 text-center text-sm text-muted-foreground">
                 No matching Canvas assignments. You can still add your own above.
               </p>
             ) : (
-              <ul className="max-h-[28rem] space-y-2 overflow-y-auto pr-1">
+              <ul className="max-h-[32rem] space-y-2 overflow-y-auto pr-1">
                 {candidates.map((assignment) => {
                   const item = canvasItem(assignment);
                   const isSelected = selectedIds.has(item.id);
                   return (
-                    <li key={assignment.id}>
+                    <li
+                      key={assignment.id}
+                      className="rounded-lg border border-foreground/15 px-4"
+                    >
                       <button
                         type="button"
                         disabled={isSelected}
@@ -529,24 +508,22 @@ function StudySessionPage() {
                           setSelected((items) => [...items, item]);
                           void studySelectionFeedback();
                         }}
-                        className="glass-inset glass-hover flex min-h-14 w-full items-center gap-3 rounded-xl p-3 text-left disabled:opacity-50"
+                        className="flex min-h-14 w-full items-center gap-3.5 py-3 text-left transition-opacity hover:opacity-80 disabled:opacity-45"
                       >
                         <span
                           className={cn(
-                            "flex h-7 w-7 shrink-0 items-center justify-center rounded-full border",
-                            isSelected && "border-primary bg-primary text-primary-foreground",
+                            "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-foreground/30",
+                            isSelected && "border-foreground/40 bg-foreground/10",
                           )}
                         >
                           {isSelected ? (
-                            <Check className="h-4 w-4" />
+                            <Check className="h-3 w-3" />
                           ) : (
-                            <Plus className="h-4 w-4" />
+                            <Plus className="h-3 w-3 text-muted-foreground" />
                           )}
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-medium">
-                            {assignment.name}
-                          </span>
+                          <span className="block truncate text-[15px]">{assignment.name}</span>
                           <span className="block truncate text-xs text-muted-foreground">
                             {item.courseName || "Canvas"}
                           </span>
@@ -562,129 +539,134 @@ function StudySessionPage() {
                       </button>
                       <AssignmentDescriptionLink
                         assignmentId={assignment.id}
-                        className="ml-11 mt-1"
+                        className="mb-3 ml-[2.125rem]"
                       />
                     </li>
                   );
                 })}
               </ul>
             )}
-          </GlassCard>
-        </div>
+          </div>
+        </section>
 
-        <div className="space-y-5 lg:sticky lg:top-6 lg:self-start">
-          <GlassCard
-            strong
-            title="2 · Set the timer"
-            subtitle={`${selected.length} ${selected.length === 1 ? "task" : "tasks"} in this session`}
-          >
+        <aside className="lg:sticky lg:top-6 lg:self-start">
+          <div className="rounded-lg border border-foreground/15 p-6">
+            <header className="flex items-baseline justify-between gap-3">
+              <h2 className="text-base">Your session</h2>
+              <span className="text-xs text-muted-foreground">
+                {selected.length} {selected.length === 1 ? "task" : "tasks"}
+              </span>
+            </header>
+
             {selected.length === 0 ? (
-              <p className="rounded-xl bg-foreground/[0.04] p-5 text-center text-sm text-muted-foreground">
+              <p className="py-8 text-center text-sm text-muted-foreground">
                 Nothing chosen yet. Pick an assignment from the list to begin.
               </p>
             ) : (
-              <ol className="space-y-2">
+              <ol className="mt-3 space-y-2">
                 {selected.map((item, index) => (
                   <li
                     key={item.id}
-                    className="glass-inset flex min-h-12 items-center gap-2 rounded-xl px-3"
+                    className="group flex min-h-11 items-center gap-2 rounded-lg border border-foreground/15 px-3"
                   >
-                    <span className="w-5 shrink-0 text-xs tabular-nums text-muted-foreground">
+                    <span className="w-4 shrink-0 text-xs tabular-nums text-muted-foreground">
                       {index + 1}
                     </span>
                     <span className="min-w-0 flex-1 truncate text-sm">{item.name}</span>
-                    <button
-                      type="button"
-                      disabled={index === 0}
-                      onClick={() =>
-                        setSelected((items) => {
-                          const next = [...items];
-                          [next[index - 1], next[index]] = [next[index], next[index - 1]];
-                          return next;
-                        })
-                      }
-                      className="press rounded-lg p-2 disabled:opacity-25"
-                      aria-label={`Move ${item.name} up`}
-                    >
-                      <ArrowUp className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      disabled={index === selected.length - 1}
-                      onClick={() =>
-                        setSelected((items) => {
-                          const next = [...items];
-                          [next[index + 1], next[index]] = [next[index], next[index + 1]];
-                          return next;
-                        })
-                      }
-                      className="press rounded-lg p-2 disabled:opacity-25"
-                      aria-label={`Move ${item.name} down`}
-                    >
-                      <ArrowDown className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setSelected((items) =>
-                          items.filter((candidate) => candidate.id !== item.id),
-                        )
-                      }
-                      className="press rounded-lg p-2 text-destructive"
-                      aria-label={`Remove ${item.name}`}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    <span className="flex items-center opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100">
+                      <button
+                        type="button"
+                        disabled={index === 0}
+                        onClick={() =>
+                          setSelected((items) => {
+                            const next = [...items];
+                            [next[index - 1], next[index]] = [next[index], next[index - 1]];
+                            return next;
+                          })
+                        }
+                        className="rounded-full p-1.5 text-muted-foreground hover:text-foreground disabled:opacity-25"
+                        aria-label={`Move ${item.name} up`}
+                      >
+                        <ArrowUp className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={index === selected.length - 1}
+                        onClick={() =>
+                          setSelected((items) => {
+                            const next = [...items];
+                            [next[index + 1], next[index]] = [next[index], next[index + 1]];
+                            return next;
+                          })
+                        }
+                        className="rounded-full p-1.5 text-muted-foreground hover:text-foreground disabled:opacity-25"
+                        aria-label={`Move ${item.name} down`}
+                      >
+                        <ArrowDown className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSelected((items) =>
+                            items.filter((candidate) => candidate.id !== item.id),
+                          )
+                        }
+                        className="rounded-full p-1.5 text-muted-foreground hover:text-foreground"
+                        aria-label={`Remove ${item.name}`}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </span>
                   </li>
                 ))}
               </ol>
             )}
 
-            <div className="mt-5">
-              <div className="mb-3 rounded-2xl bg-foreground/[0.05] px-4 py-5 text-center">
-                <span className="block text-4xl font-semibold tabular-nums tracking-tight">
-                  {duration}
-                </span>
-                <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                  minutes
-                </span>
-              </div>
-              <div className="grid grid-cols-4 gap-2">
+            <div className="mt-6">
+              <p className="text-sm text-muted-foreground">How long?</p>
+              <div className="mt-2 grid grid-cols-4 gap-2">
                 {PRESETS.map((minutes) => (
-                  <Button
+                  <button
                     key={minutes}
                     type="button"
-                    variant={duration === minutes ? "default" : "outline"}
-                    size="sm"
                     onClick={() => setDuration(minutes)}
+                    aria-pressed={duration === minutes}
+                    className={cn(
+                      "min-h-9 rounded-lg border text-sm tabular-nums transition-colors",
+                      duration === minutes
+                        ? "border-foreground/60 text-foreground"
+                        : "border-foreground/15 text-muted-foreground hover:border-foreground/30 hover:text-foreground",
+                    )}
                   >
                     {minutes}m
-                  </Button>
+                  </button>
                 ))}
               </div>
               <label className="mt-3 flex items-center justify-between gap-3 text-sm">
-                <span className="text-muted-foreground">Custom length</span>
+                <span className="text-muted-foreground">Custom (minutes)</span>
                 <Input
                   type="number"
                   min={1}
                   max={480}
                   value={duration}
                   onChange={(event) => setDuration(Number(event.target.value))}
-                  className="w-24"
+                  className="h-9 w-20 text-center"
                   aria-label="Custom session minutes"
                 />
               </label>
             </div>
-            <Button
-              className="mt-5 min-h-12 w-full disabled:bg-foreground/10 disabled:text-muted-foreground disabled:opacity-100"
-              size="lg"
+
+            <button
+              type="button"
+              className={cn(pillButton, "mt-6 w-full")}
               disabled={!selected.length || !Number.isFinite(duration) || duration < 1}
               onClick={start}
             >
-              <TimerReset /> Start session
-            </Button>
-          </GlassCard>
-        </div>
+              Start {Number.isFinite(duration) && duration >= 1 ? `${Math.round(duration)} min` : ""}{" "}
+              session
+            </button>
+          </div>
+        </aside>
       </div>
     </div>
   );
