@@ -46,18 +46,47 @@ struct NativeSession: Codable, Equatable {
 private enum SecureSessionStore {
     static let service = "app.canvaspro.mobile"
     static let account = "supabase-session"
+    #if targetEnvironment(simulator)
+    // Unsigned hosted simulators cannot always access Keychain. Keep a real,
+    // authenticated session in memory only; never put tokens in UserDefaults.
+    private static var previewSession: NativeSession?
+    #endif
 
     static func save(_ session: NativeSession) throws {
         let data = try JSONEncoder().encode(session)
-        SecItemDelete(query() as CFDictionary)
-        var item = query()
-        item[kSecValueData as String] = data
-        item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-        let status = SecItemAdd(item as CFDictionary, nil)
-        guard status == errSecSuccess else { throw NativeAppError.server("Could not securely save your session.") }
+        let attributes: [String: Any] = [
+            kSecValueData as String: data,
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
+        ]
+        var status = SecItemUpdate(query() as CFDictionary, attributes as CFDictionary)
+        if status == errSecSuccess {
+            #if targetEnvironment(simulator)
+            previewSession = nil
+            #endif
+            return
+        }
+        if status == errSecItemNotFound {
+            var item = query()
+            attributes.forEach { item[$0.key] = $0.value }
+            status = SecItemAdd(item as CFDictionary, nil)
+        }
+        guard status == errSecSuccess else {
+            #if targetEnvironment(simulator)
+            previewSession = session
+            return
+            #else
+            throw NativeAppError.server("Your credentials were accepted, but this device could not securely save your session (\(status)). Please try again.")
+            #endif
+        }
+        #if targetEnvironment(simulator)
+        previewSession = nil
+        #endif
     }
 
     static func load() -> NativeSession? {
+        #if targetEnvironment(simulator)
+        if let previewSession { return previewSession }
+        #endif
         var item = query()
         item[kSecReturnData as String] = true
         item[kSecMatchLimit as String] = kSecMatchLimitOne
@@ -67,7 +96,12 @@ private enum SecureSessionStore {
         return try? JSONDecoder().decode(NativeSession.self, from: data)
     }
 
-    static func clear() { SecItemDelete(query() as CFDictionary) }
+    static func clear() {
+        #if targetEnvironment(simulator)
+        previewSession = nil
+        #endif
+        SecItemDelete(query() as CFDictionary)
+    }
 
     private static func query() -> [String: Any] {
         [
@@ -494,10 +528,24 @@ final class NativeAPI {
     }
 
     func data(_ request: URLRequest) async throws -> Data {
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await URLSession.shared.data(for: request)
+        } catch let error as URLError {
+            switch error.code {
+            case .notConnectedToInternet, .networkConnectionLost:
+                throw NativeAppError.server("Your connection was interrupted. Check your internet connection and try again.")
+            case .timedOut:
+                throw NativeAppError.server("CanvasPro took too long to respond. Please try again.")
+            case .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed:
+                throw NativeAppError.server("Could not reach CanvasPro. Please try again in a moment.")
+            default: throw error
+            }
+        }
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
             let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-            let message = object?["msg"] as? String ?? object?["error_description"] as? String ?? object?["error"] as? String ?? "The server rejected this request."
+            let message = object?["msg"] as? String ?? object?["error_description"] as? String ?? object?["message"] as? String ?? object?["error"] as? String ?? "The server rejected this request."
             throw NativeAppError.server(message)
         }
         return data
@@ -525,6 +573,8 @@ final class NativeSessionStore: ObservableObject {
     @Published var errorMessage: String?
     let api: NativeAPI?
     let configurationError: String?
+    private var refreshTask: Task<NativeSession, Error>?
+    private var refreshingToken: String?
 
     init() {
         do {
@@ -540,24 +590,26 @@ final class NativeSessionStore: ObservableObject {
     }
 
     func signIn(email: String, password: String) async {
-        guard let api else { return }
+        guard !isWorking else { return }
+        guard let api else { errorMessage = configurationError; return }
         isWorking = true
         errorMessage = nil
         defer { isWorking = false }
         do {
-            let newSession = try await api.signIn(email: email, password: password)
+            let newSession = try await api.signIn(email: email.trimmingCharacters(in: .whitespacesAndNewlines), password: password)
             try SecureSessionStore.save(newSession)
             session = newSession
         } catch { errorMessage = error.localizedDescription }
     }
 
     func signUp(email: String, password: String, metadata: [String: Any]) async -> Bool {
-        guard let api else { return false }
+        guard !isWorking else { return false }
+        guard let api else { errorMessage = configurationError; return false }
         isWorking = true
         errorMessage = nil
         defer { isWorking = false }
         do {
-            try await api.signUp(email: email, password: password, metadata: metadata)
+            try await api.signUp(email: email.trimmingCharacters(in: .whitespacesAndNewlines), password: password, metadata: metadata)
             return true
         } catch {
             errorMessage = error.localizedDescription
@@ -566,12 +618,13 @@ final class NativeSessionStore: ObservableObject {
     }
 
     func sendPasswordReset(email: String) async -> Bool {
-        guard let api else { return false }
+        guard !isWorking else { return false }
+        guard let api else { errorMessage = configurationError; return false }
         isWorking = true
         errorMessage = nil
         defer { isWorking = false }
         do {
-            try await api.sendPasswordReset(email: email)
+            try await api.sendPasswordReset(email: email.trimmingCharacters(in: .whitespacesAndNewlines))
             return true
         } catch {
             errorMessage = error.localizedDescription
@@ -580,13 +633,30 @@ final class NativeSessionStore: ObservableObject {
     }
 
     func accessToken() async throws -> String {
-        guard let api, var current = session else { throw NativeAppError.signedOut }
-        if current.expiresAt.timeIntervalSinceNow < 90 {
-            current = try await api.refresh(current.refreshToken)
-            try SecureSessionStore.save(current)
-            session = current
+        guard let api, let current = session else { throw NativeAppError.signedOut }
+        guard current.expiresAt.timeIntervalSinceNow < 90 else { return current.accessToken }
+        // Content and preferences load concurrently; share one token refresh
+        // rather than rotating the same refresh token in separate requests.
+        let originalToken = current.refreshToken
+        let task: Task<NativeSession, Error>
+        if let existing = refreshTask, refreshingToken == originalToken {
+            task = existing
+        } else {
+            task = Task { try await api.refresh(originalToken) }
+            refreshTask = task
+            refreshingToken = originalToken
         }
-        return current.accessToken
+        defer {
+            if refreshingToken == originalToken { refreshTask = nil; refreshingToken = nil }
+        }
+        let refreshed = try await task.value
+        guard let active = session, active.user.id == current.user.id else { throw NativeAppError.signedOut }
+        // Another waiter may already have saved the result. An account change
+        // must never let a delayed refresh overwrite the new session.
+        guard active.refreshToken == originalToken else { return active.accessToken }
+        try SecureSessionStore.save(refreshed)
+        session = refreshed
+        return refreshed.accessToken
     }
 
     func signOut() async {
@@ -617,6 +687,9 @@ final class NativeSessionStore: ObservableObject {
     }
 
     private func clearLocalSession() {
+        refreshTask?.cancel()
+        refreshTask = nil
+        refreshingToken = nil
         let previousUserID = session?.user.id
         UIApplication.shared.unregisterForRemoteNotifications()
         if let previousUserID {

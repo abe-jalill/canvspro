@@ -6,17 +6,10 @@ struct NativeRootView: View {
     @StateObject private var sessionStore = NativeSessionStore()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showingLaunch = true
-    @State private var launchHasDismissed = false
-    @State private var readyUserID: String?
-    @State private var transitionUserID: String?
-    @State private var hasCompletedLaunch = false
     @AppStorage("CanvasProColorScheme") private var colorScheme = "dark"
     @AppStorage("CanvasProPalette") private var palette = "forest"
 
     private var userID: String? { sessionStore.session?.user.id }
-    // Cover a newly mounted account immediately, before its transition task starts.
-    private var handoffPending: Bool { userID != nil && userID != transitionUserID }
-    private var contentIsInteractive: Bool { launchHasDismissed && !handoffPending }
 
     var body: some View {
         ZStack {
@@ -24,63 +17,37 @@ struct NativeRootView: View {
                 if sessionStore.session != nil {
                     NativeMainTabView(sessionStore: sessionStore)
                         .id(userID)
+                        .transition(.opacity)
                 } else {
                     NativeAuthView(sessionStore: sessionStore)
+                        .transition(.opacity)
                 }
             }
-            .opacity(showingLaunch || handoffPending ? 0 : 1)
-            .allowsHitTesting(contentIsInteractive)
-            .accessibilityHidden(!contentIsInteractive)
-            .environment(\.nativeLaunchIsVisible, !contentIsInteractive)
-            .onPreferenceChange(NativeStartupReadyKey.self) { readyUserID = $0 }
-            if showingLaunch || handoffPending {
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.24), value: userID)
+            .allowsHitTesting(!showingLaunch)
+            .accessibilityHidden(showingLaunch)
+            .environment(\.nativeLaunchIsVisible, showingLaunch)
+            if showingLaunch {
                 NativeLaunchView().transition(.opacity).zIndex(1)
             }
         }
-        .task(id: userID) {
-            let destinationUserID = userID
-            let isColdLaunch = !hasCompletedLaunch
-            transitionUserID = destinationUserID
-            // Signing out should return directly to authentication, not replay launch.
-            guard isColdLaunch || destinationUserID != nil else {
-                showingLaunch = false
-                launchHasDismissed = true
-                return
-            }
-            showingLaunch = true
-            launchHasDismissed = false
+        .task {
             do {
-                // Cold launch keeps its 3–5s branding. Login uses a shorter handoff;
-                // Reduce Motion avoids holding a static logo unnecessarily.
-                try await Task.sleep(for: .milliseconds(isColdLaunch ? 3000 : reduceMotion ? 150 : 900))
-                // Content and preferences fetch behind the overlay. Cap the wait so
-                // slow/offline requests reveal the existing loading/error UI.
-                for _ in 0..<(isColdLaunch ? 15 : 26) {
-                    if destinationUserID == nil || readyUserID == destinationUserID { break }
-                    try await Task.sleep(for: .milliseconds(100))
-                }
-                guard !Task.isCancelled, userID == destinationUserID else { return }
-                withAnimation(.easeOut(duration: reduceMotion ? 0.15 : 0.45)) {
+                // Branding plays once. Network loading belongs to the destination
+                // screen, so login and offline startup never wait behind a logo.
+                try await Task.sleep(for: .milliseconds(reduceMotion ? 100 : 750))
+                guard !Task.isCancelled else { return }
+                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.24)) {
                     showingLaunch = false
-                } completion: {
-                    guard userID == destinationUserID, !showingLaunch else { return }
-                    launchHasDismissed = true
-                    hasCompletedLaunch = true
                 }
-            } catch { /* Account changes cancel the previous handoff. */ }
+            } catch { /* View removal cancels launch. */ }
         }
         .font(.system(size: 13, weight: .regular))
         .fontDesign(.rounded)
-        .fontWeight(.regular)
         .tint(CPTheme.primary(CPPalette(rawValue: palette) ?? .forest, scheme: colorScheme == "dark" ? .dark : colorScheme == "light" ? .light : UITraitCollection.current.userInterfaceStyle == .dark ? .dark : .light))
         .preferredColorScheme(colorScheme == "dark" ? .dark : colorScheme == "light" ? .light : nil)
         .background(CPTheme.background(colorScheme == "dark" ? .dark : colorScheme == "light" ? .light : UITraitCollection.current.userInterfaceStyle == .dark ? .dark : .light).ignoresSafeArea())
     }
-}
-
-private struct NativeStartupReadyKey: PreferenceKey {
-    static var defaultValue: String? { nil }
-    static func reduce(value: inout String?, nextValue: () -> String?) { value = nextValue() ?? value }
 }
 
 private struct NativeLaunchVisibilityKey: EnvironmentKey {
@@ -98,7 +65,6 @@ private extension EnvironmentValues {
 private struct NativeLaunchView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var appeared = false
-    @State private var swept = false
     private let heights: [CGFloat] = [44, 96, 70]
 
     var body: some View {
@@ -109,7 +75,7 @@ private struct NativeLaunchView: View {
                 .frame(width: 280, height: 280)
                 .scaleEffect(reduceMotion ? 1 : appeared ? 1 : 0.7)
                 .opacity(appeared ? 1 : 0)
-                .animation(reduceMotion ? nil : .easeOut(duration: 1.8), value: appeared)
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.6), value: appeared)
             VStack(spacing: 26) {
                 HStack(alignment: .bottom, spacing: 13) {
                     ForEach(0..<3, id: \.self) { index in
@@ -119,27 +85,17 @@ private struct NativeLaunchView: View {
                             .scaleEffect(x: 1, y: reduceMotion || appeared ? 1 : 0.25, anchor: .bottom)
                             .offset(y: reduceMotion || appeared ? 0 : 16)
                             .opacity(reduceMotion || appeared ? 1 : 0)
-                            .animation(reduceMotion ? nil : .spring(duration: 0.85, bounce: 0.12).delay(Double(index) * 0.13), value: appeared)
+                            .animation(reduceMotion ? nil : .spring(duration: 0.48, bounce: 0.06).delay(Double(index) * 0.06), value: appeared)
                     }
                 }
                 .rotationEffect(.degrees(-16))
                 .frame(width: 140, height: 112)
-                .overlay {
-                    if !reduceMotion {
-                        LinearGradient(colors: [.clear, .white.opacity(0.5), .clear], startPoint: .leading, endPoint: .trailing)
-                            .frame(width: 35, height: 140)
-                            .rotationEffect(.degrees(18))
-                            .offset(x: swept ? 125 : -125)
-                            .blendMode(.softLight)
-                            .animation(.easeInOut(duration: 1.5).delay(0.8), value: swept)
-                    }
-                }
                 .clipped()
                 Text("CanvasPro")
                     .font(.system(size: 28, weight: .medium, design: .rounded))
                     .foregroundStyle(.white)
                     .opacity(reduceMotion || appeared ? 1 : 0)
-                    .animation(reduceMotion ? nil : .easeOut(duration: 0.6).delay(0.35), value: appeared)
+                    .animation(reduceMotion ? nil : .easeOut(duration: 0.3).delay(0.14), value: appeared)
             }
         }
         .overlay(alignment: .bottom) {
@@ -151,13 +107,17 @@ private struct NativeLaunchView: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("CanvasPro. Loading.")
-        .task { appeared = true; swept = true }
+        .task { appeared = true }
     }
 }
 
 private struct NativeAuthView: View {
-    enum Mode: String, CaseIterable { case signIn = "Sign In", signUp = "Create Account" }
+    enum Mode: Equatable { case signIn, signUp }
+    private enum Field: Hashable { case firstName, lastName, email, password }
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.dynamicTypeSize) private var typeSize
     @ObservedObject var sessionStore: NativeSessionStore
+    @FocusState private var focusedField: Field?
     @State private var mode: Mode = .signIn
     @State private var email = ""
     @State private var password = ""
@@ -170,49 +130,173 @@ private struct NativeAuthView: View {
     @State private var notice: String?
     @State private var showReset = false
 
+    private var canSubmit: Bool {
+        !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !password.isEmpty && !sessionStore.isWorking && sessionStore.api != nil &&
+        (mode == .signIn || (password.count >= 6 &&
+            !firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+            !lastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && ageConfirmed && legalAccepted))
+    }
+
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    VStack(spacing: 12) {
-                        Image(systemName: "graduationcap.fill").font(.system(size: 48)).foregroundStyle(Color.accentColor)
-                        Text("CanvasPro").font(.title.weight(.regular))
-                        Text("Your coursework, organized natively on iPhone.").foregroundStyle(.secondary).multilineTextAlignment(.center)
-                    }.frame(maxWidth: .infinity).listRowBackground(Color.clear)
-                }
-                Section { Picker("Account", selection: $mode) { ForEach(Mode.allCases, id: \.self) { Text($0.rawValue) } }.pickerStyle(.segmented) }
-                Section(mode.rawValue) {
-                    if mode == .signUp {
-                        TextField("First name", text: $firstName).textContentType(.givenName)
-                        TextField("Last name", text: $lastName).textContentType(.familyName)
+            ZStack {
+                CPBackdrop()
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 28) {
+                        NativeAuthBrand()
+                        header
+                        VStack(alignment: .leading, spacing: 20) {
+                            fields
+                            if mode == .signIn {
+                                Button("Forgot password?") {
+                                    focusedField = nil
+                                    sessionStore.errorMessage = nil
+                                    showReset = true
+                                }
+                                .font(.subheadline.weight(.medium))
+                                .frame(maxWidth: .infinity, minHeight: 44, alignment: .trailing)
+                                .disabled(sessionStore.isWorking)
+                            } else {
+                                signupDetails
+                            }
+                            if let notice { NativeAuthMessage(text: notice, isError: false) }
+                            if let error = sessionStore.errorMessage ?? sessionStore.configurationError {
+                                NativeAuthMessage(text: error, isError: true)
+                            }
+                            Button(action: submit) {
+                                NativeAuthActionLabel(title: mode == .signIn ? "Sign in" : "Create account", isWorking: sessionStore.isWorking)
+                            }
+                            .buttonStyle(CPPressStyle())
+                            .disabled(!canSubmit)
+                        }
+                        .padding(22)
+                        .background(CPTheme.glass(scheme, strong: true), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous).stroke(CPTheme.border(scheme)))
+                        accountSwitch
+                        legalLinks
                     }
-                    TextField("Email", text: $email).textContentType(.emailAddress).textInputAutocapitalization(.never).keyboardType(.emailAddress)
-                    SecureField("Password", text: $password).textContentType(mode == .signIn ? .password : .newPassword)
-                    if mode == .signUp {
-                        TextField("Major (optional)", text: $major)
-                        TextField("Class of (optional)", text: $classOf)
-                        Toggle("I confirm that I am at least 13 years old", isOn: $ageConfirmed)
-                        Toggle("I accept the Privacy Policy and Terms", isOn: $legalAccepted)
-                    }
-                    Button { submit() } label: { HStack { Spacer(); if sessionStore.isWorking { ProgressView() } else { Text(mode.rawValue).fontWeight(.regular) }; Spacer() } }
-                        .disabled(email.isEmpty || password.count < 6 || sessionStore.isWorking || (mode == .signUp && (firstName.trimmingCharacters(in: .whitespaces).isEmpty || lastName.trimmingCharacters(in: .whitespaces).isEmpty || !ageConfirmed || !legalAccepted)))
-                    if mode == .signIn { Button("Forgot password?") { showReset = true } }
+                    .frame(maxWidth: 460)
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 22)
+                    .padding(.top, 28)
+                    .padding(.bottom, 32)
                 }
-                if let notice { Section { Text(notice).foregroundStyle(.secondary) } }
-                if let error = sessionStore.errorMessage { Section { Text(error).foregroundStyle(.red) } }
-                if let error = sessionStore.configurationError { Section { Text(error).foregroundStyle(.red) } }
-                Section("Legal") {
-                    NavigationLink("Privacy Policy") { NativeLegalView(title: "Privacy Policy") }
-                    NavigationLink("Terms of Service") { NativeLegalView(title: "Terms of Service") }
-                }
+                .scrollDismissesKeyboard(.interactively)
             }
-            .cpListScreen()
-            .cpNavigationTitle("Welcome")
+            .foregroundStyle(CPTheme.foreground(scheme))
+            .toolbar(.hidden, for: .navigationBar)
+            .onChange(of: mode) { _, _ in sessionStore.errorMessage = nil }
             .sheet(isPresented: $showReset) { PasswordResetSheet(sessionStore: sessionStore, email: email) }
         }
     }
 
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(mode == .signIn ? "Welcome back." : "Make room for\nwhat matters.")
+                .font(.largeTitle.weight(.semibold)).tracking(-1.1)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityAddTraits(.isHeader)
+            Text(mode == .signIn ? "A little less chaos. A little more clarity." : "Your classes, deadlines, and study time. Together.")
+                .font(.body).foregroundStyle(CPTheme.muted(scheme))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var fields: some View {
+        VStack(spacing: 18) {
+            if mode == .signUp {
+                if typeSize.isAccessibilitySize {
+                    firstNameField
+                    lastNameField
+                } else {
+                    HStack(alignment: .top, spacing: 12) { firstNameField; lastNameField }
+                }
+            }
+            NativeAuthField(title: "Email", symbol: "envelope") {
+                TextField("you@example.com", text: $email)
+                    .textContentType(.username).keyboardType(.emailAddress)
+                    .textInputAutocapitalization(.never).autocorrectionDisabled()
+                    .focused($focusedField, equals: .email).submitLabel(.next)
+                    .onSubmit { focusedField = .password }
+                    .accessibilityLabel("Email")
+            }
+            NativeAuthField(title: "Password", symbol: "lock") {
+                SecureField(mode == .signIn ? "Enter your password" : "At least 6 characters", text: $password)
+                    .textContentType(mode == .signIn ? .password : .newPassword)
+                    .focused($focusedField, equals: .password).submitLabel(.go)
+                    .onSubmit { submit() }.accessibilityLabel("Password")
+            }
+        }
+        .disabled(sessionStore.isWorking)
+    }
+
+    private var firstNameField: some View {
+        NativeAuthField(title: "First name", symbol: nil) {
+            TextField("First name", text: $firstName).textContentType(.givenName)
+                .focused($focusedField, equals: .firstName).submitLabel(.next)
+                .onSubmit { focusedField = .lastName }.accessibilityLabel("First name")
+        }
+    }
+
+    private var lastNameField: some View {
+        NativeAuthField(title: "Last name", symbol: nil) {
+            TextField("Last name", text: $lastName).textContentType(.familyName)
+                .focused($focusedField, equals: .lastName).submitLabel(.next)
+                .onSubmit { focusedField = .email }.accessibilityLabel("Last name")
+        }
+    }
+
+    private var signupDetails: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            DisclosureGroup {
+                VStack(spacing: 14) {
+                    NativeAuthField(title: "Major", symbol: nil) { TextField("Your major", text: $major) }
+                    NativeAuthField(title: "Class of", symbol: nil) {
+                        TextField("Graduation year", text: $classOf).keyboardType(.numberPad)
+                    }
+                }.padding(.top, 14)
+            } label: {
+                Text("School details · optional").font(.subheadline)
+            }
+            NativeAuthConsent(title: "I am at least 13 years old", isOn: $ageConfirmed)
+            NativeAuthConsent(title: "I agree to the Terms of Service and Privacy Policy", isOn: $legalAccepted)
+            HStack(spacing: 16) {
+                NavigationLink("Terms") { NativeLegalView(title: "Terms of Service") }
+                NavigationLink("Privacy") { NativeLegalView(title: "Privacy Policy") }
+            }.font(.footnote).frame(minHeight: 44)
+        }
+        .disabled(sessionStore.isWorking)
+    }
+
+    private var accountSwitch: some View {
+        VStack(spacing: 2) {
+            Text(mode == .signIn ? "New to CanvasPro?" : "Already have an account?")
+                .font(.subheadline).foregroundStyle(CPTheme.muted(scheme))
+            Button(mode == .signIn ? "Create an account" : "Sign in instead") {
+                focusedField = nil
+                notice = nil
+                password = ""
+                mode = mode == .signIn ? .signUp : .signIn
+            }
+            .font(.body.weight(.semibold)).frame(minHeight: 44)
+            .buttonStyle(CPPressStyle()).disabled(sessionStore.isWorking)
+        }.frame(maxWidth: .infinity)
+    }
+
+    private var legalLinks: some View {
+        HStack(spacing: 20) {
+            NavigationLink("Privacy Policy") { NativeLegalView(title: "Privacy Policy") }
+            NavigationLink("Terms of Service") { NativeLegalView(title: "Terms of Service") }
+        }
+        .font(.footnote).foregroundStyle(CPTheme.muted(scheme))
+        .frame(maxWidth: .infinity, minHeight: 44)
+    }
+
     private func submit() {
+        guard canSubmit else { return }
+        focusedField = nil
+        notice = nil
         Task {
             if mode == .signIn { await sessionStore.signIn(email: email, password: password) }
             else {
@@ -227,32 +311,159 @@ private struct NativeAuthView: View {
                     "terms_accepted_version": "2026-09-28", "privacy_accepted_version": "2026-09-28", "legal_accepted_at": now,
                 ]
                 if await sessionStore.signUp(email: email, password: password, metadata: metadata) {
-                notice = "Check your email to verify your account, then sign in."
-                mode = .signIn
+                    notice = "Check your email to verify your account, then sign in."
+                    password = ""
+                    mode = .signIn
                 }
             }
         }
     }
 }
 
+private struct NativeAuthBrand: View {
+    @Environment(\.colorScheme) private var scheme
+    private let heights: [CGFloat] = [13, 28, 21]
+    var body: some View {
+        HStack(spacing: 12) {
+            HStack(alignment: .bottom, spacing: 4) {
+                ForEach(0..<3, id: \.self) { index in
+                    RoundedRectangle(cornerRadius: 3).frame(width: 7, height: heights[index])
+                }
+            }
+            .rotationEffect(.degrees(-16)).foregroundStyle(CPTheme.primary(scheme: scheme))
+            .frame(width: 44, height: 44)
+            .background(CPTheme.primary(scheme: scheme).opacity(0.1), in: RoundedRectangle(cornerRadius: 14))
+            .accessibilityHidden(true)
+            Text("CanvasPro").font(.headline.weight(.semibold)).tracking(-0.3)
+        }.padding(.bottom, 8)
+    }
+}
+
+private struct NativeAuthField<Content: View>: View {
+    @Environment(\.colorScheme) private var scheme
+    let title: String
+    let symbol: String?
+    let content: Content
+    init(title: String, symbol: String?, @ViewBuilder content: () -> Content) {
+        self.title = title; self.symbol = symbol; self.content = content()
+    }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title).font(.subheadline.weight(.medium)).accessibilityHidden(true)
+            HStack(spacing: 12) {
+                if let symbol {
+                    Image(systemName: symbol).foregroundStyle(CPTheme.muted(scheme)).accessibilityHidden(true)
+                }
+                content.font(.body).frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.horizontal, 15).padding(.vertical, 16)
+            .frame(minHeight: 56)
+            .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 15, style: .continuous).stroke(CPTheme.insetBorder(scheme)))
+        }
+    }
+}
+
+private struct NativeAuthActionLabel: View {
+    @Environment(\.colorScheme) private var scheme
+    let title: String
+    let isWorking: Bool
+    var body: some View {
+        HStack(spacing: 10) {
+            if isWorking { ProgressView().tint(CPTheme.background(scheme)) }
+            Text(isWorking ? "Please wait…" : title).font(.body.weight(.semibold))
+            if !isWorking { Image(systemName: "arrow.right").font(.subheadline.weight(.semibold)) }
+        }
+        .frame(maxWidth: .infinity, minHeight: 56)
+        .foregroundStyle(CPTheme.background(scheme))
+        .background(CPTheme.primary(scheme: scheme), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
+    }
+}
+
+private struct NativeAuthConsent: View {
+    @Environment(\.colorScheme) private var scheme
+    let title: String
+    @Binding var isOn: Bool
+    var body: some View {
+        Button { isOn.toggle() } label: {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: isOn ? "checkmark.square.fill" : "square")
+                    .font(.title3).foregroundStyle(CPTheme.primary(scheme: scheme))
+                Text(title).font(.footnote).foregroundStyle(CPTheme.foreground(scheme))
+                    .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+            }.frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        }
+        .buttonStyle(CPPressStyle())
+        .accessibilityLabel(title).accessibilityValue(isOn ? "Selected" : "Not selected")
+        .accessibilityAddTraits(isOn ? .isSelected : [])
+    }
+}
+
+private struct NativeAuthMessage: View {
+    @Environment(\.colorScheme) private var scheme
+    let text: String
+    let isError: Bool
+    var body: some View {
+        Label(text, systemImage: isError ? "exclamationmark.circle" : "checkmark.circle")
+            .font(.subheadline).fixedSize(horizontal: false, vertical: true)
+            .foregroundStyle(isError ? CPTheme.danger : CPTheme.primary(scheme: scheme))
+            .padding(14).frame(maxWidth: .infinity, alignment: .leading)
+            .background((isError ? CPTheme.danger : CPTheme.primary(scheme: scheme)).opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
+    }
+}
+
 private struct PasswordResetSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var scheme
     @ObservedObject var sessionStore: NativeSessionStore
+    @FocusState private var emailFocused: Bool
     @State var email: String
     @State private var sent = false
+    private var canSend: Bool {
+        !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !sessionStore.isWorking && sessionStore.api != nil && !sent
+    }
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Reset password") { TextField("Email", text: $email).textInputAutocapitalization(.never).keyboardType(.emailAddress) }
-                if sent { Section { Text("Password reset email sent.").foregroundStyle(.green) } }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    NativeAuthBrand()
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("A fresh start.").font(.largeTitle.weight(.semibold)).tracking(-1)
+                        Text("Enter your account email and we’ll send you a password reset link.")
+                            .font(.body).foregroundStyle(CPTheme.muted(scheme))
+                    }
+                    NativeAuthField(title: "Email", symbol: "envelope") {
+                        TextField("you@example.com", text: $email).textContentType(.emailAddress)
+                            .textInputAutocapitalization(.never).autocorrectionDisabled().keyboardType(.emailAddress)
+                            .focused($emailFocused).submitLabel(.send).onSubmit { send() }
+                    }.disabled(sessionStore.isWorking || sent)
+                    if sent { NativeAuthMessage(text: "Check your inbox for your reset link.", isError: false) }
+                    if let error = sessionStore.errorMessage ?? sessionStore.configurationError {
+                        NativeAuthMessage(text: error, isError: true)
+                    }
+                    Button(action: send) { NativeAuthActionLabel(title: "Send reset link", isWorking: sessionStore.isWorking) }
+                        .buttonStyle(CPPressStyle()).disabled(!canSend)
+                }
+                .frame(maxWidth: 460).frame(maxWidth: .infinity).padding(24)
             }
-            .cpListScreen()
-            .cpNavigationTitle("Forgot Password")
+            .scrollDismissesKeyboard(.interactively)
+            .background(CPBackdrop())
+            .foregroundStyle(CPTheme.foreground(scheme))
+            .cpNavigationTitle("Reset password").navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) { Button("Send") { Task { sent = await sessionStore.sendPasswordReset(email: email) } }.disabled(email.isEmpty) }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close") { sessionStore.errorMessage = nil; dismiss() }.disabled(sessionStore.isWorking)
+                }
             }
         }
+        .interactiveDismissDisabled(sessionStore.isWorking)
+    }
+    private func send() {
+        guard canSend else { return }
+        emailFocused = false
+        Task { sent = await sessionStore.sendPasswordReset(email: email) }
     }
 }
 
@@ -270,7 +481,6 @@ struct NativeMainTabView: View {
     @StateObject private var featureStore: NativeFeatureStore
     @State private var selection: NativeTab = .today
     @State private var todaySection = "Dashboard"
-    @State private var initialLoadFinished = false
     @State private var studyRequest: AssignmentItem?
 
     init(sessionStore: NativeSessionStore) {
@@ -282,7 +492,6 @@ struct NativeMainTabView: View {
     var body: some View {
         nativeTabs
             .task { await refreshAccountData() }
-            .preference(key: NativeStartupReadyKey.self, value: initialLoadFinished ? sessionStore.session?.user.id : nil)
             .onReceive(NotificationCenter.default.publisher(for: .nativeStudyAssignment)) { note in
                 guard let item = note.object as? AssignmentItem else { return }
                 studyRequest = item
@@ -328,7 +537,6 @@ struct NativeMainTabView: View {
         async let content: Void = contentStore.load()
         async let features: Void = featureStore.load()
         _ = await (content, features)
-        if !contentStore.isLoading && !featureStore.isLoading { initialLoadFinished = true }
         let settings = await UNUserNotificationCenter.current().notificationSettings()
         if featureStore.notificationPreferences.enabled && featureStore.notificationPreferences.browserPush &&
             (settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional) {
@@ -356,7 +564,6 @@ struct NativeMainTabView: View {
             NavigationStack { NativeAssignmentsView(store: contentStore, features: featureStore) }.tabItem { Label("Assignments", systemImage: "checklist") }.tag(NativeTab.assignments)
             NativeMoreView(store: contentStore, features: featureStore, sessionStore: sessionStore).tabItem { Label("More", systemImage: "square.grid.2x2") }.tag(NativeTab.more)
         }
-        .tabBarMinimizeBehavior(.onScrollDown)
         .sensoryFeedback(.selection, trigger: selection)
     }
 }
@@ -380,7 +587,6 @@ private struct NativeTodayView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             NativeSectionPicker(selection: $section, options: ["Dashboard", "Coming Up", "Get It Done"], label: "Today sections")
         }
-        .cpStateChange(section)
     }
 }
 
@@ -993,7 +1199,6 @@ struct NativeAssignmentsView: View {
                         }
                         }
                     }.padding(.horizontal, 15).padding(.vertical, 10).padding(.bottom, 24)
-                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: assignments.map(\.id))
                 }
         }
         .cpStateChange(store.isLoading && store.bundle.assignments.isEmpty)

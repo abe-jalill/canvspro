@@ -2,30 +2,42 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-// Source guards only: visual timing and SwiftUI lifecycle need a simulator/device.
+// Lifecycle and frame pacing still require the iOS simulator/device.
 const source = readFileSync(new URL("../ios/App/App/NativeViews.swift", import.meta.url), "utf8");
-const root = source.slice(0, source.indexOf("private struct NativeStartupReadyKey"));
+const root = source.slice(0, source.indexOf("private struct NativeLaunchVisibilityKey"));
 
-test("login handoff is keyed to account identity, not refreshed tokens", () => {
+test("login crossfade follows account identity without replaying launch on token updates", () => {
   assert.match(root, /private var userID: String\? \{ sessionStore\.session\?\.user\.id \}/);
-  assert.match(root, /\.task\(id: userID\)/);
   assert.match(root, /NativeMainTabView\(sessionStore: sessionStore\)\s+\.id\(userID\)/);
-  assert.match(root, /guard isColdLaunch \|\| destinationUserID != nil else/);
+  assert.match(root, /\.animation\(reduceMotion \? nil : .*value: userID\)/);
+  assert.doesNotMatch(root, /\.task\(id: userID\)|handoffPending|readyUserID/);
+  assert.equal((root.match(/showingLaunch = true/g) ?? []).length, 1, "Launch is only enabled by initial state");
 });
 
-test("new account content is covered and inaccessible until the handoff ends", () => {
-  assert.match(root, /\.opacity\(showingLaunch \|\| handoffPending \? 0 : 1\)/);
-  assert.match(root, /\.allowsHitTesting\(contentIsInteractive\)/);
-  assert.match(root, /\.accessibilityHidden\(!contentIsInteractive\)/);
-  assert.match(root, /\.environment\(\\.nativeLaunchIsVisible, !contentIsInteractive\)/);
+test("launch blocks input and accessibility only while the overlay is present", () => {
+  assert.match(root, /\.allowsHitTesting\(!showingLaunch\)/);
+  assert.match(root, /\.accessibilityHidden\(showingLaunch\)/);
+  assert.match(root, /\.environment\(\\.nativeLaunchIsVisible, showingLaunch\)/);
+  assert.equal((root.match(/\.transition\(\.opacity\)/g) ?? []).length, 3);
 });
 
-test("readiness is account scoped, bounded, cancellable, and motion aware", () => {
-  assert.match(source, /value: initialLoadFinished \? sessionStore\.session\?\.user\.id : nil/);
-  assert.match(root, /readyUserID == destinationUserID/);
-  assert.match(root, /0\.\.<\(isColdLaunch \? 15 : 26\)/);
-  assert.match(root, /guard !Task\.isCancelled, userID == destinationUserID/);
-  assert.match(root, /guard userID == destinationUserID, !showingLaunch/);
-  assert.match(root, /reduceMotion \? 150 : 900/);
-  assert.match(root, /reduceMotion \? 0\.15 : 0\.45/);
+test("launch is brief, cancellable and independent of remote account loading", () => {
+  const duration = root.match(/Task\.sleep\(for: \.milliseconds\(reduceMotion \? (\d+) : (\d+)\)\)/);
+  assert.ok(duration);
+  assert.ok(Number(duration[1]) <= 150 && Number(duration[2]) <= 1000);
+  assert.equal((root.match(/Task\.sleep/g) ?? []).length, 1);
+  assert.match(root, /guard !Task\.isCancelled/);
+  assert.doesNotMatch(root, /await .*load\(|NativeStartupReadyKey/);
+  assert.match(root, /withAnimation\(reduceMotion \? nil/);
+});
+
+test("section selection and assignment search do not animate whole page containers", () => {
+  const more = readFileSync(new URL("../ios/App/App/NativeMoreViews.swift", import.meta.url), "utf8");
+  const picker = more.slice(more.indexOf("struct NativeSectionPicker"), more.indexOf("struct NativeCalendarHub"));
+  assert.doesNotMatch(picker, /withAnimation/);
+  assert.match(picker, /matchedGeometryEffect/);
+  assert.match(picker, /reduceMotion \? nil/);
+  assert.doesNotMatch(source + more, /\.cpStateChange\(section\)/);
+  assert.doesNotMatch(source, /value: assignments.map\(\\.id\)/);
+  assert.equal((source.match(/\.tabBarMinimizeBehavior/g) ?? []).length, 1);
 });

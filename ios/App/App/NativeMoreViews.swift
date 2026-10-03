@@ -206,6 +206,7 @@ private struct NativeDeleteAccountView: View {
 struct NativeSectionPicker: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Namespace private var selectionAnimation
     @Binding var selection: String
     let options: [String]
     let label: String
@@ -213,16 +214,23 @@ struct NativeSectionPicker: View {
         HStack(spacing: 6) {
             ForEach(options, id: \.self) { option in
                 Button {
-                    withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.18)) { selection = option }
+                    selection = option
                 } label: {
                     Text(option)
                         .font(.system(size: 11, weight: selection == option ? .medium : .regular))
                         .lineLimit(1)
                         .minimumScaleFactor(0.82)
-                        .frame(maxWidth: .infinity, minHeight: 40)
+                        .frame(maxWidth: .infinity, minHeight: 44)
                         .foregroundStyle(selection == option ? CPTheme.foreground(scheme) : CPTheme.muted(scheme))
-                        .background(selection == option ? CPTheme.inset(scheme) : Color.clear, in: RoundedRectangle(cornerRadius: 11))
-                        .overlay(RoundedRectangle(cornerRadius: 11).stroke(selection == option ? CPTheme.primary(scheme: scheme).opacity(0.55) : Color.clear))
+                        .background {
+                            if selection == option {
+                                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                                    .fill(CPTheme.inset(scheme))
+                                    .overlay(RoundedRectangle(cornerRadius: 11).stroke(CPTheme.primary(scheme: scheme).opacity(0.55)))
+                                    .matchedGeometryEffect(id: "selected-section", in: selectionAnimation)
+                            }
+                        }
+                        .animation(reduceMotion ? nil : .spring(duration: 0.26, bounce: 0), value: selection)
                 }
                 .buttonStyle(CPPressStyle())
                 .accessibilityAddTraits(selection == option ? .isSelected : [])
@@ -247,7 +255,6 @@ struct NativeCalendarHub: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             NativeSectionPicker(selection: $section, options: ["Calendar", "My classes"], label: "Calendar sections")
         }
-        .cpStateChange(section)
     }
 }
 
@@ -1591,5 +1598,6 @@ struct NativeLegalView: View {
                 }.padding()
             }
         }.cpNavigationTitle(title).navigationBarTitleDisplayMode(.inline)
+            .toolbar(.visible, for: .navigationBar)
     }
 }

@@ -7,6 +7,8 @@ workflows:
       xcode: latest
 
     scripts:
+      - name: Check native session storage failure paths
+        script: python3 scripts/test-native-session-store.py
       - name: Build native SwiftUI app
         script: |
           . ios/backend-public.env
@@ -34,6 +36,8 @@ workflows:
     environment:
       xcode: latest
     scripts:
+      - name: Check native session storage failure paths
+        script: python3 scripts/test-native-session-store.py
       - name: Compile production SwiftUI path
         script: |
           . ios/backend-public.env
