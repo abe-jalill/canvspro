@@ -153,7 +153,9 @@ export async function sendWebPush(
       "Content-Encoding": "aes128gcm",
       "Content-Type": "application/octet-stream",
       TTL: String(opts.ttl ?? 12 * 3600),
-      Urgency: "normal",
+      // "high" so iPhone delivers reminders right away instead of batching
+      // them for later (e.g. in Low Power Mode).
+      Urgency: "high",
     },
     body,
   });

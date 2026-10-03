@@ -90,21 +90,67 @@ export function updateNotification(
 }
 
 /** Fires a browser notification when permission has been granted. */
-export function fireBrowserNotification(title: string, body?: string, tag?: string) {
+export function fireBrowserNotification(title: string, body?: string, tag?: string, to?: string) {
   if (typeof window === "undefined" || !("Notification" in window)) return;
   if (Notification.permission !== "granted") return;
-  try {
-    new Notification(title, { body, tag });
-  } catch {
-    // ignore
-  }
+  const viaConstructor = () => {
+    try {
+      new Notification(title, { body, tag });
+    } catch {
+      // ignore
+    }
+  };
+  // iPhone and Android only show notifications through the service worker;
+  // the page-level constructor throws there.
+  if (!("serviceWorker" in navigator)) return viaConstructor();
+  void navigator.serviceWorker
+    .getRegistration("/")
+    .then((registration) => {
+      if (!registration) return viaConstructor();
+      return registration.showNotification(title, {
+        body,
+        tag,
+        icon: "/canvaspro-icon-v2-192.png",
+        data: { to: to ?? "/dashboard" },
+      });
+    })
+    .catch(viaConstructor);
 }
 
-export function notify(n: Omit<AppNotification, "ts" | "read"> & { ts?: number }) {
-  // Always record in the bell menu; only interrupt when the user allows it.
-  if (pushNotification(n) && allowBrowserPush()) {
-    fireBrowserNotification(n.title, n.body, n.id);
+let pendingPopUps: Array<Pick<AppNotification, "id" | "title" | "body" | "to">> = [];
+
+/** Shows everything queued in one pass: a single alert as itself, several as one summary. */
+function flushPopUps() {
+  const batch = pendingPopUps;
+  pendingPopUps = [];
+  if (batch.length === 0 || !allowBrowserPush()) return;
+  if (batch.length === 1) {
+    const [only] = batch;
+    fireBrowserNotification(only!.title, only!.body, only!.id, only!.to);
+    return;
   }
+  fireBrowserNotification(
+    `${batch.length} new CanvasPro alerts`,
+    `${batch[0]!.title} and ${batch.length - 1} more. Open the bell to see them all.`,
+    "canvaspro-summary",
+    "/notifications",
+  );
+}
+
+/**
+ * Records an alert in the bell menu and, when allowed, shows it as a pop-up.
+ * `popUp: false` keeps it in the bell only (used when this device already gets
+ * the same alert as a closed-app push). Pop-ups raised in the same pass are
+ * combined, so opening the app never fires a stack of them at once.
+ */
+export function notify(
+  n: Omit<AppNotification, "ts" | "read"> & { ts?: number },
+  options: { popUp?: boolean } = {},
+) {
+  if (!pushNotification(n)) return;
+  if (options.popUp === false || !allowBrowserPush()) return;
+  if (pendingPopUps.length === 0) setTimeout(flushPopUps, 0);
+  pendingPopUps.push({ id: n.id, title: n.title, body: n.body, to: n.to });
 }
 
 /** Unread first, then newest first. */

@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { readPrefs } from "@/lib/notification-prefs";
+import { setBackgroundPushDevice } from "@/lib/background-push-device";
 
 /**
  * The application-server public key comes from the server itself, so the key a
@@ -74,7 +75,10 @@ export async function maintainBackgroundPush(): Promise<void> {
   const registration = await getRegistration();
   await registration.update().catch(() => undefined);
   const subscription = await registration.pushManager.getSubscription();
-  if (!subscription) return;
+  if (!subscription) {
+    setBackgroundPushDevice(false);
+    return;
+  }
 
   const { data } = await supabase.auth.getUser();
   if (!data.user) return;
@@ -89,7 +93,10 @@ export async function maintainBackgroundPush(): Promise<void> {
     },
     { onConflict: "endpoint" },
   );
-  if (!error) await syncPrefsToServer();
+  if (!error) {
+    setBackgroundPushDevice(true);
+    await syncPrefsToServer();
+  }
 }
 
 /** Mirrors the local notification preferences to the backend for the cron job. */
@@ -120,7 +127,10 @@ export async function isPushEnabled(): Promise<boolean> {
   if (!pushSupported()) return false;
   const reg = await navigator.serviceWorker.getRegistration("/");
   const sub = await reg?.pushManager.getSubscription();
-  if (!sub) return false;
+  if (!sub) {
+    setBackgroundPushDevice(false);
+    return false;
+  }
 
   const { data } = await supabase.auth.getUser();
   if (!data.user) return false;
@@ -132,9 +142,13 @@ export async function isPushEnabled(): Promise<boolean> {
     .limit(1);
   // On a network/permission error, don't claim the switch is off.
   if (error) return true;
-  if (rows && rows.length > 0) return true;
+  if (rows && rows.length > 0) {
+    setBackgroundPushDevice(true);
+    return true;
+  }
 
   await sub.unsubscribe().catch(() => undefined);
+  setBackgroundPushDevice(false);
   return false;
 }
 
@@ -203,11 +217,13 @@ export async function enableBackgroundPush(): Promise<
   );
   if (error) return { ok: false, reason: error.message };
 
+  setBackgroundPushDevice(true);
   await syncPrefsToServer();
   return { ok: true };
 }
 
 export async function disableBackgroundPush(): Promise<void> {
+  setBackgroundPushDevice(false);
   if (!pushSupported()) return;
   const reg = await navigator.serviceWorker.getRegistration("/");
   const sub = await reg?.pushManager.getSubscription();

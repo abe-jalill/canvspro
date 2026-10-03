@@ -19,6 +19,8 @@ import {
 } from "@/lib/push-client";
 import { clearAppBadge } from "@/lib/app-badge";
 import { supabase } from "@/integrations/supabase/client";
+import { useUserPreferences } from "@/hooks/use-user-preferences";
+import { lastServerCheck, serverIsChecking } from "@/lib/push-heartbeat";
 
 function Toggle({
   label,
@@ -109,6 +111,34 @@ function Hint({ children }: { children: React.ReactNode }) {
 }
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
+
+function timeAgo(ms: number): string {
+  const minutes = Math.max(0, Math.round(ms / 60_000));
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 48) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  return `${Math.round(hours / 24)} days ago`;
+}
+
+/** Whether the server-side check that sends closed-app alerts is running for this account. */
+function BackgroundCheckStatus() {
+  const preferences = useUserPreferences();
+  if (!preferences.ready) return null;
+  const now = Date.now();
+  const last = lastServerCheck(preferences.data);
+  if (last != null && serverIsChecking(preferences.data, now)) {
+    return <Hint>Checked Canvas for new alerts {timeAgo(now - last)}. This runs every 15 minutes.</Hint>;
+  }
+  return (
+    <Hint>
+      {last == null
+        ? "The background check hasn't reached your account yet."
+        : `The background check last ran ${timeAgo(now - last)}.`}{" "}
+      Until it runs again, alerts only arrive while CanvasPro is open.
+    </Hint>
+  );
+}
 
 /** Section 1 — what Canvas activity is worth an alert. */
 export function NotificationTriggers() {
@@ -351,6 +381,7 @@ export function NotificationDelivery() {
           disabled={off || !prefs.browserPush || busy || !pushSupported()}
           onChange={() => void toggleBackground()}
         />
+        {background && <BackgroundCheckStatus />}
         <div className="glass-inset flex flex-col gap-2 rounded-xl p-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-muted-foreground">
             Send a test push to this device to confirm delivery works right now.
