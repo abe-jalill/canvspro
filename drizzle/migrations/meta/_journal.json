@@ -36,6 +36,13 @@
       "when": 1790282242740,
       "tag": "0004_create_user_activity_daily",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791045811074,
+      "tag": "0005_push_dispatch_per_user",
+      "breakpoints": true
     }
   ]
 }
