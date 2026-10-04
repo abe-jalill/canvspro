@@ -18,3 +18,4 @@
 - MCP tools reach Canvas by forwarding the caller's OAuth bearer to the deployed `canvas` edge function, so no Canvas credential passes through the MCP layer.
 - src/routes/[.]lovable/oauth/consent.tsx is the Supabase OAuth consent page (path /.lovable/oauth/consent configured server-side); /auth honours a same-origin `redirect` query param so connectors return here after sign-in.
 - Settings uses `/settings` as a short overview and `/settings/*` child routes for full section details, so new settings belong on a dedicated child page.
+- The dashboard quick Pomodoro reuses the shared study-session snapshot so its timer continues across pages and devices on the same browser.
