@@ -132,6 +132,7 @@ extension Color {
 /// rows inside a card are 8 apart.
 enum CPLayout {
     /// Side margin of every screen.
+    static let maxContentWidth: CGFloat = 680
     static let gutter: CGFloat = 16
     /// Space between cards.
     static let stack: CGFloat = 16
@@ -754,8 +755,11 @@ extension View {
     }
 
     /// Standard page padding: 16-point side margins and room above the tab bar.
+    /// Content stays a comfortable reading width and centred on iPad and in landscape.
     func cpPagePadding() -> some View {
         padding(.horizontal, CPLayout.gutter).padding(.top, 12).padding(.bottom, 32)
+            .frame(maxWidth: CPLayout.maxContentWidth)
+            .frame(maxWidth: .infinity)
     }
 
     // Keep NavigationStack's interactive push/pop and TabView's native selection.

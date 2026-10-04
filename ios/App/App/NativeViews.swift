@@ -970,8 +970,8 @@ private struct NativeDashboardView: View {
     }
     private var gradeMap: [Int: Double] { Dictionary(allAssignments.compactMap { item in item.submission?.score.map { (item.id, $0) } }, uniquingKeysWith: { first, _ in first }) }
     private var urgencyMap: [Int: String] { Dictionary(activeAssignments.compactMap { item in urgency(for: item).map { (item.id, $0) } }, uniquingKeysWith: { first, _ in first }) }
-    private var newAnnouncements: [AnnouncementItem] { guard let digest else { return [] }; return Array(store.bundle.announcements.filter { item in !features.hiddenCourseIDs.contains(item.courseID) && item.isWithin(weeks: features.announcementWeeks) && (ISO8601DateFormatter.canvasDate(from: item.postedAt) ?? .distantPast) > digest.lastVisit }.prefix(8)) }
-    private var newGrades: [AssignmentItem] { guard let digest else { return [] }; return Array(allAssignments.filter { item in guard let score = item.submission?.score else { return false }; return digest.grades[item.id] != score }.prefix(8)) }
+    private var newAnnouncements: [AnnouncementItem] { guard let digest else { return [] }; return Array(store.bundle.announcements.filter { item in !features.hiddenCourseIDs.contains(item.courseID) && item.isWithin(weeks: features.announcementWeeks) && (ISO8601DateFormatter.canvasDate(from: item.postedAt) ?? .distantPast) > digest.lastVisit }.prefix(4)) }
+    private var newGrades: [AssignmentItem] { guard let digest else { return [] }; return Array(allAssignments.filter { item in guard let score = item.submission?.score else { return false }; return digest.grades[item.id] != score }.prefix(4)) }
     private var newlyUrgent: [AssignmentItem] {
         guard let digest else { return [] }
         func rank(_ item: AssignmentItem) -> Int { urgency(for: item) == "today" ? 0 : 1 }
@@ -979,7 +979,7 @@ private struct NativeDashboardView: View {
             guard let value = urgency(for: item) else { return false }
             return (value == "today" || value == "soon") && digest.urgency[item.id] != value
         }
-        return Array(fresh.sorted { rank($0) < rank($1) }.prefix(8))
+        return Array(fresh.sorted { rank($0) < rank($1) }.prefix(4))
     }
     private var stillUrgent: Int { activeAssignments.filter { ["today", "soon"].contains(urgency(for: $0) ?? "") }.count }
     private var widgetIDs: [String] { features.dashboardOrder.filter { !features.dashboardHidden.contains($0) } }
@@ -1042,19 +1042,6 @@ private struct NativeDashboardView: View {
                     .foregroundStyle(CPTheme.muted(scheme))
                     .fixedSize(horizontal: false, vertical: true)
             }
-            Button { openFocus("7") } label: {
-                HStack(spacing: 6) { Text("Open focus view"); Image(systemName: "arrow.up.right").cpIconFont(10, .semibold) }
-                    .cpFont(12, .medium)
-                    .foregroundStyle(CPTheme.foreground(scheme))
-                    .padding(.horizontal, 16)
-                    .frame(minHeight: 40)
-                    .background(
-                        LinearGradient(colors: [CPTheme.primary(scheme: scheme).opacity(0.23), CPTheme.primary(scheme: scheme).opacity(0.08)], startPoint: .topLeading, endPoint: .bottomTrailing),
-                        in: Capsule()
-                    )
-                    .overlay(Capsule().strokeBorder(CPTheme.primary(scheme: scheme).opacity(0.5), lineWidth: 0.5))
-            }
-            .buttonStyle(CPPressStyle())
             heroStats
         }
         .padding(20)
@@ -1397,7 +1384,7 @@ private struct NativeDashboardView: View {
                 NativeEmptyState(title: "Nothing due in the next 48 hours.", symbol: "sun.max")
             } else {
                 VStack(spacing: 8) {
-                    ForEach(soon) { item in NativeDueRow(assignment: item, store: store, features: features, showToggle: false) }
+                    ForEach(soon.prefix(5)) { item in NativeDueRow(assignment: item, store: store, features: features, showToggle: false) }
                 }
             }
         }
@@ -1411,7 +1398,7 @@ private struct NativeDashboardView: View {
         let events = Array(store.bundle.calendar.compactMap { event -> NativeDatedEvent? in
             guard let raw = event.startAt, let date = ISO8601DateFormatter.canvasDate(from: raw), date >= now, date <= end else { return nil }
             return NativeDatedEvent(event: event, date: date)
-        }.sorted { $0.date < $1.date }.prefix(8))
+        }.sorted { $0.date < $1.date }.prefix(4))
         return CPGlassCard {
             CPCardHeader(title: "Calendar") {
                 NavigationLink { NativeCalendarHub(store: store, features: features) } label: { CPLinkLabel(text: "View all") }.buttonStyle(.plain)

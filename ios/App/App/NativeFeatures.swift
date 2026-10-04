@@ -521,7 +521,8 @@ final class NativeFeatureStore: ObservableObject {
         return order
     }
     var dashboardHidden: Set<String> {
-        guard case .some(.array(let values)) = dashboardObject["hidden"] else { return [] }
+        // A new account starts with the five essentials; Customize brings the rest back.
+        guard case .some(.array(let values)) = dashboardObject["hidden"] else { return ["focus", "calendar", "heatmap"] }
         return Set(values.compactMap { if case .string(let value) = $0 { return value }; return nil })
     }
     func updateDashboard(order: [String]? = nil, hidden: Set<String>? = nil) async throws {

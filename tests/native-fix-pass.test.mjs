@@ -202,3 +202,13 @@ test("rows swipe, haptics are gentle, and accessibility has every action", () =>
   // The faintest text stays readable in light mode.
   assert.match(swift.NativeDesign, /: \.hsl\(palette\.hue, 0\.10, 0\.42\)/);
 });
+
+test("pages stay a readable width and the dashboard starts with the essentials", () => {
+  // iPad and landscape: content is centred at a comfortable width instead of stretching edge to edge.
+  assert.match(swift.NativeDesign, /static let maxContentWidth: CGFloat = 680/);
+  assert.match(swift.NativeDesign, /\.frame\(maxWidth: CPLayout\.maxContentWidth\)/);
+  // A new account sees five widgets; Customize brings the rest back.
+  assert.match(swift.NativeFeatures, /\["focus", "calendar", "heatmap"\]/);
+  // One path into the week view, not a duplicate button above the tiles.
+  assert.doesNotMatch(swift.NativeViews, /Open focus view/);
+});
