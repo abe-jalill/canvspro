@@ -495,6 +495,10 @@ export type Database = {
         Returns: boolean
       }
       has_canvas_key: { Args: never; Returns: boolean }
+      patch_notification_preferences: {
+        Args: { changes: Json; device_timezone_offset: number }
+        Returns: Json
+      }
       record_activity_heartbeat: { Args: never; Returns: string }
       set_avatar_path: { Args: { requested_path: string }; Returns: string }
       set_username: { Args: { requested_username: string }; Returns: string }
