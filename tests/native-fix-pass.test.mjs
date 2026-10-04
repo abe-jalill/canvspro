@@ -137,3 +137,24 @@ test("the syllabus is only on the class page, and Today uses the website's tabs"
   }
   assert.match(swift.NativeDesign, /struct NativePageTabs/);
 });
+
+test("cards use hairline borders, no per-card shadows, and cached parsing", () => {
+  // Every outline in the app is a 0.5 pt hairline.
+  assert.doesNotMatch(allSwift, /lineWidth: 1\)/);
+  const surface = swift.NativeDesign.slice(swift.NativeDesign.indexOf("private struct CPSurfaceModifier"), swift.NativeDesign.indexOf("struct CPGlassCard"));
+  assert.match(surface, /lineWidth: 0\.5/);
+  assert.doesNotMatch(surface, /\.shadow\(/);
+  // Due dates and Canvas HTML are parsed once, not on every redraw.
+  assert.match(swift.NativeViews, /if let cached = NativeTextCache\.date\(for: value\) \{ return cached \}/);
+  assert.match(swift.NativeViews, /if let cached = NativeTextCache\.html\(for: self\) \{ return cached \}/);
+});
+
+test("workload shows one readable week at a time, and the launch keeps clear space", () => {
+  const workload = swift.NativeMoreViews.slice(swift.NativeMoreViews.indexOf("struct WorkloadView"), swift.NativeMoreViews.indexOf("struct AnnouncementsView"));
+  assert.match(workload, /\["This week", "Next week", "Week 3", "Week 4"\]/);
+  assert.match(workload, /ForEach\(shownDays, id: \\.self\)/);
+  assert.doesNotMatch(workload, /0\.\.<28/);
+  const launch = swift.NativeViews.slice(swift.NativeViews.indexOf("private struct NativeLaunchView"), swift.NativeViews.indexOf("private struct NativeAuthView"));
+  assert.match(launch, /VStack\(spacing: 56\)/);
+  assert.match(swift.NativeViews, /frame\(width: size \* 1\.1, height: size \* 1\.1\)/);
+});

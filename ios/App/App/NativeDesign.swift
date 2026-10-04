@@ -163,12 +163,14 @@ private struct CPSurfaceModifier: ViewModifier {
     let strong: Bool
     let radius: CGFloat
 
+    // No shadow: on the dark background it is invisible but still costs an
+    // offscreen render pass per card while scrolling. The hairline border and
+    // the glass fill separate cards, as on the website.
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
         return content
             .background(shape.fill(CPTheme.glass(scheme, strong: strong)))
-            .overlay(shape.strokeBorder(contrast == .increased ? CPTheme.foreground(scheme).opacity(0.35) : CPTheme.border(scheme), lineWidth: 1))
-            .shadow(color: Color.black.opacity(scheme == .dark ? 0.18 : 0.05), radius: 14, y: 6)
+            .overlay(shape.strokeBorder(contrast == .increased ? CPTheme.foreground(scheme).opacity(0.35) : CPTheme.border(scheme), lineWidth: 0.5))
     }
 }
 
@@ -297,7 +299,7 @@ struct CPInsetRow<Content: View>: View {
             .padding(12)
             .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
             .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: CPLayout.innerRadius, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: CPLayout.innerRadius, style: .continuous).strokeBorder(CPTheme.insetBorder(scheme), lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: CPLayout.innerRadius, style: .continuous).strokeBorder(CPTheme.insetBorder(scheme), lineWidth: 0.5))
     }
 }
 
@@ -347,7 +349,7 @@ struct CPStatTile: View {
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(tone == .danger ? CPTheme.danger.opacity(0.06) : CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: CPLayout.innerRadius, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: CPLayout.innerRadius, style: .continuous).strokeBorder(tone == .danger ? CPTheme.danger.opacity(0.2) : CPTheme.insetBorder(scheme), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: CPLayout.innerRadius, style: .continuous).strokeBorder(tone == .danger ? CPTheme.danger.opacity(0.2) : CPTheme.insetBorder(scheme), lineWidth: 0.5))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(label): \(value)")
     }
@@ -369,7 +371,7 @@ struct CPPill: View {
         .foregroundStyle(tone.color(scheme))
         .padding(.horizontal, 8)
         .frame(minHeight: 22)
-        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(tone == .danger ? CPTheme.danger.opacity(0.35) : CPTheme.foreground(scheme).opacity(0.15), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(tone == .danger ? CPTheme.danger.opacity(0.35) : CPTheme.foreground(scheme).opacity(0.15), lineWidth: 0.5))
     }
 }
 
@@ -463,7 +465,7 @@ private struct CPButtonBody: View {
             .frame(maxWidth: fullWidth ? .infinity : nil, minHeight: 40)
             .foregroundStyle(kind == .primary ? CPTheme.background(scheme) : CPTheme.foreground(scheme))
             .background(kind == .primary ? CPTheme.foreground(scheme) : kind == .secondary ? CPTheme.inset(scheme) : Color.clear, in: shape)
-            .overlay(shape.strokeBorder(kind == .primary ? Color.clear : kind == .secondary ? CPTheme.insetBorder(scheme) : CPTheme.foreground(scheme).opacity(0.15), lineWidth: 1))
+            .overlay(shape.strokeBorder(kind == .primary ? Color.clear : kind == .secondary ? CPTheme.insetBorder(scheme) : CPTheme.foreground(scheme).opacity(0.15), lineWidth: 0.5))
             .contentShape(shape)
             .opacity(!isEnabled ? 0.4 : configuration.isPressed ? 0.85 : 1)
             .scaleEffect(reduceMotion || !configuration.isPressed ? 1 : 0.98)
@@ -481,7 +483,7 @@ struct CPIconButtonLabel: View {
             .cpIconFont(12, .medium)
             .foregroundStyle(CPTheme.muted(scheme))
             .frame(width: 30, height: 30)
-            .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(CPTheme.foreground(scheme).opacity(0.15), lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(CPTheme.foreground(scheme).opacity(0.15), lineWidth: 0.5))
             .frame(width: 44, height: 44)
             .contentShape(Rectangle())
     }
@@ -550,7 +552,7 @@ struct NativePageTabs: View {
                         .foregroundStyle(isSelected ? CPTheme.foreground(scheme) : CPTheme.muted(scheme))
                         .padding(.horizontal, 14)
                         .frame(height: 32)
-                        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(CPTheme.foreground(scheme).opacity(isSelected ? 0.6 : 0.15), lineWidth: 1))
+                        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(CPTheme.foreground(scheme).opacity(isSelected ? 0.6 : 0.15), lineWidth: 0.5))
                         .padding(.vertical, 6).contentShape(Rectangle()).padding(.vertical, -6)
                 }
                 .buttonStyle(.plain)
@@ -578,7 +580,7 @@ struct CPChip: View {
             .padding(.horizontal, 12)
             .frame(height: 30)
             .foregroundStyle(selected ? CPTheme.foreground(scheme) : CPTheme.muted(scheme))
-            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(CPTheme.foreground(scheme).opacity(selected ? 0.6 : 0.15), lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(CPTheme.foreground(scheme).opacity(selected ? 0.6 : 0.15), lineWidth: 0.5))
             .frame(minHeight: 44)
             .contentShape(Rectangle())
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: selected)
@@ -598,7 +600,7 @@ struct CPIconBadge: View {
             .foregroundStyle(tint ?? CPTheme.foreground(scheme).opacity(0.8))
             .frame(width: 32, height: 32)
             .background(tint.map { $0.opacity(0.12) } ?? CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(tint == nil ? CPTheme.insetBorder(scheme) : Color.clear, lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(tint == nil ? CPTheme.insetBorder(scheme) : Color.clear, lineWidth: 0.5))
             .accessibilityHidden(true)
     }
 }
@@ -642,7 +644,7 @@ struct CPSegmented: View {
         }
         .padding(5)
         .background(CPTheme.glass(scheme, strong: true), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(CPTheme.border(scheme), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(CPTheme.border(scheme), lineWidth: 0.5))
         .animation(reduceMotion ? nil : .spring(duration: 0.26, bounce: 0), value: selection)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(label)

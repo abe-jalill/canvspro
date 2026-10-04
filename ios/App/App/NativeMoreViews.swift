@@ -702,7 +702,7 @@ struct FocusView: View {
                     }
                     .frame(maxWidth: .infinity, minHeight: 56)
                     .background(isSelected ? CPTheme.foreground(scheme) : CPTheme.glass(scheme), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(isSelected ? Color.clear : CPTheme.border(scheme), lineWidth: 1))
+                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(isSelected ? Color.clear : CPTheme.border(scheme), lineWidth: 0.5))
                 }
                 .buttonStyle(CPPressStyle())
                 .accessibilityLabel("\(day.formatted(date: .complete, time: .omitted)), \(count) due")
@@ -1001,7 +1001,7 @@ struct CalendarView: View {
                     if isSelected {
                         Circle().fill(CPTheme.foreground(scheme))
                     } else if isToday {
-                        Circle().strokeBorder(CPTheme.foreground(scheme).opacity(0.6), lineWidth: 1)
+                        Circle().strokeBorder(CPTheme.foreground(scheme).opacity(0.6), lineWidth: 0.5)
                     }
                     Text("\(calendar.component(.day, from: date))")
                         .cpFont(14, .semibold)
@@ -1079,8 +1079,9 @@ struct CalendarView: View {
     }
 }
 
-/// The website's workload heatmap: four weeks from this Monday, darker days have
-/// more due. Tap a day to see what's due.
+/// The website's four-week workload, laid out for a phone: pick a week, see its
+/// seven days as roomy columns whose bars show how much is due, and tap a day
+/// to list it. Showing one week at a time keeps every day readable.
 struct WorkloadView: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.cpPalette) private var paletteDependency
@@ -1088,88 +1089,150 @@ struct WorkloadView: View {
     let assignments: [AssignmentItem]
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
+    @State private var week = 0
     @State private var openDay: Date?
+    private static let weekNames = ["This week", "Next week", "Week 3", "Week 4"]
     private var calendar: Calendar { Calendar.current }
     private var today: Date { calendar.startOfDay(for: Date()) }
     private var monday: Date {
         let weekday = calendar.component(.weekday, from: today)
         return calendar.date(byAdding: .day, value: -((weekday + 5) % 7), to: today) ?? today
     }
-    private var days: [Date] { (0..<28).compactMap { calendar.date(byAdding: .day, value: $0, to: monday) } }
-    private var byDay: [Date: [AssignmentItem]] {
-        Dictionary(grouping: assignments.filter { $0.dueDate != nil }) { calendar.startOfDay(for: $0.dueDate ?? Date()) }
+    private func days(inWeek index: Int) -> [Date] {
+        (0..<7).compactMap { calendar.date(byAdding: .day, value: index * 7 + $0, to: monday) }
     }
-    private var maxCount: Int { max(1, days.map { byDay[$0]?.count ?? 0 }.max() ?? 1) }
-    private var total: Int { days.reduce(0) { $0 + (byDay[$1]?.count ?? 0) } }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("Next 4 weeks").cpFont(11, .semibold).foregroundStyle(CPTheme.foreground(scheme))
+        // Group once per redraw instead of filtering for every day.
+        let byDay = groupedByDay()
+        let shownDays = days(inWeek: week)
+        let counts = shownDays.map { byDay[$0]?.count ?? 0 }
+        let weekTotal = counts.reduce(0, +)
+        let monthTotal = (0..<4).flatMap { days(inWeek: $0) }.reduce(0) { $0 + (byDay[$1]?.count ?? 0) }
+        let maxCount = max(1, counts.max() ?? 1)
+
+        VStack(alignment: .leading, spacing: 14) {
+            CPSegmented(selection: Binding(get: { Self.weekNames[week] }, set: { value in
+                week = Self.weekNames.firstIndex(of: value) ?? 0
+                openDay = nil
+            }), options: Self.weekNames, label: "Week")
+
+            HStack(alignment: .firstTextBaseline) {
+                Text(weekRange(shownDays)).cpFont(12).foregroundStyle(CPTheme.muted(scheme))
                 Spacer()
-                Text("\(total) items").cpFont(11).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
+                Text(weekSummary(days: shownDays, counts: counts))
+                    .cpFont(12).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
             }
-            HStack(spacing: 5) {
-                ForEach(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], id: \.self) { label in
-                    Text(label.uppercased()).cpFont(11, .semibold).tracking(0.5).foregroundStyle(CPTheme.faint(scheme)).frame(maxWidth: .infinity)
+            .padding(.horizontal, 2)
+
+            HStack(alignment: .bottom, spacing: 6) {
+                ForEach(shownDays, id: \.self) { day in
+                    dayColumn(day, count: byDay[day]?.count ?? 0, maxCount: maxCount)
                 }
             }
-            ForEach(0..<4, id: \.self) { week in
-                VStack(spacing: 6) {
-                    HStack(spacing: 5) {
-                        ForEach(days[(week * 7)..<min(days.count, week * 7 + 7)], id: \.self) { day in cell(day) }
-                    }
-                    if let openDay, days[(week * 7)..<min(days.count, week * 7 + 7)].contains(openDay), let items = byDay[openDay], !items.isEmpty {
-                        dayDetail(openDay, items: items)
-                    }
-                }
+
+            if let openDay, let items = byDay[openDay], !items.isEmpty {
+                dayDetail(openDay, items: items)
+                    .transition(.opacity)
+            } else {
+                Text(weekTotal == 0 ? "A clear week. Enjoy the breathing room." : "Tap a day to see what's due.")
+                    .cpFont(12).foregroundStyle(CPTheme.faint(scheme))
+                    .frame(maxWidth: .infinity)
             }
+
+            Text("\(monthTotal) items over the next four weeks")
+                .cpFont(11).monospacedDigit().foregroundStyle(CPTheme.faint(scheme))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 2)
         }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.22), value: week)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: openDay)
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
     }
 
-    private func cell(_ day: Date) -> some View {
-        let items = byDay[day] ?? []
-        let intensity = Double(items.count) / Double(maxCount)
+    private func dayColumn(_ day: Date, count: Int, maxCount: Int) -> some View {
         let isToday = calendar.isDate(day, inSameDayAs: today)
         let isOpen = openDay == day
+        let isPast = day < today
+        let barHeight: CGFloat = count == 0 ? 4 : 10 + 50 * CGFloat(count) / CGFloat(maxCount)
         return Button {
-            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) { openDay = isOpen ? nil : day }
+            guard count > 0 else { return }
+            openDay = isOpen ? nil : day
         } label: {
-            VStack(spacing: 1) {
-                Text("\(calendar.component(.day, from: day))").cpFont(11, .medium).monospacedDigit()
-                    .foregroundStyle(isToday ? CPTheme.foreground(scheme) : CPTheme.muted(scheme))
-                Text(items.isEmpty ? " " : "\(items.count)").cpFont(12, .bold).monospacedDigit()
+            VStack(spacing: 8) {
+                Text(count > 0 ? "\(count)" : " ")
+                    .cpFont(12, .medium).monospacedDigit()
                     .foregroundStyle(CPTheme.foreground(scheme))
+                ZStack(alignment: .bottom) {
+                    Color.clear.frame(height: 60)
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .fill(count == 0 ? CPTheme.foreground(scheme).opacity(0.08) : CPTheme.foreground(scheme).opacity(isOpen ? 0.85 : 0.18 + 0.4 * Double(count) / Double(maxCount)))
+                        .frame(width: 18, height: barHeight)
+                }
+                VStack(spacing: 2) {
+                    Text(day.formatted(.dateTime.weekday(.narrow)))
+                        .cpFont(11)
+                        .foregroundStyle(CPTheme.muted(scheme))
+                    Text("\(calendar.component(.day, from: day))")
+                        .cpFont(13, isToday ? .semibold : .regular).monospacedDigit()
+                        .foregroundStyle(isToday ? CPTheme.background(scheme) : CPTheme.foreground(scheme).opacity(isPast ? 0.45 : 0.9))
+                        .frame(width: 30, height: 30)
+                        .background(isToday ? CPTheme.foreground(scheme) : Color.clear, in: Circle())
+                }
             }
             .frame(maxWidth: .infinity)
-            .aspectRatio(1, contentMode: .fit)
-            .background(items.isEmpty ? CPTheme.inset(scheme) : CPTheme.foreground(scheme).opacity(0.08 + intensity * 0.32), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(isToday || isOpen ? CPTheme.foreground(scheme).opacity(0.6) : Color.clear, lineWidth: 1))
+            .padding(.vertical, 8)
+            .background(isOpen ? CPTheme.inset(scheme) : Color.clear, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())): \(items.count) due, \(Int(items.reduce(0) { $0 + ($1.pointsPossible ?? 0) }.rounded())) points")
+        .accessibilityLabel("\(day.formatted(.dateTime.weekday(.wide).month(.wide).day())), \(count) due")
+        .accessibilityAddTraits(isOpen ? .isSelected : [])
     }
 
     private func dayDetail(_ day: Date, items: [AssignmentItem]) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(day.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()).uppercased()).cpFont(11, .semibold).tracking(0.5).foregroundStyle(CPTheme.muted(scheme))
+        VStack(alignment: .leading, spacing: 8) {
+            Text(day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
+                .cpFont(12, .medium).foregroundStyle(CPTheme.foreground(scheme))
+                .padding(.horizontal, 2)
             ForEach(items) { item in
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(item.name).cpFont(12, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
-                        Text(store.displayName(courseID: item.courseID, fallback: item.courseName)).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
-                        NativeAssignmentDescriptionLink(assignment: item, store: store, features: features)
-                            .labelStyle(.titleOnly).cpFont(11, .semibold).foregroundStyle(CPTheme.foreground(scheme))
+                CPInsetRow {
+                    HStack(alignment: .center, spacing: 10) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(item.name).cpFont(13, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(2)
+                            Text(store.displayName(courseID: item.courseID, fallback: item.courseName)).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
+                        }
+                        Spacer(minLength: 8)
+                        VStack(alignment: .trailing, spacing: 2) {
+                            if let due = item.dueDate { Text(due.formatted(.dateTime.hour().minute())).cpFont(11).monospacedDigit().foregroundStyle(CPTheme.muted(scheme)) }
+                            if let points = item.pointsPossible { Text("\(points.formatted()) pts").cpFont(11).monospacedDigit().foregroundStyle(CPTheme.faint(scheme)) }
+                        }
+                        .fixedSize()
                     }
-                    Spacer()
-                    Text("\((item.pointsPossible ?? 0).formatted()) pt").cpFont(11).monospacedDigit().foregroundStyle(CPTheme.faint(scheme))
                 }
             }
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: CPLayout.innerRadius, style: .continuous))
+    }
+
+    private func groupedByDay() -> [Date: [AssignmentItem]] {
+        var result: [Date: [AssignmentItem]] = [:]
+        for item in assignments {
+            guard let due = item.dueDate else { continue }
+            result[calendar.startOfDay(for: due), default: []].append(item)
+        }
+        return result.mapValues { $0.sorted(by: AssignmentItem.dueSort) }
+    }
+
+    private func weekSummary(days: [Date], counts: [Int]) -> String {
+        let total = counts.reduce(0, +)
+        guard total > 0 else { return "Nothing due" }
+        guard let top = counts.max(), top > 1, let index = counts.firstIndex(of: top), days.indices.contains(index) else { return "\(total) due" }
+        return "\(total) due · busiest \(days[index].formatted(.dateTime.weekday(.abbreviated)))"
+    }
+
+    private func weekRange(_ days: [Date]) -> String {
+        guard let first = days.first, let last = days.last else { return "" }
+        return "\(first.formatted(.dateTime.month(.abbreviated).day())) – \(last.formatted(.dateTime.month(.abbreviated).day()))"
     }
 }
 

@@ -93,8 +93,8 @@ private struct NativeBrandMark: View {
         let shown = !animate || reduceMotion || appeared
         ZStack {
             Circle()
-                .fill(RadialGradient(colors: [NativeBrandColors.mint.opacity(0.30), .clear], center: .center, startRadius: 0, endRadius: size * 0.75))
-                .frame(width: size * 1.6, height: size * 1.6)
+                .fill(RadialGradient(colors: [NativeBrandColors.mint.opacity(0.22), .clear], center: .center, startRadius: 0, endRadius: size * 0.55))
+                .frame(width: size * 1.1, height: size * 1.1)
                 .scaleEffect(shown ? 1 : 0.6)
                 .opacity(shown ? 1 : 0)
                 .animation(reduceMotion ? nil : .easeOut(duration: 1.2).delay(delay), value: appeared)
@@ -150,9 +150,9 @@ private struct NativeLaunchView: View {
                 .offset(x: appeared ? -100 : 120, y: appeared ? 280 : 340)
                 .animation(reduceMotion ? nil : .easeInOut(duration: 4), value: appeared)
 
-            VStack(spacing: 30) {
-                NativeBrandMark(size: 128, animate: true, delay: 0.15)
-                VStack(spacing: 12) {
+            VStack(spacing: 56) {
+                NativeBrandMark(size: 112, animate: true, delay: 0.15)
+                VStack(spacing: 14) {
                     HStack(spacing: 0) {
                         ForEach(word.indices, id: \.self) { index in
                             Text(String(word[index]))
@@ -168,12 +168,14 @@ private struct NativeLaunchView: View {
                     Text("A little less chaos. A little more clarity.")
                         .cpFont(13)
                         .foregroundStyle(.white.opacity(0.68))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 32)
                         .opacity(shown ? 1 : 0)
                         .offset(y: shown ? 0 : 6)
                         .animation(reduceMotion ? nil : .easeOut(duration: 0.6).delay(1.95), value: appeared)
                 }
             }
-            .offset(y: -20)
+            .offset(y: -30)
         }
         .overlay(alignment: .bottom) {
             VStack(spacing: 10) {
@@ -197,6 +199,8 @@ private struct NativeLaunchView: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(isSignedIn ? "CanvasPro. Syncing your classes." : "CanvasPro. Loading.")
         .accessibilityAction(named: "Skip") { onSkip() }
+        // The wordmark is one line of fixed artwork; huge text sizes would push it into the logo.
+        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
         .task { appeared = true }
     }
 }
@@ -847,7 +851,6 @@ private struct NativeDashboardView: View {
                 Text("\(greeting)\(studentName.map { ", \($0)." } ?? ".")")
                     .cpFont(30, .regular).tracking(-1)
                     .foregroundStyle(CPTheme.foreground(scheme))
-                    .shadow(color: CPTheme.primary(scheme: scheme).opacity(scheme == .dark ? 0.25 : 0), radius: 18)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityAddTraits(.isHeader)
                 Text(heroMessage)
@@ -865,7 +868,7 @@ private struct NativeDashboardView: View {
                         LinearGradient(colors: [CPTheme.primary(scheme: scheme).opacity(0.23), CPTheme.primary(scheme: scheme).opacity(0.08)], startPoint: .topLeading, endPoint: .bottomTrailing),
                         in: Capsule()
                     )
-                    .overlay(Capsule().strokeBorder(CPTheme.primary(scheme: scheme).opacity(0.5), lineWidth: 1))
+                    .overlay(Capsule().strokeBorder(CPTheme.primary(scheme: scheme).opacity(0.5), lineWidth: 0.5))
             }
             .buttonStyle(CPPressStyle())
             heroStats
@@ -874,7 +877,7 @@ private struct NativeDashboardView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(heroBackground)
         .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 30, style: .continuous).strokeBorder(CPTheme.primary(scheme: scheme).opacity(scheme == .dark ? 0.28 : 0.22), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 30, style: .continuous).strokeBorder(CPTheme.primary(scheme: scheme).opacity(scheme == .dark ? 0.28 : 0.22), lineWidth: 0.5))
     }
 
     private var heroBackground: some View {
@@ -912,7 +915,7 @@ private struct NativeDashboardView: View {
                 .padding(18)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(heroCardBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(CPTheme.primary(scheme: scheme).opacity(0.3), lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(CPTheme.primary(scheme: scheme).opacity(0.3), lineWidth: 0.5))
             }
             .buttonStyle(CPPressStyle())
             .accessibilityElement(children: .ignore)
@@ -928,7 +931,7 @@ private struct NativeDashboardView: View {
             LinearGradient(colors: [CPTheme.primary(scheme: scheme).opacity(0.13), CPTheme.primary(scheme: scheme).opacity(0.035)], startPoint: .topLeading, endPoint: .bottomTrailing),
             in: RoundedRectangle(cornerRadius: 26, style: .continuous)
         )
-        .overlay(RoundedRectangle(cornerRadius: 26, style: .continuous).strokeBorder(CPTheme.primary(scheme: scheme).opacity(0.2), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 26, style: .continuous).strokeBorder(CPTheme.primary(scheme: scheme).opacity(0.2), lineWidth: 0.5))
     }
 
     private var heroCardBackground: LinearGradient {
@@ -955,7 +958,7 @@ private struct NativeDashboardView: View {
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(heroCardBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(CPTheme.primary(scheme: scheme).opacity(0.3), lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(CPTheme.primary(scheme: scheme).opacity(0.3), lineWidth: 0.5))
         }
         .buttonStyle(CPPressStyle())
         .accessibilityElement(children: .ignore)
@@ -1008,7 +1011,7 @@ private struct NativeDashboardView: View {
                         .foregroundStyle(CPTheme.foreground(scheme))
                         .frame(width: 36, height: 36)
                         .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(CPTheme.insetBorder(scheme), lineWidth: 1))
+                        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(CPTheme.insetBorder(scheme), lineWidth: 0.5))
                     VStack(alignment: .leading, spacing: 2) {
                         Text(stillUrgent > 0 ? "Nothing new since your last visit." : "All caught up.")
                             .cpFont(13, .medium).foregroundStyle(CPTheme.foreground(scheme))
@@ -1111,7 +1114,6 @@ private struct NativeDashboardView: View {
                             CPInsetRow {
                                 HStack(spacing: 10) {
                                     Circle().fill(CPTheme.gradeColor(course.currentScore)).frame(width: 8, height: 8)
-                                        .shadow(color: CPTheme.gradeColor(course.currentScore).opacity(0.5), radius: 3)
                                     Text(store.displayName(courseID: course.id, fallback: course.name))
                                         .cpFont(13).foregroundStyle(CPTheme.foreground(scheme).opacity(0.9)).lineLimit(1)
                                     Spacer(minLength: 8)
@@ -1315,7 +1317,7 @@ private struct NativeDashboardView: View {
                                 Button { dismissAnnouncement(item.id) } label: {
                                     Image(systemName: "xmark").cpIconFont(9, .semibold).foregroundStyle(CPTheme.muted(scheme))
                                         .frame(width: 24, height: 24)
-                                        .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(CPTheme.foreground(scheme).opacity(0.2), lineWidth: 1))
+                                        .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(CPTheme.foreground(scheme).opacity(0.2), lineWidth: 0.5))
                                         .frame(width: 44, height: 44).contentShape(Rectangle())
                                 }
                                 .buttonStyle(.plain)
@@ -1522,7 +1524,7 @@ struct NativeDueRow: View {
         .padding(12)
         .frame(minHeight: 44)
         .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: CPLayout.innerRadius, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: CPLayout.innerRadius, style: .continuous).strokeBorder(CPTheme.insetBorder(scheme), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: CPLayout.innerRadius, style: .continuous).strokeBorder(CPTheme.insetBorder(scheme), lineWidth: 0.5))
         .opacity(isComplete ? 0.6 : 1)
     }
 }
@@ -3345,7 +3347,15 @@ extension String {
     /// Canvas HTML as readable plain text: block tags become line breaks, list
     /// items become bullets, scripts and styles are dropped, and entities such as
     /// &#8217; or &rsquo; turn back into the characters they stand for.
+    /// Cached: Canvas text is cleaned once, not on every redraw.
     var strippingHTML: String {
+        if let cached = NativeTextCache.html(for: self) { return cached }
+        let value = strippingHTMLUncached
+        NativeTextCache.store(html: self, value)
+        return value
+    }
+
+    private var strippingHTMLUncached: String {
         var text = replacingOccurrences(of: "(?is)<(script|style)\\b[^>]*>.*?</\\1\\s*>", with: "", options: .regularExpression)
         text = text.replacingOccurrences(of: "(?i)<li\\b[^>]*>", with: "\n• ", options: .regularExpression)
         text = text.replacingOccurrences(of: "(?i)<br\\s*/?>|</p>|</div>|</li>|</h[1-6]>|</tr>|</blockquote>", with: "\n", options: .regularExpression)
@@ -3401,7 +3411,40 @@ extension String {
 extension ISO8601DateFormatter {
     static let canvas: ISO8601DateFormatter = { let formatter = ISO8601DateFormatter(); formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]; return formatter }()
     static let canvasWithoutFractionalSeconds: ISO8601DateFormatter = { let formatter = ISO8601DateFormatter(); formatter.formatOptions = [.withInternetDateTime]; return formatter }()
-    static func canvasDate(from value: String) -> Date? { canvas.date(from: value) ?? canvasWithoutFractionalSeconds.date(from: value) }
+    /// Parsed once per string. Every list sorts and filters by due date many times
+    /// per redraw, and ISO 8601 parsing is slow enough to make scrolling stutter.
+    static func canvasDate(from value: String) -> Date? {
+        if let cached = NativeTextCache.date(for: value) { return cached }
+        guard let date = canvas.date(from: value) ?? canvasWithoutFractionalSeconds.date(from: value) else { return nil }
+        NativeTextCache.store(date: value, date)
+        return date
+    }
+}
+
+/// Small thread-safe caches for values the app derives from Canvas text.
+enum NativeTextCache {
+    private static let lock = NSLock()
+    private static var dates: [String: Date] = [:]
+    private static var cleanedHTML: [String: String] = [:]
+
+    static func date(for key: String) -> Date? {
+        lock.lock(); defer { lock.unlock() }
+        return dates[key]
+    }
+    static func store(date key: String, _ value: Date) {
+        lock.lock(); defer { lock.unlock() }
+        if dates.count > 4000 { dates.removeAll(keepingCapacity: true) }
+        dates[key] = value
+    }
+    static func html(for key: String) -> String? {
+        lock.lock(); defer { lock.unlock() }
+        return cleanedHTML[key]
+    }
+    static func store(html key: String, _ value: String) {
+        lock.lock(); defer { lock.unlock() }
+        if cleanedHTML.count > 600 { cleanedHTML.removeAll(keepingCapacity: true) }
+        cleanedHTML[key] = value
+    }
 }
 
 struct NativeEmptyState: View {
