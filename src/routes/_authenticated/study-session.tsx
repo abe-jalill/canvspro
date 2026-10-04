@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { queryOptions, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDown,
@@ -14,7 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { getAllAssignmentsFn, type AssignmentItem } from "@/lib/canvas.functions";
+import type { AssignmentItem } from "@/lib/canvas.functions";
 import { displayCourseName } from "@/lib/course-display";
 import { ErrorState, Skeleton } from "@/components/glass-card";
 import { Input } from "@/components/ui/input";
@@ -27,11 +27,11 @@ import {
 import { useStudySession } from "@/hooks/use-study-session";
 import {
   compareByDueDate,
-  endOfAheadWindow,
   isAssignmentComplete,
   isAssignmentVisible,
 } from "@/lib/assignment-window";
 import { COMPLETED_ASSIGNMENTS_KEY, useLocalSet } from "@/lib/local-state";
+import { isInStudySessionWindow } from "@/lib/study-session-window";
 import {
   POMODORO_LIMITS,
   POMODORO_PRESETS,
@@ -270,26 +270,25 @@ function StudySessionPage() {
   const { candidates, hiddenCount } = useMemo(() => {
     const needle = search.trim().toLowerCase();
     const now = Date.now();
-    const matching = (assignments.data ?? [])
-      .filter((item) => {
-        if (!isAssignmentVisible(item, completed.has(item.id), showCompleted, now)) {
-          return false;
-        }
-        if (!needle) return true;
-        return `${item.name} ${item.course_name} ${item.course_code}`
-          .toLowerCase()
-          .includes(needle);
-      })
+    const visible = (assignments.data ?? [])
+      .filter((item) =>
+        needle
+          ? showCompleted || !isAssignmentComplete(item, completed.has(item.id))
+          : isAssignmentVisible(item, completed.has(item.id), showCompleted, now),
+      )
       .sort(compareByDueDate);
-    // A study session is about what is coming up. Searching finds anything;
-    // otherwise the list stays inside the shared window (3 days back to 4
-    // weeks ahead), which leaves out undated and far-off work.
-    if (needle) return { candidates: matching, hiddenCount: 0 };
-    const end = endOfAheadWindow(now);
-    const inWindow = matching.filter(
-      (item) => item.due_at && new Date(item.due_at).getTime() <= end,
-    );
-    return { candidates: inWindow, hiddenCount: matching.length - inWindow.length };
+    if (needle) {
+      const candidates = visible.filter(
+        (item) => isInStudySessionWindow(item.due_at, now, true) &&
+          `${item.name} ${item.course_name} ${item.course_code}`
+            .toLowerCase()
+            .includes(needle),
+      );
+      return { candidates, hiddenCount: 0 };
+    }
+    const candidates = visible.filter((item) => isInStudySessionWindow(item.due_at, now, false));
+    const searchable = visible.filter((item) => isInStudySessionWindow(item.due_at, now, true));
+    return { candidates, hiddenCount: searchable.length - candidates.length };
   }, [assignments.data, completed, search, showCompleted]);
 
   const selectedIds = useMemo(() => new Set(selected.map((item) => item.id)), [selected]);
@@ -635,7 +634,7 @@ function StudySessionPage() {
             </label>
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
-            Showing the last 3 days through the next 4 weeks.
+            Showing recent assignments through the next 10 days. Search up to one month ahead.
             {hiddenCount > 0 && ` Search to find ${hiddenCount} more.`}
           </p>
 
