@@ -43,6 +43,13 @@
       "when": 1791045811074,
       "tag": "0005_push_dispatch_per_user",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791136977675,
+      "tag": "0006_patch_notification_prefs_and_avatar",
+      "breakpoints": true
     }
   ]
 }
