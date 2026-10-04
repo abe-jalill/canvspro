@@ -47,6 +47,8 @@ import { Route as AuthenticatedSettingsCanvasRouteImport } from './routes/_authe
 import { Route as AuthenticatedSettingsClassesRouteImport } from './routes/_authenticated/settings.classes'
 import { Route as AuthenticatedSettingsNotificationsRouteImport } from './routes/_authenticated/settings.notifications'
 import { Route as AuthenticatedSettingsProfileRouteImport } from './routes/_authenticated/settings.profile'
+import { Route as ApiMobileDeleteAccountRouteImport } from './routes/api/mobile/delete-account'
+import { Route as ApiMobileSignInRouteImport } from './routes/api/mobile/sign-in'
 import { Route as ApiPublicPushDispatchRouteImport } from './routes/api/public/push/dispatch'
 import { Route as ApiPublicPushKeyRouteImport } from './routes/api/public/push/key'
 import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
@@ -258,6 +260,16 @@ const AuthenticatedSettingsProfileRoute =
     path: '/profile',
     getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
+const ApiMobileDeleteAccountRoute = ApiMobileDeleteAccountRouteImport.update({
+  id: '/api/mobile/delete-account',
+  path: '/api/mobile/delete-account',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMobileSignInRoute = ApiMobileSignInRouteImport.update({
+  id: '/api/mobile/sign-in',
+  path: '/api/mobile/sign-in',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicPushDispatchRoute = ApiPublicPushDispatchRouteImport.update({
   id: '/api/public/push/dispatch',
   path: '/api/public/push/dispatch',
@@ -322,6 +334,8 @@ export interface FileRoutesByFullPath {
   '/settings/classes': typeof AuthenticatedSettingsClassesRoute
   '/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
   '/settings/profile': typeof AuthenticatedSettingsProfileRoute
+  '/api/mobile/delete-account': typeof ApiMobileDeleteAccountRoute
+  '/api/mobile/sign-in': typeof ApiMobileSignInRoute
   '/settings/': typeof AuthenticatedSettingsIndexRoute
   '/api/public/push/dispatch': typeof ApiPublicPushDispatchRoute
   '/api/public/push/key': typeof ApiPublicPushKeyRoute
@@ -365,6 +379,8 @@ export interface FileRoutesByTo {
   '/settings/classes': typeof AuthenticatedSettingsClassesRoute
   '/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
   '/settings/profile': typeof AuthenticatedSettingsProfileRoute
+  '/api/mobile/delete-account': typeof ApiMobileDeleteAccountRoute
+  '/api/mobile/sign-in': typeof ApiMobileSignInRoute
   '/settings': typeof AuthenticatedSettingsIndexRoute
   '/api/public/push/dispatch': typeof ApiPublicPushDispatchRoute
   '/api/public/push/key': typeof ApiPublicPushKeyRoute
@@ -411,6 +427,8 @@ export interface FileRoutesById {
   '/_authenticated/settings/classes': typeof AuthenticatedSettingsClassesRoute
   '/_authenticated/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
   '/_authenticated/settings/profile': typeof AuthenticatedSettingsProfileRoute
+  '/api/mobile/delete-account': typeof ApiMobileDeleteAccountRoute
+  '/api/mobile/sign-in': typeof ApiMobileSignInRoute
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
   '/api/public/push/dispatch': typeof ApiPublicPushDispatchRoute
   '/api/public/push/key': typeof ApiPublicPushKeyRoute
@@ -457,6 +475,8 @@ export interface FileRouteTypes {
     | '/settings/classes'
     | '/settings/notifications'
     | '/settings/profile'
+    | '/api/mobile/delete-account'
+    | '/api/mobile/sign-in'
     | '/settings/'
     | '/api/public/push/dispatch'
     | '/api/public/push/key'
@@ -500,6 +520,8 @@ export interface FileRouteTypes {
     | '/settings/classes'
     | '/settings/notifications'
     | '/settings/profile'
+    | '/api/mobile/delete-account'
+    | '/api/mobile/sign-in'
     | '/settings'
     | '/api/public/push/dispatch'
     | '/api/public/push/key'
@@ -545,6 +567,8 @@ export interface FileRouteTypes {
     | '/_authenticated/settings/classes'
     | '/_authenticated/settings/notifications'
     | '/_authenticated/settings/profile'
+    | '/api/mobile/delete-account'
+    | '/api/mobile/sign-in'
     | '/_authenticated/settings/'
     | '/api/public/push/dispatch'
     | '/api/public/push/key'
@@ -570,6 +594,8 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
+  ApiMobileDeleteAccountRoute: typeof ApiMobileDeleteAccountRoute
+  ApiMobileSignInRoute: typeof ApiMobileSignInRoute
   ApiPublicPushDispatchRoute: typeof ApiPublicPushDispatchRoute
   ApiPublicPushKeyRoute: typeof ApiPublicPushKeyRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
@@ -845,6 +871,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsProfileRouteImport
       parentRoute: typeof AuthenticatedSettingsRoute
     }
+    '/api/mobile/delete-account': {
+      id: '/api/mobile/delete-account'
+      path: '/api/mobile/delete-account'
+      fullPath: '/api/mobile/delete-account'
+      preLoaderRoute: typeof ApiMobileDeleteAccountRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mobile/sign-in': {
+      id: '/api/mobile/sign-in'
+      path: '/api/mobile/sign-in'
+      fullPath: '/api/mobile/sign-in'
+      preLoaderRoute: typeof ApiMobileSignInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/push/dispatch': {
       id: '/api/public/push/dispatch'
       path: '/api/public/push/dispatch'
@@ -967,6 +1007,8 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
+  ApiMobileDeleteAccountRoute: ApiMobileDeleteAccountRoute,
+  ApiMobileSignInRoute: ApiMobileSignInRoute,
   ApiPublicPushDispatchRoute: ApiPublicPushDispatchRoute,
   ApiPublicPushKeyRoute: ApiPublicPushKeyRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
