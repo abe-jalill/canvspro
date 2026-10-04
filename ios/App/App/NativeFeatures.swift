@@ -502,11 +502,10 @@ final class NativeFeatureStore: ObservableObject {
         return Int(value)
     }
 
-    /// Widgets this app draws, in the website's default order.
-    static let defaultDashboardOrder = ["digest", "classes", "upcoming", "focus", "calendar", "announcements", "heatmap"]
+    /// Every website widget, in the website's default order. The app draws all of them.
+    static let defaultDashboardOrder = ["digest", "classes", "upcoming", "focus", "calendar", "announcements", "gpa", "heatmap"]
     private var dashboardWidgets: [String] { Self.defaultDashboardOrder }
-    /// The website's full default order. It also has a GPA widget, which this app
-    /// doesn't draw but whose saved position it keeps.
+    /// The website's full default order, used to keep saved slots in place.
     private let websiteDashboardOrder = ["digest", "classes", "upcoming", "focus", "calendar", "announcements", "gpa", "heatmap"]
     private var dashboardObject: [String: JSONValue] {
         if case .some(.object(let value)) = preferences["dashboard-layout"] { return value }
@@ -534,7 +533,7 @@ final class NativeFeatureStore: ObservableObject {
         if full.isEmpty { full = websiteDashboardOrder }
         for widget in websiteDashboardOrder where !full.contains(widget) { full.append(widget) }
         // Put this app's widgets, in their new order, into the slots they already
-        // hold, so website-only widgets such as GPA keep their place.
+        // hold, so any widget the app doesn't know keeps its place.
         var queue = ArraySlice(order ?? dashboardOrder)
         full = full.map { widget in dashboardWidgets.contains(widget) ? (queue.popFirst() ?? widget) : widget }
         for widget in queue where !full.contains(widget) { full.append(widget) }

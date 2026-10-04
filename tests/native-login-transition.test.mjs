@@ -35,8 +35,13 @@ test("section selection and assignment search do not animate whole page containe
   const more = readFileSync(new URL("../ios/App/App/NativeMoreViews.swift", import.meta.url), "utf8");
   const picker = more.slice(more.indexOf("struct NativeSectionPicker"), more.indexOf("struct NativeCalendarHub"));
   assert.doesNotMatch(picker, /withAnimation/);
-  assert.match(picker, /matchedGeometryEffect/);
-  assert.match(picker, /reduceMotion \? nil/);
+  // The picker draws the shared segmented control, which slides its selection.
+  assert.match(picker, /CPSegmented\(selection: \$selection/);
+  const design = readFileSync(new URL("../ios/App/App/NativeDesign.swift", import.meta.url), "utf8");
+  const segmented = design.slice(design.indexOf("struct CPSegmented"), design.indexOf("// MARK: - Screen modifiers"));
+  assert.doesNotMatch(segmented, /withAnimation/);
+  assert.match(segmented, /matchedGeometryEffect/);
+  assert.match(segmented, /reduceMotion \? nil/);
   assert.doesNotMatch(source + more, /\.cpStateChange\(section\)/);
   assert.doesNotMatch(source, /value: assignments.map\(\\.id\)/);
   assert.equal((source.match(/\.tabBarMinimizeBehavior/g) ?? []).length, 1);

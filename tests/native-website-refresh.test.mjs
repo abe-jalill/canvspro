@@ -63,10 +63,11 @@ test("description links preserve class context and expand the target", () => {
 });
 
 test("dashboard suppresses empty classes without concealing urgent work", () => {
-  assert.ok(views.includes("ForEach(activeCourses)"));
-  assert.ok(views.includes("other classes have nothing due."));
-  assert.ok(views.includes('urgentCount > 0 ? "Nothing new since your last visit."'));
-  assert.ok(views.includes("WorkloadView(assignments: activeAssignments)"));
-  assert.ok(design.includes("return .hsl(hue, 0.42, 0.58)"));
+  // Only classes with something due get a row; the rest become one quiet line.
+  assert.ok(views.includes("return items.isEmpty ? nil : NativeCourseGroup(course: course, items: items)"));
+  assert.ok(views.includes('class has" : "classes have") nothing due.'));
+  assert.ok(views.includes('stillUrgent > 0 ? "Nothing new since your last visit."'));
+  assert.ok(views.includes("WorkloadView(assignments: activeAssignments, store: store, features: features)"));
+  assert.ok(design.includes("adaptive(dark: .hsl(hue, 0.45, 0.64), light: .hsl(hue, 0.50, 0.38))"));
   assert.ok(more.includes("store.displayName(courseID: course.id, fallback: course.name)"));
 });

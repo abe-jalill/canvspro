@@ -21,7 +21,8 @@ test("state transitions are short and respect Reduce Motion", () => {
   for (const value of ["sessionFinished", "sessionStarted", "store.isLoading && store.bundle.courses.isEmpty", "store.isLoading && store.bundle.assignments.isEmpty"]) {
     assert.ok(views.includes(`.cpStateChange(${value})`));
   }
-  assert.equal((more.match(/AsyncImage\(url: features.avatarURL, transaction: Transaction\(animation: reduceMotion \? nil/g) ?? []).length, 2);
+  assert.ok((more.match(/AsyncImage\(url: (features\.avatarURL|url), transaction: Transaction\(animation: reduceMotion \? nil/g) ?? []).length >= 2);
+  assert.match(more, /NativeAvatar\(url: features\.avatarURL/);
 });
 
 test("shared backdrop avoids large blur passes and card headings wrap", () => {
@@ -33,12 +34,15 @@ test("shared backdrop avoids large blur passes and card headings wrap", () => {
 });
 
 test("refined cards and selections preserve accessibility", () => {
-  assert.match(design, /@ScaledMetric\(relativeTo: \.headline\)/);
-  assert.match(design, /@Environment\(\\.accessibilityReduceTransparency\)/);
+  // Card text scales with Dynamic Type through cpFont, and surfaces are solid
+  // (no translucency), with stronger borders when Increase Contrast is on.
+  assert.match(design, /Text\(title\)\.cpFont\(13, \.semibold\)/);
+  assert.doesNotMatch(design, /\.ultraThinMaterial|\.thinMaterial/);
   assert.match(design, /contrast == \.increased/);
   const chip = design.slice(design.indexOf("struct CPChip"), design.indexOf("struct CPIconBadge"));
   assert.match(chip, /minHeight: 44/);
   assert.match(chip, /reduceMotion \? nil/);
   assert.match(chip, /accessibilityAddTraits\(selected \? \.isSelected : \[\]\)/);
-  assert.match(views, /if let score = course.currentScore \{\s+ProgressView/);
+  assert.match(views, /CPProgressBar\(value: \(course\.currentScore \?\? 0\) \/ 100, color: color\)/);
+  assert.match(design, /struct CPProgressBar[\s\S]*?\.accessibilityHidden\(true\)/);
 });

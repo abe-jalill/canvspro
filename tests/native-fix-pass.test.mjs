@@ -39,7 +39,8 @@ test("text follows Dynamic Type everywhere", () => {
   const fixed = allSwift.match(/\.font\(\.system\(size: (?!titleSize|subtitleSize|textSize|scaled)[^)]*\)\)/g) ?? [];
   assert.deepEqual(fixed, []);
   assert.match(swift.NativeDesign, /UIFontMetrics\(forTextStyle: style\)\.scaledValue/);
-  assert.match(swift.NativeDesign, /max\(11, size\)/);
+  // Phone text is 9–11 pt by design; 9 pt is the floor before Dynamic Type scaling.
+  assert.match(swift.NativeDesign, /max\(9, size\)/);
   assert.match(swift.NativeViews, /\.dynamicTypeSize\(\.\.\.DynamicTypeSize\.accessibility3\)/);
 });
 
@@ -111,7 +112,7 @@ test("Canvas HTML entities are decoded", () => {
 test("Today's section switcher stays on the three Today pages", () => {
   const today = swift.NativeViews.slice(swift.NativeViews.indexOf("private struct NativeTodayView"), swift.NativeViews.indexOf("private struct NativeDigestSnapshot"));
   assert.match(today, /NavigationStack \{\s+Group \{/);
-  const dashboard = swift.NativeViews.slice(swift.NativeViews.indexOf("private struct NativeDashboardView"), swift.NativeViews.indexOf("private var dashboardHero"));
+  const dashboard = swift.NativeViews.slice(swift.NativeViews.indexOf("private struct NativeDashboardView"), swift.NativeViews.indexOf("private var hero: some View"));
   assert.doesNotMatch(dashboard, /NavigationStack \{\s+ZStack/);
 });
 
