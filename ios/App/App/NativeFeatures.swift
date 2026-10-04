@@ -597,6 +597,12 @@ enum NativeParity {
         return Countdown(label: "Due \(shortDate)", urgency: "later", fullDate: fullDate)
     }
 
+    static func endOfStudySearchMonth(from now: Date = Date()) -> Date {
+        let calendar = Calendar.current
+        let date = calendar.date(byAdding: .month, value: 1, to: now) ?? now
+        return calendar.date(bySettingHour: 23, minute: 59, second: 59, of: date) ?? date
+    }
+
     static func endOfUpcomingDay(_ days: Int, from now: Date = Date()) -> Date {
         let day = Calendar.current.date(byAdding: .day, value: days, to: now) ?? now
         return Calendar.current.date(bySettingHour: 23, minute: 59, second: 59, of: day) ?? day

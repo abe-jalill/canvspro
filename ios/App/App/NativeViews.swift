@@ -2791,10 +2791,21 @@ struct NativeStudyView: View {
         if let data = try? JSONEncoder().encode(value) { UserDefaults.standard.set(data, forKey: sessionKey) }
     }
     private var setupCandidates: [AssignmentItem] {
-        availableItems.filter { item in
-            let matches = search.isEmpty || item.name.localizedCaseInsensitiveContains(search) || item.courseName.localizedCaseInsensitiveContains(search) || store.displayName(courseID: item.courseID, fallback: item.courseName).localizedCaseInsensitiveContains(search)
-            let inRange = item.courseID == 0 || !search.isEmpty || (item.dueDate.map { $0 <= NativeParity.endOfUpcomingDay(28) } ?? false)
-            return matches && inRange && (item.courseID == 0 || item.isVisible(in: store, showCompleted: showCompleted))
+        let needle = search.trimmingCharacters(in: .whitespacesAndNewlines)
+        let searching = !needle.isEmpty
+        let end = searching ? NativeParity.endOfStudySearchMonth() : NativeParity.endOfUpcomingDay(10)
+        return availableItems.filter { item in
+            if searching {
+                let matchesName = item.name.localizedCaseInsensitiveContains(needle)
+                let matchesCourse = item.courseName.localizedCaseInsensitiveContains(needle)
+                    || store.displayName(courseID: item.courseID, fallback: item.courseName).localizedCaseInsensitiveContains(needle)
+                if !matchesName && !matchesCourse { return false }
+            }
+            if item.courseID == 0 { return true }
+            guard let due = item.dueDate else { return searching && (showCompleted || !item.isFinished(in: store)) }
+            if due > end { return false }
+            if searching { return showCompleted || !item.isFinished(in: store) }
+            return item.isVisible(in: store, showCompleted: showCompleted)
         }.sorted(by: AssignmentItem.dueSort)
     }
 
@@ -2828,8 +2839,10 @@ struct NativeStudyView: View {
                     }
                     .padding(.horizontal, 12).frame(minHeight: 40)
                     .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    Text("Showing assignments through the next 10 days. Search through one month ahead.")
+                        .cpFont(11).foregroundStyle(CPTheme.faint(scheme))
                     if setupCandidates.isEmpty {
-                        NativeEmptyState(title: search.isEmpty ? "Nothing due in the next four weeks" : "No matches", symbol: "checkmark.circle", detail: search.isEmpty ? "Add a task of your own above." : nil)
+                        NativeEmptyState(title: search.isEmpty ? "Nothing due in the next 10 days" : "No matches", symbol: "checkmark.circle", detail: search.isEmpty ? "Add a task of your own above." : nil)
                     } else {
                         VStack(spacing: 0) {
                             ForEach(setupCandidates) { item in
