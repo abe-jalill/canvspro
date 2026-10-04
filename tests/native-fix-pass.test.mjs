@@ -124,3 +124,16 @@ test("legal pages show the live policies, and links open the right tab", () => {
   assert.match(swift.SceneDelegate, /NativeRouter\.shared\.open\(url\)/);
   assert.match(swift.NativeViews, /router\.takePendingPath\(\)/);
 });
+
+test("the syllabus is only on the class page, and Today uses the website's tabs", () => {
+  const dashboard = swift.NativeViews.slice(swift.NativeViews.indexOf("private struct NativeDashboardView"), swift.NativeViews.indexOf("enum NativeGPA"));
+  assert.doesNotMatch(dashboard, /syllabus/i);
+  const course = swift.NativeViews.slice(swift.NativeViews.indexOf("struct CourseDetailView"), swift.NativeViews.indexOf("private struct CountUpGrade"));
+  assert.match(course, /Label\("Syllabus", systemImage: "doc.text"\)/);
+  for (const page of ["NativeDashboardView", "GetItDoneView", "FocusView"]) {
+    const source = page === "NativeDashboardView" ? swift.NativeViews : swift.NativeMoreViews;
+    const body = source.slice(source.indexOf(`struct ${page}`));
+    assert.match(body, /NativeTodayTabs\(selection: \$(todaySection|section)\)/, page);
+  }
+  assert.match(swift.NativeDesign, /struct NativePageTabs/);
+});

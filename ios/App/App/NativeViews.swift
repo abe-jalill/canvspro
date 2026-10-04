@@ -721,20 +721,27 @@ private struct NativeTodayView: View {
         NavigationStack {
             Group {
                 if section == "Coming Up" {
-                    FocusView(store: store, features: features, window: $focusWindow)
+                    FocusView(store: store, features: features, window: $focusWindow, section: $section)
                 } else if section == "Get It Done" {
-                    GetItDoneView(store: store, features: features)
+                    GetItDoneView(store: store, features: features, section: $section)
                 } else {
                     NativeDashboardView(store: store, features: features, selection: $selection, todaySection: $section, focusWindow: $focusWindow)
                 }
             }
-            // Only the three Today pages show the switcher; pages opened from them don't.
-            .safeAreaInset(edge: .top, spacing: 0) {
-                NativeSectionPicker(selection: $section, options: ["Dashboard", "Coming Up", "Get It Done"], label: "Today sections")
-            }
+            // Like the website, the three Today pages share centered tabs at the top
+            // of the page; pages opened from them don't show the tabs.
             .cpNavigationTitle("Today")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbar(.hidden, for: .navigationBar)
         }
+    }
+}
+
+/// The Today pages' tabs, as on the website: Dashboard, Coming Up, Get It Done.
+struct NativeTodayTabs: View {
+    @Binding var selection: String
+    var body: some View {
+        NativePageTabs(selection: $selection, options: ["Dashboard", "Coming Up", "Get It Done"], label: "Today sections")
+            .padding(.bottom, 4)
     }
 }
 
@@ -756,7 +763,6 @@ private struct NativeDashboardView: View {
     @Binding var focusWindow: String
     @AppStorage("CanvasProDismissedAnnouncements") private var dismissedAnnouncementsRaw = ""
     @State private var digest: NativeDigestSnapshot?
-    @State private var syllabusCourse: CourseSummary?
     @State private var showCustomize = false
     @State private var expandedUpcoming = Set<Int>()
     @State private var expandedAnnouncements = Set<Int>()
@@ -796,7 +802,8 @@ private struct NativeDashboardView: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: CPLayout.stack) {
+            LazyVStack(alignment: .leading, spacing: 16) {
+                NativeTodayTabs(selection: $todaySection)
                 if store.needsCanvasConnection {
                     NativeConnectCanvasCard(store: store)
                 } else {
@@ -824,73 +831,131 @@ private struct NativeDashboardView: View {
                     .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showCustomize = false } } }
             }
         }
-        .sheet(item: $syllabusCourse) { course in
-            NavigationStack {
-                ScrollView {
-                    Text(course.syllabusBody?.strippingHTML ?? "No syllabus available.")
-                        .cpFont(13).lineSpacing(3).textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(CPLayout.gutter)
-                }
-                .background(CPBackdrop())
-                .cpNavigationTitle("\(store.displayName(courseID: course.id, fallback: course.name)) Syllabus")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { syllabusCourse = nil } } }
-            }
-        }
     }
 
-    // MARK: Hero
+    // MARK: Hero (the website's DashboardHero)
 
-    /// Greeting and three numbers, straight on the page: no box around boxes.
     private var hero: some View {
         VStack(alignment: .leading, spacing: 18) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(Date().formatted(.dateTime.weekday(.wide).month(.wide).day()))
-                    .cpFont(12, .medium)
-                    .foregroundStyle(CPTheme.muted(scheme))
+            HStack(spacing: 6) {
+                Image(systemName: "calendar").cpIconFont(10, .medium)
+                Text(Date().formatted(.dateTime.weekday(.wide).month(.wide).day()).uppercased()).tracking(2)
+            }
+            .cpFont(11, .medium)
+            .foregroundStyle(CPTheme.muted(scheme))
+            VStack(alignment: .leading, spacing: 10) {
                 Text("\(greeting)\(studentName.map { ", \($0)." } ?? ".")")
-                    .cpFont(26, .semibold).tracking(-0.6)
+                    .cpFont(30, .regular).tracking(-1)
                     .foregroundStyle(CPTheme.foreground(scheme))
+                    .shadow(color: CPTheme.primary(scheme: scheme).opacity(scheme == .dark ? 0.25 : 0), radius: 18)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityAddTraits(.isHeader)
                 Text(heroMessage)
-                    .cpFont(13).lineSpacing(3)
+                    .cpFont(14).lineSpacing(3)
                     .foregroundStyle(CPTheme.muted(scheme))
                     .fixedSize(horizontal: false, vertical: true)
             }
-            HStack(spacing: 8) {
-                heroStat(value: weekItems.count, label: "Next 7 days", window: "7")
-                heroStat(value: todayCount, label: "Next 24 hours", window: "1")
-                heroStat(value: overdueCount, label: "Overdue", window: "overdue", soft: overdueCount > 0)
-            }
             Button { openFocus("7") } label: {
-                HStack(spacing: 4) { Text("Open focus view"); Image(systemName: "arrow.right").cpIconFont(10, .semibold) }
-                    .cpFont(12, .semibold)
-                    .foregroundStyle(CPTheme.primary(scheme: scheme))
-                    .frame(minHeight: 32)
-                    .contentShape(Rectangle())
+                HStack(spacing: 6) { Text("Open focus view"); Image(systemName: "arrow.up.right").cpIconFont(10, .semibold) }
+                    .cpFont(12, .medium)
+                    .foregroundStyle(CPTheme.foreground(scheme))
+                    .padding(.horizontal, 16)
+                    .frame(minHeight: 40)
+                    .background(
+                        LinearGradient(colors: [CPTheme.primary(scheme: scheme).opacity(0.23), CPTheme.primary(scheme: scheme).opacity(0.08)], startPoint: .topLeading, endPoint: .bottomTrailing),
+                        in: Capsule()
+                    )
+                    .overlay(Capsule().strokeBorder(CPTheme.primary(scheme: scheme).opacity(0.5), lineWidth: 1))
             }
             .buttonStyle(CPPressStyle())
+            heroStats
         }
-        .padding(.horizontal, 4)
-        .padding(.top, 8)
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(heroBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 30, style: .continuous).strokeBorder(CPTheme.primary(scheme: scheme).opacity(scheme == .dark ? 0.28 : 0.22), lineWidth: 1))
     }
 
-    private func heroStat(value: Int, label: String, window: String, soft: Bool = false) -> some View {
-        Button { openFocus(window) } label: {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("\(value)")
-                    .cpFont(22, .semibold).tracking(-0.5).monospacedDigit()
-                    .foregroundStyle(soft ? CPTheme.danger : CPTheme.foreground(scheme))
-                Text(label)
-                    .cpFont(11)
-                    .foregroundStyle(CPTheme.muted(scheme))
-                    .lineLimit(1).minimumScaleFactor(0.85)
+    private var heroBackground: some View {
+        let palette = CPTheme.currentPalette
+        return ZStack {
+            LinearGradient(
+                colors: scheme == .dark
+                    ? [.hsl(palette.hue, palette.saturation, 0.17), .hsl(palette.hue, palette.saturation, 0.11), .hsl(palette.hue, palette.saturation, 0.07)]
+                    : [.hsl(palette.hue, palette.saturation, 0.97), .hsl(palette.hue, palette.saturation, 0.88)],
+                startPoint: .topLeading, endPoint: .bottomTrailing
+            )
+            RadialGradient(colors: [CPTheme.primary(scheme: scheme).opacity(scheme == .dark ? 0.22 : 0.18), .clear], center: UnitPoint(x: 0.22, y: 0.3), startRadius: 0, endRadius: 260)
+            RadialGradient(colors: [CPTheme.primary(scheme: scheme).opacity(scheme == .dark ? 0.16 : 0.14), .clear], center: UnitPoint(x: 0.95, y: -0.05), startRadius: 0, endRadius: 220)
+            LinearGradient(colors: [Color.white.opacity(scheme == .dark ? 0.06 : 0.3), .clear], startPoint: .topLeading, endPoint: UnitPoint(x: 0.4, y: 0.4))
+        }
+    }
+
+    /// "Next seven days" above two smaller cards, inside one soft shell.
+    private var heroStats: some View {
+        VStack(spacing: 8) {
+            Button { openFocus("7") } label: {
+                VStack(alignment: .leading, spacing: 18) {
+                    HStack {
+                        Text("NEXT SEVEN DAYS").cpFont(11, .medium).tracking(2).foregroundStyle(CPTheme.muted(scheme))
+                        Spacer()
+                        Image(systemName: "arrow.up.right").cpIconFont(11, .medium).foregroundStyle(CPTheme.muted(scheme))
+                    }
+                    HStack(alignment: .lastTextBaseline) {
+                        Text("\(weekItems.count)").cpFont(32, .regular).tracking(-1.8).monospacedDigit().foregroundStyle(CPTheme.foreground(scheme))
+                        Spacer(minLength: 8)
+                        Text(weekItems.count == 1 ? "item on your radar" : "items on your radar")
+                            .cpFont(12).foregroundStyle(CPTheme.muted(scheme)).multilineTextAlignment(.trailing)
+                    }
+                }
+                .padding(18)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(heroCardBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(CPTheme.primary(scheme: scheme).opacity(0.3), lineWidth: 1))
             }
-            .padding(12)
+            .buttonStyle(CPPressStyle())
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Next seven days: \(weekItems.count) \(weekItems.count == 1 ? "item" : "items")")
+            .accessibilityHint("Opens Coming Up")
+            HStack(spacing: 8) {
+                heroSmallStat(value: todayCount, label: "Next 24 hours", symbol: "clock", window: "1")
+                heroSmallStat(value: overdueCount, label: "Overdue", symbol: "exclamationmark.triangle", window: "overdue", soft: overdueCount > 0)
+            }
+        }
+        .padding(8)
+        .background(
+            LinearGradient(colors: [CPTheme.primary(scheme: scheme).opacity(0.13), CPTheme.primary(scheme: scheme).opacity(0.035)], startPoint: .topLeading, endPoint: .bottomTrailing),
+            in: RoundedRectangle(cornerRadius: 26, style: .continuous)
+        )
+        .overlay(RoundedRectangle(cornerRadius: 26, style: .continuous).strokeBorder(CPTheme.primary(scheme: scheme).opacity(0.2), lineWidth: 1))
+    }
+
+    private var heroCardBackground: LinearGradient {
+        let palette = CPTheme.currentPalette
+        return LinearGradient(
+            colors: scheme == .dark
+                ? [.hsl(palette.hue, palette.saturation, 0.21), .hsl(palette.hue, palette.saturation, 0.15), .hsl(palette.hue, palette.saturation, 0.11)]
+                : [.hsl(palette.hue, palette.saturation, 0.99), .hsl(palette.hue, palette.saturation, 0.93)],
+            startPoint: .topLeading, endPoint: .bottomTrailing
+        )
+    }
+
+    private func heroSmallStat(value: Int, label: String, symbol: String, window: String, soft: Bool = false) -> some View {
+        Button { openFocus(window) } label: {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack {
+                    Image(systemName: symbol).cpIconFont(15).foregroundStyle(soft ? CPTheme.danger : CPTheme.muted(scheme))
+                    Spacer()
+                    Text("\(value)").cpFont(24, .regular).tracking(-1.2).monospacedDigit()
+                        .foregroundStyle(soft ? CPTheme.danger : CPTheme.foreground(scheme))
+                }
+                Text(label).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1).minimumScaleFactor(0.85)
+            }
+            .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .cpSurface(radius: 14)
+            .background(heroCardBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(CPTheme.primary(scheme: scheme).opacity(0.3), lineWidth: 1))
         }
         .buttonStyle(CPPressStyle())
         .accessibilityElement(children: .ignore)
@@ -899,17 +964,20 @@ private struct NativeDashboardView: View {
     }
 
     private var dashboardHeader: some View {
-        CPSectionLabel("Your dashboard") {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Your dashboard").cpFont(17, .medium).tracking(-0.3).foregroundStyle(CPTheme.foreground(scheme))
+                Text("Choose which widgets appear and their order.").cpFont(12).foregroundStyle(CPTheme.muted(scheme))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 8)
             Button { showCustomize = true } label: {
                 Label("Customize", systemImage: "slider.horizontal.3")
-                    .cpFont(12, .semibold)
-                    .foregroundStyle(CPTheme.primary(scheme: scheme))
-                    .frame(minHeight: 44)
-                    .contentShape(Rectangle())
             }
-            .buttonStyle(CPPressStyle())
+            .buttonStyle(CPButtonStyle(kind: .secondary))
         }
-        .padding(.top, 14)
+        .padding(.horizontal, 4)
+        .padding(.top, 8)
     }
 
     @ViewBuilder private func dashboardWidget(_ id: String) -> some View {
@@ -934,89 +1002,88 @@ private struct NativeDashboardView: View {
     @ViewBuilder private var digestWidget: some View {
         let total = newAnnouncements.count + newGrades.count + newlyUrgent.count
         if total == 0 {
-            HStack(spacing: 12) {
-                Image(systemName: "checkmark").cpIconFont(12, .bold)
-                    .foregroundStyle(CPTheme.primary(scheme: scheme))
-                    .frame(width: 32, height: 32)
-                    .background(CPTheme.primary(scheme: scheme).opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(stillUrgent > 0 ? "Nothing new since your last visit." : "All caught up.")
-                        .cpFont(13, .semibold).foregroundStyle(CPTheme.foreground(scheme))
-                    Text(stillUrgent > 0 ? "No new announcements or grades. \(stillUrgent) assignment\(stillUrgent == 1 ? " is" : "s are") still due soon." : "No new announcements, grades, or urgent deadlines since your last visit.")
-                        .cpFont(11).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer(minLength: 4)
-                if stillUrgent > 0 {
-                    Button { todaySection = "Get It Done" } label: { CPLinkLabel(text: "Plan it") }.buttonStyle(.plain)
+            CPGlassCard {
+                HStack(spacing: 12) {
+                    Image(systemName: "checkmark").cpIconFont(13, .medium)
+                        .foregroundStyle(CPTheme.foreground(scheme))
+                        .frame(width: 36, height: 36)
+                        .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(CPTheme.insetBorder(scheme), lineWidth: 1))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(stillUrgent > 0 ? "Nothing new since your last visit." : "All caught up.")
+                            .cpFont(13, .medium).foregroundStyle(CPTheme.foreground(scheme))
+                        Text(stillUrgent > 0 ? "No new announcements or grades. \(stillUrgent) assignment\(stillUrgent == 1 ? " is" : "s are") still due soon." : "No new announcements, grades, or urgent deadlines since your last visit.")
+                            .cpFont(12).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 4)
+                    if stillUrgent > 0 {
+                        Button { todaySection = "Get It Done" } label: { CPLinkLabel(text: "Plan it") }.buttonStyle(.plain)
+                    }
                 }
             }
-            .padding(CPLayout.cardPadding)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .cpSurface()
         } else {
-            VStack(alignment: .leading, spacing: 14) {
+            CPGlassCard(strong: true) {
                 CPCardHeader(title: "Since your last visit", subtitle: "\(total) update\(total == 1 ? "" : "s")") {
                     Button { markDigestSeen() } label: { CPLinkLabel(text: "Mark all seen") }.buttonStyle(.plain)
                 }
-                digestSection("New announcements", symbol: "bell", count: newAnnouncements.count, empty: "No new posts") {
-                    ForEach(newAnnouncements) { item in
-                        NavigationLink { AnnouncementDetailView(item: item) } label: {
-                            digestItem(item.title, detail: store.displayName(courseID: item.courseID, fallback: item.courseName))
-                        }.buttonStyle(CPPressStyle())
+                VStack(alignment: .leading, spacing: 18) {
+                    digestSection("New announcements", symbol: "bell", count: newAnnouncements.count, empty: "No new posts") {
+                        ForEach(newAnnouncements) { item in
+                            NavigationLink { AnnouncementDetailView(item: item) } label: {
+                                digestItem(item.title, detail: store.displayName(courseID: item.courseID, fallback: item.courseName))
+                            }.buttonStyle(CPPressStyle())
+                        }
                     }
-                }
-                digestSection("New grades", symbol: "chart.line.uptrend.xyaxis", count: newGrades.count, empty: "No new grades") {
-                    ForEach(newGrades) { item in
-                        NavigationLink { courseDestination(for: item, section: .graded) } label: {
-                            digestItem(item.name, detail: store.displayName(courseID: item.courseID, fallback: item.courseName), trailing: gradeChangeText(item))
-                        }.buttonStyle(CPPressStyle())
+                    digestSection("New grades", symbol: "chart.line.uptrend.xyaxis", count: newGrades.count, empty: "No new grades") {
+                        ForEach(newGrades) { item in
+                            NavigationLink { courseDestination(for: item, section: .graded) } label: {
+                                digestItem(item.name, detail: store.displayName(courseID: item.courseID, fallback: item.courseName), trailing: gradeChangeText(item))
+                            }.buttonStyle(CPPressStyle())
+                        }
                     }
-                }
-                digestSection("Newly urgent", symbol: "clock", count: newlyUrgent.count, empty: "Nothing new due soon") {
-                    ForEach(newlyUrgent) { item in
-                        NavigationLink { courseDestination(for: item, highlight: true) } label: {
-                            digestItem(item.name, detail: store.displayName(courseID: item.courseID, fallback: item.courseName), trailing: urgency(for: item) == "today" ? "Due today" : "Due soon")
-                        }.buttonStyle(CPPressStyle())
+                    digestSection("Newly urgent", symbol: "clock", count: newlyUrgent.count, empty: "Nothing new due soon") {
+                        ForEach(newlyUrgent) { item in
+                            NavigationLink { courseDestination(for: item, highlight: true) } label: {
+                                digestItem(item.name, detail: store.displayName(courseID: item.courseID, fallback: item.courseName), trailing: urgency(for: item) == "today" ? "Due today" : "Due soon")
+                            }.buttonStyle(CPPressStyle())
+                        }
                     }
                 }
             }
-            .padding(CPLayout.cardPadding)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .cpSurface(strong: true)
         }
     }
 
     private func digestSection<Content: View>(_ title: String, symbol: String, count: Int, empty: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                Image(systemName: symbol).cpIconFont(9, .semibold).foregroundStyle(CPTheme.muted(scheme))
-                Text(title.uppercased()).cpFont(11, .semibold).tracking(0.5).foregroundStyle(CPTheme.muted(scheme))
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: symbol).cpIconFont(12).foregroundStyle(CPTheme.muted(scheme))
+                Text(title.uppercased()).cpFont(11, .medium).tracking(1.5).foregroundStyle(CPTheme.foreground(scheme).opacity(0.8))
                 Spacer()
-                Text("\(count)").cpFont(11, .semibold).monospacedDigit().foregroundStyle(CPTheme.faint(scheme))
+                Text("\(count)").cpFont(11).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
             }
+            .padding(.horizontal, 4)
             .accessibilityElement(children: .combine)
             if count == 0 {
-                Text(empty).cpFont(11).foregroundStyle(CPTheme.faint(scheme)).padding(.vertical, 2)
+                Text(empty).cpFont(11).foregroundStyle(CPTheme.faint(scheme)).padding(.horizontal, 4)
             } else {
-                VStack(spacing: 4) { content() }
+                VStack(spacing: 6) { content() }
             }
         }
     }
 
     private func digestItem(_ title: String, detail: String, trailing: String? = nil) -> some View {
-        HStack(spacing: 8) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).cpFont(12, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
-                Text(detail).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
+        CPInsetRow {
+            HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).cpFont(12, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
+                    Text(detail).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
+                }
+                Spacer(minLength: 6)
+                if let trailing {
+                    Text(trailing).cpFont(11, .medium).monospacedDigit().foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
+                }
             }
-            Spacer(minLength: 6)
-            if let trailing {
-                Text(trailing).cpFont(11, .semibold).monospacedDigit().foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
-            }
-            Image(systemName: "chevron.right").cpIconFont(8, .bold).foregroundStyle(CPTheme.faint(scheme))
         }
-        .padding(.horizontal, 10).padding(.vertical, 8)
-        .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
     private func gradeChangeText(_ item: AssignmentItem) -> String {
@@ -1036,43 +1103,29 @@ private struct NativeDashboardView: View {
             if visibleCourses.isEmpty {
                 NativeEmptyState(title: "No active courses.", symbol: "books.vertical")
             } else {
-                VStack(spacing: 0) {
+                VStack(spacing: 8) {
                     ForEach(visibleCourses) { course in
-                        dashboardCourseRow(course)
-                        if course.id != visibleCourses.last?.id { CPRowDivider(leading: 18) }
+                        NavigationLink {
+                            CourseDetailView(course: course, store: store, features: features, initialSection: .graded)
+                        } label: {
+                            CPInsetRow {
+                                HStack(spacing: 10) {
+                                    Circle().fill(CPTheme.gradeColor(course.currentScore)).frame(width: 8, height: 8)
+                                        .shadow(color: CPTheme.gradeColor(course.currentScore).opacity(0.5), radius: 3)
+                                    Text(store.displayName(courseID: course.id, fallback: course.name))
+                                        .cpFont(13).foregroundStyle(CPTheme.foreground(scheme).opacity(0.9)).lineLimit(1)
+                                    Spacer(minLength: 8)
+                                    Text(scoreText(course))
+                                        .cpFont(12).monospacedDigit()
+                                        .foregroundStyle(CPTheme.gradeColor(course.currentScore))
+                                        .lineLimit(1).fixedSize()
+                                }
+                            }
+                        }
+                        .buttonStyle(CPPressStyle())
                     }
                 }
             }
-        }
-    }
-
-    private func dashboardCourseRow(_ course: CourseSummary) -> some View {
-        let color = CPTheme.gradeColor(course.currentScore)
-        let name = store.displayName(courseID: course.id, fallback: course.name)
-        return HStack(spacing: 10) {
-            NavigationLink {
-                CourseDetailView(course: course, store: store, features: features, initialSection: .graded)
-            } label: {
-                HStack(spacing: 10) {
-                    Circle().fill(color).frame(width: 7, height: 7)
-                    Text(name).cpFont(12, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
-                    Spacer(minLength: 4)
-                }
-                .frame(minHeight: 44)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(CPPressStyle())
-            if course.syllabusBody != nil {
-                Button { syllabusCourse = course } label: { CPPill(text: "Syllabus", symbol: "doc.text") }
-                    .buttonStyle(.plain)
-                    .padding(.vertical, 13).contentShape(Rectangle()).padding(.vertical, -13)
-                    .accessibilityLabel("Open \(name) syllabus")
-            }
-            Text(scoreText(course))
-                .cpFont(11, .semibold).monospacedDigit()
-                .foregroundStyle(color)
-                .lineLimit(1)
-                .fixedSize()
         }
     }
 
@@ -1107,7 +1160,7 @@ private struct NativeDashboardView: View {
                 }
                 if quiet > 0 {
                     Text("\(quiet) other \(quiet == 1 ? "class has" : "classes have") nothing due.")
-                        .cpFont(11).foregroundStyle(CPTheme.faint(scheme))
+                        .cpFont(12).foregroundStyle(CPTheme.muted(scheme)).padding(.horizontal, 4)
                 }
             }
         }
@@ -1115,32 +1168,33 @@ private struct NativeDashboardView: View {
 
     private func upcomingGroup(_ course: CourseSummary, items: [AssignmentItem]) -> some View {
         let isOpen = expandedUpcoming.contains(course.id)
-        return VStack(alignment: .leading, spacing: 6) {
+        return VStack(alignment: .leading, spacing: 8) {
             Button {
                 withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
                     if isOpen { expandedUpcoming.remove(course.id) } else { expandedUpcoming.insert(course.id) }
                 }
             } label: {
-                HStack(spacing: 10) {
-                    Image(systemName: "chevron.right").cpIconFont(9, .bold).foregroundStyle(CPTheme.faint(scheme))
-                        .rotationEffect(.degrees(isOpen ? 90 : 0))
-                    Circle().fill(CPTheme.gradeColor(course.currentScore)).frame(width: 7, height: 7)
+                HStack(spacing: 12) {
+                    Image(systemName: "chevron.down").cpIconFont(11).foregroundStyle(CPTheme.muted(scheme))
+                        .rotationEffect(.degrees(isOpen ? 180 : 0))
+                    Circle().fill(CPTheme.gradeColor(course.currentScore)).frame(width: 8, height: 8)
                     Text(store.displayName(courseID: course.id, fallback: course.name))
-                        .cpFont(12, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
+                        .cpFont(12).foregroundStyle(CPTheme.foreground(scheme).opacity(0.9)).lineLimit(1)
                     Spacer(minLength: 6)
-                    Text("\(items.count)").cpFont(11, .semibold).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
+                    Text("\(items.count)").cpFont(12).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
                 }
-                .frame(minHeight: 44)
+                .padding(.horizontal, 4)
+                .frame(minHeight: 46)
                 .contentShape(Rectangle())
             }
             .buttonStyle(CPPressStyle())
             .accessibilityValue(isOpen ? "Expanded" : "Collapsed")
             .accessibilityHint("\(items.count) due")
             if isOpen {
-                VStack(spacing: 4) {
+                VStack(spacing: 8) {
                     ForEach(items) { item in NativeDueRow(assignment: item, store: store, features: features, showCourse: false) }
                 }
-                .padding(.bottom, 8)
+                .padding(.bottom, 10)
             }
         }
     }
@@ -1156,7 +1210,7 @@ private struct NativeDashboardView: View {
             if soon.isEmpty {
                 NativeEmptyState(title: "Nothing due in the next 48 hours.", symbol: "sun.max")
             } else {
-                VStack(spacing: 4) {
+                VStack(spacing: 8) {
                     ForEach(soon) { item in NativeDueRow(assignment: item, store: store, features: features, showToggle: false) }
                 }
             }
@@ -1179,20 +1233,20 @@ private struct NativeDashboardView: View {
             if events.isEmpty {
                 NativeEmptyState(title: "No calendar events this week.", symbol: "calendar")
             } else {
-                VStack(spacing: 0) {
+                VStack(spacing: 8) {
                     ForEach(events) { entry in
-                        HStack(spacing: 12) {
-                            NativeDateBadge(date: entry.date)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(entry.event.title).cpFont(12, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
-                                if let context = entry.event.contextName { Text(context).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1) }
+                        CPInsetRow {
+                            HStack(spacing: 12) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(entry.event.title).cpFont(13, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
+                                    if let context = entry.event.contextName { Text(context).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1) }
+                                }
+                                Spacer(minLength: 8)
+                                Text(entry.date.formatted(.dateTime.weekday(.abbreviated).hour().minute()))
+                                    .cpFont(11).monospacedDigit().foregroundStyle(CPTheme.muted(scheme)).fixedSize()
                             }
-                            Spacer(minLength: 6)
-                            Text(entry.date.formatted(.dateTime.hour().minute())).cpFont(11, .medium).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
                         }
-                        .padding(.vertical, 8)
                         .accessibilityElement(children: .combine)
-                        if entry.id != events.last?.id { CPRowDivider(leading: 52) }
                     }
                 }
             }
@@ -1225,56 +1279,53 @@ private struct NativeDashboardView: View {
 
     private func announcementGroup(id: Int, name: String, items: [AnnouncementItem]) -> some View {
         let isOpen = expandedAnnouncements.contains(id)
-        return VStack(alignment: .leading, spacing: 6) {
+        return VStack(alignment: .leading, spacing: 8) {
             Button {
                 withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
                     if isOpen { expandedAnnouncements.remove(id) } else { expandedAnnouncements.insert(id) }
                 }
             } label: {
-                HStack(spacing: 10) {
-                    Image(systemName: "chevron.right").cpIconFont(9, .bold).foregroundStyle(CPTheme.faint(scheme))
-                        .rotationEffect(.degrees(isOpen ? 90 : 0))
-                    Text(name).cpFont(12, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
+                HStack(spacing: 12) {
+                    Image(systemName: "chevron.down").cpIconFont(11).foregroundStyle(CPTheme.muted(scheme))
+                        .rotationEffect(.degrees(isOpen ? 180 : 0))
+                    Text(name.uppercased()).cpFont(11, .medium).tracking(1.5).foregroundStyle(CPTheme.foreground(scheme).opacity(0.8)).lineLimit(1)
                     Spacer(minLength: 6)
-                    Text("\(items.count)").cpFont(11, .semibold).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
+                    Text("\(items.count)").cpFont(12).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
                 }
-                .frame(minHeight: 44)
+                .padding(.horizontal, 4)
+                .frame(minHeight: 46)
                 .contentShape(Rectangle())
             }
             .buttonStyle(CPPressStyle())
             .accessibilityValue(isOpen ? "Expanded" : "Collapsed")
             if isOpen {
-                VStack(spacing: 4) {
+                VStack(spacing: 8) {
                     ForEach(items.prefix(4)) { item in
-                        HStack(alignment: .top, spacing: 8) {
-                            NavigationLink { AnnouncementDetailView(item: item) } label: {
-                                VStack(alignment: .leading, spacing: 3) {
-                                    HStack(alignment: .firstTextBaseline) {
-                                        Text(item.title).cpFont(12, .semibold).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(2)
-                                        Spacer(minLength: 6)
-                                        Text(ISO8601DateFormatter.canvasDate(from: item.postedAt)?.formatted(.dateTime.month(.abbreviated).day()) ?? "")
-                                            .cpFont(11).foregroundStyle(CPTheme.faint(scheme))
+                        CPInsetRow {
+                            HStack(alignment: .top, spacing: 8) {
+                                NavigationLink { AnnouncementDetailView(item: item) } label: {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(item.title).cpFont(13, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(2)
+                                        Text(item.message.strippingHTML).cpFont(11).lineSpacing(2).foregroundStyle(CPTheme.muted(scheme)).lineLimit(2)
                                     }
-                                    Text(item.message.strippingHTML).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(2)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .contentShape(Rectangle())
                                 }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .contentShape(Rectangle())
+                                .buttonStyle(CPPressStyle())
+                                Button { dismissAnnouncement(item.id) } label: {
+                                    Image(systemName: "xmark").cpIconFont(9, .semibold).foregroundStyle(CPTheme.muted(scheme))
+                                        .frame(width: 24, height: 24)
+                                        .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(CPTheme.foreground(scheme).opacity(0.2), lineWidth: 1))
+                                        .frame(width: 44, height: 44).contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                                .padding(.top, -10).padding(.trailing, -10)
+                                .accessibilityLabel("Dismiss \(item.title)")
                             }
-                            .buttonStyle(CPPressStyle())
-                            Button { dismissAnnouncement(item.id) } label: {
-                                Image(systemName: "xmark").cpIconFont(8, .bold).foregroundStyle(CPTheme.muted(scheme))
-                                    .frame(width: 22, height: 22).background(CPTheme.inset(scheme), in: Circle())
-                                    .frame(width: 44, height: 44).contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                            .padding(.top, -11).padding(.trailing, -11)
-                            .accessibilityLabel("Dismiss \(item.title)")
                         }
-                        .padding(.horizontal, 10).padding(.vertical, 9)
-                        .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                     }
                 }
-                .padding(.bottom, 8)
+                .padding(.bottom, 10)
             }
         }
     }
@@ -1288,34 +1339,42 @@ private struct NativeDashboardView: View {
     private var gpaWidget: some View {
         let result = NativeGPA.compute(courses: store.bundle.courses, schedule: features.schedule, displayName: { store.displayName(courseID: $0.id, fallback: $0.name) })
         return CPGlassCard {
-            HStack(alignment: .top, spacing: 12) {
-                CPIconBadge(symbol: "graduationcap")
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "graduationcap").cpIconFont(16)
+                    .foregroundStyle(CPTheme.foreground(scheme))
+                    .frame(width: 38, height: 38)
+                    .background(CPTheme.foreground(scheme).opacity(0.07), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("GPA").cpFont(11, .semibold).tracking(1).foregroundStyle(CPTheme.muted(scheme))
-                    Text(result.gpa.map { String(format: "%.2f", $0) } ?? "—").cpFont(24, .semibold).tracking(-0.6).monospacedDigit()
+                    Text("GPA").cpFont(11, .medium).tracking(1.8).foregroundStyle(CPTheme.muted(scheme))
+                    Text(result.gpa.map { String(format: "%.2f", $0) } ?? "—").cpFont(26, .medium).tracking(-0.8).monospacedDigit()
                         .foregroundStyle(CPTheme.foreground(scheme))
                 }
                 Spacer()
-                Button { withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) { showGpaScale.toggle() } } label: { CPIconButtonLabel(symbol: "info") }
-                    .buttonStyle(.plain)
-                    .padding(-7)
-                    .accessibilityLabel(showGpaScale ? "Hide grading scale" : "Show grading scale")
+                Button { withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) { showGpaScale.toggle() } } label: {
+                    Image(systemName: "info.circle").cpIconFont(15).foregroundStyle(CPTheme.muted(scheme))
+                        .frame(width: 44, height: 44).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .padding(.top, -6).padding(.trailing, -10)
+                .accessibilityLabel(showGpaScale ? "Hide grading scale" : "Show grading scale")
             }
-            HStack(spacing: 8) {
+            HStack(spacing: 10) {
                 CPStatTile(value: String(format: "%.1f", result.totalCredits), label: "Total credits")
                 CPStatTile(value: String(format: "%.1f", result.countedCredits), label: "Counted")
             }
             if showGpaScale {
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("4.0 SCALE").cpFont(11, .semibold).tracking(0.5).foregroundStyle(CPTheme.muted(scheme)).padding(.bottom, 4)
+                    CPRowDivider().padding(.bottom, 10)
+                    Text("4.0 SCALE").cpFont(11, .medium).tracking(1).foregroundStyle(CPTheme.muted(scheme)).padding(.bottom, 4)
                     ForEach(NativeGPA.scale, id: \.minimum) { entry in
                         HStack { Text("\(entry.minimum)%+"); Spacer(); Text(String(format: "%.1f", entry.points)) }
-                            .cpFont(11).monospacedDigit().foregroundStyle(CPTheme.muted(scheme)).padding(.vertical, 3)
+                            .cpFont(12).monospacedDigit().foregroundStyle(CPTheme.muted(scheme)).padding(.vertical, 3)
                     }
                 }
             }
             HStack {
-                Text("\(store.bundle.courses.count) class\(store.bundle.courses.count == 1 ? "" : "es") loaded.").cpFont(11).foregroundStyle(CPTheme.faint(scheme))
+                Text("\(store.bundle.courses.count) class\(store.bundle.courses.count == 1 ? "" : "es") loaded.").cpFont(12).foregroundStyle(CPTheme.muted(scheme))
                 Spacer()
                 if result.countedCredits == 0 {
                     NavigationLink { ClassScheduleView(features: features, store: store) } label: { CPLinkLabel(text: "Add credits") }.buttonStyle(.plain)
@@ -1373,7 +1432,7 @@ struct NativeDateBadge: View {
     let date: Date
     var body: some View {
         VStack(spacing: 0) {
-            Text(date.formatted(.dateTime.weekday(.abbreviated)).uppercased()).cpFont(11, .bold).foregroundStyle(CPTheme.primary(scheme: scheme))
+            Text(date.formatted(.dateTime.weekday(.abbreviated)).uppercased()).cpFont(11, .bold).foregroundStyle(CPTheme.foreground(scheme))
             Text(date.formatted(.dateTime.day())).cpFont(14, .semibold).monospacedDigit().foregroundStyle(CPTheme.foreground(scheme))
         }
         .frame(width: 40, height: 40)
@@ -1460,9 +1519,10 @@ struct NativeDueRow: View {
             }
             .buttonStyle(CPPressStyle())
         }
-        .padding(.horizontal, 10).padding(.vertical, 8)
+        .padding(12)
         .frame(minHeight: 44)
-        .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: CPLayout.innerRadius, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: CPLayout.innerRadius, style: .continuous).strokeBorder(CPTheme.insetBorder(scheme), lineWidth: 1))
         .opacity(isComplete ? 0.6 : 1)
     }
 }
@@ -1485,11 +1545,13 @@ struct NativeCompletionButton: View {
                 if !wasComplete && assignment.isFinished(in: store) { onCompleted?(assignment) }
             }
         } label: {
+            // The website's checkbox: a rounded square that fills when done.
             ZStack {
-                Circle().strokeBorder(isComplete ? Color.clear : CPTheme.muted(scheme).opacity(0.55), lineWidth: 1.5)
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .strokeBorder(CPTheme.foreground(scheme).opacity(isComplete ? 0 : 0.3), lineWidth: 1.5)
                 if isComplete {
-                    Circle().fill(CPTheme.primary(scheme: scheme))
-                    Image(systemName: "checkmark").cpIconFont(9, .bold).foregroundStyle(CPTheme.onPrimary(scheme))
+                    RoundedRectangle(cornerRadius: 6, style: .continuous).fill(CPTheme.foreground(scheme).opacity(0.8))
+                    Image(systemName: "checkmark").cpIconFont(10, .bold).foregroundStyle(CPTheme.background(scheme))
                 }
             }
             .frame(width: 20, height: 20)
@@ -1623,7 +1685,7 @@ struct NativePageHero<Tiles: View>: View {
             CPIconBadge(symbol: symbol)
             VStack(alignment: .leading, spacing: 4) {
                 Text(eyebrow.uppercased()).cpFont(11, .semibold).tracking(0.6).foregroundStyle(CPTheme.muted(scheme))
-                Text(title).cpFont(20, .semibold).tracking(-0.5).foregroundStyle(CPTheme.foreground(scheme))
+                Text(title).cpFont(28, .regular).tracking(-1).foregroundStyle(CPTheme.foreground(scheme))
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityAddTraits(.isHeader)
                 if let detail {
@@ -1836,7 +1898,7 @@ struct NativeAssignmentsView: View {
                     }
                 }
                 .cpFont(11, .medium)
-                .foregroundStyle(CPTheme.primary(scheme: scheme))
+                .foregroundStyle(CPTheme.foreground(scheme))
                 .buttonStyle(.plain)
                 .frame(minHeight: 28)
             }
@@ -2190,7 +2252,7 @@ private struct NativeGradesView: View {
                     Image(systemName: "chevron.down").cpIconFont(9, .bold).rotationEffect(.degrees(isOpen ? 180 : 0))
                 }
                 .cpFont(11, .semibold)
-                .foregroundStyle(CPTheme.primary(scheme: scheme))
+                .foregroundStyle(CPTheme.foreground(scheme))
                 .frame(minHeight: 32)
                 .contentShape(Rectangle())
             }
@@ -2318,6 +2380,7 @@ struct CourseDetailView: View {
     @State private var showAllAnnouncements = false
     @State private var expandedDescriptions: Set<Int> = []
     @State private var highlightedID: Int?
+    @State private var showSyllabus = false
     private let targetAssignment: AssignmentItem?
 
     init(course: CourseSummary, store: NativeContentStore, features: NativeFeatureStore, initialSection: CourseDetailSection = .upcoming, highlightAssignment: AssignmentItem? = nil) {
@@ -2407,6 +2470,21 @@ struct CourseDetailView: View {
         }
         .cpNavigationTitle(courseName)
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showSyllabus) {
+            NavigationStack {
+                ScrollView {
+                    Text(course.syllabusBody?.strippingHTML ?? "No syllabus available.")
+                        .cpFont(14).lineSpacing(4).textSelection(.enabled)
+                        .foregroundStyle(CPTheme.foreground(scheme).opacity(0.9))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(20)
+                }
+                .background(CPBackdrop())
+                .cpNavigationTitle("Syllabus")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showSyllabus = false } } }
+            }
+        }
     }
 
     private var hero: some View {
@@ -2415,7 +2493,7 @@ struct CourseDetailView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(course.courseCode.isEmpty ? "CLASS OVERVIEW" : course.courseCode.uppercased())
                         .cpFont(11, .semibold).tracking(0.6).foregroundStyle(CPTheme.muted(scheme)).lineLimit(2)
-                    Text(courseName).cpFont(18, .semibold).tracking(-0.4).foregroundStyle(CPTheme.foreground(scheme))
+                    Text(courseName).cpFont(22, .regular).tracking(-0.6).foregroundStyle(CPTheme.foreground(scheme))
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityAddTraits(.isHeader)
                     Text("\(courseAssignments.count) assignments").cpFont(11).foregroundStyle(CPTheme.muted(scheme))
@@ -2435,12 +2513,22 @@ struct CourseDetailView: View {
                 .accessibilityLabel("Current grade \(course.currentScore.map { "\($0.formatted(.number.precision(.fractionLength(1)))) percent" } ?? "not available")")
             }
             CPRowDivider()
-            if let scheduleText {
-                Label { Text(scheduleText).fixedSize(horizontal: false, vertical: true) } icon: { Image(systemName: "clock") }
-                    .cpFont(11).foregroundStyle(CPTheme.muted(scheme))
-            } else {
-                NavigationLink { ClassScheduleView(features: features, store: store) } label: { CPLinkLabel(text: "Enter class time/days", symbol: "plus") }
-                    .buttonStyle(.plain)
+            HStack(alignment: .center, spacing: 10) {
+                if let scheduleText {
+                    Label { Text(scheduleText).fixedSize(horizontal: false, vertical: true) } icon: { Image(systemName: "clock") }
+                        .cpFont(12).foregroundStyle(CPTheme.muted(scheme))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    NavigationLink { ClassScheduleView(features: features, store: store) } label: { CPLinkLabel(text: "Enter class time/days", symbol: "plus") }
+                        .buttonStyle(.plain)
+                    Spacer(minLength: 0)
+                }
+                // The syllabus lives on the class page only.
+                if course.syllabusBody?.isEmpty == false {
+                    Button { showSyllabus = true } label: { Label("Syllabus", systemImage: "doc.text") }
+                        .buttonStyle(CPButtonStyle(kind: .secondary))
+                        .accessibilityLabel("Open \(courseName) syllabus")
+                }
             }
             HStack(spacing: 8) {
                 CPStatTile(value: "\(upcoming.count)", label: "Upcoming")
@@ -2524,7 +2612,7 @@ struct CourseDetailView: View {
                                     Text(announcementDate(item)).cpFont(11).foregroundStyle(CPTheme.faint(scheme))
                                 }
                                 Text(item.message.strippingHTML).cpFont(11).lineSpacing(2).foregroundStyle(CPTheme.muted(scheme)).lineLimit(3)
-                                Text("Read full announcement").cpFont(11, .semibold).foregroundStyle(CPTheme.primary(scheme: scheme))
+                                Text("Read full announcement").cpFont(11, .semibold).foregroundStyle(CPTheme.foreground(scheme))
                             }
                             .padding(.vertical, 11)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -2560,7 +2648,7 @@ struct CourseDetailView: View {
                     Button {
                         if isOpen { expandedDescriptions.remove(assignment.id) } else { expandedDescriptions.insert(assignment.id) }
                     } label: {
-                        Text(isOpen ? "Hide description" : "See description").cpFont(11, .semibold).foregroundStyle(CPTheme.primary(scheme: scheme))
+                        Text(isOpen ? "Hide description" : "See description").cpFont(11, .semibold).foregroundStyle(CPTheme.foreground(scheme))
                             .frame(minHeight: 26).contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
@@ -2582,7 +2670,7 @@ struct CourseDetailView: View {
                         if let url = URL(string: assignment.htmlURL), url.scheme == "https" { Link("Open in Canvas", destination: url) }
                     }
                     .cpFont(11, .semibold)
-                    .foregroundStyle(CPTheme.primary(scheme: scheme))
+                    .foregroundStyle(CPTheme.foreground(scheme))
                     .frame(minHeight: 28)
                 }
                 .padding(12)
@@ -2591,7 +2679,7 @@ struct CourseDetailView: View {
             }
         }
         .padding(.vertical, 11)
-        .background(highlightedID == assignment.id ? CPTheme.primary(scheme: scheme).opacity(0.12) : .clear, in: RoundedRectangle(cornerRadius: 10))
+        .background(highlightedID == assignment.id ? CPTheme.foreground(scheme).opacity(0.07) : .clear, in: RoundedRectangle(cornerRadius: 10))
         .id(assignment.id)
         .cpStateChange(isOpen)
     }
@@ -2867,8 +2955,8 @@ struct NativeStudyView: View {
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
                         .strokeBorder(isSelected ? Color.clear : CPTheme.muted(scheme).opacity(0.55), lineWidth: 1.5)
                     if isSelected {
-                        RoundedRectangle(cornerRadius: 6, style: .continuous).fill(CPTheme.primary(scheme: scheme))
-                        Image(systemName: "checkmark").cpIconFont(9, .bold).foregroundStyle(CPTheme.onPrimary(scheme))
+                        RoundedRectangle(cornerRadius: 6, style: .continuous).fill(CPTheme.foreground(scheme))
+                        Image(systemName: "checkmark").cpIconFont(9, .bold).foregroundStyle(CPTheme.background(scheme))
                     }
                 }
                 .frame(width: 20, height: 20)
@@ -2897,9 +2985,9 @@ struct NativeStudyView: View {
                     let item = items[index]
                     HStack(spacing: 8) {
                         Text("\(index + 1)").cpFont(11, .bold).monospacedDigit()
-                            .foregroundStyle(CPTheme.primary(scheme: scheme))
+                            .foregroundStyle(CPTheme.foreground(scheme))
                             .frame(width: 22, height: 22)
-                            .background(CPTheme.primary(scheme: scheme).opacity(0.12), in: Circle())
+                            .background(CPTheme.foreground(scheme).opacity(0.07), in: Circle())
                         Text(item.name).cpFont(12, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
                         Spacer(minLength: 4)
                         Button { moveSelection(item.id, -1) } label: { Image(systemName: "chevron.up").frame(width: 32, height: 40) }
@@ -3023,9 +3111,9 @@ struct NativeStudyView: View {
                             .buttonStyle(CPPressStyle()).accessibilityLabel("Previous assignment").disabled(items.count < 2)
                         Button { togglePause() } label: {
                             Image(systemName: running ? "pause.fill" : "play.fill").cpIconFont(18, .bold)
-                                .foregroundStyle(CPTheme.onPrimary(scheme))
+                                .foregroundStyle(CPTheme.background(scheme))
                                 .frame(width: 60, height: 60)
-                                .background(CPTheme.primary(scheme: scheme), in: Circle())
+                                .background(CPTheme.foreground(scheme), in: Circle())
                         }
                         .buttonStyle(CPPressStyle()).accessibilityLabel(running ? "Pause" : "Resume")
                         Button { navigateTask(1) } label: { controlCircle("forward.fill", size: 44) }
@@ -3053,16 +3141,16 @@ struct NativeStudyView: View {
                             Button { currentIndex = index } label: {
                                 HStack(spacing: 10) {
                                     Text("\(index + 1)").cpFont(11, .bold).monospacedDigit()
-                                        .foregroundStyle(currentIndex == index ? CPTheme.onPrimary(scheme) : CPTheme.muted(scheme))
+                                        .foregroundStyle(currentIndex == index ? CPTheme.background(scheme) : CPTheme.muted(scheme))
                                         .frame(width: 22, height: 22)
-                                        .background(currentIndex == index ? CPTheme.primary(scheme: scheme) : CPTheme.inset(scheme), in: Circle())
+                                        .background(currentIndex == index ? CPTheme.foreground(scheme) : CPTheme.inset(scheme), in: Circle())
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(item.name).cpFont(12, .medium).strikethrough(done)
                                             .foregroundStyle(done ? CPTheme.muted(scheme) : CPTheme.foreground(scheme)).lineLimit(2)
                                         if !item.courseName.isEmpty { Text(item.courseName).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1) }
                                     }
                                     Spacer(minLength: 6)
-                                    if done { Image(systemName: "checkmark").cpIconFont(10, .bold).foregroundStyle(CPTheme.primary(scheme: scheme)) }
+                                    if done { Image(systemName: "checkmark").cpIconFont(10, .bold).foregroundStyle(CPTheme.foreground(scheme)) }
                                 }
                                 .padding(.vertical, 9)
                                 .contentShape(Rectangle())
@@ -3107,11 +3195,11 @@ struct NativeStudyView: View {
             VStack(spacing: CPLayout.stack) {
                 VStack(spacing: 14) {
                     Image(systemName: "checkmark").cpIconFont(18, .bold)
-                        .foregroundStyle(CPTheme.primary(scheme: scheme))
+                        .foregroundStyle(CPTheme.foreground(scheme))
                         .frame(width: 52, height: 52)
-                        .background(CPTheme.primary(scheme: scheme).opacity(0.13), in: Circle())
+                        .background(CPTheme.foreground(scheme).opacity(0.07), in: Circle())
                     VStack(spacing: 4) {
-                        Text("Session finished").cpFont(18, .semibold).foregroundStyle(CPTheme.foreground(scheme))
+                        Text("Session finished").cpFont(22, .regular).foregroundStyle(CPTheme.foreground(scheme))
                         Text("Nice work. Take a breath before the next thing.").cpFont(12).foregroundStyle(CPTheme.muted(scheme)).multilineTextAlignment(.center)
                     }
                     HStack(spacing: 8) {
@@ -3325,9 +3413,9 @@ struct NativeEmptyState: View {
     var body: some View {
         VStack(spacing: 8) {
             Image(systemName: symbol).cpIconFont(14, .semibold)
-                .foregroundStyle(CPTheme.primary(scheme: scheme))
+                .foregroundStyle(CPTheme.foreground(scheme))
                 .frame(width: 38, height: 38)
-                .background(CPTheme.primary(scheme: scheme).opacity(scheme == .dark ? 0.12 : 0.09), in: Circle())
+                .background(CPTheme.foreground(scheme).opacity(0.07), in: Circle())
                 .accessibilityHidden(true)
             Text(title).cpFont(13, .semibold).foregroundStyle(CPTheme.foreground(scheme)).multilineTextAlignment(.center)
             if let detail { Text(detail).cpFont(11).lineSpacing(2).foregroundStyle(CPTheme.muted(scheme)).multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true) }

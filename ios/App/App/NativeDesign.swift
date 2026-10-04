@@ -9,10 +9,11 @@ enum CPPalette: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var name: String { rawValue.capitalized }
     var hue: Double {
-        switch self { case .forest: 152; case .blue: 214; case .violet: 266; case .rose: 340 }
+        switch self { case .forest: 148; case .blue: 214; case .violet: 266; case .rose: 340 }
     }
+    /// The website's palette saturations (targeted-design.css).
     var saturation: Double {
-        switch self { case .forest: 0.45; case .blue: 0.58; case .violet: 0.48; case .rose: 0.45 }
+        switch self { case .forest: 0.34; case .blue: 0.58; case .violet: 0.48; case .rose: 0.45 }
     }
     var swatch: Color {
         switch self {
@@ -34,56 +35,59 @@ enum CPPalette: String, CaseIterable, Identifiable {
 
 // MARK: - Colors
 //
-// Quiet, low-contrast surfaces with one accent. Deadlines use soft tones instead
-// of alarm colors, like the website, so the app never feels like it is shouting.
+// The website's tokens: a near-black tinted background, translucent tinted
+// glass cards with a hairline border, and monochrome controls. The palette color
+// is used sparingly; deadlines stay monochrome and only overdue work is rose.
 
 enum CPTheme {
     static func gradeColor(_ score: Double?) -> Color {
-        guard let score, score.isFinite else { return adaptive(dark: .hsl(215, 0.12, 0.62), light: .hsl(215, 0.12, 0.45)) }
+        guard let score, score.isFinite else { return adaptive(dark: .hsl(215, 0.15, 0.60), light: .hsl(215, 0.15, 0.45)) }
         let hue = (((min(93, max(63, score)) - 63) / 30) * 142).rounded()
-        return adaptive(dark: .hsl(hue, 0.45, 0.64), light: .hsl(hue, 0.50, 0.38))
+        return adaptive(dark: .hsl(hue, 0.42, 0.58), light: .hsl(hue, 0.50, 0.38))
     }
     static var currentPalette: CPPalette { CPPalette(rawValue: UserDefaults.standard.string(forKey: "CanvasProPalette") ?? "forest") ?? .forest }
     /// Soft amber, for "needs a look" states.
-    static let warning = adaptive(dark: .hsl(40, 0.78, 0.66), light: .hsl(34, 0.80, 0.40))
-    /// Soft rose, for overdue or destructive states.
-    static let danger = adaptive(dark: .hsl(355, 0.72, 0.74), light: .hsl(355, 0.58, 0.48))
+    static let warning = adaptive(dark: .hsl(43, 0.92, 0.62), light: .hsl(34, 0.80, 0.40))
+    /// Rose (the website's rose-400), for overdue or destructive states.
+    static let danger = adaptive(dark: .hsl(351, 0.95, 0.71), light: .hsl(347, 0.77, 0.50))
 
     static func background(_ scheme: ColorScheme, palette: CPPalette = currentPalette) -> Color {
-        scheme == .dark ? .hsl(palette.hue, 0.22, 0.05) : .hsl(palette.hue, 0.16, 0.965)
+        scheme == .dark ? .hsl(palette.hue, 0.28, 0.04) : .hsl(palette.hue, 0.24, 0.97)
     }
-    /// Card surface.
+    /// Card surface: the website's --glass over the background.
     static func surface(_ scheme: ColorScheme, palette: CPPalette = currentPalette) -> Color {
-        scheme == .dark ? .hsl(palette.hue, 0.14, 0.092) : .white
+        glass(scheme, palette: palette)
     }
     static func foreground(_ scheme: ColorScheme, palette: CPPalette = currentPalette) -> Color {
-        scheme == .dark ? .hsl(palette.hue, 0.10, 0.95) : .hsl(palette.hue, 0.22, 0.11)
+        scheme == .dark ? .hsl(palette.hue, 0.10, 0.97) : .hsl(palette.hue, 0.26, 0.12)
     }
     static func primary(_ palette: CPPalette = currentPalette, scheme: ColorScheme) -> Color {
-        .hsl(palette.hue, palette.saturation, scheme == .dark ? 0.66 : 0.34)
+        .hsl(palette.hue, palette.saturation, scheme == .dark ? 0.72 : 0.30)
     }
     /// Text and icons drawn on top of `primary`.
     static func onPrimary(_ scheme: ColorScheme, palette: CPPalette = currentPalette) -> Color {
-        scheme == .dark ? .hsl(palette.hue, 0.55, 0.08) : .white
+        scheme == .dark ? .hsl(palette.hue, 0.28, 0.08) : .white
     }
     static func muted(_ scheme: ColorScheme, palette: CPPalette = currentPalette) -> Color {
-        scheme == .dark ? .hsl(palette.hue, 0.06, 0.64) : .hsl(palette.hue, 0.08, 0.40)
+        scheme == .dark ? .hsl(palette.hue, 0.09, 0.67) : .hsl(palette.hue, 0.14, 0.40)
     }
     /// Third-level text: timestamps, counts, hints.
     static func faint(_ scheme: ColorScheme, palette: CPPalette = currentPalette) -> Color {
-        scheme == .dark ? .hsl(palette.hue, 0.05, 0.46) : .hsl(palette.hue, 0.06, 0.58)
+        scheme == .dark ? .hsl(palette.hue, 0.07, 0.50) : .hsl(palette.hue, 0.10, 0.56)
     }
     static func glass(_ scheme: ColorScheme, strong: Bool = false, palette: CPPalette = currentPalette) -> Color {
-        scheme == .dark ? .hsl(palette.hue, strong ? 0.16 : 0.14, strong ? 0.11 : 0.092) : .white
+        scheme == .dark
+            ? .hsl(palette.hue, strong ? 0.21 : 0.20, strong ? 0.116 : 0.112)
+            : .hsl(palette.hue, 0.24, strong ? 0.945 : 0.95)
     }
     static func border(_ scheme: ColorScheme, palette: CPPalette = currentPalette) -> Color {
-        scheme == .dark ? Color.white.opacity(0.07) : Color.black.opacity(0.07)
+        scheme == .dark ? .hsl(palette.hue, 0.18, 0.88, opacity: 0.11) : .hsl(palette.hue, 0.28, 0.18, opacity: 0.11)
     }
     static func inset(_ scheme: ColorScheme) -> Color {
-        scheme == .dark ? Color.white.opacity(0.045) : Color.black.opacity(0.035)
+        scheme == .dark ? Color.white.opacity(0.035) : Color.hsl(216, 0.30, 0.20, opacity: 0.035)
     }
     static func insetBorder(_ scheme: ColorScheme) -> Color {
-        scheme == .dark ? Color.white.opacity(0.06) : Color.black.opacity(0.05)
+        scheme == .dark ? Color.white.opacity(0.06) : Color.hsl(216, 0.30, 0.20, opacity: 0.07)
     }
 
     static func adaptive(dark: Color, light: Color) -> Color {
@@ -114,18 +118,23 @@ extension Color {
 
 // MARK: - Layout constants
 
+/// One spacing system for every screen. Cards are 16 apart with 16 inside;
+/// rows inside a card are 8 apart.
 enum CPLayout {
     /// Side margin of every screen.
     static let gutter: CGFloat = 16
     /// Space between cards.
-    static let stack: CGFloat = 12
-    static let cardRadius: CGFloat = 18
-    static let cardPadding: CGFloat = 14
-    static let innerRadius: CGFloat = 12
+    static let stack: CGFloat = 16
+    static let cardRadius: CGFloat = 26
+    static let cardPadding: CGFloat = 16
+    static let innerRadius: CGFloat = 16
+    /// Space between rows inside a card.
+    static let rowGap: CGFloat = 8
 }
 
 // MARK: - Backdrop and surfaces
 
+/// The website's page background: the tinted base with two soft glows at the top.
 struct CPBackdrop: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.cpPalette) private var paletteDependency
@@ -133,10 +142,12 @@ struct CPBackdrop: View {
         GeometryReader { proxy in
             ZStack(alignment: .top) {
                 CPTheme.background(scheme)
-                // One soft glow at the top keeps the page calm and light.
-                RadialGradient(colors: [CPTheme.primary(scheme: scheme).opacity(scheme == .dark ? 0.08 : 0.06), .clear], center: .center, startRadius: 0, endRadius: 320)
-                    .frame(width: 640, height: 640)
-                    .offset(x: -120, y: -380)
+                RadialGradient(colors: [CPTheme.primary(scheme: scheme).opacity(0.13), .clear], center: .center, startRadius: 0, endRadius: 360)
+                    .frame(width: 720, height: 560)
+                    .offset(x: -proxy.size.width * 0.32, y: -260)
+                RadialGradient(colors: [CPTheme.primary(scheme: scheme).opacity(0.08), .clear], center: .center, startRadius: 0, endRadius: 300)
+                    .frame(width: 600, height: 480)
+                    .offset(x: proxy.size.width * 0.35, y: -180)
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
             .clipped()
@@ -157,22 +168,22 @@ private struct CPSurfaceModifier: ViewModifier {
         return content
             .background(shape.fill(CPTheme.glass(scheme, strong: strong)))
             .overlay(shape.strokeBorder(contrast == .increased ? CPTheme.foreground(scheme).opacity(0.35) : CPTheme.border(scheme), lineWidth: 1))
-            .shadow(color: Color.black.opacity(scheme == .dark ? 0 : 0.04), radius: 10, y: 3)
+            .shadow(color: Color.black.opacity(scheme == .dark ? 0.18 : 0.05), radius: 14, y: 6)
     }
 }
 
-/// The one card used across the app.
+/// The one card used across the app (the website's GlassCard).
 struct CPGlassCard<Content: View>: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.cpPalette) private var paletteDependency
     let title: String?; let subtitle: String?; let strong: Bool; let content: Content
     init(title: String? = nil, subtitle: String? = nil, strong: Bool = false, @ViewBuilder content: () -> Content) { self.title = title; self.subtitle = subtitle; self.strong = strong; self.content = content() }
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 16) {
             if let title {
                 CPCardHeader(title: title, subtitle: subtitle)
             } else if let subtitle {
-                Text(subtitle).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
+                Text(subtitle).cpFont(12).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
             }
             content
         }
@@ -195,11 +206,11 @@ struct CPCardHeader<Trailing: View>: View {
     }
 
     var body: some View {
-        HStack(alignment: .center, spacing: 10) {
+        HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).cpFont(14, .semibold).foregroundStyle(CPTheme.foreground(scheme)).fixedSize(horizontal: false, vertical: true)
+                Text(title).cpFont(16, .regular).tracking(-0.3).foregroundStyle(CPTheme.foreground(scheme)).fixedSize(horizontal: false, vertical: true)
                 if let subtitle {
-                    Text(subtitle).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
+                    Text(subtitle).cpFont(12).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -214,28 +225,28 @@ extension CPCardHeader where Trailing == EmptyView {
     init(title: String, subtitle: String? = nil) { self.init(title: title, subtitle: subtitle) { EmptyView() } }
 }
 
-/// The small "View all" style label used for a card's action.
+/// The quiet "View all" text action used on cards, as on the website.
 struct CPLinkLabel: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.cpPalette) private var paletteDependency
     let text: String
     var symbol: String? = nil
     var body: some View {
-        HStack(spacing: 3) {
+        HStack(spacing: 4) {
             Text(text)
-            if let symbol { Image(systemName: symbol).cpIconFont(8, .bold) }
+            if let symbol { Image(systemName: symbol).cpIconFont(9, .medium) }
         }
-        .cpFont(11, .semibold)
-        .foregroundStyle(CPTheme.primary(scheme: scheme))
+        .cpFont(12)
+        .foregroundStyle(CPTheme.muted(scheme))
         .padding(.horizontal, 10)
-        .frame(height: 26)
-        .background(CPTheme.primary(scheme: scheme).opacity(scheme == .dark ? 0.12 : 0.09), in: Capsule())
+        .frame(height: 28)
+        .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         // A 44-point target without changing the label's size.
-        .padding(.vertical, 9).contentShape(Rectangle()).padding(.vertical, -9)
+        .padding(.vertical, 8).contentShape(Rectangle()).padding(.vertical, -8)
     }
 }
 
-/// A quiet label above a group of cards or rows.
+/// A quiet title above a group of rows, like the website's agenda headings.
 struct CPSectionLabel<Trailing: View>: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.cpPalette) private var paletteDependency
@@ -248,9 +259,9 @@ struct CPSectionLabel<Trailing: View>: View {
     }
 
     var body: some View {
-        HStack(spacing: 6) {
-            Text(title.uppercased()).cpFont(11, .semibold).tracking(0.5).foregroundStyle(CPTheme.muted(scheme))
-            if let count { Text("\(count)").cpFont(11, .semibold).monospacedDigit().foregroundStyle(CPTheme.faint(scheme)) }
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(title).cpFont(13).foregroundStyle(CPTheme.muted(scheme))
+            if let count { Text("\(count)").cpFont(13).monospacedDigit().foregroundStyle(CPTheme.muted(scheme).opacity(0.7)) }
             Spacer(minLength: 8)
             trailing
         }
@@ -264,7 +275,7 @@ extension CPSectionLabel where Trailing == EmptyView {
     init(_ title: String, count: Int? = nil) { self.init(title, count: count) { EmptyView() } }
 }
 
-/// A hairline between rows in a card, starting under the text.
+/// A hairline between rows in a card.
 struct CPRowDivider: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.cpPalette) private var paletteDependency
@@ -275,7 +286,7 @@ struct CPRowDivider: View {
     }
 }
 
-/// A soft tile inside a card, for content that needs its own block.
+/// A soft tile inside a card (the website's glass-inset rows).
 struct CPInsetRow<Content: View>: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.cpPalette) private var paletteDependency
@@ -283,19 +294,21 @@ struct CPInsetRow<Content: View>: View {
     init(@ViewBuilder content: () -> Content) { self.content = content() }
     var body: some View {
         content
-            .padding(.horizontal, 12).padding(.vertical, 10)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(12)
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
             .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: CPLayout.innerRadius, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: CPLayout.innerRadius, style: .continuous).strokeBorder(CPTheme.insetBorder(scheme), lineWidth: 1))
     }
 }
 
 enum CPTone { case neutral, accent, warning, danger }
 
 private extension CPTone {
+    /// Monochrome like the website: "accent" is the foreground, not a color.
     func color(_ scheme: ColorScheme) -> Color {
         switch self {
         case .neutral: CPTheme.muted(scheme)
-        case .accent: CPTheme.primary(scheme: scheme)
+        case .accent: CPTheme.foreground(scheme)
         case .warning: CPTheme.warning
         case .danger: CPTheme.danger
         }
@@ -313,17 +326,17 @@ struct CPStatTile: View {
     var large = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: large ? 10 : 6) {
+        VStack(alignment: .leading, spacing: 4) {
             if let symbol {
-                Image(systemName: symbol).cpIconFont(10, .semibold).foregroundStyle(tone.color(scheme)).accessibilityHidden(true)
+                Image(systemName: symbol).cpIconFont(12).foregroundStyle(tone == .danger ? CPTheme.danger : CPTheme.muted(scheme)).padding(.bottom, 4).accessibilityHidden(true)
             }
             Text(value)
-                .cpFont(large ? 28 : 20, .semibold)
-                .tracking(-0.6)
+                .cpFont(large ? 30 : 22, .regular)
+                .tracking(-1)
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
-                .foregroundStyle(tone == .neutral ? CPTheme.foreground(scheme) : tone.color(scheme))
+                .foregroundStyle(tone == .danger ? CPTheme.danger : CPTheme.foreground(scheme))
             Text(label)
                 .cpFont(11)
                 .foregroundStyle(CPTheme.muted(scheme))
@@ -331,10 +344,10 @@ struct CPStatTile: View {
                 .minimumScaleFactor(0.85)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(12)
+        .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(tone == .neutral ? CPTheme.glass(scheme) : tone.color(scheme).opacity(scheme == .dark ? 0.10 : 0.08), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(tone == .neutral ? CPTheme.border(scheme) : Color.clear, lineWidth: 1))
+        .background(tone == .danger ? CPTheme.danger.opacity(0.06) : CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: CPLayout.innerRadius, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: CPLayout.innerRadius, style: .continuous).strokeBorder(tone == .danger ? CPTheme.danger.opacity(0.2) : CPTheme.insetBorder(scheme), lineWidth: 1))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(label): \(value)")
     }
@@ -348,15 +361,15 @@ struct CPPill: View {
     var tone: CPTone = .neutral
     var symbol: String? = nil
     var body: some View {
-        HStack(spacing: 3) {
-            if let symbol { Image(systemName: symbol).cpIconFont(8, .bold) }
+        HStack(spacing: 4) {
+            if let symbol { Image(systemName: symbol).cpIconFont(9, .medium) }
             Text(text).lineLimit(1)
         }
-        .cpFont(11, .semibold)
-        .foregroundStyle(tone == .neutral ? CPTheme.muted(scheme) : tone.color(scheme))
+        .cpFont(11)
+        .foregroundStyle(tone.color(scheme))
         .padding(.horizontal, 8)
-        .frame(minHeight: 20)
-        .background((tone == .neutral ? CPTheme.foreground(scheme) : tone.color(scheme)).opacity(scheme == .dark ? 0.10 : 0.08), in: Capsule())
+        .frame(minHeight: 22)
+        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(tone == .danger ? CPTheme.danger.opacity(0.35) : CPTheme.foreground(scheme).opacity(0.15), lineWidth: 1))
     }
 }
 
@@ -370,8 +383,8 @@ struct CPProgressBar: View {
     var body: some View {
         GeometryReader { proxy in
             ZStack(alignment: .leading) {
-                Capsule().fill(CPTheme.inset(scheme))
-                Capsule().fill(color ?? CPTheme.primary(scheme: scheme))
+                Capsule().fill(CPTheme.foreground(scheme).opacity(0.08))
+                Capsule().fill(color ?? CPTheme.foreground(scheme))
                     .frame(width: max(height, proxy.size.width * min(1, max(0, value))))
                     .opacity(value > 0 ? 1 : 0)
             }
@@ -396,7 +409,7 @@ struct CPRing<Content: View>: View {
 
     var body: some View {
         ZStack {
-            Circle().stroke(CPTheme.inset(scheme), lineWidth: lineWidth)
+            Circle().stroke(CPTheme.foreground(scheme).opacity(0.08), lineWidth: lineWidth)
             Circle()
                 .trim(from: 0, to: min(1, max(0, progress)))
                 .stroke(color ?? CPTheme.primary(scheme: scheme), style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
@@ -420,7 +433,8 @@ struct CPPressStyle: ButtonStyle {
     }
 }
 
-/// Filled (primary), tinted (secondary) or outlined (quiet) buttons, 36 pt tall.
+/// The website's buttons: primary is inverted (light on dark), secondary is a
+/// soft inset tile, quiet is outlined. All 40 pt tall.
 struct CPButtonStyle: ButtonStyle {
     enum Kind { case primary, secondary, quiet }
     var kind: Kind = .primary
@@ -441,16 +455,15 @@ private struct CPButtonBody: View {
     let fullWidth: Bool
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 11, style: .continuous)
-        let primary = CPTheme.primary(scheme: scheme)
+        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
         configuration.label
-            .cpFont(12, .semibold)
+            .cpFont(13, .medium)
             .lineLimit(1)
-            .padding(.horizontal, 14)
-            .frame(maxWidth: fullWidth ? .infinity : nil, minHeight: 36)
-            .foregroundStyle(kind == .primary ? CPTheme.onPrimary(scheme) : kind == .secondary ? primary : CPTheme.foreground(scheme))
-            .background(kind == .primary ? primary : kind == .secondary ? primary.opacity(scheme == .dark ? 0.13 : 0.10) : Color.clear, in: shape)
-            .overlay(shape.strokeBorder(kind == .quiet ? CPTheme.border(scheme) : Color.clear, lineWidth: 1))
+            .padding(.horizontal, 16)
+            .frame(maxWidth: fullWidth ? .infinity : nil, minHeight: 40)
+            .foregroundStyle(kind == .primary ? CPTheme.background(scheme) : CPTheme.foreground(scheme))
+            .background(kind == .primary ? CPTheme.foreground(scheme) : kind == .secondary ? CPTheme.inset(scheme) : Color.clear, in: shape)
+            .overlay(shape.strokeBorder(kind == .primary ? Color.clear : kind == .secondary ? CPTheme.insetBorder(scheme) : CPTheme.foreground(scheme).opacity(0.15), lineWidth: 1))
             .contentShape(shape)
             .opacity(!isEnabled ? 0.4 : configuration.isPressed ? 0.85 : 1)
             .scaleEffect(reduceMotion || !configuration.isPressed ? 1 : 0.98)
@@ -458,23 +471,23 @@ private struct CPButtonBody: View {
     }
 }
 
-/// A round 30-point icon button with a 44-point target.
+/// A 30-point outlined icon button with a 44-point target.
 struct CPIconButtonLabel: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.cpPalette) private var paletteDependency
     let symbol: String
     var body: some View {
         Image(systemName: symbol)
-            .cpIconFont(11, .semibold)
+            .cpIconFont(12, .medium)
             .foregroundStyle(CPTheme.muted(scheme))
             .frame(width: 30, height: 30)
-            .background(CPTheme.inset(scheme), in: Circle())
+            .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(CPTheme.foreground(scheme).opacity(0.15), lineWidth: 1))
             .frame(width: 44, height: 44)
             .contentShape(Rectangle())
     }
 }
 
-// MARK: - Loading, headers, chips
+// MARK: - Loading, headers, tabs, chips
 
 struct CPSkeletonCard: View {
     @Environment(\.colorScheme) private var scheme
@@ -484,12 +497,12 @@ struct CPSkeletonCard: View {
 
     var body: some View {
         CPGlassCard {
-            VStack(alignment: .leading, spacing: 11) {
-                RoundedRectangle(cornerRadius: 4).frame(width: 110, height: 10)
-                RoundedRectangle(cornerRadius: 4).frame(height: 14)
-                RoundedRectangle(cornerRadius: 4).frame(maxWidth: 190).frame(height: 10)
+            VStack(alignment: .leading, spacing: 12) {
+                RoundedRectangle(cornerRadius: 6).frame(width: 120, height: 12)
+                RoundedRectangle(cornerRadius: 10).frame(height: 44)
+                RoundedRectangle(cornerRadius: 10).frame(height: 44)
             }
-            .foregroundStyle(CPTheme.foreground(scheme).opacity(visible ? 0.10 : 0.05))
+            .foregroundStyle(CPTheme.foreground(scheme).opacity(visible ? 0.08 : 0.04))
         }
         .accessibilityLabel("Loading")
         .onAppear {
@@ -505,10 +518,10 @@ struct CPPageHeader: View {
     @Environment(\.cpPalette) private var paletteDependency
     let eyebrow: String; let title: String; let detail: String?
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(eyebrow.uppercased()).cpFont(11, .semibold).tracking(0.6).foregroundStyle(CPTheme.muted(scheme))
-            Text(title).cpFont(20, .semibold).tracking(-0.4).foregroundStyle(CPTheme.foreground(scheme)).fixedSize(horizontal: false, vertical: true)
-            if let detail { Text(detail).cpFont(12).foregroundStyle(CPTheme.muted(scheme)).lineSpacing(2).fixedSize(horizontal: false, vertical: true) }
+        VStack(alignment: .leading, spacing: 6) {
+            Text(eyebrow.uppercased()).cpFont(11, .medium).tracking(2).foregroundStyle(CPTheme.muted(scheme))
+            Text(title).cpFont(28, .regular).tracking(-1).foregroundStyle(CPTheme.foreground(scheme)).fixedSize(horizontal: false, vertical: true)
+            if let detail { Text(detail).cpFont(13).foregroundStyle(CPTheme.muted(scheme)).lineSpacing(3).fixedSize(horizontal: false, vertical: true) }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 4)
@@ -516,6 +529,43 @@ struct CPPageHeader: View {
     }
 }
 
+/// The website's PageTabs: centered, outlined tabs for pages that share one
+/// sidebar entry. The selected tab gets a stronger outline and full-strength text.
+struct NativePageTabs: View {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Binding var selection: String
+    let options: [String]
+    let label: String
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ForEach(options, id: \.self) { option in
+                let isSelected = selection == option
+                Button { selection = option } label: {
+                    Text(option)
+                        .cpFont(13)
+                        .lineLimit(1)
+                        .foregroundStyle(isSelected ? CPTheme.foreground(scheme) : CPTheme.muted(scheme))
+                        .padding(.horizontal, 14)
+                        .frame(height: 32)
+                        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(CPTheme.foreground(scheme).opacity(isSelected ? 0.6 : 0.15), lineWidth: 1))
+                        .padding(.vertical, 6).contentShape(Rectangle()).padding(.vertical, -6)
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(isSelected ? .isSelected : [])
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.3), value: selection)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(label)
+        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
+    }
+}
+
+/// Range and filter choices, outlined like the website's tabs.
 struct CPChip: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.cpPalette) private var paletteDependency
@@ -523,13 +573,12 @@ struct CPChip: View {
     let text: String; let selected: Bool
     var body: some View {
         Text(text)
-            .cpFont(11, .semibold)
+            .cpFont(12)
             .lineLimit(1)
             .padding(.horizontal, 12)
             .frame(height: 30)
-            .foregroundStyle(selected ? CPTheme.onPrimary(scheme) : CPTheme.foreground(scheme))
-            .background(selected ? CPTheme.primary(scheme: scheme) : CPTheme.glass(scheme), in: Capsule())
-            .overlay(Capsule().strokeBorder(selected ? Color.clear : CPTheme.border(scheme), lineWidth: 1))
+            .foregroundStyle(selected ? CPTheme.foreground(scheme) : CPTheme.muted(scheme))
+            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(CPTheme.foreground(scheme).opacity(selected ? 0.6 : 0.15), lineWidth: 1))
             .frame(minHeight: 44)
             .contentShape(Rectangle())
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: selected)
@@ -537,23 +586,25 @@ struct CPChip: View {
     }
 }
 
+/// A square icon tile. Monochrome unless a tint is given.
 struct CPIconBadge: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.cpPalette) private var paletteDependency
     let symbol: String
     var tint: Color? = nil
     var body: some View {
-        let color = tint ?? CPTheme.primary(scheme: scheme)
         Image(systemName: symbol)
-            .cpIconFont(12, .semibold)
-            .foregroundStyle(color)
-            .frame(width: 28, height: 28)
-            .background(color.opacity(scheme == .dark ? 0.14 : 0.11), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .cpIconFont(13)
+            .foregroundStyle(tint ?? CPTheme.foreground(scheme).opacity(0.8))
+            .frame(width: 32, height: 32)
+            .background(tint.map { $0.opacity(0.12) } ?? CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(tint == nil ? CPTheme.insetBorder(scheme) : Color.clear, lineWidth: 1))
             .accessibilityHidden(true)
     }
 }
 
-/// An iOS-style segmented control drawn in the app's colors.
+/// The website's Segmented control: a glass track whose selected option is
+/// inverted (light on dark).
 struct CPSegmented: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.cpPalette) private var paletteDependency
@@ -564,34 +615,34 @@ struct CPSegmented: View {
     let label: String
 
     var body: some View {
-        HStack(spacing: 2) {
+        HStack(spacing: 4) {
             ForEach(options, id: \.self) { option in
                 let isSelected = selection == option
                 Button {
                     selection = option
                 } label: {
                     Text(option)
-                        .cpFont(12, isSelected ? .semibold : .medium)
+                        .cpFont(12, .medium)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
-                        .foregroundStyle(isSelected ? CPTheme.foreground(scheme) : CPTheme.muted(scheme))
-                        .frame(maxWidth: .infinity, minHeight: 30)
+                        .foregroundStyle(isSelected ? CPTheme.background(scheme) : CPTheme.muted(scheme))
+                        .frame(maxWidth: .infinity, minHeight: 32)
                         .background {
                             if isSelected {
-                                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                                    .fill(scheme == .dark ? Color.white.opacity(0.12) : Color.white)
-                                    .shadow(color: Color.black.opacity(scheme == .dark ? 0 : 0.08), radius: 3, y: 1)
+                                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                                    .fill(CPTheme.foreground(scheme))
                                     .matchedGeometryEffect(id: "selected-segment", in: selectionAnimation)
                             }
                         }
-                        .padding(.vertical, 7).contentShape(Rectangle()).padding(.vertical, -7)
+                        .padding(.vertical, 6).contentShape(Rectangle()).padding(.vertical, -6)
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(isSelected ? .isSelected : [])
             }
         }
-        .padding(2)
-        .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+        .padding(5)
+        .background(CPTheme.glass(scheme, strong: true), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(CPTheme.border(scheme), lineWidth: 1))
         .animation(reduceMotion ? nil : .spring(duration: 0.26, bounce: 0), value: selection)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(label)
@@ -606,8 +657,8 @@ struct CPListScreenModifier: ViewModifier {
     @Environment(\.cpPalette) private var paletteDependency
     func body(content: Content) -> some View {
         content
-            .cpFont(12)
-            .environment(\.defaultMinListRowHeight, 40)
+            .cpFont(13)
+            .environment(\.defaultMinListRowHeight, 44)
             .listSectionSpacing(.compact)
             .scrollContentBackground(.hidden)
             .foregroundStyle(CPTheme.foreground(scheme))
@@ -637,9 +688,10 @@ private struct CPStateChange<Value: Equatable>: ViewModifier {
 }
 
 /// System text at the design's point size, scaled with the reader's Text Size
-/// setting. Body text is 12-13 pt and details and labels 11 pt: no text renders
-/// below 11 pt, Apple's smallest legible size, and every size grows with
-/// Dynamic Type. SF Symbols may be smaller, since they are not text.
+/// setting. No text renders below 11 pt, Apple's smallest legible size, and every
+/// size grows with Dynamic Type. SF Symbols may be smaller, since they are not
+/// text. Weights follow the website, which sets most text near regular: bold
+/// and semibold are drawn one step lighter.
 private struct CPScaledFont: ViewModifier {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let size: CGFloat
@@ -652,7 +704,8 @@ private struct CPScaledFont: ViewModifier {
         let style: UIFont.TextStyle = base >= 28 ? .largeTitle : base >= 20 ? .title2 : base >= 16 ? .headline : base >= 13 ? .subheadline : base >= 11 ? .footnote : base >= 10 ? .caption1 : .caption2
         let traits = UITraitCollection(preferredContentSizeCategory: UIContentSizeCategory(dynamicTypeSize))
         let scaled = UIFontMetrics(forTextStyle: style).scaledValue(for: base, compatibleWith: traits)
-        return content.font(.system(size: scaled, weight: weight, design: design))
+        let drawn: Font.Weight? = isIcon ? weight : weight == .bold ? .semibold : weight == .semibold ? .medium : weight
+        return content.font(.system(size: scaled, weight: drawn, design: design))
     }
 }
 
@@ -660,7 +713,6 @@ private struct CPScaledFont: ViewModifier {
 /// actually showing, including the iPhone's own light/dark switch in System mode.
 struct CPThemeModifier: ViewModifier {
     @Environment(\.colorScheme) private var scheme
-    @Environment(\.cpPalette) private var paletteDependency
     let palette: CPPalette
 
     func body(content: Content) -> some View {
@@ -683,14 +735,14 @@ extension View {
         modifier(CPScaledFont(size: size, weight: weight, design: nil, isIcon: true))
     }
 
-    /// The card surface: fill, hairline border and (in light mode) a soft shadow.
+    /// The card surface: tinted glass, hairline border and a soft shadow.
     func cpSurface(strong: Bool = false, radius: CGFloat = CPLayout.cardRadius) -> some View {
         modifier(CPSurfaceModifier(strong: strong, radius: radius))
     }
 
     /// Standard page padding: 16-point side margins and room above the tab bar.
     func cpPagePadding() -> some View {
-        padding(.horizontal, CPLayout.gutter).padding(.top, 8).padding(.bottom, 28)
+        padding(.horizontal, CPLayout.gutter).padding(.top, 12).padding(.bottom, 32)
     }
 
     // Keep NavigationStack's interactive push/pop and TabView's native selection.

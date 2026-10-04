@@ -15,7 +15,7 @@ struct NativeMenuRow: View {
     var trailingSymbol = "chevron.right"
     var body: some View {
         HStack(spacing: 12) {
-            CPIconBadge(symbol: symbol, tint: tint)
+            CPIconBadge(symbol: symbol)
             VStack(alignment: .leading, spacing: 1) {
                 Text(title).cpFont(13, .medium).foregroundStyle(CPTheme.foreground(scheme))
                 if let detail { Text(detail).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1) }
@@ -122,9 +122,9 @@ struct NativeAvatar: View {
             if let image = phase.image { image.resizable().scaledToFill().transition(.opacity) }
             else {
                 Image(systemName: "person.fill").cpIconFont(size * 0.38, .semibold)
-                    .foregroundStyle(CPTheme.primary(scheme: scheme))
+                    .foregroundStyle(CPTheme.foreground(scheme))
                     .frame(width: size, height: size)
-                    .background(CPTheme.primary(scheme: scheme).opacity(0.14))
+                    .background(CPTheme.foreground(scheme).opacity(0.07))
             }
         }
         .frame(width: size, height: size)
@@ -298,9 +298,9 @@ struct NativeSectionPicker: View {
     let options: [String]
     let label: String
     var body: some View {
-        CPSegmented(selection: $selection, options: options, label: label)
+        NativePageTabs(selection: $selection, options: options, label: label)
             .padding(.horizontal, CPLayout.gutter)
-            .padding(.top, 4).padding(.bottom, 8)
+            .padding(.top, 6).padding(.bottom, 10)
             .background(CPTheme.background(scheme).opacity(0.96))
     }
 }
@@ -327,6 +327,7 @@ struct GetItDoneView: View {
     @Environment(\.cpPalette) private var paletteDependency
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
+    @Binding var section: String
     @State private var window = 7
     @State private var skippedRaw = ""
     @State private var orderRaw = ""
@@ -402,7 +403,8 @@ struct GetItDoneView: View {
     }
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: CPLayout.stack) {
+            LazyVStack(alignment: .leading, spacing: 16) {
+                NativeTodayTabs(selection: $section)
                 CPPageHeader(eyebrow: Date().formatted(.dateTime.weekday(.wide).month(.wide).day()), title: "Up next", detail: "One clear next step, then a short plan for the rest of today.")
                 if store.needsCanvasConnection {
                     NativeConnectCanvasCard(store: store)
@@ -438,8 +440,8 @@ struct GetItDoneView: View {
             HStack(alignment: .top, spacing: 8) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(store.displayName(courseID: first.courseID, fallback: first.courseName).uppercased())
-                        .cpFont(11, .semibold).tracking(1).foregroundStyle(CPTheme.primary(scheme: scheme)).lineLimit(1)
-                    Text(first.name).cpFont(17, .semibold).tracking(-0.3).foregroundStyle(CPTheme.foreground(scheme))
+                        .cpFont(11, .semibold).tracking(1).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
+                    Text(first.name).cpFont(20, .regular).tracking(-0.5).foregroundStyle(CPTheme.foreground(scheme))
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 4)
@@ -467,7 +469,7 @@ struct GetItDoneView: View {
                 }
             }
             NativeAssignmentDescriptionLink(assignment: first, store: store, features: features)
-                .cpFont(11, .semibold).foregroundStyle(CPTheme.primary(scheme: scheme))
+                .cpFont(11, .semibold).foregroundStyle(CPTheme.foreground(scheme))
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -506,9 +508,9 @@ struct GetItDoneView: View {
     private func planRow(_ item: AssignmentItem, index: Int, count: Int) -> some View {
         HStack(alignment: .top, spacing: 10) {
             Text("\(index + 1)").cpFont(11, .bold).monospacedDigit()
-                .foregroundStyle(CPTheme.primary(scheme: scheme))
+                .foregroundStyle(CPTheme.foreground(scheme))
                 .frame(width: 22, height: 22)
-                .background(CPTheme.primary(scheme: scheme).opacity(0.12), in: Circle())
+                .background(CPTheme.foreground(scheme).opacity(0.07), in: Circle())
             VStack(alignment: .leading, spacing: 4) {
                 Text(item.name).cpFont(12, .semibold).foregroundStyle(CPTheme.foreground(scheme)).fixedSize(horizontal: false, vertical: true)
                 Text(planMeta(item)).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(2)
@@ -520,7 +522,7 @@ struct GetItDoneView: View {
                     NativeAssignmentDescriptionLink(assignment: item, store: store, features: features).labelStyle(.titleOnly)
                 }
                 .cpFont(11, .semibold)
-                .foregroundStyle(CPTheme.primary(scheme: scheme))
+                .foregroundStyle(CPTheme.foreground(scheme))
                 .buttonStyle(.plain)
                 .frame(minHeight: 30)
             }
@@ -557,6 +559,7 @@ struct FocusView: View {
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
     @Binding var window: String
+    @Binding var section: String
     @State private var showCompleted = false
     @State private var grouping = "By day"
     @State private var selectedDay: Date?
@@ -598,9 +601,10 @@ struct FocusView: View {
     var body: some View {
         TimelineView(.periodic(from: .now, by: 30)) { _ in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: CPLayout.stack) {
+                LazyVStack(alignment: .leading, spacing: 16) {
+                    NativeTodayTabs(selection: $section)
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("Coming up").cpFont(20, .semibold).tracking(-0.4).foregroundStyle(CPTheme.foreground(scheme))
+                        Text("Coming up").cpFont(28, .regular).tracking(-1).foregroundStyle(CPTheme.foreground(scheme))
                             .accessibilityAddTraits(.isHeader)
                         Text(unfinished.isEmpty ? "Nothing left in this range." : "\(unfinished.count) \(window == "overdue" ? "overdue" : "due") · about \(unfinished.reduce(0) { $0 + estimate($1) }) min")
                             .cpFont(12).foregroundStyle(CPTheme.muted(scheme))
@@ -660,7 +664,7 @@ struct FocusView: View {
         .safeAreaInset(edge: .bottom) {
             if let item = recentlyCompleted {
                 HStack(spacing: 10) {
-                    Image(systemName: "checkmark.circle.fill").foregroundStyle(CPTheme.primary(scheme: scheme))
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(CPTheme.foreground(scheme))
                     Text("Marked complete").cpFont(12, .medium)
                     Spacer()
                     Button("Undo") {
@@ -690,14 +694,14 @@ struct FocusView: View {
                     VStack(spacing: 4) {
                         Text(offset == 0 ? "Today" : day.formatted(.dateTime.weekday(.abbreviated)))
                             .cpFont(11, .semibold).lineLimit(1).minimumScaleFactor(0.7)
-                            .foregroundStyle(isSelected ? CPTheme.onPrimary(scheme) : CPTheme.muted(scheme))
+                            .foregroundStyle(isSelected ? CPTheme.background(scheme) : CPTheme.muted(scheme))
                         Text(day.formatted(.dateTime.day())).cpFont(14, .semibold).monospacedDigit()
-                            .foregroundStyle(isSelected ? CPTheme.onPrimary(scheme) : CPTheme.foreground(scheme))
-                        Circle().fill(isSelected ? CPTheme.onPrimary(scheme) : CPTheme.primary(scheme: scheme))
+                            .foregroundStyle(isSelected ? CPTheme.background(scheme) : CPTheme.foreground(scheme))
+                        Circle().fill(isSelected ? CPTheme.background(scheme) : CPTheme.foreground(scheme))
                             .frame(width: 4, height: 4).opacity(count > 0 ? 1 : 0)
                     }
                     .frame(maxWidth: .infinity, minHeight: 56)
-                    .background(isSelected ? CPTheme.primary(scheme: scheme) : CPTheme.glass(scheme), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .background(isSelected ? CPTheme.foreground(scheme) : CPTheme.glass(scheme), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                     .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(isSelected ? Color.clear : CPTheme.border(scheme), lineWidth: 1))
                 }
                 .buttonStyle(CPPressStyle())
@@ -722,7 +726,7 @@ struct FocusView: View {
                 NativeAssignmentDescriptionLink(assignment: item, store: store, features: features)
                     .labelStyle(.titleOnly)
                     .cpFont(11, .semibold)
-                    .foregroundStyle(CPTheme.primary(scheme: scheme))
+                    .foregroundStyle(CPTheme.foreground(scheme))
                     .frame(minHeight: 26)
             }
             Spacer(minLength: 6)
@@ -906,7 +910,7 @@ struct CalendarView: View {
             VStack(spacing: 0) {
                 if items.isEmpty {
                     HStack(spacing: 10) {
-                        Image(systemName: "sun.max").cpIconFont(12, .semibold).foregroundStyle(CPTheme.primary(scheme: scheme))
+                        Image(systemName: "sun.max").cpIconFont(12, .semibold).foregroundStyle(CPTheme.foreground(scheme))
                         Text("Your schedule is clear for this day.").cpFont(12).foregroundStyle(CPTheme.muted(scheme))
                         Spacer()
                     }
@@ -992,21 +996,21 @@ struct CalendarView: View {
             VStack(spacing: 5) {
                 Text(date.formatted(.dateTime.weekday(.narrow)))
                     .cpFont(11, .semibold)
-                    .foregroundStyle(isToday ? CPTheme.primary(scheme: scheme) : CPTheme.muted(scheme))
+                    .foregroundStyle(isToday ? CPTheme.foreground(scheme) : CPTheme.muted(scheme))
                 ZStack {
                     if isSelected {
-                        Circle().fill(CPTheme.primary(scheme: scheme))
+                        Circle().fill(CPTheme.foreground(scheme))
                     } else if isToday {
-                        Circle().strokeBorder(CPTheme.primary(scheme: scheme), lineWidth: 1.5)
+                        Circle().strokeBorder(CPTheme.foreground(scheme).opacity(0.6), lineWidth: 1)
                     }
                     Text("\(calendar.component(.day, from: date))")
                         .cpFont(14, .semibold)
                         .monospacedDigit()
-                        .foregroundStyle(isSelected ? CPTheme.onPrimary(scheme) : isToday ? CPTheme.primary(scheme: scheme) : CPTheme.foreground(scheme))
+                        .foregroundStyle(isSelected ? CPTheme.background(scheme) : isToday ? CPTheme.foreground(scheme) : CPTheme.foreground(scheme))
                 }
                 .frame(width: 32, height: 32)
                 Circle()
-                    .fill(CPTheme.primary(scheme: scheme))
+                    .fill(CPTheme.foreground(scheme))
                     .frame(width: 4, height: 4)
                     .opacity(count > 0 ? 1 : 0)
             }
@@ -1045,7 +1049,7 @@ struct CalendarView: View {
                                 editingPick = pick
                             }
                         }
-                        .foregroundStyle(CPTheme.primary(scheme: scheme))
+                        .foregroundStyle(CPTheme.foreground(scheme))
                         Button("Remove", role: .destructive) { removePick(pickID) }
                             .foregroundStyle(CPTheme.danger)
                     } else if let url = item.url, url.scheme == "https" {
@@ -1055,7 +1059,7 @@ struct CalendarView: View {
                                 Image(systemName: "arrow.up.right").cpIconFont(8, .bold)
                             }
                         }
-                        .foregroundStyle(CPTheme.primary(scheme: scheme))
+                        .foregroundStyle(CPTheme.foreground(scheme))
                     }
                 }
                 .cpFont(11, .semibold)
@@ -1140,7 +1144,7 @@ struct WorkloadView: View {
             }
             .frame(maxWidth: .infinity)
             .aspectRatio(1, contentMode: .fit)
-            .background(items.isEmpty ? CPTheme.inset(scheme) : CPTheme.primary(scheme: scheme).opacity(0.12 + intensity * 0.45), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .background(items.isEmpty ? CPTheme.inset(scheme) : CPTheme.foreground(scheme).opacity(0.08 + intensity * 0.32), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(isToday || isOpen ? CPTheme.foreground(scheme).opacity(0.6) : Color.clear, lineWidth: 1))
         }
         .buttonStyle(.plain)
@@ -1156,7 +1160,7 @@ struct WorkloadView: View {
                         Text(item.name).cpFont(12, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
                         Text(store.displayName(courseID: item.courseID, fallback: item.courseName)).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
                         NativeAssignmentDescriptionLink(assignment: item, store: store, features: features)
-                            .labelStyle(.titleOnly).cpFont(11, .semibold).foregroundStyle(CPTheme.primary(scheme: scheme))
+                            .labelStyle(.titleOnly).cpFont(11, .semibold).foregroundStyle(CPTheme.foreground(scheme))
                     }
                     Spacer()
                     Text("\((item.pointsPossible ?? 0).formatted()) pt").cpFont(11).monospacedDigit().foregroundStyle(CPTheme.faint(scheme))
@@ -1238,7 +1242,7 @@ struct AnnouncementsView: View {
         let isOpen = expanded.contains(item.id)
         return VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(name(for: item.courseID).uppercased()).cpFont(11, .semibold).tracking(0.8).foregroundStyle(CPTheme.primary(scheme: scheme)).lineLimit(1)
+                Text(name(for: item.courseID).uppercased()).cpFont(11, .semibold).tracking(0.8).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
                 Spacer(minLength: 6)
                 Text(announcementDate(item)).cpFont(11).monospacedDigit().foregroundStyle(CPTheme.faint(scheme))
                 Button { dismissedRaw = dismissed.union([item.id]).sorted().map { String($0) }.joined(separator: ",") } label: {
@@ -1262,7 +1266,7 @@ struct AnnouncementsView: View {
                 }
             }
             .cpFont(11, .semibold)
-            .foregroundStyle(CPTheme.primary(scheme: scheme))
+            .foregroundStyle(CPTheme.foreground(scheme))
             .buttonStyle(.plain)
             .frame(minHeight: 28)
         }
@@ -1279,8 +1283,8 @@ struct AnnouncementDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(item.courseName.uppercased()).cpFont(11, .semibold).tracking(0.5).foregroundStyle(CPTheme.primary(scheme: scheme))
-                    Text(item.title).cpFont(18, .semibold).tracking(-0.3).foregroundStyle(CPTheme.foreground(scheme)).fixedSize(horizontal: false, vertical: true)
+                    Text(item.courseName.uppercased()).cpFont(11, .semibold).tracking(0.5).foregroundStyle(CPTheme.foreground(scheme))
+                    Text(item.title).cpFont(22, .regular).tracking(-0.6).foregroundStyle(CPTheme.foreground(scheme)).fixedSize(horizontal: false, vertical: true)
                     if let date = ISO8601DateFormatter.canvasDate(from: item.postedAt) {
                         Text(date.formatted(.dateTime.weekday(.wide).month(.wide).day().hour().minute())).cpFont(11).foregroundStyle(CPTheme.muted(scheme))
                     }
