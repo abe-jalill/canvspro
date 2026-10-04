@@ -128,6 +128,7 @@ enum CPLayout {
 
 struct CPBackdrop: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     var body: some View {
         GeometryReader { proxy in
             ZStack(alignment: .top) {
@@ -146,6 +147,7 @@ struct CPBackdrop: View {
 
 private struct CPSurfaceModifier: ViewModifier {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     @Environment(\.colorSchemeContrast) private var contrast
     let strong: Bool
     let radius: CGFloat
@@ -162,6 +164,7 @@ private struct CPSurfaceModifier: ViewModifier {
 /// The one card used across the app.
 struct CPGlassCard<Content: View>: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     let title: String?; let subtitle: String?; let strong: Bool; let content: Content
     init(title: String? = nil, subtitle: String? = nil, strong: Bool = false, @ViewBuilder content: () -> Content) { self.title = title; self.subtitle = subtitle; self.strong = strong; self.content = content() }
     var body: some View {
@@ -182,6 +185,7 @@ struct CPGlassCard<Content: View>: View {
 /// Card title, optional one-line explanation, and an optional action on the right.
 struct CPCardHeader<Trailing: View>: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     let title: String
     let subtitle: String?
     let trailing: Trailing
@@ -213,6 +217,7 @@ extension CPCardHeader where Trailing == EmptyView {
 /// The small "View all" style label used for a card's action.
 struct CPLinkLabel: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     let text: String
     var symbol: String? = nil
     var body: some View {
@@ -233,6 +238,7 @@ struct CPLinkLabel: View {
 /// A quiet label above a group of cards or rows.
 struct CPSectionLabel<Trailing: View>: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     let title: String
     let count: Int?
     let trailing: Trailing
@@ -243,7 +249,7 @@ struct CPSectionLabel<Trailing: View>: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            Text(title.uppercased()).cpFont(11, .semibold).tracking(0.9).foregroundStyle(CPTheme.muted(scheme))
+            Text(title.uppercased()).cpFont(11, .semibold).tracking(0.5).foregroundStyle(CPTheme.muted(scheme))
             if let count { Text("\(count)").cpFont(11, .semibold).monospacedDigit().foregroundStyle(CPTheme.faint(scheme)) }
             Spacer(minLength: 8)
             trailing
@@ -261,6 +267,7 @@ extension CPSectionLabel where Trailing == EmptyView {
 /// A hairline between rows in a card, starting under the text.
 struct CPRowDivider: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     @Environment(\.displayScale) private var displayScale
     var leading: CGFloat = 0
     var body: some View {
@@ -271,6 +278,7 @@ struct CPRowDivider: View {
 /// A soft tile inside a card, for content that needs its own block.
 struct CPInsetRow<Content: View>: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     let content: Content
     init(@ViewBuilder content: () -> Content) { self.content = content() }
     var body: some View {
@@ -297,6 +305,7 @@ private extension CPTone {
 /// A number with a label, used in every page's summary.
 struct CPStatTile: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     let value: String
     let label: String
     var symbol: String? = nil
@@ -324,7 +333,8 @@ struct CPStatTile: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(tone == .neutral ? CPTheme.inset(scheme) : tone.color(scheme).opacity(scheme == .dark ? 0.10 : 0.08), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .background(tone == .neutral ? CPTheme.glass(scheme) : tone.color(scheme).opacity(scheme == .dark ? 0.10 : 0.08), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(tone == .neutral ? CPTheme.border(scheme) : Color.clear, lineWidth: 1))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(label): \(value)")
     }
@@ -333,6 +343,7 @@ struct CPStatTile: View {
 /// A small status tag, such as "Due today" or "Missing".
 struct CPPill: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     let text: String
     var tone: CPTone = .neutral
     var symbol: String? = nil
@@ -352,6 +363,7 @@ struct CPPill: View {
 /// A thin progress bar.
 struct CPProgressBar: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     let value: Double
     var color: Color? = nil
     var height: CGFloat = 4
@@ -372,6 +384,7 @@ struct CPProgressBar: View {
 /// A circular progress ring with content in the middle.
 struct CPRing<Content: View>: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     let progress: Double
     var color: Color? = nil
     var lineWidth: CGFloat = 5
@@ -420,6 +433,7 @@ struct CPButtonStyle: ButtonStyle {
 
 private struct CPButtonBody: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     @Environment(\.isEnabled) private var isEnabled
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let configuration: ButtonStyleConfiguration
@@ -447,6 +461,7 @@ private struct CPButtonBody: View {
 /// A round 30-point icon button with a 44-point target.
 struct CPIconButtonLabel: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     let symbol: String
     var body: some View {
         Image(systemName: symbol)
@@ -463,6 +478,7 @@ struct CPIconButtonLabel: View {
 
 struct CPSkeletonCard: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var visible = false
 
@@ -486,10 +502,11 @@ struct CPSkeletonCard: View {
 
 struct CPPageHeader: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     let eyebrow: String; let title: String; let detail: String?
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(eyebrow.uppercased()).cpFont(11, .semibold).tracking(1.1).foregroundStyle(CPTheme.muted(scheme))
+            Text(eyebrow.uppercased()).cpFont(11, .semibold).tracking(0.6).foregroundStyle(CPTheme.muted(scheme))
             Text(title).cpFont(20, .semibold).tracking(-0.4).foregroundStyle(CPTheme.foreground(scheme)).fixedSize(horizontal: false, vertical: true)
             if let detail { Text(detail).cpFont(12).foregroundStyle(CPTheme.muted(scheme)).lineSpacing(2).fixedSize(horizontal: false, vertical: true) }
         }
@@ -501,6 +518,7 @@ struct CPPageHeader: View {
 
 struct CPChip: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let text: String; let selected: Bool
     var body: some View {
@@ -521,6 +539,7 @@ struct CPChip: View {
 
 struct CPIconBadge: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     let symbol: String
     var tint: Color? = nil
     var body: some View {
@@ -537,6 +556,7 @@ struct CPIconBadge: View {
 /// An iOS-style segmented control drawn in the app's colors.
 struct CPSegmented: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Namespace private var selectionAnimation
     @Binding var selection: String
@@ -583,6 +603,7 @@ struct CPSegmented: View {
 
 struct CPListScreenModifier: ViewModifier {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     func body(content: Content) -> some View {
         content
             .cpFont(12)
@@ -597,6 +618,7 @@ struct CPListScreenModifier: ViewModifier {
 
 private struct CPPageSurface: ViewModifier {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
 
     func body(content: Content) -> some View {
         content
@@ -638,6 +660,7 @@ private struct CPScaledFont: ViewModifier {
 /// actually showing, including the iPhone's own light/dark switch in System mode.
 struct CPThemeModifier: ViewModifier {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     let palette: CPPalette
 
     func body(content: Content) -> some View {
@@ -678,5 +701,20 @@ extension View {
 
     func cpStateChange<Value: Equatable>(_ value: Value) -> some View {
         modifier(CPStateChange(value: value))
+    }
+}
+
+/// The color theme name. CPTheme reads the saved theme directly, so every view
+/// that draws with it declares this value too; when the theme arrives from the
+/// account (or changes in Settings), all of them redraw in the new colors
+/// together instead of leaving some parts in the old ones.
+private struct CPPaletteKey: EnvironmentKey {
+    static let defaultValue = "forest"
+}
+
+extension EnvironmentValues {
+    var cpPalette: String {
+        get { self[CPPaletteKey.self] }
+        set { self[CPPaletteKey.self] = newValue }
     }
 }

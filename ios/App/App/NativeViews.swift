@@ -44,6 +44,7 @@ struct NativeRootView: View {
         }
         .cpFont(12)
         .modifier(CPThemeModifier(palette: CPPalette(rawValue: palette) ?? .forest))
+        .environment(\.cpPalette, palette)
         .preferredColorScheme(colorScheme == "dark" ? .dark : colorScheme == "light" ? .light : nil)
         // Every screen scales with Text Size; the largest accessibility sizes are
         // capped where fixed-width rows would stop fitting on an iPhone.
@@ -204,6 +205,7 @@ private struct NativeAuthView: View {
     enum Mode: Equatable { case signIn, signUp }
     private enum Field: Hashable { case firstName, lastName, email, password }
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     @Environment(\.dynamicTypeSize) private var typeSize
     @ObservedObject var sessionStore: NativeSessionStore
     @FocusState private var focusedField: Field?
@@ -213,8 +215,6 @@ private struct NativeAuthView: View {
     @State private var showPassword = false
     @State private var firstName = ""
     @State private var lastName = ""
-    @State private var major = ""
-    @State private var classOf = ""
     @State private var ageConfirmed = false
     @State private var legalAccepted = false
     @State private var notice: String?
@@ -263,7 +263,7 @@ private struct NativeAuthView: View {
     /// The branded top of the page, in the launch screen's colors, with a small
     /// preview of the app.
     private var hero: some View {
-        VStack(alignment: .leading, spacing: 22) {
+        VStack(alignment: .leading, spacing: 28) {
             HStack(spacing: 10) {
                 NativeBrandMark(size: 34)
                 Text("CanvasPro").cpFont(16, .semibold).tracking(-0.3).foregroundStyle(.white)
@@ -271,7 +271,7 @@ private struct NativeAuthView: View {
             }
             VStack(alignment: .leading, spacing: 8) {
                 Text(mode == .signIn ? "Welcome back." : "Make room for\nwhat matters.")
-                    .cpFont(30, .semibold).tracking(-0.9)
+                    .cpFont(typeSize.isAccessibilitySize ? 26 : 30, .semibold).tracking(-0.9)
                     .foregroundStyle(.white)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityAddTraits(.isHeader)
@@ -280,11 +280,10 @@ private struct NativeAuthView: View {
                     .foregroundStyle(.white.opacity(0.72))
                     .fixedSize(horizontal: false, vertical: true)
             }
-            if !typeSize.isAccessibilitySize { NativeAuthPreview() }
         }
-        .padding(.horizontal, 22)
-        .padding(.top, 20)
-        .padding(.bottom, 52)
+        .padding(.horizontal, 24)
+        .padding(.top, 28)
+        .padding(.bottom, 60)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
             ZStack {
@@ -301,7 +300,7 @@ private struct NativeAuthView: View {
     }
 
     private var formCard: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: 22) {
             CPSegmented(selection: Binding(get: { mode == .signIn ? "Sign in" : "Create account" }, set: { value in
                 focusedField = nil
                 notice = nil
@@ -332,29 +331,18 @@ private struct NativeAuthView: View {
             }
             .buttonStyle(CPPressStyle())
             .disabled(!canSubmit)
-            HStack(spacing: 6) {
-                Image(systemName: "lock.fill").cpIconFont(9)
-                Text(mode == .signIn ? "Your school password is never needed." : "Free to use. Your Canvas key stays private.")
-            }
-            .cpFont(11)
-            .foregroundStyle(CPTheme.muted(scheme))
-            .frame(maxWidth: .infinity)
         }
-        .padding(20)
+        .padding(22)
         .cpSurface(strong: true, radius: 24)
         .shadow(color: Color.black.opacity(scheme == .dark ? 0.35 : 0.10), radius: 24, y: 10)
         .animation(.easeInOut(duration: 0.22), value: mode)
     }
 
     private var fields: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: 16) {
             if mode == .signUp {
-                if typeSize.isAccessibilitySize {
-                    firstNameField
-                    lastNameField
-                } else {
-                    HStack(alignment: .top, spacing: 10) { firstNameField; lastNameField }
-                }
+                firstNameField
+                lastNameField
             }
             NativeAuthField(title: mode == .signIn ? "Email or username" : "Email", symbol: mode == .signIn ? "person" : "envelope", focused: focusedField == .email) {
                 TextField(mode == .signIn ? "you@example.com or username" : "you@example.com", text: $email)
@@ -411,17 +399,6 @@ private struct NativeAuthView: View {
 
     private var signupDetails: some View {
         VStack(alignment: .leading, spacing: 12) {
-            DisclosureGroup {
-                VStack(spacing: 12) {
-                    NativeAuthField(title: "Major", symbol: nil) { TextField("Your major", text: $major) }
-                    NativeAuthField(title: "Class of", symbol: nil) {
-                        TextField("Graduation year", text: $classOf).keyboardType(.numberPad)
-                    }
-                }.padding(.top, 12)
-            } label: {
-                Text("School details · optional").cpFont(12, .medium)
-            }
-            .tint(CPTheme.muted(scheme))
             VStack(spacing: 0) {
                 NativeAuthConsent(title: "I am at least 13 years old", isOn: $ageConfirmed)
                 CPRowDivider(leading: 34)
@@ -445,7 +422,6 @@ private struct NativeAuthView: View {
                 let cleanLast = lastName.trimmingCharacters(in: .whitespacesAndNewlines)
                 let metadata: [String: Any] = [
                     "first_name": cleanFirst, "last_name": cleanLast, "full_name": "\(cleanFirst) \(cleanLast)",
-                    "major": major.trimmingCharacters(in: .whitespacesAndNewlines), "class_of": classOf.trimmingCharacters(in: .whitespacesAndNewlines),
                     "profile_setup_prompted": true, "profile_setup_completed": true,
                     "age_13_or_older_confirmed": true, "age_confirmation_version": 1, "age_confirmed_at": now,
                     "terms_accepted_version": "2026-09-28", "privacy_accepted_version": "2026-09-28", "legal_accepted_at": now,
@@ -457,44 +433,6 @@ private struct NativeAuthView: View {
                 }
             }
         }
-    }
-}
-
-/// A small, decorative preview of the dashboard on the sign-in screen.
-private struct NativeAuthPreview: View {
-    var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("UP NEXT").cpFont(11, .semibold).tracking(1).foregroundStyle(NativeBrandColors.mint)
-                Text("Essay draft").cpFont(14, .semibold).foregroundStyle(.white)
-                HStack(spacing: 6) {
-                    Image(systemName: "clock").cpIconFont(9, .semibold)
-                    Text("Due tomorrow · 45 min")
-                }
-                .cpFont(11)
-                .foregroundStyle(.white.opacity(0.65))
-            }
-            .padding(14)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Color.white.opacity(0.10), lineWidth: 1))
-            VStack(spacing: 8) {
-                previewTile("3", "This week")
-                previewTile("0", "Overdue")
-            }
-            .frame(width: 92)
-        }
-        .accessibilityHidden(true)
-    }
-
-    private func previewTile(_ value: String, _ label: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(value).cpFont(17, .semibold).monospacedDigit().foregroundStyle(.white)
-            Text(label).cpFont(11).foregroundStyle(.white.opacity(0.6)).lineLimit(1).minimumScaleFactor(0.8)
-        }
-        .padding(.horizontal, 10).padding(.vertical, 8)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }
 
@@ -512,6 +450,7 @@ private struct NativeAuthBrand: View {
 
 private struct NativeAuthField<Content: View>: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     let title: String
     let symbol: String?
     var focused = false
@@ -539,6 +478,7 @@ private struct NativeAuthField<Content: View>: View {
 
 private struct NativeAuthActionLabel: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     let title: String
     let isWorking: Bool
     var body: some View {
@@ -556,6 +496,7 @@ private struct NativeAuthActionLabel: View {
 
 private struct NativeAuthConsent: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     let title: String
     @Binding var isOn: Bool
     var body: some View {
@@ -583,6 +524,7 @@ private struct NativeAuthConsent: View {
 
 private struct NativeAuthMessage: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     let text: String
     let isError: Bool
     var body: some View {
@@ -597,6 +539,7 @@ private struct NativeAuthMessage: View {
 private struct PasswordResetSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     @ObservedObject var sessionStore: NativeSessionStore
     @FocusState private var emailFocused: Bool
     @State var email: String
@@ -804,6 +747,7 @@ private struct NativeDigestSnapshot: Codable {
 /// The website's dashboard, one widget per card in the student's saved order.
 private struct NativeDashboardView: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
@@ -898,82 +842,74 @@ private struct NativeDashboardView: View {
 
     // MARK: Hero
 
+    /// Greeting and three numbers, straight on the page: no box around boxes.
     private var hero: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 5) {
-                    Image(systemName: "calendar").cpIconFont(9, .semibold)
-                    Text(Date().formatted(.dateTime.weekday(.wide).month(.wide).day()).uppercased()).tracking(1.1)
-                }
-                .cpFont(11, .semibold)
-                .foregroundStyle(CPTheme.muted(scheme))
+        VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(Date().formatted(.dateTime.weekday(.wide).month(.wide).day()))
+                    .cpFont(12, .medium)
+                    .foregroundStyle(CPTheme.muted(scheme))
                 Text("\(greeting)\(studentName.map { ", \($0)." } ?? ".")")
-                    .cpFont(22, .semibold).tracking(-0.6)
+                    .cpFont(26, .semibold).tracking(-0.6)
                     .foregroundStyle(CPTheme.foreground(scheme))
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityAddTraits(.isHeader)
                 Text(heroMessage)
-                    .cpFont(12).lineSpacing(2)
+                    .cpFont(13).lineSpacing(3)
                     .foregroundStyle(CPTheme.muted(scheme))
                     .fixedSize(horizontal: false, vertical: true)
             }
+            HStack(spacing: 8) {
+                heroStat(value: weekItems.count, label: "Next 7 days", window: "7")
+                heroStat(value: todayCount, label: "Next 24 hours", window: "1")
+                heroStat(value: overdueCount, label: "Overdue", window: "overdue", soft: overdueCount > 0)
+            }
             Button { openFocus("7") } label: {
-                HStack(spacing: 4) { Text("Open focus view"); Image(systemName: "arrow.up.right").cpIconFont(8, .bold) }
+                HStack(spacing: 4) { Text("Open focus view"); Image(systemName: "arrow.right").cpIconFont(10, .semibold) }
+                    .cpFont(12, .semibold)
+                    .foregroundStyle(CPTheme.primary(scheme: scheme))
+                    .frame(minHeight: 32)
+                    .contentShape(Rectangle())
             }
-            .buttonStyle(CPButtonStyle(kind: .secondary))
-            VStack(spacing: 8) {
-                Button { openFocus("7") } label: { weekTile }.buttonStyle(CPPressStyle())
-                HStack(spacing: 8) {
-                    Button { openFocus("1") } label: { CPStatTile(value: "\(todayCount)", label: "Next 24 hours", symbol: "clock") }
-                        .buttonStyle(CPPressStyle())
-                    Button { openFocus("overdue") } label: { CPStatTile(value: "\(overdueCount)", label: "Overdue", symbol: "exclamationmark.triangle", tone: overdueCount > 0 ? .danger : .neutral) }
-                        .buttonStyle(CPPressStyle())
-                }
-            }
+            .buttonStyle(CPPressStyle())
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            LinearGradient(colors: [CPTheme.primary(scheme: scheme).opacity(scheme == .dark ? 0.10 : 0.07), .clear], startPoint: .topLeading, endPoint: .bottomTrailing),
-            in: RoundedRectangle(cornerRadius: 22, style: .continuous)
-        )
-        .cpSurface(strong: true, radius: 22)
+        .padding(.horizontal, 4)
+        .padding(.top, 8)
     }
 
-    private var weekTile: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("NEXT SEVEN DAYS").cpFont(11, .semibold).tracking(1).foregroundStyle(CPTheme.muted(scheme))
-            HStack(alignment: .lastTextBaseline) {
-                Text("\(weekItems.count)").cpFont(30, .semibold).tracking(-1).monospacedDigit()
-                    .foregroundStyle(CPTheme.foreground(scheme))
-                Spacer(minLength: 8)
-                Text(weekItems.count == 1 ? "item on your radar" : "items on your radar")
-                    .cpFont(11).foregroundStyle(CPTheme.muted(scheme)).multilineTextAlignment(.trailing)
+    private func heroStat(value: Int, label: String, window: String, soft: Bool = false) -> some View {
+        Button { openFocus(window) } label: {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("\(value)")
+                    .cpFont(22, .semibold).tracking(-0.5).monospacedDigit()
+                    .foregroundStyle(soft ? CPTheme.danger : CPTheme.foreground(scheme))
+                Text(label)
+                    .cpFont(11)
+                    .foregroundStyle(CPTheme.muted(scheme))
+                    .lineLimit(1).minimumScaleFactor(0.85)
             }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .cpSurface(radius: 14)
         }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(alignment: .topTrailing) {
-            Image(systemName: "arrow.up.right").cpIconFont(9, .bold).foregroundStyle(CPTheme.faint(scheme)).padding(14)
-        }
+        .buttonStyle(CPPressStyle())
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Next seven days: \(weekItems.count) \(weekItems.count == 1 ? "item" : "items")")
+        .accessibilityLabel("\(label): \(value)")
         .accessibilityHint("Opens Coming Up")
     }
 
     private var dashboardHeader: some View {
-        HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Your dashboard").cpFont(15, .semibold).foregroundStyle(CPTheme.foreground(scheme))
-                Text("Choose which widgets appear and their order.").cpFont(11).foregroundStyle(CPTheme.muted(scheme))
+        CPSectionLabel("Your dashboard") {
+            Button { showCustomize = true } label: {
+                Label("Customize", systemImage: "slider.horizontal.3")
+                    .cpFont(12, .semibold)
+                    .foregroundStyle(CPTheme.primary(scheme: scheme))
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
             }
-            Spacer(minLength: 8)
-            Button { showCustomize = true } label: { Label("Customize", systemImage: "slider.horizontal.3") }
-                .buttonStyle(CPButtonStyle(kind: .quiet))
+            .buttonStyle(CPPressStyle())
         }
-        .padding(.horizontal, 2)
-        .padding(.top, 8)
+        .padding(.top, 14)
     }
 
     @ViewBuilder private func dashboardWidget(_ id: String) -> some View {
@@ -1054,7 +990,7 @@ private struct NativeDashboardView: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
                 Image(systemName: symbol).cpIconFont(9, .semibold).foregroundStyle(CPTheme.muted(scheme))
-                Text(title.uppercased()).cpFont(11, .semibold).tracking(0.9).foregroundStyle(CPTheme.muted(scheme))
+                Text(title.uppercased()).cpFont(11, .semibold).tracking(0.5).foregroundStyle(CPTheme.muted(scheme))
                 Spacer()
                 Text("\(count)").cpFont(11, .semibold).monospacedDigit().foregroundStyle(CPTheme.faint(scheme))
             }
@@ -1371,7 +1307,7 @@ private struct NativeDashboardView: View {
             }
             if showGpaScale {
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("4.0 SCALE").cpFont(11, .semibold).tracking(0.9).foregroundStyle(CPTheme.muted(scheme)).padding(.bottom, 4)
+                    Text("4.0 SCALE").cpFont(11, .semibold).tracking(0.5).foregroundStyle(CPTheme.muted(scheme)).padding(.bottom, 4)
                     ForEach(NativeGPA.scale, id: \.minimum) { entry in
                         HStack { Text("\(entry.minimum)%+"); Spacer(); Text(String(format: "%.1f", entry.points)) }
                             .cpFont(11).monospacedDigit().foregroundStyle(CPTheme.muted(scheme)).padding(.vertical, 3)
@@ -1433,6 +1369,7 @@ struct NativeDatedEvent: Identifiable {
 /// A small calendar-page badge: weekday over day number.
 struct NativeDateBadge: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     let date: Date
     var body: some View {
         VStack(spacing: 0) {
@@ -1480,6 +1417,7 @@ enum NativeGPA {
 /// countdown. Tapping the text opens the description.
 struct NativeDueRow: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     let assignment: AssignmentItem
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
@@ -1532,6 +1470,7 @@ struct NativeDueRow: View {
 /// The round "done" control used on every assignment row.
 struct NativeCompletionButton: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     let assignment: AssignmentItem
     @ObservedObject var store: NativeContentStore
     var onCompleted: ((AssignmentItem) -> Void)? = nil
@@ -1566,11 +1505,14 @@ struct NativeCompletionButton: View {
 
 struct NativeSyncStatusCard: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     @ObservedObject var store: NativeContentStore
     let retry: () -> Void
 
+    /// Only shown when something needs the student's attention (offline or a
+    /// sync problem). A routine refresh never shows it, so the page doesn't jump.
     private var shouldShow: Bool {
-        !store.isPreview && (store.isLoading || store.isShowingCachedData || store.syncMessage != nil || store.lastSyncedAt != nil)
+        !store.isPreview && !store.isLoading && (store.isShowingCachedData || store.syncMessage != nil)
     }
 
     var body: some View {
@@ -1665,6 +1607,7 @@ private struct DashboardCustomizationView: View {
 /// explanation and a row of numbers.
 struct NativePageHero<Tiles: View>: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     let symbol: String
     let eyebrow: String
     let title: String
@@ -1679,7 +1622,7 @@ struct NativePageHero<Tiles: View>: View {
         VStack(alignment: .leading, spacing: 14) {
             CPIconBadge(symbol: symbol)
             VStack(alignment: .leading, spacing: 4) {
-                Text(eyebrow.uppercased()).cpFont(11, .semibold).tracking(1.1).foregroundStyle(CPTheme.muted(scheme))
+                Text(eyebrow.uppercased()).cpFont(11, .semibold).tracking(0.6).foregroundStyle(CPTheme.muted(scheme))
                 Text(title).cpFont(20, .semibold).tracking(-0.5).foregroundStyle(CPTheme.foreground(scheme))
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityAddTraits(.isHeader)
@@ -1689,18 +1632,15 @@ struct NativePageHero<Tiles: View>: View {
             }
             HStack(spacing: 8) { tiles }
         }
-        .padding(16)
+        .padding(.horizontal, 4)
+        .padding(.top, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            LinearGradient(colors: [CPTheme.primary(scheme: scheme).opacity(scheme == .dark ? 0.10 : 0.07), .clear], startPoint: .topLeading, endPoint: .bottomTrailing),
-            in: RoundedRectangle(cornerRadius: 22, style: .continuous)
-        )
-        .cpSurface(strong: true, radius: 22)
     }
 }
 
 struct NativeAssignmentsView: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
@@ -1989,6 +1929,7 @@ struct NativeAgendaSection: Identifiable {
 /// A full assignment summary: done control, name, class, countdown and status.
 struct NativeAssignmentRow: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     let assignment: AssignmentItem
     @ObservedObject var store: NativeContentStore
     var onCompleted: ((AssignmentItem) -> Void)? = nil
@@ -2104,6 +2045,7 @@ private struct AddAssignmentView: View {
 
 private struct NativeGradesView: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
@@ -2173,7 +2115,7 @@ private struct NativeGradesView: View {
                 }
                 .frame(width: 64, height: 64)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("CURRENT AVERAGE").cpFont(11, .semibold).tracking(1.1).foregroundStyle(CPTheme.muted(scheme))
+                    Text("CURRENT AVERAGE").cpFont(11, .semibold).tracking(0.6).foregroundStyle(CPTheme.muted(scheme))
                     CountUpGrade(value: average, size: 30, color: CPTheme.foreground(scheme))
                     Text("Across \(scored.count) graded \(scored.count == 1 ? "class" : "classes")").cpFont(11).foregroundStyle(CPTheme.muted(scheme))
                 }
@@ -2186,13 +2128,8 @@ private struct NativeGradesView: View {
                 CPStatTile(value: "\(gradedAssignments)", label: "Grades posted")
             }
         }
-        .padding(16)
+        .padding(.horizontal, 4).padding(.top, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            LinearGradient(colors: [CPTheme.primary(scheme: scheme).opacity(scheme == .dark ? 0.10 : 0.07), .clear], startPoint: .topLeading, endPoint: .bottomTrailing),
-            in: RoundedRectangle(cornerRadius: 22, style: .continuous)
-        )
-        .cpSurface(strong: true, radius: 22)
     }
 
     private func trend(for course: CourseSummary) -> Double? { guard let current = course.currentScore, let previous = gradeHistory[course.id]?.first(where: { abs($0 - current) > 0.05 }) else { return nil }; return current - previous }
@@ -2306,6 +2243,7 @@ private struct NativeGradesView: View {
 /// "18 / 20" with the percent in a soft grade-colored tag.
 struct NativeScoreBadge: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     let assignment: AssignmentItem
     var body: some View {
         let earned = assignment.submission?.score
@@ -2327,6 +2265,7 @@ struct NativeScoreBadge: View {
 
 struct CourseRow: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     let course: CourseSummary; @ObservedObject var store: NativeContentStore
     var body: some View {
         HStack(spacing: 10) {
@@ -2369,6 +2308,7 @@ enum CourseDetailSection: String, CaseIterable {
 
 struct CourseDetailView: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let course: CourseSummary
     @ObservedObject var store: NativeContentStore
@@ -2474,7 +2414,7 @@ struct CourseDetailView: View {
             HStack(alignment: .center, spacing: 14) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(course.courseCode.isEmpty ? "CLASS OVERVIEW" : course.courseCode.uppercased())
-                        .cpFont(11, .semibold).tracking(1.1).foregroundStyle(CPTheme.muted(scheme)).lineLimit(2)
+                        .cpFont(11, .semibold).tracking(0.6).foregroundStyle(CPTheme.muted(scheme)).lineLimit(2)
                     Text(courseName).cpFont(18, .semibold).tracking(-0.4).foregroundStyle(CPTheme.foreground(scheme))
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityAddTraits(.isHeader)
@@ -2764,6 +2704,7 @@ private struct NativePomodoroPlan: Codable {
 struct NativeStudyView: View {
     @Binding private var requestedAssignment: AssignmentItem?
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
     @State private var selected: Set<Int>; @State private var selectedOrder: [Int]; @State private var manualTasks: [AssignmentItem]; @State private var completedIDs: Set<Int>; @State private var sessionFinished: Bool; @State private var sessionStarted: Bool
@@ -3067,7 +3008,7 @@ struct NativeStudyView: View {
                         Text("Step away for a moment.").cpFont(13, .medium).foregroundStyle(CPTheme.foreground(scheme))
                     } else if let item = currentItem {
                         VStack(spacing: 4) {
-                            Text("NOW STUDYING").cpFont(11, .semibold).tracking(1.2).foregroundStyle(CPTheme.muted(scheme))
+                            Text("NOW STUDYING").cpFont(11, .semibold).tracking(0.6).foregroundStyle(CPTheme.muted(scheme))
                             Text(item.name).cpFont(15, .semibold).multilineTextAlignment(.center).foregroundStyle(CPTheme.foreground(scheme))
                                 .fixedSize(horizontal: false, vertical: true)
                             if !item.courseName.isEmpty {
@@ -3378,6 +3319,7 @@ extension ISO8601DateFormatter {
 struct NativeEmptyState: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     @State private var appeared = false
     let title: String; let symbol: String; var detail: String? = nil
     var body: some View {

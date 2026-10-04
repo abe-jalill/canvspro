@@ -7,6 +7,7 @@ import UIKit
 /// A grouped list row in the style of the iPhone Settings app.
 struct NativeMenuRow: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     let title: String
     var detail: String? = nil
     let symbol: String
@@ -53,6 +54,7 @@ private enum NativeMenuTint {
 
 struct NativeMoreView: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
     @ObservedObject var sessionStore: NativeSessionStore
@@ -111,6 +113,7 @@ struct NativeMoreView: View {
 
 struct NativeAvatar: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let url: URL?
     var size: CGFloat = 36
@@ -132,6 +135,7 @@ struct NativeAvatar: View {
 
 struct NativeSettingsView: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     @ObservedObject var contentStore: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
     @ObservedObject var sessionStore: NativeSessionStore
@@ -289,6 +293,7 @@ private struct NativeDeleteAccountView: View {
 
 struct NativeSectionPicker: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     @Binding var selection: String
     let options: [String]
     let label: String
@@ -319,6 +324,7 @@ struct NativeCalendarHub: View {
 
 struct GetItDoneView: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
     @State private var window = 7
@@ -547,6 +553,7 @@ struct GetItDoneView: View {
 
 struct FocusView: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
     @Binding var window: String
@@ -776,6 +783,7 @@ private struct CalendarDayGroup: Identifiable {
 
 struct CalendarView: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
@@ -1071,6 +1079,7 @@ struct CalendarView: View {
 /// more due. Tap a day to see what's due.
 struct WorkloadView: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let assignments: [AssignmentItem]
     @ObservedObject var store: NativeContentStore
@@ -1140,7 +1149,7 @@ struct WorkloadView: View {
 
     private func dayDetail(_ day: Date, items: [AssignmentItem]) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(day.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()).uppercased()).cpFont(11, .semibold).tracking(0.9).foregroundStyle(CPTheme.muted(scheme))
+            Text(day.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()).uppercased()).cpFont(11, .semibold).tracking(0.5).foregroundStyle(CPTheme.muted(scheme))
             ForEach(items) { item in
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     VStack(alignment: .leading, spacing: 1) {
@@ -1162,6 +1171,7 @@ struct WorkloadView: View {
 
 struct AnnouncementsView: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
     @AppStorage("CanvasProDismissedAnnouncements") private var dismissedRaw = ""
@@ -1263,12 +1273,13 @@ struct AnnouncementsView: View {
 
 struct AnnouncementDetailView: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     let item: AnnouncementItem
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(item.courseName.uppercased()).cpFont(11, .semibold).tracking(0.9).foregroundStyle(CPTheme.primary(scheme: scheme))
+                    Text(item.courseName.uppercased()).cpFont(11, .semibold).tracking(0.5).foregroundStyle(CPTheme.primary(scheme: scheme))
                     Text(item.title).cpFont(18, .semibold).tracking(-0.3).foregroundStyle(CPTheme.foreground(scheme)).fixedSize(horizontal: false, vertical: true)
                     if let date = ISO8601DateFormatter.canvasDate(from: item.postedAt) {
                         Text(date.formatted(.dateTime.weekday(.wide).month(.wide).day().hour().minute())).cpFont(11).foregroundStyle(CPTheme.muted(scheme))
@@ -1404,6 +1415,7 @@ private struct AppearanceSettingsCard: View {
 
 private struct AnnouncementWindowSettingsView: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     @ObservedObject var features: NativeFeatureStore
     @State private var status: String?
     var body: some View {
@@ -1422,6 +1434,7 @@ private struct AnnouncementWindowSettingsView: View {
 
 private struct PaletteOption: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     let option: CPPalette; let selected: Bool
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -1603,6 +1616,7 @@ private struct HiddenCoursesView: View {
 
 struct CanvasSettingsView: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     @ObservedObject var store: NativeContentStore
     @State private var domain = ""
     @State private var canvasToken = ""
@@ -1839,6 +1853,7 @@ struct NativeLegalLinks: View {
 /// Shown wherever coursework would appear while the account has no Canvas connection.
 struct NativeConnectCanvasCard: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     @ObservedObject var store: NativeContentStore
     var body: some View {
         CPGlassCard(title: "Connect Canvas", subtitle: "CanvasPro shows your classes, deadlines, and grades once it's connected to your school's Canvas.", strong: true) {
