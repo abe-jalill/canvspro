@@ -73,7 +73,7 @@ enum CPTheme {
     }
     /// Third-level text: timestamps, counts, hints.
     static func faint(_ scheme: ColorScheme, palette: CPPalette = currentPalette) -> Color {
-        scheme == .dark ? .hsl(palette.hue, 0.07, 0.50) : .hsl(palette.hue, 0.10, 0.56)
+        scheme == .dark ? .hsl(palette.hue, 0.07, 0.52) : .hsl(palette.hue, 0.10, 0.42)
     }
     static func glass(_ scheme: ColorScheme, strong: Bool = false, palette: CPPalette = currentPalette) -> Color {
         scheme == .dark
@@ -88,6 +88,16 @@ enum CPTheme {
     }
     static func insetBorder(_ scheme: ColorScheme) -> Color {
         scheme == .dark ? Color.white.opacity(0.06) : Color.hsl(216, 0.30, 0.20, opacity: 0.07)
+    }
+
+    /// Outline for tabs, chips and buttons. It firms up when the student turns on
+    /// Increase Contrast, so the controls stay easy to see.
+    static func outline(_ scheme: ColorScheme, selected: Bool = false) -> Color {
+        let base = UIColor(foreground(scheme))
+        return Color(UIColor { traits in
+            let high = traits.accessibilityContrast == .high
+            return base.withAlphaComponent(high ? (selected ? 1 : 0.55) : (selected ? 0.6 : 0.15))
+        })
     }
 
     static func adaptive(dark: Color, light: Color) -> Color {
@@ -370,7 +380,7 @@ struct CPPill: View {
         .foregroundStyle(tone.color(scheme))
         .padding(.horizontal, 8)
         .frame(minHeight: 22)
-        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(tone == .danger ? CPTheme.danger.opacity(0.35) : CPTheme.foreground(scheme).opacity(0.15), lineWidth: 0.5))
+        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(tone == .danger ? CPTheme.danger.opacity(0.35) : CPTheme.outline(scheme), lineWidth: 0.5))
     }
 }
 
@@ -464,7 +474,7 @@ private struct CPButtonBody: View {
             .frame(maxWidth: fullWidth ? .infinity : nil, minHeight: 40)
             .foregroundStyle(kind == .primary ? CPTheme.background(scheme) : CPTheme.foreground(scheme))
             .background(kind == .primary ? CPTheme.foreground(scheme) : kind == .secondary ? CPTheme.inset(scheme) : Color.clear, in: shape)
-            .overlay(shape.strokeBorder(kind == .primary ? Color.clear : kind == .secondary ? CPTheme.insetBorder(scheme) : CPTheme.foreground(scheme).opacity(0.15), lineWidth: 0.5))
+            .overlay(shape.strokeBorder(kind == .primary ? Color.clear : kind == .secondary ? CPTheme.insetBorder(scheme) : CPTheme.outline(scheme), lineWidth: 0.5))
             .contentShape(shape)
             .opacity(!isEnabled ? 0.4 : configuration.isPressed ? 0.85 : 1)
             .scaleEffect(reduceMotion || !configuration.isPressed ? 1 : 0.98)
@@ -482,7 +492,7 @@ struct CPIconButtonLabel: View {
             .cpIconFont(12, .medium)
             .foregroundStyle(CPTheme.muted(scheme))
             .frame(width: 30, height: 30)
-            .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(CPTheme.foreground(scheme).opacity(0.15), lineWidth: 0.5))
+            .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(CPTheme.outline(scheme), lineWidth: 0.5))
             .frame(width: 44, height: 44)
             .contentShape(Rectangle())
     }
@@ -551,7 +561,7 @@ struct NativePageTabs: View {
                         .foregroundStyle(isSelected ? CPTheme.foreground(scheme) : CPTheme.muted(scheme))
                         .padding(.horizontal, 14)
                         .frame(height: 32)
-                        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(CPTheme.foreground(scheme).opacity(isSelected ? 0.6 : 0.15), lineWidth: 0.5))
+                        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(CPTheme.outline(scheme, selected: isSelected), lineWidth: 0.5))
                         .padding(.vertical, 6).contentShape(Rectangle()).padding(.vertical, -6)
                 }
                 .buttonStyle(.plain)
@@ -560,6 +570,7 @@ struct NativePageTabs: View {
         }
         .frame(maxWidth: .infinity)
         .animation(reduceMotion ? nil : .easeOut(duration: 0.3), value: selection)
+        .sensoryFeedback(.selection, trigger: selection)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(label)
         .dynamicTypeSize(...DynamicTypeSize.xxLarge)
@@ -579,7 +590,7 @@ struct CPChip: View {
             .padding(.horizontal, 12)
             .frame(height: 30)
             .foregroundStyle(selected ? CPTheme.foreground(scheme) : CPTheme.muted(scheme))
-            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(CPTheme.foreground(scheme).opacity(selected ? 0.6 : 0.15), lineWidth: 0.5))
+            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(CPTheme.outline(scheme, selected: selected), lineWidth: 0.5))
             .frame(minHeight: 44)
             .contentShape(Rectangle())
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: selected)
@@ -645,6 +656,7 @@ struct CPSegmented: View {
         .background(CPTheme.glass(scheme, strong: true), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(CPTheme.border(scheme), lineWidth: 0.5))
         .animation(reduceMotion ? nil : .spring(duration: 0.26, bounce: 0), value: selection)
+        .sensoryFeedback(.selection, trigger: selection)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(label)
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
@@ -769,5 +781,213 @@ extension EnvironmentValues {
     var cpPalette: String {
         get { self[CPPaletteKey.self] }
         set { self[CPPaletteKey.self] = newValue }
+    }
+}
+
+// MARK: - Haptics
+
+/// Small, gentle taps. Each one respects the iPhone's system haptics setting.
+enum CPHaptics {
+    /// Moving between options: tabs, chips, days.
+    static func select() { UISelectionFeedbackGenerator().selectionChanged() }
+    /// A light tap for toggles and presses.
+    static func tap() { UIImpactFeedbackGenerator(style: .light).impactOccurred() }
+    /// A firmer tick, such as a swipe reaching the point where it will commit.
+    static func firm() { UIImpactFeedbackGenerator(style: .rigid).impactOccurred() }
+    /// Something finished.
+    static func success() { UINotificationFeedbackGenerator().notificationOccurred(.success) }
+}
+
+// MARK: - Swipe actions
+
+struct CPSwipeAction {
+    let title: String
+    let symbol: String
+    let perform: () -> Void
+}
+
+/// Swipe a row right or left to act on it, like Mail. Pulling past the marker
+/// ticks and runs the action on release; letting go sooner springs back. Every
+/// action is also a VoiceOver custom action, so nothing depends on the gesture.
+private struct CPSwipeModifier: ViewModifier {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let leading: CPSwipeAction?
+    let trailing: CPSwipeAction?
+    @State private var offset: CGFloat = 0
+    @State private var crossed = false
+    private let threshold: CGFloat = 84
+
+    func body(content: Content) -> some View {
+        content
+            .offset(x: offset)
+            .background { reveal }
+            .simultaneousGesture(drag)
+            .modifier(CPSwipeAccessibility(leading: leading, trailing: trailing))
+    }
+
+    @ViewBuilder private var reveal: some View {
+        if offset > 1, let leading { tile(leading, alignment: .leading) }
+        else if offset < -1, let trailing { tile(trailing, alignment: .trailing) }
+    }
+
+    private func tile(_ action: CPSwipeAction, alignment: Alignment) -> some View {
+        let progress = min(1, abs(offset) / threshold)
+        return RoundedRectangle(cornerRadius: CPLayout.innerRadius, style: .continuous)
+            .fill(CPTheme.foreground(scheme).opacity(crossed ? 0.16 : 0.08))
+            .overlay(alignment: alignment) {
+                HStack(spacing: 6) {
+                    Image(systemName: action.symbol).cpIconFont(13, .semibold)
+                    Text(action.title).cpFont(12, .medium)
+                }
+                .foregroundStyle(CPTheme.foreground(scheme).opacity(0.5 + 0.5 * progress))
+                .scaleEffect(crossed ? 1.06 : 1)
+                .padding(.horizontal, 16)
+            }
+            .accessibilityHidden(true)
+    }
+
+    private var drag: some Gesture {
+        DragGesture(minimumDistance: 18)
+            .onChanged { value in
+                let horizontal = value.translation.width
+                // Vertical scrolling always wins unless the finger is clearly moving sideways.
+                guard offset != 0 || abs(horizontal) > abs(value.translation.height) * 1.5 else { return }
+                var next = horizontal
+                if next > 0 && leading == nil { next = 0 }
+                if next < 0 && trailing == nil { next = 0 }
+                // Resist beyond the marker so it feels anchored.
+                let limit = threshold * 1.35
+                next = max(-limit, min(limit, next * 0.85))
+                offset = next
+                let isCrossed = abs(next) >= threshold
+                if isCrossed != crossed {
+                    crossed = isCrossed
+                    if isCrossed { CPHaptics.firm() }
+                }
+            }
+            .onEnded { _ in
+                let action = offset >= threshold ? leading : offset <= -threshold ? trailing : nil
+                withAnimation(reduceMotion ? nil : .spring(duration: 0.32, bounce: 0.12)) { offset = 0 }
+                crossed = false
+                if let action { action.perform() }
+            }
+    }
+}
+
+private struct CPSwipeAccessibility: ViewModifier {
+    let leading: CPSwipeAction?
+    let trailing: CPSwipeAction?
+
+    func body(content: Content) -> some View {
+        content
+            .accessibilityActions {
+                if let leading { Button(leading.title) { leading.perform() } }
+                if let trailing { Button(trailing.title) { trailing.perform() } }
+            }
+    }
+}
+
+// MARK: - Reveal
+
+/// Cards rise and fade in the first time they appear, a little after one another,
+/// so a screen settles in instead of snapping on. Off with Reduce Motion.
+private struct CPRevealModifier: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let index: Int
+    @State private var shown = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(shown || reduceMotion ? 1 : 0)
+            .offset(y: shown || reduceMotion ? 0 : 10)
+            .onAppear {
+                guard !shown else { return }
+                withAnimation(.easeOut(duration: 0.42).delay(Double(min(index, 7)) * 0.05)) { shown = true }
+            }
+    }
+}
+
+// MARK: - Notice and field
+
+/// A short message: a success, or a problem with what to do about it.
+struct CPNotice: View {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
+    let text: String
+    var isError = false
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: isError ? "exclamationmark.circle" : "checkmark.circle").cpIconFont(14)
+                .foregroundStyle(isError ? CPTheme.danger : CPTheme.foreground(scheme))
+            Text(text).cpFont(12).lineSpacing(2).foregroundStyle(CPTheme.foreground(scheme).opacity(0.9))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(isError ? CPTheme.danger.opacity(0.08) : CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: CPLayout.innerRadius, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: CPLayout.innerRadius, style: .continuous).strokeBorder(isError ? CPTheme.danger.opacity(0.3) : CPTheme.insetBorder(scheme), lineWidth: 0.5))
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// A labeled box that holds a text field, with an outline that firms up while typing.
+struct CPFieldBox<Content: View>: View {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
+    let title: String
+    var focused = false
+    let content: Content
+
+    init(title: String, focused: Bool = false, @ViewBuilder content: () -> Content) {
+        self.title = title; self.focused = focused; self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title).cpFont(12).foregroundStyle(CPTheme.muted(scheme)).accessibilityHidden(true)
+            content
+                .cpFont(14)
+                .padding(.horizontal, 14)
+                .frame(minHeight: 48)
+                .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(focused ? CPTheme.foreground(scheme).opacity(0.6) : CPTheme.insetBorder(scheme), lineWidth: focused ? 1 : 0.5))
+        }
+    }
+}
+
+extension View {
+    /// Swipe right and/or left on a row to act on it.
+    func cpSwipe(leading: CPSwipeAction? = nil, trailing: CPSwipeAction? = nil) -> some View {
+        modifier(CPSwipeModifier(leading: leading, trailing: trailing))
+    }
+
+    /// Fades and lifts a card in the first time it appears. `index` staggers neighbors.
+    func cpReveal(_ index: Int = 0) -> some View {
+        modifier(CPRevealModifier(index: index))
+    }
+}
+
+// MARK: - Adaptive layout
+
+/// A row that sits side by side at normal text sizes and stacks, left aligned,
+/// at the accessibility sizes, so long names never get squeezed by their dates.
+struct CPAdaptiveStack<Content: View>: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
+    var spacing: CGFloat = 8
+    let content: Content
+
+    init(spacing: CGFloat = 8, @ViewBuilder content: () -> Content) {
+        self.spacing = spacing
+        self.content = content()
+    }
+
+    var body: some View {
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: spacing))
+            : AnyLayout(HStackLayout(alignment: .center, spacing: spacing))
+        layout { content }
     }
 }

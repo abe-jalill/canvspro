@@ -72,7 +72,7 @@ private extension EnvironmentValues {
 
 /// The deep forest colors behind the launch and sign-in screens. The static
 /// LaunchScreen storyboard uses the same base, so there is no flash on open.
-private enum NativeBrandColors {
+enum NativeBrandColors {
     static let base = Color(red: 0, green: 0.184, blue: 0.125)
     static let deep = Color(red: 0, green: 0.105, blue: 0.072)
     static let mint = Color(red: 0.49, green: 0.84, blue: 0.65)
@@ -81,7 +81,7 @@ private enum NativeBrandColors {
 
 /// The CanvasPro mark: three rising bars inside a ring. With `animate`, the bars
 /// grow in one by one and the ring draws itself around them.
-private struct NativeBrandMark: View {
+struct NativeBrandMark: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var size: CGFloat = 120
     var animate = false
@@ -202,6 +202,138 @@ private struct NativeLaunchView: View {
         // The wordmark is one line of fixed artwork; huge text sizes would push it into the logo.
         .dynamicTypeSize(...DynamicTypeSize.xxLarge)
         .task { appeared = true }
+    }
+}
+
+/// A short, skippable welcome shown once to a new account: what CanvasPro is, how
+/// to get around, and connecting Canvas. `finish(true)` means "take me to connect".
+struct NativeOnboardingView: View {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let isConnected: Bool
+    let finish: (Bool) -> Void
+    @State private var page = 0
+    private let lastPage = 2
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Spacer()
+                Button("Skip") { finish(false) }
+                    .cpFont(13)
+                    .foregroundStyle(CPTheme.muted(scheme))
+                    .frame(minWidth: 56, minHeight: 44)
+                    .opacity(page == lastPage ? 0 : 1)
+                    .disabled(page == lastPage)
+            }
+            .padding(.horizontal, 12)
+
+            TabView(selection: $page) {
+                welcomePage.tag(0)
+                tourPage.tag(1)
+                connectPage.tag(2)
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+
+            VStack(spacing: 18) {
+                HStack(spacing: 8) {
+                    ForEach(0...lastPage, id: \.self) { index in
+                        Capsule()
+                            .fill(CPTheme.foreground(scheme).opacity(index == page ? 0.9 : 0.2))
+                            .frame(width: index == page ? 22 : 7, height: 7)
+                    }
+                }
+                .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: page)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Page \(page + 1) of \(lastPage + 1)")
+
+                if page < lastPage {
+                    Button {
+                        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.3)) { page += 1 }
+                    } label: { Text("Continue") }
+                        .buttonStyle(CPButtonStyle(kind: .primary, fullWidth: true))
+                } else if isConnected {
+                    Button { finish(false) } label: { Text("Get started") }
+                        .buttonStyle(CPButtonStyle(kind: .primary, fullWidth: true))
+                } else {
+                    VStack(spacing: 8) {
+                        Button { finish(true) } label: { Text("Connect Canvas") }
+                            .buttonStyle(CPButtonStyle(kind: .primary, fullWidth: true))
+                        Button { finish(false) } label: { Text("I'll do it later") }
+                            .buttonStyle(CPButtonStyle(kind: .quiet, fullWidth: true))
+                    }
+                }
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 28)
+        }
+        .background(CPBackdrop())
+        .sensoryFeedback(.selection, trigger: page)
+    }
+
+    private func pageLayout<Content: View>(title: String, detail: String? = nil, @ViewBuilder content: () -> Content) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 22) {
+                content()
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(title).cpFont(30, .regular).tracking(-1).foregroundStyle(CPTheme.foreground(scheme))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityAddTraits(.isHeader)
+                    if let detail {
+                        Text(detail).cpFont(15).lineSpacing(3).foregroundStyle(CPTheme.muted(scheme))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+            .padding(.horizontal, 28)
+            .padding(.top, 36)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var welcomePage: some View {
+        pageLayout(title: "Welcome to CanvasPro", detail: "Everything due, in one calm place.") {
+            NativeBrandMark(size: 96, animate: true)
+                .padding(.leading, -6)
+        }
+    }
+
+    private var tourPage: some View {
+        pageLayout(title: "Made to keep you calm") {
+            VStack(alignment: .leading, spacing: 16) {
+                tourRow("house", "Today", "What's due, and what to do first.")
+                tourRow("timer", "Study", "Focus on one thing at a time.")
+                tourRow("graduationcap", "Grades", "Where you stand in every class.")
+                tourRow("hand.draw", "Swipe a task", "Right to finish it, left to study it.")
+            }
+        }
+    }
+
+    private func tourRow(_ symbol: String, _ title: String, _ detail: String) -> some View {
+        HStack(alignment: .center, spacing: 14) {
+            CPIconBadge(symbol: symbol)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).cpFont(15, .medium).foregroundStyle(CPTheme.foreground(scheme))
+                Text(detail).cpFont(13).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var connectPage: some View {
+        pageLayout(
+            title: isConnected ? "You're all set" : "Connect your Canvas",
+            detail: isConnected ? "Your classes are ready." : "It takes about a minute. Your school password is never used."
+        ) {
+            Image(systemName: isConnected ? "checkmark" : "link")
+                .cpIconFont(26, .light)
+                .foregroundStyle(CPTheme.foreground(scheme))
+                .frame(width: 84, height: 84)
+                .background(CPTheme.inset(scheme), in: Circle())
+                .overlay(Circle().strokeBorder(CPTheme.insetBorder(scheme), lineWidth: 0.5))
+                .accessibilityHidden(true)
+        }
     }
 }
 
@@ -610,6 +742,9 @@ struct NativeMainTabView: View {
     @State private var todaySection = "Dashboard"
     @State private var focusWindow = "7"
     @State private var studyRequest: AssignmentItem?
+    @State private var showOnboarding = false
+    @State private var showConnect = false
+    @State private var hadSavedData: Bool?
     @ObservedObject private var router = NativeRouter.shared
 
     init(sessionStore: NativeSessionStore) {
@@ -620,7 +755,26 @@ struct NativeMainTabView: View {
 
     var body: some View {
         nativeTabs
-            .task { await refreshAccountData() }
+            .task {
+                // Remember whether this phone already had this student's data, to
+                // tell a returning student (no tour) from a new one.
+                hadSavedData = contentStore.lastSyncedAt != nil
+                await refreshAccountData()
+            }
+            .task(id: launchIsVisible) { await presentOnboardingIfNeeded(launchVisible: launchIsVisible) }
+            .fullScreenCover(isPresented: $showOnboarding) {
+                NativeOnboardingView(isConnected: !contentStore.needsCanvasConnection && contentStore.lastSyncedAt != nil) { connect in
+                    markOnboarded()
+                    showOnboarding = false
+                    if connect { showConnect = true }
+                }
+            }
+            .sheet(isPresented: $showConnect) {
+                NavigationStack {
+                    CanvasSettingsView(store: contentStore)
+                        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showConnect = false } } }
+                }
+            }
             .onReceive(NotificationCenter.default.publisher(for: .nativeStudyAssignment)) { note in
                 guard let item = note.object as? AssignmentItem else { return }
                 studyRequest = item
@@ -650,6 +804,18 @@ struct NativeMainTabView: View {
             .alert("CanvasPro", isPresented: Binding(get: { !launchIsVisible && (contentStore.errorMessage != nil || featureStore.errorMessage != nil) }, set: { if !$0 && !launchIsVisible { contentStore.errorMessage = nil; featureStore.errorMessage = nil } })) {
                 Button("OK", role: .cancel) {}
             } message: { Text(contentStore.errorMessage ?? featureStore.errorMessage ?? "") }
+    }
+
+    private var onboardingKey: String { "CanvasProOnboarded.\(sessionStore.session?.user.id ?? "")" }
+    private func markOnboarded() { UserDefaults.standard.set(true, forKey: onboardingKey) }
+
+    /// New accounts see a short welcome once, after the opening animation.
+    @MainActor private func presentOnboardingIfNeeded(launchVisible: Bool) async {
+        guard !launchVisible, !UserDefaults.standard.bool(forKey: onboardingKey) else { return }
+        if hadSavedData == true { markOnboarded(); return }
+        try? await Task.sleep(for: .milliseconds(500))
+        guard !Task.isCancelled, !UserDefaults.standard.bool(forKey: onboardingKey) else { return }
+        showOnboarding = true
     }
 
     /// Shows the tab (and Today section) for a website-style path.
@@ -715,6 +881,7 @@ struct NativeMainTabView: View {
 }
 
 private struct NativeTodayView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
     @Binding var selection: NativeTab
@@ -726,12 +893,16 @@ private struct NativeTodayView: View {
             Group {
                 if section == "Assignments" {
                     FocusView(store: store, features: features, window: $focusWindow, section: $section)
+                        .transition(.opacity)
                 } else if section == "Get It Done" {
                     GetItDoneView(store: store, features: features, section: $section)
+                        .transition(.opacity)
                 } else {
                     NativeDashboardView(store: store, features: features, selection: $selection, todaySection: $section, focusWindow: $focusWindow)
+                        .transition(.opacity)
                 }
             }
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.22), value: section)
             // Like the website, the three Today pages share centered tabs at the top
             // of the page; pages opened from them don't show the tabs.
             .cpNavigationTitle("Today")
@@ -822,19 +993,23 @@ private struct NativeDashboardView: View {
                 } else {
                     hero
                     NativeSyncStatusCard(store: store) { Task { await store.load() } }
-                    if store.isLoading && store.bundle.courses.isEmpty {
+                    if store.loadFailure != nil {
+                        NativeLoadFailedCard(store: store)
+                    } else if store.isFirstLoad {
                         CPSkeletonCard()
                         CPSkeletonCard()
                     } else {
                         dashboardHeader
-                        ForEach(widgetIDs, id: \.self) { id in dashboardWidget(id) }
+                        ForEach(Array(widgetIDs.enumerated()), id: \.element) { index, id in
+                            dashboardWidget(id).cpReveal(index)
+                        }
                     }
                 }
             }
             .cpPagePadding()
         }
         .background(CPBackdrop())
-        .cpStateChange(store.isLoading && store.bundle.courses.isEmpty)
+        .cpStateChange(store.isFirstLoad)
         .refreshable { async let a: Void = store.load(); async let b: Void = features.load(); _ = await (a, b) }
         .onAppear { loadDigest() }
         .onChange(of: store.lastSyncedAt) { _, _ in if digest == nil { loadDigest() } }
@@ -916,6 +1091,8 @@ private struct NativeDashboardView: View {
                     }
                     HStack(alignment: .lastTextBaseline) {
                         Text("\(weekItems.count)").cpFont(32, .regular).tracking(-1.8).monospacedDigit().foregroundStyle(CPTheme.foreground(scheme))
+                            .contentTransition(.numericText())
+                            .animation(reduceMotion ? nil : .snappy, value: weekItems.count)
                         Spacer(minLength: 8)
                         Text(weekItems.count == 1 ? "item on your radar" : "items on your radar")
                             .cpFont(12).foregroundStyle(CPTheme.muted(scheme)).multilineTextAlignment(.trailing)
@@ -961,6 +1138,8 @@ private struct NativeDashboardView: View {
                     Spacer()
                     Text("\(value)").cpFont(24, .regular).tracking(-1.2).monospacedDigit()
                         .foregroundStyle(soft ? CPTheme.danger : CPTheme.foreground(scheme))
+                        .contentTransition(.numericText())
+                        .animation(reduceMotion ? nil : .snappy, value: value)
                 }
                 Text(label).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1).minimumScaleFactor(0.85)
             }
@@ -1366,7 +1545,7 @@ private struct NativeDashboardView: View {
                 .padding(.top, -6).padding(.trailing, -10)
                 .accessibilityLabel(showGpaScale ? "Hide grading scale" : "Show grading scale")
             }
-            HStack(spacing: 10) {
+            CPAdaptiveStack(spacing: 10) {
                 CPStatTile(value: String(format: "%.1f", result.totalCredits), label: "Total credits")
                 CPStatTile(value: String(format: "%.1f", result.countedCredits), label: "Counted")
             }
@@ -1486,7 +1665,7 @@ struct NativeDueRow: View {
                     AssignmentDetailView(assignment: assignment, store: store, features: features)
                 }
             } label: {
-                HStack(spacing: 8) {
+                CPAdaptiveStack(spacing: 8) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(assignment.name)
                             .cpFont(12, .medium)
@@ -1515,11 +1694,46 @@ struct NativeDueRow: View {
         .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: CPLayout.innerRadius, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: CPLayout.innerRadius, style: .continuous).strokeBorder(CPTheme.insetBorder(scheme), lineWidth: 0.5))
         .opacity(isComplete ? 0.6 : 1)
+        .nativeAssignmentSwipe(assignment, store: store)
+    }
+}
+
+/// Swipe right to finish (or undo), left to study, on any assignment row.
+extension View {
+    func nativeAssignmentSwipe(_ item: AssignmentItem, store: NativeContentStore, onCompleted: ((AssignmentItem) -> Void)? = nil) -> some View {
+        modifier(NativeAssignmentSwipe(item: item, store: store, onCompleted: onCompleted))
+    }
+}
+
+private struct NativeAssignmentSwipe: ViewModifier {
+    let item: AssignmentItem
+    @ObservedObject var store: NativeContentStore
+    var onCompleted: ((AssignmentItem) -> Void)?
+
+    func body(content: Content) -> some View {
+        let done = item.isFinished(in: store)
+        return content.cpSwipe(
+            leading: CPSwipeAction(title: done ? "Undo" : "Done", symbol: done ? "arrow.uturn.backward" : "checkmark") { toggle(wasDone: done) },
+            trailing: done ? nil : CPSwipeAction(title: "Study", symbol: "timer") {
+                NotificationCenter.default.post(name: .nativeStudyAssignment, object: item)
+            }
+        )
+    }
+
+    @MainActor private func toggle(wasDone: Bool) {
+        Task {
+            await store.toggle(item)
+            if !wasDone && item.isFinished(in: store) {
+                CPHaptics.success()
+                onCompleted?(item)
+            }
+        }
     }
 }
 
 /// The round "done" control used on every assignment row.
 struct NativeCompletionButton: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var scheme
     @Environment(\.cpPalette) private var paletteDependency
     let assignment: AssignmentItem
@@ -1543,8 +1757,11 @@ struct NativeCompletionButton: View {
                 if isComplete {
                     RoundedRectangle(cornerRadius: 6, style: .continuous).fill(CPTheme.foreground(scheme).opacity(0.8))
                     Image(systemName: "checkmark").cpIconFont(10, .bold).foregroundStyle(CPTheme.background(scheme))
+                        .symbolEffect(.bounce, value: isComplete)
+                        .transition(.scale.combined(with: .opacity))
                 }
             }
+            .animation(reduceMotion ? nil : .spring(duration: 0.28, bounce: 0.25), value: isComplete)
             .frame(width: 20, height: 20)
         }
         .buttonStyle(.plain)
@@ -1684,7 +1901,7 @@ struct NativePageHero<Tiles: View>: View {
                     Text(detail).cpFont(12).lineSpacing(2).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
                 }
             }
-            HStack(spacing: 8) { tiles }
+            CPAdaptiveStack(spacing: 8) { tiles }
         }
         .padding(.horizontal, 4)
         .padding(.top, 8)
@@ -1804,7 +2021,7 @@ struct AddAssignmentView: View {
         let item = CustomAssignment(id: -Int(Date().timeIntervalSince1970 * 1000), courseID: courseID, name: name.trimmingCharacters(in: .whitespaces), dueAt: hasDueDate ? ISO8601DateFormatter().string(from: dueDate) : nil, pointsPossible: points > 0 ? points : nil, notes: notes, createdAt: ISO8601DateFormatter().string(from: Date()))
         Task {
             defer { saving = false }
-            do { try await features.savePreference("custom-assignments", features.customAssignments + [item]); dismiss() } catch { self.error = error.localizedDescription }
+            do { try await features.savePreference("custom-assignments", features.customAssignments + [item]); CPHaptics.success(); dismiss() } catch { self.error = error.localizedDescription }
         }
     }
 }
@@ -1832,7 +2049,9 @@ private struct NativeGradesView: View {
                 LazyVStack(alignment: .leading, spacing: CPLayout.stack) {
                     if store.needsCanvasConnection {
                         NativeConnectCanvasCard(store: store)
-                    } else if store.isLoading && store.bundle.courses.isEmpty {
+                    } else if store.loadFailure != nil {
+                        NativeLoadFailedCard(store: store)
+                    } else if store.isFirstLoad {
                         CPSkeletonCard()
                         CPSkeletonCard()
                         CPSkeletonCard()
@@ -1860,7 +2079,7 @@ private struct NativeGradesView: View {
                 .cpPagePadding()
             }
             .background(CPBackdrop())
-            .cpStateChange(store.isLoading && store.bundle.courses.isEmpty)
+            .cpStateChange(store.isFirstLoad)
             .cpNavigationTitle("Grades").navigationBarTitleDisplayMode(.inline)
             .searchable(text: $search, prompt: "Find a course or graded assignment")
             .refreshable { await store.load() }
@@ -1885,7 +2104,7 @@ private struct NativeGradesView: View {
                 Spacer(minLength: 0)
             }
             .accessibilityElement(children: .combine)
-            HStack(spacing: 8) {
+            CPAdaptiveStack(spacing: 8) {
                 CPStatTile(value: "\(scored.count)", label: "Courses graded")
                 CPStatTile(value: "\(risingCount)", label: "Trending up", symbol: "arrow.up.right", tone: .accent)
                 CPStatTile(value: "\(gradedAssignments)", label: "Grades posted")
@@ -2208,7 +2427,7 @@ struct CourseDetailView: View {
                         .accessibilityLabel("Open \(courseName) syllabus")
                 }
             }
-            HStack(spacing: 8) {
+            CPAdaptiveStack(spacing: 8) {
                 CPStatTile(value: "\(upcoming.count)", label: "Upcoming")
                 CPStatTile(value: "\(graded.count)", label: "Graded")
                 CPStatTile(value: "\(announcements.count)", label: "Announcements")
@@ -2541,6 +2760,9 @@ struct NativeStudyView: View {
                 .onReceive(timer) { _ in tick() }
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in tick() }
                 .onAppear { tick() }
+                .sensoryFeedback(trigger: running) { _, isRunning in isRunning ? .start : .stop }
+                .sensoryFeedback(trigger: completedIDs.count) { old, new in new > old ? .success : nil }
+                .sensoryFeedback(trigger: manualTasks.count) { old, new in new > old ? .success : nil }
                 .onChange(of: selected) { _, _ in persistSession() }
                 .onChange(of: selectedOrder) { _, _ in persistSession() }
                 .onChange(of: manualTasks) { _, _ in persistSession() }
@@ -2886,7 +3108,7 @@ struct NativeStudyView: View {
                         Text("Session finished").cpFont(22, .regular).foregroundStyle(CPTheme.foreground(scheme))
                         Text("Nice work. Take a breath before the next thing.").cpFont(12).foregroundStyle(CPTheme.muted(scheme)).multilineTextAlignment(.center)
                     }
-                    HStack(spacing: 8) {
+                    CPAdaptiveStack(spacing: 8) {
                         CPStatTile(value: "\(completedIDs.count) of \(items.count)", label: "Tasks finished", tone: .accent)
                         if activePlan != nil { CPStatTile(value: "\(round)", label: "Focus blocks") }
                     }

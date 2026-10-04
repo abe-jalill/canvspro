@@ -60,7 +60,8 @@ test("a new account is guided to connect Canvas instead of seeing an error code"
   }
   const screens = (swift.NativeViews + swift.NativeMoreViews).match(/NativeConnectCanvasCard\(store: store\)/g) ?? [];
   assert.ok(screens.length >= 5, "Dashboard, Assignments, Grades, Study and Get It Done");
-  assert.match(swift.NativeMoreViews, /LabeledContent\("Connected to", value: connectedDomain\)/);
+  assert.match(swift.NativeMoreViews, /Text\("Connected"\)/);
+  assert.match(swift.NativeMoreViews, /Text\(address\)\.cpFont\(12, design: \.monospaced\)/);
 });
 
 test("an expired sign-in returns to the sign-in screen", () => {
@@ -159,4 +160,45 @@ test("workload shows one readable week at a time, and the launch keeps clear spa
   const launch = swift.NativeViews.slice(swift.NativeViews.indexOf("private struct NativeLaunchView"), swift.NativeViews.indexOf("private struct NativeAuthView"));
   assert.match(launch, /VStack\(spacing: 56\)/);
   assert.match(swift.NativeViews, /frame\(width: size \* 1\.1, height: size \* 1\.1\)/);
+});
+
+test("a new student is walked through connecting Canvas, once, and failures are explained", () => {
+  // The welcome shows once per account, only for students who had no saved data.
+  assert.match(swift.NativeViews, /struct NativeOnboardingView: View/);
+  assert.ok(swift.NativeViews.includes('"CanvasProOnboarded.\\(sessionStore.session?.user.id ?? "")"'));
+  assert.match(swift.NativeViews, /if hadSavedData == true \{ markOnboarded\(\); return \}/);
+  assert.match(swift.NativeViews, /\.fullScreenCover\(isPresented: \$showOnboarding\)/);
+  // Connecting is three steps with a paste button and a link to the student's own Canvas.
+  const connect = swift.NativeMoreViews.slice(swift.NativeMoreViews.indexOf("struct CanvasSettingsView"), swift.NativeMoreViews.indexOf("struct ClassScheduleView"));
+  for (const text of ["Your Canvas address", "Make an access token", "Paste your token", "PasteButton(payloadType: String.self)", "Open my Canvas settings"]) assert.ok(connect.includes(text), text);
+  assert.match(connect, /\/profile\/settings/);
+  // The first load shows placeholders, then data, a Connect step, or a retry card; never a false "no classes".
+  assert.match(swift.NativeCore, /var isFirstLoad: Bool/);
+  assert.match(swift.NativeCore, /loadFailure = errorMessage/);
+  assert.match(swift.NativeMoreViews, /struct NativeLoadFailedCard: View/);
+  const uses = (swift.NativeViews + swift.NativeMoreViews).match(/NativeLoadFailedCard\(store: store\)/g) ?? [];
+  assert.ok(uses.length >= 4, `${uses.length} screens show the retry card`);
+});
+
+test("rows swipe, haptics are gentle, and accessibility has every action", () => {
+  // Swipe right finishes or undoes, left starts a study session; both are VoiceOver actions too.
+  assert.match(swift.NativeDesign, /private struct CPSwipeModifier: ViewModifier/);
+  assert.match(swift.NativeDesign, /\.accessibilityActions \{/);
+  assert.match(swift.NativeDesign, /abs\(horizontal\) > abs\(value\.translation\.height\) \* 1\.5/);
+  assert.match(swift.NativeViews, /title: done \? "Undo" : "Done"/);
+  assert.match(swift.NativeViews, /CPSwipeAction\(title: "Study", symbol: "timer"\)/);
+  const swipes = (swift.NativeViews + swift.NativeMoreViews).match(/\.nativeAssignmentSwipe\(/g) ?? [];
+  assert.ok(swipes.length >= 3, `${swipes.length} swipe rows`);
+  // Haptics use the system's own feedback so they follow the phone's settings.
+  assert.match(swift.NativeDesign, /\.sensoryFeedback\(\.selection, trigger: selection\)/);
+  assert.match(swift.NativeViews, /\.sensoryFeedback\(trigger: running\)/);
+  // Motion respects Reduce Motion.
+  assert.match(swift.NativeDesign, /private struct CPRevealModifier/);
+  assert.match(swift.NativeDesign, /opacity\(shown \|\| reduceMotion \? 1 : 0\)/);
+  assert.match(swift.NativeViews, /\.contentTransition\(\.numericText\(\)\)/);
+  // Large text: rows and tiles stack at accessibility sizes; outlines firm up with Increase Contrast.
+  assert.match(swift.NativeDesign, /struct CPAdaptiveStack/);
+  assert.match(swift.NativeDesign, /traits\.accessibilityContrast == \.high/);
+  // The faintest text stays readable in light mode.
+  assert.match(swift.NativeDesign, /: \.hsl\(palette\.hue, 0\.10, 0\.42\)/);
 });

@@ -392,7 +392,9 @@ struct GetItDoneView: View {
                 CPPageHeader(eyebrow: Date().formatted(.dateTime.weekday(.wide).month(.wide).day()), title: "Up next", detail: nil)
                 if store.needsCanvasConnection {
                     NativeConnectCanvasCard(store: store)
-                } else if store.isLoading && allAssignments.isEmpty {
+                } else if store.loadFailure != nil {
+                    NativeLoadFailedCard(store: store)
+                } else if store.isFirstLoad {
                     CPSkeletonCard()
                 } else if let first = recommendation {
                     recommendationCard(first)
@@ -400,7 +402,7 @@ struct GetItDoneView: View {
                     CPGlassCard { NativeEmptyState(title: "You're all clear.", symbol: "checkmark.circle", detail: "Everything due in this window is done or skipped for today.") }
                 }
                 CPSegmented(selection: Binding(get: { window == 7 ? "One week" : "Two weeks" }, set: { value in window = value == "One week" ? 7 : 14; choiceOffset = 0; orderRaw = "" }), options: ["One week", "Two weeks"], label: "Planning window")
-                if !store.needsCanvasConnection && (!store.isLoading || !allAssignments.isEmpty) { planCard }
+                if !store.needsCanvasConnection && store.loadFailure == nil && !store.isFirstLoad { planCard }
             }
             .cpPagePadding()
             .cpStateChange(recommendation?.id)
@@ -620,11 +622,13 @@ struct FocusView: View {
                     searchField
                     if store.needsCanvasConnection {
                         NativeConnectCanvasCard(store: store)
-                    } else if store.isLoading && allItems.isEmpty {
+                    } else if store.loadFailure != nil {
+                        NativeLoadFailedCard(store: store)
+                    } else if store.isFirstLoad {
                         CPSkeletonCard()
                         CPSkeletonCard()
                     } else {
-                        if !isSearching && !priority.isEmpty { priorityCard }
+                        if !isSearching && !priority.isEmpty { priorityCard.cpReveal(0) }
                         if !isSearching { rangeChips }
                         if !isSearching && window != "overdue" { weekStrip }
                         controls
@@ -633,6 +637,9 @@ struct FocusView: View {
                 }
                 .cpPagePadding()
                 .cpStateChange(window).cpStateChange(grouping).cpStateChange(showCompleted).cpStateChange(selectedDay)
+                .cpStateChange(listItems.map(\.id))
+                .sensoryFeedback(.selection, trigger: selectedDay)
+                .sensoryFeedback(.selection, trigger: window)
             }
             .scrollDismissesKeyboard(.immediately)
         }
@@ -716,15 +723,18 @@ struct FocusView: View {
                     CPInsetRow {
                         HStack(spacing: 12) {
                             NativeCompletionButton(assignment: item, store: store, onCompleted: { recentlyCompleted = $0 })
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(item.name).cpFont(13, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(2)
-                                Text(priorityMeta(item)).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
+                            CPAdaptiveStack(spacing: 6) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(item.name).cpFont(13, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(3)
+                                    Text(priorityMeta(item)).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(2)
+                                }
+                                Spacer(minLength: 8)
+                                let label = NativeParity.priorityLabel(item)
+                                CPPill(text: label, tone: label == "Do first" ? .accent : .neutral)
                             }
-                            Spacer(minLength: 8)
-                            let label = NativeParity.priorityLabel(item)
-                            CPPill(text: label, tone: label == "Do first" ? .accent : .neutral)
                         }
                     }
+                    .nativeAssignmentSwipe(item, store: store, onCompleted: { recentlyCompleted = $0 })
                 }
             }
         }
@@ -852,12 +862,12 @@ struct FocusView: View {
                         AssignmentDetailView(assignment: item, store: store, features: features)
                     }
                 } label: {
-                    HStack(spacing: 8) {
+                    CPAdaptiveStack(spacing: 8) {
                         VStack(alignment: .leading, spacing: 3) {
                             Text(item.name).cpFont(13, .medium)
                                 .foregroundStyle(done ? CPTheme.muted(scheme) : CPTheme.foreground(scheme))
                                 .strikethrough(done)
-                                .lineLimit(2)
+                                .lineLimit(3)
                             Text(rowMeta(item, showCourse: showCourse, done: done)).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
                         }
                         Spacer(minLength: 8)
@@ -876,6 +886,7 @@ struct FocusView: View {
             }
         }
         .opacity(done ? 0.6 : 1)
+        .nativeAssignmentSwipe(item, store: store, onCompleted: { recentlyCompleted = $0 })
     }
 
     private func rowMeta(_ item: AssignmentItem, showCourse: Bool, done: Bool) -> String {
@@ -999,6 +1010,7 @@ struct CalendarView: View {
             .cpPagePadding()
             .cpStateChange(selectedDate)
             .cpStateChange(showCompleted)
+            .sensoryFeedback(.selection, trigger: selectedDate)
         }
         .background(CPBackdrop())
         .sheet(item: $editingPick) { pick in
@@ -1810,15 +1822,22 @@ private struct HiddenCoursesView: View {
     }
 }
 
+/// Connecting Canvas in three short steps: the school's address, a token made in
+/// Canvas, and pasting it here. Used from Settings and from the first-run flow.
 struct CanvasSettingsView: View {
+    private enum Field: Hashable { case domain, token }
     @Environment(\.colorScheme) private var scheme
     @Environment(\.cpPalette) private var paletteDependency
     @ObservedObject var store: NativeContentStore
+    @FocusState private var focus: Field?
     @State private var domain = ""
     @State private var canvasToken = ""
     @State private var working = false
     @State private var status: String?
+    @State private var statusIsError = false
     @State private var connectedDomain: String?
+    @State private var savedCount = 0
+
     private var cleanDomain: String {
         var value = domain.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         value = value.replacingOccurrences(of: "https://", with: "")
@@ -1826,76 +1845,136 @@ struct CanvasSettingsView: View {
         value = value.split(separator: "/").first.map(String.init) ?? value
         return value.trimmingCharacters(in: CharacterSet(charactersIn: "."))
     }
-    private var canSave: Bool { cleanDomain.contains(".") && canvasToken.trimmingCharacters(in: .whitespacesAndNewlines).count >= 20 && !working }
+    private var domainLooksValid: Bool { cleanDomain.range(of: "^[a-z0-9-]+(\\.[a-z0-9-]+)+$", options: .regularExpression) != nil }
+    private var trimmedToken: String { canvasToken.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var canSave: Bool { domainLooksValid && trimmedToken.count >= 20 && !working }
+    private var settingsURL: URL? { domainLooksValid ? URL(string: "https://\(cleanDomain)/profile/settings") : nil }
 
     var body: some View {
-        Form {
-            Section {
-                NativeSyncStatusCard(store: store) {
-                    Task { await store.load() }
-                }
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
-            }
-            if let connectedDomain {
-                Section {
-                    LabeledContent("Connected to", value: connectedDomain)
-                } footer: {
-                    Text("To change schools or replace an expired token, enter the details below and save.")
-                }
-            }
-            Section {
-                TextField("yourschool.instructure.com", text: $domain)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .keyboardType(.URL)
-                    .textContentType(.URL)
-                    .submitLabel(.next)
-                SecureField("Canvas API token", text: $canvasToken)
-                    .textContentType(.password)
-                    .submitLabel(.done)
-                    .onSubmit { if canSave { save() } }
-                Button {
-                    save()
-                } label: {
-                    HStack {
-                        Spacer()
-                        if working { ProgressView() }
-                        else { Text("Validate and Save") }
-                        Spacer()
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 16) {
+                if let connectedDomain { connectedCard(connectedDomain) }
+                NativeSyncStatusCard(store: store) { Task { await store.load() } }
+                step(1, title: "Your Canvas address") {
+                    CPFieldBox(title: "Address", focused: focus == .domain) {
+                        TextField("yourschool.instructure.com", text: $domain)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .keyboardType(.URL)
+                            .textContentType(.URL)
+                            .focused($focus, equals: .domain)
+                            .submitLabel(.next)
+                            .onSubmit { focus = .token }
+                    }
+                    if domainLooksValid {
+                        Label(cleanDomain, systemImage: "checkmark.circle").cpFont(12).foregroundStyle(CPTheme.muted(scheme))
+                    } else {
+                        Text("Copy it from the address bar when you open Canvas in a browser.")
+                            .cpFont(12).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
                     }
                 }
+                step(2, title: "Make an access token") {
+                    Text("In Canvas, open Settings, scroll to Approved Integrations and tap New Access Token. Name it CanvasPro, then copy it.")
+                        .cpFont(12).lineSpacing(2).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
+                    if let settingsURL {
+                        Link(destination: settingsURL) { Label("Open my Canvas settings", systemImage: "arrow.up.right") }
+                            .buttonStyle(CPButtonStyle(kind: .secondary, fullWidth: true))
+                    }
+                }
+                step(3, title: "Paste your token") {
+                    CPFieldBox(title: "Access token", focused: focus == .token) {
+                        SecureField("Paste the token", text: $canvasToken)
+                            .focused($focus, equals: .token)
+                            .submitLabel(.done)
+                            .onSubmit { if canSave { save() } }
+                    }
+                    PasteButton(payloadType: String.self) { strings in
+                        if let first = strings.first { canvasToken = first.trimmingCharacters(in: .whitespacesAndNewlines) }
+                    }
+                    .labelStyle(.titleAndIcon)
+                    .buttonBorderShape(.capsule)
+                    .tint(CPTheme.foreground(scheme))
+                }
+                if let status { CPNotice(text: status, isError: statusIsError) }
+                Button(action: save) {
+                    HStack(spacing: 8) {
+                        if working { ProgressView().tint(CPTheme.background(scheme)) }
+                        Text(working ? "Checking Canvas…" : connectedDomain == nil ? "Connect Canvas" : "Save connection")
+                    }
+                }
+                .buttonStyle(CPButtonStyle(kind: .primary, fullWidth: true))
                 .disabled(!canSave)
-            } header: {
-                Text("Canvas connection")
-            } footer: {
-                Text("The token is validated through CanvasPro and stored securely on the server, not on this device.")
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "lock").cpIconFont(11).foregroundStyle(CPTheme.faint(scheme)).padding(.top, 2)
+                    Text("Your school password is never used. The token is kept securely on CanvasPro's servers, not on this phone, and you can replace it any time.")
+                        .cpFont(11).lineSpacing(2).foregroundStyle(CPTheme.faint(scheme)).fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.horizontal, 4)
             }
-            if !cleanDomain.isEmpty && cleanDomain != domain {
-                Section { Text("Will save as \(cleanDomain).").cpFont(13).foregroundStyle(CPTheme.muted(scheme)) }
-            }
-            if let status { Section { Text(status).foregroundStyle(status.localizedCaseInsensitiveContains("saved") ? CPTheme.primary(scheme: scheme) : CPTheme.warning) } }
-            Section("How to get a token") { Text("In Canvas on the web, open Account → Settings → Approved Integrations → New Access Token. Copy it here once; CanvasPro cannot read it back later.") }
-        }.cpListScreen().cpNavigationTitle("Canvas")
+            .cpPagePadding()
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .background(CPBackdrop())
+        .cpNavigationTitle("Canvas")
+        .navigationBarTitleDisplayMode(.inline)
+        .sensoryFeedback(.success, trigger: savedCount)
         .task {
             connectedDomain = await store.connectedCanvasDomain()
             if domain.isEmpty, let connectedDomain { domain = connectedDomain }
         }
     }
 
+    private func connectedCard(_ address: String) -> some View {
+        CPGlassCard {
+            HStack(spacing: 12) {
+                Image(systemName: "checkmark").cpIconFont(12, .semibold)
+                    .foregroundStyle(CPTheme.foreground(scheme))
+                    .frame(width: 32, height: 32)
+                    .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Connected").cpFont(14, .medium).foregroundStyle(CPTheme.foreground(scheme))
+                    Text(address).cpFont(12, design: .monospaced).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
+                }
+                Spacer(minLength: 0)
+            }
+            .accessibilityElement(children: .combine)
+            Text("To switch schools or replace an expired token, follow the steps below.")
+                .cpFont(12).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func step<Inner: View>(_ number: Int, title: String, @ViewBuilder content: () -> Inner) -> some View {
+        CPGlassCard {
+            HStack(spacing: 10) {
+                Text("\(number)").cpFont(12, .medium).monospacedDigit()
+                    .foregroundStyle(CPTheme.foreground(scheme))
+                    .frame(width: 24, height: 24)
+                    .overlay(Circle().strokeBorder(CPTheme.foreground(scheme).opacity(0.3), lineWidth: 0.5))
+                Text(title).cpFont(15).tracking(-0.2).foregroundStyle(CPTheme.foreground(scheme))
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isHeader)
+            content()
+        }
+    }
+
     private func save() {
         guard canSave else { return }
+        focus = nil
         working = true
-        status = "Checking Canvas..."
+        status = nil
         Task {
             defer { working = false }
             do {
-                try await store.saveCanvas(domain: cleanDomain, canvasToken: canvasToken)
+                try await store.saveCanvas(domain: cleanDomain, canvasToken: trimmedToken)
                 domain = cleanDomain
                 connectedDomain = cleanDomain
                 canvasToken = ""
-                status = "Canvas connection saved."
+                statusIsError = false
+                status = "Canvas is connected. Your classes are loading."
+                savedCount += 1
             } catch {
+                statusIsError = true
                 status = error.localizedDescription
             }
         }
@@ -2052,20 +2131,41 @@ struct NativeConnectCanvasCard: View {
     @Environment(\.cpPalette) private var paletteDependency
     @ObservedObject var store: NativeContentStore
     var body: some View {
-        CPGlassCard(title: "Connect Canvas", subtitle: "CanvasPro shows your classes, deadlines, and grades once it's connected to your school's Canvas.", strong: true) {
-            VStack(alignment: .leading, spacing: 10) {
-                Label("Have your school's Canvas address ready, like yourschool.instructure.com.", systemImage: "1.circle.fill")
-                Label("In Canvas, open Account → Settings → New Access Token, and copy the token.", systemImage: "2.circle.fill")
-                Label("Paste both on the next screen. Your school password is never needed.", systemImage: "3.circle.fill")
+        CPGlassCard(strong: true) {
+            CPIconBadge(symbol: "link")
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Connect Canvas").cpFont(22, .regular).tracking(-0.6).foregroundStyle(CPTheme.foreground(scheme))
+                    .accessibilityAddTraits(.isHeader)
+                Text("Add your school's Canvas to see your classes, deadlines and grades here.")
+                    .cpFont(13).lineSpacing(2).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
             }
-            .cpFont(12)
-            .lineSpacing(2)
-            .foregroundStyle(CPTheme.muted(scheme))
-            .fixedSize(horizontal: false, vertical: true)
             NavigationLink { CanvasSettingsView(store: store) } label: {
-                Label("Connect Canvas", systemImage: "link")
+                Label("Get started", systemImage: "arrow.right")
             }
             .buttonStyle(CPButtonStyle(kind: .primary, fullWidth: true))
+            HStack(spacing: 6) {
+                Image(systemName: "lock").cpIconFont(10)
+                Text("Your school password is never used.").cpFont(11)
+            }
+            .foregroundStyle(CPTheme.faint(scheme))
+        }
+    }
+}
+
+/// The first refresh failed and there is nothing saved to show instead.
+struct NativeLoadFailedCard: View {
+    @ObservedObject var store: NativeContentStore
+    var body: some View {
+        CPGlassCard {
+            NativeEmptyState(title: "Couldn't load your classes", symbol: "wifi.exclamationmark", detail: store.loadFailure)
+            Button { Task { await store.load() } } label: {
+                HStack(spacing: 8) {
+                    if store.isLoading { ProgressView().controlSize(.small) }
+                    Text(store.isLoading ? "Trying…" : "Try again")
+                }
+            }
+            .buttonStyle(CPButtonStyle(kind: .secondary, fullWidth: true))
+            .disabled(store.isLoading)
         }
     }
 }

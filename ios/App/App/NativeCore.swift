@@ -935,7 +935,17 @@ final class NativeContentStore: ObservableObject {
     /// True when the account has no Canvas connection yet. The app shows a
     /// "Connect Canvas" step instead of an error.
     @Published var needsCanvasConnection = false
+    /// False until the first refresh has finished (successfully or not).
+    @Published var hasLoaded = false
+    /// Why the very first load failed, when there is nothing saved to show instead.
+    @Published var loadFailure: String?
     let isPreview: Bool
+
+    /// Nothing to show yet and a refresh is on its way: screens show placeholders
+    /// instead of misleading "no classes" messages.
+    var isFirstLoad: Bool {
+        (isLoading || !hasLoaded) && bundle.courses.isEmpty && bundle.assignments.isEmpty && !needsCanvasConnection && loadFailure == nil
+    }
     private unowned let sessionStore: NativeSessionStore
     var persistenceScope: String { isPreview ? "preview" : (sessionStore.session?.user.id ?? "signed-out") }
     private let previewCompletedKey = "CanvasProPreviewCompleted"
@@ -946,6 +956,7 @@ final class NativeContentStore: ObservableObject {
         isPreview = preview
         if preview {
             bundle = NativePreviewData.bundle
+            hasLoaded = true
             if let saved = UserDefaults.standard.array(forKey: previewCompletedKey) as? [NSNumber] { completed = Set(saved.map(\.intValue)) }
             else { completed = [1005] }
             if let data = UserDefaults.standard.data(forKey: previewNicknamesKey),
@@ -963,7 +974,8 @@ final class NativeContentStore: ObservableObject {
         isLoading = true
         errorMessage = nil
         syncMessage = nil
-        defer { isLoading = false }
+        loadFailure = nil
+        defer { isLoading = false; hasLoaded = true }
         do {
             let token = try await sessionStore.accessToken()
             async let bundleRequest = api.canvasBundle(token: token)
@@ -1011,6 +1023,7 @@ final class NativeContentStore: ObservableObject {
         } catch {
             if bundle.courses.isEmpty && bundle.assignments.isEmpty {
                 errorMessage = friendlySyncError(error)
+                loadFailure = errorMessage
             } else {
                 isShowingCachedData = true
                 syncMessage = "Showing saved coursework. Pull to refresh when your connection is back."
