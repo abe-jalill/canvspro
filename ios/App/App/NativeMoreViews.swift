@@ -1705,7 +1705,9 @@ private struct ProfileView: View {
                     }
                     .frame(width: 80, height: 80).clipShape(Circle())
                     .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: features.avatarURL)
-                    PhotosPicker(selection: $selectedPhoto, matching: .images) { Label(features.profile.avatarPath == nil ? "Add photo" : "Change photo", systemImage: "camera") }
+                    PhotosPicker(selection: $selectedPhoto, matching: .images) { [photoLabel = features.profile.avatarPath == nil ? "Add photo" : "Change photo"] in
+                        Label(photoLabel, systemImage: "camera")
+                    }
                         .disabled(photoBusy)
                     if photoBusy { ProgressView() }
                 }

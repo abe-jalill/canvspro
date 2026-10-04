@@ -2580,7 +2580,7 @@ private struct CountUpGrade: View {
     @State private var displayed = 0.0
     var body: some View {
         Group {
-            if let value { AnimatedNumberText(value: displayed, size: size, color: color) }
+            if value != nil { AnimatedNumberText(value: displayed, size: size, color: color) }
             else { Text("—").cpFont(size, .semibold).foregroundStyle(color) }
         }
         .onAppear { animate(to: value) }
@@ -2722,48 +2722,68 @@ struct NativeStudyView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                if sessionFinished { summary.transition(.opacity) }
-                else if sessionStarted { activeSession.transition(.opacity) }
-                else { setup.transition(.opacity) }
-            }
-                .cpStateChange(sessionFinished)
-                .cpStateChange(sessionStarted)
+            persistedStudyContent
                 .cpNavigationTitle("Study Session")
                 .navigationBarTitleDisplayMode(.inline)
-                .task(id: requestedAssignment?.id) {
-                    guard let item = requestedAssignment else { return }
-                    // Keep a running or paused session intact; otherwise seed setup.
-                    if !sessionStarted || sessionFinished {
-                        selected = [item.id]; selectedOrder = [item.id]
-                        duration = NativeParity.estimate(item, estimates: features.estimates)
-                        remaining = duration * 60; running = false
-                        sessionStarted = false; sessionFinished = false
-                        completedIDs = []; currentIndex = 0
-                        persistSession()
-                    }
-                    requestedAssignment = nil
-                }
-                .onReceive(timer) { _ in tick() }
-                .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in tick() }
-                .onAppear { tick() }
-                .sensoryFeedback(trigger: running) { _, isRunning in isRunning ? .start : .stop }
-                .sensoryFeedback(trigger: completedIDs.count) { old, new in new > old ? .success : nil }
-                .sensoryFeedback(trigger: manualTasks.count) { old, new in new > old ? .success : nil }
-                .onChange(of: selected) { _, _ in persistSession() }
-                .onChange(of: selectedOrder) { _, _ in persistSession() }
-                .onChange(of: manualTasks) { _, _ in persistSession() }
-                .onChange(of: completedIDs) { _, _ in persistSession() }
-                .onChange(of: sessionFinished) { _, _ in persistSession() }
-                .onChange(of: sessionStarted) { _, _ in persistSession() }
-                .onChange(of: duration) { _, _ in persistSession() }
-                .onChange(of: remaining) { _, _ in persistSession() }
-                .onChange(of: running) { _, _ in persistSession() }
-                .onChange(of: currentIndex) { _, _ in persistSession() }
-                .onChange(of: phase) { _, _ in persistSession() }
-                .onChange(of: round) { _, _ in persistSession() }
-                .onChange(of: blockEndsAt) { _, _ in persistSession() }
         }
+    }
+
+    // Keep each view-builder expression small enough for Swift's type checker.
+    @ViewBuilder
+    private var studyContent: some View {
+        ZStack {
+            if sessionFinished { summary.transition(.opacity) }
+            else if sessionStarted { activeSession.transition(.opacity) }
+            else { setup.transition(.opacity) }
+        }
+        .cpStateChange(sessionFinished)
+        .cpStateChange(sessionStarted)
+    }
+
+    private var lifecycleStudyContent: some View {
+        studyContent
+            .task(id: requestedAssignment?.id) { consumeRequestedAssignment() }
+            .onReceive(timer) { _ in tick() }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in tick() }
+            .onAppear { tick() }
+            .sensoryFeedback(trigger: running) { _, isRunning in isRunning ? .start : .stop }
+            .sensoryFeedback(trigger: completedIDs.count) { old, new in new > old ? .success : nil }
+            .sensoryFeedback(trigger: manualTasks.count) { old, new in new > old ? .success : nil }
+    }
+
+    private var selectionStudyContent: some View {
+        lifecycleStudyContent
+            .onChange(of: selected) { _, _ in persistSession() }
+            .onChange(of: selectedOrder) { _, _ in persistSession() }
+            .onChange(of: manualTasks) { _, _ in persistSession() }
+            .onChange(of: completedIDs) { _, _ in persistSession() }
+            .onChange(of: sessionFinished) { _, _ in persistSession() }
+            .onChange(of: sessionStarted) { _, _ in persistSession() }
+    }
+
+    private var persistedStudyContent: some View {
+        selectionStudyContent
+            .onChange(of: duration) { _, _ in persistSession() }
+            .onChange(of: remaining) { _, _ in persistSession() }
+            .onChange(of: running) { _, _ in persistSession() }
+            .onChange(of: currentIndex) { _, _ in persistSession() }
+            .onChange(of: phase) { _, _ in persistSession() }
+            .onChange(of: round) { _, _ in persistSession() }
+            .onChange(of: blockEndsAt) { _, _ in persistSession() }
+    }
+
+    private func consumeRequestedAssignment() {
+        guard let item = requestedAssignment else { return }
+        // Keep a running or paused session intact; otherwise seed setup.
+        if !sessionStarted || sessionFinished {
+            selected = [item.id]; selectedOrder = [item.id]
+            duration = NativeParity.estimate(item, estimates: features.estimates)
+            remaining = duration * 60; running = false
+            sessionStarted = false; sessionFinished = false
+            completedIDs = []; currentIndex = 0
+            persistSession()
+        }
+        requestedAssignment = nil
     }
 
     private func persistSession() {
