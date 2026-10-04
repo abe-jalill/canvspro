@@ -59,7 +59,7 @@ test("a new account is guided to connect Canvas instead of seeing an error code"
     assert.ok(swift.NativeCore.includes(`"${code}"`), code);
   }
   const screens = (swift.NativeViews + swift.NativeMoreViews).match(/NativeConnectCanvasCard\(store: store\)/g) ?? [];
-  assert.ok(screens.length >= 6, "Dashboard, Assignments, Grades, Study, Coming Up and Get It Done");
+  assert.ok(screens.length >= 5, "Dashboard, Assignments, Grades, Study and Get It Done");
   assert.match(swift.NativeMoreViews, /LabeledContent\("Connected to", value: connectedDomain\)/);
 });
 
@@ -92,7 +92,7 @@ test("one bad Canvas record never blanks the app, and duplicates never crash it"
 test("hidden classes are hidden on every screen", () => {
   assert.match(swift.NativeFeatures, /func shownAssignments\(in store: NativeContentStore\) -> \[AssignmentItem\]/);
   const uses = allSwift.match(/features\.shownAssignments\(in: store\)/g) ?? [];
-  assert.ok(uses.length >= 6, `${uses.length} screens`);
+  assert.ok(uses.length >= 5, `${uses.length} screens`);
   assert.doesNotMatch(allSwift, /store\.bundle\.assignments \+ features\.customAssignments/);
 });
 

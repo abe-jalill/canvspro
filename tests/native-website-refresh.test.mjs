@@ -9,8 +9,8 @@ const parity = read("NativeFeatures");
 const design = read("NativeDesign");
 
 // Source guards for website main at 783443c; run Codemagic for Swift compilation.
-test("Today includes the website Focus date strip and grouping hierarchy", () => {
-  for (const label of ["Coming up", "By day", "By class", "Show finished", "Nothing due this day."]) {
+test("Today's Assignments page keeps the website Focus date strip and grouping hierarchy", () => {
+  for (const label of ["Assignments", "By day", "By class", "Show finished", "Nothing due this day."]) {
     assert.ok(more.includes(`"${label}"`), label);
   }
   assert.ok(more.includes("Calendar.current.date(byAdding: .day"));
@@ -20,19 +20,21 @@ test("Today includes the website Focus date strip and grouping hierarchy", () =>
   assert.ok(!more.includes(".sheet(item: $studyAssignment)"));
 });
 
-test("agenda uses local-day two/four-week horizons and search can reveal later work", () => {
-  for (const days of [7, 14, 28]) assert.ok(views.includes(`NativeParity.endOfUpcomingDay(${days}, from: now)`));
-  assert.ok(views.includes("private var horizon = 14"));
-  assert.ok(views.includes('horizon == 28 || !search.isEmpty'));
-  assert.ok(views.includes('"Following week"'));
-  assert.ok(views.includes('"Show weeks 3 and 4"'));
+test("Assignments uses local-day ranges up to four weeks and search finds any assignment", () => {
+  const page = more.slice(more.indexOf("struct FocusView"), more.indexOf("struct NativeTitledGroup"));
+  for (const value of ['"overdue", "1", "2", "3", "7", "all"', '"4 weeks"', '"Search assignments or classes"']) assert.ok(page.includes(value), value);
+  // Searching ignores the range so any assignment can be found.
+  assert.match(page, /if isSearching \{\s+let query/);
   assert.ok(views.includes('if dueAt == nil && (pointsPossible ?? 0) <= 0 { return showCompleted }'));
   assert.ok(parity.includes('value: -3'));
   assert.ok(parity.includes('endOfUpcomingDay(28, from: now)'));
 });
 
 test("priority surfaces share the same scorer and quiet labels", () => {
-  assert.ok(views.includes("NativeParity.rankedAssignments(remaining.filter { $0.dueDate != nil }"));
+  // Priority on Assignments only holds work due within the next week (or overdue).
+  assert.ok(more.includes("guard let due = item.dueDate, due <= weekEnd else { return false }"));
+  assert.ok(more.includes("let weekEnd = NativeParity.endOfUpcomingDay(7)"));
+  assert.ok(more.includes("NativeParity.rankedAssignments(candidates, estimates: features.estimates).prefix(5)"));
   assert.ok(more.includes("NativeParity.rankedAssignments(visibleAssignments"));
   assert.ok(!views.includes("NativeParity.priority("));
   for (const label of ["Do first", "Soon", "This week", "Later"]) assert.ok(parity.includes(`"${label}"`));
