@@ -18,13 +18,20 @@ test("launch blocks input and accessibility only while the overlay is present", 
   assert.match(root, /\.allowsHitTesting\(!showingLaunch\)/);
   assert.match(root, /\.accessibilityHidden\(showingLaunch\)/);
   assert.match(root, /\.environment\(\\.nativeLaunchIsVisible, showingLaunch\)/);
-  assert.equal((root.match(/\.transition\(\.opacity\)/g) ?? []).length, 3);
+  assert.equal((root.match(/\.transition\(\.opacity\)/g) ?? []).length, 2);
+  // The launch overlay fades and gently grows as it hands over to the app.
+  assert.match(root, /\.transition\(\.opacity\.combined\(with: \.scale\(scale: 1\.04\)\)\)/);
 });
 
-test("launch is brief, cancellable and independent of remote account loading", () => {
+test("launch plays for 3-5 seconds, can be skipped, and never waits on remote loading", () => {
   const duration = root.match(/Task\.sleep\(for: \.milliseconds\(reduceMotion \? (\d+) : (\d+)\)\)/);
   assert.ok(duration);
-  assert.ok(Number(duration[1]) <= 150 && Number(duration[2]) <= 1000);
+  // Reduce Motion gets a short static version; the full animation runs 3-5 s
+  // while the signed-in app loads Canvas underneath.
+  assert.ok(Number(duration[1]) <= 1500);
+  assert.ok(Number(duration[2]) >= 3000 && Number(duration[2]) <= 5000);
+  assert.match(root, /NativeLaunchView\(isSignedIn: sessionStore\.session != nil\) \{ finishLaunch\(\) \}/);
+  assert.match(source, /\.onTapGesture \{ onSkip\(\) \}/);
   assert.equal((root.match(/Task\.sleep/g) ?? []).length, 1);
   assert.match(root, /guard !Task\.isCancelled/);
   assert.doesNotMatch(root, /await .*load\(|NativeStartupReadyKey/);

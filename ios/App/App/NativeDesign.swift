@@ -169,7 +169,7 @@ struct CPGlassCard<Content: View>: View {
             if let title {
                 CPCardHeader(title: title, subtitle: subtitle)
             } else if let subtitle {
-                Text(subtitle).cpFont(10).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
+                Text(subtitle).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
             }
             content
         }
@@ -193,9 +193,9 @@ struct CPCardHeader<Trailing: View>: View {
     var body: some View {
         HStack(alignment: .center, spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).cpFont(13, .semibold).foregroundStyle(CPTheme.foreground(scheme)).fixedSize(horizontal: false, vertical: true)
+                Text(title).cpFont(14, .semibold).foregroundStyle(CPTheme.foreground(scheme)).fixedSize(horizontal: false, vertical: true)
                 if let subtitle {
-                    Text(subtitle).cpFont(10).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
+                    Text(subtitle).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -218,9 +218,9 @@ struct CPLinkLabel: View {
     var body: some View {
         HStack(spacing: 3) {
             Text(text)
-            if let symbol { Image(systemName: symbol).cpFont(8, .bold) }
+            if let symbol { Image(systemName: symbol).cpIconFont(8, .bold) }
         }
-        .cpFont(10, .semibold)
+        .cpFont(11, .semibold)
         .foregroundStyle(CPTheme.primary(scheme: scheme))
         .padding(.horizontal, 10)
         .frame(height: 26)
@@ -243,8 +243,8 @@ struct CPSectionLabel<Trailing: View>: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            Text(title.uppercased()).cpFont(9, .semibold).tracking(0.9).foregroundStyle(CPTheme.muted(scheme))
-            if let count { Text("\(count)").cpFont(9, .semibold).monospacedDigit().foregroundStyle(CPTheme.faint(scheme)) }
+            Text(title.uppercased()).cpFont(11, .semibold).tracking(0.9).foregroundStyle(CPTheme.muted(scheme))
+            if let count { Text("\(count)").cpFont(11, .semibold).monospacedDigit().foregroundStyle(CPTheme.faint(scheme)) }
             Spacer(minLength: 8)
             trailing
         }
@@ -306,7 +306,7 @@ struct CPStatTile: View {
     var body: some View {
         VStack(alignment: .leading, spacing: large ? 10 : 6) {
             if let symbol {
-                Image(systemName: symbol).cpFont(10, .semibold).foregroundStyle(tone.color(scheme)).accessibilityHidden(true)
+                Image(systemName: symbol).cpIconFont(10, .semibold).foregroundStyle(tone.color(scheme)).accessibilityHidden(true)
             }
             Text(value)
                 .cpFont(large ? 28 : 20, .semibold)
@@ -316,7 +316,7 @@ struct CPStatTile: View {
                 .minimumScaleFactor(0.6)
                 .foregroundStyle(tone == .neutral ? CPTheme.foreground(scheme) : tone.color(scheme))
             Text(label)
-                .cpFont(10)
+                .cpFont(11)
                 .foregroundStyle(CPTheme.muted(scheme))
                 .lineLimit(2)
                 .minimumScaleFactor(0.85)
@@ -338,13 +338,13 @@ struct CPPill: View {
     var symbol: String? = nil
     var body: some View {
         HStack(spacing: 3) {
-            if let symbol { Image(systemName: symbol).cpFont(8, .bold) }
+            if let symbol { Image(systemName: symbol).cpIconFont(8, .bold) }
             Text(text).lineLimit(1)
         }
-        .cpFont(9, .semibold)
+        .cpFont(11, .semibold)
         .foregroundStyle(tone == .neutral ? CPTheme.muted(scheme) : tone.color(scheme))
-        .padding(.horizontal, 7)
-        .frame(height: 18)
+        .padding(.horizontal, 8)
+        .frame(minHeight: 20)
         .background((tone == .neutral ? CPTheme.foreground(scheme) : tone.color(scheme)).opacity(scheme == .dark ? 0.10 : 0.08), in: Capsule())
     }
 }
@@ -430,7 +430,7 @@ private struct CPButtonBody: View {
         let shape = RoundedRectangle(cornerRadius: 11, style: .continuous)
         let primary = CPTheme.primary(scheme: scheme)
         configuration.label
-            .cpFont(11, .semibold)
+            .cpFont(12, .semibold)
             .lineLimit(1)
             .padding(.horizontal, 14)
             .frame(maxWidth: fullWidth ? .infinity : nil, minHeight: 36)
@@ -450,7 +450,7 @@ struct CPIconButtonLabel: View {
     let symbol: String
     var body: some View {
         Image(systemName: symbol)
-            .cpFont(11, .semibold)
+            .cpIconFont(11, .semibold)
             .foregroundStyle(CPTheme.muted(scheme))
             .frame(width: 30, height: 30)
             .background(CPTheme.inset(scheme), in: Circle())
@@ -489,9 +489,9 @@ struct CPPageHeader: View {
     let eyebrow: String; let title: String; let detail: String?
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(eyebrow.uppercased()).cpFont(9, .semibold).tracking(1.1).foregroundStyle(CPTheme.muted(scheme))
+            Text(eyebrow.uppercased()).cpFont(11, .semibold).tracking(1.1).foregroundStyle(CPTheme.muted(scheme))
             Text(title).cpFont(20, .semibold).tracking(-0.4).foregroundStyle(CPTheme.foreground(scheme)).fixedSize(horizontal: false, vertical: true)
-            if let detail { Text(detail).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineSpacing(2).fixedSize(horizontal: false, vertical: true) }
+            if let detail { Text(detail).cpFont(12).foregroundStyle(CPTheme.muted(scheme)).lineSpacing(2).fixedSize(horizontal: false, vertical: true) }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 4)
@@ -505,7 +505,7 @@ struct CPChip: View {
     let text: String; let selected: Bool
     var body: some View {
         Text(text)
-            .cpFont(10, .semibold)
+            .cpFont(11, .semibold)
             .lineLimit(1)
             .padding(.horizontal, 12)
             .frame(height: 30)
@@ -526,7 +526,7 @@ struct CPIconBadge: View {
     var body: some View {
         let color = tint ?? CPTheme.primary(scheme: scheme)
         Image(systemName: symbol)
-            .cpFont(12, .semibold)
+            .cpIconFont(12, .semibold)
             .foregroundStyle(color)
             .frame(width: 28, height: 28)
             .background(color.opacity(scheme == .dark ? 0.14 : 0.11), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -551,7 +551,7 @@ struct CPSegmented: View {
                     selection = option
                 } label: {
                     Text(option)
-                        .cpFont(11, isSelected ? .semibold : .medium)
+                        .cpFont(12, isSelected ? .semibold : .medium)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
                         .foregroundStyle(isSelected ? CPTheme.foreground(scheme) : CPTheme.muted(scheme))
@@ -585,7 +585,7 @@ struct CPListScreenModifier: ViewModifier {
     @Environment(\.colorScheme) private var scheme
     func body(content: Content) -> some View {
         content
-            .cpFont(11)
+            .cpFont(12)
             .environment(\.defaultMinListRowHeight, 40)
             .listSectionSpacing(.compact)
             .scrollContentBackground(.hidden)
@@ -615,16 +615,18 @@ private struct CPStateChange<Value: Equatable>: ViewModifier {
 }
 
 /// System text at the design's point size, scaled with the reader's Text Size
-/// setting. Body text is 11 pt, details 10 pt and labels 9 pt; nothing renders
-/// below 9 pt, and every size grows with Dynamic Type.
+/// setting. Body text is 12-13 pt and details and labels 11 pt: no text renders
+/// below 11 pt, Apple's smallest legible size, and every size grows with
+/// Dynamic Type. SF Symbols may be smaller, since they are not text.
 private struct CPScaledFont: ViewModifier {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let size: CGFloat
     let weight: Font.Weight?
     let design: Font.Design?
+    var isIcon = false
 
     func body(content: Content) -> some View {
-        let base = max(9, size)
+        let base = isIcon ? max(7, size) : max(11, size)
         let style: UIFont.TextStyle = base >= 28 ? .largeTitle : base >= 20 ? .title2 : base >= 16 ? .headline : base >= 13 ? .subheadline : base >= 11 ? .footnote : base >= 10 ? .caption1 : .caption2
         let traits = UITraitCollection(preferredContentSizeCategory: UIContentSizeCategory(dynamicTypeSize))
         let scaled = UIFontMetrics(forTextStyle: style).scaledValue(for: base, compatibleWith: traits)
@@ -651,6 +653,11 @@ extension View {
     /// Use instead of a fixed `.font(.system(size:))` so text follows Dynamic Type.
     func cpFont(_ size: CGFloat, _ weight: Font.Weight? = nil, design: Font.Design? = nil) -> some View {
         modifier(CPScaledFont(size: size, weight: weight, design: design))
+    }
+
+    /// Like cpFont, for SF Symbols. Icons can sit below the 11 pt text floor.
+    func cpIconFont(_ size: CGFloat, _ weight: Font.Weight? = nil) -> some View {
+        modifier(CPScaledFont(size: size, weight: weight, design: nil, isIcon: true))
     }
 
     /// The card surface: fill, hairline border and (in light mode) a soft shadow.

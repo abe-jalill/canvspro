@@ -36,7 +36,7 @@ test("shared backdrop avoids large blur passes and card headings wrap", () => {
 test("refined cards and selections preserve accessibility", () => {
   // Card text scales with Dynamic Type through cpFont, and surfaces are solid
   // (no translucency), with stronger borders when Increase Contrast is on.
-  assert.match(design, /Text\(title\)\.cpFont\(13, \.semibold\)/);
+  assert.match(design, /Text\(title\)\.cpFont\(14, \.semibold\)/);
   assert.doesNotMatch(design, /\.ultraThinMaterial|\.thinMaterial/);
   assert.match(design, /contrast == \.increased/);
   const chip = design.slice(design.indexOf("struct CPChip"), design.indexOf("struct CPIconBadge"));

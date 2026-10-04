@@ -39,8 +39,10 @@ test("text follows Dynamic Type everywhere", () => {
   const fixed = allSwift.match(/\.font\(\.system\(size: (?!titleSize|subtitleSize|textSize|scaled)[^)]*\)\)/g) ?? [];
   assert.deepEqual(fixed, []);
   assert.match(swift.NativeDesign, /UIFontMetrics\(forTextStyle: style\)\.scaledValue/);
-  // Phone text is 9–11 pt by design; 9 pt is the floor before Dynamic Type scaling.
-  assert.match(swift.NativeDesign, /max\(9, size\)/);
+  // No text renders below 11 pt, Apple's smallest legible size.
+  assert.match(swift.NativeDesign, /max\(11, size\)/);
+  // Every text size is at least 11 pt; only SF Symbols use cpIconFont below that.
+  for (const match of allSwift.matchAll(/\.cpFont\((\d+)[,)]/g)) assert.ok(Number(match[1]) >= 11, match[0]);
   assert.match(swift.NativeViews, /\.dynamicTypeSize\(\.\.\.DynamicTypeSize\.accessibility3\)/);
 });
 

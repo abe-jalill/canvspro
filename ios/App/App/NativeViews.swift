@@ -28,26 +28,33 @@ struct NativeRootView: View {
             .accessibilityHidden(showingLaunch)
             .environment(\.nativeLaunchIsVisible, showingLaunch)
             if showingLaunch {
-                NativeLaunchView().transition(.opacity).zIndex(1)
+                NativeLaunchView(isSignedIn: sessionStore.session != nil) { finishLaunch() }
+                    .transition(.opacity.combined(with: .scale(scale: 1.04)))
+                    .zIndex(1)
             }
         }
         .task {
             do {
-                // Branding plays once. Network loading belongs to the destination
-                // screen, so login and offline startup never wait behind a logo.
-                try await Task.sleep(for: .milliseconds(reduceMotion ? 100 : 750))
+                // The brand animation plays while the signed-in screens are already
+                // built underneath and loading Canvas. Nothing here waits on the network.
+                try await Task.sleep(for: .milliseconds(reduceMotion ? 1200 : 3800))
                 guard !Task.isCancelled else { return }
-                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.24)) {
-                    showingLaunch = false
-                }
+                finishLaunch()
             } catch { /* View removal cancels launch. */ }
         }
-        .cpFont(11)
+        .cpFont(12)
         .modifier(CPThemeModifier(palette: CPPalette(rawValue: palette) ?? .forest))
         .preferredColorScheme(colorScheme == "dark" ? .dark : colorScheme == "light" ? .light : nil)
         // Every screen scales with Text Size; the largest accessibility sizes are
         // capped where fixed-width rows would stop fitting on an iPhone.
         .dynamicTypeSize(...DynamicTypeSize.accessibility3)
+    }
+
+    private func finishLaunch() {
+        guard showingLaunch else { return }
+        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.45)) {
+            showingLaunch = false
+        }
     }
 }
 
@@ -62,52 +69,133 @@ private extension EnvironmentValues {
     }
 }
 
-/// Apple's static launch screen shares this background; SwiftUI owns the animated phase.
-private struct NativeLaunchView: View {
+/// The deep forest colors behind the launch and sign-in screens. The static
+/// LaunchScreen storyboard uses the same base, so there is no flash on open.
+private enum NativeBrandColors {
+    static let base = Color(red: 0, green: 0.184, blue: 0.125)
+    static let deep = Color(red: 0, green: 0.105, blue: 0.072)
+    static let mint = Color(red: 0.49, green: 0.84, blue: 0.65)
+    static let teal = Color(red: 0.30, green: 0.72, blue: 0.70)
+}
+
+/// The CanvasPro mark: three rising bars inside a ring. With `animate`, the bars
+/// grow in one by one and the ring draws itself around them.
+private struct NativeBrandMark: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    var size: CGFloat = 120
+    var animate = false
+    var delay: Double = 0
     @State private var appeared = false
-    private let heights: [CGFloat] = [44, 96, 70]
+    private let heights: [CGFloat] = [0.32, 0.70, 0.51]
 
     var body: some View {
+        let shown = !animate || reduceMotion || appeared
         ZStack {
-            Color(red: 0, green: 0.184, blue: 0.125).ignoresSafeArea()
             Circle()
-                .fill(RadialGradient(colors: [Color.mint.opacity(0.16), .clear], center: .center, startRadius: 0, endRadius: 140))
-                .frame(width: 280, height: 280)
-                .scaleEffect(reduceMotion ? 1 : appeared ? 1 : 0.7)
-                .opacity(appeared ? 1 : 0)
-                .animation(reduceMotion ? nil : .easeOut(duration: 0.6), value: appeared)
-            VStack(spacing: 26) {
-                HStack(alignment: .bottom, spacing: 13) {
-                    ForEach(0..<3, id: \.self) { index in
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(.white)
-                            .frame(width: 26, height: heights[index])
-                            .scaleEffect(x: 1, y: reduceMotion || appeared ? 1 : 0.25, anchor: .bottom)
-                            .offset(y: reduceMotion || appeared ? 0 : 16)
-                            .opacity(reduceMotion || appeared ? 1 : 0)
-                            .animation(reduceMotion ? nil : .spring(duration: 0.48, bounce: 0.06).delay(Double(index) * 0.06), value: appeared)
-                    }
+                .fill(RadialGradient(colors: [NativeBrandColors.mint.opacity(0.30), .clear], center: .center, startRadius: 0, endRadius: size * 0.75))
+                .frame(width: size * 1.6, height: size * 1.6)
+                .scaleEffect(shown ? 1 : 0.6)
+                .opacity(shown ? 1 : 0)
+                .animation(reduceMotion ? nil : .easeOut(duration: 1.2).delay(delay), value: appeared)
+            Circle()
+                .stroke(Color.white.opacity(0.10), lineWidth: size * 0.025)
+            Circle()
+                .trim(from: 0, to: shown ? 1 : 0)
+                .stroke(AngularGradient(colors: [NativeBrandColors.mint, NativeBrandColors.teal, NativeBrandColors.mint], center: .center), style: StrokeStyle(lineWidth: size * 0.025, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+                .animation(reduceMotion ? nil : .easeInOut(duration: 1.1).delay(delay + 0.35), value: appeared)
+            HStack(alignment: .bottom, spacing: size * 0.075) {
+                ForEach(0..<3, id: \.self) { index in
+                    RoundedRectangle(cornerRadius: size * 0.05, style: .continuous)
+                        .fill(index == 1 ? NativeBrandColors.mint : Color.white)
+                        .frame(width: size * 0.15, height: size * heights[index])
+                        .scaleEffect(x: 1, y: shown ? 1 : 0.15, anchor: .bottom)
+                        .opacity(shown ? 1 : 0)
+                        .animation(reduceMotion ? nil : .spring(duration: 0.6, bounce: 0.2).delay(delay + 0.1 + Double(index) * 0.12), value: appeared)
                 }
-                .rotationEffect(.degrees(-16))
-                .frame(width: 140, height: 112)
-                .clipped()
-                Text("CanvasPro")
-                    .cpFont(28, .medium, design: .rounded)
-                    .foregroundStyle(.white)
-                    .opacity(reduceMotion || appeared ? 1 : 0)
-                    .animation(reduceMotion ? nil : .easeOut(duration: 0.3).delay(0.14), value: appeared)
             }
+            .rotationEffect(.degrees(-16))
+            .offset(y: size * 0.02)
+        }
+        .frame(width: size, height: size)
+        .accessibilityHidden(true)
+        .onAppear { if animate { appeared = true } }
+    }
+}
+
+/// Plays for about four seconds when the app opens. The signed-in app is already
+/// built underneath and loading Canvas, so the wait is never wasted. Tap to skip.
+private struct NativeLaunchView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let isSignedIn: Bool
+    let onSkip: () -> Void
+    @State private var appeared = false
+    private let word = Array("CanvasPro")
+
+    var body: some View {
+        let shown = reduceMotion || appeared
+        ZStack {
+            LinearGradient(colors: [NativeBrandColors.base, NativeBrandColors.deep], startPoint: .top, endPoint: .bottom)
+                .ignoresSafeArea()
+            // Two slow glows drift for the whole animation.
+            Circle()
+                .fill(RadialGradient(colors: [NativeBrandColors.mint.opacity(0.16), .clear], center: .center, startRadius: 0, endRadius: 220))
+                .frame(width: 440, height: 440)
+                .offset(x: appeared ? 90 : -110, y: appeared ? -230 : -300)
+                .animation(reduceMotion ? nil : .easeInOut(duration: 4), value: appeared)
+            Circle()
+                .fill(RadialGradient(colors: [NativeBrandColors.teal.opacity(0.12), .clear], center: .center, startRadius: 0, endRadius: 240))
+                .frame(width: 480, height: 480)
+                .offset(x: appeared ? -100 : 120, y: appeared ? 280 : 340)
+                .animation(reduceMotion ? nil : .easeInOut(duration: 4), value: appeared)
+
+            VStack(spacing: 30) {
+                NativeBrandMark(size: 128, animate: true, delay: 0.15)
+                VStack(spacing: 12) {
+                    HStack(spacing: 0) {
+                        ForEach(word.indices, id: \.self) { index in
+                            Text(String(word[index]))
+                                .cpFont(32, .semibold)
+                                .tracking(-0.5)
+                                .foregroundStyle(.white)
+                                .opacity(shown ? 1 : 0)
+                                .offset(y: shown ? 0 : 10)
+                                .blur(radius: shown ? 0 : 6)
+                                .animation(reduceMotion ? nil : .easeOut(duration: 0.45).delay(1.2 + Double(index) * 0.05), value: appeared)
+                        }
+                    }
+                    Text("A little less chaos. A little more clarity.")
+                        .cpFont(13)
+                        .foregroundStyle(.white.opacity(0.68))
+                        .opacity(shown ? 1 : 0)
+                        .offset(y: shown ? 0 : 6)
+                        .animation(reduceMotion ? nil : .easeOut(duration: 0.6).delay(1.95), value: appeared)
+                }
+            }
+            .offset(y: -20)
         }
         .overlay(alignment: .bottom) {
-            ProgressView()
-                .tint(.white.opacity(0.7))
-                .controlSize(.small)
-                .padding(.bottom, 52)
-                .accessibilityHidden(true)
+            VStack(spacing: 10) {
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.white.opacity(0.12))
+                    Capsule().fill(NativeBrandColors.mint)
+                        .frame(width: shown ? 132 : 0)
+                        .animation(reduceMotion ? nil : .easeInOut(duration: 3.4).delay(0.2), value: appeared)
+                }
+                .frame(width: 132, height: 3)
+                Text(isSignedIn ? "Syncing your classes" : "Getting things ready")
+                    .cpFont(11, .medium)
+                    .foregroundStyle(.white.opacity(0.55))
+            }
+            .opacity(shown ? 1 : 0)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.4).delay(0.6), value: appeared)
+            .padding(.bottom, 56)
         }
+        .contentShape(Rectangle())
+        .onTapGesture { onSkip() }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("CanvasPro. Loading.")
+        .accessibilityLabel(isSignedIn ? "CanvasPro. Syncing your classes." : "CanvasPro. Loading.")
+        .accessibilityAction(named: "Skip") { onSkip() }
         .task { appeared = true }
     }
 }
@@ -122,6 +210,7 @@ private struct NativeAuthView: View {
     @State private var mode: Mode = .signIn
     @State private var email = ""
     @State private var password = ""
+    @State private var showPassword = false
     @State private var firstName = ""
     @State private var lastName = ""
     @State private var major = ""
@@ -147,49 +236,23 @@ private struct NativeAuthView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                CPBackdrop()
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 28) {
-                        NativeAuthBrand()
-                        header
-                        VStack(alignment: .leading, spacing: 20) {
-                            fields
-                            if mode == .signIn {
-                                Button("Forgot password?") {
-                                    focusedField = nil
-                                    sessionStore.errorMessage = nil
-                                    showReset = true
-                                }
-                                .cpFont(11, .medium)
-                                .frame(maxWidth: .infinity, minHeight: 44, alignment: .trailing)
-                                .disabled(sessionStore.isWorking)
-                            } else {
-                                signupDetails
-                            }
-                            if let notice { NativeAuthMessage(text: notice, isError: false) }
-                            if let error = sessionStore.errorMessage ?? sessionStore.configurationError {
-                                NativeAuthMessage(text: error, isError: true)
-                            }
-                            Button(action: submit) {
-                                NativeAuthActionLabel(title: mode == .signIn ? "Sign in" : "Create account", isWorking: sessionStore.isWorking)
-                            }
-                            .buttonStyle(CPPressStyle())
-                            .disabled(!canSubmit)
-                        }
-                        .padding(20)
-                        .cpSurface(strong: true, radius: 22)
-                        accountSwitch
-                        legalLinks
-                    }
-                    .frame(maxWidth: 460)
-                    .frame(maxWidth: .infinity)
-                    .padding(.horizontal, 22)
-                    .padding(.top, 28)
-                    .padding(.bottom, 32)
+            ScrollView {
+                VStack(spacing: 0) {
+                    hero
+                    formCard
+                        .padding(.horizontal, 16)
+                        .offset(y: -28)
+                        .padding(.bottom, -28)
+                    NativeLegalLinks(compact: false)
+                        .foregroundStyle(CPTheme.muted(scheme))
+                        .padding(.top, 18)
+                        .padding(.bottom, 28)
                 }
-                .scrollDismissesKeyboard(.interactively)
+                .frame(maxWidth: 480)
+                .frame(maxWidth: .infinity)
             }
+            .scrollDismissesKeyboard(.interactively)
+            .background(CPTheme.background(scheme).ignoresSafeArea())
             .foregroundStyle(CPTheme.foreground(scheme))
             .toolbar(.hidden, for: .navigationBar)
             .onChange(of: mode) { _, _ in sessionStore.errorMessage = nil }
@@ -197,29 +260,103 @@ private struct NativeAuthView: View {
         }
     }
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(mode == .signIn ? "Welcome back." : "Make room for\nwhat matters.")
-                .cpFont(26, .semibold).tracking(-0.8)
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityAddTraits(.isHeader)
-            Text(mode == .signIn ? "A little less chaos. A little more clarity." : "Your classes, deadlines, and study time. Together.")
-                .cpFont(12).foregroundStyle(CPTheme.muted(scheme))
-                .fixedSize(horizontal: false, vertical: true)
+    /// The branded top of the page, in the launch screen's colors, with a small
+    /// preview of the app.
+    private var hero: some View {
+        VStack(alignment: .leading, spacing: 22) {
+            HStack(spacing: 10) {
+                NativeBrandMark(size: 34)
+                Text("CanvasPro").cpFont(16, .semibold).tracking(-0.3).foregroundStyle(.white)
+                Spacer()
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                Text(mode == .signIn ? "Welcome back." : "Make room for\nwhat matters.")
+                    .cpFont(30, .semibold).tracking(-0.9)
+                    .foregroundStyle(.white)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityAddTraits(.isHeader)
+                Text(mode == .signIn ? "A little less chaos. A little more clarity." : "Your classes, deadlines, and study time. Together.")
+                    .cpFont(13)
+                    .foregroundStyle(.white.opacity(0.72))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if !typeSize.isAccessibilitySize { NativeAuthPreview() }
         }
+        .padding(.horizontal, 22)
+        .padding(.top, 20)
+        .padding(.bottom, 52)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            ZStack {
+                LinearGradient(colors: [NativeBrandColors.base, NativeBrandColors.deep], startPoint: .top, endPoint: .bottom)
+                Circle()
+                    .fill(RadialGradient(colors: [NativeBrandColors.mint.opacity(0.20), .clear], center: .center, startRadius: 0, endRadius: 200))
+                    .frame(width: 400, height: 400)
+                    .offset(x: 150, y: -120)
+            }
+            .clipShape(UnevenRoundedRectangle(bottomLeadingRadius: 32, bottomTrailingRadius: 32, style: .continuous))
+            .ignoresSafeArea(edges: .top)
+        }
+        .animation(.easeInOut(duration: 0.25), value: mode)
+    }
+
+    private var formCard: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            CPSegmented(selection: Binding(get: { mode == .signIn ? "Sign in" : "Create account" }, set: { value in
+                focusedField = nil
+                notice = nil
+                password = ""
+                mode = value == "Sign in" ? .signIn : .signUp
+            }), options: ["Sign in", "Create account"], label: "Sign in or create an account")
+            .disabled(sessionStore.isWorking)
+            fields
+            if mode == .signIn {
+                Button("Forgot password?") {
+                    focusedField = nil
+                    sessionStore.errorMessage = nil
+                    showReset = true
+                }
+                .cpFont(12, .semibold)
+                .foregroundStyle(CPTheme.primary(scheme: scheme))
+                .frame(maxWidth: .infinity, minHeight: 32, alignment: .trailing)
+                .disabled(sessionStore.isWorking)
+            } else {
+                signupDetails
+            }
+            if let notice { NativeAuthMessage(text: notice, isError: false) }
+            if let error = sessionStore.errorMessage ?? sessionStore.configurationError {
+                NativeAuthMessage(text: error, isError: true)
+            }
+            Button(action: submit) {
+                NativeAuthActionLabel(title: mode == .signIn ? "Sign in" : "Create account", isWorking: sessionStore.isWorking)
+            }
+            .buttonStyle(CPPressStyle())
+            .disabled(!canSubmit)
+            HStack(spacing: 6) {
+                Image(systemName: "lock.fill").cpIconFont(9)
+                Text(mode == .signIn ? "Your school password is never needed." : "Free to use. Your Canvas key stays private.")
+            }
+            .cpFont(11)
+            .foregroundStyle(CPTheme.muted(scheme))
+            .frame(maxWidth: .infinity)
+        }
+        .padding(20)
+        .cpSurface(strong: true, radius: 24)
+        .shadow(color: Color.black.opacity(scheme == .dark ? 0.35 : 0.10), radius: 24, y: 10)
+        .animation(.easeInOut(duration: 0.22), value: mode)
     }
 
     private var fields: some View {
-        VStack(spacing: 18) {
+        VStack(spacing: 14) {
             if mode == .signUp {
                 if typeSize.isAccessibilitySize {
                     firstNameField
                     lastNameField
                 } else {
-                    HStack(alignment: .top, spacing: 12) { firstNameField; lastNameField }
+                    HStack(alignment: .top, spacing: 10) { firstNameField; lastNameField }
                 }
             }
-            NativeAuthField(title: mode == .signIn ? "Email or username" : "Email", symbol: mode == .signIn ? "person" : "envelope") {
+            NativeAuthField(title: mode == .signIn ? "Email or username" : "Email", symbol: mode == .signIn ? "person" : "envelope", focused: focusedField == .email) {
                 TextField(mode == .signIn ? "you@example.com or username" : "you@example.com", text: $email)
                     .textContentType(mode == .signIn ? .username : .emailAddress).keyboardType(.emailAddress)
                     .textInputAutocapitalization(.never).autocorrectionDisabled()
@@ -227,18 +364,37 @@ private struct NativeAuthView: View {
                     .onSubmit { focusedField = .password }
                     .accessibilityLabel(mode == .signIn ? "Email or username" : "Email")
             }
-            NativeAuthField(title: "Password", symbol: "lock") {
-                SecureField(mode == .signIn ? "Enter your password" : "At least 6 characters", text: $password)
+            NativeAuthField(title: "Password", symbol: "lock", focused: focusedField == .password) {
+                HStack(spacing: 8) {
+                    Group {
+                        if showPassword {
+                            TextField(mode == .signIn ? "Enter your password" : "At least 6 characters", text: $password)
+                                .textInputAutocapitalization(.never).autocorrectionDisabled()
+                        } else {
+                            SecureField(mode == .signIn ? "Enter your password" : "At least 6 characters", text: $password)
+                        }
+                    }
                     .textContentType(mode == .signIn ? .password : .newPassword)
                     .focused($focusedField, equals: .password).submitLabel(.go)
                     .onSubmit { submit() }.accessibilityLabel("Password")
+                    Button { showPassword.toggle() } label: {
+                        Image(systemName: showPassword ? "eye.slash" : "eye").cpIconFont(13).foregroundStyle(CPTheme.muted(scheme))
+                            .frame(width: 36, height: 36).contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(showPassword ? "Hide password" : "Show password")
+                }
+            }
+            if mode == .signUp && !password.isEmpty && password.count < 6 {
+                Text("Use at least 6 characters.").cpFont(11).foregroundStyle(CPTheme.muted(scheme))
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .disabled(sessionStore.isWorking)
     }
 
     private var firstNameField: some View {
-        NativeAuthField(title: "First name", symbol: nil) {
+        NativeAuthField(title: "First name", symbol: nil, focused: focusedField == .firstName) {
             TextField("First name", text: $firstName).textContentType(.givenName)
                 .focused($focusedField, equals: .firstName).submitLabel(.next)
                 .onSubmit { focusedField = .lastName }.accessibilityLabel("First name")
@@ -246,7 +402,7 @@ private struct NativeAuthView: View {
     }
 
     private var lastNameField: some View {
-        NativeAuthField(title: "Last name", symbol: nil) {
+        NativeAuthField(title: "Last name", symbol: nil, focused: focusedField == .lastName) {
             TextField("Last name", text: $lastName).textContentType(.familyName)
                 .focused($focusedField, equals: .lastName).submitLabel(.next)
                 .onSubmit { focusedField = .email }.accessibilityLabel("Last name")
@@ -254,43 +410,27 @@ private struct NativeAuthView: View {
     }
 
     private var signupDetails: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: 12) {
             DisclosureGroup {
-                VStack(spacing: 14) {
+                VStack(spacing: 12) {
                     NativeAuthField(title: "Major", symbol: nil) { TextField("Your major", text: $major) }
                     NativeAuthField(title: "Class of", symbol: nil) {
                         TextField("Graduation year", text: $classOf).keyboardType(.numberPad)
                     }
-                }.padding(.top, 14)
+                }.padding(.top, 12)
             } label: {
-                Text("School details · optional").cpFont(11)
+                Text("School details · optional").cpFont(12, .medium)
             }
-            NativeAuthConsent(title: "I am at least 13 years old", isOn: $ageConfirmed)
-            NativeAuthConsent(title: "I agree to the Terms of Service and Privacy Policy", isOn: $legalAccepted)
-            NativeLegalLinks(compact: true)
+            .tint(CPTheme.muted(scheme))
+            VStack(spacing: 0) {
+                NativeAuthConsent(title: "I am at least 13 years old", isOn: $ageConfirmed)
+                CPRowDivider(leading: 34)
+                NativeAuthConsent(title: "I agree to the Terms of Service and Privacy Policy", isOn: $legalAccepted)
+            }
+            .padding(.horizontal, 12)
+            .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: CPLayout.innerRadius, style: .continuous))
         }
         .disabled(sessionStore.isWorking)
-    }
-
-    private var accountSwitch: some View {
-        VStack(spacing: 2) {
-            Text(mode == .signIn ? "New to CanvasPro?" : "Already have an account?")
-                .cpFont(11).foregroundStyle(CPTheme.muted(scheme))
-            Button(mode == .signIn ? "Create an account" : "Sign in instead") {
-                focusedField = nil
-                notice = nil
-                password = ""
-                mode = mode == .signIn ? .signUp : .signIn
-            }
-            .cpFont(12, .semibold).frame(minHeight: 44)
-            .buttonStyle(CPPressStyle()).disabled(sessionStore.isWorking)
-        }.frame(maxWidth: .infinity)
-    }
-
-    private var legalLinks: some View {
-        NativeLegalLinks(compact: false)
-            .foregroundStyle(CPTheme.muted(scheme))
-            .frame(maxWidth: .infinity)
     }
 
     private func submit() {
@@ -320,22 +460,53 @@ private struct NativeAuthView: View {
     }
 }
 
-private struct NativeAuthBrand: View {
-    @Environment(\.colorScheme) private var scheme
-    private let heights: [CGFloat] = [13, 28, 21]
+/// A small, decorative preview of the dashboard on the sign-in screen.
+private struct NativeAuthPreview: View {
     var body: some View {
-        HStack(spacing: 12) {
-            HStack(alignment: .bottom, spacing: 4) {
-                ForEach(0..<3, id: \.self) { index in
-                    RoundedRectangle(cornerRadius: 3).frame(width: 7, height: heights[index])
+        HStack(alignment: .top, spacing: 10) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("UP NEXT").cpFont(11, .semibold).tracking(1).foregroundStyle(NativeBrandColors.mint)
+                Text("Essay draft").cpFont(14, .semibold).foregroundStyle(.white)
+                HStack(spacing: 6) {
+                    Image(systemName: "clock").cpIconFont(9, .semibold)
+                    Text("Due tomorrow · 45 min")
                 }
+                .cpFont(11)
+                .foregroundStyle(.white.opacity(0.65))
             }
-            .rotationEffect(.degrees(-16)).foregroundStyle(CPTheme.primary(scheme: scheme))
-            .frame(width: 44, height: 44)
-            .background(CPTheme.primary(scheme: scheme).opacity(0.1), in: RoundedRectangle(cornerRadius: 14))
-            .accessibilityHidden(true)
-            Text("CanvasPro").cpFont(15, .semibold).tracking(-0.3)
-        }.padding(.bottom, 8)
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Color.white.opacity(0.10), lineWidth: 1))
+            VStack(spacing: 8) {
+                previewTile("3", "This week")
+                previewTile("0", "Overdue")
+            }
+            .frame(width: 92)
+        }
+        .accessibilityHidden(true)
+    }
+
+    private func previewTile(_ value: String, _ label: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(value).cpFont(17, .semibold).monospacedDigit().foregroundStyle(.white)
+            Text(label).cpFont(11).foregroundStyle(.white.opacity(0.6)).lineLimit(1).minimumScaleFactor(0.8)
+        }
+        .padding(.horizontal, 10).padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+}
+
+private struct NativeAuthBrand: View {
+    var body: some View {
+        HStack(spacing: 10) {
+            NativeBrandMark(size: 34)
+                .padding(4)
+                .background(NativeBrandColors.base, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            Text("CanvasPro").cpFont(16, .semibold).tracking(-0.3)
+        }
+        .padding(.bottom, 4)
     }
 }
 
@@ -343,23 +514,25 @@ private struct NativeAuthField<Content: View>: View {
     @Environment(\.colorScheme) private var scheme
     let title: String
     let symbol: String?
+    var focused = false
     let content: Content
-    init(title: String, symbol: String?, @ViewBuilder content: () -> Content) {
-        self.title = title; self.symbol = symbol; self.content = content()
+    init(title: String, symbol: String?, focused: Bool = false, @ViewBuilder content: () -> Content) {
+        self.title = title; self.symbol = symbol; self.focused = focused; self.content = content()
     }
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title).cpFont(10, .semibold).foregroundStyle(CPTheme.muted(scheme)).accessibilityHidden(true)
-            HStack(spacing: 12) {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title).cpFont(11, .semibold).foregroundStyle(focused ? CPTheme.primary(scheme: scheme) : CPTheme.muted(scheme)).accessibilityHidden(true)
+            HStack(spacing: 10) {
                 if let symbol {
-                    Image(systemName: symbol).foregroundStyle(CPTheme.muted(scheme)).accessibilityHidden(true)
+                    Image(systemName: symbol).cpIconFont(13).foregroundStyle(focused ? CPTheme.primary(scheme: scheme) : CPTheme.muted(scheme)).accessibilityHidden(true)
                 }
-                content.cpFont(13).frame(maxWidth: .infinity, alignment: .leading)
+                content.cpFont(14).frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(.horizontal, 14).padding(.vertical, 12)
-            .frame(minHeight: 46)
-            .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(CPTheme.insetBorder(scheme)))
+            .padding(.horizontal, 14)
+            .frame(minHeight: 48)
+            .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous).strokeBorder(focused ? CPTheme.primary(scheme: scheme) : CPTheme.insetBorder(scheme), lineWidth: focused ? 1.5 : 1))
+            .animation(.easeInOut(duration: 0.15), value: focused)
         }
     }
 }
@@ -371,13 +544,13 @@ private struct NativeAuthActionLabel: View {
     var body: some View {
         HStack(spacing: 10) {
             if isWorking { ProgressView().tint(CPTheme.onPrimary(scheme)) }
-            Text(isWorking ? "Please wait…" : title).cpFont(13, .semibold)
-            if !isWorking { Image(systemName: "arrow.right").cpFont(11, .bold) }
+            Text(isWorking ? "Please wait…" : title).cpFont(14, .semibold)
+            if !isWorking { Image(systemName: "arrow.right").cpIconFont(12, .bold) }
         }
-        .frame(maxWidth: .infinity, minHeight: 48)
+        .frame(maxWidth: .infinity, minHeight: 50)
         .foregroundStyle(CPTheme.onPrimary(scheme))
-        .background(CPTheme.primary(scheme: scheme), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
-        .contentShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+        .background(CPTheme.primary(scheme: scheme), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 }
 
@@ -387,13 +560,20 @@ private struct NativeAuthConsent: View {
     @Binding var isOn: Bool
     var body: some View {
         Button { isOn.toggle() } label: {
-            HStack(alignment: .top, spacing: 12) {
-                Image(systemName: isOn ? "checkmark.square.fill" : "square")
-                    .cpFont(16).foregroundStyle(CPTheme.primary(scheme: scheme))
-                Text(title).cpFont(11).foregroundStyle(CPTheme.foreground(scheme))
+            HStack(alignment: .center, spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .strokeBorder(isOn ? Color.clear : CPTheme.muted(scheme).opacity(0.6), lineWidth: 1.5)
+                    if isOn {
+                        RoundedRectangle(cornerRadius: 6, style: .continuous).fill(CPTheme.primary(scheme: scheme))
+                        Image(systemName: "checkmark").cpIconFont(10, .bold).foregroundStyle(CPTheme.onPrimary(scheme))
+                    }
+                }
+                .frame(width: 22, height: 22)
+                Text(title).cpFont(12).foregroundStyle(CPTheme.foreground(scheme))
                     .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 0)
-            }.frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            }.frame(maxWidth: .infinity, minHeight: 46, alignment: .leading)
         }
         .buttonStyle(CPPressStyle())
         .accessibilityLabel(title).accessibilityValue(isOn ? "Selected" : "Not selected")
@@ -407,10 +587,10 @@ private struct NativeAuthMessage: View {
     let isError: Bool
     var body: some View {
         Label(text, systemImage: isError ? "exclamationmark.circle" : "checkmark.circle")
-            .cpFont(11).fixedSize(horizontal: false, vertical: true)
+            .cpFont(12).fixedSize(horizontal: false, vertical: true)
             .foregroundStyle(isError ? CPTheme.danger : CPTheme.primary(scheme: scheme))
             .padding(12).frame(maxWidth: .infinity, alignment: .leading)
-            .background((isError ? CPTheme.danger : CPTheme.primary(scheme: scheme)).opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
+            .background((isError ? CPTheme.danger : CPTheme.primary(scheme: scheme)).opacity(0.10), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }
 
@@ -432,7 +612,7 @@ private struct PasswordResetSheet: View {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("A fresh start.").cpFont(26, .semibold).tracking(-0.8)
                         Text("Enter your account email and we’ll send you a password reset link.")
-                            .cpFont(12).foregroundStyle(CPTheme.muted(scheme))
+                            .cpFont(13).foregroundStyle(CPTheme.muted(scheme))
                     }
                     NativeAuthField(title: "Email", symbol: "envelope") {
                         TextField("you@example.com", text: $email).textContentType(.emailAddress)
@@ -704,7 +884,7 @@ private struct NativeDashboardView: View {
             NavigationStack {
                 ScrollView {
                     Text(course.syllabusBody?.strippingHTML ?? "No syllabus available.")
-                        .cpFont(12).lineSpacing(3).textSelection(.enabled)
+                        .cpFont(13).lineSpacing(3).textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(CPLayout.gutter)
                 }
@@ -722,10 +902,10 @@ private struct NativeDashboardView: View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 5) {
-                    Image(systemName: "calendar").cpFont(9, .semibold)
+                    Image(systemName: "calendar").cpIconFont(9, .semibold)
                     Text(Date().formatted(.dateTime.weekday(.wide).month(.wide).day()).uppercased()).tracking(1.1)
                 }
-                .cpFont(9, .semibold)
+                .cpFont(11, .semibold)
                 .foregroundStyle(CPTheme.muted(scheme))
                 Text("\(greeting)\(studentName.map { ", \($0)." } ?? ".")")
                     .cpFont(22, .semibold).tracking(-0.6)
@@ -733,12 +913,12 @@ private struct NativeDashboardView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityAddTraits(.isHeader)
                 Text(heroMessage)
-                    .cpFont(11).lineSpacing(2)
+                    .cpFont(12).lineSpacing(2)
                     .foregroundStyle(CPTheme.muted(scheme))
                     .fixedSize(horizontal: false, vertical: true)
             }
             Button { openFocus("7") } label: {
-                HStack(spacing: 4) { Text("Open focus view"); Image(systemName: "arrow.up.right").cpFont(8, .bold) }
+                HStack(spacing: 4) { Text("Open focus view"); Image(systemName: "arrow.up.right").cpIconFont(8, .bold) }
             }
             .buttonStyle(CPButtonStyle(kind: .secondary))
             VStack(spacing: 8) {
@@ -762,20 +942,20 @@ private struct NativeDashboardView: View {
 
     private var weekTile: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("NEXT SEVEN DAYS").cpFont(9, .semibold).tracking(1).foregroundStyle(CPTheme.muted(scheme))
+            Text("NEXT SEVEN DAYS").cpFont(11, .semibold).tracking(1).foregroundStyle(CPTheme.muted(scheme))
             HStack(alignment: .lastTextBaseline) {
                 Text("\(weekItems.count)").cpFont(30, .semibold).tracking(-1).monospacedDigit()
                     .foregroundStyle(CPTheme.foreground(scheme))
                 Spacer(minLength: 8)
                 Text(weekItems.count == 1 ? "item on your radar" : "items on your radar")
-                    .cpFont(10).foregroundStyle(CPTheme.muted(scheme)).multilineTextAlignment(.trailing)
+                    .cpFont(11).foregroundStyle(CPTheme.muted(scheme)).multilineTextAlignment(.trailing)
             }
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(alignment: .topTrailing) {
-            Image(systemName: "arrow.up.right").cpFont(9, .bold).foregroundStyle(CPTheme.faint(scheme)).padding(14)
+            Image(systemName: "arrow.up.right").cpIconFont(9, .bold).foregroundStyle(CPTheme.faint(scheme)).padding(14)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Next seven days: \(weekItems.count) \(weekItems.count == 1 ? "item" : "items")")
@@ -786,7 +966,7 @@ private struct NativeDashboardView: View {
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Your dashboard").cpFont(15, .semibold).foregroundStyle(CPTheme.foreground(scheme))
-                Text("Choose which widgets appear and their order.").cpFont(10).foregroundStyle(CPTheme.muted(scheme))
+                Text("Choose which widgets appear and their order.").cpFont(11).foregroundStyle(CPTheme.muted(scheme))
             }
             Spacer(minLength: 8)
             Button { showCustomize = true } label: { Label("Customize", systemImage: "slider.horizontal.3") }
@@ -819,15 +999,15 @@ private struct NativeDashboardView: View {
         let total = newAnnouncements.count + newGrades.count + newlyUrgent.count
         if total == 0 {
             HStack(spacing: 12) {
-                Image(systemName: "checkmark").cpFont(12, .bold)
+                Image(systemName: "checkmark").cpIconFont(12, .bold)
                     .foregroundStyle(CPTheme.primary(scheme: scheme))
                     .frame(width: 32, height: 32)
                     .background(CPTheme.primary(scheme: scheme).opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(stillUrgent > 0 ? "Nothing new since your last visit." : "All caught up.")
-                        .cpFont(12, .semibold).foregroundStyle(CPTheme.foreground(scheme))
+                        .cpFont(13, .semibold).foregroundStyle(CPTheme.foreground(scheme))
                     Text(stillUrgent > 0 ? "No new announcements or grades. \(stillUrgent) assignment\(stillUrgent == 1 ? " is" : "s are") still due soon." : "No new announcements, grades, or urgent deadlines since your last visit.")
-                        .cpFont(10).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
+                        .cpFont(11).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 4)
                 if stillUrgent > 0 {
@@ -873,14 +1053,14 @@ private struct NativeDashboardView: View {
     private func digestSection<Content: View>(_ title: String, symbol: String, count: Int, empty: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
-                Image(systemName: symbol).cpFont(9, .semibold).foregroundStyle(CPTheme.muted(scheme))
-                Text(title.uppercased()).cpFont(9, .semibold).tracking(0.9).foregroundStyle(CPTheme.muted(scheme))
+                Image(systemName: symbol).cpIconFont(9, .semibold).foregroundStyle(CPTheme.muted(scheme))
+                Text(title.uppercased()).cpFont(11, .semibold).tracking(0.9).foregroundStyle(CPTheme.muted(scheme))
                 Spacer()
-                Text("\(count)").cpFont(9, .semibold).monospacedDigit().foregroundStyle(CPTheme.faint(scheme))
+                Text("\(count)").cpFont(11, .semibold).monospacedDigit().foregroundStyle(CPTheme.faint(scheme))
             }
             .accessibilityElement(children: .combine)
             if count == 0 {
-                Text(empty).cpFont(10).foregroundStyle(CPTheme.faint(scheme)).padding(.vertical, 2)
+                Text(empty).cpFont(11).foregroundStyle(CPTheme.faint(scheme)).padding(.vertical, 2)
             } else {
                 VStack(spacing: 4) { content() }
             }
@@ -890,14 +1070,14 @@ private struct NativeDashboardView: View {
     private func digestItem(_ title: String, detail: String, trailing: String? = nil) -> some View {
         HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).cpFont(11, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
-                Text(detail).cpFont(9).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
+                Text(title).cpFont(12, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
+                Text(detail).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
             }
             Spacer(minLength: 6)
             if let trailing {
-                Text(trailing).cpFont(10, .semibold).monospacedDigit().foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
+                Text(trailing).cpFont(11, .semibold).monospacedDigit().foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
             }
-            Image(systemName: "chevron.right").cpFont(8, .bold).foregroundStyle(CPTheme.faint(scheme))
+            Image(systemName: "chevron.right").cpIconFont(8, .bold).foregroundStyle(CPTheme.faint(scheme))
         }
         .padding(.horizontal, 10).padding(.vertical, 8)
         .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -939,7 +1119,7 @@ private struct NativeDashboardView: View {
             } label: {
                 HStack(spacing: 10) {
                     Circle().fill(color).frame(width: 7, height: 7)
-                    Text(name).cpFont(11, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
+                    Text(name).cpFont(12, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
                     Spacer(minLength: 4)
                 }
                 .frame(minHeight: 44)
@@ -953,7 +1133,7 @@ private struct NativeDashboardView: View {
                     .accessibilityLabel("Open \(name) syllabus")
             }
             Text(scoreText(course))
-                .cpFont(10, .semibold).monospacedDigit()
+                .cpFont(11, .semibold).monospacedDigit()
                 .foregroundStyle(color)
                 .lineLimit(1)
                 .fixedSize()
@@ -991,7 +1171,7 @@ private struct NativeDashboardView: View {
                 }
                 if quiet > 0 {
                     Text("\(quiet) other \(quiet == 1 ? "class has" : "classes have") nothing due.")
-                        .cpFont(10).foregroundStyle(CPTheme.faint(scheme))
+                        .cpFont(11).foregroundStyle(CPTheme.faint(scheme))
                 }
             }
         }
@@ -1006,13 +1186,13 @@ private struct NativeDashboardView: View {
                 }
             } label: {
                 HStack(spacing: 10) {
-                    Image(systemName: "chevron.right").cpFont(9, .bold).foregroundStyle(CPTheme.faint(scheme))
+                    Image(systemName: "chevron.right").cpIconFont(9, .bold).foregroundStyle(CPTheme.faint(scheme))
                         .rotationEffect(.degrees(isOpen ? 90 : 0))
                     Circle().fill(CPTheme.gradeColor(course.currentScore)).frame(width: 7, height: 7)
                     Text(store.displayName(courseID: course.id, fallback: course.name))
-                        .cpFont(11, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
+                        .cpFont(12, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
                     Spacer(minLength: 6)
-                    Text("\(items.count)").cpFont(10, .semibold).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
+                    Text("\(items.count)").cpFont(11, .semibold).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
                 }
                 .frame(minHeight: 44)
                 .contentShape(Rectangle())
@@ -1068,15 +1248,15 @@ private struct NativeDashboardView: View {
                         HStack(spacing: 12) {
                             NativeDateBadge(date: entry.date)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(entry.event.title).cpFont(11, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
-                                if let context = entry.event.contextName { Text(context).cpFont(9).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1) }
+                                Text(entry.event.title).cpFont(12, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
+                                if let context = entry.event.contextName { Text(context).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1) }
                             }
                             Spacer(minLength: 6)
-                            Text(entry.date.formatted(.dateTime.hour().minute())).cpFont(10, .medium).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
+                            Text(entry.date.formatted(.dateTime.hour().minute())).cpFont(11, .medium).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
                         }
                         .padding(.vertical, 8)
                         .accessibilityElement(children: .combine)
-                        if entry.id != events.last?.id { CPRowDivider(leading: 48) }
+                        if entry.id != events.last?.id { CPRowDivider(leading: 52) }
                     }
                 }
             }
@@ -1116,11 +1296,11 @@ private struct NativeDashboardView: View {
                 }
             } label: {
                 HStack(spacing: 10) {
-                    Image(systemName: "chevron.right").cpFont(9, .bold).foregroundStyle(CPTheme.faint(scheme))
+                    Image(systemName: "chevron.right").cpIconFont(9, .bold).foregroundStyle(CPTheme.faint(scheme))
                         .rotationEffect(.degrees(isOpen ? 90 : 0))
-                    Text(name).cpFont(11, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
+                    Text(name).cpFont(12, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
                     Spacer(minLength: 6)
-                    Text("\(items.count)").cpFont(10, .semibold).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
+                    Text("\(items.count)").cpFont(11, .semibold).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
                 }
                 .frame(minHeight: 44)
                 .contentShape(Rectangle())
@@ -1134,19 +1314,19 @@ private struct NativeDashboardView: View {
                             NavigationLink { AnnouncementDetailView(item: item) } label: {
                                 VStack(alignment: .leading, spacing: 3) {
                                     HStack(alignment: .firstTextBaseline) {
-                                        Text(item.title).cpFont(11, .semibold).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(2)
+                                        Text(item.title).cpFont(12, .semibold).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(2)
                                         Spacer(minLength: 6)
                                         Text(ISO8601DateFormatter.canvasDate(from: item.postedAt)?.formatted(.dateTime.month(.abbreviated).day()) ?? "")
-                                            .cpFont(9).foregroundStyle(CPTheme.faint(scheme))
+                                            .cpFont(11).foregroundStyle(CPTheme.faint(scheme))
                                     }
-                                    Text(item.message.strippingHTML).cpFont(10).foregroundStyle(CPTheme.muted(scheme)).lineLimit(2)
+                                    Text(item.message.strippingHTML).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(2)
                                 }
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(CPPressStyle())
                             Button { dismissAnnouncement(item.id) } label: {
-                                Image(systemName: "xmark").cpFont(8, .bold).foregroundStyle(CPTheme.muted(scheme))
+                                Image(systemName: "xmark").cpIconFont(8, .bold).foregroundStyle(CPTheme.muted(scheme))
                                     .frame(width: 22, height: 22).background(CPTheme.inset(scheme), in: Circle())
                                     .frame(width: 44, height: 44).contentShape(Rectangle())
                             }
@@ -1175,7 +1355,7 @@ private struct NativeDashboardView: View {
             HStack(alignment: .top, spacing: 12) {
                 CPIconBadge(symbol: "graduationcap")
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("GPA").cpFont(9, .semibold).tracking(1).foregroundStyle(CPTheme.muted(scheme))
+                    Text("GPA").cpFont(11, .semibold).tracking(1).foregroundStyle(CPTheme.muted(scheme))
                     Text(result.gpa.map { String(format: "%.2f", $0) } ?? "—").cpFont(24, .semibold).tracking(-0.6).monospacedDigit()
                         .foregroundStyle(CPTheme.foreground(scheme))
                 }
@@ -1191,15 +1371,15 @@ private struct NativeDashboardView: View {
             }
             if showGpaScale {
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("4.0 SCALE").cpFont(9, .semibold).tracking(0.9).foregroundStyle(CPTheme.muted(scheme)).padding(.bottom, 4)
+                    Text("4.0 SCALE").cpFont(11, .semibold).tracking(0.9).foregroundStyle(CPTheme.muted(scheme)).padding(.bottom, 4)
                     ForEach(NativeGPA.scale, id: \.minimum) { entry in
                         HStack { Text("\(entry.minimum)%+"); Spacer(); Text(String(format: "%.1f", entry.points)) }
-                            .cpFont(10).monospacedDigit().foregroundStyle(CPTheme.muted(scheme)).padding(.vertical, 3)
+                            .cpFont(11).monospacedDigit().foregroundStyle(CPTheme.muted(scheme)).padding(.vertical, 3)
                     }
                 }
             }
             HStack {
-                Text("\(store.bundle.courses.count) class\(store.bundle.courses.count == 1 ? "" : "es") loaded.").cpFont(10).foregroundStyle(CPTheme.faint(scheme))
+                Text("\(store.bundle.courses.count) class\(store.bundle.courses.count == 1 ? "" : "es") loaded.").cpFont(11).foregroundStyle(CPTheme.faint(scheme))
                 Spacer()
                 if result.countedCredits == 0 {
                     NavigationLink { ClassScheduleView(features: features, store: store) } label: { CPLinkLabel(text: "Add credits") }.buttonStyle(.plain)
@@ -1256,10 +1436,10 @@ struct NativeDateBadge: View {
     let date: Date
     var body: some View {
         VStack(spacing: 0) {
-            Text(date.formatted(.dateTime.weekday(.abbreviated)).uppercased()).cpFont(8, .bold).foregroundStyle(CPTheme.primary(scheme: scheme))
-            Text(date.formatted(.dateTime.day())).cpFont(13, .semibold).monospacedDigit().foregroundStyle(CPTheme.foreground(scheme))
+            Text(date.formatted(.dateTime.weekday(.abbreviated)).uppercased()).cpFont(11, .bold).foregroundStyle(CPTheme.primary(scheme: scheme))
+            Text(date.formatted(.dateTime.day())).cpFont(14, .semibold).monospacedDigit().foregroundStyle(CPTheme.foreground(scheme))
         }
-        .frame(width: 36, height: 36)
+        .frame(width: 40, height: 40)
         .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
         .accessibilityHidden(true)
     }
@@ -1321,17 +1501,17 @@ struct NativeDueRow: View {
                 HStack(spacing: 8) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(assignment.name)
-                            .cpFont(11, .medium)
+                            .cpFont(12, .medium)
                             .foregroundStyle(isComplete ? CPTheme.muted(scheme) : CPTheme.foreground(scheme))
                             .strikethrough(isComplete)
                             .lineLimit(2)
                         Text(showCourse ? store.displayName(courseID: assignment.courseID, fallback: assignment.courseName) : (countdown?.fullDate ?? "No due date"))
-                            .cpFont(9).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
+                            .cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
                     }
                     Spacer(minLength: 6)
                     if let countdown {
                         Text(countdown.label)
-                            .cpFont(10, countdown.urgency == "today" || countdown.urgency == "overdue" ? .semibold : .medium)
+                            .cpFont(11, countdown.urgency == "today" || countdown.urgency == "overdue" ? .semibold : .medium)
                             .monospacedDigit()
                             .foregroundStyle(CPTheme.urgency(countdown.urgency, scheme: scheme))
                             .lineLimit(1)
@@ -1370,7 +1550,7 @@ struct NativeCompletionButton: View {
                 Circle().strokeBorder(isComplete ? Color.clear : CPTheme.muted(scheme).opacity(0.55), lineWidth: 1.5)
                 if isComplete {
                     Circle().fill(CPTheme.primary(scheme: scheme))
-                    Image(systemName: "checkmark").cpFont(9, .bold).foregroundStyle(CPTheme.onPrimary(scheme))
+                    Image(systemName: "checkmark").cpIconFont(9, .bold).foregroundStyle(CPTheme.onPrimary(scheme))
                 }
             }
             .frame(width: 20, height: 20)
@@ -1401,8 +1581,8 @@ struct NativeSyncStatusCard: View {
                     else { Circle().fill(statusColor).frame(width: 6, height: 6) }
                 }
                 .frame(width: 14, height: 14)
-                Text(statusTitle).cpFont(10, .semibold).foregroundStyle(CPTheme.foreground(scheme))
-                Text(statusDetail).cpFont(10).foregroundStyle(CPTheme.muted(scheme)).lineLimit(2)
+                Text(statusTitle).cpFont(11, .semibold).foregroundStyle(CPTheme.foreground(scheme))
+                Text(statusDetail).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(2)
                 Spacer(minLength: 4)
                 if (store.isShowingCachedData || store.syncMessage != nil) && !store.isLoading {
                     Button(action: retry) { CPIconButtonLabel(symbol: "arrow.clockwise") }
@@ -1451,8 +1631,8 @@ private struct DashboardCustomizationView: View {
                     HStack(spacing: 10) {
                         Toggle(isOn: Binding(get: { !features.dashboardHidden.contains(id) }, set: { setVisible(id, $0) })) {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(title(for: id)).cpFont(11, .medium)
-                                Text(features.dashboardHidden.contains(id) ? "Hidden" : "Shown on dashboard").cpFont(9).foregroundStyle(.secondary)
+                                Text(title(for: id)).cpFont(12, .medium)
+                                Text(features.dashboardHidden.contains(id) ? "Hidden" : "Shown on dashboard").cpFont(11).foregroundStyle(.secondary)
                             }
                         }
                         Button { move(index, -1) } label: { Image(systemName: "chevron.up").frame(width: 32, height: 44) }
@@ -1499,12 +1679,12 @@ struct NativePageHero<Tiles: View>: View {
         VStack(alignment: .leading, spacing: 14) {
             CPIconBadge(symbol: symbol)
             VStack(alignment: .leading, spacing: 4) {
-                Text(eyebrow.uppercased()).cpFont(9, .semibold).tracking(1.1).foregroundStyle(CPTheme.muted(scheme))
+                Text(eyebrow.uppercased()).cpFont(11, .semibold).tracking(1.1).foregroundStyle(CPTheme.muted(scheme))
                 Text(title).cpFont(20, .semibold).tracking(-0.5).foregroundStyle(CPTheme.foreground(scheme))
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityAddTraits(.isHeader)
                 if let detail {
-                    Text(detail).cpFont(11).lineSpacing(2).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
+                    Text(detail).cpFont(12).lineSpacing(2).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
                 }
             }
             HStack(spacing: 8) { tiles }
@@ -1587,10 +1767,10 @@ struct NativeAssignmentsView: View {
                     if !visibleCourses.isEmpty {
                         Button { showAdd = true } label: {
                             HStack(spacing: 8) {
-                                Image(systemName: "plus").cpFont(10, .bold)
+                                Image(systemName: "plus").cpIconFont(10, .bold)
                                 Text("Add something Canvas doesn't have")
                                 Spacer()
-                                Image(systemName: "chevron.right").cpFont(8, .bold).foregroundStyle(CPTheme.faint(scheme))
+                                Image(systemName: "chevron.right").cpIconFont(8, .bold).foregroundStyle(CPTheme.faint(scheme))
                             }
                         }
                         .buttonStyle(CPButtonStyle(kind: .quiet, fullWidth: true))
@@ -1622,7 +1802,7 @@ struct NativeAssignmentsView: View {
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(showCompleted ? .isSelected : [])
             Spacer()
-            Text("\(shownCount) shown").cpFont(10).monospacedDigit().foregroundStyle(CPTheme.faint(scheme))
+            Text("\(shownCount) shown").cpFont(11).monospacedDigit().foregroundStyle(CPTheme.faint(scheme))
         }
         .padding(.top, 4)
     }
@@ -1632,7 +1812,7 @@ struct NativeAssignmentsView: View {
             CPCardHeader(title: "Priority Assignments", subtitle: "Smart ordering by deadline and weight")
             HStack(alignment: .top, spacing: 10) {
                 CPIconBadge(symbol: "sparkles")
-                Text(prioritySummary).cpFont(11).lineSpacing(2).foregroundStyle(CPTheme.foreground(scheme).opacity(0.9))
+                Text(prioritySummary).cpFont(12).lineSpacing(2).foregroundStyle(CPTheme.foreground(scheme).opacity(0.9))
                     .fixedSize(horizontal: false, vertical: true)
             }
             if !priorityAssignments.isEmpty {
@@ -1641,8 +1821,8 @@ struct NativeAssignmentsView: View {
                         HStack(spacing: 10) {
                             NativeCompletionButton(assignment: item, store: store)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(item.name).cpFont(11, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(2)
-                                Text(store.displayName(courseID: item.courseID, fallback: item.courseName)).cpFont(9).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
+                                Text(item.name).cpFont(12, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(2)
+                                Text(store.displayName(courseID: item.courseID, fallback: item.courseName)).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
                             }
                             Spacer(minLength: 6)
                             let label = NativeParity.priorityLabel(item)
@@ -1662,7 +1842,7 @@ struct NativeAssignmentsView: View {
             CPSectionLabel(section.title, count: section.items.count) {
                 if section.key == "undated" && search.isEmpty {
                     Button(undatedOpen ? "Hide" : "Show") { undatedOpen.toggle() }
-                        .cpFont(10, .semibold)
+                        .cpFont(11, .semibold)
                         .frame(minHeight: 32)
                 }
             }
@@ -1689,15 +1869,15 @@ struct NativeAssignmentsView: View {
             NativeCompletionButton(assignment: item, store: store).padding(.top, 1)
             VStack(alignment: .leading, spacing: 4) {
                 Text(item.name)
-                    .cpFont(12, .medium)
+                    .cpFont(13, .medium)
                     .foregroundStyle(done ? CPTheme.muted(scheme) : CPTheme.foreground(scheme))
                     .strikethrough(done)
                     .fixedSize(horizontal: false, vertical: true)
                 Text(metaLine(item, done: done, mine: mine))
-                    .cpFont(9).foregroundStyle(CPTheme.muted(scheme))
+                    .cpFont(11).foregroundStyle(CPTheme.muted(scheme))
                     .fixedSize(horizontal: false, vertical: true)
                 if !notes.isEmpty {
-                    Text(notes).cpFont(10).foregroundStyle(CPTheme.foreground(scheme).opacity(0.7)).lineLimit(2)
+                    Text(notes).cpFont(11).foregroundStyle(CPTheme.foreground(scheme).opacity(0.7)).lineLimit(2)
                 }
                 HStack(spacing: 14) {
                     if !mine { NativeAssignmentDescriptionLink(assignment: item, store: store, features: features) }
@@ -1715,7 +1895,7 @@ struct NativeAssignmentsView: View {
                             .accessibilityLabel("Delete \(item.name)")
                     }
                 }
-                .cpFont(10, .medium)
+                .cpFont(11, .medium)
                 .foregroundStyle(CPTheme.primary(scheme: scheme))
                 .buttonStyle(.plain)
                 .frame(minHeight: 28)
@@ -1723,10 +1903,10 @@ struct NativeAssignmentsView: View {
             Spacer(minLength: 6)
             VStack(alignment: .trailing, spacing: 2) {
                 if let due = item.dueDate {
-                    Text(due.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())).cpFont(10, .medium).foregroundStyle(CPTheme.foreground(scheme).opacity(0.85))
-                    Text(due.formatted(.dateTime.hour().minute())).cpFont(9).foregroundStyle(CPTheme.faint(scheme))
+                    Text(due.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())).cpFont(11, .medium).foregroundStyle(CPTheme.foreground(scheme).opacity(0.85))
+                    Text(due.formatted(.dateTime.hour().minute())).cpFont(11).foregroundStyle(CPTheme.faint(scheme))
                 } else {
-                    Text("No due date").cpFont(10).foregroundStyle(CPTheme.faint(scheme))
+                    Text("No due date").cpFont(11).foregroundStyle(CPTheme.faint(scheme))
                 }
             }
             .monospacedDigit()
@@ -1750,7 +1930,7 @@ struct NativeAssignmentsView: View {
                 }
                 if hiddenBeyond > 0 {
                     Text("\(hiddenBeyond) more \(hiddenBeyond == 1 ? "is" : "are") due after four weeks. Search to find any assignment.")
-                        .cpFont(10).foregroundStyle(CPTheme.faint(scheme)).multilineTextAlignment(.center)
+                        .cpFont(11).foregroundStyle(CPTheme.faint(scheme)).multilineTextAlignment(.center)
                 }
             }
             .frame(maxWidth: .infinity)
@@ -1819,12 +1999,12 @@ struct NativeAssignmentRow: View {
             NativeCompletionButton(assignment: assignment, store: store, onCompleted: onCompleted).padding(.top, 1)
             VStack(alignment: .leading, spacing: 4) {
                 Text(assignment.name)
-                    .cpFont(12, .semibold)
+                    .cpFont(13, .semibold)
                     .foregroundStyle(isComplete ? CPTheme.muted(scheme) : CPTheme.foreground(scheme))
                     .strikethrough(isComplete)
                     .fixedSize(horizontal: false, vertical: true)
                 Text(store.displayName(courseID: assignment.courseID, fallback: assignment.courseName))
-                    .cpFont(10)
+                    .cpFont(11)
                     .foregroundStyle(CPTheme.muted(scheme))
                     .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 6) {
@@ -1836,7 +2016,7 @@ struct NativeAssignmentRow: View {
                     if let points = assignment.pointsPossible { CPPill(text: "\(points.formatted()) pts") }
                 }
                 if let countdown, !countdown.fullDate.isEmpty {
-                    Text(countdown.fullDate).cpFont(9).monospacedDigit().foregroundStyle(CPTheme.faint(scheme))
+                    Text(countdown.fullDate).cpFont(11).monospacedDigit().foregroundStyle(CPTheme.faint(scheme))
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -1855,7 +2035,7 @@ struct AssignmentDetailView: View {
     var body: some View {
         Form {
             Section { NativeAssignmentRow(assignment: assignment, store: store) }
-            if let description = assignment.description, !description.isEmpty { Section("Description") { Text(description.strippingHTML).cpFont(11).lineSpacing(3).textSelection(.enabled) } }
+            if let description = assignment.description, !description.isEmpty { Section("Description") { Text(description.strippingHTML).cpFont(12).lineSpacing(3).textSelection(.enabled) } }
             Section("Planning") {
                 Stepper("Estimated time: \(estimate) min", value: $estimate, in: 5...480, step: 5)
                 Button("Save estimate") { Task { do { try await features.saveEstimate(estimate, for: assignment); status = "Estimate saved." } catch { status = error.localizedDescription } } }
@@ -1959,11 +2139,11 @@ private struct NativeGradesView: View {
                             HStack(spacing: 12) {
                                 CPIconBadge(symbol: "function")
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text("What-if grade calculator").cpFont(12, .semibold).foregroundStyle(CPTheme.foreground(scheme))
-                                    Text("Plan the score you need on what's left").cpFont(10).foregroundStyle(CPTheme.muted(scheme))
+                                    Text("What-if grade calculator").cpFont(13, .semibold).foregroundStyle(CPTheme.foreground(scheme))
+                                    Text("Plan the score you need on what's left").cpFont(11).foregroundStyle(CPTheme.muted(scheme))
                                 }
                                 Spacer()
-                                Image(systemName: "chevron.right").cpFont(9, .bold).foregroundStyle(CPTheme.faint(scheme))
+                                Image(systemName: "chevron.right").cpIconFont(9, .bold).foregroundStyle(CPTheme.faint(scheme))
                             }
                             .padding(CPLayout.cardPadding)
                             .cpSurface()
@@ -1993,9 +2173,9 @@ private struct NativeGradesView: View {
                 }
                 .frame(width: 64, height: 64)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("CURRENT AVERAGE").cpFont(9, .semibold).tracking(1.1).foregroundStyle(CPTheme.muted(scheme))
+                    Text("CURRENT AVERAGE").cpFont(11, .semibold).tracking(1.1).foregroundStyle(CPTheme.muted(scheme))
                     CountUpGrade(value: average, size: 30, color: CPTheme.foreground(scheme))
-                    Text("Across \(scored.count) graded \(scored.count == 1 ? "class" : "classes")").cpFont(10).foregroundStyle(CPTheme.muted(scheme))
+                    Text("Across \(scored.count) graded \(scored.count == 1 ? "class" : "classes")").cpFont(11).foregroundStyle(CPTheme.muted(scheme))
                 }
                 Spacer(minLength: 0)
             }
@@ -2031,18 +2211,18 @@ private struct NativeGradesView: View {
                     HStack(spacing: 10) {
                         Circle().fill(color).frame(width: 8, height: 8)
                         Text(store.displayName(courseID: course.id, fallback: course.name))
-                            .cpFont(12, .semibold).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(2)
+                            .cpFont(13, .semibold).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(2)
                         Spacer(minLength: 6)
-                        Image(systemName: "chevron.right").cpFont(9, .bold).foregroundStyle(CPTheme.faint(scheme))
+                        Image(systemName: "chevron.right").cpIconFont(9, .bold).foregroundStyle(CPTheme.faint(scheme))
                     }
                     HStack(alignment: .lastTextBaseline, spacing: 8) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("CURRENT GRADE").cpFont(9, .semibold).tracking(1).foregroundStyle(CPTheme.muted(scheme))
+                            Text("CURRENT GRADE").cpFont(11, .semibold).tracking(1).foregroundStyle(CPTheme.muted(scheme))
                             CountUpGrade(value: course.currentScore, size: 24, color: color)
                         }
                         let letter = NativeParity.courseLetter(course.currentGrade, score: course.currentScore)
                         if letter != "—" {
-                            Text(letter).cpFont(10, .bold).foregroundStyle(color)
+                            Text(letter).cpFont(11, .bold).foregroundStyle(color)
                                 .padding(.horizontal, 7).frame(height: 20)
                                 .background(color.opacity(scheme == .dark ? 0.14 : 0.10), in: Capsule())
                         }
@@ -2055,7 +2235,7 @@ private struct NativeGradesView: View {
                             Spacer()
                             Text("\(graded.count) graded")
                         }
-                        .cpFont(9).foregroundStyle(CPTheme.muted(scheme))
+                        .cpFont(11).foregroundStyle(CPTheme.muted(scheme))
                         CPProgressBar(value: (course.currentScore ?? 0) / 100, color: color)
                     }
                 }
@@ -2070,9 +2250,9 @@ private struct NativeGradesView: View {
                 HStack {
                     Text(isOpen ? "Hide graded work" : "Show graded work")
                     Spacer()
-                    Image(systemName: "chevron.down").cpFont(9, .bold).rotationEffect(.degrees(isOpen ? 180 : 0))
+                    Image(systemName: "chevron.down").cpIconFont(9, .bold).rotationEffect(.degrees(isOpen ? 180 : 0))
                 }
-                .cpFont(10, .semibold)
+                .cpFont(11, .semibold)
                 .foregroundStyle(CPTheme.primary(scheme: scheme))
                 .frame(minHeight: 32)
                 .contentShape(Rectangle())
@@ -2082,12 +2262,12 @@ private struct NativeGradesView: View {
             if isOpen {
                 VStack(spacing: 0) {
                     if graded.isEmpty {
-                        Text("No graded assignments yet.").cpFont(10).foregroundStyle(CPTheme.muted(scheme)).frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 8)
+                        Text("No graded assignments yet.").cpFont(11).foregroundStyle(CPTheme.muted(scheme)).frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 8)
                     }
                     ForEach(graded) { item in
                         NavigationLink { CourseDetailView(course: course, store: store, features: features, highlightAssignment: item) } label: {
                             HStack(spacing: 10) {
-                                Text(item.name).cpFont(11).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(2)
+                                Text(item.name).cpFont(12).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(2)
                                 Spacer(minLength: 6)
                                 NativeScoreBadge(assignment: item)
                             }
@@ -2134,9 +2314,9 @@ struct NativeScoreBadge: View {
         let color = CPTheme.gradeColor(percent)
         HStack(spacing: 6) {
             Text("\(earned.map { $0.formatted() } ?? (assignment.submission?.grade ?? "—"))\(possible.map { " / \($0.formatted())" } ?? "")")
-                .cpFont(10, .medium).monospacedDigit().foregroundStyle(CPTheme.foreground(scheme).opacity(0.85))
+                .cpFont(11, .medium).monospacedDigit().foregroundStyle(CPTheme.foreground(scheme).opacity(0.85))
             if let percent {
-                Text("\(Int(percent.rounded()))%").cpFont(9, .bold).monospacedDigit().foregroundStyle(color)
+                Text("\(Int(percent.rounded()))%").cpFont(11, .bold).monospacedDigit().foregroundStyle(color)
                     .padding(.horizontal, 6).frame(height: 18)
                     .background(color.opacity(scheme == .dark ? 0.14 : 0.10), in: Capsule())
             }
@@ -2152,13 +2332,13 @@ struct CourseRow: View {
         HStack(spacing: 10) {
             Circle().fill(gradeColor).frame(width: 7, height: 7)
             VStack(alignment: .leading, spacing: 2) {
-                Text(store.displayName(courseID: course.id, fallback: course.name)).cpFont(11, .medium).lineLimit(2)
-                if !course.courseCode.isEmpty { Text(course.courseCode).cpFont(9).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1) }
+                Text(store.displayName(courseID: course.id, fallback: course.name)).cpFont(12, .medium).lineLimit(2)
+                if !course.courseCode.isEmpty { Text(course.courseCode).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1) }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             VStack(alignment: .trailing, spacing: 1) {
-                Text(NativeParity.courseLetter(course.currentGrade, score: course.currentScore)).cpFont(12, .semibold).foregroundStyle(gradeColor)
-                if let score = course.currentScore { Text("\(score.formatted(.number.precision(.fractionLength(1))))%").cpFont(9).monospacedDigit().foregroundStyle(CPTheme.muted(scheme)) }
+                Text(NativeParity.courseLetter(course.currentGrade, score: course.currentScore)).cpFont(13, .semibold).foregroundStyle(gradeColor)
+                if let score = course.currentScore { Text("\(score.formatted(.number.precision(.fractionLength(1))))%").cpFont(11).monospacedDigit().foregroundStyle(CPTheme.muted(scheme)) }
             }
             .fixedSize(horizontal: true, vertical: false)
         }
@@ -2294,19 +2474,19 @@ struct CourseDetailView: View {
             HStack(alignment: .center, spacing: 14) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(course.courseCode.isEmpty ? "CLASS OVERVIEW" : course.courseCode.uppercased())
-                        .cpFont(9, .semibold).tracking(1.1).foregroundStyle(CPTheme.muted(scheme)).lineLimit(2)
+                        .cpFont(11, .semibold).tracking(1.1).foregroundStyle(CPTheme.muted(scheme)).lineLimit(2)
                     Text(courseName).cpFont(18, .semibold).tracking(-0.4).foregroundStyle(CPTheme.foreground(scheme))
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityAddTraits(.isHeader)
-                    Text("\(courseAssignments.count) assignments").cpFont(10).foregroundStyle(CPTheme.muted(scheme))
+                    Text("\(courseAssignments.count) assignments").cpFont(11).foregroundStyle(CPTheme.muted(scheme))
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 CPRing(progress: (course.currentScore ?? 0) / 100, color: gradeColor, lineWidth: 5) {
                     VStack(spacing: 0) {
                         Text(course.currentScore.map { "\($0.formatted(.number.precision(.fractionLength(1))))" } ?? "—")
-                            .cpFont(13, .semibold).monospacedDigit().foregroundStyle(CPTheme.foreground(scheme))
+                            .cpFont(14, .semibold).monospacedDigit().foregroundStyle(CPTheme.foreground(scheme))
                             .lineLimit(1).minimumScaleFactor(0.7)
-                        Text(NativeParity.courseLetter(course.currentGrade, score: course.currentScore)).cpFont(9, .bold).foregroundStyle(gradeColor)
+                        Text(NativeParity.courseLetter(course.currentGrade, score: course.currentScore)).cpFont(11, .bold).foregroundStyle(gradeColor)
                     }
                     .padding(8)
                 }
@@ -2317,7 +2497,7 @@ struct CourseDetailView: View {
             CPRowDivider()
             if let scheduleText {
                 Label { Text(scheduleText).fixedSize(horizontal: false, vertical: true) } icon: { Image(systemName: "clock") }
-                    .cpFont(10).foregroundStyle(CPTheme.muted(scheme))
+                    .cpFont(11).foregroundStyle(CPTheme.muted(scheme))
             } else {
                 NavigationLink { ClassScheduleView(features: features, store: store) } label: { CPLinkLabel(text: "Enter class time/days", symbol: "plus") }
                     .buttonStyle(.plain)
@@ -2349,13 +2529,13 @@ struct CourseDetailView: View {
         return VStack(alignment: .leading, spacing: 8) {
             CPSectionLabel("Upcoming", count: upcoming.count) {
                 if upcoming.count > upcomingThreeWeeks.count {
-                    Button(showAllUpcoming ? "Show less" : "View all") { showAllUpcoming.toggle() }.cpFont(10, .semibold).frame(minHeight: 32)
+                    Button(showAllUpcoming ? "Show less" : "View all") { showAllUpcoming.toggle() }.cpFont(11, .semibold).frame(minHeight: 32)
                 }
             }
             if upcoming.isEmpty { CPGlassCard { NativeEmptyState(title: "All caught up!", symbol: "checkmark.circle", detail: "No upcoming assignments due for this class.") } }
             else {
                 if !showAllUpcoming && upcoming.count > upcomingThreeWeeks.count {
-                    Text("Only showing the next 3 weeks.").cpFont(9).foregroundStyle(CPTheme.faint(scheme)).padding(.horizontal, 4)
+                    Text("Only showing the next 3 weeks.").cpFont(11).foregroundStyle(CPTheme.faint(scheme)).padding(.horizontal, 4)
                 }
                 assignmentList(items, graded: false)
             }
@@ -2386,25 +2566,25 @@ struct CourseDetailView: View {
         return VStack(alignment: .leading, spacing: 8) {
             CPSectionLabel("Announcements", count: announcements.count) {
                 if announcements.count > recentAnnouncements.count {
-                    Button(showAllAnnouncements ? "Show less" : "View all") { showAllAnnouncements.toggle() }.cpFont(10, .semibold).frame(minHeight: 32)
+                    Button(showAllAnnouncements ? "Show less" : "View all") { showAllAnnouncements.toggle() }.cpFont(11, .semibold).frame(minHeight: 32)
                 }
             }
             if announcements.isEmpty { CPGlassCard { NativeEmptyState(title: "No announcements", symbol: "megaphone", detail: "No announcements posted for this course.") } }
             else {
                 if !showAllAnnouncements && announcements.count > recentAnnouncements.count {
-                    Text("Only showing the past 3 weeks.").cpFont(9).foregroundStyle(CPTheme.faint(scheme)).padding(.horizontal, 4)
+                    Text("Only showing the past 3 weeks.").cpFont(11).foregroundStyle(CPTheme.faint(scheme)).padding(.horizontal, 4)
                 }
                 VStack(spacing: 0) {
                     ForEach(items) { item in
                         NavigationLink { AnnouncementDetailView(item: item) } label: {
                             VStack(alignment: .leading, spacing: 4) {
                                 HStack(alignment: .firstTextBaseline) {
-                                    Text(item.title).cpFont(12, .semibold).foregroundStyle(CPTheme.foreground(scheme)).fixedSize(horizontal: false, vertical: true)
+                                    Text(item.title).cpFont(13, .semibold).foregroundStyle(CPTheme.foreground(scheme)).fixedSize(horizontal: false, vertical: true)
                                     Spacer(minLength: 8)
-                                    Text(announcementDate(item)).cpFont(9).foregroundStyle(CPTheme.faint(scheme))
+                                    Text(announcementDate(item)).cpFont(11).foregroundStyle(CPTheme.faint(scheme))
                                 }
-                                Text(item.message.strippingHTML).cpFont(10).lineSpacing(2).foregroundStyle(CPTheme.muted(scheme)).lineLimit(3)
-                                Text("Read full announcement").cpFont(10, .semibold).foregroundStyle(CPTheme.primary(scheme: scheme))
+                                Text(item.message.strippingHTML).cpFont(11).lineSpacing(2).foregroundStyle(CPTheme.muted(scheme)).lineLimit(3)
+                                Text("Read full announcement").cpFont(11, .semibold).foregroundStyle(CPTheme.primary(scheme: scheme))
                             }
                             .padding(.vertical, 11)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -2426,7 +2606,7 @@ struct CourseDetailView: View {
             HStack(alignment: .top, spacing: 10) {
                 if !isGraded { NativeCompletionButton(assignment: assignment, store: store).padding(.top, 1) }
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(assignment.name).cpFont(12, .medium).foregroundStyle(CPTheme.foreground(scheme))
+                    Text(assignment.name).cpFont(13, .medium).foregroundStyle(CPTheme.foreground(scheme))
                         .fixedSize(horizontal: false, vertical: true)
                     HStack(spacing: 6) {
                         if let date = assignment.dueDate {
@@ -2436,11 +2616,11 @@ struct CourseDetailView: View {
                         }
                         if let points = assignment.pointsPossible { Text("· \(points.formatted()) pts") }
                     }
-                    .cpFont(9).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
+                    .cpFont(11).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
                     Button {
                         if isOpen { expandedDescriptions.remove(assignment.id) } else { expandedDescriptions.insert(assignment.id) }
                     } label: {
-                        Text(isOpen ? "Hide description" : "See description").cpFont(10, .semibold).foregroundStyle(CPTheme.primary(scheme: scheme))
+                        Text(isOpen ? "Hide description" : "See description").cpFont(11, .semibold).foregroundStyle(CPTheme.primary(scheme: scheme))
                             .frame(minHeight: 26).contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
@@ -2448,20 +2628,20 @@ struct CourseDetailView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 if isGraded { NativeScoreBadge(assignment: assignment) }
                 else if !isGraded, let countdown = NativeParity.countdown(assignment, completed: assignment.isFinished(in: store)) {
-                    Text(countdown.label).cpFont(10, .medium).foregroundStyle(CPTheme.urgency(countdown.urgency, scheme: scheme)).fixedSize()
+                    Text(countdown.label).cpFont(11, .medium).foregroundStyle(CPTheme.urgency(countdown.urgency, scheme: scheme)).fixedSize()
                 }
             }
             if isOpen {
                 let description = assignment.description?.strippingHTML ?? ""
                 VStack(alignment: .leading, spacing: 8) {
                     Text(description.isEmpty ? "Canvas does not provide a description for this assignment." : description)
-                        .cpFont(11).lineSpacing(3).foregroundStyle(CPTheme.foreground(scheme).opacity(0.85))
+                        .cpFont(12).lineSpacing(3).foregroundStyle(CPTheme.foreground(scheme).opacity(0.85))
                         .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
                     HStack(spacing: 14) {
                         NavigationLink("Assignment details") { AssignmentDetailView(assignment: assignment, store: store, features: features) }
                         if let url = URL(string: assignment.htmlURL), url.scheme == "https" { Link("Open in Canvas", destination: url) }
                     }
-                    .cpFont(10, .semibold)
+                    .cpFont(11, .semibold)
                     .foregroundStyle(CPTheme.primary(scheme: scheme))
                     .frame(minHeight: 28)
                 }
@@ -2528,7 +2708,7 @@ private struct GradeCalculatorView: View {
     var body: some View {
         Form {
             Section("Weighted grade") {
-                Text("Enter each group's weight and score. Leave the score blank for work that is not graded yet.").cpFont(12).foregroundStyle(.secondary)
+                Text("Enter each group's weight and score. Leave the score blank for work that is not graded yet.").cpFont(13).foregroundStyle(.secondary)
                 ForEach($rows) { $row in
                     VStack(alignment: .leading, spacing: 8) {
                         HStack { TextField("Group name", text: $row.name); Button(role: .destructive) { rows.removeAll { $0.id == row.id } } label: { Image(systemName: "trash").frame(width: 44, height: 44) }.buttonStyle(.borderless).accessibilityLabel(row.name.isEmpty ? "Remove group" : "Remove \(row.name)") }
@@ -2539,10 +2719,10 @@ private struct GradeCalculatorView: View {
             }
             Section("Results") {
                 LabeledContent("Grade now", value: current.map { "\($0.formatted(.number.precision(.fractionLength(1))))%" } ?? "—")
-                Text("Based on \(gradedWeight.formatted())% of the course graded").cpFont(11).foregroundStyle(.secondary)
+                Text("Based on \(gradedWeight.formatted())% of the course graded").cpFont(12).foregroundStyle(.secondary)
                 LabeledContent("Projected if remaining scores zero", value: (ungradedWeight > 0 ? projected : current).map { "\($0.formatted(.number.precision(.fractionLength(1))))%" } ?? "—")
                 LabeledContent("Weights total", value: "\(totalWeight.formatted())%")
-                if totalWeight != 100 { Text("Weights should total 100%.").cpFont(11).foregroundStyle(.orange) }
+                if totalWeight != 100 { Text("Weights should total 100%.").cpFont(12).foregroundStyle(.orange) }
             }
             Section("What do I need on the final?") {
                 TextField("Grade I want", text: $target).keyboardType(.decimalPad)
@@ -2696,18 +2876,18 @@ struct NativeStudyView: View {
                             .accessibilityLabel("Show finished assignments")
                     }
                     HStack(spacing: 8) {
-                        Image(systemName: "plus").cpFont(10, .bold).foregroundStyle(CPTheme.muted(scheme))
-                        TextField("Add your own task", text: $manualName).cpFont(11).submitLabel(.done).onSubmit { addManualTask() }
+                        Image(systemName: "plus").cpIconFont(10, .bold).foregroundStyle(CPTheme.muted(scheme))
+                        TextField("Add your own task", text: $manualName).cpFont(12).submitLabel(.done).onSubmit { addManualTask() }
                             .accessibilityLabel("Add your own task")
                         Button("Add") { addManualTask() }
-                            .cpFont(10, .semibold)
+                            .cpFont(11, .semibold)
                             .disabled(manualName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
                     .padding(.horizontal, 12).frame(minHeight: 40)
                     .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                     HStack(spacing: 8) {
-                        Image(systemName: "magnifyingglass").cpFont(10, .bold).foregroundStyle(CPTheme.muted(scheme))
-                        TextField("Search assignments or classes", text: $search).cpFont(11)
+                        Image(systemName: "magnifyingglass").cpIconFont(10, .bold).foregroundStyle(CPTheme.muted(scheme))
+                        TextField("Search assignments or classes", text: $search).cpFont(12)
                             .accessibilityLabel("Search assignments or classes")
                     }
                     .padding(.horizontal, 12).frame(minHeight: 40)
@@ -2747,18 +2927,18 @@ struct NativeStudyView: View {
                         .strokeBorder(isSelected ? Color.clear : CPTheme.muted(scheme).opacity(0.55), lineWidth: 1.5)
                     if isSelected {
                         RoundedRectangle(cornerRadius: 6, style: .continuous).fill(CPTheme.primary(scheme: scheme))
-                        Image(systemName: "checkmark").cpFont(9, .bold).foregroundStyle(CPTheme.onPrimary(scheme))
+                        Image(systemName: "checkmark").cpIconFont(9, .bold).foregroundStyle(CPTheme.onPrimary(scheme))
                     }
                 }
                 .frame(width: 20, height: 20)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(item.name).cpFont(11, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(2)
+                    Text(item.name).cpFont(12, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(2)
                     Text(item.courseID == 0 ? item.courseName : store.displayName(courseID: item.courseID, fallback: item.courseName))
-                        .cpFont(9).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
+                        .cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
                 }
                 Spacer(minLength: 6)
                 if let due = item.dueDate {
-                    Text(due.formatted(.dateTime.month(.abbreviated).day())).cpFont(9, .medium).monospacedDigit().foregroundStyle(CPTheme.faint(scheme))
+                    Text(due.formatted(.dateTime.month(.abbreviated).day())).cpFont(11, .medium).monospacedDigit().foregroundStyle(CPTheme.faint(scheme))
                 }
             }
             .padding(.vertical, 9)
@@ -2775,11 +2955,11 @@ struct NativeStudyView: View {
                 ForEach(items.indices, id: \.self) { index in
                     let item = items[index]
                     HStack(spacing: 8) {
-                        Text("\(index + 1)").cpFont(10, .bold).monospacedDigit()
+                        Text("\(index + 1)").cpFont(11, .bold).monospacedDigit()
                             .foregroundStyle(CPTheme.primary(scheme: scheme))
                             .frame(width: 22, height: 22)
                             .background(CPTheme.primary(scheme: scheme).opacity(0.12), in: Circle())
-                        Text(item.name).cpFont(11, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
+                        Text(item.name).cpFont(12, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
                         Spacer(minLength: 4)
                         Button { moveSelection(item.id, -1) } label: { Image(systemName: "chevron.up").frame(width: 32, height: 40) }
                             .disabled(index == 0).accessibilityLabel("Move \(item.name) earlier")
@@ -2788,7 +2968,7 @@ struct NativeStudyView: View {
                         Button { selected.remove(item.id); selectedOrder.removeAll { $0 == item.id } } label: { Image(systemName: "xmark").frame(width: 32, height: 40) }
                             .accessibilityLabel("Remove \(item.name)")
                     }
-                    .cpFont(10, .semibold)
+                    .cpFont(11, .semibold)
                     .foregroundStyle(CPTheme.muted(scheme))
                     .buttonStyle(.plain)
                     if index < items.count - 1 { CPRowDivider(leading: 30) }
@@ -2836,21 +3016,21 @@ struct NativeStudyView: View {
                 minutesRow("Custom (minutes)", value: $duration)
                     .padding(.horizontal, 12)
                     .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: CPLayout.innerRadius, style: .continuous))
-                Text("1 to 480 minutes").cpFont(9).foregroundStyle(CPTheme.faint(scheme))
+                Text("1 to 480 minutes").cpFont(11).foregroundStyle(CPTheme.faint(scheme))
             }
         }
     }
 
     private func minutesRow(_ title: String, value: Binding<Int>, unit: String = "min") -> some View {
         HStack {
-            Text(title).cpFont(11).foregroundStyle(CPTheme.foreground(scheme))
+            Text(title).cpFont(12).foregroundStyle(CPTheme.foreground(scheme))
             Spacer()
             TextField("0", value: value, format: .number)
-                .cpFont(11, .semibold).monospacedDigit()
+                .cpFont(12, .semibold).monospacedDigit()
                 .keyboardType(.numberPad).multilineTextAlignment(.trailing)
                 .frame(width: 56)
                 .accessibilityLabel(title)
-            Text(unit).cpFont(10).foregroundStyle(CPTheme.muted(scheme))
+            Text(unit).cpFont(11).foregroundStyle(CPTheme.muted(scheme))
         }
         .frame(minHeight: 40)
     }
@@ -2865,7 +3045,7 @@ struct NativeStudyView: View {
                         CPPill(text: "\(completedIDs.count) finished", tone: completedIDs.isEmpty ? .neutral : .accent, symbol: "checkmark")
                         Spacer()
                         Text(activePlan.map { cycleText($0) } ?? "\(Int((Double(duration * 60 - remaining) / Double(max(1, duration * 60))) * 100))% of session")
-                            .cpFont(10, .medium).foregroundStyle(CPTheme.muted(scheme))
+                            .cpFont(11, .medium).foregroundStyle(CPTheme.muted(scheme))
                     }
                     CPRing(progress: Double(blockMinutes * 60 - remaining) / Double(max(1, blockMinutes * 60)), color: phase == "focus" ? CPTheme.primary(scheme: scheme) : CPTheme.warning, lineWidth: 7) {
                         VStack(spacing: 6) {
@@ -2873,7 +3053,7 @@ struct NativeStudyView: View {
                                 .cpFont(40, .light).tracking(-1.5).monospacedDigit()
                                 .lineLimit(1).minimumScaleFactor(0.4)
                                 .foregroundStyle(CPTheme.foreground(scheme))
-                            Text(running ? phaseLabel : "PAUSED").cpFont(9, .semibold).tracking(1.4)
+                            Text(running ? phaseLabel : "PAUSED").cpFont(11, .semibold).tracking(1.4)
                                 .lineLimit(1).minimumScaleFactor(0.6)
                                 .foregroundStyle(CPTheme.muted(scheme))
                         }
@@ -2884,15 +3064,15 @@ struct NativeStudyView: View {
                     .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                     if let plan = activePlan { blockDots(plan) }
                     if phase != "focus" {
-                        Text("Step away for a moment.").cpFont(12, .medium).foregroundStyle(CPTheme.foreground(scheme))
+                        Text("Step away for a moment.").cpFont(13, .medium).foregroundStyle(CPTheme.foreground(scheme))
                     } else if let item = currentItem {
                         VStack(spacing: 4) {
-                            Text("NOW STUDYING").cpFont(9, .semibold).tracking(1.2).foregroundStyle(CPTheme.muted(scheme))
-                            Text(item.name).cpFont(14, .semibold).multilineTextAlignment(.center).foregroundStyle(CPTheme.foreground(scheme))
+                            Text("NOW STUDYING").cpFont(11, .semibold).tracking(1.2).foregroundStyle(CPTheme.muted(scheme))
+                            Text(item.name).cpFont(15, .semibold).multilineTextAlignment(.center).foregroundStyle(CPTheme.foreground(scheme))
                                 .fixedSize(horizontal: false, vertical: true)
                             if !item.courseName.isEmpty {
                                 Text(item.courseID == 0 ? item.courseName : store.displayName(courseID: item.courseID, fallback: item.courseName))
-                                    .cpFont(10).foregroundStyle(CPTheme.muted(scheme))
+                                    .cpFont(11).foregroundStyle(CPTheme.muted(scheme))
                             }
                         }
                         .frame(maxWidth: .infinity)
@@ -2901,7 +3081,7 @@ struct NativeStudyView: View {
                         Button { navigateTask(-1) } label: { controlCircle("backward.fill", size: 44) }
                             .buttonStyle(CPPressStyle()).accessibilityLabel("Previous assignment").disabled(items.count < 2)
                         Button { togglePause() } label: {
-                            Image(systemName: running ? "pause.fill" : "play.fill").cpFont(18, .bold)
+                            Image(systemName: running ? "pause.fill" : "play.fill").cpIconFont(18, .bold)
                                 .foregroundStyle(CPTheme.onPrimary(scheme))
                                 .frame(width: 60, height: 60)
                                 .background(CPTheme.primary(scheme: scheme), in: Circle())
@@ -2931,17 +3111,17 @@ struct NativeStudyView: View {
                             let done = completedIDs.contains(item.id)
                             Button { currentIndex = index } label: {
                                 HStack(spacing: 10) {
-                                    Text("\(index + 1)").cpFont(10, .bold).monospacedDigit()
+                                    Text("\(index + 1)").cpFont(11, .bold).monospacedDigit()
                                         .foregroundStyle(currentIndex == index ? CPTheme.onPrimary(scheme) : CPTheme.muted(scheme))
                                         .frame(width: 22, height: 22)
                                         .background(currentIndex == index ? CPTheme.primary(scheme: scheme) : CPTheme.inset(scheme), in: Circle())
                                     VStack(alignment: .leading, spacing: 2) {
-                                        Text(item.name).cpFont(11, .medium).strikethrough(done)
+                                        Text(item.name).cpFont(12, .medium).strikethrough(done)
                                             .foregroundStyle(done ? CPTheme.muted(scheme) : CPTheme.foreground(scheme)).lineLimit(2)
-                                        if !item.courseName.isEmpty { Text(item.courseName).cpFont(9).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1) }
+                                        if !item.courseName.isEmpty { Text(item.courseName).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1) }
                                     }
                                     Spacer(minLength: 6)
-                                    if done { Image(systemName: "checkmark").cpFont(10, .bold).foregroundStyle(CPTheme.primary(scheme: scheme)) }
+                                    if done { Image(systemName: "checkmark").cpIconFont(10, .bold).foregroundStyle(CPTheme.primary(scheme: scheme)) }
                                 }
                                 .padding(.vertical, 9)
                                 .contentShape(Rectangle())
@@ -2962,7 +3142,7 @@ struct NativeStudyView: View {
     }
 
     private func controlCircle(_ symbol: String, size: CGFloat) -> some View {
-        Image(systemName: symbol).cpFont(13, .semibold)
+        Image(systemName: symbol).cpIconFont(13, .semibold)
             .foregroundStyle(CPTheme.foreground(scheme))
             .frame(width: size, height: size)
             .background(CPTheme.inset(scheme), in: Circle())
@@ -2985,13 +3165,13 @@ struct NativeStudyView: View {
         ScrollView {
             VStack(spacing: CPLayout.stack) {
                 VStack(spacing: 14) {
-                    Image(systemName: "checkmark").cpFont(18, .bold)
+                    Image(systemName: "checkmark").cpIconFont(18, .bold)
                         .foregroundStyle(CPTheme.primary(scheme: scheme))
                         .frame(width: 52, height: 52)
                         .background(CPTheme.primary(scheme: scheme).opacity(0.13), in: Circle())
                     VStack(spacing: 4) {
                         Text("Session finished").cpFont(18, .semibold).foregroundStyle(CPTheme.foreground(scheme))
-                        Text("Nice work. Take a breath before the next thing.").cpFont(11).foregroundStyle(CPTheme.muted(scheme)).multilineTextAlignment(.center)
+                        Text("Nice work. Take a breath before the next thing.").cpFont(12).foregroundStyle(CPTheme.muted(scheme)).multilineTextAlignment(.center)
                     }
                     HStack(spacing: 8) {
                         CPStatTile(value: "\(completedIDs.count) of \(items.count)", label: "Tasks finished", tone: .accent)
@@ -3202,13 +3382,13 @@ struct NativeEmptyState: View {
     let title: String; let symbol: String; var detail: String? = nil
     var body: some View {
         VStack(spacing: 8) {
-            Image(systemName: symbol).cpFont(14, .semibold)
+            Image(systemName: symbol).cpIconFont(14, .semibold)
                 .foregroundStyle(CPTheme.primary(scheme: scheme))
                 .frame(width: 38, height: 38)
                 .background(CPTheme.primary(scheme: scheme).opacity(scheme == .dark ? 0.12 : 0.09), in: Circle())
                 .accessibilityHidden(true)
-            Text(title).cpFont(12, .semibold).foregroundStyle(CPTheme.foreground(scheme)).multilineTextAlignment(.center)
-            if let detail { Text(detail).cpFont(10).lineSpacing(2).foregroundStyle(CPTheme.muted(scheme)).multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true) }
+            Text(title).cpFont(13, .semibold).foregroundStyle(CPTheme.foreground(scheme)).multilineTextAlignment(.center)
+            if let detail { Text(detail).cpFont(11).lineSpacing(2).foregroundStyle(CPTheme.muted(scheme)).multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true) }
         }
             .padding(.vertical, 14).padding(.horizontal, 12).frame(maxWidth: .infinity)
             .accessibilityElement(children: .combine)
