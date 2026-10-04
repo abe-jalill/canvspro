@@ -11,7 +11,6 @@ struct NativeMenuRow: View {
     let title: String
     var detail: String? = nil
     let symbol: String
-    var tint: Color? = nil
     var trailingSymbol = "chevron.right"
     var body: some View {
         HStack(spacing: 12) {
@@ -41,15 +40,6 @@ struct NativeMenuGroup<Content: View>: View {
                 .cpSurface()
         }
     }
-}
-
-private enum NativeMenuTint {
-    static let blue = Color.hsl(214, 0.62, 0.60)
-    static let violet = Color.hsl(266, 0.50, 0.66)
-    static let orange = Color.hsl(28, 0.80, 0.60)
-    static let rose = Color.hsl(345, 0.60, 0.66)
-    static let teal = Color.hsl(180, 0.45, 0.52)
-    static let gray = Color.hsl(220, 0.08, 0.58)
 }
 
 struct NativeMoreView: View {
@@ -85,16 +75,16 @@ struct NativeMoreView: View {
 
                     NativeMenuGroup("Plan") {
                         NavigationLink { NativeCalendarHub(store: store, features: features) } label: {
-                            NativeMenuRow(title: "Calendar", symbol: "calendar", tint: NativeMenuTint.blue)
+                            NativeMenuRow(title: "Calendar", symbol: "calendar")
                         }.buttonStyle(CPPressStyle())
                     }
                     NativeMenuGroup("Account") {
                         NavigationLink { NotificationsView(sessionStore: sessionStore, features: features) } label: {
-                            NativeMenuRow(title: "Notifications", symbol: "bell", tint: NativeMenuTint.rose)
+                            NativeMenuRow(title: "Notifications", symbol: "bell")
                         }.buttonStyle(CPPressStyle())
                         CPRowDivider(leading: 40)
                         NavigationLink { NativeSettingsView(contentStore: store, features: features, sessionStore: sessionStore) } label: {
-                            NativeMenuRow(title: "Settings", symbol: "gearshape", tint: NativeMenuTint.gray)
+                            NativeMenuRow(title: "Settings", symbol: "gearshape")
                         }.buttonStyle(CPPressStyle())
                     }
                 }
@@ -143,24 +133,24 @@ struct NativeSettingsView: View {
                 CPPageHeader(eyebrow: "Your account", title: "Settings", detail: nil)
                 NativeMenuGroup("Personal") {
                     NavigationLink { ProfileView(features: features, email: sessionStore.session?.user.email) } label: {
-                        NativeMenuRow(title: "Profile", symbol: "person.crop.circle", tint: NativeMenuTint.blue)
+                        NativeMenuRow(title: "Profile", symbol: "person.crop.circle")
                     }.buttonStyle(CPPressStyle())
                     CPRowDivider(leading: 40)
-                    settingsLink("Appearance", detail: nil, "paintpalette", tint: NativeMenuTint.violet) { NativeAppearanceView(features: features) }
+                    settingsLink("Appearance", "paintpalette") { NativeAppearanceView(features: features) }
                 }
                 NativeMenuGroup("Classes") {
-                    settingsLink("Canvas connection", detail: nil, "link", tint: NativeMenuTint.teal) { CanvasSettingsView(store: contentStore) }
+                    settingsLink("Canvas connection", "link") { CanvasSettingsView(store: contentStore) }
                     CPRowDivider(leading: 40)
-                    settingsLink("Class settings", detail: nil, "graduationcap", tint: NativeMenuTint.blue) { NativeClassSettingsView(store: contentStore, features: features) }
+                    settingsLink("Class settings", "graduationcap") { NativeClassSettingsView(store: contentStore, features: features) }
                     CPRowDivider(leading: 40)
-                    settingsLink("Announcements", detail: nil, "megaphone", tint: NativeMenuTint.orange) { AnnouncementWindowSettingsView(features: features) }
+                    settingsLink("Announcements", "megaphone") { AnnouncementWindowSettingsView(features: features) }
                 }
                 NativeMenuGroup("App") {
-                    settingsLink("Notifications", detail: nil, "bell", tint: NativeMenuTint.rose) { NotificationsView(sessionStore: sessionStore, features: features) }
+                    settingsLink("Notifications", "bell") { NotificationsView(sessionStore: sessionStore, features: features) }
                     CPRowDivider(leading: 40)
-                    settingsLink("AI assistant", detail: nil, "sparkles", tint: NativeMenuTint.violet) { NativeAIConnectionView() }
+                    settingsLink("AI assistant", "sparkles") { NativeAIConnectionView() }
                     CPRowDivider(leading: 40)
-                    settingsLink("Account", detail: nil, "person.crop.circle.badge.xmark", tint: NativeMenuTint.gray) { NativeDeleteAccountView(sessionStore: sessionStore) }
+                    settingsLink("Account", "person.crop.circle.badge.xmark") { NativeDeleteAccountView(sessionStore: sessionStore) }
                 }
                 NativeMenuGroup("Legal") {
                     legalRow(.privacy, "hand.raised")
@@ -181,14 +171,14 @@ struct NativeSettingsView: View {
 
     private func legalRow(_ page: NativeLegalPage, _ symbol: String) -> some View {
         Button { legalPage = page } label: {
-            NativeMenuRow(title: page.title, symbol: symbol, tint: NativeMenuTint.gray, trailingSymbol: "arrow.up.right")
+            NativeMenuRow(title: page.title, symbol: symbol, trailingSymbol: "arrow.up.right")
         }
         .buttonStyle(CPPressStyle())
         .accessibilityHint("Opens the current \(page.title) from canvaspro.app")
     }
 
-    private func settingsLink<Destination: View>(_ title: String, detail: String?, _ symbol: String, tint: Color, @ViewBuilder destination: () -> Destination) -> some View {
-        NavigationLink(destination: destination()) { NativeMenuRow(title: title, detail: detail, symbol: symbol, tint: tint) }.buttonStyle(CPPressStyle())
+    private func settingsLink<Destination: View>(_ title: String, _ symbol: String, @ViewBuilder destination: () -> Destination) -> some View {
+        NavigationLink(destination: destination()) { NativeMenuRow(title: title, symbol: symbol) }.buttonStyle(CPPressStyle())
     }
 }
 
@@ -237,7 +227,7 @@ private struct NativeAIConnectionView: View {
                     Text("Add this address to an assistant's connectors, sign in, and approve the request. It can then answer questions about your classes, deadlines, and grades.")
                         .cpFont(12).lineSpacing(2)
                     HStack {
-                        Text(address).cpFont(12, .medium).monospaced().lineLimit(1).textSelection(.enabled)
+                        Text(address).cpFont(12, .medium, design: .monospaced).lineLimit(1).textSelection(.enabled)
                         Spacer(minLength: 8)
                         Button(copied ? "Copied" : "Copy") {
                             UIPasteboard.general.string = address
@@ -1146,12 +1136,12 @@ struct CalendarView: View {
                     if isSelected {
                         Circle().fill(CPTheme.foreground(scheme))
                     } else if isToday {
-                        Circle().strokeBorder(CPTheme.foreground(scheme).opacity(0.6), lineWidth: 0.5)
+                        Circle().strokeBorder(CPTheme.foreground(scheme).opacity(0.6), lineWidth: 1)
                     }
                     Text("\(calendar.component(.day, from: date))")
                         .cpFont(14, .semibold)
                         .monospacedDigit()
-                        .foregroundStyle(isSelected ? CPTheme.background(scheme) : isToday ? CPTheme.foreground(scheme) : CPTheme.foreground(scheme))
+                        .foregroundStyle(isSelected ? CPTheme.background(scheme) : CPTheme.foreground(scheme))
                 }
                 .frame(width: 32, height: 32)
                 Circle()
@@ -1610,7 +1600,7 @@ private struct AppearanceSettingsCard: View {
     private func appearanceButton(_ value: String, _ title: String, _ symbol: String) -> some View {
         Button { Task { await save("theme", value) } } label: {
             VStack(spacing: 6) { Image(systemName: symbol).cpIconFont(13, .semibold); Text(title).cpFont(11, .semibold); if scheme == value { Image(systemName: "checkmark").cpIconFont(8, .bold) } }
-                .frame(maxWidth: .infinity, minHeight: 64).foregroundStyle(scheme == value ? CPTheme.primary(scheme: resolvedScheme) : CPTheme.foreground(resolvedScheme)).background(scheme == value ? CPTheme.primary(scheme: resolvedScheme).opacity(0.10) : CPTheme.inset(resolvedScheme), in: RoundedRectangle(cornerRadius: 12)).overlay(RoundedRectangle(cornerRadius: 12).stroke(scheme == value ? CPTheme.primary(scheme: resolvedScheme).opacity(0.55) : CPTheme.insetBorder(resolvedScheme)))
+                .frame(maxWidth: .infinity, minHeight: 64).foregroundStyle(scheme == value ? CPTheme.primary(scheme: resolvedScheme) : CPTheme.foreground(resolvedScheme)).background(scheme == value ? CPTheme.primary(scheme: resolvedScheme).opacity(0.10) : CPTheme.inset(resolvedScheme), in: RoundedRectangle(cornerRadius: 12)).overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(scheme == value ? CPTheme.primary(scheme: resolvedScheme).opacity(0.55) : CPTheme.insetBorder(resolvedScheme), lineWidth: scheme == value ? 1 : 0.5))
         }.buttonStyle(.plain)
     }
     private func save(_ key: String, _ value: String) async {
@@ -1649,7 +1639,7 @@ private struct PaletteOption: View {
                 if selected { Image(systemName: "checkmark").cpIconFont(10, .regular).foregroundStyle(Color.hsl(option.hue, 0.28, 0.08)).frame(width: 20, height: 20).background(option.swatch, in: Circle()).padding(7) }
             }
             Text(option.name).cpFont(12, .semibold).foregroundStyle(CPTheme.foreground(scheme))
-        }.padding(8).frame(maxWidth: .infinity, alignment: .leading).background(CPTheme.background(scheme).opacity(0.55), in: RoundedRectangle(cornerRadius: 14)).overlay(RoundedRectangle(cornerRadius: 14).stroke(selected ? CPTheme.primary(option, scheme: scheme) : CPTheme.border(scheme), lineWidth: selected ? 2 : 1))
+        }.padding(8).frame(maxWidth: .infinity, alignment: .leading).background(CPTheme.background(scheme).opacity(0.55), in: RoundedRectangle(cornerRadius: 14)).overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(selected ? CPTheme.primary(option, scheme: scheme) : CPTheme.border(scheme), lineWidth: selected ? 1 : 0.5))
     }
 }
 

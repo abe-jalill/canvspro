@@ -139,8 +139,10 @@ test("the syllabus is only on the class page, and Today uses the website's tabs"
 });
 
 test("cards use hairline borders, no per-card shadows, and cached parsing", () => {
-  // Every outline in the app is a 0.5 pt hairline.
-  assert.doesNotMatch(allSwift, /lineWidth: 1\)/);
+  // Card, row, tab and field outlines are 0.5 pt hairlines; checkboxes and selected
+  // states are 1 pt so they stay visible. Nothing is thicker.
+  assert.doesNotMatch(allSwift, /lineWidth: (1\.5|2|3)\)/);
+  assert.doesNotMatch(allSwift, /RoundedRectangle\(cornerRadius: \d+\)\.stroke\(/);
   const surface = swift.NativeDesign.slice(swift.NativeDesign.indexOf("private struct CPSurfaceModifier"), swift.NativeDesign.indexOf("struct CPGlassCard"));
   assert.match(surface, /lineWidth: 0\.5/);
   assert.doesNotMatch(surface, /\.shadow\(/);

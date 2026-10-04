@@ -325,7 +325,6 @@ struct CPStatTile: View {
     let label: String
     var symbol: String? = nil
     var tone: CPTone = .neutral
-    var large = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -333,7 +332,7 @@ struct CPStatTile: View {
                 Image(systemName: symbol).cpIconFont(12).foregroundStyle(tone == .danger ? CPTheme.danger : CPTheme.muted(scheme)).padding(.bottom, 4).accessibilityHidden(true)
             }
             Text(value)
-                .cpFont(large ? 30 : 22, .regular)
+                .cpFont(22, .regular)
                 .tracking(-1)
                 .monospacedDigit()
                 .lineLimit(1)

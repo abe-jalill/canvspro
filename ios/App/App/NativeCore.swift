@@ -1125,7 +1125,6 @@ final class NativeContentStore: ObservableObject {
         nicknames = cache.nicknames
         lastSyncedAt = cache.savedAt
         isShowingCachedData = true
-        syncMessage = "Showing saved coursework."
     }
 
     private func persistContentCache() {

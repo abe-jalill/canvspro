@@ -474,7 +474,7 @@ private struct NativeAuthField<Content: View>: View {
             .padding(.horizontal, 14)
             .frame(minHeight: 48)
             .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous).strokeBorder(focused ? CPTheme.primary(scheme: scheme) : CPTheme.insetBorder(scheme), lineWidth: focused ? 1.5 : 1))
+            .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous).strokeBorder(focused ? CPTheme.primary(scheme: scheme) : CPTheme.insetBorder(scheme), lineWidth: focused ? 1 : 0.5))
             .animation(.easeInOut(duration: 0.15), value: focused)
         }
     }
@@ -508,7 +508,7 @@ private struct NativeAuthConsent: View {
             HStack(alignment: .center, spacing: 12) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .strokeBorder(isOn ? Color.clear : CPTheme.muted(scheme).opacity(0.6), lineWidth: 1.5)
+                        .strokeBorder(isOn ? Color.clear : CPTheme.muted(scheme).opacity(0.6), lineWidth: 1)
                     if isOn {
                         RoundedRectangle(cornerRadius: 6, style: .continuous).fill(CPTheme.primary(scheme: scheme))
                         Image(systemName: "checkmark").cpIconFont(10, .bold).foregroundStyle(CPTheme.onPrimary(scheme))
@@ -801,7 +801,15 @@ private struct NativeDashboardView: View {
     private var urgencyMap: [Int: String] { Dictionary(activeAssignments.compactMap { item in urgency(for: item).map { (item.id, $0) } }, uniquingKeysWith: { first, _ in first }) }
     private var newAnnouncements: [AnnouncementItem] { guard let digest else { return [] }; return Array(store.bundle.announcements.filter { item in !features.hiddenCourseIDs.contains(item.courseID) && item.isWithin(weeks: features.announcementWeeks) && (ISO8601DateFormatter.canvasDate(from: item.postedAt) ?? .distantPast) > digest.lastVisit }.prefix(8)) }
     private var newGrades: [AssignmentItem] { guard let digest else { return [] }; return Array(allAssignments.filter { item in guard let score = item.submission?.score else { return false }; return digest.grades[item.id] != score }.prefix(8)) }
-    private var newlyUrgent: [AssignmentItem] { guard let digest else { return [] }; return Array(activeAssignments.filter { item in guard let value = urgency(for: item) else { return false }; return (value == "today" || value == "soon") && digest.urgency[item.id] != value }.sorted { (urgency(for: $0) == "today" ? 0 : 1) < (urgency(for: $1) == "today" ? 0 : 1) }.prefix(8)) }
+    private var newlyUrgent: [AssignmentItem] {
+        guard let digest else { return [] }
+        func rank(_ item: AssignmentItem) -> Int { urgency(for: item) == "today" ? 0 : 1 }
+        let fresh = activeAssignments.filter { item in
+            guard let value = urgency(for: item) else { return false }
+            return (value == "today" || value == "soon") && digest.urgency[item.id] != value
+        }
+        return Array(fresh.sorted { rank($0) < rank($1) }.prefix(8))
+    }
     private var stillUrgent: Int { activeAssignments.filter { ["today", "soon"].contains(urgency(for: $0) ?? "") }.count }
     private var widgetIDs: [String] { features.dashboardOrder.filter { !features.dashboardHidden.contains($0) } }
 
@@ -1424,22 +1432,6 @@ struct NativeDatedEvent: Identifiable {
     var id: String { event.id }
 }
 
-/// A small calendar-page badge: weekday over day number.
-struct NativeDateBadge: View {
-    @Environment(\.colorScheme) private var scheme
-    @Environment(\.cpPalette) private var paletteDependency
-    let date: Date
-    var body: some View {
-        VStack(spacing: 0) {
-            Text(date.formatted(.dateTime.weekday(.abbreviated)).uppercased()).cpFont(11, .bold).foregroundStyle(CPTheme.foreground(scheme))
-            Text(date.formatted(.dateTime.day())).cpFont(14, .semibold).monospacedDigit().foregroundStyle(CPTheme.foreground(scheme))
-        }
-        .frame(width: 40, height: 40)
-        .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
-        .accessibilityHidden(true)
-    }
-}
-
 /// GPA from current scores and the credits saved in My classes, using the
 /// website's 4.0 scale and course matching.
 enum NativeGPA {
@@ -1547,7 +1539,7 @@ struct NativeCompletionButton: View {
             // The website's checkbox: a rounded square that fills when done.
             ZStack {
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .strokeBorder(CPTheme.foreground(scheme).opacity(isComplete ? 0 : 0.3), lineWidth: 1.5)
+                    .strokeBorder(CPTheme.foreground(scheme).opacity(isComplete ? 0 : 0.3), lineWidth: 1)
                 if isComplete {
                     RoundedRectangle(cornerRadius: 6, style: .continuous).fill(CPTheme.foreground(scheme).opacity(0.8))
                     Image(systemName: "checkmark").cpIconFont(10, .bold).foregroundStyle(CPTheme.background(scheme))
@@ -1570,10 +1562,11 @@ struct NativeSyncStatusCard: View {
     @ObservedObject var store: NativeContentStore
     let retry: () -> Void
 
-    /// Only shown when something needs the student's attention (offline or a
-    /// sync problem). A routine refresh never shows it, so the page doesn't jump.
+    /// Only shown when a refresh actually failed (offline or a sync problem).
+    /// Opening the app with saved data, or a routine refresh, never shows it, so
+    /// the page doesn't jump while it loads.
     private var shouldShow: Bool {
-        !store.isPreview && !store.isLoading && (store.isShowingCachedData || store.syncMessage != nil)
+        !store.isPreview && !store.isLoading && store.syncMessage != nil
     }
 
     var body: some View {
@@ -2031,29 +2024,6 @@ struct NativeScoreBadge: View {
         }
         .fixedSize()
     }
-}
-
-struct CourseRow: View {
-    @Environment(\.colorScheme) private var scheme
-    @Environment(\.cpPalette) private var paletteDependency
-    let course: CourseSummary; @ObservedObject var store: NativeContentStore
-    var body: some View {
-        HStack(spacing: 10) {
-            Circle().fill(gradeColor).frame(width: 7, height: 7)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(store.displayName(courseID: course.id, fallback: course.name)).cpFont(12, .medium).lineLimit(2)
-                if !course.courseCode.isEmpty { Text(course.courseCode).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1) }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            VStack(alignment: .trailing, spacing: 1) {
-                Text(NativeParity.courseLetter(course.currentGrade, score: course.currentScore)).cpFont(13, .semibold).foregroundStyle(gradeColor)
-                if let score = course.currentScore { Text("\(score.formatted(.number.precision(.fractionLength(1))))%").cpFont(11).monospacedDigit().foregroundStyle(CPTheme.muted(scheme)) }
-            }
-            .fixedSize(horizontal: true, vertical: false)
-        }
-        .padding(.vertical, 2)
-    }
-    private var gradeColor: Color { CPTheme.gradeColor(course.currentScore) }
 }
 
 struct NativeAssignmentDescriptionLink: View {
@@ -2661,7 +2631,7 @@ struct NativeStudyView: View {
             HStack(spacing: 10) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .strokeBorder(isSelected ? Color.clear : CPTheme.muted(scheme).opacity(0.55), lineWidth: 1.5)
+                        .strokeBorder(isSelected ? Color.clear : CPTheme.muted(scheme).opacity(0.55), lineWidth: 1)
                     if isSelected {
                         RoundedRectangle(cornerRadius: 6, style: .continuous).fill(CPTheme.foreground(scheme))
                         Image(systemName: "checkmark").cpIconFont(9, .bold).foregroundStyle(CPTheme.background(scheme))
@@ -2890,12 +2860,18 @@ struct NativeStudyView: View {
         return HStack(spacing: 6) {
             ForEach(0..<plan.rounds, id: \.self) { index in
                 Capsule()
-                    .fill(index < done ? CPTheme.primary(scheme: scheme) : index == done && phase == "focus" ? CPTheme.primary(scheme: scheme).opacity(0.45) : CPTheme.inset(scheme))
+                    .fill(blockDotColor(index: index, done: done))
                     .frame(width: 22, height: 5)
             }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(cycleText(plan))
+    }
+
+    private func blockDotColor(index: Int, done: Int) -> Color {
+        if index < done { return CPTheme.primary(scheme: scheme) }
+        if index == done && phase == "focus" { return CPTheme.primary(scheme: scheme).opacity(0.45) }
+        return CPTheme.inset(scheme)
     }
 
     private var summary: some View {
