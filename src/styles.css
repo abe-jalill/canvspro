@@ -634,6 +634,25 @@
   }
 }
 
+/* Perspective stays on the untransformed frame, keeping pointer coordinates stable. */
+.dashboard-hero-perspective {
+  perspective: 1400px;
+}
+.dashboard-hero-motion {
+  transform-origin: center;
+  transform: rotateX(var(--hero-rotate-x, 0deg)) rotateY(var(--hero-rotate-y, 0deg));
+  backface-visibility: hidden;
+}
+.dashboard-hero-motion[data-moving="true"] {
+  will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-hero-motion {
+    transform: none;
+    will-change: auto;
+  }
+}
+
 /* Dashboard hero: a shared soft light source across the greeting and three cards. */
 .dashboard-hero {
   --hero-hue: var(--palette-hue, 148);
