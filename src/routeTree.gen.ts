@@ -48,7 +48,6 @@ import { Route as AuthenticatedSettingsAnnouncementsRouteImport } from './routes
 import { Route as AuthenticatedSettingsAiAssistantRouteImport } from './routes/_authenticated/settings.ai-assistant'
 import { Route as AuthenticatedSettingsAccountRouteImport } from './routes/_authenticated/settings.account'
 import { Route as AuthenticatedCoursesCourseIdRouteImport } from './routes/_authenticated/courses.$courseId'
-import { Route as AuthenticatedCheckoutReturnRouteImport } from './routes/_authenticated/checkout.return'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable/oauth/consent'
 import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
 import { Route as LovableEmailAuthWebhookRouteImport } from './routes/lovable/email/auth/webhook'
@@ -267,12 +266,6 @@ const AuthenticatedCoursesCourseIdRoute =
     path: '/courses/$courseId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedCheckoutReturnRoute =
-  AuthenticatedCheckoutReturnRouteImport.update({
-    id: '/checkout/return',
-    path: '/checkout/return',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
   id: '/.lovable/oauth/consent',
   path: '/.lovable/oauth/consent',
@@ -339,7 +332,6 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/study-session': typeof AuthenticatedStudySessionRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
-  '/checkout/return': typeof AuthenticatedCheckoutReturnRoute
   '/courses/$courseId': typeof AuthenticatedCoursesCourseIdRoute
   '/settings/account': typeof AuthenticatedSettingsAccountRoute
   '/settings/ai-assistant': typeof AuthenticatedSettingsAiAssistantRoute
@@ -386,7 +378,6 @@ export interface FileRoutesByTo {
   '/schedule': typeof AuthenticatedScheduleRoute
   '/study-session': typeof AuthenticatedStudySessionRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
-  '/checkout/return': typeof AuthenticatedCheckoutReturnRoute
   '/courses/$courseId': typeof AuthenticatedCoursesCourseIdRoute
   '/settings/account': typeof AuthenticatedSettingsAccountRoute
   '/settings/ai-assistant': typeof AuthenticatedSettingsAiAssistantRoute
@@ -436,7 +427,6 @@ export interface FileRoutesById {
   '/_authenticated/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/_authenticated/study-session': typeof AuthenticatedStudySessionRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
-  '/_authenticated/checkout/return': typeof AuthenticatedCheckoutReturnRoute
   '/_authenticated/courses/$courseId': typeof AuthenticatedCoursesCourseIdRoute
   '/_authenticated/settings/account': typeof AuthenticatedSettingsAccountRoute
   '/_authenticated/settings/ai-assistant': typeof AuthenticatedSettingsAiAssistantRoute
@@ -486,7 +476,6 @@ export interface FileRouteTypes {
     | '/settings'
     | '/study-session'
     | '/.lovable/oauth/consent'
-    | '/checkout/return'
     | '/courses/$courseId'
     | '/settings/account'
     | '/settings/ai-assistant'
@@ -533,7 +522,6 @@ export interface FileRouteTypes {
     | '/schedule'
     | '/study-session'
     | '/.lovable/oauth/consent'
-    | '/checkout/return'
     | '/courses/$courseId'
     | '/settings/account'
     | '/settings/ai-assistant'
@@ -582,7 +570,6 @@ export interface FileRouteTypes {
     | '/_authenticated/settings'
     | '/_authenticated/study-session'
     | '/.lovable/oauth/consent'
-    | '/_authenticated/checkout/return'
     | '/_authenticated/courses/$courseId'
     | '/_authenticated/settings/account'
     | '/_authenticated/settings/ai-assistant'
@@ -905,13 +892,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCoursesCourseIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/checkout/return': {
-      id: '/_authenticated/checkout/return'
-      path: '/checkout/return'
-      fullPath: '/checkout/return'
-      preLoaderRoute: typeof AuthenticatedCheckoutReturnRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/.lovable/oauth/consent': {
       id: '/.lovable/oauth/consent'
       path: '/.lovable/oauth/consent'
@@ -1008,7 +988,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedScheduleRoute: typeof AuthenticatedScheduleRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRouteWithChildren
   AuthenticatedStudySessionRoute: typeof AuthenticatedStudySessionRoute
-  AuthenticatedCheckoutReturnRoute: typeof AuthenticatedCheckoutReturnRoute
   AuthenticatedCoursesCourseIdRoute: typeof AuthenticatedCoursesCourseIdRoute
 }
 
@@ -1025,7 +1004,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedScheduleRoute: AuthenticatedScheduleRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRouteWithChildren,
   AuthenticatedStudySessionRoute: AuthenticatedStudySessionRoute,
-  AuthenticatedCheckoutReturnRoute: AuthenticatedCheckoutReturnRoute,
   AuthenticatedCoursesCourseIdRoute: AuthenticatedCoursesCourseIdRoute,
 }
 
