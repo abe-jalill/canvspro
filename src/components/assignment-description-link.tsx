@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { assignmentsQueryOptions } from "@/lib/canvas.queries";
 import { cn } from "@/lib/utils";
+import { AssignmentProgressBar } from "@/components/assignment-progress";
 
 const linkClass =
   "inline-flex text-[11px] font-medium text-muted-foreground underline decoration-foreground/20 underline-offset-2 transition-colors hover:text-foreground";
@@ -15,10 +16,23 @@ const linkClass =
 export function AssignmentDescriptionLink({
   assignmentId,
   className,
+  showProgress = true,
 }: {
   assignmentId: number;
   className?: string;
+  showProgress?: boolean;
 }) {
+  const link = <DescriptionLink assignmentId={assignmentId} className={className} />;
+  if (!showProgress) return link;
+  return (
+    <>
+      <AssignmentProgressBar assignmentId={assignmentId} className="mt-1" />
+      {link}
+    </>
+  );
+}
+
+function DescriptionLink({ assignmentId, className }: { assignmentId: number; className?: string }) {
   const { data: courseId } = useQuery({
     ...assignmentsQueryOptions,
     enabled: false,
