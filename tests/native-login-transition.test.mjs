@@ -24,7 +24,7 @@ test("launch blocks input and accessibility only while the overlay is present", 
 });
 
 test("launch plays for 3-5 seconds, can be skipped, and never waits on remote loading", () => {
-  const duration = root.match(/Task\.sleep\(for: \.milliseconds\(reduceMotion \? (\d+) : (\d+)\)\)/);
+  const duration = root.match(/Task\.sleep\(for: \.milliseconds\(reduceMotion \? (\d+) : quickReopen \? \d+ : (\d+)\)\)/);
   assert.ok(duration);
   // Reduce Motion gets a short static version; the full animation runs 3-5 s
   // while the signed-in app loads Canvas underneath.

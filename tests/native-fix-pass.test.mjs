@@ -188,7 +188,7 @@ test("rows swipe, haptics are gentle, and accessibility has every action", () =>
   assert.match(swift.NativeViews, /title: done \? "Undo" : "Done"/);
   assert.match(swift.NativeViews, /CPSwipeAction\(title: "Study", symbol: "timer"\)/);
   const swipes = (swift.NativeViews + swift.NativeMoreViews).match(/\.nativeAssignmentSwipe\(/g) ?? [];
-  assert.ok(swipes.length >= 3, `${swipes.length} swipe rows`);
+  assert.ok(swipes.length >= 2, `${swipes.length} swipe rows`);
   // Haptics use the system's own feedback so they follow the phone's settings.
   assert.match(swift.NativeDesign, /\.sensoryFeedback\(\.selection, trigger: selection\)/);
   assert.match(swift.NativeViews, /\.sensoryFeedback\(trigger: running\)/);
@@ -211,4 +211,47 @@ test("pages stay a readable width and the dashboard starts with the essentials",
   assert.match(swift.NativeFeatures, /\["focus", "calendar", "heatmap"\]/);
   // One path into the week view, not a duplicate button above the tiles.
   assert.doesNotMatch(swift.NativeViews, /Open focus view/);
+});
+
+test("assignments are calmer: no Priority, one undo bar, a swipe hint, remembered view", () => {
+  assert.doesNotMatch(swift.NativeMoreViews, /priorityCard|Priority/);
+  // Every finish, from any screen, shows the same Undo for five seconds.
+  assert.match(swift.NativeCore, /@Published var undoItem: AssignmentItem\?/);
+  assert.match(swift.NativeViews, /private struct CPUndoBar: ViewModifier/);
+  assert.match(swift.NativeViews, /Task\.sleep\(nanoseconds: 5_000_000_000\)/);
+  assert.match(swift.NativeViews, /\.cpUndoBar\(store: store\)/);
+  // The first swipeable row slides open once; never with Reduce Motion.
+  assert.match(swift.NativeDesign, /CanvasProSwipeHinted/);
+  assert.match(swift.NativeDesign, /guard leading != nil, !reduceMotion/);
+  // By day / By class and the last tab and Today page are remembered.
+  assert.match(swift.NativeMoreViews, /@AppStorage\("CanvasProAssignmentsGrouping"\)/);
+  assert.match(swift.NativeViews, /CanvasProLastTab/);
+  assert.match(swift.NativeViews, /CanvasProLastTodayPage/);
+});
+
+test("the app is gentle: soft late-work wording, one next step, hidden grades, quick re-open", () => {
+  assert.doesNotMatch(swift.NativeViews + swift.NativeMoreViews, /past-due item|"Overdue"/);
+  assert.match(swift.NativeFeatures, /label: "Past due"/);
+  assert.match(swift.NativeDesign, /case "overdue": return warning/);
+  assert.match(swift.NativeViews, /private func nextStepCard/);
+  assert.match(swift.NativeViews, /"START WITH"/);
+  // Grades can stay blurred until tapped, and hide again when the app is left.
+  assert.match(swift.NativeDesign, /private struct CPGradeShield: ViewModifier/);
+  assert.match(swift.NativeMoreViews, /Hide grades until tapped/);
+  assert.match(swift.NativeViews, /CanvasProGradesRevealed/);
+  assert.ok((swift.NativeViews.match(/\.cpGradeShield\(/g) ?? []).length >= 8);
+  // A quick re-open gets a shorter animation; the dashboard shows when it was updated.
+  assert.match(swift.NativeViews, /quickReopen \? 2200 : 3800/);
+  assert.match(swift.NativeViews, /Updated just now/);
+  // The study finish names the minutes and suggests a break.
+  assert.match(swift.NativeViews, /min focused\. Take a 5 min break\./);
+});
+
+test("no extra words: no descriptions under titles, short empty states", () => {
+  for (const text of ["Open focus view", "Showing assignments through", "Enjoy the breathing room", "Everything urgent is complete", "Read-only access to your CanvasPro information", "A little less chaos. A little more clarity.\" : \"Your classes"]) {
+    assert.ok(!(swift.NativeViews + swift.NativeMoreViews).includes(text), text);
+  }
+  // Empty states are one short title.
+  const details = (swift.NativeViews + swift.NativeMoreViews).match(/NativeEmptyState\(title: [^\n]*detail: "[^"]+"/g) ?? [];
+  assert.equal(details.length, 0, details.join("\n"));
 });

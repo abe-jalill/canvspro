@@ -107,7 +107,7 @@ enum CPTheme {
     /// The website keeps deadlines monochrome; only overdue work gets a soft tint.
     static func urgency(_ urgency: String, scheme: ColorScheme) -> Color {
         switch urgency {
-        case "overdue": return danger
+        case "overdue": return warning
         case "today", "soon": return foreground(scheme)
         default: return muted(scheme)
         }
@@ -528,10 +528,10 @@ struct CPSkeletonCard: View {
 struct CPPageHeader: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.cpPalette) private var paletteDependency
-    let eyebrow: String; let title: String; let detail: String?
+    let eyebrow: String?; let title: String; let detail: String?
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(eyebrow.uppercased()).cpFont(11, .medium).tracking(2).foregroundStyle(CPTheme.muted(scheme))
+            if let eyebrow { Text(eyebrow.uppercased()).cpFont(11, .medium).tracking(2).foregroundStyle(CPTheme.muted(scheme)) }
             Text(title).cpFont(28, .regular).tracking(-1).foregroundStyle(CPTheme.foreground(scheme)).fixedSize(horizontal: false, vertical: true)
             if let detail { Text(detail).cpFont(13).foregroundStyle(CPTheme.muted(scheme)).lineSpacing(3).fixedSize(horizontal: false, vertical: true) }
         }
@@ -829,6 +829,21 @@ private struct CPSwipeModifier: ViewModifier {
             .background { reveal }
             .simultaneousGesture(drag)
             .modifier(CPSwipeAccessibility(leading: leading, trailing: trailing))
+            .onAppear(perform: showHintOnce)
+    }
+
+    /// The first swipeable row a student sees slides open a little, once, to show
+    /// that rows can be swiped. Never with Reduce Motion.
+    private func showHintOnce() {
+        let key = "CanvasProSwipeHinted"
+        guard leading != nil, !reduceMotion, !UserDefaults.standard.bool(forKey: key) else { return }
+        UserDefaults.standard.set(true, forKey: key)
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_200_000_000)
+            withAnimation(.easeInOut(duration: 0.35)) { offset = 44 }
+            try? await Task.sleep(nanoseconds: 700_000_000)
+            withAnimation(.spring(duration: 0.32, bounce: 0.12)) { offset = 0 }
+        }
     }
 
     @ViewBuilder private var reveal: some View {
@@ -891,6 +906,34 @@ private struct CPSwipeAccessibility: ViewModifier {
                 if let trailing { Button(trailing.title) { trailing.perform() } }
             }
     }
+}
+
+// MARK: - Grade privacy
+
+/// Blurs a grade until it is tapped, when "Hide grades" is on in Settings.
+/// Tapping shows every grade until the app is closed or goes to the background.
+private struct CPGradeShield: ViewModifier {
+    @AppStorage("CanvasProHideGrades") private var hide = false
+    @AppStorage("CanvasProGradesRevealed") private var revealed = false
+    let active: Bool
+
+    @ViewBuilder func body(content: Content) -> some View {
+        if active && hide && !revealed {
+            content
+                .blur(radius: 7)
+                .contentShape(Rectangle())
+                .onTapGesture { revealed = true }
+                .accessibilityLabel("Grade hidden")
+                .accessibilityHint("Double tap to show")
+                .accessibilityAddTraits(.isButton)
+        } else {
+            content
+        }
+    }
+}
+
+extension View {
+    func cpGradeShield(_ active: Bool = true) -> some View { modifier(CPGradeShield(active: active)) }
 }
 
 // MARK: - Reveal

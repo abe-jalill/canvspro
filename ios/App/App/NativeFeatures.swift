@@ -590,7 +590,7 @@ enum NativeParity {
         let fullDate = due.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().hour().minute())
         let shortDate = due.formatted(.dateTime.month(.abbreviated).day())
         if completed { return Countdown(label: days >= 0 ? shortDate : "Completed", urgency: "none", fullDate: fullDate) }
-        if due < now { return Countdown(label: "Overdue", urgency: "overdue", fullDate: fullDate) }
+        if due < now { return Countdown(label: "Past due", urgency: "overdue", fullDate: fullDate) }
         if days <= 0 { return Countdown(label: "Due today", urgency: "today", fullDate: fullDate) }
         if days == 1 { return Countdown(label: "Due tomorrow", urgency: "soon", fullDate: fullDate) }
         if days <= 6 { return Countdown(label: "\(days) days left", urgency: days <= 3 ? "soon" : "later", fullDate: fullDate) }

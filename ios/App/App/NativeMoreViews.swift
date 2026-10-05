@@ -126,17 +126,25 @@ struct NativeSettingsView: View {
     @ObservedObject var features: NativeFeatureStore
     @ObservedObject var sessionStore: NativeSessionStore
     @State private var legalPage: NativeLegalPage?
+    @AppStorage("CanvasProHideGrades") private var hideGrades = false
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                CPPageHeader(eyebrow: "Your account", title: "Settings", detail: nil)
+                CPPageHeader(eyebrow: nil, title: "Settings", detail: nil)
                 NativeMenuGroup("Personal") {
                     NavigationLink { ProfileView(features: features, email: sessionStore.session?.user.email) } label: {
                         NativeMenuRow(title: "Profile", symbol: "person.crop.circle")
                     }.buttonStyle(CPPressStyle())
                     CPRowDivider(leading: 40)
                     settingsLink("Appearance", "paintpalette") { NativeAppearanceView(features: features) }
+                    CPRowDivider(leading: 40)
+                    HStack(spacing: 12) {
+                        CPIconBadge(symbol: "eye.slash")
+                        Toggle("Hide grades until tapped", isOn: $hideGrades)
+                            .cpFont(13, .medium).foregroundStyle(CPTheme.foreground(scheme))
+                    }
+                    .frame(minHeight: 50)
                 }
                 NativeMenuGroup("Classes") {
                     settingsLink("Canvas connection", "link") { CanvasSettingsView(store: contentStore) }
@@ -223,8 +231,8 @@ private struct NativeAIConnectionView: View {
         ZStack {
             CPBackdrop()
             ScrollView {
-                CPGlassCard(title: "Connect an AI assistant", subtitle: "Read-only access to your CanvasPro information.") {
-                    Text("Add this address to an assistant's connectors, sign in, and approve the request. It can then answer questions about your classes, deadlines, and grades.")
+                CPGlassCard(title: "Connect an AI assistant") {
+                    Text("Add this address to your assistant, then approve.")
                         .cpFont(12).lineSpacing(2)
                     HStack {
                         Text(address).cpFont(12, .medium, design: .monospaced).lineLimit(1).textSelection(.enabled)
@@ -237,7 +245,7 @@ private struct NativeAIConnectionView: View {
                     }
                     .padding(.leading, 12).padding(.trailing, 4).padding(.vertical, 4)
                     .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: CPLayout.innerRadius, style: .continuous))
-                    Text("Read-only. An assistant cannot change Canvas data or see your Canvas API key. Remove access from the assistant at any time.")
+                    Text("Read-only. Your Canvas key is never shared.")
                         .cpFont(11).foregroundStyle(.secondary)
                 }
                 .cpPagePadding()
@@ -255,7 +263,7 @@ private struct NativeDeleteAccountView: View {
     var body: some View {
         Form {
             Section {
-                Text("This permanently deletes your account, saved Canvas key, classes, and app data. It cannot be undone.")
+                Text("Permanently deletes your account and data. This can't be undone.")
             }
             Section("Type DELETE to confirm") {
                 TextField("DELETE", text: $confirmation)
@@ -399,7 +407,7 @@ struct GetItDoneView: View {
                 } else if let first = recommendation {
                     recommendationCard(first)
                 } else {
-                    CPGlassCard { NativeEmptyState(title: "You're all clear.", symbol: "checkmark.circle", detail: "Everything due in this window is done or skipped for today.") }
+                    CPGlassCard { NativeEmptyState(title: "You're all clear.", symbol: "checkmark.circle") }
                 }
                 CPSegmented(selection: Binding(get: { window == 7 ? "One week" : "Two weeks" }, set: { value in window = value == "One week" ? 7 : 14; choiceOffset = 0; orderRaw = "" }), options: ["One week", "Two weeks"], label: "Planning window")
                 if !store.needsCanvasConnection && store.loadFailure == nil && !store.isFirstLoad { planCard }
@@ -474,10 +482,10 @@ struct GetItDoneView: View {
             CPCardHeader(title: "The rest of today", subtitle: rest.isEmpty ? "Nothing else planned" : "\(rest.count) left · about \(plannedMinutes) min") {
                 Button { skippedRaw = ""; orderRaw = ""; choiceOffset = 0 } label: { CPLinkLabel(text: "Reset", symbol: "arrow.counterclockwise") }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Rebuild the plan and bring back skipped work")
+                    .accessibilityLabel("Reset plan")
             }
             if plan.isEmpty {
-                NativeEmptyState(title: "Nothing scheduled for today.", symbol: "checkmark.circle", detail: "Everything urgent is complete, skipped, or already submitted.")
+                NativeEmptyState(title: "Nothing scheduled for today.", symbol: "checkmark.circle")
             } else if rest.isEmpty {
                 Text("That's everything planned for today.").cpFont(11).foregroundStyle(CPTheme.muted(scheme))
             } else {
@@ -529,7 +537,7 @@ struct GetItDoneView: View {
     private func planMeta(_ item: AssignmentItem) -> String {
         var parts = [store.displayName(courseID: item.courseID, fallback: item.courseName)]
         if item.submission?.missing == true { parts.append("Missing") }
-        else if let due = item.dueDate { parts.append(due < Date() ? "Overdue" : due.formatted(.dateTime.weekday(.abbreviated).hour().minute())) }
+        else if let due = item.dueDate { parts.append(due < Date() ? "Past due" : due.formatted(.dateTime.weekday(.abbreviated).hour().minute())) }
         else { parts.append("No due date") }
         return parts.joined(separator: " · ")
     }
@@ -540,8 +548,7 @@ struct GetItDoneView: View {
 }
 
 /// Today's Assignments page: the website's Coming Up view (range, week strip,
-/// by day or by class) with a Priority card on top, search, and adding your
-/// own work. It replaces the separate Assignments tab.
+/// by day or by class), search, and adding your own work.
 struct FocusView: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.cpPalette) private var paletteDependency
@@ -550,9 +557,8 @@ struct FocusView: View {
     @Binding var window: String
     @Binding var section: String
     @State private var showCompleted = false
-    @State private var grouping = "By day"
+    @AppStorage("CanvasProAssignmentsGrouping") private var grouping = "By day"
     @State private var selectedDay: Date?
-    @State private var recentlyCompleted: AssignmentItem?
     @State private var search = ""
     @State private var showAdd = false
     @FocusState private var searchFocused: Bool
@@ -563,16 +569,6 @@ struct FocusView: View {
     private var isSearching: Bool { !search.trimmingCharacters(in: .whitespaces).isEmpty }
     private var unfinished: [AssignmentItem] {
         allItems.filter { NativeParity.isInFocusWindow($0, window: window) && $0.isVisible(in: store) }.sorted(by: AssignmentItem.dueSort)
-    }
-    /// Unfinished work due within the next week (or already overdue), most
-    /// important first. Nothing due further out than a week appears here.
-    private var priority: [AssignmentItem] {
-        let weekEnd = NativeParity.endOfUpcomingDay(7)
-        let candidates = allItems.filter { item in
-            guard let due = item.dueDate, due <= weekEnd else { return false }
-            return item.isVisible(in: store)
-        }
-        return Array(NativeParity.rankedAssignments(candidates, estimates: features.estimates).prefix(5))
     }
     private var items: [AssignmentItem] {
         if isSearching {
@@ -594,7 +590,7 @@ struct FocusView: View {
             guard let due = item.dueDate else { return .distantFuture }
             return due < Date() ? .distantPast : calendar.startOfDay(for: due)
         }.sorted { $0.key < $1.key }.map { date, rows in
-            let title = date == .distantPast ? "Overdue" : date == .distantFuture ? "No due date" : calendar.isDateInToday(date) ? "Today" : calendar.isDateInTomorrow(date) ? "Tomorrow" : date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
+            let title = date == .distantPast ? "Catch up" : date == .distantFuture ? "No due date" : calendar.isDateInToday(date) ? "Today" : calendar.isDateInTomorrow(date) ? "Tomorrow" : date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
             return NativeTitledGroup(title: title, items: rows)
         }
     }
@@ -628,7 +624,6 @@ struct FocusView: View {
                         CPSkeletonCard()
                         CPSkeletonCard()
                     } else {
-                        if !isSearching && !priority.isEmpty { priorityCard.cpReveal(0) }
                         if !isSearching { rangeChips }
                         if !isSearching && window != "overdue" { weekStrip }
                         controls
@@ -646,27 +641,6 @@ struct FocusView: View {
         .background(CPBackdrop())
         .refreshable { async let a: Void = store.load(); async let b: Void = features.load(); _ = await (a, b) }
         .sheet(isPresented: $showAdd) { AddAssignmentView(courses: visibleCourses, store: store, features: features) }
-        .safeAreaInset(edge: .bottom) {
-            if let item = recentlyCompleted {
-                HStack(spacing: 10) {
-                    Image(systemName: "checkmark").cpIconFont(12, .semibold).foregroundStyle(CPTheme.foreground(scheme))
-                    Text("Marked complete").cpFont(13)
-                    Spacer()
-                    Button("Undo") {
-                        Task {
-                            if item.isFinished(in: store) { await store.toggle(item) }
-                            recentlyCompleted = nil
-                        }
-                    }
-                    .cpFont(13, .medium)
-                    Button { recentlyCompleted = nil } label: { CPIconButtonLabel(symbol: "xmark") }.buttonStyle(.plain).accessibilityLabel("Dismiss")
-                }
-                .padding(.leading, 16).padding(.trailing, 4)
-                .cpSurface(strong: true, radius: 18)
-                .padding(.horizontal, CPLayout.gutter).padding(.bottom, 8)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
-        }
     }
 
     // MARK: Header and search
@@ -676,7 +650,7 @@ struct FocusView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Assignments").cpFont(28, .regular).tracking(-1).foregroundStyle(CPTheme.foreground(scheme))
                     .accessibilityAddTraits(.isHeader)
-                Text(unfinished.isEmpty ? "All clear" : "\(unfinished.count) \(window == "overdue" ? "overdue" : "due") · about \(unfinished.reduce(0) { $0 + estimate($1) }) min")
+                Text(unfinished.isEmpty ? "All clear" : "\(unfinished.count) \(window == "overdue" ? "to catch up" : "due") · about \(unfinished.reduce(0) { $0 + estimate($1) }) min")
                     .cpFont(13).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
             }
             Spacer(minLength: 8)
@@ -709,41 +683,6 @@ struct FocusView: View {
         .frame(minHeight: 44)
         .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(CPTheme.insetBorder(scheme), lineWidth: 0.5))
-    }
-
-    // MARK: Priority
-
-    private var priorityCard: some View {
-        CPGlassCard {
-            CPCardHeader(title: "Priority") {
-                Text("\(priority.count)").cpFont(13).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
-            }
-            VStack(spacing: 8) {
-                ForEach(priority) { item in
-                    CPInsetRow {
-                        HStack(spacing: 12) {
-                            NativeCompletionButton(assignment: item, store: store, onCompleted: { recentlyCompleted = $0 })
-                            CPAdaptiveStack(spacing: 6) {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(item.name).cpFont(13, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(3)
-                                    Text(priorityMeta(item)).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(2)
-                                }
-                                Spacer(minLength: 8)
-                                let label = NativeParity.priorityLabel(item)
-                                CPPill(text: label, tone: label == "Do first" ? .accent : .neutral)
-                            }
-                        }
-                    }
-                    .nativeAssignmentSwipe(item, store: store, onCompleted: { recentlyCompleted = $0 })
-                }
-            }
-        }
-    }
-
-    private func priorityMeta(_ item: AssignmentItem) -> String {
-        let course = store.displayName(courseID: item.courseID, fallback: item.courseName)
-        guard let countdown = NativeParity.countdown(item, completed: false) else { return course }
-        return "\(course) · \(countdown.label)"
     }
 
     // MARK: Range, week and grouping
@@ -806,9 +745,9 @@ struct FocusView: View {
         if listItems.isEmpty {
             CPGlassCard {
                 NativeEmptyState(
-                    title: isSearching ? "No matches" : selectedDay != nil ? "Nothing due this day." : window == "overdue" ? "Nothing overdue." : "You're all clear.",
+                    title: isSearching ? "No matches" : selectedDay != nil ? "Nothing due this day." : window == "overdue" ? "Nothing to catch up on." : "You're all clear.",
                     symbol: isSearching ? "magnifyingglass" : "checkmark.circle",
-                    detail: isSearching || selectedDay != nil || window == "all" ? nil : "Try a longer range above."
+                    detail: nil
                 )
             }
         } else if grouping == "By class" {
@@ -838,6 +777,7 @@ struct FocusView: View {
                 if let score = course.currentScore {
                     Text("\(score.formatted(.number.precision(.fractionLength(1))))%")
                         .cpFont(12).monospacedDigit().foregroundStyle(color)
+                        .cpGradeShield()
                 }
                 Text("\(group.items.count)").cpFont(12).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
             }
@@ -854,7 +794,7 @@ struct FocusView: View {
         let countdown = NativeParity.countdown(item, completed: done)
         return CPInsetRow {
             HStack(alignment: .center, spacing: 12) {
-                NativeCompletionButton(assignment: item, store: store, onCompleted: { recentlyCompleted = $0 })
+                NativeCompletionButton(assignment: item, store: store)
                 NavigationLink {
                     if let course = store.bundle.courses.first(where: { $0.id == item.courseID }) {
                         CourseDetailView(course: course, store: store, features: features, highlightAssignment: item)
@@ -886,7 +826,7 @@ struct FocusView: View {
             }
         }
         .opacity(done ? 0.6 : 1)
-        .nativeAssignmentSwipe(item, store: store, onCompleted: { recentlyCompleted = $0 })
+        .nativeAssignmentSwipe(item, store: store)
     }
 
     private func rowMeta(_ item: AssignmentItem, showCourse: Bool, done: Bool) -> String {
@@ -899,7 +839,7 @@ struct FocusView: View {
 
     private func focusLabel(_ value: String) -> String {
         switch value {
-        case "overdue": return "Overdue"
+        case "overdue": return "Catch up"
         case "1": return "24 hours"
         case "2": return "2 days"
         case "3": return "3 days"
@@ -996,7 +936,7 @@ struct CalendarView: View {
             LazyVStack(alignment: .leading, spacing: CPLayout.stack) {
                 calendarStrip
                 if agenda.isEmpty {
-                    CPGlassCard { NativeEmptyState(title: "Nothing scheduled", symbol: "calendar", detail: "No upcoming assignments or events on your Canvas calendar.") }
+                    CPGlassCard { NativeEmptyState(title: "Nothing scheduled", symbol: "calendar") }
                 } else if let selected = selectedDate {
                     let dayItems = itemsFor(day: selected)
                     dayCard(title: dayTitle(selected), items: dayItems)
@@ -1633,7 +1573,7 @@ private struct AnnouncementWindowSettingsView: View {
                 CPGlassCard(title: "Announcement history", strong: true) {
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) { ForEach([1, 2, 4, 0], id: \.self) { value in Button { Task { do { try await features.savePreference("announcement_window_weeks", value); status = nil } catch { status = error.localizedDescription } } } label: { CPChip(text: value == 0 ? "All" : value == 4 ? "1 month" : "\(value) week\(value == 1 ? "" : "s")", selected: features.announcementWeeks == value).frame(maxWidth: .infinity) }.buttonStyle(.plain) } }
                     if let status { Text(status).foregroundStyle(.red) }
-                    Text("Announcements older than this are hidden on every screen, here and on the website.").cpFont(11).foregroundStyle(CPTheme.muted(scheme))
+                    Text("Older announcements are hidden everywhere.").cpFont(11).foregroundStyle(CPTheme.muted(scheme))
                 }.cpPagePadding()
             }
         }.cpNavigationTitle("Announcements").navigationBarTitleDisplayMode(.inline)
@@ -1670,7 +1610,7 @@ private struct ProfileView: View {
     private var usernameError: String? {
         guard !normalizedUsername.isEmpty else { return nil }
         guard (3...24).contains(normalizedUsername.count) else { return "Use 3–24 characters." }
-        guard normalizedUsername.range(of: "^[a-z0-9_]+$", options: .regularExpression) != nil else { return "Use only lowercase letters, numbers, and underscores." }
+        guard normalizedUsername.range(of: "^[a-z0-9_]+$", options: .regularExpression) != nil else { return "Lowercase letters, numbers, underscores." }
         return nil
     }
     var body: some View {
@@ -1688,7 +1628,7 @@ private struct ProfileView: View {
                     if usernameState == "checking" { ProgressView().controlSize(.mini) }
                     else if usernameState == "available" { Image(systemName: "checkmark.circle.fill").foregroundStyle(.green) }
                     else if usernameState == "taken" || usernameState == "invalid" { Image(systemName: "xmark.circle.fill").foregroundStyle(.red) }
-                    Text(usernameState == "taken" ? "That username is already taken." : usernameState == "invalid" ? (usernameError ?? "Invalid username.") : usernameState == "available" ? "Username is available. You can use it to sign in." : "3–24 lowercase letters, numbers, or underscores.")
+                    Text(usernameState == "taken" ? "That username is already taken." : usernameState == "invalid" ? (usernameError ?? "Invalid username.") : usernameState == "available" ? "Username is available." : "3–24 lowercase letters, numbers, or underscores.")
                         .cpFont(11)
                         .foregroundStyle(usernameState == "taken" || usernameState == "invalid" ? Color.red : Color.secondary)
                 }
@@ -1711,7 +1651,7 @@ private struct ProfileView: View {
                         .disabled(photoBusy)
                     if photoBusy { ProgressView() }
                 }
-                Text("JPEG, PNG, WebP, or GIF. Maximum 5 MB.").cpFont(11).foregroundStyle(.secondary)
+                Text("JPEG, PNG, WebP or GIF, up to 5 MB.").cpFont(11).foregroundStyle(.secondary)
                 if features.profile.avatarPath != nil {
                     Button("Remove photo", role: .destructive) { Task { do { photoBusy = true; defer { photoBusy = false }; try await features.removeAvatar(); status = "Photo removed." } catch { status = error.localizedDescription } } }.disabled(photoBusy)
                 }
@@ -1785,17 +1725,17 @@ private struct ProfileView: View {
         else { contentType = nil }
 
         if let contentType {
-            guard data.count <= 5 * 1024 * 1024 else { throw NativeAppError.server("Profile photos must be 5 MB or smaller.") }
+            guard data.count <= 5 * 1024 * 1024 else { throw NativeAppError.server("Photos must be 5 MB or smaller.") }
             return (data, contentType)
         }
 
         // iPhone libraries commonly contain HEIC; convert it for the same avatar service.
-        guard let image = UIImage(data: data) else { throw NativeAppError.server("Choose a JPEG, PNG, WebP, or GIF image.") }
+        guard let image = UIImage(data: data) else { throw NativeAppError.server("Choose a JPEG, PNG, WebP or GIF.") }
         let scale = min(1, 1200 / max(image.size.width, image.size.height))
         let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
         guard size.width > 0 && size.height > 0 else { throw NativeAppError.server("Could not read that photo.") }
         let jpeg = UIGraphicsImageRenderer(size: size).jpegData(withCompressionQuality: 0.82) { _ in image.draw(in: CGRect(origin: .zero, size: size)) }
-        guard jpeg.count <= 5 * 1024 * 1024 else { throw NativeAppError.server("Profile photos must be 5 MB or smaller.") }
+        guard jpeg.count <= 5 * 1024 * 1024 else { throw NativeAppError.server("Photos must be 5 MB or smaller.") }
         return (jpeg, "image/jpeg")
     }
 }
@@ -1871,12 +1811,12 @@ struct CanvasSettingsView: View {
                     if domainLooksValid {
                         Label(cleanDomain, systemImage: "checkmark.circle").cpFont(12).foregroundStyle(CPTheme.muted(scheme))
                     } else {
-                        Text("Copy it from the address bar when you open Canvas in a browser.")
+                        Text("Copy it from your browser's address bar.")
                             .cpFont(12).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 step(2, title: "Make an access token") {
-                    Text("In Canvas, open Settings, scroll to Approved Integrations and tap New Access Token. Name it CanvasPro, then copy it.")
+                    Text("Canvas Settings, then Approved Integrations, then New Access Token. Copy it.")
                         .cpFont(12).lineSpacing(2).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
                     if let settingsURL {
                         Link(destination: settingsURL) { Label("Open my Canvas settings", systemImage: "arrow.up.right") }
@@ -1908,7 +1848,7 @@ struct CanvasSettingsView: View {
                 .disabled(!canSave)
                 HStack(alignment: .top, spacing: 8) {
                     Image(systemName: "lock").cpIconFont(11).foregroundStyle(CPTheme.faint(scheme)).padding(.top, 2)
-                    Text("Your school password is never used. The token is kept securely on CanvasPro's servers, not on this phone, and you can replace it any time.")
+                    Text("Your school password is never used. Replace the token any time.")
                         .cpFont(11).lineSpacing(2).foregroundStyle(CPTheme.faint(scheme)).fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(.horizontal, 4)
@@ -1940,8 +1880,6 @@ struct CanvasSettingsView: View {
                 Spacer(minLength: 0)
             }
             .accessibilityElement(children: .combine)
-            Text("To switch schools or replace an expired token, follow the steps below.")
-                .cpFont(12).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -1973,13 +1911,30 @@ struct CanvasSettingsView: View {
                 connectedDomain = cleanDomain
                 canvasToken = ""
                 statusIsError = false
-                status = "Canvas is connected. Your classes are loading."
+                let count = store.bundle.courses.count
+                status = count > 0 ? "Connected. \(count) \(count == 1 ? "class" : "classes") found." : "Connected."
                 savedCount += 1
             } catch {
                 statusIsError = true
-                status = error.localizedDescription
+                status = Self.plainMessage(error)
             }
         }
+    }
+
+    /// The common failures, in one plain line each.
+    private static func plainMessage(_ error: Error) -> String {
+        let text = error.localizedDescription
+        let lower = text.lowercased()
+        if lower.contains("401") || lower.contains("unauthor") || lower.contains("invalid") || lower.contains("token") && lower.contains("expired") {
+            return "That token didn't work. Make a new one and paste it."
+        }
+        if lower.contains("404") || lower.contains("could not be found") || lower.contains("hostname") || lower.contains("domain") {
+            return "Check the address and try again."
+        }
+        if lower.contains("offline") || lower.contains("internet") || lower.contains("network") || lower.contains("timed out") {
+            return "No connection. Try again."
+        }
+        return text
     }
 }
 
@@ -2138,7 +2093,7 @@ struct NativeConnectCanvasCard: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Connect Canvas").cpFont(22, .regular).tracking(-0.6).foregroundStyle(CPTheme.foreground(scheme))
                     .accessibilityAddTraits(.isHeader)
-                Text("Add your school's Canvas to see your classes, deadlines and grades here.")
+                Text("Add your school's Canvas to see your classes.")
                     .cpFont(13).lineSpacing(2).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
             }
             NavigationLink { CanvasSettingsView(store: store) } label: {

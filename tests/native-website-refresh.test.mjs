@@ -31,10 +31,9 @@ test("Assignments uses local-day ranges up to four weeks and search finds any as
 });
 
 test("priority surfaces share the same scorer and quiet labels", () => {
-  // Priority on Assignments only holds work due within the next week (or overdue).
-  assert.ok(more.includes("guard let due = item.dueDate, due <= weekEnd else { return false }"));
-  assert.ok(more.includes("let weekEnd = NativeParity.endOfUpcomingDay(7)"));
-  assert.ok(more.includes("NativeParity.rankedAssignments(candidates, estimates: features.estimates).prefix(5)"));
+  // The Assignments page has no Priority card; the dashboard suggests one next step.
+  assert.ok(!more.includes("priorityCard"));
+  assert.ok(views.includes("NativeParity.rankedAssignments(candidates, estimates: features.estimates).first"));
   assert.ok(more.includes("NativeParity.rankedAssignments(visibleAssignments"));
   assert.ok(!views.includes("NativeParity.priority("));
   for (const label of ["Do first", "Soon", "This week", "Later"]) assert.ok(parity.includes(`"${label}"`));
@@ -68,7 +67,7 @@ test("dashboard suppresses empty classes without concealing urgent work", () => 
   // Only classes with something due get a row; the rest become one quiet line.
   assert.ok(views.includes("return items.isEmpty ? nil : NativeCourseGroup(course: course, items: items)"));
   assert.ok(views.includes('class has" : "classes have") nothing due.'));
-  assert.ok(views.includes('stillUrgent > 0 ? "Nothing new since your last visit."'));
+  assert.ok(views.includes(') due soon." : "All caught up."'));
   assert.ok(views.includes("WorkloadView(assignments: activeAssignments, store: store, features: features)"));
   assert.ok(design.includes("adaptive(dark: .hsl(hue, 0.42, 0.58), light: .hsl(hue, 0.50, 0.38))"));
   assert.ok(more.includes("store.displayName(courseID: course.id, fallback: course.name)"));

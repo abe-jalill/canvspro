@@ -926,6 +926,8 @@ final class NativeContentStore: ObservableObject {
     @Published var completed = Set<Int>()
     @Published var reopenedAt: [Int: Date] = [:]
     @Published var completionSavesInFlight = Set<Int>()
+    /// The task finished most recently; the Undo bar shows it for a few seconds.
+    @Published var undoItem: AssignmentItem?
     @Published var nicknames: [Int: ClassNickname] = [:]
     @Published var isLoading = false
     @Published var isShowingCachedData = false
@@ -1060,7 +1062,7 @@ final class NativeContentStore: ObservableObject {
     func toggle(_ assignment: AssignmentItem) async {
         if isPreview {
             if assignment.isFinished(in: self) { completed.remove(assignment.id); reopenedAt[assignment.id] = Date() }
-            else { completed.insert(assignment.id); reopenedAt.removeValue(forKey: assignment.id) }
+            else { completed.insert(assignment.id); reopenedAt.removeValue(forKey: assignment.id); undoItem = assignment }
             UserDefaults.standard.set(Array(completed), forKey: previewCompletedKey)
             return
         }
@@ -1080,6 +1082,7 @@ final class NativeContentStore: ObservableObject {
         do {
             try await api.setCompletion(next, assignment: assignment, reopenedAt: reopenedAt[assignment.id], token: try await sessionStore.accessToken(), userID: user.id)
             persistContentCache()
+            undoItem = next ? assignment : nil
         } catch {
             if previousCompleted { completed.insert(assignment.id) } else { completed.remove(assignment.id) }
             reopenedAt[assignment.id] = previousReopen
