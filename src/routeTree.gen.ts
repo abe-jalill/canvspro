@@ -49,6 +49,7 @@ import { Route as AuthenticatedSettingsNotificationsRouteImport } from './routes
 import { Route as AuthenticatedSettingsProfileRouteImport } from './routes/_authenticated/settings.profile'
 import { Route as ApiMobileDeleteAccountRouteImport } from './routes/api/mobile/delete-account'
 import { Route as ApiMobileSignInRouteImport } from './routes/api/mobile/sign-in'
+import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as ApiPublicPushDispatchRouteImport } from './routes/api/public/push/dispatch'
 import { Route as ApiPublicPushKeyRouteImport } from './routes/api/public/push/key'
 import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
@@ -270,6 +271,12 @@ const ApiMobileSignInRoute = ApiMobileSignInRouteImport.update({
   path: '/api/mobile/sign-in',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicPaymentsWebhookRoute =
+  ApiPublicPaymentsWebhookRouteImport.update({
+    id: '/api/public/payments/webhook',
+    path: '/api/public/payments/webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicPushDispatchRoute = ApiPublicPushDispatchRouteImport.update({
   id: '/api/public/push/dispatch',
   path: '/api/public/push/dispatch',
@@ -337,6 +344,7 @@ export interface FileRoutesByFullPath {
   '/api/mobile/delete-account': typeof ApiMobileDeleteAccountRoute
   '/api/mobile/sign-in': typeof ApiMobileSignInRoute
   '/settings/': typeof AuthenticatedSettingsIndexRoute
+  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/push/dispatch': typeof ApiPublicPushDispatchRoute
   '/api/public/push/key': typeof ApiPublicPushKeyRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -382,6 +390,7 @@ export interface FileRoutesByTo {
   '/api/mobile/delete-account': typeof ApiMobileDeleteAccountRoute
   '/api/mobile/sign-in': typeof ApiMobileSignInRoute
   '/settings': typeof AuthenticatedSettingsIndexRoute
+  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/push/dispatch': typeof ApiPublicPushDispatchRoute
   '/api/public/push/key': typeof ApiPublicPushKeyRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -430,6 +439,7 @@ export interface FileRoutesById {
   '/api/mobile/delete-account': typeof ApiMobileDeleteAccountRoute
   '/api/mobile/sign-in': typeof ApiMobileSignInRoute
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
+  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/push/dispatch': typeof ApiPublicPushDispatchRoute
   '/api/public/push/key': typeof ApiPublicPushKeyRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -478,6 +488,7 @@ export interface FileRouteTypes {
     | '/api/mobile/delete-account'
     | '/api/mobile/sign-in'
     | '/settings/'
+    | '/api/public/payments/webhook'
     | '/api/public/push/dispatch'
     | '/api/public/push/key'
     | '/lovable/email/auth/preview'
@@ -523,6 +534,7 @@ export interface FileRouteTypes {
     | '/api/mobile/delete-account'
     | '/api/mobile/sign-in'
     | '/settings'
+    | '/api/public/payments/webhook'
     | '/api/public/push/dispatch'
     | '/api/public/push/key'
     | '/lovable/email/auth/preview'
@@ -570,6 +582,7 @@ export interface FileRouteTypes {
     | '/api/mobile/delete-account'
     | '/api/mobile/sign-in'
     | '/_authenticated/settings/'
+    | '/api/public/payments/webhook'
     | '/api/public/push/dispatch'
     | '/api/public/push/key'
     | '/lovable/email/auth/preview'
@@ -596,6 +609,7 @@ export interface RootRouteChildren {
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   ApiMobileDeleteAccountRoute: typeof ApiMobileDeleteAccountRoute
   ApiMobileSignInRoute: typeof ApiMobileSignInRoute
+  ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
   ApiPublicPushDispatchRoute: typeof ApiPublicPushDispatchRoute
   ApiPublicPushKeyRoute: typeof ApiPublicPushKeyRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
@@ -885,6 +899,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMobileSignInRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/payments/webhook': {
+      id: '/api/public/payments/webhook'
+      path: '/api/public/payments/webhook'
+      fullPath: '/api/public/payments/webhook'
+      preLoaderRoute: typeof ApiPublicPaymentsWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/push/dispatch': {
       id: '/api/public/push/dispatch'
       path: '/api/public/push/dispatch'
@@ -1009,6 +1030,7 @@ const rootRouteChildren: RootRouteChildren = {
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   ApiMobileDeleteAccountRoute: ApiMobileDeleteAccountRoute,
   ApiMobileSignInRoute: ApiMobileSignInRoute,
+  ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
   ApiPublicPushDispatchRoute: ApiPublicPushDispatchRoute,
   ApiPublicPushKeyRoute: ApiPublicPushKeyRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
