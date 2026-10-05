@@ -411,6 +411,7 @@ export type Database = {
           created_at: string
           estimated_minutes: number | null
           id: string
+          progress_percent: number | null
           updated_at: string
           user_id: string
         }
@@ -420,6 +421,7 @@ export type Database = {
           created_at?: string
           estimated_minutes?: number | null
           id?: string
+          progress_percent?: number | null
           updated_at?: string
           user_id: string
         }
@@ -429,6 +431,7 @@ export type Database = {
           created_at?: string
           estimated_minutes?: number | null
           id?: string
+          progress_percent?: number | null
           updated_at?: string
           user_id?: string
         }
