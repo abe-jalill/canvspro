@@ -364,10 +364,10 @@ function AssignmentsPage() {
               Complete workload
             </p>
             <h1 className="mt-2 text-4xl font-medium tracking-[-0.045em] sm:text-5xl">
-              One agenda. Every assignment.
+              Assignments
             </h1>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-              Work is ordered by urgency across every class, so the next deadline is always obvious.
+              Have an assignment outside of Canvas?&nbsp;Add it under "Add something Canvas doesn't have&nbsp;
             </p>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:min-w-[18rem]">
