@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, redirect, useRouterState } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppSidebar, MobileNav } from "@/components/app-sidebar";
@@ -21,6 +21,7 @@ import { useSidebarMode } from "@/lib/sidebar-state";
 import { cn } from "@/lib/utils";
 import { AppStartupWelcome } from "@/components/app-startup-welcome";
 import { RouteProgress } from "@/components/route-progress";
+import { PageTransition } from "@/components/page-transition";
 import { ProfileCompletionDialog } from "@/components/profile-completion-dialog";
 import { CanvasTrademarkNotice } from "@/components/canvas-trademark-notice";
 import { maintainBackgroundPush } from "@/lib/push-client";
@@ -58,10 +59,7 @@ export const Route = createFileRoute("/_authenticated")({
 
 function AuthenticatedLayout() {
   const { user } = Route.useRouteContext();
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [sidebarMode] = useSidebarMode();
-  const needsFallbackTransition =
-    typeof document !== "undefined" && typeof document.startViewTransition !== "function";
 
   useQueryCachePersistence();
   const startup = useAppPrefetch(true);
@@ -120,15 +118,9 @@ function AuthenticatedLayout() {
           <CanvasKeyGate>
             <ClassNamesGate>
               <PullToRefresh>
-                <div
-                  key={needsFallbackTransition ? pathname : "native-transition"}
-                  className={cn(
-                    "route-content min-w-0",
-                    needsFallbackTransition && "route-content-fallback",
-                  )}
-                >
+                <PageTransition>
                   <Outlet />
-                </div>
+                </PageTransition>
               </PullToRefresh>
             </ClassNamesGate>
           </CanvasKeyGate>

@@ -39,7 +39,8 @@ export const getRouter = () => {
     scrollToTopSelectors: ["#app-main"],
     defaultPreload: "intent",
     defaultPreloadDelay: 0,
-    defaultViewTransition: true,
+    // Animate the committed outlet without freezing the glass shell into screenshots.
+    defaultViewTransition: false,
     defaultPreloadStaleTime: 15 * 60_000,
     defaultStaleTime: 15 * 60_000,
     defaultGcTime: 6 * 60 * 60_000,

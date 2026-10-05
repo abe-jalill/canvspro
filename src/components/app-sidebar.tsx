@@ -1,6 +1,6 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useQuery, useQueryClient, queryOptions } from "@tanstack/react-query";
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
   BarChart3,
@@ -26,11 +26,12 @@ import { syncAuthIdentity } from "@/lib/auth-user";
 import { NotificationCenter } from "@/components/notification-center";
 import { ProfileButton } from "@/components/profile-button";
 import { TrafficLights } from "@/components/traffic-lights";
-import { getCoursesFn, type CourseSummary } from "@/lib/canvas.functions";
+import type { CourseSummary } from "@/lib/canvas.functions";
 import { displayCourseNameForCourse } from "@/lib/course-display";
 import { getGradeColor } from "@/lib/grade-color";
 import { useSidebarMode } from "@/lib/sidebar-state";
 import { useIsAdmin } from "@/hooks/use-is-admin";
+import { SlidingSidebarNav } from "@/components/sliding-sidebar-nav";
 
 const items = [
   { title: "Today", to: "/dashboard" as const, icon: LayoutDashboard },
@@ -68,79 +69,6 @@ const NESTED_PATHS: Record<string, string[]> = {
 
 function isItemActive(pathname: string, to: string) {
   return isActive(pathname, to) || (NESTED_PATHS[to] ?? []).some((p) => isActive(pathname, p));
-}
-
-function SlidingSidebarNav({
-  activeKey,
-  itemCount,
-  className,
-  children,
-}: {
-  activeKey: string;
-  itemCount: number;
-  className?: string;
-  children: ReactNode;
-}) {
-  const navRef = useRef<HTMLElement>(null);
-  const [highlight, setHighlight] = useState({ top: 0, height: 0, visible: false });
-
-  useEffect(() => {
-    const nav = navRef.current;
-    if (!nav) return;
-
-    const updateHighlight = () => {
-      const active = nav.querySelector<HTMLElement>('[data-sidebar-active="true"]');
-      if (!active) {
-        setHighlight((current) =>
-          current.visible ? { ...current, visible: false } : current,
-        );
-        return;
-      }
-
-      const navRect = nav.getBoundingClientRect();
-      const activeRect = active.getBoundingClientRect();
-      const next = {
-        top: activeRect.top - navRect.top,
-        height: activeRect.height,
-        visible: true,
-      };
-      setHighlight((current) =>
-        current.top === next.top &&
-        current.height === next.height &&
-        current.visible === next.visible
-          ? current
-          : next,
-      );
-    };
-
-    updateHighlight();
-    const observer = new ResizeObserver(updateHighlight);
-    observer.observe(nav);
-    window.addEventListener("resize", updateHighlight);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", updateHighlight);
-    };
-  }, [activeKey, itemCount]);
-
-  return (
-    <nav ref={navRef} className={cn("relative", className)}>
-      <span
-        aria-hidden="true"
-        className={cn(
-          "pointer-events-none absolute inset-x-0 top-0 z-0 rounded-xl bg-foreground/[0.08] shadow-sm transition-[transform,height,opacity] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none",
-          highlight.visible ? "opacity-100" : "opacity-0",
-        )}
-        style={
-          {
-            height: `${highlight.height}px`,
-            transform: `translateY(${highlight.top}px)`,
-          } as CSSProperties
-        }
-      />
-      {children}
-    </nav>
-  );
 }
 
 function ReminderToggle({ compact = false }: { compact?: boolean }) {
@@ -297,9 +225,10 @@ export function AppSidebar() {
                       onFocus={() => prefetchRouteQueries(queryClient, item.to)}
                       title={item.title}
                       aria-label={item.title}
+                      aria-current={active ? "page" : undefined}
                       data-sidebar-active={active}
                       className={cn(
-                        "press relative z-10 flex h-9 w-9 items-center justify-center rounded-xl transition-colors",
+                        "sidebar-nav-link relative z-10 flex h-9 w-9 items-center justify-center rounded-xl transition-colors",
                         active
                           ? "text-foreground"
                           : "text-muted-foreground/80 hover:bg-foreground/[0.04] hover:text-foreground",
@@ -328,9 +257,10 @@ export function AppSidebar() {
                       onFocus={() => prefetchRouteQueries(queryClient, coursePath)}
                       title={courseName}
                       aria-label={courseName}
+                      aria-current={pathname === coursePath ? "page" : undefined}
                       data-sidebar-active={pathname === coursePath}
                       className={cn(
-                        "press relative z-10 flex h-9 w-9 items-center justify-center rounded-xl transition-colors",
+                        "sidebar-nav-link relative z-10 flex h-9 w-9 items-center justify-center rounded-xl transition-colors",
                         pathname !== coursePath && "hover:bg-foreground/[0.04]",
                       )}
                     >
@@ -381,12 +311,13 @@ export function AppSidebar() {
                       preload="intent"
                       onMouseEnter={() => prefetchRouteQueries(queryClient, item.to)}
                       onFocus={() => prefetchRouteQueries(queryClient, item.to)}
+                      aria-current={active ? "page" : undefined}
                       data-sidebar-active={active}
                       className={cn(
-                        "press relative z-10 rounded-xl px-3 py-2 text-sm transition-colors",
+                        "sidebar-nav-link relative z-10 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
                         active
-                          ? "text-foreground font-medium"
-                          : "text-muted-foreground/80 hover:bg-foreground/[0.04] hover:text-foreground font-normal",
+                          ? "text-foreground"
+                          : "text-muted-foreground/80 hover:bg-foreground/[0.04] hover:text-foreground",
                       )}
                     >
                       <span className="flex items-center justify-between gap-2">
@@ -432,12 +363,13 @@ export function AppSidebar() {
                           onMouseEnter={() => prefetchRouteQueries(queryClient, coursePath)}
                           onFocus={() => prefetchRouteQueries(queryClient, coursePath)}
                           title={`${courseName} (${score != null ? score.toFixed(1) + "%" : "No grade"})`}
+                          aria-current={active ? "page" : undefined}
                           data-sidebar-active={active}
                           className={cn(
-                            "press group relative z-10 flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-sm transition-colors",
+                            "sidebar-nav-link group relative z-10 flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
                             active
-                              ? "text-foreground font-medium"
-                              : "text-muted-foreground/80 hover:bg-foreground/[0.04] hover:text-foreground font-normal",
+                              ? "text-foreground"
+                              : "text-muted-foreground/80 hover:bg-foreground/[0.04] hover:text-foreground",
                           )}
                         >
                           <span className="flex min-w-0 items-center gap-2">
