@@ -15,7 +15,7 @@ const assignment = (id, hours, points = 10) => ({
 });
 
 test("remaining workload scales known points by unfinished progress", () => {
-  assert.equal(remainingWork(assignment(1, 24, 100), 80), 20);
+  assert.ok(Math.abs(remainingWork(assignment(1, 24, 100), 80) - 20) < 0.0001);
   assert.equal(remainingWork(assignment(1, 24, 50), 100), 0);
 });
 

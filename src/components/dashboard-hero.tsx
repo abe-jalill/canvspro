@@ -1,14 +1,18 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { useQuery, queryOptions } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { AlertTriangle, ArrowUpRight, CalendarDays, Clock3 } from "lucide-react";
 import { useUserProfile } from "@/lib/user-profile";
-import { getAllAssignmentsFn, type AssignmentItem } from "@/lib/canvas.functions";
+import type { AssignmentItem } from "@/lib/canvas.functions";
 import { COMPLETED_ASSIGNMENTS_KEY, useLocalSet } from "@/lib/local-state";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { isInFocusWindow } from "@/lib/focus-window";
 import { customToAssignmentItem, useCustomAssignments } from "@/lib/custom-assignments";
+import { useAssignmentMeta } from "@/hooks/use-assignment-meta";
+import { isAssignmentComplete } from "@/lib/assignment-window";
+import { selectWeightedNextUp } from "@/lib/assignment-workload";
+import { displayCourseName } from "@/lib/course-display";
 
 import { assignmentsQueryOptions as dueDatesQO } from "@/lib/canvas.queries";
 
@@ -42,12 +46,23 @@ function StatValue({ loading, children }: { loading: boolean; children: ReactNod
   );
 }
 
+function dueLabel(dueAt: string | null, now: number) {
+  if (!dueAt) return null;
+  const milliseconds = Date.parse(dueAt) - now;
+  if (!Number.isFinite(milliseconds)) return null;
+  const hours = Math.max(1, Math.ceil(milliseconds / (60 * 60 * 1_000)));
+  if (hours < 24) return `Due in ${hours}h`;
+  const days = Math.ceil(hours / 24);
+  return `Due in ${days}d`;
+}
+
 export function DashboardHero() {
   const [now, setNow] = useState(() => new Date());
   const [emailPrefix, setEmailPrefix] = useState<string | null>(null);
   const assignments = useQuery(dueDatesQO);
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
   const custom = useCustomAssignments();
+  const meta = useAssignmentMeta();
   const { data: profile } = useUserProfile();
 
   useEffect(() => {
@@ -74,15 +89,26 @@ export function DashboardHero() {
     day: "numeric",
   });
 
+  const allAssignments = [
+    ...(assignments.data ?? []),
+    ...custom.list.map((item) => customToAssignmentItem(item, undefined)),
+  ];
   const summary = summarize(
-    [
-      ...(assignments.data ?? []),
-      ...custom.list.map((item) => customToAssignmentItem(item, undefined)),
-    ],
+    allAssignments,
     completed.has,
     now,
   );
-  const loading = assignments.isLoading || completed.isLoading || custom.isLoading;
+  const progressById = new Map(
+    (meta.data ?? []).map((item) => [item.assignmentId, item.progressPercent]),
+  );
+  const nextUp = selectWeightedNextUp(
+    allAssignments.filter((assignment) => !isAssignmentComplete(assignment, completed.has(assignment.id))),
+    progressById,
+    now.getTime(),
+  );
+  const nextProgress = nextUp ? progressById.get(nextUp.id) ?? 0 : 0;
+  const nextDue = nextUp ? dueLabel(nextUp.due_at, now.getTime()) : null;
+  const loading = assignments.isLoading || completed.isLoading || custom.isLoading || meta.isLoading;
   const todayCount = summary?.today ?? 0;
   const weekCount = summary?.week ?? 0;
   const overdueCount = summary?.overdue ?? 0;
@@ -131,23 +157,42 @@ export function DashboardHero() {
 
         <div className="dashboard-hero__stat-shell rounded-[1.6rem] p-2 backdrop-blur-md">
           <Link
-            to="/focus"
-            search={{ window: "7" }}
+            to="/assignments"
             preload="intent"
             className="dashboard-hero__stat-card press group relative flex min-h-36 flex-col justify-between rounded-[1.2rem] p-5"
           >
             <div className="flex items-center justify-between gap-3">
               <span className="relative z-10 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                Next seven days
+                Next up
               </span>
               <ArrowUpRight className="relative z-10 h-4 w-4 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-foreground" />
             </div>
-            <div className="relative z-10 flex items-end justify-between gap-4">
-              <StatValue loading={loading}>{assignments.isError ? "—" : weekCount}</StatValue>
-              <span className="max-w-28 pb-1 text-right text-xs leading-snug text-muted-foreground">
-                {weekCount === 1 ? "item on your radar" : "items on your radar"}
-              </span>
-            </div>
+            {loading ? (
+              <div className="space-y-2">
+                <span className="skeleton-shimmer block h-5 w-3/4" />
+                <span className="skeleton-shimmer block h-3 w-1/2" />
+              </div>
+            ) : nextUp ? (
+              <div className="relative z-10 min-w-0">
+                <p className="truncate text-base font-medium text-foreground">{nextUp.name}</p>
+                <p className="mt-1 truncate text-xs text-muted-foreground">
+                  {displayCourseName(nextUp.course_name, nextUp.course_code)}
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs tabular-nums text-foreground/85">
+                  {nextDue && <span>{nextDue}</span>}
+                  {nextDue && nextUp.points_possible != null && <span aria-hidden="true">•</span>}
+                  {nextUp.points_possible != null && <span>{nextUp.points_possible} pts</span>}
+                  {nextProgress > 0 && <span aria-hidden="true">•</span>}
+                  {nextProgress > 0 && (
+                    <span>{nextProgress >= 75 ? `Almost there — ${nextProgress}% done` : `${nextProgress}% done`}</span>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <p className="relative z-10 max-w-56 text-sm leading-relaxed text-muted-foreground">
+                Nothing due in the next seven days.
+              </p>
+            )}
           </Link>
 
           <div className="mt-2 grid grid-cols-2 gap-2">
