@@ -1,0 +1,1 @@
+ALTER TABLE public.user_assignment_meta ADD COLUMN IF NOT EXISTS progress_percent integer CHECK (progress_percent IS NULL OR (progress_percent >= 0 AND progress_percent <= 100));
