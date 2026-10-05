@@ -18,7 +18,8 @@ export const getRouter = () => {
     defaultOptions: {
       queries: {
         staleTime: CANVAS_DATA_STALE_MS,
-        gcTime: CANVAS_DATA_GC_MS,
+        // SSR query caches must not keep prerender/build workers alive for hours.
+        gcTime: typeof window === "undefined" ? Infinity : CANVAS_DATA_GC_MS,
         refetchOnWindowFocus: false,
         // Fresh shared results are reused; stale restored data refreshes behind it.
         refetchOnMount: true,

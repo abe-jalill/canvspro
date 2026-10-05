@@ -7,6 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { deleteMyAccount } from "@/lib/account.functions";
 import { purgeAllScopedStorage, useUserScope } from "@/lib/user-scope";
 import { syncAuthIdentity } from "@/lib/auth-user";
+import { Capacitor } from "@capacitor/core";
+import { requestMobileApi } from "@/lib/mobile-api-client";
 
 const CONFIRM_WORD = "DELETE";
 
@@ -23,11 +25,20 @@ export function DeleteAccountSection() {
     if (confirm.trim().toUpperCase() !== CONFIRM_WORD) return;
     setBusy(true);
     try {
-      await deleteAccount();
+      if (Capacitor.isNativePlatform()) {
+        const { data, error } = await supabase.auth.getSession();
+        if (error || !data.session) throw new Error("Please sign in again before deleting your account.");
+        const result = await requestMobileApi<{ deleted: boolean }>("delete-account", { confirm: CONFIRM_WORD }, data.session.access_token);
+        if (result.deleted !== true) throw new Error("Could not confirm account deletion. Please try again.");
+      } else {
+        await deleteAccount();
+      }
       await queryClient.cancelQueries();
       queryClient.clear();
       purgeAllScopedStorage(scope);
-      await supabase.auth.signOut();
+      // The account is already gone; local cleanup must not depend on another
+      // network request or present a completed deletion as a failure.
+      await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
       syncAuthIdentity(queryClient, null);
       purgeAllScopedStorage(scope);
       toast.success("Your account and all of its data were deleted.");

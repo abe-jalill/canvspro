@@ -49,7 +49,7 @@ export function ProfileCompletionDialog({ user }: { user: User }) {
     user.user_metadata?.profile_setup_prompted || user.user_metadata?.profile_setup_completed,
   );
   const missingRequired = !profile.data?.firstName.trim() || !profile.data?.lastName.trim();
-  const open = profile.isFetchedAfterMount && missingRequired && !metadataHandled && !dismissed;
+  const open = profile.isSuccess && profile.isFetchedAfterMount && missingRequired && !metadataHandled && !dismissed;
 
   function update(key: keyof UserProfile, value: string) {
     setEdited(true);
@@ -74,8 +74,10 @@ export function ProfileCompletionDialog({ user }: { user: User }) {
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     if (!form.firstName.trim() || !form.lastName.trim()) return;
-    await save.mutateAsync(form);
-    await markHandled(false);
+    try {
+      await save.mutateAsync(form);
+      await markHandled(false);
+    } catch { /* Keep the draft; the mutation displays the save error. */ }
   }
 
   return (

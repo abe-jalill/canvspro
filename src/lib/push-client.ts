@@ -1,5 +1,6 @@
+import { getUserScope } from "@/lib/user-scope";
 import { supabase } from "@/integrations/supabase/client";
-import { readPrefs } from "@/lib/notification-prefs";
+import { notificationEdits } from "@/lib/notification-prefs";
 import { setBackgroundPushDevice } from "@/lib/background-push-device";
 
 /**
@@ -99,21 +100,38 @@ export async function maintainBackgroundPush(): Promise<void> {
   }
 }
 
-/** Mirrors the local notification preferences to the backend for the cron job. */
+/** Only user edits are uploaded; registering a device cannot overwrite remote settings. */
+const preferenceSaves = new Map<string, Promise<boolean>>();
 export async function syncPrefsToServer(): Promise<boolean> {
-  const { data } = await supabase.auth.getUser();
-  const user = data.user;
-  if (!user) return false;
-  const { error } = await supabase.from("notification_prefs").upsert(
-    {
-      user_id: user.id,
-      prefs: JSON.parse(JSON.stringify(readPrefs())),
-      timezone_offset_minutes: new Date().getTimezoneOffset(),
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "user_id" },
-  );
-  return !error;
+  const scope = getUserScope();
+  if (!scope) return false;
+  const inFlight = preferenceSaves.get(scope);
+  if (inFlight) {
+    if (!(await inFlight)) return false;
+    if (scope !== getUserScope()) return false;
+    return syncPrefsToServer();
+  }
+  const edits = notificationEdits(scope);
+  const saved = edits.snapshot();
+  // An empty patch still registers the timezone/default row for new accounts.
+  const save = (async () => {
+    const { data, error: authError } = await supabase.auth.getUser();
+    if (authError || data.user?.id !== scope || getUserScope() !== scope) return false;
+    const changes = Object.fromEntries([...saved].map(([key, entry]) => [key, entry.value]));
+    const { error } = await supabase.rpc("patch_notification_preferences", {
+      changes: JSON.parse(JSON.stringify(changes)),
+      device_timezone_offset: new Date().getTimezoneOffset(),
+    });
+    if (error) return false;
+    edits.acknowledge(saved);
+    return true;
+  })();
+  preferenceSaves.set(scope, save);
+  try {
+    return await save;
+  } finally {
+    preferenceSaves.delete(scope);
+  }
 }
 
 /**
