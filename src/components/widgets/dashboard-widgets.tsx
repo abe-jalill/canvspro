@@ -677,7 +677,7 @@ function HeatmapWidget() {
     isAssignmentVisible(assignment, completed.has(assignment.id), false, now),
   );
   return (
-    <GlassCard title="Workload" subtitle="Assignment density by week">
+    <GlassCard title="Workload" subtitle="Remaining effort by week">
       {isLoading && <WorkloadHeatmapSkeleton />}
       {isError && <ErrorState message={(error as Error).message} />}
       {visible && <WorkloadHeatmap assignments={visible} />}
