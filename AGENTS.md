@@ -20,3 +20,4 @@
 - Settings uses `/settings` as a short overview and `/settings/*` child routes for full section details, so new settings belong on a dedicated child page.
 - The dashboard quick Pomodoro reuses the shared study-session snapshot so its timer continues across pages and devices on the same browser.
 - Dashboard priority and heatmap intensity use the shared assignment-workload helper so due-date, points, and saved progress stay consistent.
+- Desktop sidebar destinations share one measured active indicator so route changes animate the highlight instead of replacing it.

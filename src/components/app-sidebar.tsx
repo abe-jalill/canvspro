@@ -1,6 +1,6 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery, useQueryClient, queryOptions } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { toast } from "sonner";
 import {
   BarChart3,
@@ -68,6 +68,79 @@ const NESTED_PATHS: Record<string, string[]> = {
 
 function isItemActive(pathname: string, to: string) {
   return isActive(pathname, to) || (NESTED_PATHS[to] ?? []).some((p) => isActive(pathname, p));
+}
+
+function SlidingSidebarNav({
+  activeKey,
+  itemCount,
+  className,
+  children,
+}: {
+  activeKey: string;
+  itemCount: number;
+  className?: string;
+  children: ReactNode;
+}) {
+  const navRef = useRef<HTMLElement>(null);
+  const [highlight, setHighlight] = useState({ top: 0, height: 0, visible: false });
+
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+
+    const updateHighlight = () => {
+      const active = nav.querySelector<HTMLElement>('[data-sidebar-active="true"]');
+      if (!active) {
+        setHighlight((current) =>
+          current.visible ? { ...current, visible: false } : current,
+        );
+        return;
+      }
+
+      const navRect = nav.getBoundingClientRect();
+      const activeRect = active.getBoundingClientRect();
+      const next = {
+        top: activeRect.top - navRect.top,
+        height: activeRect.height,
+        visible: true,
+      };
+      setHighlight((current) =>
+        current.top === next.top &&
+        current.height === next.height &&
+        current.visible === next.visible
+          ? current
+          : next,
+      );
+    };
+
+    updateHighlight();
+    const observer = new ResizeObserver(updateHighlight);
+    observer.observe(nav);
+    window.addEventListener("resize", updateHighlight);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateHighlight);
+    };
+  }, [activeKey, itemCount]);
+
+  return (
+    <nav ref={navRef} className={cn("relative", className)}>
+      <span
+        aria-hidden="true"
+        className={cn(
+          "pointer-events-none absolute inset-x-0 top-0 z-0 rounded-xl bg-foreground/[0.08] shadow-sm transition-[transform,height,opacity] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none",
+          highlight.visible ? "opacity-100" : "opacity-0",
+        )}
+        style={
+          {
+            height: `${highlight.height}px`,
+            transform: `translateY(${highlight.top}px)`,
+          } as CSSProperties
+        }
+      />
+      {children}
+    </nav>
+  );
 }
 
 function ReminderToggle({ compact = false }: { compact?: boolean }) {
@@ -207,9 +280,14 @@ export function AppSidebar() {
                   onGreen={() => setMode("full")}
                 />
               </div>
-              <nav className="flex w-full flex-col items-center gap-1">
+              <SlidingSidebarNav
+                activeKey={pathname}
+                itemCount={navItems.length + (courses.data?.length ?? 0)}
+                className="flex w-full flex-col items-center gap-1"
+              >
                 {navItems.map((item) => {
                   const Icon = item.icon;
+                  const active = isItemActive(pathname, item.to);
                   return (
                     <Link
                       key={item.to}
@@ -219,10 +297,11 @@ export function AppSidebar() {
                       onFocus={() => prefetchRouteQueries(queryClient, item.to)}
                       title={item.title}
                       aria-label={item.title}
+                      data-sidebar-active={active}
                       className={cn(
-                        "press flex h-9 w-9 items-center justify-center rounded-xl transition-all",
-                        isItemActive(pathname, item.to)
-                          ? "bg-foreground/[0.08] text-foreground shadow-sm"
+                        "press relative z-10 flex h-9 w-9 items-center justify-center rounded-xl transition-colors",
+                        active
+                          ? "text-foreground"
                           : "text-muted-foreground/80 hover:bg-foreground/[0.04] hover:text-foreground",
                       )}
                     >
@@ -249,11 +328,10 @@ export function AppSidebar() {
                       onFocus={() => prefetchRouteQueries(queryClient, coursePath)}
                       title={courseName}
                       aria-label={courseName}
+                      data-sidebar-active={pathname === coursePath}
                       className={cn(
-                        "press flex h-9 w-9 items-center justify-center rounded-xl transition-all",
-                        pathname === coursePath
-                          ? "bg-foreground/[0.08]"
-                          : "hover:bg-foreground/[0.04]",
+                        "press relative z-10 flex h-9 w-9 items-center justify-center rounded-xl transition-colors",
+                        pathname !== coursePath && "hover:bg-foreground/[0.04]",
                       )}
                     >
                       <span
@@ -263,7 +341,7 @@ export function AppSidebar() {
                     </Link>
                   );
                 })}
-              </nav>
+              </SlidingSidebarNav>
               <div className="mt-auto flex flex-col items-center gap-2 pt-4">
                 <ReminderToggle compact />
                 <ThemeToggle compact />
@@ -289,37 +367,43 @@ export function AppSidebar() {
                   onGreen={() => setMode("full")}
                 />
               </div>
-              <nav className="flex flex-col gap-0.5">
-                {navItems.map((item) => (
-                  <Link
-                    key={item.to}
-                    to={item.to}
-                    preload="intent"
-                    onMouseEnter={() => prefetchRouteQueries(queryClient, item.to)}
-                    onFocus={() => prefetchRouteQueries(queryClient, item.to)}
-                    className={cn(
-                      "press rounded-xl px-3 py-2 text-sm transition-all",
-                      isItemActive(pathname, item.to)
-                        ? "bg-foreground/[0.08] text-foreground font-medium shadow-sm"
-                        : "text-muted-foreground/80 hover:bg-foreground/[0.04] hover:text-foreground font-normal",
-                    )}
-                  >
-                    <span className="flex items-center justify-between gap-2">
-                      <span className="flex min-w-0 items-center gap-2">
-                        <span
-                          aria-hidden="true"
-                          className={cn(
-                            "h-1 w-1 shrink-0 rounded-full bg-primary transition-[opacity,transform] duration-200",
-                            isItemActive(pathname, item.to)
-                              ? "scale-100 opacity-100"
-                              : "scale-50 opacity-0",
-                          )}
-                        />
-                        <span className="truncate">{item.title}</span>
+              <SlidingSidebarNav
+                activeKey={pathname}
+                itemCount={navItems.length + (courses.data?.length ?? 0)}
+                className="flex flex-col gap-0.5"
+              >
+                {navItems.map((item) => {
+                  const active = isItemActive(pathname, item.to);
+                  return (
+                    <Link
+                      key={item.to}
+                      to={item.to}
+                      preload="intent"
+                      onMouseEnter={() => prefetchRouteQueries(queryClient, item.to)}
+                      onFocus={() => prefetchRouteQueries(queryClient, item.to)}
+                      data-sidebar-active={active}
+                      className={cn(
+                        "press relative z-10 rounded-xl px-3 py-2 text-sm transition-colors",
+                        active
+                          ? "text-foreground font-medium"
+                          : "text-muted-foreground/80 hover:bg-foreground/[0.04] hover:text-foreground font-normal",
+                      )}
+                    >
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="flex min-w-0 items-center gap-2">
+                          <span
+                            aria-hidden="true"
+                            className={cn(
+                              "h-1 w-1 shrink-0 rounded-full bg-primary transition-[opacity,transform] duration-200",
+                              active ? "scale-100 opacity-100" : "scale-50 opacity-0",
+                            )}
+                          />
+                          <span className="truncate">{item.title}</span>
+                        </span>
                       </span>
-                    </span>
-                  </Link>
-                ))}
+                    </Link>
+                  );
+                })}
 
                 <div className="my-2.5 flex items-center justify-center">
                   <div className="h-[1px] w-20 rounded-full bg-white/10" />
@@ -348,10 +432,11 @@ export function AppSidebar() {
                           onMouseEnter={() => prefetchRouteQueries(queryClient, coursePath)}
                           onFocus={() => prefetchRouteQueries(queryClient, coursePath)}
                           title={`${courseName} (${score != null ? score.toFixed(1) + "%" : "No grade"})`}
+                          data-sidebar-active={active}
                           className={cn(
-                            "press flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-sm transition-all group",
+                            "press group relative z-10 flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-sm transition-colors",
                             active
-                              ? "bg-foreground/[0.08] text-foreground font-medium shadow-sm"
+                              ? "text-foreground font-medium"
                               : "text-muted-foreground/80 hover:bg-foreground/[0.04] hover:text-foreground font-normal",
                           )}
                         >
@@ -369,7 +454,7 @@ export function AppSidebar() {
                       );
                     })}
                 </div>
-              </nav>
+              </SlidingSidebarNav>
               <div className="mt-auto flex items-center justify-center gap-2 pt-4">
                 <ReminderToggle compact />
                 <ThemeToggle compact />
