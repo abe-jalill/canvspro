@@ -1,5 +1,6 @@
 # Roadmap
 
+- [x] Weight dashboard Next Up and workload indicators by points, deadline, and saved progress
 - [x] Countdown alerts: next-class + tonight's deadline pushes, app-icon badge, settings controls
 - [x] Reformat the Notifications page into clear, numbered sections
 - [x] Notification bell panel overlaps/breaks layout on phones

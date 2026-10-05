@@ -3,6 +3,8 @@ import { cn } from "@/lib/utils";
 import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
 import type { AssignmentItem } from "@/lib/canvas.functions";
 import { displayCourseName } from "@/lib/course-display";
+import { useAssignmentMetaMap } from "@/hooks/use-assignment-meta";
+import { remainingWork } from "@/lib/assignment-workload";
 
 interface Props {
   assignments: AssignmentItem[];
@@ -13,7 +15,7 @@ interface DayCell {
   date: Date;
   key: string;
   items: AssignmentItem[];
-  points: number;
+  remaining: number;
 }
 
 function startOfWeekMonday(d: Date) {
@@ -34,8 +36,9 @@ function sameDay(a: Date, b: Date) {
 
 export function WorkloadHeatmap({ assignments, weeks = 4 }: Props) {
   const [open, setOpen] = useState<string | null>(null);
+  const metaMap = useAssignmentMetaMap();
 
-  const { cells, weekRows, maxCount } = useMemo(() => {
+  const { cells, weekRows, maxRemaining } = useMemo(() => {
     const start = startOfWeekMonday(new Date());
     const cells: DayCell[] = [];
     for (let i = 0; i < weeks * 7; i++) {
@@ -45,7 +48,7 @@ export function WorkloadHeatmap({ assignments, weeks = 4 }: Props) {
         date: d,
         key: d.toDateString(),
         items: [],
-        points: 0,
+        remaining: 0,
       });
     }
     const byKey = new Map(cells.map((c) => [c.key, c]));
@@ -56,15 +59,15 @@ export function WorkloadHeatmap({ assignments, weeks = 4 }: Props) {
       const cell = byKey.get(key);
       if (!cell) return;
       cell.items.push(a);
-      cell.points += a.points_possible ?? 0;
+      cell.remaining += remainingWork(a, metaMap.get(a.id)?.progressPercent);
     });
     const weekRows: DayCell[][] = [];
     for (let w = 0; w < weeks; w++) {
       weekRows.push(cells.slice(w * 7, w * 7 + 7));
     }
-    const maxCount = Math.max(1, ...cells.map((c) => c.items.length));
-    return { cells, weekRows, maxCount };
-  }, [assignments, weeks]);
+    const maxRemaining = Math.max(1, ...cells.map((c) => c.remaining));
+    return { cells, weekRows, maxRemaining };
+  }, [assignments, metaMap, weeks]);
 
   const today = new Date();
   const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -95,7 +98,7 @@ export function WorkloadHeatmap({ assignments, weeks = 4 }: Props) {
               <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
                 {row.map((cell) => {
                   const isToday = sameDay(cell.date, today);
-                  const intensity = cell.items.length / maxCount; // 0..1
+                  const intensity = cell.remaining / maxRemaining; // 0..1
                   const bg =
                     cell.items.length === 0
                       ? "rgb(255 255 255 / 0.03)"
@@ -114,7 +117,7 @@ export function WorkloadHeatmap({ assignments, weeks = 4 }: Props) {
                         weekday: "long",
                         month: "short",
                         day: "numeric",
-                      })}: ${cell.items.length} due, ${Math.round(cell.points)} points`}
+                      })}: ${cell.items.length} due, ${Math.round(cell.remaining)} remaining workload points`}
                     >
                       <span
                         className={cn(
@@ -151,7 +154,7 @@ export function WorkloadHeatmap({ assignments, weeks = 4 }: Props) {
                           <AssignmentDescriptionLink assignmentId={a.id} className="mt-0.5" />
                         </div>
                         <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
-                          {a.points_possible ?? 0} pt
+                          {Math.round(remainingWork(a, metaMap.get(a.id)?.progressPercent))} remaining pt
                         </span>
                       </li>
                     ))}
