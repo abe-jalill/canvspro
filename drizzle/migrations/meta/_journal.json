@@ -64,6 +64,13 @@
       "when": 1791300057222,
       "tag": "0008_push_dispatch_per_account",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791300323380,
+      "tag": "0009_push_dispatch_per_account",
+      "breakpoints": true
     }
   ]
 }
