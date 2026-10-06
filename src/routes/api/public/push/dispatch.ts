@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { completedAssignmentIds } from "@/lib/completion-records";
-import { PUSH_HEARTBEAT_PREF } from "@/lib/push-heartbeat";
+import { PUSH_HEARTBEAT_PREF, lastServerCheck } from "@/lib/push-heartbeat";
 import {
   buildAlertsForUser,
   deliver,
@@ -337,6 +337,22 @@ async function run(onlyUserId?: string): Promise<Response> {
   }
 
   const users = Array.from(byUser);
+  if (!onlyUserId) {
+    // One request for everyone can be cut off before it finishes, so the accounts
+    // that waited longest go first and every run reaches different students.
+    const { data: checks } = await supabaseAdmin
+      .from("user_preferences")
+      .select("user_id,value")
+      .eq("key", PUSH_HEARTBEAT_PREF)
+      .in("user_id", Array.from(byUser.keys()));
+    const lastCheck = new Map(
+      (checks ?? []).map((row) => [
+        row.user_id as string,
+        lastServerCheck({ [PUSH_HEARTBEAT_PREF]: row.value }) ?? 0,
+      ]),
+    );
+    users.sort(([a], [b]) => (lastCheck.get(a) ?? 0) - (lastCheck.get(b) ?? 0));
+  }
   let sent = 0;
   let failures = 0;
   let next = 0;

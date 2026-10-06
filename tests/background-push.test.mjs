@@ -34,3 +34,27 @@ test("the dispatch route checks accounts in parallel and records each check", as
   assert.match(route, /run\(userId \|\| undefined\)/);
   assert.match(route, /recordHeartbeat\(admin, userId\)/);
 });
+
+test("the background check sends one request per account", async () => {
+  const migration = await readFile(
+    new URL("../drizzle/migrations/0008_push_dispatch_per_account.sql", import.meta.url),
+    "utf8",
+  );
+  // A single request for everyone is cut off before later accounts are reached.
+  assert.match(migration, /body := jsonb_build_object\('user_id', accounts\.user_id\)/);
+  assert.match(migration, /FROM \(SELECT DISTINCT user_id FROM public\.push_subscriptions\) AS accounts/);
+  assert.match(migration, /'\*\/15 10-23,0-3 \* \* \*'/);
+  assert.match(migration, /https:\/\/canvaspro\.app\/api\/public\/push\/dispatch/);
+  const journal = JSON.parse(
+    await readFile(new URL("../drizzle/migrations/meta/_journal.json", import.meta.url), "utf8"),
+  );
+  assert.ok(journal.entries.some((entry) => entry.tag === "0008_push_dispatch_per_account"));
+});
+
+test("a shared run checks the accounts that waited longest first", async () => {
+  const route = await readFile(
+    new URL("../src/routes/api/public/push/dispatch.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(route, /users\.sort\(\(\[a\], \[b\]\) => \(lastCheck\.get\(a\) \?\? 0\) - \(lastCheck\.get\(b\) \?\? 0\)\)/);
+});

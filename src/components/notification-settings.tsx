@@ -128,7 +128,7 @@ function BackgroundCheckStatus() {
   const now = Date.now();
   const last = lastServerCheck(preferences.data);
   if (last != null && serverIsChecking(preferences.data, now)) {
-    return <Hint>Checked Canvas for new alerts {timeAgo(now - last)}. This runs about once an hour.</Hint>;
+    return <Hint>Checked Canvas for new alerts {timeAgo(now - last)}. This runs every 15 minutes.</Hint>;
   }
   return (
     <Hint>
