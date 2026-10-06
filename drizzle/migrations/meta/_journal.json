@@ -71,6 +71,13 @@
       "when": 1791300323380,
       "tag": "0009_push_dispatch_per_account",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791300806699,
+      "tag": "0010_push_dispatch_every_30_minutes",
+      "breakpoints": true
     }
   ]
 }
