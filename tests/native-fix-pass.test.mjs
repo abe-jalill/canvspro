@@ -275,3 +275,10 @@ test("main's newest features are on iOS: progress, weighted Next up, remaining w
   assert.match(swift.NativeViews, /NativePomodoroPlan\(focus: 25, shortBreak: 5, longBreak: 15, rounds: 4\)/);
   assert.match(swift.NativeViews, /"Independent focus"/);
 });
+
+test("every environment value is read through a key path", () => {
+  // "@Environment(.colorScheme)" without the key-path slash does not compile.
+  for (const [name, source] of Object.entries(swift)) {
+    assert.ok(!source.includes("@Environment(."), name);
+  }
+});

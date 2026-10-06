@@ -1779,8 +1779,8 @@ private struct NativeAssignmentSwipe: ViewModifier {
 
 /// A small bar above the tab bar after finishing a task: Undo for five seconds.
 private struct CPUndoBar: ViewModifier {
-    @Environment(.colorScheme) private var scheme
-    @Environment(.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject var store: NativeContentStore
 
     func body(content: Content) -> some View {
