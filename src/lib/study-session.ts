@@ -8,6 +8,8 @@ export interface StudySessionItem {
   source: "canvas" | "manual";
   courseName?: string;
   dueAt?: string | null;
+  /** Minutes planned for this item when time is set per assignment. */
+  minutes?: number;
 }
 
 /** Pomodoro: repeating focus blocks separated by short breaks and an occasional long one. */
@@ -106,6 +108,8 @@ export interface StudySessionSnapshot {
   phase?: PomodoroPhase;
   /** Focus blocks finished so far. */
   round?: number;
+  /** Each item has its own timer (`items[i].minutes`) instead of one for the session. */
+  perItem?: boolean;
 }
 
 export function remainingForSession(session: StudySessionSnapshot, now = Date.now()) {
@@ -231,8 +235,57 @@ export function isStudySessionSnapshot(value: unknown): value is StudySessionSna
       candidate.phase === "short-break" ||
       candidate.phase === "long-break") &&
     (candidate.round === undefined ||
-      (Number.isInteger(candidate.round) && candidate.round >= 0))
+      (Number.isInteger(candidate.round) && candidate.round >= 0)) &&
+    (candidate.perItem === undefined || typeof candidate.perItem === "boolean")
   );
+}
+
+/** Minutes for one item in a per-assignment session, kept within 1-480. */
+export function itemMinutes(item: StudySessionItem, fallback = 25): number {
+  const minutes = Number(item.minutes);
+  const whole = Number.isFinite(minutes) ? Math.round(minutes) : fallback;
+  return Math.min(480, Math.max(1, whole));
+}
+
+/** Total planned minutes across a per-assignment session. */
+export function totalItemMinutes(items: StudySessionItem[]): number {
+  return items.reduce((sum, item) => sum + itemMinutes(item), 0);
+}
+
+/**
+ * Points a per-assignment session at `index` and restarts the timer with that
+ * item's minutes, keeping it running or paused as it was. Other sessions only
+ * change which item is shown.
+ */
+export function focusItem(
+  session: StudySessionSnapshot,
+  index: number,
+  now = Date.now(),
+): StudySessionSnapshot {
+  if (!session.perItem) return { ...session, currentIndex: index };
+  const durationMs = itemMinutes(session.items[index]) * MINUTE;
+  return {
+    ...session,
+    currentIndex: index,
+    durationMs,
+    remainingMs: durationMs,
+    endsAt: now + durationMs,
+  };
+}
+
+/**
+ * When an item's time runs out in a per-assignment session, moves on to the
+ * next unfinished item in order. Returns null when nothing is left.
+ */
+export function nextItemSession(
+  session: StudySessionSnapshot,
+  now = Date.now(),
+): StudySessionSnapshot | null {
+  const done = new Set(session.completedItemIds);
+  for (let index = session.currentIndex + 1; index < session.items.length; index += 1) {
+    if (!done.has(session.items[index].id)) return focusItem(session, index, now);
+  }
+  return null;
 }
 
 export function createStudySession(
@@ -240,8 +293,13 @@ export function createStudySession(
   durationMinutes: number,
   now = Date.now(),
   pomodoro?: PomodoroPlan,
+  perItem = false,
 ): StudySessionSnapshot {
-  const durationMs = pomodoro ? pomodoro.focusMs : Math.round(durationMinutes * 60_000);
+  const durationMs = pomodoro
+    ? pomodoro.focusMs
+    : perItem
+      ? itemMinutes(items[0]) * MINUTE
+      : Math.round(durationMinutes * 60_000);
   return {
     version: 1,
     id: `${now}-${Math.random().toString(36).slice(2, 9)}`,
@@ -254,6 +312,7 @@ export function createStudySession(
     durationMs,
     remainingMs: durationMs,
     ...(pomodoro ? { pomodoro, phase: "focus" as const, round: 0 } : {}),
+    ...(!pomodoro && perItem ? { perItem: true } : {}),
   };
 }
 
