@@ -509,49 +509,6 @@
   animation: course-highlight-pulse 1.6s ease-out 2;
   scroll-margin-top: 6rem;
 }
-/* Only page content moves. Persistent navigation stays crisp and stationary. */
-.route-content {
-  view-transition-name: page-content;
-  transform-origin: 50% 8%;
-}
-/* Let navigation remain interactive while the browser composites snapshots. */
-::view-transition {
-  pointer-events: none;
-}
-::view-transition-group(root),
-::view-transition-group(page-content) {
-  animation-duration: 200ms;
-  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-::view-transition-old(root) {
-  animation: route-exit 160ms ease-out both;
-}
-::view-transition-new(root) {
-  animation: route-crossfade 200ms ease-out both;
-}
-::view-transition-group(page-content) {
-  /* Pages have different heights; never stretch their text between sizes. */
-  animation-name: none;
-}
-::view-transition-old(page-content) {
-  animation: route-exit 160ms ease-out both;
-}
-::view-transition-new(page-content) {
-  animation: route-enter 200ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
-}
-@keyframes route-crossfade {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-@keyframes route-exit {
-  to {
-    opacity: 0;
-  }
-}
 @keyframes route-enter {
   from {
     opacity: 0;
@@ -562,8 +519,16 @@
     transform: translateY(0);
   }
 }
-.route-content-fallback {
-  animation: route-enter 200ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+.sidebar-nav-indicator[data-ready="true"] {
+  transition: transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1), opacity 150ms ease-out;
+  will-change: transform;
+}
+.sidebar-nav-link {
+  transition: color 150ms ease-out, background-color 150ms ease-out, opacity 150ms ease-out;
+  -webkit-tap-highlight-color: transparent;
+}
+.sidebar-nav-link:active {
+  opacity: 0.8;
 }
 
 .route-progress {
@@ -581,19 +546,12 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .route-content {
-    view-transition-name: none;
-  }
-  .route-content-fallback {
-    animation: none;
+  .sidebar-nav-indicator[data-ready="true"],
+  .sidebar-nav-link {
+    transition: none;
   }
   .route-progress {
     animation: none;
-  }
-  ::view-transition-group(*),
-  ::view-transition-old(*),
-  ::view-transition-new(*) {
-    animation: none !important;
   }
 }
 
@@ -673,6 +631,25 @@
   .mobile-navigation * {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* Perspective stays on the untransformed frame, keeping pointer coordinates stable. */
+.dashboard-hero-perspective {
+  perspective: 1400px;
+}
+.dashboard-hero-motion {
+  transform-origin: center;
+  transform: rotateX(var(--hero-rotate-x, 0deg)) rotateY(var(--hero-rotate-y, 0deg));
+  backface-visibility: hidden;
+}
+.dashboard-hero-motion[data-moving="true"] {
+  will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-hero-motion {
+    transform: none;
+    will-change: auto;
   }
 }
 

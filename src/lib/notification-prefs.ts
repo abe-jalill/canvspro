@@ -1,7 +1,7 @@
+import { createPreferenceEdits } from "@/lib/preference-edits";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { scopedKey, subscribeToUserScope } from "@/lib/user-scope";
-
+import { scopedKey, subscribeToUserScope, getUserScope } from "@/lib/user-scope";
 
 export interface NotificationPrefs {
   enabled: boolean;
@@ -75,6 +75,16 @@ export type BooleanPrefKey = {
 const BASE_KEY = "canvas:notification-prefs";
 const EVENT = "canvas:notification-prefs-changed";
 
+const editsByUser = new Map<string, ReturnType<typeof createPreferenceEdits>>();
+export function notificationEdits(userId: string) {
+  let edits = editsByUser.get(userId);
+  if (!edits) {
+    edits = createPreferenceEdits();
+    editsByUser.set(userId, edits);
+  }
+  return edits;
+}
+
 export function readPrefs(): NotificationPrefs {
   if (typeof window === "undefined") return DEFAULT_PREFS;
   try {
@@ -95,7 +105,6 @@ function writePrefs(p: NotificationPrefs) {
   }
   window.dispatchEvent(new CustomEvent(EVENT));
 }
-
 
 export const DUE_WINDOWS: Array<{
   key: "due1w" | "due3d" | "due2d" | "due1d";
@@ -139,62 +148,84 @@ export function useNotificationPrefs() {
     async function hydrate() {
       const request = ++requestRevision;
       const edits = editRevision.current;
+      const scope = getUserScope();
       setReady(false);
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (!active || request !== requestRevision) return;
-      if (!session) return;
-      const { data, error } = await supabase.from("notification_prefs")
+      if (!session || session.user.id !== scope) return;
+      const { data, error } = await supabase
+        .from("notification_prefs")
         .select("prefs")
         .eq("user_id", session.user.id)
         .maybeSingle();
-      if (!active || request !== requestRevision || error) return;
-      if (data?.prefs && typeof data.prefs === "object" && !Array.isArray(data.prefs) && edits === editRevision.current) {
-        writePrefs({ ...DEFAULT_PREFS, ...(data.prefs as Partial<NotificationPrefs>) });
+      if (!active || request !== requestRevision || error || scope !== getUserScope()) return;
+      if (edits === editRevision.current) {
+        const remote =
+          data?.prefs && typeof data.prefs === "object" && !Array.isArray(data.prefs)
+            ? data.prefs
+            : {};
+        writePrefs({ ...DEFAULT_PREFS, ...remote, ...notificationEdits(scope!).values() });
       }
       setReady(true);
     }
     setPrefs(readPrefs());
     void hydrate();
-    const sync = () => { editRevision.current += 1; setPrefs(readPrefs()); };
-    const switchAccount = () => { sync(); void hydrate(); };
-    const onFocus = () => { void hydrate(); };
+    const sync = () => {
+      editRevision.current += 1;
+      setPrefs(readPrefs());
+    };
+    const switchAccount = () => {
+      sync();
+      void hydrate();
+    };
+    const onFocus = () => {
+      void hydrate();
+    };
     window.addEventListener(EVENT, sync);
     window.addEventListener("storage", sync);
     window.addEventListener("focus", onFocus);
+    window.addEventListener("online", onFocus);
+    window.addEventListener("canvaspro:refresh-account", onFocus);
     const unsub = subscribeToUserScope(switchAccount);
     return () => {
       active = false;
       window.removeEventListener(EVENT, sync);
       window.removeEventListener("storage", sync);
       window.removeEventListener("focus", onFocus);
+      window.removeEventListener("online", onFocus);
+      window.removeEventListener("canvaspro:refresh-account", onFocus);
       unsub();
     };
   }, []);
 
+  const set = useCallback(
+    <K extends keyof NotificationPrefs>(key: K, value: NotificationPrefs[K]) => {
+      const scope = getUserScope();
+      if (!ready || !scope) return;
+      editRevision.current += 1;
+      notificationEdits(scope).set(key, value);
+      writePrefs({ ...readPrefs(), [key]: value });
+    },
+    [ready],
+  );
 
-  const set = useCallback(<K extends keyof NotificationPrefs>(key: K, value: NotificationPrefs[K]) => {
-    editRevision.current += 1;
-    setPrefs((prev) => {
-      const next = { ...prev, [key]: value };
-      writePrefs(next);
-      return next;
-    });
-  }, []);
-
-  const toggle = useCallback((key: BooleanPrefKey) => {
-    editRevision.current += 1;
-    setPrefs((prev) => {
-      const next = { ...prev, [key]: !prev[key] };
-      writePrefs(next);
-      return next;
-    });
-  }, []);
+  const toggle = useCallback(
+    (key: BooleanPrefKey) => {
+      set(key, !readPrefs()[key]);
+    },
+    [set],
+  );
 
   const reset = useCallback(() => {
+    const scope = getUserScope();
+    if (!ready || !scope) return;
     editRevision.current += 1;
-    setPrefs(DEFAULT_PREFS);
+    for (const [key, value] of Object.entries(DEFAULT_PREFS))
+      notificationEdits(scope).set(key, value);
     writePrefs(DEFAULT_PREFS);
-  }, []);
+  }, [ready]);
 
   return { prefs, set, toggle, reset, ready };
 }

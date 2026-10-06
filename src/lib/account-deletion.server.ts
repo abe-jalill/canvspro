@@ -5,8 +5,12 @@
  * awaited and checked. Shared by the website and the iOS app so both remove
  * exactly the same data.
  */
-export async function deleteAccountData(userId: string): Promise<void> {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+export async function deleteAccountData(
+  userId: string,
+  client?: typeof import("@/integrations/supabase/client.server").supabaseAdmin,
+): Promise<void> {
+  const supabaseAdmin =
+    client ?? (await import("@/integrations/supabase/client.server")).supabaseAdmin;
 
   // Deleting the database row does not cancel a subscription at Stripe.
   // Never orphan a renewal by removing its owner and billing identifiers.
@@ -14,13 +18,19 @@ export async function deleteAccountData(userId: string): Promise<void> {
     .from("subscriptions")
     .select("status,cancel_at_period_end,environment")
     .eq("user_id", userId);
-  if (subscriptionError) throw new Error("Could not check existing subscriptions. Please try again.");
-  if (subscriptions?.some((subscription) =>
-    subscription.environment === "live" &&
-    !subscription.cancel_at_period_end &&
-    ["active", "trialing", "past_due", "unpaid"].includes(subscription.status)
-  )) {
-    throw new Error("An existing subscription may still renew. Cancel it through billing or contact support@canvaspro.app before deleting your account.");
+  if (subscriptionError)
+    throw new Error("Could not check existing subscriptions. Please try again.");
+  if (
+    subscriptions?.some(
+      (subscription) =>
+        subscription.environment === "live" &&
+        !subscription.cancel_at_period_end &&
+        ["active", "trialing", "past_due", "unpaid", "incomplete"].includes(subscription.status),
+    )
+  ) {
+    throw new Error(
+      "An existing subscription may still renew. Cancel it through billing or contact support@canvaspro.app before deleting your account.",
+    );
   }
 
   const tables = [
@@ -43,19 +53,25 @@ export async function deleteAccountData(userId: string): Promise<void> {
     if (error) throw new Error(`Could not delete ${table}: ${error.message}`);
   }
 
-  const { data: avatarFiles, error: avatarListError } = await supabaseAdmin.storage
-    .from("profile-avatars")
-    .list(userId);
-  if (avatarListError && avatarListError.message !== "Bucket not found") {
-    throw new Error(`Could not inspect profile pictures: ${avatarListError.message}`);
-  }
-  if (avatarFiles?.length) {
-    const { error: avatarDeleteError } = await supabaseAdmin.storage
+  // Re-read the first page after each removal so offsets cannot skip objects
+  // as the result set shrinks.
+  while (true) {
+    const { data: avatarFiles, error: avatarListError } = await supabaseAdmin.storage
       .from("profile-avatars")
-      .remove(avatarFiles.map((file) => `${userId}/${file.name}`));
-    if (avatarDeleteError) {
-      throw new Error(`Could not delete profile pictures: ${avatarDeleteError.message}`);
+      .list(userId, { limit: 100 });
+    if (avatarListError && avatarListError.message !== "Bucket not found") {
+      throw new Error(`Could not inspect profile pictures: ${avatarListError.message}`);
     }
+    if (avatarFiles?.length) {
+      const { error: avatarDeleteError } = await supabaseAdmin.storage
+        .from("profile-avatars")
+        .remove(avatarFiles.map((file) => `${userId}/${file.name}`));
+      if (avatarDeleteError) {
+        throw new Error(`Could not delete profile pictures: ${avatarDeleteError.message}`);
+      }
+    }
+
+    if (!avatarFiles?.length) break;
   }
 
   // Delete the auth user last, so a failure above leaves a recoverable state.

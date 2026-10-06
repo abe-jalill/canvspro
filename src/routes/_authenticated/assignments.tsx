@@ -37,6 +37,7 @@ import {
 import { PriorityBadge } from "@/components/priority-badge";
 import { searchText } from "@/lib/search-params";
 import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
+import { AssignmentProgressEditor } from "@/components/assignment-progress";
 import { buildAgendaView, type AgendaHorizon } from "@/lib/assignment-agenda";
 import { useAssignmentMetaMap } from "@/hooks/use-assignment-meta";
 import {
@@ -364,10 +365,10 @@ function AssignmentsPage() {
               Complete workload
             </p>
             <h1 className="mt-2 text-4xl font-medium tracking-[-0.045em] sm:text-5xl">
-              One agenda. Every assignment.
+              Assignments
             </h1>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-              Work is ordered by urgency across every class, so the next deadline is always obvious.
+              Have an assignment outside of Canvas?&nbsp;Add it under "Add something Canvas doesn't have&nbsp;
             </p>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:min-w-[18rem]">
@@ -575,9 +576,14 @@ function AssignmentsPage() {
                               {notes}
                             </p>
                           )}
+                          {!done && (
+                            <div className="mt-1.5">
+                              <AssignmentProgressEditor assignmentId={a.id} courseId={a.course_id ?? 0} />
+                            </div>
+                          )}
                           {!mine && (
                             <div className="mt-1.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100">
-                              <AssignmentDescriptionLink assignmentId={a.id} />
+                              <AssignmentDescriptionLink assignmentId={a.id} showProgress={false} />
                             </div>
                           )}
                         </div>

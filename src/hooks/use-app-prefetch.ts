@@ -1,3 +1,4 @@
+import { ACCOUNT_REFRESH_INTERVAL_MS, refreshAccountQueries } from "@/lib/account-refresh";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
@@ -163,34 +164,25 @@ export function useAppPrefetch(enabled = true): AppStartupStatus {
       });
     });
     let lastRefreshAt = 0;
+    let lastCanvasRefreshAt = 0;
     const refresh = () => {
       if (document.visibilityState !== "visible" || !navigator.onLine) return;
       const now = Date.now();
       if (now - lastRefreshAt < REFRESH_COOLDOWN_MS) return;
       lastRefreshAt = now;
-      void client.refetchQueries(
-        { queryKey: ["canvas"], type: "active", stale: true },
-        { cancelRefetch: false },
-      );
+      if (now - lastCanvasRefreshAt >= 5 * 60_000) {
+        lastCanvasRefreshAt = now;
+        void client.refetchQueries(
+          { queryKey: ["canvas"], type: "active", stale: true },
+          { cancelRefetch: false },
+        );
+      }
       // Changes made on another device should appear when this one becomes
       // active again. Keep existing cache visible while these refresh.
-      void Promise.allSettled([
-        ...[
-          "user-preferences",
-          "user-profile",
-          "user-settings",
-          "class-nicknames",
-          "class-schedule-entries",
-          "user-assignment-meta",
-        ].map((key) =>
-          client.refetchQueries(
-            { queryKey: [key], type: "active", stale: true },
-            { cancelRefetch: false },
-          ),
-        ),
-      ]);
+      void refreshAccountQueries(client);
+      window.dispatchEvent(new Event("canvaspro:refresh-account"));
     };
-    const interval = setInterval(refresh, 5 * 60_000);
+    const interval = setInterval(refresh, ACCOUNT_REFRESH_INTERVAL_MS);
     window.addEventListener("online", refresh);
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);

@@ -338,7 +338,7 @@ const EMPTY_PROFILE: UserProfile = {
 
 export function ProfileCard() {
   const queryClient = useQueryClient();
-  const { data: profile, isLoading } = useUserProfile();
+  const { data: profile, isLoading, isFetchedAfterMount, isError } = useUserProfile();
   const save = useSaveUserProfile();
   const [form, setForm] = useState<UserProfile>(EMPTY_PROFILE);
   const [dirty, setDirty] = useState(false);
@@ -390,8 +390,10 @@ export function ProfileCard() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (usernameState === "taken" || usernameState === "invalid") return;
-    await save.mutateAsync(form);
-    setDirty(false);
+    try {
+      await save.mutateAsync(form);
+      setDirty(false);
+    } catch { /* The mutation displays the error and keeps the draft. */ }
   }
 
   async function onAvatarSelected(e: ChangeEvent<HTMLInputElement>) {
@@ -401,13 +403,18 @@ export function ProfileCard() {
     setAvatarBusy(true);
     setAvatarError(null);
     try {
+      await queryClient.cancelQueries({ queryKey: ["user-profile"] });
       const avatar = await uploadProfileAvatar(file);
-      setForm((current) => {
-        const next = { ...current, avatarPath: avatar.path, avatarUrl: avatar.url };
+      await queryClient.cancelQueries({ queryKey: ["user-profile"] });
+      setForm((current) => ({ ...current, avatarPath: avatar.path, avatarUrl: avatar.url }));
+      // Publishing a photo must not publish unsaved text from this form.
+      queryClient.setQueryData<UserProfile>(["user-profile"], (saved) => {
+        if (!saved) return saved;
+        const next = { ...saved, avatarPath: avatar.path, avatarUrl: avatar.url };
         saveLocalProfile(next);
-        queryClient.setQueryData(["user-profile"], next);
         return next;
       });
+      void queryClient.invalidateQueries({ queryKey: ["user-profile"] });
     } catch (error) {
       setAvatarError(error instanceof Error ? error.message : "Could not upload that picture.");
     } finally {
@@ -419,13 +426,18 @@ export function ProfileCard() {
     setAvatarBusy(true);
     setAvatarError(null);
     try {
+      await queryClient.cancelQueries({ queryKey: ["user-profile"] });
       await removeProfileAvatar(form.avatarPath);
-      setForm((current) => {
-        const next = { ...current, avatarPath: "", avatarUrl: "" };
+      await queryClient.cancelQueries({ queryKey: ["user-profile"] });
+      setForm((current) => ({ ...current, avatarPath: "", avatarUrl: "" }));
+      // Publishing a photo must not publish unsaved text from this form.
+      queryClient.setQueryData<UserProfile>(["user-profile"], (saved) => {
+        if (!saved) return saved;
+        const next = { ...saved, avatarPath: "", avatarUrl: "" };
         saveLocalProfile(next);
-        queryClient.setQueryData(["user-profile"], next);
         return next;
       });
+      void queryClient.invalidateQueries({ queryKey: ["user-profile"] });
     } catch (error) {
       setAvatarError(error instanceof Error ? error.message : "Could not remove the picture.");
     } finally {
@@ -438,7 +450,9 @@ export function ProfileCard() {
       title="Profile"
       subtitle="Your photo, username, name, and school — synced securely across your devices."
     >
-      <form onSubmit={onSubmit} className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2">
+      <form onSubmit={onSubmit}>
+        {isError && <p role="alert" className="mb-3 text-sm text-red-500">Could not load your profile. Reconnect and try again.</p>}
+        <fieldset disabled={save.isPending || avatarBusy || !isFetchedAfterMount || isError} className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-4 sm:col-span-2 sm:flex-row sm:items-center">
           <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-full border border-foreground/15 bg-foreground/[0.06] shadow-glass">
             {form.avatarUrl ? (
@@ -571,6 +585,7 @@ export function ProfileCard() {
             {save.isPending ? "Saving…" : "Save profile"}
           </button>
         </div>
+        </fieldset>
       </form>
     </GlassCard>
   );

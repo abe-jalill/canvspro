@@ -146,7 +146,7 @@ function SchedulePage() {
         />
       </header>
 
-      <GlassCard title="Workload" subtitle="Assignment density by week">
+      <GlassCard title="Workload" subtitle="Remaining effort by week">
         {assignments.isLoading ? (
           <WorkloadHeatmapSkeleton />
         ) : (

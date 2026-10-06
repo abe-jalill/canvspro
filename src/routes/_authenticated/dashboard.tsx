@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { useDashboardLayout, type WidgetId, type WidgetSize } from "@/lib/dashboard-layout";
 import { WIDGETS } from "@/components/widgets/dashboard-widgets";
 import { DashboardHero } from "@/components/dashboard-hero";
+import { DashboardPomodoro } from "@/components/dashboard-pomodoro";
 import { PageTabs } from "@/components/page-tabs";
 import { TODAY_TABS } from "@/lib/page-tab-sets";
 
@@ -71,7 +72,10 @@ function Dashboard() {
 
   return (
     <div className="w-full min-w-0 space-y-4 pb-12 sm:space-y-5">
-      <PageTabs tabs={TODAY_TABS} label="Today sections" />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <PageTabs tabs={TODAY_TABS} label="Today sections" />
+        <DashboardPomodoro />
+      </div>
       <DashboardHero />
 
       <header

@@ -43,6 +43,41 @@
       "when": 1791045811074,
       "tag": "0005_push_dispatch_per_user",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791136977675,
+      "tag": "0006_patch_notification_prefs_and_avatar",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791214040082,
+      "tag": "0007_assignment_progress_percent",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791300057222,
+      "tag": "0008_push_dispatch_per_account",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791300323380,
+      "tag": "0009_push_dispatch_per_account",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791300806699,
+      "tag": "0010_push_dispatch_every_30_minutes",
+      "breakpoints": true
     }
   ]
 }

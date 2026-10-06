@@ -77,7 +77,8 @@ test("username sign-in and account deletion use the website's shared logic", () 
   const remove = read("src/routes/api/mobile/delete-account.ts");
   assert.match(signIn, /signInWithUsernamePassword/);
   assert.match(remove, /deleteAccountData/);
-  assert.match(remove, /body\?\.confirm !== "DELETE"/);
+  assert.match(remove, /handleMobileDeletion/);
+  assert.match(read("src/lib/mobile-api.ts"), /body\?\.confirm !== "DELETE"/);
   assert.match(remove, /supabaseAdmin\.auth\.getUser\(token\)/);
   assert.match(read("src/lib/account.functions.ts"), /deleteAccountData\(userId\)/);
   assert.match(read("src/lib/username-auth.functions.ts"), /signInWithUsernamePassword/);

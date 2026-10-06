@@ -5,6 +5,8 @@ import { AuthShell, Field } from "@/components/auth-ui";
 import { signInWithUsername } from "@/lib/username-auth.functions";
 import { LegalConsent } from "@/components/legal-consent";
 import { createLegalConsentMetadata } from "@/lib/legal-consent";
+import { Capacitor } from "@capacitor/core";
+import { requestMobileApi } from "@/lib/mobile-api-client";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
@@ -76,9 +78,11 @@ function LoginPage() {
         signInError = error;
       } else {
         try {
-          const session = await signInWithUsername({
-            data: { username: cleanIdentifier, password },
-          });
+          const credentials = { username: cleanIdentifier, password };
+          const session = Capacitor.isNativePlatform()
+            ? await requestMobileApi<{ access_token: string; refresh_token: string }>("sign-in", credentials)
+                .then((data) => ({ accessToken: data.access_token, refreshToken: data.refresh_token }))
+            : await signInWithUsername({ data: credentials });
           const { error } = await supabase.auth.setSession({
             access_token: session.accessToken,
             refresh_token: session.refreshToken,
