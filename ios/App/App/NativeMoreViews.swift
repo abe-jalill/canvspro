@@ -809,6 +809,7 @@ struct FocusView: View {
                                 .strikethrough(done)
                                 .lineLimit(3)
                             Text(rowMeta(item, showCourse: showCourse, done: done)).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
+                            if !done, let percent = features.progress[item.id], percent > 0 { NativeProgressBar(percent: percent) }
                         }
                         Spacer(minLength: 8)
                         VStack(alignment: .trailing, spacing: 3) {
@@ -1195,7 +1196,8 @@ struct WorkloadView: View {
         let shownDays = days(inWeek: week)
         let counts = shownDays.map { byDay[$0]?.count ?? 0 }
         let weekTotal = counts.reduce(0, +)
-        let maxCount = max(1, counts.max() ?? 1)
+        // Bar height follows the work left (points after saved progress), like the website.
+        let maxLoad = max(1, shownDays.map { load(byDay[$0] ?? []) }.max() ?? 1)
 
         VStack(alignment: .leading, spacing: 14) {
             CPSegmented(selection: Binding(get: { Self.weekNames[week] }, set: { value in
@@ -1213,7 +1215,7 @@ struct WorkloadView: View {
 
             HStack(alignment: .bottom, spacing: 6) {
                 ForEach(shownDays, id: \.self) { day in
-                    dayColumn(day, count: byDay[day]?.count ?? 0, maxCount: maxCount)
+                    dayColumn(day, count: byDay[day]?.count ?? 0, load: load(byDay[day] ?? []), maxLoad: maxLoad)
                 }
             }
 
@@ -1231,11 +1233,15 @@ struct WorkloadView: View {
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
     }
 
-    private func dayColumn(_ day: Date, count: Int, maxCount: Int) -> some View {
+    private func load(_ items: [AssignmentItem]) -> Double {
+        items.reduce(0) { $0 + NativeParity.remainingWork($1, progress: features.progress[$1.id]) }
+    }
+
+    private func dayColumn(_ day: Date, count: Int, load: Double, maxLoad: Double) -> some View {
         let isToday = calendar.isDate(day, inSameDayAs: today)
         let isOpen = openDay == day
         let isPast = day < today
-        let barHeight: CGFloat = count == 0 ? 4 : 10 + 50 * CGFloat(count) / CGFloat(maxCount)
+        let barHeight: CGFloat = count == 0 ? 4 : 10 + 50 * CGFloat(load / maxLoad)
         return Button {
             guard count > 0 else { return }
             openDay = isOpen ? nil : day
@@ -1247,7 +1253,7 @@ struct WorkloadView: View {
                 ZStack(alignment: .bottom) {
                     Color.clear.frame(height: 60)
                     RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .fill(count == 0 ? CPTheme.foreground(scheme).opacity(0.08) : CPTheme.foreground(scheme).opacity(isOpen ? 0.85 : 0.18 + 0.4 * Double(count) / Double(maxCount)))
+                        .fill(count == 0 ? CPTheme.foreground(scheme).opacity(0.08) : CPTheme.foreground(scheme).opacity(isOpen ? 0.85 : 0.18 + 0.4 * load / maxLoad))
                         .frame(width: 18, height: barHeight)
                 }
                 VStack(spacing: 2) {
@@ -1267,8 +1273,13 @@ struct WorkloadView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(day.formatted(.dateTime.weekday(.wide).month(.wide).day())), \(count) due")
+        .accessibilityLabel("\(day.formatted(.dateTime.weekday(.wide).month(.wide).day())), \(count) due, \(Int(load.rounded())) points of work left")
         .accessibilityAddTraits(isOpen ? .isSelected : [])
+    }
+
+    private func pointsLeft(_ item: AssignmentItem, points: Double) -> String {
+        guard let percent = features.progress[item.id], percent > 0 else { return "\(points.formatted()) pts" }
+        return "\(Int(NativeParity.remainingWork(item, progress: percent).rounded())) of \(points.formatted()) pts left"
     }
 
     private func dayDetail(_ day: Date, items: [AssignmentItem]) -> some View {
@@ -1286,7 +1297,7 @@ struct WorkloadView: View {
                         Spacer(minLength: 8)
                         VStack(alignment: .trailing, spacing: 2) {
                             if let due = item.dueDate { Text(due.formatted(.dateTime.hour().minute())).cpFont(11).monospacedDigit().foregroundStyle(CPTheme.muted(scheme)) }
-                            if let points = item.pointsPossible { Text("\(points.formatted()) pts").cpFont(11).monospacedDigit().foregroundStyle(CPTheme.faint(scheme)) }
+                            if let points = item.pointsPossible { Text(pointsLeft(item, points: points)).cpFont(11).monospacedDigit().foregroundStyle(CPTheme.faint(scheme)) }
                         }
                         .fixedSize()
                     }

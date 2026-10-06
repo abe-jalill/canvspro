@@ -132,7 +132,8 @@ struct CalendarPick: Codable, Identifiable, Hashable {
 struct AssignmentMeta: Codable, Hashable {
     let assignmentID: Int
     let estimatedMinutes: Int?
-    enum CodingKeys: String, CodingKey { case assignmentID = "assignment_id"; case estimatedMinutes = "estimated_minutes" }
+    let progressPercent: Int?
+    enum CodingKeys: String, CodingKey { case assignmentID = "assignment_id"; case estimatedMinutes = "estimated_minutes"; case progressPercent = "progress_percent" }
 }
 
 struct ScheduledAlert: Codable, Identifiable, Hashable {
@@ -310,7 +311,7 @@ extension NativeAPI {
 
     func assignmentMeta(token: String, userID: String) async throws -> [AssignmentMeta] {
         let request = try request(path: "/rest/v1/user_assignment_meta", token: token, query: [
-            .init(name: "select", value: "assignment_id,estimated_minutes"), .init(name: "user_id", value: "eq.\(userID)"),
+            .init(name: "select", value: "assignment_id,estimated_minutes,progress_percent"), .init(name: "user_id", value: "eq.\(userID)"),
         ])
         return try decoder.decode([AssignmentMeta].self, from: await data(request))
     }
@@ -319,6 +320,13 @@ extension NativeAPI {
         try await upsert(table: "user_assignment_meta", token: token, conflict: "user_id,assignment_id", rows: [[
             "user_id": userID, "assignment_id": assignmentID, "course_id": courseID,
             "estimated_minutes": minutes as Any? ?? NSNull(),
+        ]])
+    }
+
+    func saveProgress(assignmentID: Int, courseID: Int, percent: Int?, token: String, userID: String) async throws {
+        try await upsert(table: "user_assignment_meta", token: token, conflict: "user_id,assignment_id", rows: [[
+            "user_id": userID, "assignment_id": assignmentID, "course_id": courseID,
+            "progress_percent": percent as Any? ?? NSNull(),
         ]])
     }
 
@@ -335,6 +343,7 @@ private struct NativePreviewFeatureState: Codable {
     let profile: AccountProfile
     let schedule: [ClassScheduleEntry]
     let estimates: [Int: Int]
+    var progress: [Int: Int]? = nil
 }
 
 @MainActor
@@ -347,6 +356,8 @@ final class NativeFeatureStore: ObservableObject {
     @Published var customAssignments: [CustomAssignment] = []
     @Published var calendarPicks: [CalendarPick] = []
     @Published var estimates: [Int: Int] = [:]
+    /// Percent done per assignment, shared with the website.
+    @Published var progress: [Int: Int] = [:]
     @Published var alerts: [ScheduledAlert] = []
     @Published var notificationPreferences = NotificationPreferences()
     @Published var isLoading = false
@@ -361,7 +372,7 @@ final class NativeFeatureStore: ObservableObject {
         if preview {
             if let data = UserDefaults.standard.data(forKey: previewStateKey),
                let saved = try? JSONDecoder().decode(NativePreviewFeatureState.self, from: data) {
-                preferences = saved.preferences; profile = saved.profile; schedule = saved.schedule; estimates = saved.estimates
+                preferences = saved.preferences; profile = saved.profile; schedule = saved.schedule; estimates = saved.estimates; progress = saved.progress ?? [:]
                 decodePreferenceModels()
             } else {
                 profile = AccountProfile(username: "Preview Student", avatarPath: nil)
@@ -397,7 +408,12 @@ final class NativeFeatureStore: ObservableObject {
             }
             if let value = try? await detailsRow { accountDetails = value }
             if let value = try? await scheduleRows { schedule = value }
-            if let metas = try? await metaRows { estimates = Dictionary(metas.map { ($0.assignmentID, $0.estimatedMinutes ?? 0) }, uniquingKeysWith: { first, _ in first }) }
+            if let metas = try? await metaRows {
+                estimates = Dictionary(metas.map { ($0.assignmentID, $0.estimatedMinutes ?? 0) }, uniquingKeysWith: { first, _ in first })
+                var saved: [Int: Int] = [:]
+                for meta in metas { if let percent = meta.progressPercent, percent > 0 { saved[meta.assignmentID] = min(100, percent) } }
+                progress = saved
+            }
             if let value = try? await alertRows { alerts = value }
             if let value = try? await notificationRow { notificationPreferences = NotificationPreferences(value) }
         } catch { errorMessage = error.localizedDescription }
@@ -482,6 +498,19 @@ final class NativeFeatureStore: ObservableObject {
         estimates[assignment.id] = minutes ?? 0
     }
 
+    func saveProgress(_ percent: Int?, for assignment: AssignmentItem) async throws {
+        if isPreview { progress[assignment.id] = percent; persistPreviewState(); return }
+        guard let api = sessionStore.api, let user = sessionStore.session?.user else { throw NativeAppError.signedOut }
+        let previous = progress[assignment.id]
+        progress[assignment.id] = percent
+        do {
+            try await api.saveProgress(assignmentID: assignment.id, courseID: assignment.courseID, percent: percent, token: try await sessionStore.accessToken(), userID: user.id)
+        } catch {
+            progress[assignment.id] = previous
+            throw error
+        }
+    }
+
     private func decodePreferenceModels() {
         let decoder = JSONDecoder()
         customAssignments = preferences["custom-assignments"].flatMap { value in (try? JSONEncoder().encode(value)).flatMap { try? decoder.decode([CustomAssignment].self, from: $0) } } ?? []
@@ -546,7 +575,7 @@ final class NativeFeatureStore: ObservableObject {
 
     func persistPreviewState() {
         guard isPreview else { return }
-        let state = NativePreviewFeatureState(preferences: preferences, profile: profile, schedule: schedule, estimates: estimates)
+        let state = NativePreviewFeatureState(preferences: preferences, profile: profile, schedule: schedule, estimates: estimates, progress: progress)
         if let data = try? JSONEncoder().encode(state) { UserDefaults.standard.set(data, forKey: previewStateKey) }
     }
 
@@ -648,6 +677,31 @@ enum NativeParity {
         if points >= 50 { return 60 }
         if points >= 20 { return 45 }
         return 30
+    }
+
+    /// Points still to do after saved progress; 25 when Canvas gives no points.
+    static func remainingWork(_ item: AssignmentItem, progress: Int?) -> Double {
+        let points = (item.pointsPossible ?? 0) > 0 ? (item.pointsPossible ?? 25) : 25
+        let done = Double(min(100, max(0, progress ?? 0)))
+        return points * (1 - done / 100)
+    }
+
+    /// The website's weighted Next up: deadline urgency, points still to do, and
+    /// how much is left, among unfinished work due in the next seven days.
+    static func nextUp(_ items: [AssignmentItem], progress: [Int: Int], now: Date = Date()) -> AssignmentItem? {
+        let week: TimeInterval = 7 * 86_400
+        func score(_ item: AssignmentItem) -> Double? {
+            guard let due = item.dueDate, due >= now, due.timeIntervalSince(now) <= week else { return nil }
+            let percent = Double(min(100, max(0, progress[item.id] ?? 0)))
+            let deadline = 60 * (1 - due.timeIntervalSince(now) / week)
+            let impact = 35 * min(1, log1p(remainingWork(item, progress: progress[item.id])) / log1p(100))
+            return deadline + impact + 5 * (1 - percent / 100)
+        }
+        let scored = items.compactMap { item in score(item).map { (item: item, score: $0) } }
+        return scored.sorted { left, right in
+            if left.score != right.score { return left.score > right.score }
+            return (left.item.dueDate ?? .distantFuture) < (right.item.dueDate ?? .distantFuture)
+        }.first?.item
     }
 
     static func rankedAssignments(_ items: [AssignmentItem], estimates: [Int: Int], now: Date = Date()) -> [AssignmentItem] {

@@ -33,7 +33,7 @@ test("Assignments uses local-day ranges up to four weeks and search finds any as
 test("priority surfaces share the same scorer and quiet labels", () => {
   // The Assignments page has no Priority card; the dashboard suggests one next step.
   assert.ok(!more.includes("priorityCard"));
-  assert.ok(views.includes("NativeParity.rankedAssignments(candidates, estimates: features.estimates).first"));
+  assert.ok(views.includes("NativeParity.nextUp(activeAssignments, progress: features.progress)"));
   assert.ok(more.includes("NativeParity.rankedAssignments(visibleAssignments"));
   assert.ok(!views.includes("NativeParity.priority("));
   for (const label of ["Do first", "Soon", "This week", "Later"]) assert.ok(parity.includes(`"${label}"`));

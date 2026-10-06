@@ -744,6 +744,8 @@ private enum NativeTab: String, Hashable { case today, study, grades, announceme
 
 extension Notification.Name {
     static let nativeStudyAssignment = Notification.Name("CanvasProNativeStudyAssignment")
+    static let nativeStartPomodoro = Notification.Name("CanvasProNativeStartPomodoro")
+    static let nativeOpenStudy = Notification.Name("CanvasProNativeOpenStudy")
 }
 
 struct NativeMainTabView: View {
@@ -756,6 +758,7 @@ struct NativeMainTabView: View {
     @State private var todaySection = "Dashboard"
     @State private var focusWindow = "7"
     @State private var studyRequest: AssignmentItem?
+    @State private var quickPomodoro = false
     @State private var showOnboarding = false
     @State private var showConnect = false
     @State private var hadSavedData: Bool?
@@ -793,6 +796,11 @@ struct NativeMainTabView: View {
                         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showConnect = false } } }
                 }
             }
+            .onReceive(NotificationCenter.default.publisher(for: .nativeStartPomodoro)) { _ in
+                quickPomodoro = true
+                selection = .study
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .nativeOpenStudy)) { _ in selection = .study }
             .onReceive(NotificationCenter.default.publisher(for: .nativeStudyAssignment)) { note in
                 guard let item = note.object as? AssignmentItem else { return }
                 studyRequest = item
@@ -887,7 +895,7 @@ struct NativeMainTabView: View {
         TabView(selection: $selection) {
             NativeTodayView(store: contentStore, features: featureStore, selection: $selection, section: $todaySection, focusWindow: $focusWindow)
                 .tabItem { Label("Today", systemImage: "house") }.tag(NativeTab.today)
-            NativeStudyView(store: contentStore, features: featureStore, requestedAssignment: $studyRequest)
+            NativeStudyView(store: contentStore, features: featureStore, requestedAssignment: $studyRequest, quickPomodoro: $quickPomodoro)
                 .tabItem { Label("Study Session", systemImage: "timer") }.tag(NativeTab.study)
             NativeGradesView(store: contentStore, features: featureStore)
                 .tabItem { Label("Grades", systemImage: "graduationcap") }.tag(NativeTab.grades)
@@ -1003,18 +1011,15 @@ private struct NativeDashboardView: View {
         return Array(fresh.sorted { rank($0) < rank($1) }.prefix(4))
     }
     private var stillUrgent: Int { activeAssignments.filter { ["today", "soon"].contains(urgency(for: $0) ?? "") }.count }
-    /// The one task to start with: the top-ranked item due this week or already late.
-    private var nextStep: AssignmentItem? {
-        let weekEnd = NativeParity.endOfUpcomingDay(7)
-        let candidates = activeAssignments.filter { item in item.dueDate.map { $0 <= weekEnd } ?? false }
-        return NativeParity.rankedAssignments(candidates, estimates: features.estimates).first
-    }
+    /// The website's weighted Next up among unfinished work due this week.
+    private var nextUp: AssignmentItem? { NativeParity.nextUp(activeAssignments, progress: features.progress) }
     private var widgetIDs: [String] { features.dashboardOrder.filter { !features.dashboardHidden.contains($0) } }
 
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 16) {
                 NativeTodayTabs(selection: $todaySection)
+                NativeQuickPomodoro(scope: store.persistenceScope)
                 if store.needsCanvasConnection {
                     NativeConnectCanvasCard(store: store)
                 } else {
@@ -1026,7 +1031,6 @@ private struct NativeDashboardView: View {
                         CPSkeletonCard()
                         CPSkeletonCard()
                     } else {
-                        if let item = nextStep { nextStepCard(item) }
                         dashboardHeader
                         ForEach(Array(widgetIDs.enumerated()), id: \.element) { index, id in
                             dashboardWidget(id).cpReveal(index)
@@ -1098,19 +1102,24 @@ private struct NativeDashboardView: View {
     private var heroStats: some View {
         VStack(spacing: 8) {
             Button { openFocus("7") } label: {
-                VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 14) {
                     HStack {
-                        Text("NEXT SEVEN DAYS").cpFont(11, .medium).tracking(2).foregroundStyle(CPTheme.muted(scheme))
+                        Text("NEXT UP").cpFont(11, .medium).tracking(2).foregroundStyle(CPTheme.muted(scheme))
                         Spacer()
                         Image(systemName: "arrow.up.right").cpIconFont(11, .medium).foregroundStyle(CPTheme.muted(scheme))
                     }
-                    HStack(alignment: .lastTextBaseline) {
-                        Text("\(weekItems.count)").cpFont(32, .regular).tracking(-1.8).monospacedDigit().foregroundStyle(CPTheme.foreground(scheme))
-                            .contentTransition(.numericText())
-                            .animation(reduceMotion ? nil : .snappy, value: weekItems.count)
-                        Spacer(minLength: 8)
-                        Text(weekItems.count == 1 ? "item on your radar" : "items on your radar")
-                            .cpFont(12).foregroundStyle(CPTheme.muted(scheme)).multilineTextAlignment(.trailing)
+                    if let item = nextUp {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(item.name).cpFont(16).foregroundStyle(CPTheme.foreground(scheme))
+                                .lineLimit(2).multilineTextAlignment(.leading)
+                            Text(store.displayName(courseID: item.courseID, fallback: item.courseName))
+                                .cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
+                        }
+                        Text(nextUpDetail(item)).cpFont(12).monospacedDigit()
+                            .foregroundStyle(CPTheme.foreground(scheme).opacity(0.85))
+                            .multilineTextAlignment(.leading)
+                    } else {
+                        Text("Nothing due in the next seven days.").cpFont(13).foregroundStyle(CPTheme.muted(scheme))
                     }
                 }
                 .padding(18)
@@ -1119,8 +1128,7 @@ private struct NativeDashboardView: View {
                 .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(CPTheme.primary(scheme: scheme).opacity(0.3), lineWidth: 0.5))
             }
             .buttonStyle(CPPressStyle())
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Next seven days: \(weekItems.count) \(weekItems.count == 1 ? "item" : "items")")
+            .accessibilityElement(children: .combine)
             .accessibilityHint("Opens Assignments")
             HStack(spacing: 8) {
                 heroSmallStat(value: todayCount, label: "Next 24 hours", symbol: "clock", window: "1")
@@ -1194,29 +1202,14 @@ private struct NativeDashboardView: View {
         return "Updated \(date.formatted(.relative(presentation: .numeric, unitsStyle: .abbreviated)))"
     }
 
-    private func nextStepCard(_ item: AssignmentItem) -> some View {
-        Button {
-            NotificationCenter.default.post(name: .nativeStudyAssignment, object: item)
-        } label: {
-            CPGlassCard {
-                HStack(spacing: 12) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("START WITH").cpFont(11, .medium).tracking(1.5).foregroundStyle(CPTheme.muted(scheme))
-                        Text(item.name).cpFont(15).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(2).multilineTextAlignment(.leading)
-                        Text("\(store.displayName(courseID: item.courseID, fallback: item.courseName)) · \(NativeParity.estimate(item, estimates: features.estimates)) min")
-                            .cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
-                    }
-                    Spacer(minLength: 8)
-                    Image(systemName: "play.fill").cpIconFont(12).foregroundStyle(CPTheme.foreground(scheme))
-                        .frame(width: 36, height: 36)
-                        .background(CPTheme.inset(scheme), in: Circle())
-                        .overlay(Circle().strokeBorder(CPTheme.insetBorder(scheme), lineWidth: 0.5))
-                }
-            }
+    private func nextUpDetail(_ item: AssignmentItem) -> String {
+        var parts: [String] = []
+        if let countdown = NativeParity.countdown(item, completed: false) { parts.append(countdown.label) }
+        if let points = item.pointsPossible { parts.append("\(points.formatted()) pts") }
+        if let percent = features.progress[item.id], percent > 0 {
+            parts.append(percent >= 75 ? "Almost there, \(percent)% done" : "\(percent)% done")
         }
-        .buttonStyle(CPPressStyle())
-        .accessibilityElement(children: .combine)
-        .accessibilityHint("Starts a study session")
+        return parts.joined(separator: " · ")
     }
 
     @ViewBuilder private func dashboardWidget(_ id: String) -> some View {
@@ -1823,6 +1816,99 @@ extension View {
     func cpUndoBar(store: NativeContentStore) -> some View { modifier(CPUndoBar(store: store)) }
 }
 
+/// A thin bar shown once a student has saved progress on an assignment.
+struct NativeProgressBar: View {
+    @Environment(\.colorScheme) private var scheme
+    let percent: Int
+    var body: some View {
+        HStack(spacing: 8) {
+            CPProgressBar(value: Double(percent) / 100, color: CPTheme.foreground(scheme).opacity(0.7))
+                .frame(width: 80)
+            Text("\(percent)%").cpFont(11).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(percent) percent done")
+    }
+}
+
+/// How much of an assignment is done, in 5% steps, saved to the account like
+/// the website's slider.
+struct NativeProgressEditor: View {
+    @Environment(\.colorScheme) private var scheme
+    let assignment: AssignmentItem
+    @ObservedObject var features: NativeFeatureStore
+    @State private var draft: Double = 0
+    @State private var loaded = false
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Text("Progress").cpFont(12).foregroundStyle(CPTheme.muted(scheme))
+            Slider(value: $draft, in: 0...100, step: 5)
+                .tint(CPTheme.foreground(scheme))
+                .accessibilityLabel("Percent complete")
+            Text("\(Int(draft))%").cpFont(12).monospacedDigit().foregroundStyle(CPTheme.foreground(scheme))
+                .frame(width: 40, alignment: .trailing)
+        }
+        .sensoryFeedback(.selection, trigger: Int(draft))
+        .onAppear {
+            draft = Double(features.progress[assignment.id] ?? 0)
+            loaded = true
+        }
+        .onChange(of: features.progress[assignment.id]) { _, value in draft = Double(value ?? 0) }
+        // Saves a moment after the slider settles, so dragging sends one change.
+        .task(id: Int(draft)) {
+            guard loaded else { return }
+            try? await Task.sleep(nanoseconds: 600_000_000)
+            guard !Task.isCancelled else { return }
+            let value = Int(draft)
+            guard value != (features.progress[assignment.id] ?? 0) else { return }
+            do { try await features.saveProgress(value == 0 ? nil : value, for: assignment) }
+            catch { features.errorMessage = error.localizedDescription }
+        }
+    }
+}
+
+/// The website's quick Pomodoro: 25 minutes of focus without choosing an
+/// assignment. While a session runs it shows the timer; Study holds the session.
+private struct NativeQuickPomodoro: View {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
+    let scope: String
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let live = StoredNativeStudySession.live(scope: scope, now: context.date)
+            Button {
+                NotificationCenter.default.post(name: live == nil ? .nativeStartPomodoro : .nativeOpenStudy, object: nil)
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "timer").cpIconFont(14)
+                        .foregroundStyle(CPTheme.foreground(scheme))
+                        .frame(width: 34, height: 34)
+                        .overlay(Circle().strokeBorder(CPTheme.outline(scheme), lineWidth: 0.5))
+                    VStack(alignment: .leading, spacing: 1) {
+                        if let live {
+                            Text(live.label).cpFont(11).foregroundStyle(CPTheme.muted(scheme))
+                            Text(live.time).cpFont(15, .medium).monospacedDigit().foregroundStyle(CPTheme.foreground(scheme))
+                        } else {
+                            Text("Start Pomodoro").cpFont(13, .medium).foregroundStyle(CPTheme.foreground(scheme))
+                            Text("25 min").cpFont(11).foregroundStyle(CPTheme.muted(scheme))
+                        }
+                    }
+                    Spacer(minLength: 8)
+                    Image(systemName: "arrow.up.right").cpIconFont(11, .medium).foregroundStyle(CPTheme.muted(scheme))
+                }
+                .padding(.horizontal, 12)
+                .frame(minHeight: 52)
+                .cpSurface(radius: 16)
+            }
+            .buttonStyle(CPPressStyle())
+            .accessibilityLabel(live.map { "\($0.label), \($0.time) left" } ?? "Start a 25 minute Pomodoro")
+            .accessibilityHint("Opens Study")
+        }
+    }
+}
+
 /// The round "done" control used on every assignment row.
 struct NativeCompletionButton: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -2053,6 +2139,7 @@ struct AssignmentDetailView: View {
             Section { NativeAssignmentRow(assignment: assignment, store: store) }
             if let description = assignment.description, !description.isEmpty { Section("Description") { Text(description.strippingHTML).cpFont(12).lineSpacing(3).textSelection(.enabled) } }
             Section("Planning") {
+                if !assignment.isFinished(in: store) { NativeProgressEditor(assignment: assignment, features: features) }
                 Stepper("Estimated time: \(estimate) min", value: $estimate, in: 5...480, step: 5)
                 Button("Save estimate") { Task { do { try await features.saveEstimate(estimate, for: assignment); status = "Estimate saved." } catch { status = error.localizedDescription } } }
                 Button("Add to CanvasPro Calendar") { addToCalendar() }
@@ -2638,6 +2725,9 @@ struct CourseDetailView: View {
                         if let points = assignment.pointsPossible { Text("· \(points.formatted()) pts") }
                     }
                     .cpFont(11).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
+                    if !isGraded, !isOpen, let percent = features.progress[assignment.id], percent > 0 {
+                        NativeProgressBar(percent: percent)
+                    }
                     Button {
                         if isOpen { expandedDescriptions.remove(assignment.id) } else { expandedDescriptions.insert(assignment.id) }
                     } label: {
@@ -2658,6 +2748,9 @@ struct CourseDetailView: View {
                     Text(description.isEmpty ? "No description." : description)
                         .cpFont(12).lineSpacing(3).foregroundStyle(CPTheme.foreground(scheme).opacity(0.85))
                         .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+                    if !isGraded && !assignment.isFinished(in: store) {
+                        NativeProgressEditor(assignment: assignment, features: features)
+                    }
                     HStack(spacing: 14) {
                         NavigationLink("Assignment details") { AssignmentDetailView(assignment: assignment, store: store, features: features) }
                         if let url = URL(string: assignment.htmlURL), url.scheme == "https" { Link("Open in Canvas", destination: url) }
@@ -2771,6 +2864,28 @@ private struct StoredNativeStudySession: Codable {
     let blockEndsAt: Date?
 }
 
+private struct NativeLivePomodoro {
+    let label: String
+    let time: String
+}
+
+extension StoredNativeStudySession {
+    /// The running or paused session saved by Study, for the dashboard's timer.
+    static func live(scope: String, now: Date) -> NativeLivePomodoro? {
+        guard let data = UserDefaults.standard.data(forKey: "CanvasProNativeStudySession.\(scope)"),
+              let saved = try? JSONDecoder().decode(StoredNativeStudySession.self, from: data),
+              saved.started == true, saved.finished != true else { return nil }
+        let seconds = saved.running
+            ? max(0, Int(ceil((saved.blockEndsAt ?? now).timeIntervalSince(now))))
+            : max(0, saved.remaining)
+        let label: String
+        if !saved.running { label = "Paused" }
+        else if saved.pomodoroPlan == nil { label = "Study timer" }
+        else { label = saved.phase == "long-break" ? "Long break" : saved.phase == "short-break" ? "Short break" : "Focus" }
+        return NativeLivePomodoro(label: label, time: String(format: "%02d:%02d", seconds / 60, seconds % 60))
+    }
+}
+
 private struct NativePomodoroPlan: Codable {
     let focus: Int
     let shortBreak: Int
@@ -2784,6 +2899,7 @@ private struct NativePomodoroPlan: Codable {
 
 struct NativeStudyView: View {
     @Binding private var requestedAssignment: AssignmentItem?
+    @Binding private var quickPomodoro: Bool
     @Environment(\.colorScheme) private var scheme
     @Environment(\.cpPalette) private var paletteDependency
     @ObservedObject var store: NativeContentStore
@@ -2806,9 +2922,10 @@ struct NativeStudyView: View {
     private var availableItems: [AssignmentItem] { features.shownAssignments(in: store) + manualTasks }
     private var items: [AssignmentItem] { selectedOrder.compactMap { id in availableItems.first { $0.id == id && selected.contains(id) } } }
 
-    init(store: NativeContentStore, features: NativeFeatureStore, requestedAssignment: Binding<AssignmentItem?> = .constant(nil)) {
+    init(store: NativeContentStore, features: NativeFeatureStore, requestedAssignment: Binding<AssignmentItem?> = .constant(nil), quickPomodoro: Binding<Bool> = .constant(false)) {
         self.store = store; self.features = features
         _requestedAssignment = requestedAssignment
+        _quickPomodoro = quickPomodoro
         let key = "CanvasProNativeStudySession.\(store.persistenceScope)"
         let saved = UserDefaults.standard.data(forKey: key).flatMap { try? JSONDecoder().decode(StoredNativeStudySession.self, from: $0) }
         let elapsed = saved?.running == true ? max(0, Int(Date().timeIntervalSince(saved?.savedAt ?? Date()))) : 0
@@ -2852,6 +2969,11 @@ struct NativeStudyView: View {
     private var lifecycleStudyContent: some View {
         studyContent
             .task(id: requestedAssignment?.id) { consumeRequestedAssignment() }
+            .task(id: quickPomodoro) {
+                guard quickPomodoro else { return }
+                startQuickPomodoro()
+                quickPomodoro = false
+            }
             .onReceive(timer) { _ in tick() }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in tick() }
             .onAppear { tick() }
@@ -3281,6 +3403,22 @@ struct NativeStudyView: View {
         remaining = blockMinutes * 60
         blockEndsAt = Date().addingTimeInterval(TimeInterval(remaining))
         sessionStarted = true; sessionFinished = false; running = true
+    }
+    /// The dashboard's quick Pomodoro: 25 minutes of focus with no assignment.
+    /// A session already in progress is kept as it is.
+    private func startQuickPomodoro() {
+        guard !sessionStarted || sessionFinished else { return }
+        resetSession(keepSelection: false)
+        let id = -Int(Date().timeIntervalSince1970 * 1000)
+        let item = AssignmentItem(id: id, name: "Independent focus", description: nil, dueAt: nil, htmlURL: "", pointsPossible: nil, courseID: 0, courseName: "Personal task", courseCode: "", submission: nil)
+        manualTasks = [item]; selected = [id]; selectedOrder = [id]
+        duration = 25
+        activePlan = NativePomodoroPlan(focus: 25, shortBreak: 5, longBreak: 15, rounds: 4)
+        phase = "focus"; round = 0; currentIndex = 0
+        remaining = 25 * 60
+        blockEndsAt = Date().addingTimeInterval(TimeInterval(remaining))
+        sessionStarted = true; sessionFinished = false; running = true
+        persistSession()
     }
     private func togglePause() {
         if running {

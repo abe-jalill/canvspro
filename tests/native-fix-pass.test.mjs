@@ -234,8 +234,8 @@ test("the app is gentle: soft late-work wording, one next step, hidden grades, q
   assert.doesNotMatch(swift.NativeViews + swift.NativeMoreViews, /past-due item|"Overdue"/);
   assert.match(swift.NativeFeatures, /label: "Past due"/);
   assert.match(swift.NativeDesign, /case "overdue": return warning/);
-  assert.match(swift.NativeViews, /private func nextStepCard/);
-  assert.match(swift.NativeViews, /"START WITH"/);
+  assert.match(swift.NativeViews, /"NEXT UP"/);
+  assert.match(swift.NativeViews, /NativeParity\.nextUp\(activeAssignments, progress: features\.progress\)/);
   // Grades can stay blurred until tapped, and hide again when the app is left.
   assert.match(swift.NativeDesign, /private struct CPGradeShield: ViewModifier/);
   assert.match(swift.NativeMoreViews, /Hide grades until tapped/);
@@ -255,4 +255,23 @@ test("no extra words: no descriptions under titles, short empty states", () => {
   // Empty states are one short title.
   const details = (swift.NativeViews + swift.NativeMoreViews).match(/NativeEmptyState\(title: [^\n]*detail: "[^"]+"/g) ?? [];
   assert.equal(details.length, 0, details.join("\n"));
+});
+
+test("main's newest features are on iOS: progress, weighted Next up, remaining workload, quick Pomodoro", () => {
+  // Percent done per assignment, saved to the same column as the website.
+  assert.match(swift.NativeFeatures, /progress_percent/);
+  assert.match(swift.NativeFeatures, /func saveProgress\(_ percent: Int\?, for assignment: AssignmentItem\)/);
+  assert.match(swift.NativeViews, /struct NativeProgressEditor: View/);
+  assert.match(swift.NativeViews, /Slider\(value: \$draft, in: 0\.\.\.100, step: 5\)/);
+  assert.ok((swift.NativeViews + swift.NativeMoreViews).match(/NativeProgressBar\(percent: percent\)/g).length >= 2);
+  // The website's Next up formula: 60 deadline, 35 work left (log scale), 5 unfinished.
+  assert.match(swift.NativeFeatures, /let deadline = 60 \* \(1 - due\.timeIntervalSince\(now\) \/ week\)/);
+  assert.match(swift.NativeFeatures, /35 \* min\(1, log1p\(remainingWork/);
+  assert.match(swift.NativeViews, /Almost there, /);
+  // Workload bars follow points left after saved progress.
+  assert.match(swift.NativeMoreViews, /NativeParity\.remainingWork\(\$1, progress: features\.progress\[\$1\.id\]\)/);
+  // Quick Pomodoro on the dashboard starts 25 minutes of independent focus in Study.
+  assert.match(swift.NativeViews, /private struct NativeQuickPomodoro: View/);
+  assert.match(swift.NativeViews, /NativePomodoroPlan\(focus: 25, shortBreak: 5, longBreak: 15, rounds: 4\)/);
+  assert.match(swift.NativeViews, /"Independent focus"/);
 });
