@@ -145,6 +145,8 @@ interface DispatchResult {
   failures: number;
   reason: string;
   stats?: BuildStats;
+  /** Which Canvas host was called and what it answered (never the token). */
+  canvas?: { host: string; answer: string };
   due?: number;
   fresh?: number;
 }
@@ -249,12 +251,14 @@ async function dispatchUser(
         await setCanvasKeyStatus(admin, userId, message.includes("401") ? 401 : 403);
         console.warn(`[push-dispatch] canvas key rejected user=${userId} (${message})`);
         result.reason = "canvas-key-rejected";
+        result.canvas = { host: userDomain, answer: message.slice(0, 160) };
         return result;
       }
       if (/Canvas 4\d\d|Canvas 5\d\d/.test(message)) {
         // Transient/permission problem — never blame the key.
         console.warn(`[push-dispatch] canvas request failed user=${userId} (${message})`);
         result.reason = `canvas-${message.match(/Canvas (\d{3})/)?.[1] ?? "error"}`;
+        result.canvas = { host: userDomain, answer: message.slice(0, 160) };
         return result;
       }
       throw err;
@@ -422,6 +426,7 @@ async function run(onlyUserId?: string): Promise<Response> {
           due: r.due,
           fresh: r.fresh,
           sent: r.sent,
+          canvas: r.canvas,
         });
       }
     }),
