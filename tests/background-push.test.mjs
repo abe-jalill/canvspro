@@ -58,3 +58,18 @@ test("a shared run checks the accounts that waited longest first", async () => {
   );
   assert.match(route, /users\.sort\(\(\[a\], \[b\]\) => \(lastCheck\.get\(a\) \?\? 0\) - \(lastCheck\.get\(b\) \?\? 0\)\)/);
 });
+
+test("the background check keeps the same courses as the app's Canvas feed", async () => {
+  const server = await readFile(new URL("../src/lib/push-dispatch.server.ts", import.meta.url), "utf8");
+  // A stricter local filter dropped real classes, so closed-app alerts found nothing to send.
+  assert.doesNotMatch(server, /access_restricted_by_date &&/);
+  assert.doesNotMatch(server, /workflow_state === "available"/);
+  assert.match(server, /\.filter\(\(c\) => !hiddenCourseIds\.has\(c\.id\)\)/);
+  assert.match(server, /override_assignment_dates=true/);
+  // Every run says where each account's check stopped.
+  const route = await readFile(new URL("../src/routes/api/public/push/dispatch.ts", import.meta.url), "utf8");
+  for (const reason of ["no-canvas-key", "alerts-off", "quiet-hours", "nothing-due", "already-sent", "delivered"]) {
+    assert.ok(route.includes(`"${reason}"`), reason);
+  }
+  assert.match(route, /Response\.json\(\{ users: byUser\.size, sent, failures, accounts \}\)/);
+});

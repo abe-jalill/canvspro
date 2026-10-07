@@ -147,8 +147,17 @@ async function mapPooled<T, R>(
   return out;
 }
 
+/** Counts only (no names or ids), reported by the background check for diagnosis. */
+export interface BuildStats {
+  courses: number;
+  courseErrors: number;
+  assignments: number;
+  alerts: number;
+}
+
 export interface BuildResult {
   alerts: Alert[];
+  stats: BuildStats;
   /** Unsubmitted work due before 11:59 PM local time today. */
   tonight: TonightItem[];
 }
@@ -167,32 +176,38 @@ export async function buildAlertsForUser(
   const now = Date.now();
   const endToday = endOfLocalDay(new Date(now), tzOffsetMinutes);
 
+  const stats: BuildStats = { courses: 0, courseErrors: 0, assignments: 0, alerts: 0 };
+
+  // Same rule as the app's Canvas feed (supabase/functions/canvas/course-visibility.ts):
+  // enrollment_state=active is Canvas's own answer, so only courses the student
+  // chose to hide are dropped. A stricter local check (access_restricted_by_date,
+  // workflow_state !== "available") removed real, current classes, so the
+  // background check found nothing to send while the open app showed alerts.
   const courses = (
     await canvasFetch<CanvasCourse[]>(
       domain,
       token,
       "/courses?enrollment_state=active&per_page=100",
     )
-  ).filter(
-    (c) =>
-      !hiddenCourseIds.has(c.id) &&
-      !c.access_restricted_by_date &&
-      (!c.workflow_state || c.workflow_state === "available"),
-  );
-  if (courses.length === 0) return { alerts, tonight };
+  ).filter((c) => !hiddenCourseIds.has(c.id));
+  stats.courses = courses.length;
+  if (courses.length === 0) return { alerts, tonight, stats };
 
   const perCourse = await mapPooled(courses, 4, async (c) => {
     try {
       const list = await canvasFetch<CanvasAssignment[]>(
         domain,
         token,
-        `/courses/${c.id}/assignments?include[]=submission&per_page=100&order_by=due_at`,
+        // Section and student due-date overrides, exactly as the app shows them.
+        `/courses/${c.id}/assignments?include[]=submission&override_assignment_dates=true&per_page=100&order_by=due_at`,
       );
       return list.map((a) => ({ a, course: c }));
     } catch {
+      stats.courseErrors += 1;
       return [] as Array<{ a: CanvasAssignment; course: CanvasCourse }>;
     }
   });
+  stats.assignments = perCourse.reduce((sum, list) => sum + list.length, 0);
 
   for (const { a, course } of perCourse.flat()) {
     // Grades posted in the last day.
@@ -267,7 +282,8 @@ export async function buildAlertsForUser(
     }
   }
 
-  return { alerts, tonight };
+  stats.alerts = alerts.length;
+  return { alerts, tonight, stats };
 }
 
 export interface DeliveryReport {

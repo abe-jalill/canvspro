@@ -4,6 +4,7 @@ import { PUSH_HEARTBEAT_PREF, lastServerCheck } from "@/lib/push-heartbeat";
 import {
   buildAlertsForUser,
   deliver,
+  type BuildStats,
   isQuiet,
   normalizeCanvasDomain,
   SERVER_DEFAULT_PREFS,
@@ -137,6 +138,17 @@ async function recordHeartbeat(admin: Admin, userId: string): Promise<void> {
   if (error) console.warn(`[push-dispatch] heartbeat failed user=${userId} (${error.message})`);
 }
 
+/** What happened for one account. Counts and a reason only, so the cron log
+ *  (net._http_response) shows exactly where a check stopped. */
+interface DispatchResult {
+  sent: number;
+  failures: number;
+  reason: string;
+  stats?: BuildStats;
+  due?: number;
+  fresh?: number;
+}
+
 /** Builds and delivers one account's due alerts. */
 async function dispatchUser(
   admin: Admin,
@@ -144,8 +156,8 @@ async function dispatchUser(
   userSubs: SubRow[],
   vapid: Vapid,
   defaultDomain: string,
-): Promise<{ sent: number; failures: number }> {
-  const result = { sent: 0, failures: 0 };
+): Promise<DispatchResult> {
+  const result: DispatchResult = { sent: 0, failures: 0, reason: "error" };
   try {
     const [
       { data: prefRow },
@@ -178,19 +190,31 @@ async function dispatchUser(
     );
 
     const token = (settings?.canvas_api_key ?? "").trim();
-    if (!token) return result;
+    if (!token) {
+      result.reason = "no-canvas-key";
+      return result;
+    }
     // The student's own school URL, falling back to the global default for
     // accounts saved before per-school URLs existed.
     const userDomain = normalizeCanvasDomain(settings?.canvas_domain) || defaultDomain;
-    if (!userDomain) return result;
+    if (!userDomain) {
+      result.reason = "no-canvas-domain";
+      return result;
+    }
 
     const prefs: ServerPrefs = {
       ...SERVER_DEFAULT_PREFS,
       ...((prefRow?.prefs ?? {}) as Partial<ServerPrefs>),
     };
-    if (!prefs.enabled || !prefs.browserPush) return result;
+    if (!prefs.enabled || !prefs.browserPush) {
+      result.reason = "alerts-off";
+      return result;
+    }
     const tz = prefRow?.timezone_offset_minutes ?? 0;
-    if (isQuiet(prefs, tz)) return result;
+    if (isQuiet(prefs, tz)) {
+      result.reason = "quiet-hours";
+      return result;
+    }
 
     let alerts: Alert[];
     let tonight: TonightItem[];
@@ -205,6 +229,7 @@ async function dispatchUser(
       );
       alerts = built.alerts;
       tonight = built.tonight;
+      result.stats = built.stats;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       // Canvas rejecting the stored token is a user-fixable problem, not a
@@ -223,11 +248,13 @@ async function dispatchUser(
       if (authRejected) {
         await setCanvasKeyStatus(admin, userId, message.includes("401") ? 401 : 403);
         console.warn(`[push-dispatch] canvas key rejected user=${userId} (${message})`);
+        result.reason = "canvas-key-rejected";
         return result;
       }
       if (/Canvas 4\d\d|Canvas 5\d\d/.test(message)) {
         // Transient/permission problem — never blame the key.
         console.warn(`[push-dispatch] canvas request failed user=${userId} (${message})`);
+        result.reason = `canvas-${message.match(/Canvas (\d{3})/)?.[1] ?? "error"}`;
         return result;
       }
       throw err;
@@ -238,7 +265,11 @@ async function dispatchUser(
     // any queued row whose moment has arrived.
     const countdowns = await enqueueCountdowns(admin, userId, prefs, tz, tonight);
     const due = [...countdowns, ...alerts];
-    if (due.length === 0) return result;
+    result.due = due.length;
+    if (due.length === 0) {
+      result.reason = "nothing-due";
+      return result;
+    }
 
     const { data: sentRows } = await admin
       .from("push_sent_log")
@@ -250,7 +281,12 @@ async function dispatchUser(
       );
     const already = new Set((sentRows ?? []).map((r) => r.alert_id as string));
     const fresh = due.filter((a) => !already.has(a.id)).slice(0, 12);
-    if (fresh.length === 0) return result;
+    result.fresh = fresh.length;
+    if (fresh.length === 0) {
+      result.reason = "already-sent";
+      return result;
+    }
+    result.reason = "delivered";
 
     const dead = new Set<string>();
     const failedSubs = new Set<string>();
@@ -301,6 +337,7 @@ async function dispatchUser(
     }
   } catch (err) {
     result.failures += 1;
+    result.reason = "error";
     console.error("[push-dispatch]", userId, err instanceof Error ? err.message : err);
   } finally {
     await recordHeartbeat(admin, userId);
@@ -367,6 +404,8 @@ async function run(onlyUserId?: string): Promise<Response> {
   }
   let sent = 0;
   let failures = 0;
+  // Where each account's check stopped (counts only), visible in net._http_response.
+  const accounts: Array<Omit<DispatchResult, "failures">> = [];
   let next = 0;
   await Promise.all(
     Array.from({ length: Math.min(USER_CONCURRENCY, users.length) }, async () => {
@@ -377,12 +416,19 @@ async function run(onlyUserId?: string): Promise<Response> {
         const r = await dispatchUser(supabaseAdmin, userId, userSubs, keys, defaultDomain);
         sent += r.sent;
         failures += r.failures;
+        accounts.push({
+          reason: r.reason,
+          stats: r.stats,
+          due: r.due,
+          fresh: r.fresh,
+          sent: r.sent,
+        });
       }
     }),
   );
 
   console.info(`[push-dispatch] done users=${byUser.size} sent=${sent} failures=${failures}`);
-  return Response.json({ users: byUser.size, sent, failures });
+  return Response.json({ users: byUser.size, sent, failures, accounts });
 }
 
 /** Sends a "test notification" push to every device the signed-in user registered. */
