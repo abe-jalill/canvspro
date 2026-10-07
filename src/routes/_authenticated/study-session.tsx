@@ -97,10 +97,20 @@ const choiceButton = (selected: boolean) =>
   );
 
 export const Route = createFileRoute("/_authenticated/study-session")({
-  validateSearch: (search: Record<string, unknown>) => {
+  validateSearch: (search: Record<string, unknown>): { assignment?: number; picks?: string } => {
     const assignment = Number(search.assignment);
+    // `picks` preselects several assignments at once, e.g. ?picks=12,34,56.
+    const picks =
+      typeof search.picks === "string" || typeof search.picks === "number"
+        ? String(search.picks)
+            .split(",")
+            .map(Number)
+            .filter((id) => Number.isFinite(id) && id > 0)
+            .join(",")
+        : "";
     return {
       assignment: Number.isFinite(assignment) && assignment > 0 ? assignment : undefined,
+      ...(picks ? { picks } : {}),
     };
   },
   head: () => ({ meta: [{ title: "Study Session — CanvasPro" }] }),
@@ -181,8 +191,76 @@ function StudyClock({
   );
 }
 
+/** The whole session as a ring: one arc per task, sized by its share of the time. */
+function SessionRing({
+  segments,
+  value,
+  label,
+}: {
+  segments: number[];
+  value: string;
+  label: string;
+}) {
+  const radius = 54;
+  const circumference = 2 * Math.PI * radius;
+  const total = segments.reduce((sum, minutes) => sum + minutes, 0);
+  const gap = segments.length > 1 ? 4 : 0;
+  let offset = 0;
+  return (
+    <div className="relative h-52 w-52" role="img" aria-label={`${label}: ${value}`}>
+      <svg viewBox="0 0 128 128" className="h-full w-full -rotate-90" aria-hidden="true">
+        <circle
+          cx="64"
+          cy="64"
+          r={radius}
+          fill="none"
+          strokeWidth="5"
+          className="stroke-foreground/10"
+        />
+        {total > 0 &&
+          segments.map((minutes, index) => {
+            const length = (minutes / total) * circumference;
+            const arc = (
+              <circle
+                key={index}
+                cx="64"
+                cy="64"
+                r={radius}
+                fill="none"
+                strokeWidth="5"
+                strokeLinecap="round"
+                className="stroke-foreground transition-all duration-500"
+                style={{ opacity: 0.85 - (index % 3) * 0.22 }}
+                strokeDasharray={`${Math.max(0, length - gap)} ${circumference}`}
+                strokeDashoffset={-offset}
+              />
+            );
+            offset += length;
+            return arc;
+          })}
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+        <span className="px-6 text-2xl font-medium leading-tight tracking-tight tabular-nums">
+          {value}
+        </span>
+        <span className="mt-1 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+          {label}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 /** Step number and title at the top of a section inside a card. */
-function StepHeading({ step, title, trailing }: { step: number; title: string; trailing?: string }) {
+function StepHeading({
+  step,
+  title,
+  trailing,
+}: {
+  step: number;
+  title: string;
+  trailing?: string;
+}) {
   return (
     <div className="flex items-center gap-3">
       <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-foreground/25 text-[11px] tabular-nums text-muted-foreground">
@@ -222,7 +300,7 @@ function MinutesField({
 }
 
 function StudySessionPage() {
-  const { assignment: requestedAssignment } = Route.useSearch();
+  const { assignment: requestedAssignment, picks: requestedPicks } = Route.useSearch();
   const assignments = useQuery(assignmentsQO);
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
   const metaMap = useAssignmentMetaMap();
@@ -239,18 +317,26 @@ function StudySessionPage() {
   const [custom, setCustom] = useState<Record<CustomField, string>>(CUSTOM_DEFAULTS);
   const [now, setNow] = useState(() => Date.now());
   const [summary, setSummary] = useState<StudySessionSnapshot | null>(null);
-  const selectedFromLink = useRef<number | null>(null);
+  const selectedFromLink = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!requestedAssignment || selectedFromLink.current === requestedAssignment) return;
-    const assignment = assignments.data?.find((item) => item.id === requestedAssignment);
-    if (!assignment) return;
-    setSelected((items) => {
-      const next = canvasItem(assignment);
-      return items.some((item) => item.id === next.id) ? items : [next, ...items];
-    });
-    selectedFromLink.current = requestedAssignment;
-  }, [assignments.data, requestedAssignment]);
+    const ids = [
+      ...(requestedAssignment ? [requestedAssignment] : []),
+      ...(requestedPicks ? requestedPicks.split(",").map(Number) : []),
+    ];
+    const key = ids.join(",");
+    if (!ids.length || selectedFromLink.current === key || !assignments.data) return;
+    const found = ids
+      .map((id) => assignments.data?.find((item) => item.id === id))
+      .filter((item): item is AssignmentItem => Boolean(item))
+      .map(canvasItem);
+    if (!found.length) return;
+    setSelected((items) => [
+      ...found.filter((next) => !items.some((item) => item.id === next.id)),
+      ...items,
+    ]);
+    selectedFromLink.current = key;
+  }, [assignments.data, requestedAssignment, requestedPicks]);
 
   // The last time choice is remembered. Before this page had modes, Pomodoro
   // was a switch; someone who left it on keeps Pomodoro.
@@ -547,7 +633,9 @@ function StudySessionPage() {
                 ))}
               </span>
               <span>
-                {onBreak ? `${cycleDone} of ${rounds} rounds done` : `Round ${cycleDone + 1} of ${rounds}`}
+                {onBreak
+                  ? `${cycleDone} of ${rounds} rounds done`
+                  : `Round ${cycleDone + 1} of ${rounds}`}
               </span>
             </div>
           )}
@@ -729,7 +817,7 @@ function StudySessionPage() {
         </div>
       )}
 
-      <div className="grid items-start gap-5 lg:grid-cols-2">
+      <div className="grid items-stretch gap-5 lg:grid-cols-2">
         {/* Left: what to study, then how long. */}
         <GlassCard className="premium-reveal space-y-6">
           <section className="space-y-4">
@@ -775,7 +863,7 @@ function StudySessionPage() {
             ) : candidates.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">No matches.</p>
             ) : (
-              <ul className="max-h-[22rem] space-y-2 overflow-y-auto pr-1">
+              <ul className="max-h-[17.5rem] space-y-2 overflow-y-auto pr-1">
                 {candidates.map((assignment) => {
                   const item = canvasItem(assignment);
                   const isSelected = selectedIds.has(item.id);
@@ -863,7 +951,10 @@ function StudySessionPage() {
                   role="radio"
                   aria-checked={timeMode === mode.id}
                   onClick={() => changeTimeMode(mode.id)}
-                  className={choiceButton(timeMode === mode.id)}
+                  className={cn(
+                    choiceButton(timeMode === mode.id),
+                    "whitespace-nowrap px-1.5 text-xs sm:px-3 sm:text-sm",
+                  )}
                 >
                   {mode.label}
                 </button>
@@ -919,7 +1010,11 @@ function StudySessionPage() {
 
             {timeMode === "pomodoro" && (
               <div className="space-y-3">
-                <div className="grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Pomodoro length">
+                <div
+                  className="grid gap-2 sm:grid-cols-3"
+                  role="radiogroup"
+                  aria-label="Pomodoro length"
+                >
                   {POMODORO_PRESETS.map((preset) => (
                     <button
                       key={preset.id}
@@ -989,7 +1084,7 @@ function StudySessionPage() {
 
         {/* Right: the session, in order, ready to start. */}
         <GlassCard
-          className="premium-reveal lg:sticky lg:top-6"
+          className="premium-reveal flex flex-col"
           title="Your session"
           action={
             <span className="text-xs tabular-nums text-muted-foreground">
@@ -998,7 +1093,9 @@ function StudySessionPage() {
           }
         >
           {selected.length === 0 ? (
-            <p className="py-16 text-center text-sm text-muted-foreground">Nothing picked yet.</p>
+            <p className="flex flex-1 items-center justify-center py-16 text-sm text-muted-foreground">
+              Nothing picked yet.
+            </p>
           ) : (
             <ol className="space-y-2">
               {plannedItems.map((item, index) => (
@@ -1055,11 +1152,28 @@ function StudySessionPage() {
             </ol>
           )}
 
-          <div className="mt-6 flex items-baseline justify-between gap-3 border-t border-foreground/10 pt-5 text-sm">
-            <span className="text-muted-foreground">
-              {TIME_MODES.find((mode) => mode.id === timeMode)?.label}
-            </span>
-            <span className="tabular-nums">{plan}</span>
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 py-8">
+            <SessionRing
+              segments={
+                timeMode === "per"
+                  ? plannedItems.map((item) => item.minutes ?? 25)
+                  : selected.map(() => 1)
+              }
+              value={plan}
+              label={TIME_MODES.find((mode) => mode.id === timeMode)?.label ?? ""}
+            />
+            {selected.length > 0 && timeMode !== "pomodoro" && (
+              <p className="text-xs tabular-nums text-muted-foreground">
+                Ends around{" "}
+                {new Date(
+                  now +
+                    (timeMode === "per"
+                      ? perItemTotal
+                      : Math.min(480, Math.max(1, Math.round(duration || 25)))) *
+                      60_000,
+                ).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
+              </p>
+            )}
           </div>
 
           <button

@@ -1,3 +1,6 @@
+// Localhost-only sample student for homepage screenshots; first so it runs
+// before the backend client reads the session.
+import "@/lib/demo-mode";
 import { QueryClient } from "@tanstack/react-query";
 import { createRouter, parseSearchWith, stringifySearchWith } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
@@ -60,7 +63,6 @@ export const getRouter = () => {
       </div>
     ),
   });
-
 
   return router;
 };
