@@ -188,3 +188,32 @@ test("a custom plan runs through the whole cycle and survives saving", () => {
   // Long break after every 2nd focus block.
   assert.deepEqual(phases, ["short-break:2", "focus:10", "long-break:6", "focus:10", "short-break:2"]);
 });
+
+test("per-assignment sessions give each item its own time and move on when it runs out", async () => {
+  const { focusItem, nextItemSession, totalItemMinutes } = await import("../src/lib/study-session.ts");
+  const planned = [
+    { id: "manual:a", name: "Essay outline", source: "manual", minutes: 30 },
+    { id: "manual:b", name: "Problem set", source: "manual", minutes: 45 },
+  ];
+  const session = createStudySession(planned, 25, t0, undefined, true);
+  assert.equal(session.perItem, true);
+  assert.equal(session.durationMs, 30 * MIN);
+  assert.equal(totalItemMinutes(planned), 75);
+  assert.equal(isStudySessionSnapshot(session), true);
+
+  // When the first item's time is up, the second starts with its own 45 minutes.
+  const next = nextItemSession(session, t0 + 30 * MIN);
+  assert.equal(next.currentIndex, 1);
+  assert.equal(next.durationMs, 45 * MIN);
+  assert.equal(next.endsAt, t0 + 75 * MIN);
+  // After the last item there is nothing left.
+  assert.equal(nextItemSession(next, t0 + 75 * MIN), null);
+
+  // Jumping to an item restarts the timer with that item's minutes.
+  const jumped = focusItem(session, 1, t0 + MIN);
+  assert.equal(jumped.remainingMs, 45 * MIN);
+  // A plain session only changes which item is shown.
+  const plain = createStudySession(planned, 60, t0);
+  assert.equal(plain.perItem, undefined);
+  assert.equal(focusItem(plain, 1, t0 + MIN).endsAt, plain.endsAt);
+});
