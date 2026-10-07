@@ -111,5 +111,11 @@
     "overrides": {
       "entities": "4.5.0"
     }
+  },
+  "allowScripts": {
+    "esbuild@0.18.20": true,
+    "esbuild@0.27.7": true,
+    "esbuild@0.25.12": true,
+    "esbuild@0.28.2": true
   }
 }
