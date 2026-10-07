@@ -241,12 +241,16 @@ async function dispatchUser(
       // ("Rate Limit Exceeded"), and 403 also appears for courses the
       // student simply can't read. Only a real authentication rejection
       // should ask the user for a new key.
+      // A firewall or proxy HTML page ("Not Authorized") is not Canvas judging
+      // the token, so it must never flag the student's key as invalid.
+      const isHtmlPage = /<!doctype html|<html/i.test(message);
       const authRejected =
-        /Canvas 401/.test(message) ||
-        (/Canvas 403/.test(message) &&
-          /invalid access token|unauthori[sz]ed|not authori[sz]ed|valid user id|insufficient scopes|revoked|expired/i.test(
-            message,
-          ));
+        !isHtmlPage &&
+        (/Canvas 401/.test(message) ||
+          (/Canvas 403/.test(message) &&
+            /invalid access token|unauthori[sz]ed|not authori[sz]ed|valid user id|insufficient scopes|revoked|expired/i.test(
+              message,
+            )));
       if (authRejected) {
         await setCanvasKeyStatus(admin, userId, message.includes("401") ? 401 : 403);
         console.warn(`[push-dispatch] canvas key rejected user=${userId} (${message})`);

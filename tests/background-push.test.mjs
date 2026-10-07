@@ -73,3 +73,12 @@ test("the background check keeps the same courses as the app's Canvas feed", asy
   }
   assert.match(route, /Response\.json\(\{ users: byUser\.size, sent, failures, accounts \}\)/);
 });
+
+test("background Canvas requests send a User-Agent and never mistake a firewall page for a bad key", async () => {
+  const server = await readFile(new URL("../src/lib/push-dispatch.server.ts", import.meta.url), "utf8");
+  // Without it, lawrencetech.instructure.com answers 403 "Not Authorized" (HTML) before Canvas sees the token.
+  assert.match(server, /"User-Agent": "CanvasPro\/1\.0 \(\+https:\/\/canvaspro\.app\)"/);
+  const route = await readFile(new URL("../src/routes/api/public/push/dispatch.ts", import.meta.url), "utf8");
+  assert.match(route, /const isHtmlPage = \/<!doctype html\|<html\/i\.test\(message\);/);
+  assert.match(route, /!isHtmlPage &&/);
+});

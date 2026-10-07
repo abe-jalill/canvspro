@@ -116,7 +116,15 @@ async function canvasFetch<T>(domain: string, token: string, path: string): Prom
   let lastMessage = "Canvas request failed";
   for (let attempt = 0; attempt < 3; attempt++) {
     const res = await fetch(`https://${domain}/api/v1${path}`, {
-      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+        // Required. The hosting runtime sends no User-Agent by default, and
+        // school Canvas firewalls (e.g. lawrencetech.instructure.com) answer
+        // such requests with an HTML "Not Authorized" page before Canvas ever
+        // sees the token. That blocked every closed-app check.
+        "User-Agent": "CanvasPro/1.0 (+https://canvaspro.app)",
+      },
     });
     if (res.ok) return (await res.json()) as T;
     const body = (await res.text().catch(() => "")).slice(0, 200);
