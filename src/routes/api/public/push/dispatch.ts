@@ -67,12 +67,10 @@ async function enqueueCountdowns(
   rows.push(...buildTonightAlerts(tonight, prefs, tz, now));
 
   if (rows.length > 0) {
-    await admin
-      .from("push_scheduled_alerts")
-      .upsert(
-        rows.map((r) => ({ ...r, user_id: userId })),
-        { onConflict: "user_id,tag", ignoreDuplicates: true },
-      );
+    await admin.from("push_scheduled_alerts").upsert(
+      rows.map((r) => ({ ...r, user_id: userId })),
+      { onConflict: "user_id,tag", ignoreDuplicates: true },
+    );
   }
 
   // Anything scheduled for the past 6 hours is still worth delivering; older
@@ -130,10 +128,12 @@ const USER_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 /** Records that the background check looked at this account just now. */
 async function recordHeartbeat(admin: Admin, userId: string): Promise<void> {
-  const { error } = await admin.from("user_preferences").upsert(
-    { user_id: userId, key: PUSH_HEARTBEAT_PREF, value: { checkedAt: new Date().toISOString() } },
-    { onConflict: "user_id,key" },
-  );
+  const { error } = await admin
+    .from("user_preferences")
+    .upsert(
+      { user_id: userId, key: PUSH_HEARTBEAT_PREF, value: { checkedAt: new Date().toISOString() } },
+      { onConflict: "user_id,key" },
+    );
   if (error) console.warn(`[push-dispatch] heartbeat failed user=${userId} (${error.message})`);
 }
 
@@ -147,7 +147,11 @@ async function dispatchUser(
 ): Promise<{ sent: number; failures: number }> {
   const result = { sent: 0, failures: 0 };
   try {
-    const [{ data: prefRow }, { data: settings }, { data: preferenceRows, error: preferenceError }] = await Promise.all([
+    const [
+      { data: prefRow },
+      { data: settings },
+      { data: preferenceRows, error: preferenceError },
+    ] = await Promise.all([
       admin
         .from("notification_prefs")
         .select("prefs,timezone_offset_minutes")
@@ -158,21 +162,18 @@ async function dispatchUser(
         .select("canvas_api_key,canvas_domain")
         .eq("user_id", userId)
         .maybeSingle(),
-      admin
-        .from("user_preferences")
-        .select("key,value")
-        .eq("user_id", userId),
+      admin.from("user_preferences").select("key,value").eq("user_id", userId),
     ]);
 
     if (preferenceError) throw preferenceError;
-    const userPreferences = Object.fromEntries((preferenceRows ?? []).map((row) => [row.key, row.value]));
+    const userPreferences = Object.fromEntries(
+      (preferenceRows ?? []).map((row) => [row.key, row.value]),
+    );
     const hiddenRow = { value: userPreferences.hidden_course_ids };
 
     const hiddenIds = new Set<number>(
       Array.isArray(hiddenRow?.value)
-        ? (hiddenRow.value as unknown[])
-            .map((v) => Number(v))
-            .filter((n) => Number.isFinite(n))
+        ? (hiddenRow.value as unknown[]).map((v) => Number(v)).filter((n) => Number.isFinite(n))
         : [],
     );
 
@@ -194,7 +195,14 @@ async function dispatchUser(
     let alerts: Alert[];
     let tonight: TonightItem[];
     try {
-      const built = await buildAlertsForUser(userDomain, token, prefs, tz, hiddenIds, completedAssignmentIds(userPreferences));
+      const built = await buildAlertsForUser(
+        userDomain,
+        token,
+        prefs,
+        tz,
+        hiddenIds,
+        completedAssignmentIds(userPreferences),
+      );
       alerts = built.alerts;
       tonight = built.tonight;
     } catch (err) {
@@ -209,7 +217,9 @@ async function dispatchUser(
       const authRejected =
         /Canvas 401/.test(message) ||
         (/Canvas 403/.test(message) &&
-          /invalid access token|unauthori[sz]ed|not authori[sz]ed|valid user id|insufficient scopes|revoked|expired/i.test(message));
+          /invalid access token|unauthori[sz]ed|not authori[sz]ed|valid user id|insufficient scopes|revoked|expired/i.test(
+            message,
+          ));
       if (authRejected) {
         await setCanvasKeyStatus(admin, userId, message.includes("401") ? 401 : 403);
         console.warn(`[push-dispatch] canvas key rejected user=${userId} (${message})`);
@@ -272,9 +282,7 @@ async function dispatchUser(
         .upsert(loggable.map((a) => ({ user_id: userId, alert_id: a.id })));
     }
     if (dead.size > 0) {
-      console.warn(
-        `[push-dispatch] removing ${dead.size} expired subscription(s) user=${userId}`,
-      );
+      console.warn(`[push-dispatch] removing ${dead.size} expired subscription(s) user=${userId}`);
       await admin.from("push_subscriptions").delete().in("id", Array.from(dead));
     }
     if (okSubs.size > 0) {
@@ -315,7 +323,11 @@ async function run(onlyUserId?: string): Promise<Response> {
   if (!vapid.publicKey || !vapid.privateKey) {
     return Response.json({ error: "push not configured" }, { status: 500 });
   }
-  const keys: Vapid = { publicKey: vapid.publicKey, privateKey: vapid.privateKey, subject: vapid.subject };
+  const keys: Vapid = {
+    publicKey: vapid.publicKey,
+    privateKey: vapid.privateKey,
+    subject: vapid.subject,
+  };
 
   let query = supabaseAdmin
     .from("push_subscriptions")
@@ -390,7 +402,12 @@ async function runTest(accessToken: string): Promise<Response> {
     console.error("[push-test] subscription lookup failed", error.message);
     return Response.json({ ok: false, message: "Couldn't read your devices." });
   }
-  const subs = (data ?? []) as Array<{ id: string; endpoint: string; p256dh: string; auth: string }>;
+  const subs = (data ?? []) as Array<{
+    id: string;
+    endpoint: string;
+    p256dh: string;
+    auth: string;
+  }>;
   if (subs.length === 0) {
     return Response.json({
       ok: false,
