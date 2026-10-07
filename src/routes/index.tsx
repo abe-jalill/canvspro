@@ -192,7 +192,7 @@ const faq = [
   {
     question: "Is CanvasPro free?",
     answer:
-      "Yes. The dashboard, planning tools, grade calculator, and notifications are free, with no credit card.",
+      "Yes. 100% free, no payment method required.",
   },
   {
     question: "How do I connect my Canvas account?",
