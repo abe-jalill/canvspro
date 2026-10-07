@@ -817,10 +817,10 @@ function StudySessionPage() {
         </div>
       )}
 
-      <div className="grid items-stretch gap-5 lg:grid-cols-2">
+      <div className="grid items-stretch gap-5 lg:h-[calc(100dvh-13rem)] lg:min-h-[36rem] lg:grid-cols-2">
         {/* Left: what to study, then how long. */}
-        <GlassCard className="premium-reveal space-y-6">
-          <section className="space-y-4">
+        <GlassCard className="premium-reveal flex flex-col gap-6 lg:min-h-0">
+          <section className="flex min-h-0 flex-1 flex-col gap-4">
             <StepHeading
               step={1}
               title="Pick assignments"
@@ -863,7 +863,7 @@ function StudySessionPage() {
             ) : candidates.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">No matches.</p>
             ) : (
-              <ul className="max-h-[17.5rem] space-y-2 overflow-y-auto pr-1">
+              <ul className="max-h-[17.5rem] space-y-2 overflow-y-auto pr-1 lg:max-h-none lg:min-h-0 lg:flex-1">
                 {candidates.map((assignment) => {
                   const item = canvasItem(assignment);
                   const isSelected = selectedIds.has(item.id);
@@ -938,9 +938,9 @@ function StudySessionPage() {
             </form>
           </section>
 
-          <div className="h-px bg-foreground/10" aria-hidden="true" />
+          <div className="h-px shrink-0 bg-foreground/10" aria-hidden="true" />
 
-          <section className="space-y-4">
+          <section className="shrink-0 space-y-4">
             <StepHeading step={2} title="Choose time" trailing={plan} />
 
             <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="How to time it">
@@ -989,7 +989,7 @@ function StudySessionPage() {
                   Pick assignments first.
                 </p>
               ) : (
-                <ul className="space-y-2">
+                <ul className="max-h-48 space-y-2 overflow-y-auto pr-1">
                   {selected.map((item) => (
                     <li
                       key={item.id}
@@ -1084,7 +1084,7 @@ function StudySessionPage() {
 
         {/* Right: the session, in order, ready to start. */}
         <GlassCard
-          className="premium-reveal flex flex-col"
+          className="premium-reveal flex flex-col lg:min-h-0"
           title="Your session"
           action={
             <span className="text-xs tabular-nums text-muted-foreground">
@@ -1097,7 +1097,7 @@ function StudySessionPage() {
               Nothing picked yet.
             </p>
           ) : (
-            <ol className="space-y-2">
+            <ol className="space-y-2 pr-1 lg:max-h-[45%] lg:overflow-y-auto">
               {plannedItems.map((item, index) => (
                 <li
                   key={item.id}
@@ -1152,7 +1152,7 @@ function StudySessionPage() {
             </ol>
           )}
 
-          <div className="flex flex-1 flex-col items-center justify-center gap-3 py-8">
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 py-6">
             <SessionRing
               segments={
                 timeMode === "per"
