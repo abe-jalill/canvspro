@@ -282,3 +282,17 @@ test("every environment value is read through a key path", () => {
     assert.ok(!source.includes("@Environment(."), name);
   }
 });
+
+test("study session matches the website: pick, choose time, your session with a ring", () => {
+  const views = swift.NativeViews;
+  for (const text of ['"Pick assignments"', '"Choose time"', '"Your session"', '"Total time"', '"Per assignment"', '"Pomodoro"', '"Nothing picked yet."']) {
+    assert.ok(views.includes(text), text);
+  }
+  assert.match(views, /private struct NativeSessionRing: View/);
+  assert.match(views, /@AppStorage\("CanvasProNativeStudyTimeMode"\) private var timeMode = "total"/);
+  // Per assignment: each task has its own timer and the next one starts when it ends.
+  assert.match(views, /var itemMinutes: \[Int: Int\]\? = nil/);
+  assert.match(views, /if perItem, let next = nextUnfinishedIndex\(after: currentIndex\)/);
+  assert.match(views, /private func focusTask\(_ index: Int\)/);
+  assert.doesNotMatch(views, /pomodoroEnabled|selectedOrderCard|durationCard/);
+});
