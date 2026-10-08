@@ -350,7 +350,7 @@ async function dispatchUser(
         result.canvas = { host: userDomain, answer: message.slice(0, 160) };
         return result;
       }
-      if (/Canvas 4\d\d|Canvas 5\d\d/.test(message)) {
+      if (/Canvas [345]\d\d/.test(message)) {
         // Transient/permission problem — never blame the key.
         console.warn(`[push-dispatch] canvas request failed user=${userId} (${message})`);
         result.reason = `canvas-${message.match(/Canvas (\d{3})/)?.[1] ?? "error"}`;

@@ -3,7 +3,11 @@
 
 import { sendWebPushWithRetry, type PushSubscriptionRecord } from "@/lib/webpush.server";
 import { endOfLocalDay, type TonightItem } from "@/lib/countdown-alerts.server";
-export { isAllowedCanvasHost, isPushServiceEndpoint, normalizeCanvasDomain } from "@/lib/outbound-policy";
+export {
+  isAllowedCanvasHost,
+  isPushServiceEndpoint,
+  normalizeCanvasDomain,
+} from "@/lib/outbound-policy";
 
 export interface ServerPrefs {
   enabled: boolean;
@@ -104,8 +108,10 @@ async function canvasFetch<T>(domain: string, token: string, path: string): Prom
   let lastMessage = "Canvas request failed";
   for (let attempt = 0; attempt < 3; attempt++) {
     const res = await fetch(`https://${domain}/api/v1${path}`, {
-      // Never follow a redirect: it could carry the student's token to another host.
-      redirect: "error",
+      // Never follow a redirect: it could carry the student's token to another
+      // host. "manual", not "error": Cloudflare Workers throws on "error", which
+      // failed every closed-app check.
+      redirect: "manual",
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: "application/json",
@@ -117,6 +123,9 @@ async function canvasFetch<T>(domain: string, token: string, path: string): Prom
       },
     });
     if (res.ok) return (await res.json()) as T;
+    if (res.status >= 300 && res.status < 400) {
+      throw new Error(`Canvas ${res.status}: redirect to another address was not followed`);
+    }
     const body = (await res.text().catch(() => "")).slice(0, 200);
     lastMessage = `Canvas ${res.status}: ${body}`;
     const throttled = res.status === 429 || /rate limit/i.test(body);

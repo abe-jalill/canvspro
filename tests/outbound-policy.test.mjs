@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import {
   isAllowedCanvasHost,
   isPushServiceEndpoint,
@@ -61,6 +63,23 @@ test("push is only sent to real browser push services", () => {
   }
 });
 
+test("server code never uses fetch redirect mode 'error' (Cloudflare Workers throws on it)", () => {
+  // workerd: 'Invalid redirect value, must be one of "follow" or "manual"'.
+  // It once failed every closed-app check. Deno edge functions may use it.
+  const offenders = [];
+  const walk = (dir) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) walk(path);
+      else if (/\.(ts|tsx)$/.test(entry.name) && /redirect:\s*["']error["']/.test(readFileSync(path, "utf8"))) {
+        offenders.push(path);
+      }
+    }
+  };
+  walk(fileURLToPath(new URL("../src", import.meta.url)));
+  assert.deepEqual(offenders, []);
+});
+
 test("the server enforces these rules where it sends", () => {
   const dispatch = readFileSync(
     new URL("../src/routes/api/public/push/dispatch.ts", import.meta.url),
@@ -72,7 +91,7 @@ test("the server enforces these rules where it sends", () => {
     new URL("../src/lib/push-dispatch.server.ts", import.meta.url),
     "utf8",
   );
-  assert.ok(pushServer.includes('redirect: "error"'));
+  assert.ok(pushServer.includes('redirect: "manual"'));
 
   // Checking a typed-in Canvas key still needs a signed-in caller.
   const edge = readFileSync(
