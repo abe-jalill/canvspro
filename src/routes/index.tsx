@@ -31,13 +31,19 @@ import "./home.css";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "CanvasPro — Make room for what matters" },
+      { title: "CanvasPro | Less Planning. More Doing." },
       {
         name: "description",
         content:
-          "Turn Canvas classes, assignments, grades, and deadlines into one clear plan. See what's next, plan the week, and study one thing at a time. Free for students.",
+          "Stay on top of assignments, manage deadlines, and organize your college workload with CanvasPro. Spend less time planning and more time getting things done.",
       },
       { property: "og:type", content: "website" },
+      { property: "og:title", content: "CanvasPro | Less Planning. More Doing." },
+      {
+        property: "og:description",
+        content:
+          "Stay on top of assignments, manage deadlines, and organize your college workload with CanvasPro. Spend less time planning and more time getting things done.",
+      },
       { property: "og:url", content: "https://canvaspro.app/" },
       {
         property: "og:image",
