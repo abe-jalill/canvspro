@@ -43,9 +43,10 @@ function constantTimeEqual(a: string, b: string): boolean {
 }
 
 /**
- * Queues the user's upcoming countdown pushes (next class, tonight's deadlines)
- * and returns the ones whose moment has arrived. `push_sent_log` handles dedupe,
- * so queued rows are safe to re-read until they age out.
+ * Queues the user's upcoming countdown pushes (next class, tonight's deadlines).
+ * They are sent by the separate 5-minute "scheduled" run at their exact time:
+ * this check only runs every 30 minutes, so sending them here made a
+ * "starts in 15 min" reminder land when class began.
  */
 async function enqueueCountdowns(
   admin: Admin,
@@ -53,8 +54,8 @@ async function enqueueCountdowns(
   prefs: ServerPrefs,
   tz: number,
   tonight: TonightItem[],
-): Promise<Alert[]> {
-  if (!prefs.countdownClass && !prefs.countdownTonight) return [];
+): Promise<void> {
+  if (!prefs.countdownClass && !prefs.countdownTonight) return;
   const now = new Date();
 
   const rows: ScheduledAlertRow[] = [];
@@ -74,30 +75,95 @@ async function enqueueCountdowns(
     );
   }
 
-  // Anything scheduled for the past 6 hours is still worth delivering; older
-  // rows are pruned so the table stays small.
-  const cutoff = new Date(now.getTime() - 6 * 3_600_000).toISOString();
+  // Old rows are pruned so the table stays small.
   await admin
     .from("push_scheduled_alerts")
     .delete()
     .eq("user_id", userId)
     .lt("fire_at", new Date(now.getTime() - 3 * 86_400_000).toISOString());
+}
 
-  const { data: pending } = await admin
-    .from("push_scheduled_alerts")
-    .select("tag,title,body,to_path,badge,fire_at")
+/**
+ * How late a queued countdown may still go out. The scheduled run fires every
+ * 5 minutes; anything later than this would show the wrong countdown
+ * ("starts in 15 min" when class is already starting), so it is dropped.
+ */
+const SCHEDULED_GRACE_MS = 6 * 60_000;
+
+/**
+ * Sends the alerts this account hasn't had yet to its devices, records what
+ * went out, and tidies up dead or failing subscriptions.
+ */
+async function deliverToUser(
+  admin: Admin,
+  userId: string,
+  userSubs: SubRow[],
+  due: Alert[],
+  vapid: Vapid,
+): Promise<{ sent: number; failures: number; fresh: number }> {
+  const out = { sent: 0, failures: 0, fresh: 0 };
+  if (due.length === 0) return out;
+  const { data: sentRows } = await admin
+    .from("push_sent_log")
+    .select("alert_id")
     .eq("user_id", userId)
-    .lte("fire_at", now.toISOString())
-    .gte("fire_at", cutoff)
-    .order("fire_at", { ascending: false });
+    .in(
+      "alert_id",
+      due.map((a) => a.id),
+    );
+  const already = new Set((sentRows ?? []).map((r) => r.alert_id as string));
+  const fresh = due.filter((a) => !already.has(a.id)).slice(0, 12);
+  out.fresh = fresh.length;
+  if (fresh.length === 0) return out;
 
-  return (pending ?? []).map((r) => ({
-    id: r.tag as string,
-    title: r.title as string,
-    body: (r.body as string) || undefined,
-    to: (r.to_path as string) || "/dashboard",
-    badge: prefs.badge ? ((r.badge as number | null) ?? null) : null,
-  }));
+  const dead = new Set<string>();
+  const failedSubs = new Set<string>();
+  const okSubs = new Set<string>();
+  const loggable: typeof fresh = [];
+  for (const alert of fresh) {
+    const targets = userSubs.filter((s) => !dead.has(s.id));
+    if (targets.length === 0) break;
+    const report = await deliver(targets, alert, vapid);
+    report.dead.forEach((id) => dead.add(id));
+    report.failed.forEach((id) => failedSubs.add(id));
+    report.delivered.forEach((id) => okSubs.add(id));
+    if (report.delivered.length > 0) {
+      loggable.push(alert);
+      out.sent += 1;
+    } else {
+      out.failures += 1;
+      console.error(
+        `[push-dispatch] alert not delivered user=${userId} alert=${alert.id} targets=${targets.length}`,
+      );
+    }
+  }
+
+  // Only mark alerts as sent when at least one device actually got them,
+  // so a transient outage doesn't permanently suppress the notification.
+  if (loggable.length > 0) {
+    await admin
+      .from("push_sent_log")
+      .upsert(loggable.map((a) => ({ user_id: userId, alert_id: a.id })));
+  }
+  if (dead.size > 0) {
+    console.warn(`[push-dispatch] removing ${dead.size} expired subscription(s) user=${userId}`);
+    await admin.from("push_subscriptions").delete().in("id", Array.from(dead));
+  }
+  if (okSubs.size > 0) {
+    await admin
+      .from("push_subscriptions")
+      .update({ failure_count: 0, last_success_at: new Date().toISOString() })
+      .in("id", Array.from(okSubs));
+  }
+  for (const id of failedSubs) {
+    if (okSubs.has(id)) continue;
+    const row = userSubs.find((s) => s.id === id);
+    await admin
+      .from("push_subscriptions")
+      .update({ failure_count: (row?.failure_count ?? 0) + 1 })
+      .eq("id", id);
+  }
+  return out;
 }
 
 export const CANVAS_KEY_STATUS_PREF = "canvas_key_status";
@@ -269,80 +335,20 @@ async function dispatchUser(
     }
     await clearCanvasKeyStatus(admin, userId);
 
-    // Queue exact-time countdown pushes for the next few hours, then collect
-    // any queued row whose moment has arrived.
-    const countdowns = await enqueueCountdowns(admin, userId, prefs, tz, tonight);
-    const due = [...countdowns, ...alerts];
-    result.due = due.length;
-    if (due.length === 0) {
+    // Queue exact-time countdown pushes for the next few hours; the 5-minute
+    // scheduled run sends each one at its moment.
+    await enqueueCountdowns(admin, userId, prefs, tz, tonight);
+    result.due = alerts.length;
+    if (alerts.length === 0) {
       result.reason = "nothing-due";
       return result;
     }
 
-    const { data: sentRows } = await admin
-      .from("push_sent_log")
-      .select("alert_id")
-      .eq("user_id", userId)
-      .in(
-        "alert_id",
-        due.map((a) => a.id),
-      );
-    const already = new Set((sentRows ?? []).map((r) => r.alert_id as string));
-    const fresh = due.filter((a) => !already.has(a.id)).slice(0, 12);
-    result.fresh = fresh.length;
-    if (fresh.length === 0) {
-      result.reason = "already-sent";
-      return result;
-    }
-    result.reason = "delivered";
-
-    const dead = new Set<string>();
-    const failedSubs = new Set<string>();
-    const okSubs = new Set<string>();
-    const loggable: typeof fresh = [];
-    for (const alert of fresh) {
-      const targets = userSubs.filter((s) => !dead.has(s.id));
-      if (targets.length === 0) break;
-      const report = await deliver(targets, alert, vapid);
-      report.dead.forEach((id) => dead.add(id));
-      report.failed.forEach((id) => failedSubs.add(id));
-      report.delivered.forEach((id) => okSubs.add(id));
-      if (report.delivered.length > 0) {
-        loggable.push(alert);
-        result.sent += 1;
-      } else {
-        result.failures += 1;
-        console.error(
-          `[push-dispatch] alert not delivered user=${userId} alert=${alert.id} targets=${targets.length}`,
-        );
-      }
-    }
-
-    // Only mark alerts as sent when at least one device actually got them,
-    // so a transient outage doesn't permanently suppress the notification.
-    if (loggable.length > 0) {
-      await admin
-        .from("push_sent_log")
-        .upsert(loggable.map((a) => ({ user_id: userId, alert_id: a.id })));
-    }
-    if (dead.size > 0) {
-      console.warn(`[push-dispatch] removing ${dead.size} expired subscription(s) user=${userId}`);
-      await admin.from("push_subscriptions").delete().in("id", Array.from(dead));
-    }
-    if (okSubs.size > 0) {
-      await admin
-        .from("push_subscriptions")
-        .update({ failure_count: 0, last_success_at: new Date().toISOString() })
-        .in("id", Array.from(okSubs));
-    }
-    for (const id of failedSubs) {
-      if (okSubs.has(id)) continue;
-      const row = userSubs.find((s) => s.id === id);
-      await admin
-        .from("push_subscriptions")
-        .update({ failure_count: (row?.failure_count ?? 0) + 1 })
-        .eq("id", id);
-    }
+    const delivered = await deliverToUser(admin, userId, userSubs, alerts, vapid);
+    result.fresh = delivered.fresh;
+    result.sent = delivered.sent;
+    result.failures = delivered.failures;
+    result.reason = delivered.fresh === 0 ? "already-sent" : "delivered";
   } catch (err) {
     result.failures += 1;
     result.reason = "error";
@@ -438,6 +444,94 @@ async function run(onlyUserId?: string): Promise<Response> {
 
   console.info(`[push-dispatch] done users=${byUser.size} sent=${sent} failures=${failures}`);
   return Response.json({ users: byUser.size, sent, failures, accounts });
+}
+
+/**
+ * Sends queued countdowns (a class starting soon, tonight's deadlines) whose
+ * moment has just arrived. Runs every 5 minutes and never calls Canvas, so a
+ * "starts in 15 min" reminder lands 15 minutes before class.
+ */
+async function runScheduled(): Promise<Response> {
+  const { supabaseAdmin: admin } = await import("@/integrations/supabase/client.server");
+  const { vapid } = await import("@/lib/vapid.server");
+  if (!vapid.publicKey || !vapid.privateKey) {
+    return Response.json({ error: "push not configured" }, { status: 500 });
+  }
+  const keys: Vapid = {
+    publicKey: vapid.publicKey,
+    privateKey: vapid.privateKey,
+    subject: vapid.subject,
+  };
+
+  const now = Date.now();
+  const { data: rows, error } = await admin
+    .from("push_scheduled_alerts")
+    .select("user_id,tag,title,body,to_path,badge")
+    .lte("fire_at", new Date(now).toISOString())
+    .gt("fire_at", new Date(now - SCHEDULED_GRACE_MS).toISOString());
+  if (error) {
+    console.error("[push-scheduled] lookup failed", error.message);
+    return Response.json({ error: "scheduled lookup failed" }, { status: 500 });
+  }
+
+  const byUser = new Map<string, NonNullable<typeof rows>>();
+  for (const row of rows ?? []) {
+    const list = byUser.get(row.user_id) ?? [];
+    list.push(row);
+    byUser.set(row.user_id, list);
+  }
+  if (byUser.size === 0) return Response.json({ users: 0, sent: 0 });
+
+  const userIds = Array.from(byUser.keys());
+  const [{ data: subs }, { data: prefRows }] = await Promise.all([
+    admin
+      .from("push_subscriptions")
+      .select("id,user_id,endpoint,p256dh,auth,failure_count")
+      .in("user_id", userIds),
+    admin
+      .from("notification_prefs")
+      .select("user_id,prefs,timezone_offset_minutes")
+      .in("user_id", userIds),
+  ]);
+
+  let sent = 0;
+  let failures = 0;
+  for (const [userId, list] of byUser) {
+    const userSubs = ((subs ?? []) as SubRow[]).filter((s) => s.user_id === userId);
+    if (userSubs.length === 0) continue;
+    const prefRow = (prefRows ?? []).find((p) => p.user_id === userId);
+    // Settings as they are now, not when the reminder was queued.
+    const prefs: ServerPrefs = {
+      ...SERVER_DEFAULT_PREFS,
+      ...((prefRow?.prefs ?? {}) as Partial<ServerPrefs>),
+    };
+    if (!prefs.enabled || !prefs.browserPush) continue;
+    if (isQuiet(prefs, prefRow?.timezone_offset_minutes ?? 0)) continue;
+    const alerts: Alert[] = list
+      .filter((r) =>
+        r.tag.startsWith("class:")
+          ? prefs.countdownClass && prefs.countdownLeads.includes(Number(r.tag.split(":").pop()))
+          : prefs.countdownTonight,
+      )
+      .map((r) => ({
+        id: r.tag,
+        title: r.title,
+        body: r.body || undefined,
+        to: r.to_path || "/dashboard",
+        badge: prefs.badge ? (r.badge ?? null) : null,
+      }));
+    try {
+      const result = await deliverToUser(admin, userId, userSubs, alerts, keys);
+      sent += result.sent;
+      failures += result.failures;
+    } catch (err) {
+      failures += 1;
+      console.error("[push-scheduled]", userId, err instanceof Error ? err.message : err);
+    }
+  }
+
+  console.info(`[push-scheduled] users=${byUser.size} sent=${sent} failures=${failures}`);
+  return Response.json({ users: byUser.size, sent, failures });
 }
 
 /** Sends a "test notification" push to every device the signed-in user registered. */
@@ -557,6 +651,7 @@ export const Route = createFileRoute("/api/public/push/dispatch")({
         if (!expected || !constantTimeEqual(provided, expected)) {
           return new Response("Unauthorized", { status: 401 });
         }
+        if (action === "scheduled") return runScheduled();
         if (userId && !USER_ID.test(userId)) {
           return Response.json({ error: "invalid user_id" }, { status: 400 });
         }
