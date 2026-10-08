@@ -3,6 +3,7 @@
 
 import { sendWebPushWithRetry, type PushSubscriptionRecord } from "@/lib/webpush.server";
 import { endOfLocalDay, type TonightItem } from "@/lib/countdown-alerts.server";
+export { isAllowedCanvasHost, isPushServiceEndpoint, normalizeCanvasDomain } from "@/lib/outbound-policy";
 
 export interface ServerPrefs {
   enabled: boolean;
@@ -93,19 +94,6 @@ interface CanvasAnnouncement {
   context_code: string;
 }
 
-
-/**
- * Normalizes a user-supplied Canvas URL to a bare hostname, e.g.
- * "https://Yourschool.Instructure.com/" → "yourschool.instructure.com".
- * Returns "" when the value isn't a plausible hostname. Mirrors the edge fn.
- */
-export function normalizeCanvasDomain(raw: string | null | undefined): string {
-  let v = (raw ?? "").trim().toLowerCase();
-  if (!v) return "";
-  v = v.replace(/^https?:\/\//, "").split("/")[0]!.split("?")[0]!.trim();
-  return /^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/.test(v) ? v : "";
-}
-
 /**
  * Canvas answers throttling with 403 + "Rate Limit Exceeded" — the same status
  * it uses for a bad token. The body is therefore part of the error message so
@@ -116,6 +104,8 @@ async function canvasFetch<T>(domain: string, token: string, path: string): Prom
   let lastMessage = "Canvas request failed";
   for (let attempt = 0; attempt < 3; attempt++) {
     const res = await fetch(`https://${domain}/api/v1${path}`, {
+      // Never follow a redirect: it could carry the student's token to another host.
+      redirect: "error",
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: "application/json",

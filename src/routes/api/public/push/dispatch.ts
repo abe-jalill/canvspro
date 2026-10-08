@@ -5,6 +5,8 @@ import {
   buildAlertsForUser,
   deliver,
   type BuildStats,
+  isAllowedCanvasHost,
+  isPushServiceEndpoint,
   isQuiet,
   normalizeCanvasDomain,
   SERVER_DEFAULT_PREFS,
@@ -102,7 +104,9 @@ async function deliverToUser(
   vapid: Vapid,
 ): Promise<{ sent: number; failures: number; fresh: number }> {
   const out = { sent: 0, failures: 0, fresh: 0 };
-  if (due.length === 0) return out;
+  // Only real browser push services; a hand-written endpoint is never contacted.
+  userSubs = userSubs.filter((s) => isPushServiceEndpoint(s.endpoint));
+  if (due.length === 0 || userSubs.length === 0) return out;
   const { data: sentRows } = await admin
     .from("push_sent_log")
     .select("alert_id")
@@ -269,6 +273,14 @@ async function dispatchUser(
       result.reason = "no-canvas-domain";
       return result;
     }
+    const configuredDomains = [
+      defaultDomain,
+      ...(process.env["CANVAS_ALLOWED_DOMAINS"] ?? "").split(","),
+    ];
+    if (!isAllowedCanvasHost(userDomain, configuredDomains)) {
+      result.reason = "canvas-domain-not-allowed";
+      return result;
+    }
 
     const prefs: ServerPrefs = {
       ...SERVER_DEFAULT_PREFS,
@@ -279,6 +291,20 @@ async function dispatchUser(
       return result;
     }
     const tz = prefRow?.timezone_offset_minutes ?? 0;
+
+    // Old dedupe records: an alert can only repeat within its own window
+    // (a due date at most a week out, grades and announcements within a day).
+    await admin
+      .from("push_sent_log")
+      .delete()
+      .eq("user_id", userId)
+      .lt("sent_at", new Date(Date.now() - 14 * 86_400_000).toISOString());
+
+    // Class reminders need only the saved schedule, so they are queued before
+    // quiet hours or a Canvas outage can stop this check. Quiet hours are
+    // applied again when each one is sent.
+    await enqueueCountdowns(admin, userId, { ...prefs, countdownTonight: false }, tz, []);
+
     if (isQuiet(prefs, tz)) {
       result.reason = "quiet-hours";
       return result;
@@ -335,9 +361,9 @@ async function dispatchUser(
     }
     await clearCanvasKeyStatus(admin, userId);
 
-    // Queue exact-time countdown pushes for the next few hours; the 5-minute
+    // Queue tonight's deadline reminders (they need Canvas data); the 5-minute
     // scheduled run sends each one at its moment.
-    await enqueueCountdowns(admin, userId, prefs, tz, tonight);
+    await enqueueCountdowns(admin, userId, { ...prefs, countdownClass: false }, tz, tonight);
     result.due = alerts.length;
     if (alerts.length === 0) {
       result.reason = "nothing-due";
@@ -510,7 +536,9 @@ async function runScheduled(): Promise<Response> {
     const alerts: Alert[] = list
       .filter((r) =>
         r.tag.startsWith("class:")
-          ? prefs.countdownClass && prefs.countdownLeads.includes(Number(r.tag.split(":").pop()))
+          ? prefs.countdownClass &&
+            Array.isArray(prefs.countdownLeads) &&
+            prefs.countdownLeads.includes(Number(r.tag.split(":").pop()))
           : prefs.countdownTonight,
       )
       .map((r) => ({
