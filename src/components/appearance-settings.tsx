@@ -1,11 +1,11 @@
-import { Check, Monitor, Moon, Sun } from "lucide-react";
+import { Check, Image as ImageIcon, Monitor, Moon, Square, Sun } from "lucide-react";
 import type { CSSProperties } from "react";
 import { useTheme } from "@/lib/theme";
-import { PALETTES, type ThemeMode } from "@/lib/theme-options";
+import { PALETTES, type ThemeMode, type Wallpaper } from "@/lib/theme-options";
 import { GlassCard } from "@/components/glass-card";
 
 export function AppearanceSettings() {
-  const { palette, mode, setPalette, setMode, ready, saving } = useTheme();
+  const { palette, mode, wallpaper, setPalette, setMode, setWallpaper, ready, saving } = useTheme();
   return (
     <GlassCard
       className="appearance-card"
@@ -59,6 +59,30 @@ export function AppearanceSettings() {
               <Icon size={16} />
               {label}
               {mode === id && <Check size={14} />}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+      <fieldset className="mt-6" disabled={!ready}>
+        <legend className="mb-3 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+          Background
+        </legend>
+        <div className="appearance-modes">
+          {(
+            [
+              { id: "wave", label: "Wallpaper", icon: ImageIcon },
+              { id: "plain", label: "Plain color", icon: Square },
+            ] as const
+          ).map(({ id, label, icon: Icon }) => (
+            <button
+              type="button"
+              key={id}
+              aria-pressed={wallpaper === id}
+              onClick={() => setWallpaper(id as Wallpaper)}
+            >
+              <Icon size={16} />
+              {label}
+              {wallpaper === id && <Check size={14} />}
             </button>
           ))}
         </div>

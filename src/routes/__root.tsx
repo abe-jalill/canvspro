@@ -20,7 +20,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/lib/theme";
 
-const themeBootScript = `try{var t=localStorage.getItem("canvas:theme"),p=localStorage.getItem("canvas:palette");document.documentElement.classList.add(t==="dark"||t!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.palette=["forest","blue","violet","rose"].includes(p)?p:"forest"}catch(e){document.documentElement.classList.add("light");document.documentElement.dataset.palette="forest"}`;
+const themeBootScript = `try{var t=localStorage.getItem("canvas:theme"),p=localStorage.getItem("canvas:palette");document.documentElement.classList.add(t==="dark"||t!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.palette=["forest","blue","violet","rose"].includes(p)?p:"forest";document.documentElement.dataset.wallpaper=localStorage.getItem("canvas:wallpaper")==="plain"?"plain":"wave"}catch(e){document.documentElement.classList.add("light");document.documentElement.dataset.palette="forest";document.documentElement.dataset.wallpaper="wave"}`;
 
 function NotFoundComponent() {
   return (

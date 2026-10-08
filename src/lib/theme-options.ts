@@ -6,6 +6,11 @@ export const PALETTES = [
 ] as const;
 export type Palette = (typeof PALETTES)[number]["id"];
 export type ThemeMode = "light" | "dark" | "system";
+/** "wave" shows the palette's blurred wallpaper behind the app; "plain" is the solid color. */
+export type Wallpaper = "wave" | "plain";
+export function normalizeWallpaper(value: unknown): Wallpaper {
+  return value === "plain" ? "plain" : "wave";
+}
 export function normalizePalette(value: unknown): Palette {
   return PALETTES.some((palette) => palette.id === value) ? (value as Palette) : "forest";
 }
