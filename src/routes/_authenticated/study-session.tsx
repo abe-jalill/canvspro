@@ -55,6 +55,7 @@ import {
 
 import { assignmentsQueryOptions as assignmentsQO } from "@/lib/canvas.queries";
 import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
+import { FocusNoiseControls } from "@/components/focus-noise";
 
 const PRESETS = [15, 25, 45, 60, 90];
 const TIME_MODE_KEY = "canvas:study-time-mode";
@@ -697,6 +698,8 @@ function StudySessionPage() {
               <Check className="h-4 w-4" /> Finish this task
             </button>
           )}
+
+          <FocusNoiseControls className="mt-8" />
         </section>
 
         <section className="mt-12 px-1">
