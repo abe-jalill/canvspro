@@ -25,7 +25,9 @@ function readStatus(queryClient: ReturnType<typeof useQueryClient>): CanvasStatu
     0,
   );
   // A previous failure is not a current failure while its retry is running.
-  const failed = queries.find((query) => query.state.status === "error" && query.state.fetchStatus !== "fetching");
+  const failed = queries.find(
+    (query) => query.state.status === "error" && query.state.fetchStatus !== "fetching",
+  );
   const error = failed?.state.error;
 
   return {
@@ -36,7 +38,10 @@ function readStatus(queryClient: ReturnType<typeof useQueryClient>): CanvasStatu
 
 function elapsedLabel(age: number) {
   const minutes = Math.max(1, Math.floor(age / 60_000));
-  return `Updated ${minutes} min ago`;
+  if (minutes < 60) return `Updated ${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 48) return `Updated ${hours} hour${hours === 1 ? "" : "s"} ago`;
+  return `Updated ${Math.floor(hours / 24)} days ago`;
 }
 
 export function CanvasLiveStatus() {
@@ -87,7 +92,9 @@ export function CanvasLiveStatus() {
         aria-label={`Offline. ${status.updatedAt ? elapsedLabel(age) : "Showing saved data"}.`}
       >
         <WifiOff className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-        <span>{status.updatedAt ? `Offline · ${elapsedLabel(age).replace("Updated ", "")}` : "Offline"}</span>
+        <span>
+          {status.updatedAt ? `Offline · ${elapsedLabel(age).replace("Updated ", "")}` : "Offline"}
+        </span>
       </span>
     );
   }

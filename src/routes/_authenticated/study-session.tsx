@@ -207,8 +207,8 @@ function SessionRing({
   const gap = segments.length > 1 ? 4 : 0;
   let offset = 0;
   return (
-    <div className="relative h-52 w-52" role="img" aria-label={`${label}: ${value}`}>
-      <svg viewBox="0 0 128 128" className="h-full w-full -rotate-90" aria-hidden="true">
+    <div className="flex flex-col items-center gap-3" role="img" aria-label={`${label}: ${value}`}>
+      <svg viewBox="0 0 128 128" className="h-52 w-52 -rotate-90" aria-hidden="true">
         <circle
           cx="64"
           cy="64"
@@ -239,11 +239,10 @@ function SessionRing({
             return arc;
           })}
       </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-        <span className="px-6 text-2xl font-medium leading-tight tracking-tight tabular-nums">
-          {value}
-        </span>
-        <span className="mt-1 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+      {/* Below the ring, not inside it: long plans ("27 min focus, 8 min break") don't fit inside. */}
+      <div className="flex flex-col items-center text-center">
+        <span className="text-sm font-medium tracking-tight tabular-nums">{value}</span>
+        <span className="mt-0.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
           {label}
         </span>
       </div>
