@@ -1,0 +1,30 @@
+name: Notification health
+
+# Checks the live site's closed-app notifications every hour while they run
+# (6 AM to midnight Eastern). A failed run means notifications are broken, and
+# GitHub emails the repo owner. Problem codes are explained in
+# src/lib/push-health.ts.
+on:
+  schedule:
+    - cron: "20 10-23,0-3 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check canvaspro.app notifications
+        run: |
+          set -u
+          body=$(curl -sS --max-time 60 --retry 2 --retry-delay 20 https://canvaspro.app/api/public/push/health) || {
+            echo "::error::The health check could not reach canvaspro.app."
+            exit 1
+          }
+          echo "$body"
+          if ! echo "$body" | jq -e '.ok == true' > /dev/null; then
+            echo "::error::Closed-app notifications are failing: $(echo "$body" | jq -r '(.problems // ["no answer"]) | join(", ")')"
+            exit 1
+          fi

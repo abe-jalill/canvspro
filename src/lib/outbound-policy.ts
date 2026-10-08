@@ -27,6 +27,26 @@ export function isAllowedCanvasHost(domain: string, configured: string[]): boole
   return configured.some((value) => normalizeCanvasDomain(value) === domain);
 }
 
+/**
+ * Request options for every background Canvas call. The server runs on
+ * Cloudflare Workers, whose fetch differs from Deno and Node; both rules below
+ * once stopped every closed-app alert:
+ * - User-Agent is required: Workers sends none, and school Canvas firewalls
+ *   (e.g. lawrencetech.instructure.com) answer with an HTML "Not Authorized" page.
+ * - redirect must be "manual" (or "follow"): Workers throws on "error". Manual
+ *   never follows a redirect, so the token can't be carried to another host.
+ */
+export function canvasRequestInit(token: string): RequestInit {
+  return {
+    redirect: "manual",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+      "User-Agent": "CanvasPro/1.0 (+https://canvaspro.app)",
+    },
+  };
+}
+
 /** Browser push services. Any other endpoint is refused rather than letting the
  *  server POST to an arbitrary URL. */
 const PUSH_SERVICE_HOSTS = [

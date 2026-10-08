@@ -4,6 +4,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import {
+  canvasRequestInit,
   isAllowedCanvasHost,
   isPushServiceEndpoint,
   normalizeCanvasDomain,
@@ -63,6 +64,16 @@ test("push is only sent to real browser push services", () => {
   }
 });
 
+test("background Canvas requests follow Cloudflare Workers' fetch rules", () => {
+  const init = canvasRequestInit("token-123");
+  // Workers throws on any other redirect mode; "manual" never forwards the token.
+  assert.equal(init.redirect, "manual");
+  const headers = new Headers(init.headers);
+  assert.equal(headers.get("Authorization"), "Bearer token-123");
+  // Workers sends no User-Agent; school firewalls answer an HTML 403 without one.
+  assert.match(headers.get("User-Agent") ?? "", /^CanvasPro\/\d/);
+});
+
 test("server code never uses fetch redirect mode 'error' (Cloudflare Workers throws on it)", () => {
   // workerd: 'Invalid redirect value, must be one of "follow" or "manual"'.
   // It once failed every closed-app check. Deno edge functions may use it.
@@ -91,7 +102,8 @@ test("the server enforces these rules where it sends", () => {
     new URL("../src/lib/push-dispatch.server.ts", import.meta.url),
     "utf8",
   );
-  assert.ok(pushServer.includes('redirect: "manual"'));
+  // Its options (redirect "manual", User-Agent) are tested directly above.
+  assert.ok(pushServer.includes("canvasRequestInit(token)"));
 
   // Checking a typed-in Canvas key still needs a signed-in caller.
   const edge = readFileSync(

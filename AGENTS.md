@@ -21,3 +21,15 @@
 - The dashboard quick Pomodoro reuses the shared study-session snapshot so its timer continues across pages and devices on the same browser.
 - Dashboard priority and heatmap intensity use the shared assignment-workload helper so due-date, points, and saved progress stay consistent.
 - Desktop sidebar destinations share one measured active indicator so route changes animate the highlight instead of replacing it.
+
+## Closed-app notifications — must never break
+
+Push notifications that arrive with the app closed are the feature users depend on most, and every past outage was silent (the cron answered 200 while nothing was sent). Any change, even for an unrelated task, must keep these true:
+
+- Server code in `src/` runs on **Cloudflare Workers** (nitro `cloudflare-module`), not Node or Deno. Its `fetch` rejects `redirect: "error"` and sends no User-Agent. Never copy fetch options from `supabase/functions/` (Deno) into `src/`.
+- Every background Canvas request goes through `canvasRequestInit()` in `src/lib/outbound-policy.ts` (User-Agent required by school firewalls; `redirect: "manual"`). Don't build Canvas requests by hand.
+- An HTML page from Canvas (a firewall) is never treated as a rejected key (`isHtmlPage` in `dispatch.ts`).
+- The pipeline: pg_cron `canvaspro-push-dispatch` (every 30 min) → `/api/public/push/dispatch` queues class/tonight reminders and sends due-date, grade and announcement alerts; pg_cron `canvaspro-push-scheduled` (every 5 min, migration 0011) → `{action: "scheduled"}` sends queued reminders on time. Don't remove either job, change their URLs, or move sending of queued reminders back into the 30-minute check (that made a "15 minutes before" reminder arrive when class started).
+- Each check writes a heartbeat (`push_last_check`: `checkedAt`, `reason`, `failStreak`). Keep `reason` accurate; `/api/public/push/health` and `.github/workflows/push-health.yml` (hourly; a failure emails the owner) rely on it.
+- Before pushing anything that touches `src/routes/api/public/push/`, `src/lib/push-*.ts`, `src/lib/webpush.server.ts`, `src/lib/outbound-policy.ts`, `src/lib/countdown-alerts.server.ts`, `public/sw.js`, or push migrations: run `npm test` (tests: `background-push`, `outbound-policy`, `push-health`, `class-countdown`) and keep them passing. Never weaken those tests to make a change pass.
+- After deploying a change to that code, confirm with the live check: `curl https://canvaspro.app/api/public/push/health` → `{"ok":true,...}` (or the cron log: `select content from net._http_response order by created desc limit 1;`).

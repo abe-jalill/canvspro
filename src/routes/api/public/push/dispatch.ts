@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { completedAssignmentIds } from "@/lib/completion-records";
 import { PUSH_HEARTBEAT_PREF, lastServerCheck } from "@/lib/push-heartbeat";
+import { nextFailStreak } from "@/lib/push-health";
 import {
   buildAlertsForUser,
   deliver,
@@ -9,6 +10,7 @@ import {
   isPushServiceEndpoint,
   isQuiet,
   normalizeCanvasDomain,
+  scheduledAlertAllowed,
   SERVER_DEFAULT_PREFS,
   type Alert,
   type ServerPrefs,
@@ -197,14 +199,25 @@ type Vapid = { publicKey: string; privateKey: string; subject: string };
 const USER_CONCURRENCY = 4;
 const USER_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** Records that the background check looked at this account just now. */
-async function recordHeartbeat(admin: Admin, userId: string): Promise<void> {
+/**
+ * Records that the background check looked at this account just now, how it
+ * ended, and how many checks in a row ended in trouble. The hourly health
+ * check (/api/public/push/health) reads these to notice a broken pipeline.
+ */
+async function recordHeartbeat(
+  admin: Admin,
+  userId: string,
+  reason: string,
+  previous: unknown,
+): Promise<void> {
+  const value = {
+    checkedAt: new Date().toISOString(),
+    reason,
+    failStreak: nextFailStreak(previous, reason),
+  };
   const { error } = await admin
     .from("user_preferences")
-    .upsert(
-      { user_id: userId, key: PUSH_HEARTBEAT_PREF, value: { checkedAt: new Date().toISOString() } },
-      { onConflict: "user_id,key" },
-    );
+    .upsert({ user_id: userId, key: PUSH_HEARTBEAT_PREF, value }, { onConflict: "user_id,key" });
   if (error) console.warn(`[push-dispatch] heartbeat failed user=${userId} (${error.message})`);
 }
 
@@ -230,6 +243,7 @@ async function dispatchUser(
   defaultDomain: string,
 ): Promise<DispatchResult> {
   const result: DispatchResult = { sent: 0, failures: 0, reason: "error" };
+  let previousHeartbeat: unknown;
   try {
     const [
       { data: prefRow },
@@ -253,6 +267,7 @@ async function dispatchUser(
     const userPreferences = Object.fromEntries(
       (preferenceRows ?? []).map((row) => [row.key, row.value]),
     );
+    previousHeartbeat = userPreferences[PUSH_HEARTBEAT_PREF];
     const hiddenRow = { value: userPreferences.hidden_course_ids };
 
     const hiddenIds = new Set<number>(
@@ -374,13 +389,15 @@ async function dispatchUser(
     result.fresh = delivered.fresh;
     result.sent = delivered.sent;
     result.failures = delivered.failures;
-    result.reason = delivered.fresh === 0 ? "already-sent" : "delivered";
+    // Alerts were due but no device took any of them (e.g. broken push keys).
+    result.reason =
+      delivered.fresh === 0 ? "already-sent" : delivered.sent === 0 ? "delivery-failed" : "delivered";
   } catch (err) {
     result.failures += 1;
     result.reason = "error";
     console.error("[push-dispatch]", userId, err instanceof Error ? err.message : err);
   } finally {
-    await recordHeartbeat(admin, userId);
+    await recordHeartbeat(admin, userId, result.reason, previousHeartbeat);
   }
   return result;
 }
@@ -534,13 +551,7 @@ async function runScheduled(): Promise<Response> {
     if (!prefs.enabled || !prefs.browserPush) continue;
     if (isQuiet(prefs, prefRow?.timezone_offset_minutes ?? 0)) continue;
     const alerts: Alert[] = list
-      .filter((r) =>
-        r.tag.startsWith("class:")
-          ? prefs.countdownClass &&
-            Array.isArray(prefs.countdownLeads) &&
-            prefs.countdownLeads.includes(Number(r.tag.split(":").pop()))
-          : prefs.countdownTonight,
-      )
+      .filter((r) => scheduledAlertAllowed(r.tag, prefs))
       .map((r) => ({
         id: r.tag,
         title: r.title,

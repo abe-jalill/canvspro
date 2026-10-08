@@ -58,7 +58,12 @@ test("queued reminders are sent by a 5-minute run, not the 30-minute check", () 
   // Late reminders would show the wrong countdown, so they are dropped.
   assert.match(dispatch, /const SCHEDULED_GRACE_MS = 6 \* 60_000;/);
   // Settings are re-checked at send time: a lead turned off since queueing is skipped.
-  assert.ok(dispatch.includes("prefs.countdownLeads.includes("));
+  assert.ok(dispatch.includes(".filter((r) => scheduledAlertAllowed(r.tag, prefs))"));
+  const pushServer = readFileSync(
+    new URL("../src/lib/push-dispatch.server.ts", import.meta.url),
+    "utf8",
+  );
+  assert.ok(pushServer.includes("prefs.countdownLeads.includes(Number(tag.split(\":\").pop()))"));
 
   const migration = readFileSync(
     new URL("../drizzle/migrations/0011_push_scheduled_every_5_minutes.sql", import.meta.url),

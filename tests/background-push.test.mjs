@@ -32,7 +32,7 @@ test("the dispatch route checks accounts in parallel and records each check", as
   // The route still requires the cron secret, and takes an optional user id.
   assert.match(route, /constantTimeEqual\(provided, expected\)/);
   assert.match(route, /run\(userId \|\| undefined\)/);
-  assert.match(route, /recordHeartbeat\(admin, userId\)/);
+  assert.match(route, /recordHeartbeat\(admin, userId, result\.reason, previousHeartbeat\)/);
 });
 
 test("the background check sends one request per account", async () => {
@@ -76,8 +76,8 @@ test("the background check keeps the same courses as the app's Canvas feed", asy
 
 test("background Canvas requests send a User-Agent and never mistake a firewall page for a bad key", async () => {
   const server = await readFile(new URL("../src/lib/push-dispatch.server.ts", import.meta.url), "utf8");
-  // Without it, lawrencetech.instructure.com answers 403 "Not Authorized" (HTML) before Canvas sees the token.
-  assert.match(server, /"User-Agent": "CanvasPro\/1\.0 \(\+https:\/\/canvaspro\.app\)"/);
+  // Every Canvas call uses canvasRequestInit (its User-Agent and redirect rules are tested in outbound-policy.test.mjs).
+  assert.match(server, /fetch\(`https:\/\/\$\{domain\}\/api\/v1\$\{path\}`, canvasRequestInit\(token\)\)/);
   const route = await readFile(new URL("../src/routes/api/public/push/dispatch.ts", import.meta.url), "utf8");
   assert.match(route, /const isHtmlPage = \/<!doctype html\|<html\/i\.test\(message\);/);
   assert.match(route, /!isHtmlPage &&/);

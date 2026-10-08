@@ -51,6 +51,7 @@ import { Route as ApiMobileDeleteAccountRouteImport } from './routes/api/mobile/
 import { Route as ApiMobileSignInRouteImport } from './routes/api/mobile/sign-in'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as ApiPublicPushDispatchRouteImport } from './routes/api/public/push/dispatch'
+import { Route as ApiPublicPushHealthRouteImport } from './routes/api/public/push/health'
 import { Route as ApiPublicPushKeyRouteImport } from './routes/api/public/push/key'
 import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
 import { Route as LovableEmailAuthWebhookRouteImport } from './routes/lovable/email/auth/webhook'
@@ -282,6 +283,11 @@ const ApiPublicPushDispatchRoute = ApiPublicPushDispatchRouteImport.update({
   path: '/api/public/push/dispatch',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicPushHealthRoute = ApiPublicPushHealthRouteImport.update({
+  id: '/api/public/push/health',
+  path: '/api/public/push/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicPushKeyRoute = ApiPublicPushKeyRouteImport.update({
   id: '/api/public/push/key',
   path: '/api/public/push/key',
@@ -346,6 +352,7 @@ export interface FileRoutesByFullPath {
   '/settings/': typeof AuthenticatedSettingsIndexRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/push/dispatch': typeof ApiPublicPushDispatchRoute
+  '/api/public/push/health': typeof ApiPublicPushHealthRoute
   '/api/public/push/key': typeof ApiPublicPushKeyRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
@@ -392,6 +399,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AuthenticatedSettingsIndexRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/push/dispatch': typeof ApiPublicPushDispatchRoute
+  '/api/public/push/health': typeof ApiPublicPushHealthRoute
   '/api/public/push/key': typeof ApiPublicPushKeyRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
@@ -441,6 +449,7 @@ export interface FileRoutesById {
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/push/dispatch': typeof ApiPublicPushDispatchRoute
+  '/api/public/push/health': typeof ApiPublicPushHealthRoute
   '/api/public/push/key': typeof ApiPublicPushKeyRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
@@ -490,6 +499,7 @@ export interface FileRouteTypes {
     | '/settings/'
     | '/api/public/payments/webhook'
     | '/api/public/push/dispatch'
+    | '/api/public/push/health'
     | '/api/public/push/key'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
@@ -536,6 +546,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/api/public/payments/webhook'
     | '/api/public/push/dispatch'
+    | '/api/public/push/health'
     | '/api/public/push/key'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
@@ -584,6 +595,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings/'
     | '/api/public/payments/webhook'
     | '/api/public/push/dispatch'
+    | '/api/public/push/health'
     | '/api/public/push/key'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
@@ -611,6 +623,7 @@ export interface RootRouteChildren {
   ApiMobileSignInRoute: typeof ApiMobileSignInRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
   ApiPublicPushDispatchRoute: typeof ApiPublicPushDispatchRoute
+  ApiPublicPushHealthRoute: typeof ApiPublicPushHealthRoute
   ApiPublicPushKeyRoute: typeof ApiPublicPushKeyRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
   LovableEmailAuthWebhookRoute: typeof LovableEmailAuthWebhookRoute
@@ -913,6 +926,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPushDispatchRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/push/health': {
+      id: '/api/public/push/health'
+      path: '/api/public/push/health'
+      fullPath: '/api/public/push/health'
+      preLoaderRoute: typeof ApiPublicPushHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/push/key': {
       id: '/api/public/push/key'
       path: '/api/public/push/key'
@@ -1032,6 +1052,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiMobileSignInRoute: ApiMobileSignInRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
   ApiPublicPushDispatchRoute: ApiPublicPushDispatchRoute,
+  ApiPublicPushHealthRoute: ApiPublicPushHealthRoute,
   ApiPublicPushKeyRoute: ApiPublicPushKeyRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
   LovableEmailAuthWebhookRoute: LovableEmailAuthWebhookRoute,

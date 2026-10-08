@@ -3,7 +3,10 @@
 
 import { sendWebPushWithRetry, type PushSubscriptionRecord } from "@/lib/webpush.server";
 import { endOfLocalDay, type TonightItem } from "@/lib/countdown-alerts.server";
+import { canvasRequestInit } from "@/lib/outbound-policy";
+
 export {
+  canvasRequestInit,
   isAllowedCanvasHost,
   isPushServiceEndpoint,
   normalizeCanvasDomain,
@@ -65,6 +68,22 @@ export function isQuiet(prefs: ServerPrefs, offsetMinutes: number, now = new Dat
   return s < e ? h >= s && h < e : h >= s || h < e;
 }
 
+/**
+ * Whether a queued countdown should still go out under the account's current
+ * settings: the class reminder toggle and that exact lead time, or tonight's
+ * deadline reminders. Shared by the 5-minute sender and the health check.
+ */
+export function scheduledAlertAllowed(tag: string, prefs: ServerPrefs): boolean {
+  if (tag.startsWith("class:")) {
+    return (
+      prefs.countdownClass &&
+      Array.isArray(prefs.countdownLeads) &&
+      prefs.countdownLeads.includes(Number(tag.split(":").pop()))
+    );
+  }
+  return prefs.countdownTonight;
+}
+
 export interface Alert {
   id: string;
   title: string;
@@ -107,21 +126,8 @@ interface CanvasAnnouncement {
 async function canvasFetch<T>(domain: string, token: string, path: string): Promise<T> {
   let lastMessage = "Canvas request failed";
   for (let attempt = 0; attempt < 3; attempt++) {
-    const res = await fetch(`https://${domain}/api/v1${path}`, {
-      // Never follow a redirect: it could carry the student's token to another
-      // host. "manual", not "error": Cloudflare Workers throws on "error", which
-      // failed every closed-app check.
-      redirect: "manual",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/json",
-        // Required. The hosting runtime sends no User-Agent by default, and
-        // school Canvas firewalls (e.g. lawrencetech.instructure.com) answer
-        // such requests with an HTML "Not Authorized" page before Canvas ever
-        // sees the token. That blocked every closed-app check.
-        "User-Agent": "CanvasPro/1.0 (+https://canvaspro.app)",
-      },
-    });
+    // User-Agent and redirect rules for Cloudflare Workers: see canvasRequestInit.
+    const res = await fetch(`https://${domain}/api/v1${path}`, canvasRequestInit(token));
     if (res.ok) return (await res.json()) as T;
     if (res.status >= 300 && res.status < 400) {
       throw new Error(`Canvas ${res.status}: redirect to another address was not followed`);
