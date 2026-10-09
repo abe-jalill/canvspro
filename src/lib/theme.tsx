@@ -74,6 +74,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     root.classList.toggle("dark", theme === "dark");
     root.dataset.palette = appearance.palette;
     root.dataset.wallpaper = appearance.wallpaper;
+    // The homepage is dark unless someone explicitly picked Light.
+    root.dataset.themeMode = appearance.mode;
     document
       .querySelector('meta[name="theme-color"]')
       ?.setAttribute("content", theme === "dark" ? "#09120e" : "#f4f6f2");

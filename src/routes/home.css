@@ -4,18 +4,21 @@
    dark setting (prefers-color-scheme), not the in-app theme. */
 
 .hp {
-  --bg: #fafaf8;
-  --surface: #fefefd;
-  --ink: #111214;
-  --ink-2: #5b5e65;
-  --ink-3: #8b8e94;
-  --line: #e7e7e3;
-  --line-2: #d6d6d1;
-  --due: #b9412f;
-  --button: #111214;
-  --button-ink: #fafaf8;
-  --shadow: 0 1px 2px rgba(17, 18, 20, 0.04), 0 24px 48px -28px rgba(17, 18, 20, 0.22);
+  /* Dark by default; light only for visitors who picked Light in the app. */
+  --bg: #0c0d0f;
+  --surface: #131417;
+  --ink: #ececed;
+  --ink-2: #a3a5aa;
+  --ink-3: #75777d;
+  --line: #1f2024;
+  --line-2: #2c2d32;
+  --due: #f0806d;
+  --button: #ececed;
+  --button-ink: #0c0d0f;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 24px 48px -28px rgba(0, 0, 0, 0.8);
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Slow in, long soft landing: a breath rather than a pop. */
+  --breathe: cubic-bezier(0.33, 0.04, 0.17, 1);
   --width: min(1120px, 100% - 48px);
 
   min-height: 100vh;
@@ -28,20 +31,27 @@
   -webkit-font-smoothing: antialiased;
 }
 
-@media (prefers-color-scheme: dark) {
-  .hp {
-    --bg: #0c0d0f;
-    --surface: #131417;
-    --ink: #ececed;
-    --ink-2: #a3a5aa;
-    --ink-3: #75777d;
-    --line: #1f2024;
-    --line-2: #2c2d32;
-    --due: #f0806d;
-    --button: #ececed;
-    --button-ink: #0c0d0f;
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 24px 48px -28px rgba(0, 0, 0, 0.8);
-  }
+:root[data-theme-mode="light"] .hp {
+  --bg: #fafaf8;
+  --surface: #fefefd;
+  --ink: #111214;
+  --ink-2: #5b5e65;
+  --ink-3: #8b8e94;
+  --line: #e7e7e3;
+  --line-2: #d6d6d1;
+  --due: #b9412f;
+  --button: #111214;
+  --button-ink: #fafaf8;
+  --shadow: 0 1px 2px rgba(17, 18, 20, 0.04), 0 24px 48px -28px rgba(17, 18, 20, 0.22);
+}
+
+/* One screenshot per theme; the hidden one is lazy, so it never downloads. */
+.hp .hp-shot-light,
+:root[data-theme-mode="light"] .hp-shot-dark {
+  display: none;
+}
+:root[data-theme-mode="light"] .hp-shot-light {
+  display: block;
 }
 
 /* Resets carry no weight, so component styles always win. */
@@ -494,17 +504,34 @@
 /* ── Motion: a short, calm entrance; the rest only moves when used ── */
 @media (prefers-reduced-motion: no-preference) {
   .hp-rise {
-    animation: hp-rise 0.9s var(--ease) both;
+    animation: hp-rise 1.4s var(--breathe) both;
+  }
+  .hp-bar {
+    animation: hp-fade 1.2s var(--breathe) both;
+  }
+  .hp-hero h1 {
+    animation-delay: 0.1s;
   }
   .hp-hero .hp-lede {
-    animation-delay: 0.07s;
+    animation-delay: 0.22s;
   }
   .hp-hero .hp-actions {
-    animation-delay: 0.14s;
+    animation-delay: 0.34s;
   }
   .hp-screens.hp-rise {
-    animation-duration: 1.1s;
-    animation-delay: 0.22s;
+    animation-duration: 1.7s;
+    animation-delay: 0.46s;
+  }
+  /* Sections breathe in as they first scroll into view (index.tsx adds is-waiting). */
+  .hp [data-breathe] {
+    transition:
+      opacity 1.3s var(--breathe),
+      transform 1.6s var(--breathe);
+    transition-delay: var(--d, 0s);
+  }
+  .hp [data-breathe].is-waiting {
+    opacity: 0;
+    transform: translateY(26px) scale(0.985);
   }
   .hp-screens figcaption {
     animation: hp-fade 0.5s var(--ease) both;
@@ -517,11 +544,49 @@
 @keyframes hp-rise {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(18px) scale(0.985);
   }
 }
 @keyframes hp-fade {
   from {
     opacity: 0;
   }
+}
+
+/* ── Footer, in the page's own colors ── */
+.hp-footer {
+  width: var(--width);
+  margin: 0 auto;
+  padding: 32px 0 40px;
+  border-top: 1px solid var(--line);
+  font-size: 14px;
+  color: var(--ink-3);
+}
+.hp-footer__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px 40px;
+}
+.hp-footer .hp-brand {
+  color: var(--ink);
+}
+.hp-footer__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+}
+.hp-footer__links a {
+  transition: color 0.15s;
+}
+.hp-footer__links a:hover {
+  color: var(--ink);
+}
+.hp-footer__fine {
+  display: grid;
+  gap: 6px;
+  margin-top: 28px;
+  font-size: 12.5px;
+  line-height: 1.5;
 }

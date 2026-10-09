@@ -20,7 +20,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/lib/theme";
 
-const themeBootScript = `try{var t=localStorage.getItem("canvas:theme"),p=localStorage.getItem("canvas:palette");document.documentElement.classList.add(t==="dark"||t!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.palette=["forest","blue","violet","rose"].includes(p)?p:"forest";document.documentElement.dataset.wallpaper=localStorage.getItem("canvas:wallpaper")==="plain"?"plain":"wave"}catch(e){document.documentElement.classList.add("light");document.documentElement.dataset.palette="forest";document.documentElement.dataset.wallpaper="wave"}`;
+const themeBootScript = `try{var t=localStorage.getItem("canvas:theme"),p=localStorage.getItem("canvas:palette");document.documentElement.classList.add(t==="dark"||t!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.palette=["forest","blue","violet","rose"].includes(p)?p:"forest";document.documentElement.dataset.wallpaper=localStorage.getItem("canvas:wallpaper")==="plain"?"plain":"wave";document.documentElement.dataset.themeMode=t==="light"||t==="dark"?t:"system"}catch(e){document.documentElement.classList.add("light");document.documentElement.dataset.palette="forest";document.documentElement.dataset.wallpaper="wave"}`;
 
 function NotFoundComponent() {
   return (
@@ -129,6 +129,8 @@ function RootComponent() {
     select: (state) => {
       const first = state.location.pathname.split("/")[1] ?? "";
       return ![
+        // The homepage draws its own footer in its own colors.
+        "",
         "admin",
         "announcements",
         "assignments",

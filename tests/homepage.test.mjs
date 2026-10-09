@@ -17,9 +17,11 @@ test("the homepage shows four real screens, each in light and dark", () => {
       );
     }
   }
-  // The device's color scheme picks the screenshot and the page colors.
-  assert.match(page, /media="\(prefers-color-scheme: dark\)"/);
-  assert.match(css, /@media \(prefers-color-scheme: dark\)/);
+  // Dark by default; light only for visitors who picked Light in the app.
+  assert.match(page, /className="hp-shot-dark"/);
+  assert.match(page, /className="hp-shot-light"/);
+  assert.match(css, /:root\[data-theme-mode="light"\] \.hp \{/);
+  assert.match(read("src/routes/__root.tsx"), /dataset\.themeMode=/);
 });
 
 test("the hero shows the product's job: a week that sorts itself into the order to do it", () => {

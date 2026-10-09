@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Accordion,
@@ -49,14 +49,7 @@ export const Route = createFileRoute("/")({
       {
         rel: "preload",
         as: "image",
-        href: "/home/dashboard-light.webp",
-        media: "(prefers-color-scheme: light)",
-      },
-      {
-        rel: "preload",
-        as: "image",
         href: "/home/dashboard-dark.webp",
-        media: "(prefers-color-scheme: dark)",
       },
     ],
     scripts: [
@@ -354,12 +347,17 @@ function SortingWeek() {
   );
 }
 
+/**
+ * The page is dark unless the visitor picked Light in the app, so both
+ * screenshots are on the page and CSS shows one. The hidden one is lazy, and
+ * hidden lazy images never download.
+ */
 function Shot({ id, alt, eager }: { id: string; alt: string; eager?: boolean }) {
   return (
-    <picture>
-      <source srcSet={`/home/${id}-dark.webp`} media="(prefers-color-scheme: dark)" />
+    <>
       <img
-        src={`/home/${id}-light.webp`}
+        className="hp-shot-dark"
+        src={`/home/${id}-dark.webp`}
         alt={alt}
         width={1600}
         height={1000}
@@ -367,13 +365,82 @@ function Shot({ id, alt, eager }: { id: string; alt: string; eager?: boolean }) 
         fetchPriority={eager ? "high" : undefined}
         decoding="async"
       />
-    </picture>
+      <img
+        className="hp-shot-light"
+        src={`/home/${id}-light.webp`}
+        alt={alt}
+        width={1600}
+        height={1000}
+        loading="lazy"
+        decoding="async"
+      />
+    </>
+  );
+}
+
+/** Sections breathe in as they first scroll into view. */
+function useBreathe() {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const root = ref.current;
+    if (!root || prefersReducedMotion() || !("IntersectionObserver" in window)) return;
+    // Only what starts below the fold waits; what's already on screen stays put.
+    const waiting = Array.from(root.querySelectorAll<HTMLElement>("[data-breathe]")).filter(
+      (el) => el.getBoundingClientRect().top > window.innerHeight * 0.92,
+    );
+    waiting.forEach((el) => el.classList.add("is-waiting"));
+    const watch = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          entry.target.classList.remove("is-waiting");
+          watch.unobserve(entry.target);
+        }
+      },
+      { threshold: 0.15, rootMargin: "0px 0px -6% 0px" },
+    );
+    waiting.forEach((el) => watch.observe(el));
+    return () => watch.disconnect();
+  }, []);
+  return ref;
+}
+
+function HomeFooter() {
+  return (
+    <footer className="hp-footer">
+      <div className="hp-footer__row">
+        <span className="hp-brand">CanvasPro</span>
+        <nav className="hp-footer__links" aria-label="Footer">
+          <Link to="/dashboard">Dashboard</Link>
+          <Link to="/auth">Sign in</Link>
+          <Link to="/canvas-grade-calculator">Grade calculator</Link>
+          <Link to="/canvas-dashboard-guide">Canvas dashboard guide</Link>
+          <Link to="/privacy">Privacy</Link>
+          <Link to="/terms">Terms</Link>
+          <a href="mailto:support@canvaspro.app?subject=Accessibility%20help">Accessibility help</a>
+          <a href="https://forms.gle/7bttezmTW3ji3zFU9" target="_blank" rel="noopener noreferrer">
+            Report a problem
+          </a>
+          <a href="https://forms.gle/2rSFpsNFBKiRGepE9" target="_blank" rel="noopener noreferrer">
+            Two-minute survey
+          </a>
+        </nav>
+      </div>
+      <div className="hp-footer__fine">
+        <p>© {new Date().getFullYear()} CanvasPro. All rights reserved.</p>
+        <p>
+          CanvasPro is an independent tool and is not affiliated with, endorsed by, sponsored by, or
+          connected in any way to Canvas LMS or Instructure, Inc.
+        </p>
+      </div>
+    </footer>
   );
 }
 
 function LandingPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [screen, setScreen] = useState(0);
+  const pageRef = useBreathe();
 
   useEffect(() => {
     let active = true;
@@ -389,7 +456,7 @@ function LandingPage() {
   const ctaLabel = isLoggedIn ? "Open your dashboard" : "Get started free";
 
   return (
-    <div className="hp">
+    <div className="hp" ref={pageRef}>
       <a className="hp-skip" href="#main">
         Skip to content
       </a>
@@ -472,7 +539,7 @@ function LandingPage() {
         </section>
 
         <section className="hp-split" aria-labelledby="hp-sort-title">
-          <div className="hp-split__text">
+          <div className="hp-split__text" data-breathe>
             <h2 id="hp-sort-title">Sorted by what comes first</h2>
             <p>
               Canvas lists work course by course. CanvasPro looks at due dates, points and how long
@@ -480,14 +547,16 @@ function LandingPage() {
             </p>
             <p className="hp-muted">Check off the top task to see the next one move up.</p>
           </div>
-          <SortingWeek />
+          <div data-breathe style={{ "--d": "0.12s" } as CSSProperties}>
+            <SortingWeek />
+          </div>
         </section>
 
         <section className="hp-split" aria-labelledby="hp-more-title">
-          <div className="hp-split__text">
+          <div className="hp-split__text" data-breathe>
             <h2 id="hp-more-title">Also in CanvasPro</h2>
           </div>
-          <dl className="hp-more">
+          <dl className="hp-more" data-breathe style={{ "--d": "0.12s" } as CSSProperties}>
             {MORE.map((item) => (
               <div key={item.title}>
                 <dt>{item.title}</dt>
@@ -498,10 +567,10 @@ function LandingPage() {
         </section>
 
         <section className="hp-split" aria-labelledby="hp-setup-title">
-          <div className="hp-split__text">
+          <div className="hp-split__text" data-breathe>
             <h2 id="hp-setup-title">Set up in a few minutes</h2>
           </div>
-          <div className="hp-setup">
+          <div className="hp-setup" data-breathe style={{ "--d": "0.12s" } as CSSProperties}>
             <p>
               Make a free account. In Canvas, open Account, then Settings, and create a new access
               token. Paste it into CanvasPro, and your classes, grades and deadlines show up right
@@ -515,10 +584,16 @@ function LandingPage() {
         </section>
 
         <section className="hp-split" aria-labelledby="hp-faq-title">
-          <div className="hp-split__text">
+          <div className="hp-split__text" data-breathe>
             <h2 id="hp-faq-title">Questions</h2>
           </div>
-          <Accordion type="single" collapsible className="hp-faq">
+          <Accordion
+            type="single"
+            collapsible
+            className="hp-faq"
+            data-breathe
+            style={{ "--d": "0.12s" } as CSSProperties}
+          >
             {FAQ.map((item, index) => (
               <AccordionItem
                 key={item.question}
@@ -533,8 +608,10 @@ function LandingPage() {
         </section>
 
         <section className="hp-end" aria-labelledby="hp-end-title">
-          <h2 id="hp-end-title">Try it with your own classes.</h2>
-          <div className="hp-actions">
+          <h2 id="hp-end-title" data-breathe>
+            Try it with your own classes.
+          </h2>
+          <div className="hp-actions" data-breathe style={{ "--d": "0.12s" } as CSSProperties}>
             <Link to={cta} preload="intent" className="hp-button">
               {ctaLabel}
             </Link>
@@ -542,6 +619,7 @@ function LandingPage() {
           </div>
         </section>
       </main>
+      <HomeFooter />
     </div>
   );
 }
