@@ -169,20 +169,30 @@
 }
 
 /* ── Hero ── */
+/* Headline on the left, the short pitch and buttons beside it, so the first
+   screen is full without being crowded. */
 .hp-hero {
   width: var(--width);
   margin: 0 auto;
-  padding: clamp(72px, 13vh, 136px) 0 clamp(44px, 7vh, 64px);
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.7fr);
+  align-items: end;
+  gap: 28px clamp(40px, 6vw, 88px);
+  padding: clamp(44px, 7vh, 80px) 0 clamp(32px, 5vh, 48px);
+}
+@media (max-width: 860px) {
+  .hp-hero {
+    grid-template-columns: 1fr;
+  }
 }
 .hp-hero h1 {
-  max-width: 15ch;
+  max-width: 16ch;
   font-size: clamp(2.4rem, 5vw, 4.2rem);
   line-height: 1.05;
   letter-spacing: -0.04em;
 }
 .hp-lede {
   max-width: 30em;
-  margin-top: 24px;
   font-size: clamp(1.05rem, 1.35vw, 1.18rem);
   color: var(--ink-2);
 }
@@ -191,7 +201,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 12px 24px;
-  margin-top: 36px;
+  margin-top: 28px;
 }
 
 /* ── The app, one screen at a time ── */
@@ -268,8 +278,8 @@
 /* ── Sections: heading on the left, content on the right ── */
 .hp-split {
   width: var(--width);
-  margin: clamp(96px, 13vw, 160px) auto 0;
-  padding-top: 32px;
+  margin: clamp(64px, 8vw, 104px) auto 0;
+  padding-top: 28px;
   display: grid;
   grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
   gap: 28px clamp(40px, 7vw, 112px);
@@ -434,7 +444,7 @@
   gap: 0 40px;
 }
 .hp-more > div {
-  padding: 0 0 28px;
+  padding: 0 0 22px;
 }
 .hp-more dt {
   font-weight: 600;
@@ -489,8 +499,8 @@
 /* ── Close ── */
 .hp-end {
   width: var(--width);
-  margin: clamp(112px, 15vw, 184px) auto 0;
-  padding: 40px 0 clamp(88px, 12vw, 140px);
+  margin: clamp(72px, 9vw, 120px) auto 0;
+  padding: 32px 0 clamp(56px, 7vw, 88px);
   border-top: 1px solid var(--line);
 }
 .hp-end h2 {

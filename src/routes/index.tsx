@@ -485,19 +485,21 @@ function LandingPage() {
           <h1 id="hp-title" className="hp-rise">
             Every Canvas deadline, in the order you should do it.
           </h1>
-          <p className="hp-lede hp-rise">
-            CanvasPro reads your courses and puts your assignments, grades and announcements on one
-            calm page. Free for students.
-          </p>
-          <div className="hp-actions hp-rise">
-            <Link to={cta} preload="intent" className="hp-button">
-              {ctaLabel}
-            </Link>
-            {!isLoggedIn && (
-              <Link to="/auth" preload="intent" className="hp-link">
-                Sign in
+          <div className="hp-hero__side">
+            <p className="hp-lede hp-rise">
+              CanvasPro reads your courses and puts your assignments, grades and announcements on
+              one calm page. Free for students.
+            </p>
+            <div className="hp-actions hp-rise">
+              <Link to={cta} preload="intent" className="hp-button">
+                {ctaLabel}
               </Link>
-            )}
+              {!isLoggedIn && (
+                <Link to="/auth" preload="intent" className="hp-link">
+                  Sign in
+                </Link>
+              )}
+            </div>
           </div>
         </section>
 
