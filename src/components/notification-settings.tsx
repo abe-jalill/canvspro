@@ -1,14 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import {
-  COUNTDOWN_LEADS,
-  DUE_WINDOWS,
-  TONIGHT_HOURS,
-  hourLabel,
-  isQuietNow,
-  useNotificationPrefs,
-} from "@/lib/notification-prefs";
+import { hourLabel, isQuietNow, useNotificationPrefs } from "@/lib/notification-prefs";
 import {
   disableBackgroundPush,
   enableBackgroundPush,
@@ -17,10 +10,7 @@ import {
   pushSupported,
   syncPrefsToServer,
 } from "@/lib/push-client";
-import { clearAppBadge } from "@/lib/app-badge";
 import { supabase } from "@/integrations/supabase/client";
-import { useUserPreferences } from "@/hooks/use-user-preferences";
-import { lastServerCheck, serverIsChecking } from "@/lib/push-heartbeat";
 
 function Toggle({
   label,
@@ -71,269 +61,51 @@ function Toggle({
   );
 }
 
-function ChipGroup<T extends number>({
-  options,
-  selected,
-  disabled,
-  onToggle,
-}: {
-  options: Array<{ value: T; label: string }>;
-  selected: T[];
-  disabled?: boolean;
-  onToggle: (value: T) => void;
-}) {
-  return (
-    <div className={cn("flex flex-wrap gap-2", disabled && "opacity-50")}>
-      {options.map((o) => {
-        const on = selected.includes(o.value);
-        return (
-          <button
-            key={o.value}
-            type="button"
-            aria-pressed={on}
-            disabled={disabled}
-            onClick={() => onToggle(o.value)}
-            className={cn(
-              "min-h-10 rounded-xl border border-glass-border px-3 text-xs font-medium transition-colors",
-              on ? "bg-foreground text-background" : "glass-hover text-muted-foreground",
-            )}
-          >
-            {o.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
+/** How early a class reminder arrives. One choice keeps it to one alert per class. */
+const CLASS_LEADS = [
+  { minutes: 5, label: "5 min before" },
+  { minutes: 15, label: "15 min before" },
+  { minutes: 30, label: "30 min before" },
+  { minutes: 60, label: "1 hour before" },
+];
 
-function Hint({ children }: { children: React.ReactNode }) {
-  return <p className="px-1 text-xs text-muted-foreground">{children}</p>;
-}
-
-const HOURS = Array.from({ length: 24 }, (_, i) => i);
-
-function timeAgo(ms: number): string {
-  const minutes = Math.max(0, Math.round(ms / 60_000));
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes} min ago`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 48) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
-  return `${Math.round(hours / 24)} days ago`;
-}
-
-/** Whether the server-side check that sends closed-app alerts is running for this account. */
-function BackgroundCheckStatus() {
-  const preferences = useUserPreferences();
-  if (!preferences.ready) return null;
-  const now = Date.now();
-  const last = lastServerCheck(preferences.data);
-  if (last != null && serverIsChecking(preferences.data, now)) {
-    return <Hint>Checked Canvas for new alerts {timeAgo(now - last)}. This runs every 15 minutes.</Hint>;
-  }
-  return (
-    <Hint>
-      {last == null
-        ? "The background check hasn't reached your account yet."
-        : `The background check last ran ${timeAgo(now - last)}.`}{" "}
-      Until it runs again, alerts only arrive while CanvasPro is open.
-    </Hint>
-  );
-}
-
-/** Section 1 — what Canvas activity is worth an alert. */
-export function NotificationTriggers() {
-  const { prefs, set, toggle } = useNotificationPrefs();
-  const off = !prefs.enabled;
-
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="space-y-2">
-        <Hint>How far ahead of a due date you want a heads-up.</Hint>
-        {DUE_WINDOWS.map((w) => (
-          <Toggle
-            key={w.key}
-            label={w.label}
-            checked={prefs[w.key]}
-            disabled={off}
-            onChange={() => toggle(w.key)}
-          />
-        ))}
-      </div>
-
-      <div className="space-y-2">
-        <Toggle
-          label="New grades"
-          description={`Only when the score is ${prefs.gradeThreshold}% or higher`}
-          checked={prefs.grades}
-          disabled={off}
-          onChange={() => toggle("grades")}
-        />
-        <div className={cn("glass-inset rounded-xl p-3", (off || !prefs.grades) && "opacity-50")}>
-          <div className="flex items-center justify-between gap-3">
-            <label htmlFor="grade-threshold" className="text-sm font-medium">
-              Score threshold
-            </label>
-            <span className="text-sm font-semibold tabular-nums">{prefs.gradeThreshold}%</span>
-          </div>
-          <input
-            id="grade-threshold"
-            type="range"
-            min={0}
-            max={100}
-            step={5}
-            value={prefs.gradeThreshold}
-            disabled={off || !prefs.grades}
-            onChange={(e) => set("gradeThreshold", Number(e.target.value))}
-            className="mt-3 w-full accent-[hsl(var(--foreground))]"
-          />
-          <p className="mt-2 text-xs text-muted-foreground">
-            Set to 0% to hear about every posted grade.
-          </p>
-        </div>
-        <Toggle
-          label="New announcements"
-          description="Instructor posts in your courses"
-          checked={prefs.announcements}
-          disabled={off}
-          onChange={() => toggle("announcements")}
-        />
-      </div>
-    </div>
-  );
-}
-
-/** Section 2 — live countdowns on the lock screen and app icon. */
-export function NotificationCountdowns() {
-  const { prefs, set, toggle } = useNotificationPrefs();
-  const off = !prefs.enabled;
-
-  function toggleIn(key: "countdownLeads" | "countdownTonightHours", value: number) {
-    const list = prefs[key];
-    const next = list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
-    set(key, next.sort((a, b) => a - b));
-  }
-
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="space-y-2">
-        <Toggle
-          label="Next class countdown"
-          description="Uses the class schedule you entered"
-          checked={prefs.countdownClass}
-          disabled={off}
-          onChange={() => toggle("countdownClass")}
-        />
-        {prefs.countdownClass && (
-          <div className="glass-inset space-y-3 rounded-xl p-3">
-            <p className="text-xs text-muted-foreground">Warn me…</p>
-            <ChipGroup
-              options={COUNTDOWN_LEADS.map((l) => ({ value: l.minutes, label: l.label }))}
-              selected={prefs.countdownLeads}
-              disabled={off}
-              onToggle={(v) => toggleIn("countdownLeads", v)}
-            />
-          </div>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        <Toggle
-          label="Tonight's 11:59 PM deadlines"
-          description="One summary of everything still due today"
-          checked={prefs.countdownTonight}
-          disabled={off}
-          onChange={() => toggle("countdownTonight")}
-        />
-        {prefs.countdownTonight && (
-          <div className="glass-inset space-y-3 rounded-xl p-3">
-            <p className="text-xs text-muted-foreground">Remind me at…</p>
-            <ChipGroup
-              options={TONIGHT_HOURS.map((h) => ({ value: h.hour, label: h.label }))}
-              selected={prefs.countdownTonightHours}
-              disabled={off}
-              onToggle={(v) => toggleIn("countdownTonightHours", v)}
-            />
-          </div>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        <Toggle
-          label="Number badge on the app icon"
-          description="Shows how many things are due today"
-          checked={prefs.badge}
-          disabled={off}
-          onChange={() => {
-            if (prefs.badge) clearAppBadge();
-            toggle("badge");
-          }}
-        />
-        <Hint>
-          On Android and desktop a countdown updates in place, so you only ever see one alert per
-          class. iPhone can't refresh an alert once it's sent, so each step you pick arrives as its
-          own notification — choose one or two.
-        </Hint>
-      </div>
-    </div>
-  );
-}
-
-/** Section 3 — how and when alerts are allowed to reach you. */
-export function NotificationDelivery() {
-  const { prefs, set, toggle, ready } = useNotificationPrefs();
-  const [permission, setPermission] = useState<string>("default");
-  const [background, setBackground] = useState(false);
+/** Turns closed-app alerts on for this device, or sends a test once they're on. */
+function ThisDevice({ disabled }: { disabled: boolean }) {
+  const [on, setOn] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [testing, setTesting] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && "Notification" in window) {
-      setPermission(Notification.permission);
-    }
-    void isPushEnabled().then(setBackground);
+    void isPushEnabled().then(setOn);
   }, []);
 
-  // The account copy is shared with native iOS even when browser push is off.
-  useEffect(() => {
-    if (!ready) return;
-    const id = setTimeout(() => {
-      void syncPrefsToServer()
-        .then((ok) => { if (!ok) toast.error("Notification settings could not sync. Try again."); })
-        .catch(() => toast.error("Notification settings could not sync. Try again."));
-    }, 600);
-    return () => clearTimeout(id);
-  }, [prefs, ready]);
-
-  async function requestPermission() {
-    if (typeof window === "undefined" || !("Notification" in window)) return;
-    const p = await Notification.requestPermission();
-    setPermission(p);
-  }
-
-  async function toggleBackground() {
+  async function turnOn() {
     setBusy(true);
     try {
-      if (background) {
-        await disableBackgroundPush();
-        setBackground(false);
-        toast.success("Background notifications turned off");
+      const res = await enableBackgroundPush();
+      if (res.ok) {
+        setOn(true);
+        toast.success("Notifications are on for this device");
       } else {
-        const res = await enableBackgroundPush();
-        if (res.ok) {
-          setBackground(true);
-          setPermission("granted");
-          toast.success("Background notifications on — alerts arrive even with CanvasPro closed");
-        } else {
-          toast.error(res.reason);
-        }
+        toast.error(res.reason);
       }
     } finally {
       setBusy(false);
     }
   }
 
+  async function turnOff() {
+    setBusy(true);
+    try {
+      await disableBackgroundPush();
+      setOn(false);
+      toast.success("Notifications are off for this device");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function sendTest() {
-    setTesting(true);
+    setBusy(true);
     try {
       const { data: session } = await supabase.auth.getSession();
       const token = session.session?.access_token;
@@ -352,158 +124,202 @@ export function NotificationDelivery() {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Couldn't send the test notification.");
     } finally {
-      setTesting(false);
+      setBusy(false);
     }
   }
 
-  const off = !prefs.enabled;
+  const buttonClass =
+    "glass-hover min-h-10 shrink-0 rounded-xl px-4 text-sm font-semibold disabled:opacity-50";
+
+  if (!pushSupported()) {
+    return (
+      <p className="glass-inset rounded-xl p-3 text-xs text-muted-foreground">
+        {needsHomeScreenInstall()
+          ? "On iPhone or iPad, add CanvasPro to your Home Screen and open it from there to get notifications."
+          : "This browser can't show notifications when CanvasPro is closed."}
+      </p>
+    );
+  }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="space-y-2">
-        <Toggle
-          label="Browser pop-ups"
-          description="Off keeps alerts inside the bell menu only"
-          checked={prefs.browserPush}
-          disabled={off}
-          onChange={() => toggle("browserPush")}
-        />
-        <Toggle
-          label="Alerts when CanvasPro is closed"
-          description={
-            background
-              ? "This device gets pushed alerts even with the site closed"
-              : needsHomeScreenInstall()
-                ? "iPhone/iPad: add CanvasPro to your Home Screen first"
-                : "Turn on to keep getting alerts with the browser closed"
-          }
-          checked={background}
-          disabled={off || !prefs.browserPush || busy || !pushSupported()}
-          onChange={() => void toggleBackground()}
-        />
-        {background && <BackgroundCheckStatus />}
-        <div className="glass-inset flex flex-col gap-2 rounded-xl p-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs text-muted-foreground">
-            Send a test push to this device to confirm delivery works right now.
-          </p>
+    <div
+      className={cn(
+        "glass-inset flex flex-wrap items-center justify-between gap-2 rounded-xl p-3",
+        disabled && "opacity-50",
+      )}
+    >
+      <div className="min-w-0">
+        <p className="text-sm font-medium">This device</p>
+        <p className="text-xs text-muted-foreground">
+          {on ? "Gets notifications, even with CanvasPro closed" : "Not getting notifications"}
+        </p>
+      </div>
+      {on ? (
+        <div className="flex gap-2">
           <button
             type="button"
             onClick={() => void sendTest()}
-            disabled={testing || !background}
-            className="glass-hover min-h-11 shrink-0 rounded-xl bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-50"
+            disabled={busy || disabled}
+            className={cn(buttonClass, "bg-foreground text-background")}
           >
-            {testing ? "Sending…" : "Send test notification"}
+            Send test
+          </button>
+          <button
+            type="button"
+            onClick={() => void turnOff()}
+            disabled={busy}
+            className={cn(buttonClass, "text-muted-foreground")}
+          >
+            Turn off
           </button>
         </div>
-      </div>
-
-      <div className="space-y-2">
-        <Toggle
-          label="Quiet hours"
-          description={
-            prefs.quietEnabled
-              ? `Muted ${hourLabel(prefs.quietStart)} – ${hourLabel(prefs.quietEnd)}${
-                  isQuietNow(prefs) ? " · quiet right now" : ""
-                }`
-              : "Pop-ups can arrive any time"
-          }
-          checked={prefs.quietEnabled}
-          disabled={off || !prefs.browserPush}
-          onChange={() => toggle("quietEnabled")}
-        />
-        {prefs.quietEnabled && (
-          <div
-            className={cn(
-              "glass-inset grid gap-3 rounded-xl p-3 sm:grid-cols-2",
-              (off || !prefs.browserPush) && "opacity-50",
-            )}
-          >
-            <label className="flex flex-col gap-1.5 text-xs text-muted-foreground">
-              Start
-              <select
-                value={prefs.quietStart}
-                disabled={off || !prefs.browserPush}
-                onChange={(e) => set("quietStart", Number(e.target.value))}
-                className="glass-inset min-h-11 rounded-xl bg-transparent px-3 text-sm text-foreground"
-              >
-                {HOURS.map((h) => (
-                  <option key={h} value={h} className="bg-background">
-                    {hourLabel(h)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1.5 text-xs text-muted-foreground">
-              End
-              <select
-                value={prefs.quietEnd}
-                disabled={off || !prefs.browserPush}
-                onChange={(e) => set("quietEnd", Number(e.target.value))}
-                className="glass-inset min-h-11 rounded-xl bg-transparent px-3 text-sm text-foreground"
-              >
-                {HOURS.map((h) => (
-                  <option key={h} value={h} className="bg-background">
-                    {hourLabel(h)}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-        )}
-      </div>
-
-      {permission !== "granted" && (
-        <div className="glass-inset flex flex-col gap-2 rounded-xl p-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs text-muted-foreground">
-            {permission === "denied"
-              ? "Browser notifications are blocked. Alerts still appear in the bell menu."
-              : "Allow browser notifications to get alerts outside the app."}
-          </p>
-          {permission !== "denied" && (
-            <button
-              type="button"
-              onClick={requestPermission}
-              className="glass-hover min-h-11 rounded-xl bg-foreground px-4 text-sm font-semibold text-background"
-            >
-              Enable
-            </button>
-          )}
-        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => void turnOn()}
+          disabled={busy || disabled}
+          className={cn(buttonClass, "bg-foreground text-background")}
+        >
+          {busy ? "Turning on…" : "Turn on"}
+        </button>
       )}
     </div>
   );
 }
 
-/** Master switch plus a reset, shown above the sections. */
-export function NotificationMasterSwitch() {
-  const { prefs, toggle, reset } = useNotificationPrefs();
-  return (
-    <div className="flex flex-col gap-3">
-      <Toggle
-        label="Notifications"
-        description="Master switch for everything below"
-        checked={prefs.enabled}
-        onChange={() => toggle("enabled")}
-      />
-      <button
-        type="button"
-        onClick={reset}
-        className="glass-hover glass-inset min-h-11 self-start rounded-xl px-4 text-sm font-medium text-muted-foreground"
-      >
-        Reset to defaults
-      </button>
-    </div>
-  );
-}
-
-/** Everything stacked, for surfaces that show one combined panel. */
+/**
+ * The whole notification screen: one switch, this device, what to hear about,
+ * and quiet hours. Each simple choice sets the same saved fields the
+ * background check reads, so the server side is unchanged.
+ */
 export function NotificationSettings() {
+  const { prefs, set, toggle, ready } = useNotificationPrefs();
+
+  // The account copy is shared with the background check and native iOS.
+  useEffect(() => {
+    if (!ready) return;
+    const id = setTimeout(() => {
+      void syncPrefsToServer()
+        .then((ok) => {
+          if (!ok) toast.error("Notification settings could not sync. Try again.");
+        })
+        .catch(() => toast.error("Notification settings could not sync. Try again."));
+    }, 600);
+    return () => clearTimeout(id);
+  }, [prefs, ready]);
+
+  const off = !prefs.enabled;
+  const dueOn = prefs.due1d || prefs.due2d || prefs.due3d || prefs.due1w;
+  const lead = prefs.countdownLeads[0] ?? 15;
+  const tonightHour = prefs.countdownTonightHours[0] ?? 18;
+
+  function setNotifications(on: boolean) {
+    set("enabled", on);
+    // Older accounts may have pop-ups muted; turning notifications on means all of them.
+    if (on && !prefs.browserPush) set("browserPush", true);
+  }
+
+  function setDueDates(on: boolean) {
+    set("due1d", on);
+    set("due2d", on);
+    set("due3d", on);
+    if (!on) set("due1w", false);
+  }
+
+  function setClassReminders(on: boolean) {
+    set("countdownClass", on);
+    if (on && prefs.countdownLeads.length === 0) set("countdownLeads", [15]);
+  }
+
+  function setTonight(on: boolean) {
+    set("countdownTonight", on);
+    if (on && prefs.countdownTonightHours.length === 0) set("countdownTonightHours", [18]);
+  }
+
   return (
-    <div className="flex flex-col gap-7">
-      <NotificationMasterSwitch />
-      <NotificationTriggers />
-      <NotificationCountdowns />
-      <NotificationDelivery />
+    <div className="flex flex-col gap-6">
+      <div className="space-y-2">
+        <Toggle
+          label="Notifications"
+          description={off ? "Off everywhere" : "On for your account"}
+          checked={prefs.enabled}
+          disabled={!ready}
+          onChange={() => setNotifications(off)}
+        />
+        <ThisDevice disabled={off} />
+      </div>
+
+      <div className="space-y-2">
+        <p className="px-1 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+          Notify me about
+        </p>
+        <Toggle
+          label="Due dates"
+          description="3 days, 2 days and 1 day before"
+          checked={dueOn}
+          disabled={off}
+          onChange={() => setDueDates(!dueOn)}
+        />
+        <Toggle
+          label="New grades"
+          description={`When you score ${prefs.gradeThreshold}% or higher`}
+          checked={prefs.grades}
+          disabled={off}
+          onChange={() => toggle("grades")}
+        />
+        <Toggle
+          label="Announcements"
+          description="New posts from your instructors"
+          checked={prefs.announcements}
+          disabled={off}
+          onChange={() => toggle("announcements")}
+        />
+        <Toggle
+          label="Class reminders"
+          description="Before each class on your schedule"
+          checked={prefs.countdownClass}
+          disabled={off}
+          onChange={() => setClassReminders(!prefs.countdownClass)}
+        />
+        {prefs.countdownClass && (
+          <div className={cn("flex flex-wrap gap-2 px-1", off && "opacity-50")}>
+            {CLASS_LEADS.map((option) => (
+              <button
+                key={option.minutes}
+                type="button"
+                aria-pressed={lead === option.minutes}
+                disabled={off}
+                onClick={() => set("countdownLeads", [option.minutes])}
+                className={cn(
+                  "min-h-9 rounded-xl border border-glass-border px-3 text-xs font-medium transition-colors",
+                  lead === option.minutes
+                    ? "bg-foreground text-background"
+                    : "glass-hover text-muted-foreground",
+                )}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        )}
+        <Toggle
+          label="Due tonight"
+          description={`At ${hourLabel(tonightHour)} if something is due by 11:59 PM`}
+          checked={prefs.countdownTonight}
+          disabled={off}
+          onChange={() => setTonight(!prefs.countdownTonight)}
+        />
+      </div>
+
+      <Toggle
+        label="Quiet at night"
+        description={`No notifications ${hourLabel(prefs.quietStart)} – ${hourLabel(prefs.quietEnd)}${
+          prefs.quietEnabled && isQuietNow(prefs) ? " · quiet right now" : ""
+        }`}
+        checked={prefs.quietEnabled}
+        disabled={off}
+        onChange={() => toggle("quietEnabled")}
+      />
     </div>
   );
 }
