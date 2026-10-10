@@ -13,10 +13,21 @@ struct NativeRootView: View {
 
     private var userID: String? { sessionStore.session?.user.id }
 
+    /// Debug builds only: launching with `-CanvasProDemo YES` opens the app on
+    /// sample data with no sign-in, for the simulator screenshots the iOS build
+    /// workflow takes. App Store builds can't turn it on.
+    #if DEBUG
+    private static let demo = UserDefaults.standard.bool(forKey: "CanvasProDemo")
+    #else
+    private static let demo = false
+    #endif
+
     var body: some View {
         ZStack {
             Group {
-                if sessionStore.session != nil {
+                if Self.demo {
+                    NativeMainTabView(sessionStore: sessionStore, preview: true)
+                } else if sessionStore.session != nil {
                     NativeMainTabView(sessionStore: sessionStore)
                         .id(userID)
                         .transition(.opacity)
@@ -30,7 +41,7 @@ struct NativeRootView: View {
             .accessibilityHidden(showingLaunch)
             .environment(\.nativeLaunchIsVisible, showingLaunch)
             if showingLaunch {
-                NativeLaunchView(isSignedIn: sessionStore.session != nil) { finishLaunch() }
+                NativeLaunchView(isSignedIn: sessionStore.session != nil || Self.demo) { finishLaunch() }
                     .transition(.opacity.combined(with: .scale(scale: 1.04)))
                     .zIndex(1)
             }
@@ -764,10 +775,10 @@ struct NativeMainTabView: View {
     @State private var hadSavedData: Bool?
     @ObservedObject private var router = NativeRouter.shared
 
-    init(sessionStore: NativeSessionStore) {
+    init(sessionStore: NativeSessionStore, preview: Bool = false) {
         self.sessionStore = sessionStore
-        _contentStore = StateObject(wrappedValue: NativeContentStore(sessionStore: sessionStore))
-        _featureStore = StateObject(wrappedValue: NativeFeatureStore(sessionStore: sessionStore))
+        _contentStore = StateObject(wrappedValue: NativeContentStore(sessionStore: sessionStore, preview: preview))
+        _featureStore = StateObject(wrappedValue: NativeFeatureStore(sessionStore: sessionStore, preview: preview))
         let defaults = UserDefaults.standard
         _selection = State(initialValue: NativeTab(rawValue: defaults.string(forKey: "CanvasProLastTab") ?? "") ?? .today)
         let page = defaults.string(forKey: "CanvasProLastTodayPage") ?? ""
@@ -839,7 +850,7 @@ struct NativeMainTabView: View {
 
     /// New accounts see a short welcome once, after the opening animation.
     @MainActor private func presentOnboardingIfNeeded(launchVisible: Bool) async {
-        guard !launchVisible, !UserDefaults.standard.bool(forKey: onboardingKey) else { return }
+        guard !launchVisible, !contentStore.isPreview, !UserDefaults.standard.bool(forKey: onboardingKey) else { return }
         if hadSavedData == true { markOnboarded(); return }
         try? await Task.sleep(for: .milliseconds(500))
         guard !Task.isCancelled, !UserDefaults.standard.bool(forKey: onboardingKey) else { return }
@@ -875,7 +886,7 @@ struct NativeMainTabView: View {
         let center = UNUserNotificationCenter.current()
         var settings = await center.notificationSettings()
         // Ask once, after the welcome, so reminders work without a trip to Settings.
-        if wantsAlerts && featureStore.notificationPreferencesLoaded && settings.authorizationStatus == .notDetermined && !showOnboarding && !launchIsVisible {
+        if wantsAlerts && featureStore.notificationPreferencesLoaded && settings.authorizationStatus == .notDetermined && !showOnboarding && !launchIsVisible && !contentStore.isPreview {
             _ = try? await center.requestAuthorization(options: [.alert, .badge, .sound])
             settings = await center.notificationSettings()
         }
