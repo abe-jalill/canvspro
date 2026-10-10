@@ -533,6 +533,9 @@ final class NativeFeatureStore: ObservableObject {
         if case .some(.string(let palette)) = preferences["color_theme"], CPPalette(rawValue: palette) != nil {
             UserDefaults.standard.set(palette, forKey: "CanvasProPalette")
         }
+        if case .some(.string(let wallpaper)) = preferences["wallpaper"], ["wave", "plain"].contains(wallpaper) {
+            UserDefaults.standard.set(wallpaper, forKey: "CanvasProWallpaper")
+        }
     }
 
     var announcementWeeks: Int {

@@ -775,7 +775,7 @@ struct NativeMainTabView: View {
     }
 
     var body: some View {
-        nativeTabs
+        reminderTabs
             .task {
                 // Remember whether this phone already had this student's data, to
                 // tell a returning student (no tour) from a new one.
@@ -820,15 +820,6 @@ struct NativeMainTabView: View {
                 guard let deviceToken = note.object as? String else { return }
                 Task { await registerDeviceToken(deviceToken) }
             }
-            // Keep this phone's reminders in step with what the student sees.
-            .onChange(of: contentStore.completed) { _, _ in rescheduleLocalReminders() }
-            .onChange(of: contentStore.lastSyncedAt) { _, _ in rescheduleLocalReminders() }
-            .onChange(of: featureStore.notificationPreferences) { _, _ in rescheduleLocalReminders() }
-            .onChange(of: featureStore.schedule) { _, _ in rescheduleLocalReminders() }
-            .onChange(of: featureStore.customAssignments) { _, _ in rescheduleLocalReminders() }
-            .onReceive(NotificationCenter.default.publisher(for: .nativeLocalRemindersChanged)) { _ in rescheduleLocalReminders() }
-            // After the welcome closes, ask for notifications right away.
-            .onChange(of: showOnboarding) { _, showing in if !showing { Task { await refreshAccountData() } } }
             .onReceive(NotificationCenter.default.publisher(for: .nativeNotificationPath)) { note in
                 guard let path = note.object as? String else { return }
                 route(to: path)
@@ -913,6 +904,20 @@ struct NativeMainTabView: View {
             return NativeLocalReminders.DueItem(id: item.id, name: item.name, course: contentStore.displayName(courseID: item.courseID, fallback: item.courseName), due: due)
         }
         NativeLocalReminders.replace(with: NativeLocalReminders.plan(items: items, schedule: featureStore.schedule, prefs: featureStore.notificationPreferences))
+    }
+
+    /// Keeps this phone's reminders in step with what the student sees. Apart
+    /// from `body` so each modifier chain stays small enough for the type checker.
+    private var reminderTabs: some View {
+        nativeTabs
+            .onChange(of: contentStore.completed) { _, _ in rescheduleLocalReminders() }
+            .onChange(of: contentStore.lastSyncedAt) { _, _ in rescheduleLocalReminders() }
+            .onChange(of: featureStore.notificationPreferences) { _, _ in rescheduleLocalReminders() }
+            .onChange(of: featureStore.schedule) { _, _ in rescheduleLocalReminders() }
+            .onChange(of: featureStore.customAssignments) { _, _ in rescheduleLocalReminders() }
+            .onReceive(NotificationCenter.default.publisher(for: .nativeLocalRemindersChanged)) { _ in rescheduleLocalReminders() }
+            // After the welcome closes, ask for notifications right away.
+            .onChange(of: showOnboarding) { _, showing in if !showing { Task { await refreshAccountData() } } }
     }
 
     @ViewBuilder private var nativeTabs: some View {

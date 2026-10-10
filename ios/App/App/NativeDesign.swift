@@ -145,20 +145,35 @@ enum CPLayout {
 
 // MARK: - Backdrop and surfaces
 
-/// The website's page background: the tinted base with two soft glows at the top.
+/// The website's page background: the palette's blurred wallpaper ("wave", the
+/// default), or the tinted base with two soft glows at the top ("plain").
 struct CPBackdrop: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.cpPalette) private var paletteDependency
+    @AppStorage("CanvasProWallpaper") private var wallpaper = "wave"
+    @AppStorage("CanvasProPalette") private var palette = "forest"
+    private var wallpaperName: String {
+        "Wallpaper-\(CPPalette(rawValue: palette)?.rawValue ?? "forest")-\(scheme == .dark ? "dark" : "light")"
+    }
     var body: some View {
         GeometryReader { proxy in
             ZStack(alignment: .top) {
                 CPTheme.background(scheme)
-                RadialGradient(colors: [CPTheme.primary(scheme: scheme).opacity(0.13), .clear], center: .center, startRadius: 0, endRadius: 360)
-                    .frame(width: 720, height: 560)
-                    .offset(x: -proxy.size.width * 0.32, y: -260)
-                RadialGradient(colors: [CPTheme.primary(scheme: scheme).opacity(0.08), .clear], center: .center, startRadius: 0, endRadius: 300)
-                    .frame(width: 600, height: 480)
-                    .offset(x: proxy.size.width * 0.35, y: -180)
+                if wallpaper == "wave" {
+                    // One pre-blurred image per palette and mode, as on the website.
+                    Image(wallpaperName)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .accessibilityHidden(true)
+                } else {
+                    RadialGradient(colors: [CPTheme.primary(scheme: scheme).opacity(0.13), .clear], center: .center, startRadius: 0, endRadius: 360)
+                        .frame(width: 720, height: 560)
+                        .offset(x: -proxy.size.width * 0.32, y: -260)
+                    RadialGradient(colors: [CPTheme.primary(scheme: scheme).opacity(0.08), .clear], center: .center, startRadius: 0, endRadius: 300)
+                        .frame(width: 600, height: 480)
+                        .offset(x: proxy.size.width * 0.35, y: -180)
+                }
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
             .clipped()

@@ -1628,6 +1628,7 @@ private struct AppearanceSettingsCard: View {
     @ObservedObject var features: NativeFeatureStore
     @AppStorage("CanvasProColorScheme") private var scheme = "dark"
     @AppStorage("CanvasProPalette") private var palette = "forest"
+    @AppStorage("CanvasProWallpaper") private var wallpaper = "wave"
     @State private var status: String?
     private let columns = [GridItem(.flexible()), GridItem(.flexible())]
     var body: some View {
@@ -1645,6 +1646,11 @@ private struct AppearanceSettingsCard: View {
                         appearanceButton("system", "System", "desktopcomputer")
                     }
                     if scheme == "system" { Text("Follows your iPhone.").cpFont(12).foregroundStyle(CPTheme.muted(resolvedScheme)) }
+                    Text("BACKGROUND").cpFont(11, .semibold).tracking(1).foregroundStyle(CPTheme.muted(resolvedScheme)).padding(.top, 4)
+                    LazyVGrid(columns: [GridItem(.flexible(minimum: 0), spacing: 9), GridItem(.flexible(minimum: 0))], spacing: 9) {
+                        backgroundButton("wave", "Wallpaper", "photo")
+                        backgroundButton("plain", "Plain color", "square.fill")
+                    }
                     if let status { Text(status).cpFont(12).foregroundStyle(.red) }
         }
     }
@@ -1652,6 +1658,21 @@ private struct AppearanceSettingsCard: View {
         Button { Task { await save("theme", value) } } label: {
             VStack(spacing: 6) { Image(systemName: symbol).cpIconFont(13, .semibold); Text(title).cpFont(11, .semibold); if scheme == value { Image(systemName: "checkmark").cpIconFont(8, .bold) } }
                 .frame(maxWidth: .infinity, minHeight: 64).foregroundStyle(scheme == value ? CPTheme.primary(scheme: resolvedScheme) : CPTheme.foreground(resolvedScheme)).background(scheme == value ? CPTheme.primary(scheme: resolvedScheme).opacity(0.10) : CPTheme.inset(resolvedScheme), in: RoundedRectangle(cornerRadius: 12)).overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(scheme == value ? CPTheme.primary(scheme: resolvedScheme).opacity(0.55) : CPTheme.insetBorder(resolvedScheme), lineWidth: scheme == value ? 1 : 0.5))
+        }.buttonStyle(.plain)
+    }
+    /// The palette's blurred wallpaper or the plain color, shared with the website.
+    private func backgroundButton(_ value: String, _ title: String, _ symbol: String) -> some View {
+        let selected = wallpaper == value
+        let accent = CPTheme.primary(scheme: resolvedScheme)
+        return Button {
+            wallpaper = value
+            Task { await save("wallpaper", value) }
+        } label: {
+            VStack(spacing: 6) { Image(systemName: symbol).cpIconFont(13, .semibold); Text(title).cpFont(11, .semibold); if selected { Image(systemName: "checkmark").cpIconFont(8, .bold) } }
+                .frame(maxWidth: .infinity, minHeight: 64)
+                .foregroundStyle(selected ? accent : CPTheme.foreground(resolvedScheme))
+                .background(selected ? accent.opacity(0.10) : CPTheme.inset(resolvedScheme), in: RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(selected ? accent.opacity(0.55) : CPTheme.insetBorder(resolvedScheme), lineWidth: selected ? 1 : 0.5))
         }.buttonStyle(.plain)
     }
     private func save(_ key: String, _ value: String) async {
