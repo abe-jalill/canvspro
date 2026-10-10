@@ -1462,76 +1462,164 @@ struct AnnouncementDetailView: View {
     }
 }
 
+/// The same short list as the website: one switch, this iPhone, what to hear
+/// about, and quiet hours. Each choice sets the saved fields that the
+/// background check and this phone's own reminders read. Changes save on their own.
 private struct NotificationsView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @ObservedObject var sessionStore: NativeSessionStore
     @ObservedObject var features: NativeFeatureStore
     @State private var status: String?
-    @State private var syncing = false
+    @State private var saved: NotificationPreferences?
+    @State private var deviceOn = NativeLocalReminders.deviceEnabled
+    @State private var permission: UNAuthorizationStatus = .notDetermined
+    private let leads = [5, 15, 30, 60]
+
+    private var prefs: NotificationPreferences { features.notificationPreferences }
+    private var off: Bool { !prefs.enabled }
+    private var dueOn: Bool { prefs.due1d || prefs.due2d || prefs.due3d || prefs.due1w }
+    private var allowed: Bool { permission == .authorized || permission == .provisional || permission == .ephemeral }
+    private var deviceText: String {
+        if permission == .denied { return "Turned off in iOS Settings" }
+        return deviceOn && allowed ? "Arrives even when the app is closed" : "Off on this iPhone"
+    }
+
     var body: some View {
         Form {
-            Section("Master") {
-                Toggle("Notifications", isOn: bind(\.enabled)); Toggle("Push notifications", isOn: bind(\.browserPush)); Toggle("App icon badge", isOn: bind(\.badge)); Toggle("Quiet hours", isOn: bind(\.quietEnabled))
-                if features.notificationPreferences.quietEnabled { Stepper("Starts at \(features.notificationPreferences.quietStart):00", value: bind(\.quietStart), in: 0...23); Stepper("Ends at \(features.notificationPreferences.quietEnd):00", value: bind(\.quietEnd), in: 0...23) }
-            }
-            Section("Due date reminders") { Toggle("1 week before", isOn: bind(\.due1w)); Toggle("3 days before", isOn: bind(\.due3d)); Toggle("2 days before", isOn: bind(\.due2d)); Toggle("1 day before", isOn: bind(\.due1d)) }
-            Section("Canvas updates") { Toggle("Grades", isOn: bind(\.grades)); Toggle("Announcements", isOn: bind(\.announcements)); if features.notificationPreferences.grades { Stepper("Grade threshold: \(Int(features.notificationPreferences.gradeThreshold))%", value: bind(\.gradeThreshold), in: 0...100, step: 5) } }
-            Section("Class schedule") {
-                Toggle("Class countdown", isOn: bind(\.countdownClass))
-                if features.notificationPreferences.countdownClass {
-                    ForEach([60, 30, 15, 5, 0], id: \.self) { minutes in
-                        Toggle(minutes == 0 ? "When class starts" : "\(minutes) minutes before", isOn: listBinding(\.countdownLeads, minutes))
-                    }
+            if !features.notificationPreferencesLoaded {
+                Section { HStack(spacing: 10) { ProgressView(); Text("Loading your settings…").foregroundStyle(.secondary) } }
+            } else {
+                Section {
+                    row("Notifications", off ? "Off everywhere" : "On for your account", isOn: Binding(get: { prefs.enabled }, set: setNotifications))
+                    row("This iPhone", deviceText, isOn: Binding(get: { deviceOn && allowed }, set: { on in Task { await setDevice(on) } }))
+                        .disabled(off)
                 }
-                Toggle("Tonight’s deadlines", isOn: bind(\.countdownTonight))
-                if features.notificationPreferences.countdownTonight {
-                    ForEach([15, 18, 21, 23], id: \.self) { hour in
-                        Toggle("\(hour - 12):00 PM", isOn: listBinding(\.countdownTonightHours, hour))
+                Section {
+                    row("Due dates", "3 days, 2 days and 1 day before", isOn: Binding(get: { dueOn }, set: setDueDates))
+                    row("New grades", "When you score \(Int(prefs.gradeThreshold))% or higher", isOn: bind(\.grades))
+                    row("Announcements", "New posts from your instructors", isOn: bind(\.announcements))
+                    row("Class reminders", "Before each class on your schedule", isOn: Binding(get: { prefs.countdownClass }, set: setClassReminders))
+                    if prefs.countdownClass {
+                        // One choice keeps it to one reminder per class.
+                        Picker("Remind me", selection: Binding(get: { prefs.countdownLeads.first ?? 15 }, set: { features.notificationPreferences.countdownLeads = [$0] })) {
+                            ForEach(leads, id: \.self) { minutes in Text(minutes == 60 ? "1 hour" : "\(minutes) min").tag(minutes) }
+                        }
+                        .pickerStyle(.segmented)
                     }
+                    row("Due tonight", "At \(NativeLocalReminders.hourLabel(prefs.countdownTonightHours.first ?? 18)) if something is due by 11:59 PM", isOn: Binding(get: { prefs.countdownTonight }, set: setTonight))
+                } header: {
+                    Text("Notify me about")
+                } footer: {
+                    Text("Due dates, class reminders and due tonight are set on this iPhone, so they arrive with the app closed. New grades and announcements show when the app refreshes.")
                 }
+                .disabled(off)
+                Section {
+                    row("Quiet at night", "No notifications \(NativeLocalReminders.hourLabel(prefs.quietStart)) – \(NativeLocalReminders.hourLabel(prefs.quietEnd))", isOn: bind(\.quietEnabled))
+                }
+                .disabled(off)
+                if let status { Section { Text(status).foregroundStyle(.secondary) } }
             }
-            Section { Button { save() } label: { HStack { Spacer(); if syncing { ProgressView() } else { Text("Save Notification Settings") }; Spacer() } }.disabled(syncing) }
-            Section("History") { ForEach(features.alerts) { alert in VStack(alignment: .leading) { Text(alert.title).cpFont(12, .semibold); Text(alert.body).cpFont(11); Text(alert.sentAt == nil ? "Scheduled" : "Sent").cpFont(11).foregroundStyle(.secondary) } }; if features.alerts.isEmpty { Text("No notification history").foregroundStyle(.secondary) } }
-            if let status { Section { Text(status).foregroundStyle(.secondary) } }
         }
         .cpListScreen()
         .cpNavigationTitle("Notifications")
-        .onReceive(NotificationCenter.default.publisher(for: .nativeDeviceToken)) { note in
-            if let token = note.object as? String { Task { await register(token) } }
-            else if let error = note.object as? Error { status = error.localizedDescription }
+        .task {
+            await refreshPermission()
+            if !features.notificationPreferencesLoaded { await features.load() }
+        }
+        .task(id: features.notificationPreferences) { await autosave() }
+        // Back from iOS Settings: show the new permission.
+        .onChange(of: scenePhase) { _, phase in if phase == .active { Task { await refreshPermission() } } }
+        // Leaving within the save delay still saves.
+        .onDisappear {
+            if let last = saved, last != features.notificationPreferences { Task { try? await features.saveNotifications() } }
         }
     }
-    private func bind<T>(_ path: WritableKeyPath<NotificationPreferences, T>) -> Binding<T> { Binding(get: { features.notificationPreferences[keyPath: path] }, set: { features.notificationPreferences[keyPath: path] = $0 }) }
-    private func listBinding(_ path: WritableKeyPath<NotificationPreferences, [Int]>, _ value: Int) -> Binding<Bool> {
-        Binding(get: { features.notificationPreferences[keyPath: path].contains(value) }, set: { selected in
-            var values = features.notificationPreferences[keyPath: path]
-            if selected { values.append(value) } else { values.removeAll { $0 == value } }
-            features.notificationPreferences[keyPath: path] = Array(Set(values)).sorted()
-        })
-    }
-    private func save() {
-        syncing = true
-        Task {
-            defer { syncing = false }
-            do {
-                if features.notificationPreferences.enabled && features.notificationPreferences.browserPush {
-                    let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound])
-                    if granted { UIApplication.shared.registerForRemoteNotifications() } else { features.notificationPreferences.browserPush = false }
-                } else {
-                    UIApplication.shared.unregisterForRemoteNotifications()
-                    if let deviceToken = UserDefaults.standard.string(forKey: "CanvasProNativePushToken"), let api = sessionStore.api {
-                        let access = try await sessionStore.accessToken()
-                        try await api.deletePushToken(deviceToken, token: access)
-                        UserDefaults.standard.removeObject(forKey: "CanvasProNativePushToken")
-                    }
-                }
-                try await features.saveNotifications(); status = "Notification settings saved."
-            } catch { status = error.localizedDescription }
+
+    private func row(_ title: String, _ detail: String, isOn: Binding<Bool>) -> some View {
+        Toggle(isOn: isOn) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                Text(detail).cpFont(12).foregroundStyle(.secondary)
+            }
         }
     }
-    private func register(_ deviceToken: String) async {
-        guard let api = sessionStore.api, let user = sessionStore.session?.user else { return }
-        do { try await api.upsertPushToken(deviceToken, token: try await sessionStore.accessToken(), userID: user.id); UserDefaults.standard.set(deviceToken, forKey: "CanvasProNativePushToken"); status = "Push notifications enabled." }
-        catch { status = error.localizedDescription }
+
+    private func bind(_ path: WritableKeyPath<NotificationPreferences, Bool>) -> Binding<Bool> {
+        Binding(get: { features.notificationPreferences[keyPath: path] }, set: { features.notificationPreferences[keyPath: path] = $0 })
+    }
+
+    private func setNotifications(_ on: Bool) {
+        features.notificationPreferences.enabled = on
+        // Older accounts may have pop-ups muted; turning notifications on means all of them.
+        if on { features.notificationPreferences.browserPush = true }
+    }
+
+    private func setDueDates(_ on: Bool) {
+        features.notificationPreferences.due1d = on
+        features.notificationPreferences.due2d = on
+        features.notificationPreferences.due3d = on
+        if !on { features.notificationPreferences.due1w = false }
+    }
+
+    private func setClassReminders(_ on: Bool) {
+        features.notificationPreferences.countdownClass = on
+        if on && features.notificationPreferences.countdownLeads.isEmpty { features.notificationPreferences.countdownLeads = [15] }
+    }
+
+    private func setTonight(_ on: Bool) {
+        features.notificationPreferences.countdownTonight = on
+        if on && features.notificationPreferences.countdownTonightHours.isEmpty { features.notificationPreferences.countdownTonightHours = [18] }
+    }
+
+    private func refreshPermission() async {
+        permission = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
+    }
+
+    /// "This iPhone": asks iOS for permission when needed, then turns this
+    /// phone's reminders (and Apple push, once available) on or off.
+    private func setDevice(_ on: Bool) async {
+        let center = UNUserNotificationCenter.current()
+        if on {
+            if permission == .denied {
+                status = "Allow notifications for CanvasPro in iOS Settings."
+                if let url = URL(string: UIApplication.openSettingsURLString) { _ = await UIApplication.shared.open(url) }
+                return
+            }
+            let granted = (try? await center.requestAuthorization(options: [.alert, .badge, .sound])) ?? false
+            await refreshPermission()
+            guard granted else { return }
+        }
+        deviceOn = on
+        NativeLocalReminders.deviceEnabled = on
+        status = nil
+        if on {
+            UIApplication.shared.registerForRemoteNotifications()
+        } else {
+            UIApplication.shared.unregisterForRemoteNotifications()
+            if let deviceToken = UserDefaults.standard.string(forKey: "CanvasProNativePushToken"), let api = sessionStore.api,
+               let access = try? await sessionStore.accessToken() {
+                try? await api.deletePushToken(deviceToken, token: access)
+                UserDefaults.standard.removeObject(forKey: "CanvasProNativePushToken")
+            }
+        }
+        NotificationCenter.default.post(name: .nativeLocalRemindersChanged, object: nil)
+    }
+
+    /// Saves a moment after the last change, like the website.
+    private func autosave() async {
+        guard features.notificationPreferencesLoaded else { return }
+        let current = features.notificationPreferences
+        guard let last = saved else { saved = current; return }
+        guard last != current else { return }
+        try? await Task.sleep(for: .milliseconds(600))
+        guard !Task.isCancelled else { return }
+        do {
+            try await features.saveNotifications()
+            saved = current
+            status = nil
+        } catch {
+            status = "Couldn't save. Check your connection and try again."
+        }
     }
 }
 

@@ -899,6 +899,8 @@ final class NativeSessionStore: ObservableObject {
         refreshingToken = nil
         let previousUserID = session?.user.id
         UIApplication.shared.unregisterForRemoteNotifications()
+        // The previous student's reminders must not keep arriving on this phone.
+        NativeLocalReminders.replace(with: [])
         if let previousUserID {
             NativeCourseworkCacheStore.clear(userID: previousUserID)
             UserDefaults.standard.removeObject(forKey: "CanvasProNativeContentCache.\(previousUserID)")

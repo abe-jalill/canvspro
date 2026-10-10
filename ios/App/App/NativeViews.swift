@@ -814,12 +814,21 @@ struct NativeMainTabView: View {
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: .nativeDeviceToken)) { note in
-                guard let deviceToken = note.object as? String else {
-                    if let error = note.object as? Error { featureStore.errorMessage = error.localizedDescription }
-                    return
-                }
+                // A build without Apple push (no paid developer account) fails to
+                // register on every launch. That's expected: this phone's own
+                // reminders don't depend on it, so it isn't shown as an error.
+                guard let deviceToken = note.object as? String else { return }
                 Task { await registerDeviceToken(deviceToken) }
             }
+            // Keep this phone's reminders in step with what the student sees.
+            .onChange(of: contentStore.completed) { _, _ in rescheduleLocalReminders() }
+            .onChange(of: contentStore.lastSyncedAt) { _, _ in rescheduleLocalReminders() }
+            .onChange(of: featureStore.notificationPreferences) { _, _ in rescheduleLocalReminders() }
+            .onChange(of: featureStore.schedule) { _, _ in rescheduleLocalReminders() }
+            .onChange(of: featureStore.customAssignments) { _, _ in rescheduleLocalReminders() }
+            .onReceive(NotificationCenter.default.publisher(for: .nativeLocalRemindersChanged)) { _ in rescheduleLocalReminders() }
+            // After the welcome closes, ask for notifications right away.
+            .onChange(of: showOnboarding) { _, showing in if !showing { Task { await refreshAccountData() } } }
             .onReceive(NotificationCenter.default.publisher(for: .nativeNotificationPath)) { note in
                 guard let path = note.object as? String else { return }
                 route(to: path)
@@ -858,7 +867,7 @@ struct NativeMainTabView: View {
     }
 
     @MainActor private func registerDeviceToken(_ deviceToken: String) async {
-        guard featureStore.notificationPreferences.enabled && featureStore.notificationPreferences.browserPush else { return }
+        guard featureStore.notificationPreferences.enabled && featureStore.notificationPreferences.browserPush && NativeLocalReminders.deviceEnabled else { return }
         guard let api = sessionStore.api, let user = sessionStore.session?.user else { return }
         do {
             try await api.upsertPushToken(deviceToken, token: try await sessionStore.accessToken(), userID: user.id)
@@ -870,11 +879,19 @@ struct NativeMainTabView: View {
         async let content: Void = contentStore.load()
         async let features: Void = featureStore.load()
         _ = await (content, features)
-        let settings = await UNUserNotificationCenter.current().notificationSettings()
-        if featureStore.notificationPreferences.enabled && featureStore.notificationPreferences.browserPush &&
-            (settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional) {
+        let prefs = featureStore.notificationPreferences
+        let wantsAlerts = prefs.enabled && prefs.browserPush && NativeLocalReminders.deviceEnabled
+        let center = UNUserNotificationCenter.current()
+        var settings = await center.notificationSettings()
+        // Ask once, after the welcome, so reminders work without a trip to Settings.
+        if wantsAlerts && featureStore.notificationPreferencesLoaded && settings.authorizationStatus == .notDetermined && !showOnboarding && !launchIsVisible {
+            _ = try? await center.requestAuthorization(options: [.alert, .badge, .sound])
+            settings = await center.notificationSettings()
+        }
+        rescheduleLocalReminders()
+        if wantsAlerts && (settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional) {
             UIApplication.shared.registerForRemoteNotifications()
-        } else if !featureStore.notificationPreferences.enabled || !featureStore.notificationPreferences.browserPush {
+        } else if !wantsAlerts && featureStore.notificationPreferencesLoaded {
             UIApplication.shared.unregisterForRemoteNotifications()
             if let deviceToken = UserDefaults.standard.string(forKey: "CanvasProNativePushToken"), let api = sessionStore.api {
                 do {
@@ -883,6 +900,19 @@ struct NativeMainTabView: View {
                 } catch { featureStore.errorMessage = error.localizedDescription }
             }
         }
+    }
+
+    /// Re-plans this phone's own reminders from the coursework, schedule and
+    /// settings on screen. Waits for the saved settings so an offline launch
+    /// keeps the reminders planned last time instead of using the defaults.
+    @MainActor private func rescheduleLocalReminders() {
+        guard !contentStore.isPreview, sessionStore.session != nil, featureStore.notificationPreferencesLoaded else { return }
+        guard NativeLocalReminders.deviceEnabled else { NativeLocalReminders.replace(with: []); return }
+        let items = featureStore.shownAssignments(in: contentStore).compactMap { item -> NativeLocalReminders.DueItem? in
+            guard let due = item.dueDate, !item.isFinished(in: contentStore) else { return nil }
+            return NativeLocalReminders.DueItem(id: item.id, name: item.name, course: contentStore.displayName(courseID: item.courseID, fallback: item.courseName), due: due)
+        }
+        NativeLocalReminders.replace(with: NativeLocalReminders.plan(items: items, schedule: featureStore.schedule, prefs: featureStore.notificationPreferences))
     }
 
     @ViewBuilder private var nativeTabs: some View {

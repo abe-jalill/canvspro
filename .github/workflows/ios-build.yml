@@ -1,0 +1,44 @@
+# Compiles the native iOS app on every push to ios-native, the same unsigned
+# simulator build Codemagic runs, so a Swift mistake shows up without a Mac.
+name: iOS build
+
+on:
+  push:
+    branches: [ios-native]
+    paths: ["ios/**", "scripts/test-native-session-store.py", ".github/workflows/ios-build.yml"]
+  workflow_dispatch:
+
+concurrency:
+  group: ios-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use the newest Xcode on the runner
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          sudo xcode-select -s "$XCODE"
+          xcodebuild -version
+
+      - name: Check native session storage failure paths
+        run: python3 scripts/test-native-session-store.py
+
+      - name: Compile the SwiftUI app (simulator, unsigned)
+        run: |
+          set -o pipefail
+          . ios/backend-public.env
+          cd ios/App
+          xcodebuild build \
+            -project App.xcodeproj \
+            -scheme App \
+            -sdk iphonesimulator \
+            -configuration Debug \
+            -quiet \
+            SUPABASE_URL="$CANVASPRO_DEFAULT_SUPABASE_URL" \
+            SUPABASE_PUBLISHABLE_KEY="$CANVASPRO_DEFAULT_SUPABASE_PUBLISHABLE_KEY" \
+            CODE_SIGNING_ALLOWED=NO

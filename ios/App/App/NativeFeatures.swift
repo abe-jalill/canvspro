@@ -360,6 +360,9 @@ final class NativeFeatureStore: ObservableObject {
     @Published var progress: [Int: Int] = [:]
     @Published var alerts: [ScheduledAlert] = []
     @Published var notificationPreferences = NotificationPreferences()
+    /// False until the account's saved notification settings have loaded, so an
+    /// offline launch never plans reminders (or saves) from the defaults.
+    @Published var notificationPreferencesLoaded = false
     @Published var isLoading = false
     @Published var errorMessage: String?
     let isPreview: Bool
@@ -369,6 +372,7 @@ final class NativeFeatureStore: ObservableObject {
     init(sessionStore: NativeSessionStore, preview: Bool = false) {
         self.sessionStore = sessionStore
         isPreview = preview
+        notificationPreferencesLoaded = preview
         if preview {
             if let data = UserDefaults.standard.data(forKey: previewStateKey),
                let saved = try? JSONDecoder().decode(NativePreviewFeatureState.self, from: data) {
@@ -415,7 +419,12 @@ final class NativeFeatureStore: ObservableObject {
                 progress = saved
             }
             if let value = try? await alertRows { alerts = value }
-            if let value = try? await notificationRow { notificationPreferences = NotificationPreferences(value) }
+            // A new account has no saved row yet; the defaults are its settings.
+            do {
+                let row = try await notificationRow
+                notificationPreferences = NotificationPreferences(row)
+                notificationPreferencesLoaded = true
+            } catch {}
         } catch { errorMessage = error.localizedDescription }
     }
 
@@ -767,5 +776,184 @@ enum NativeParity {
             dueDescription = due < now ? (days <= 1 ? "overdue" : "\(days) days overdue") : due <= now.addingTimeInterval(86400) ? "due within 24 hours" : due <= now.addingTimeInterval(3 * 86400) ? "due within 3 days" : due <= now.addingTimeInterval(7 * 86400) ? "due this week" : "due later"
         } else { dueDescription = "no due date" }
         return reasons.isEmpty ? "Recommended because it is the strongest next task with \(dueDescription)." : "Recommended because \(reasons.prefix(2).joined(separator: " and "))."
+    }
+}
+
+extension Notification.Name {
+    /// "This iPhone" was switched on or off in notification settings.
+    static let nativeLocalRemindersChanged = Notification.Name("CanvasProNativeLocalRemindersChanged")
+}
+
+/// Reminders this iPhone schedules for itself: due dates, class reminders and
+/// "due tonight". iOS delivers them on time with the app closed, and they need
+/// no Apple push account. They are rebuilt from the latest coursework and
+/// settings whenever the app refreshes, a setting changes or work is checked off.
+/// New grades and announcements still need a server push, since only Canvas
+/// knows about them.
+enum NativeLocalReminders {
+    struct DueItem {
+        let id: Int
+        let name: String
+        let course: String
+        let due: Date
+    }
+
+    struct Reminder: Equatable {
+        let id: String
+        let fireAt: Date
+        let title: String
+        let body: String
+        let path: String
+    }
+
+    private static let deviceKey = "CanvasProLocalReminders"
+    private static let prefix = "canvaspro.local."
+    /// iOS keeps only the 64 soonest pending reminders per app; leave a little room.
+    private static let limit = 60
+    @MainActor private static var queue: Task<Void, Never>?
+
+    /// "This iPhone" in notification settings. A choice for this phone only, so
+    /// it lives on the device rather than in the account.
+    static var deviceEnabled: Bool {
+        get { UserDefaults.standard.object(forKey: deviceKey) as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: deviceKey) }
+    }
+
+    static func isQuiet(_ date: Date, prefs: NotificationPreferences, calendar: Calendar = .current) -> Bool {
+        guard prefs.quietEnabled, prefs.quietStart != prefs.quietEnd else { return false }
+        let hour = calendar.component(.hour, from: date)
+        let start = prefs.quietStart, end = prefs.quietEnd
+        return start < end ? (hour >= start && hour < end) : (hour >= start || hour < end)
+    }
+
+    static func hourLabel(_ hour: Int) -> String {
+        let h = ((hour % 24) + 24) % 24
+        return "\(h % 12 == 0 ? 12 : h % 12) \(h < 12 ? "AM" : "PM")"
+    }
+
+    static func leadLabel(_ minutes: Int) -> String {
+        if minutes <= 0 { return "starts now" }
+        if minutes % 60 == 0 { let h = minutes / 60; return "starts in \(h) hour\(h == 1 ? "" : "s")" }
+        return "starts in \(minutes) min"
+    }
+
+    /// Every reminder due in the next week, soonest first, following the same
+    /// saved settings (and the same wording) as the website's background check.
+    static func plan(items: [DueItem], schedule: [ClassScheduleEntry], prefs: NotificationPreferences, now: Date = Date(), calendar: Calendar = .current) -> [Reminder] {
+        guard prefs.enabled, prefs.browserPush else { return [] }
+        var reminders: [Reminder] = []
+        let today = calendar.startOfDay(for: now)
+        let horizon = now.addingTimeInterval(8 * 86_400)
+
+        // Due dates: when each chosen window opens. One that falls in quiet hours
+        // waits for them to end, like the website's 30-minute check.
+        let windows: [(on: Bool, key: String, hours: Double)] = [
+            (prefs.due1w, "1w", 168), (prefs.due3d, "3d", 72), (prefs.due2d, "2d", 48), (prefs.due1d, "1d", 24),
+        ]
+        for item in items where item.due > now {
+            for window in windows where window.on {
+                var fire = item.due.addingTimeInterval(-window.hours * 3_600)
+                if isQuiet(fire, prefs: prefs, calendar: calendar) {
+                    guard let end = calendar.nextDate(after: fire, matching: DateComponents(hour: prefs.quietEnd, minute: 0), matchingPolicy: .nextTime) else { continue }
+                    fire = end
+                }
+                guard fire > now, fire < item.due, fire < horizon else { continue }
+                reminders.append(Reminder(
+                    id: "due:\(item.id):\(window.key)", fireAt: fire,
+                    title: "Due \(dayLabel(item.due, from: fire, calendar: calendar)): \(item.name)",
+                    body: "\(item.course) · \(item.due.formatted(date: .omitted, time: .shortened))",
+                    path: "/assignments"
+                ))
+            }
+        }
+
+        // Class reminders, for each class day in the coming week. Quiet hours
+        // silence them, as they do on the server.
+        let weekdays: [String: Int] = ["U": 1, "M": 2, "T": 3, "W": 4, "R": 5, "F": 6, "S": 7]
+        let leads = Array(Set(prefs.countdownLeads.filter { $0 >= 0 })).sorted(by: >)
+        if prefs.countdownClass && !leads.isEmpty {
+            for offset in 0..<7 {
+                guard let day = calendar.date(byAdding: .day, value: offset, to: today) else { continue }
+                let weekday = calendar.component(.weekday, from: day)
+                let dayKey = day.formatted(.iso8601.year().month().day())
+                for entry in schedule where entry.days.contains(where: { weekdays[$0] == weekday }) {
+                    guard (0..<1_440).contains(entry.startMinutes),
+                          let start = calendar.date(bySettingHour: entry.startMinutes / 60, minute: entry.startMinutes % 60, second: 0, of: day) else { continue }
+                    let name = entry.title.trimmingCharacters(in: .whitespaces).isEmpty ? entry.code : entry.title
+                    let place = entry.location.trimmingCharacters(in: .whitespaces)
+                    for lead in leads {
+                        let fire = start.addingTimeInterval(TimeInterval(-lead * 60))
+                        guard fire > now, !isQuiet(fire, prefs: prefs, calendar: calendar) else { continue }
+                        reminders.append(Reminder(
+                            id: "class:\(dayKey):\(entry.startMinutes):\(entry.id):\(lead)", fireAt: fire,
+                            title: "\(name) \(leadLabel(lead))",
+                            body: [start.formatted(date: .omitted, time: .shortened), place].filter { !$0.isEmpty }.joined(separator: " · "),
+                            path: "/class-schedule"
+                        ))
+                    }
+                }
+            }
+        }
+
+        // Due tonight: at the chosen hour, everything still due by 11:59 PM.
+        if prefs.countdownTonight {
+            let hours = Array(Set(prefs.countdownTonightHours.filter { (0..<24).contains($0) })).sorted()
+            for offset in 0..<7 {
+                guard let day = calendar.date(byAdding: .day, value: offset, to: today),
+                      let end = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: day) else { continue }
+                let dayKey = day.formatted(.iso8601.year().month().day())
+                for hour in hours {
+                    guard let fire = calendar.date(bySettingHour: hour, minute: 0, second: 0, of: day),
+                          fire > now, !isQuiet(fire, prefs: prefs, calendar: calendar) else { continue }
+                    let tonight = items.filter { $0.due > fire && $0.due <= end }.sorted { $0.due < $1.due }
+                    guard let first = tonight.first else { continue }
+                    reminders.append(Reminder(
+                        id: "tonight:\(dayKey):\(hour)", fireAt: fire,
+                        title: tonight.count == 1 ? "Due tonight by 11:59 PM: \(first.name)" : "\(tonight.count) assignments due tonight by 11:59 PM",
+                        body: tonight.prefix(3).map { "\($0.name) · \($0.course)" }.joined(separator: "\n"),
+                        path: "/assignments"
+                    ))
+                }
+            }
+        }
+
+        return Array(reminders.sorted { $0.fireAt < $1.fireAt }.prefix(limit))
+    }
+
+    /// Replaces this app's pending reminders. Runs one at a time, so a quick
+    /// second change can't leave reminders from the first one behind.
+    @MainActor static func replace(with reminders: [Reminder]) {
+        let previous = queue
+        queue = Task {
+            await previous?.value
+            await apply(reminders)
+        }
+    }
+
+    private static func apply(_ reminders: [Reminder]) async {
+        let center = UNUserNotificationCenter.current()
+        let old = await center.pendingNotificationRequests().map(\.identifier).filter { $0.hasPrefix(prefix) }
+        if !old.isEmpty { center.removePendingNotificationRequests(withIdentifiers: old) }
+        let status = await center.notificationSettings().authorizationStatus
+        guard status == .authorized || status == .provisional || status == .ephemeral else { return }
+        for reminder in reminders {
+            let content = UNMutableNotificationContent()
+            content.title = reminder.title
+            content.body = reminder.body
+            content.sound = .default
+            content.threadIdentifier = String(reminder.id.prefix { $0 != ":" })
+            content.userInfo = ["to_path": reminder.path]
+            let when = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: reminder.fireAt)
+            let trigger = UNCalendarNotificationTrigger(dateMatching: when, repeats: false)
+            try? await center.add(UNNotificationRequest(identifier: prefix + reminder.id, content: content, trigger: trigger))
+        }
+    }
+
+    /// "today", "tomorrow", a weekday, or a date for further out.
+    private static func dayLabel(_ due: Date, from fire: Date, calendar: Calendar) -> String {
+        if calendar.isDate(due, inSameDayAs: fire) { return "today" }
+        if let next = calendar.date(byAdding: .day, value: 1, to: fire), calendar.isDate(due, inSameDayAs: next) { return "tomorrow" }
+        if due.timeIntervalSince(fire) < 6 * 86_400 { return due.formatted(.dateTime.weekday(.wide)) }
+        return "on \(due.formatted(.dateTime.month(.abbreviated).day()))"
     }
 }
