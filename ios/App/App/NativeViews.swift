@@ -27,6 +27,13 @@ struct NativeRootView: View {
             Group {
                 if Self.demo {
                     NativeMainTabView(sessionStore: sessionStore, preview: true)
+                        // `-CanvasProDemoPage grades` opens that tab, the way a link would
+                        // (a simulator link stops at an "Open in CanvasPro?" prompt).
+                        .task {
+                            if let page = UserDefaults.standard.string(forKey: "CanvasProDemoPage"), !page.isEmpty {
+                                NativeRouter.shared.pendingPath = "/\(page)"
+                            }
+                        }
                 } else if sessionStore.session != nil {
                     NativeMainTabView(sessionStore: sessionStore)
                         .id(userID)
@@ -3086,7 +3093,7 @@ struct NativeStudyView: View {
             }
             .onReceive(timer) { _ in tick() }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in tick() }
-            .onAppear { tick() }
+            .onAppear { tick(); UIApplication.shared.isIdleTimerDisabled = running }
             .sensoryFeedback(trigger: running) { _, isRunning in isRunning ? .start : .stop }
             .sensoryFeedback(trigger: completedIDs.count) { old, new in new > old ? .success : nil }
             .sensoryFeedback(trigger: manualTasks.count) { old, new in new > old ? .success : nil }
@@ -3106,11 +3113,15 @@ struct NativeStudyView: View {
         selectionStudyContent
             .onChange(of: duration) { _, _ in persistSession() }
             .onChange(of: remaining) { _, _ in persistSession() }
-            .onChange(of: running) { _, _ in persistSession() }
+            .onChange(of: running) { _, isRunning in
+                persistSession()
+                // The screen stays on while the timer runs.
+                UIApplication.shared.isIdleTimerDisabled = isRunning
+            }
             .onChange(of: currentIndex) { _, _ in persistSession() }
             .onChange(of: phase) { _, _ in persistSession() }
             .onChange(of: round) { _, _ in persistSession() }
-            .onChange(of: blockEndsAt) { _, _ in persistSession() }
+            .onChange(of: blockEndsAt) { _, _ in persistSession(); updateBlockAlert() }
             .onChange(of: itemMinutes) { _, _ in persistSession() }
             .onChange(of: perItem) { _, _ in persistSession() }
     }
@@ -3127,6 +3138,31 @@ struct NativeStudyView: View {
             persistSession()
         }
         requestedAssignment = nil
+    }
+
+    /// A "time's up" alert for the end of the current block, so it still reaches
+    /// a student who switched apps. Replaced whenever the timer changes and
+    /// removed when it's paused or ended. Kept apart from the reminder prefix,
+    /// which is cleared on every reminder refresh.
+    private func updateBlockAlert() {
+        let center = UNUserNotificationCenter.current()
+        let id = "canvaspro.study.block"
+        center.removePendingNotificationRequests(withIdentifiers: [id])
+        guard running, let end = blockEndsAt, end > Date() else { return }
+        let content = UNMutableNotificationContent()
+        if phase != "focus" {
+            content.title = "Break's over"; content.body = "Back to it."
+        } else if activePlan != nil {
+            content.title = "Focus block done"; content.body = "Time for a break."
+        } else if perItem && items.count > 1 {
+            content.title = "Time's up for this assignment"; content.body = "On to the next one."
+        } else {
+            content.title = "Study session done"; content.body = "Nice work."
+        }
+        content.sound = .default
+        content.userInfo = ["to_path": "/study-session"]
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: max(1, end.timeIntervalSinceNow), repeats: false)
+        center.add(UNNotificationRequest(identifier: id, content: content, trigger: trigger))
     }
 
     private func persistSession() {

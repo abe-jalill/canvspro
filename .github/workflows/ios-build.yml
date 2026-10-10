@@ -67,13 +67,12 @@ jobs:
           xcrun simctl status_bar "$UDID" override --time 9:41 --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3
           xcrun simctl install "$UDID" "$APP"
           mkdir -p shots
+          # One launch per page: a link would stop at an "Open in CanvasPro?" prompt.
           for mode in dark light; do
-            xcrun simctl terminate "$UDID" "$BUNDLE" 2>/dev/null || true
-            xcrun simctl launch "$UDID" "$BUNDLE" -CanvasProDemo YES -CanvasProColorScheme "$mode"
-            sleep 9
             for page in dashboard assignments study grades announcements settings; do
-              xcrun simctl openurl "$UDID" "canvaspro://$page"
-              sleep 3
+              xcrun simctl terminate "$UDID" "$BUNDLE" 2>/dev/null || true
+              xcrun simctl launch "$UDID" "$BUNDLE" -CanvasProDemo YES -CanvasProColorScheme "$mode" -CanvasProDemoPage "$page"
+              sleep 8
               xcrun simctl io "$UDID" screenshot --type=jpeg "shots/$mode-$page.jpg"
             done
           done
