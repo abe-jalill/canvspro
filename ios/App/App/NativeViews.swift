@@ -3144,6 +3144,7 @@ struct NativeStudyView: View {
                     .padding(.bottom, 4)
                 pickCard
                 sessionCard
+                StudyMusicCard()
             }
             .cpPagePadding()
         }
@@ -3494,6 +3495,8 @@ struct NativeStudyView: View {
                 .frame(maxWidth: .infinity)
                 .cpSurface(strong: true, radius: 22)
 
+                StudyMusicButton()
+
                 CPGlassCard {
                     CPCardHeader(title: "Up next", subtitle: "\(completedIDs.count) of \(items.count) finished")
                     VStack(spacing: 0) {
@@ -3717,6 +3720,53 @@ struct NativeStudyView: View {
     }
     private func finishTask() { guard items.indices.contains(currentIndex) else { return }; completedIDs.insert(items[currentIndex].id); if completedIDs.count >= items.count { running = false; blockEndsAt = nil; sessionFinished = true; UINotificationFeedbackGenerator().notificationOccurred(.success) } else { for step in 1...items.count { let next = (currentIndex + step) % items.count; if !completedIDs.contains(items[next].id) { focusTask(next); break } } } }
     private func resetSession(keepSelection: Bool) { running = false; blockEndsAt = nil; activePlan = nil; perItem = false; phase = "focus"; round = 0; sessionFinished = false; sessionStarted = false; completedIDs.removeAll(); remaining = duration * 60; currentIndex = 0; if !keepSelection { selected.removeAll(); selectedOrder.removeAll(); manualTasks.removeAll() } }
+}
+
+/// Optional study music: CanvasPro plays nothing itself, it opens the music app
+/// the student picked on study music. Off until they choose one, on this phone.
+enum StudyMusic {
+    static let key = "CanvasProStudyMusicApp"
+
+    @MainActor static func open(_ app: String) async {
+        let query = "study music"
+        let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? "study%20music"
+        let attempts: [String] = app == "spotify"
+            ? ["spotify:search:\(encoded)", "https://open.spotify.com/search/\(encoded)"]
+            // music.apple.com links open in the Music app.
+            : ["https://music.apple.com/search?term=\(encoded)"]
+        for link in attempts {
+            guard let url = URL(string: link) else { continue }
+            if await UIApplication.shared.open(url) { return }
+        }
+    }
+}
+
+/// Setup screen: choose Off, Apple Music or Spotify.
+private struct StudyMusicCard: View {
+    @AppStorage(StudyMusic.key) private var app = "off"
+    var body: some View {
+        CPGlassCard(title: "Study music", subtitle: "Optional. Opens your music app during a session.") {
+            Picker("Study music", selection: $app) {
+                Text("Off").tag("off")
+                Text("Apple Music").tag("apple")
+                Text("Spotify").tag("spotify")
+            }
+            .pickerStyle(.segmented)
+        }
+    }
+}
+
+/// During a session: one tap to the chosen app. Hidden when study music is off.
+private struct StudyMusicButton: View {
+    @AppStorage(StudyMusic.key) private var app = "off"
+    var body: some View {
+        if app == "apple" || app == "spotify" {
+            Button { Task { await StudyMusic.open(app) } } label: {
+                Label(app == "spotify" ? "Play study music on Spotify" : "Play study music on Apple Music", systemImage: "music.note")
+            }
+            .buttonStyle(CPButtonStyle(kind: .secondary, fullWidth: true))
+        }
+    }
 }
 
 extension AssignmentItem {

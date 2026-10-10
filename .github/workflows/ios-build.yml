@@ -23,16 +23,16 @@ jobs:
         run: |
           XCODE=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
           sudo xcode-select -s "$XCODE"
-          xcodebuild -version
+          echo "::notice::$(xcodebuild -version | tr '\n' ' ')"
 
       - name: Check native session storage failure paths
         run: python3 scripts/test-native-session-store.py
 
       - name: Compile the SwiftUI app (simulator, unsigned)
         run: |
-          set -o pipefail
           . ios/backend-public.env
           cd ios/App
+          status=0
           xcodebuild build \
             -project App.xcodeproj \
             -scheme App \
@@ -41,4 +41,8 @@ jobs:
             -quiet \
             SUPABASE_URL="$CANVASPRO_DEFAULT_SUPABASE_URL" \
             SUPABASE_PUBLISHABLE_KEY="$CANVASPRO_DEFAULT_SUPABASE_PUBLISHABLE_KEY" \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGNING_ALLOWED=NO > build.log 2>&1 || status=$?
+          cat build.log
+          # Compiler errors as annotations, readable on the run page without the log.
+          grep -E "error:" build.log | sort -u | head -40 | while IFS= read -r line; do echo "::error::${line#*/ios/App/}"; done
+          exit $status
