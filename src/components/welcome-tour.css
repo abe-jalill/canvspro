@@ -1,0 +1,273 @@
+/* First-visit tutorial. Same quiet look as the homepage: near-monochrome,
+   Schibsted Grotesk, real screenshots. It renders in a portal, so it carries
+   its own colors: dark by default, light for visitors who picked Light. */
+
+.wt-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(6, 7, 8, 0.72);
+}
+
+.wt {
+  --bg: #0c0d0f;
+  --ink: #ececed;
+  --ink-2: #a3a5aa;
+  --ink-3: #75777d;
+  --line: #1f2024;
+  --line-2: #2c2d32;
+  --button: #ececed;
+  --button-ink: #0c0d0f;
+
+  position: fixed;
+  z-index: 61;
+  left: 50%;
+  top: 50%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: min(880px, 100% - 24px);
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  transform: translate(-50%, -50%);
+  padding: clamp(18px, 3vw, 28px);
+  border: 1px solid var(--line-2);
+  border-radius: 14px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Schibsted Grotesk", var(--font-sans, system-ui, sans-serif);
+  font-size: 16px;
+  line-height: 1.55;
+  box-shadow: 0 32px 80px -24px rgba(0, 0, 0, 0.7);
+  -webkit-font-smoothing: antialiased;
+}
+:root[data-theme-mode="light"] .wt {
+  --bg: #fafaf8;
+  --ink: #111214;
+  --ink-2: #5b5e65;
+  --ink-3: #8b8e94;
+  --line: #e7e7e3;
+  --line-2: #d6d6d1;
+  --button: #111214;
+  --button-ink: #fafaf8;
+}
+:root[data-theme-mode="light"] .wt-overlay {
+  background: rgba(17, 18, 20, 0.4);
+}
+.wt:focus {
+  outline: none;
+}
+.wt *,
+.wt *::before,
+.wt *::after {
+  box-sizing: border-box;
+}
+.wt :where(h2, p, ol) {
+  margin: 0;
+}
+
+/* ── Top and bottom rows ── */
+.wt-top,
+.wt-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.wt-count {
+  font-size: 14px;
+  color: var(--ink-3);
+}
+.wt-skip {
+  padding: 4px 2px;
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 14.5px;
+  font-weight: 550;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.wt-skip:hover {
+  color: var(--ink);
+}
+
+/* ── Stage: screenshot beside text on wide screens, stacked on narrow ── */
+.wt-stage {
+  display: grid;
+  gap: 20px 32px;
+  align-items: center;
+  animation: wt-in 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.wt-stage:has(.wt-shot) {
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+}
+@media (max-width: 720px) {
+  .wt-stage:has(.wt-shot) {
+    grid-template-columns: 1fr;
+  }
+}
+.wt-shot {
+  overflow: hidden;
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  background: var(--line);
+}
+.wt-shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.wt-shot img.wt-shot-light,
+:root[data-theme-mode="light"] .wt-shot img.wt-shot-dark {
+  display: none;
+}
+:root[data-theme-mode="light"] .wt-shot img.wt-shot-light {
+  display: block;
+}
+
+.wt-title {
+  margin: 0;
+  font-size: clamp(1.4rem, 3.2vw, 1.9rem);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+.wt-body {
+  margin-top: 12px;
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+
+/* ── Setup step ── */
+.wt-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 20px;
+  padding: 0;
+  list-style: none;
+  counter-reset: wt;
+}
+.wt-list li {
+  position: relative;
+  padding-left: 36px;
+  counter-increment: wt;
+}
+.wt-list li::before {
+  content: counter(wt);
+  position: absolute;
+  left: 0;
+  top: 1px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--line-2);
+  border-radius: 50%;
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+}
+.wt-note {
+  margin-top: 18px;
+  font-size: 14.5px;
+  color: var(--ink-3);
+}
+
+/* ── Progress and buttons ── */
+.wt-dots {
+  display: flex;
+  gap: 6px;
+}
+.wt-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--line-2);
+  transition:
+    width 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 0.25s;
+}
+.wt-dots .is-on {
+  width: 20px;
+  border-radius: 3px;
+  background: var(--ink);
+}
+.wt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+.wt-primary,
+.wt-quiet {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 42px;
+  padding: 0 18px;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 550;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    opacity 0.15s,
+    background-color 0.15s;
+}
+.wt-primary {
+  border: 0;
+  background: var(--button);
+  color: var(--button-ink);
+}
+.wt-primary:hover {
+  opacity: 0.85;
+}
+.wt-quiet {
+  border: 1px solid var(--line-2);
+  background: none;
+  color: var(--ink);
+}
+.wt-quiet:hover {
+  background: var(--line);
+}
+.wt :is(a, button):focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+@media (max-width: 520px) {
+  .wt-bottom {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+  .wt-dots {
+    justify-content: center;
+  }
+  .wt-actions {
+    justify-content: stretch;
+  }
+  .wt-actions > * {
+    flex: 1 1 0;
+  }
+}
+
+@keyframes wt-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wt-stage {
+    animation: none;
+  }
+  .wt-dots span {
+    transition: none;
+  }
+}

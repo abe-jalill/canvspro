@@ -125,6 +125,28 @@
 .hp-bar__links a:not(.hp-button):hover {
   color: var(--ink);
 }
+.hp-bar__tour {
+  white-space: nowrap;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.hp-bar__tour:hover {
+  color: var(--ink);
+}
+@media (max-width: 420px) {
+  .hp-bar__links {
+    gap: 14px;
+    font-size: 14px;
+  }
+  .hp-bar__links a:not(.hp-button) {
+    white-space: nowrap;
+  }
+}
 @media (max-width: 600px) {
   .hp-bar__secondary {
     display: none;

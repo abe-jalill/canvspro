@@ -8,6 +8,8 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { HomeFooter } from "@/components/home-footer";
+import { WelcomeTour } from "@/components/welcome-tour";
+import { hasSeenWelcomeTour, markWelcomeTourSeen } from "@/lib/welcome-tour";
 import "./home.css";
 
 export const Route = createFileRoute("/")({
@@ -409,12 +411,16 @@ function useBreathe() {
 function LandingPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [screen, setScreen] = useState(0);
+  const [tourOpen, setTourOpen] = useState(false);
   const pageRef = useBreathe();
 
   useEffect(() => {
     let active = true;
     supabase.auth.getSession().then(({ data }) => {
-      if (active) setIsLoggedIn(Boolean(data.session));
+      if (!active) return;
+      setIsLoggedIn(Boolean(data.session));
+      // First visit, signed out: show the short tutorial once.
+      if (!data.session && !hasSeenWelcomeTour()) setTourOpen(true);
     });
     return () => {
       active = false;
@@ -438,6 +444,11 @@ function LandingPage() {
           <Link to="/canvas-grade-calculator" preload="intent" className="hp-bar__secondary">
             Grade calculator
           </Link>
+          {!isLoggedIn && (
+            <button type="button" className="hp-bar__tour" onClick={() => setTourOpen(true)}>
+              How it works
+            </button>
+          )}
           {!isLoggedIn && (
             <Link to="/auth" preload="intent">
               Sign in
@@ -598,6 +609,13 @@ function LandingPage() {
         </section>
       </main>
       <HomeFooter />
+      <WelcomeTour
+        open={tourOpen}
+        onClose={() => {
+          markWelcomeTourSeen();
+          setTourOpen(false);
+        }}
+      />
     </div>
   );
 }
