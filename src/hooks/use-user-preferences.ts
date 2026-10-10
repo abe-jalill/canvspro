@@ -137,6 +137,9 @@ export function useUserPreferenceKey<T>(
   const set = useSetUserPreference();
   const stored = all.data?.[key];
   const value = stored === undefined ? defaultValue : (stored as T);
+  // Skip database writes that would store the exact value already saved.
+  const unchanged = (next: T) =>
+    stored !== undefined && JSON.stringify(stored) === JSON.stringify(next);
   return {
     value,
     isLoading: all.isLoading,
@@ -144,11 +147,12 @@ export function useUserPreferenceKey<T>(
     set: (next) => {
       // Never write a value derived from an unloaded default: that is how
       // saved data used to get wiped on a slow connection.
-      if (!all.ready) return;
+      if (!all.ready || unchanged(next)) return;
       set.mutate({ key, value: next });
     },
     setAsync: async (next) => {
       if (!all.ready) throw new Error("Still loading your saved settings.");
+      if (unchanged(next)) return { key, value: next };
       return set.mutateAsync({ key, value: next });
     },
   };

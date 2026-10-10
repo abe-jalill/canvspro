@@ -69,6 +69,32 @@
     radial-gradient(50rem 35rem at 85% 12%, hsl(var(--primary) / 0.08), transparent 65%);
 }
 
+/* Wallpaper (Settings > Appearance > Background). One pre-blurred image per
+   palette and mode, so there is no live filter cost. It sits on a fixed layer
+   so it stays put while pages scroll, including on iOS, which ignores
+   background-attachment: fixed. "plain" keeps the solid palette background. */
+:root.dark[data-palette="forest"] { --wallpaper: url("/wallpapers/forest-dark.webp"); }
+:root.dark[data-palette="blue"] { --wallpaper: url("/wallpapers/blue-dark.webp"); }
+:root.dark[data-palette="violet"] { --wallpaper: url("/wallpapers/violet-dark.webp"); }
+:root.dark[data-palette="rose"] { --wallpaper: url("/wallpapers/rose-dark.webp"); }
+:root.light[data-palette="forest"] { --wallpaper: url("/wallpapers/forest-light.webp"); }
+:root.light[data-palette="blue"] { --wallpaper: url("/wallpapers/blue-light.webp"); }
+:root.light[data-palette="violet"] { --wallpaper: url("/wallpapers/violet-light.webp"); }
+:root.light[data-palette="rose"] { --wallpaper: url("/wallpapers/rose-light.webp"); }
+
+:root[data-palette][data-wallpaper="wave"] body {
+  background: transparent;
+}
+
+:root[data-palette][data-wallpaper="wave"] body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: hsl(var(--background)) var(--wallpaper, none) center / cover no-repeat;
+}
+
 .app-brand {
   display: inline-flex;
   align-items: center;

@@ -30,7 +30,8 @@ export const getUsageStatsFn = createServerFn({ method: "GET" })
 
     // Authorize against the account's real email, not anything the client sent.
     const { data: me, error: meError } = await supabaseAdmin.auth.admin.getUserById(context.userId);
-    if (meError || !isAdminEmail(me?.user?.email)) {
+    // A confirmed address only: an unverified sign-up can't claim an admin email.
+    if (meError || !me?.user?.email_confirmed_at || !isAdminEmail(me.user.email)) {
       throw new Error("Forbidden");
     }
 

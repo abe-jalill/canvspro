@@ -1,24 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import {
-  useEffect,
-  useRef,
-  useState,
-  type CSSProperties,
-  type PointerEvent as ReactPointerEvent,
-  type ReactNode,
-} from "react";
-import {
-  ArrowRight,
-  BellRing,
-  CalendarDays,
-  Check,
-  GraduationCap,
-  ListChecks,
-  LockKeyhole,
-  Megaphone,
-  Smartphone,
-  Sparkles,
-} from "lucide-react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Accordion,
@@ -26,18 +7,25 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { HomeFooter } from "@/components/home-footer";
 import "./home.css";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "CanvasPro — Make room for what matters" },
+      { title: "CanvasPro | Less Planning. More Doing." },
       {
         name: "description",
         content:
-          "Turn Canvas classes, assignments, grades, and deadlines into one clear plan. See what's next, plan the week, and study one thing at a time. Free for students.",
+          "Stay on top of assignments, manage deadlines, and organize your college workload with CanvasPro. Spend less time planning and more time getting things done.",
       },
       { property: "og:type", content: "website" },
+      { property: "og:title", content: "CanvasPro | Less Planning. More Doing." },
+      {
+        property: "og:description",
+        content:
+          "Stay on top of assignments, manage deadlines, and organize your college workload with CanvasPro. Spend less time planning and more time getting things done.",
+      },
       { property: "og:url", content: "https://canvaspro.app/" },
       {
         property: "og:image",
@@ -51,18 +39,18 @@ export const Route = createFileRoute("/")({
     ],
     links: [
       { rel: "canonical", href: "https://canvaspro.app/" },
-      // The first screen shows immediately; fetch it before anything else.
+      // The homepage's one typeface.
+      { rel: "preconnect", href: "https://fonts.googleapis.com" },
+      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
-        rel: "preload",
-        as: "image",
-        href: "/home/dashboard-light.webp",
-        media: "(prefers-color-scheme: light)",
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400..700&display=swap",
       },
+      // The first screenshot is the hero image; fetch it early.
       {
         rel: "preload",
         as: "image",
         href: "/home/dashboard-dark.webp",
-        media: "(prefers-color-scheme: dark)",
       },
     ],
     scripts: [
@@ -85,105 +73,115 @@ export const Route = createFileRoute("/")({
   component: LandingPage,
 });
 
-/** The screens the story walks through, in order. Screenshots live in /public/home. */
+/** Real screens of the app. Screenshots live in /public/home, in light and dark. */
 const SCREENS = [
   {
     id: "dashboard",
     label: "Dashboard",
-    path: "canvaspro.app/dashboard",
-    kicker: "01 · Dashboard",
-    title: "Your whole day, at a glance.",
-    body: "Grades, what to do next, and everything due in the next 24 hours, the moment you open it.",
+    caption: "Your grades, the next thing to do, and everything due in the next 24 hours.",
     alt: "The CanvasPro dashboard with a greeting, the next assignment up, and class grades.",
   },
   {
     id: "coming-up",
     label: "Coming up",
-    path: "canvaspro.app/focus",
-    kicker: "02 · Coming up",
-    title: "See the week before it sees you.",
-    body: "Every deadline from every class, one day at a time, with how long each one should take.",
+    caption: "The week ahead, one day at a time, with how long each assignment should take.",
     alt: "The Coming Up page with a seven-day strip and assignments grouped by day.",
   },
   {
     id: "study",
     label: "Study session",
-    path: "canvaspro.app/study-session",
-    kicker: "03 · Study session",
-    title: "Pick the work. Set the time. Begin.",
-    body: "Choose your assignments, then a total time, time for each one, or Pomodoro. CanvasPro keeps your place.",
+    caption: "Pick assignments, choose a total time, time per assignment, or Pomodoro, and start.",
     alt: "The Study Session page: pick assignments on the left, your session and its time on the right.",
   },
   {
     id: "assignments",
     label: "Assignments",
-    path: "canvaspro.app/assignments",
-    kicker: "04 · Assignments",
-    title: "Nothing slips through.",
-    body: "One list for every class, ordered so the right thing is always on top.",
+    caption: "Every class in one list, ordered so the most pressing work is on top.",
     alt: "The Assignments page with a weekly count and a ranked list of work.",
   },
 ] as const;
 
-const FLOW = [
-  "Weighted Next up",
-  "Assignment progress",
-  "Per-assignment timers",
-  "Pomodoro",
-  "Coming up, by day",
-  "Workload heatmap",
-  "GPA",
-  "What-if grades",
-  "Announcements",
-  "Deadline reminders",
-  "Class nicknames",
-  "Class schedule",
-  "Custom dashboard",
-  "Get It Done plan",
-  "Calendar",
-  "Light and dark",
+/** One student's week. `sorted` is the order CanvasPro would suggest. */
+const TASKS = [
+  {
+    id: "webassign",
+    title: "WebAssign 3.4: Derivatives",
+    course: "Calculus I",
+    due: "Due today, 11:59 PM",
+    today: true,
+    time: "45 min",
+    sorted: 0,
+  },
+  {
+    id: "lab-report",
+    title: "Lab Report 2",
+    course: "General Chemistry",
+    due: "Due tomorrow",
+    today: false,
+    time: "2 hr",
+    sorted: 1,
+  },
+  {
+    id: "reading",
+    title: "Reading Response 5",
+    course: "Intro to Psychology",
+    due: "Due Thursday",
+    today: false,
+    time: "30 min",
+    sorted: 2,
+  },
+  {
+    id: "prelab",
+    title: "Lab 4: Osmosis Prelab",
+    course: "Cell Biology",
+    due: "Due Friday",
+    today: false,
+    time: "40 min",
+    sorted: 3,
+  },
+  {
+    id: "bibliography",
+    title: "Annotated Bibliography",
+    course: "College Writing",
+    due: "Due Monday",
+    today: false,
+    time: "1.5 hr",
+    sorted: 4,
+  },
 ];
 
-const FEATURES = [
+/** The same work as Canvas lists it: alphabetical, with no sense of what comes first. */
+const CANVAS_ORDER = [...TASKS].sort((a, b) => a.title.localeCompare(b.title));
+const SORTED_ORDER = [...TASKS].sort((a, b) => a.sorted - b.sorted);
+
+const MORE = [
   {
-    icon: GraduationCap,
     title: "Grades and GPA",
-    body: "Every class grade in one place, your GPA, and a what-if calculator for the final.",
+    body: "Every class grade and your GPA in one place, plus a what-if calculator for the final.",
   },
   {
-    icon: CalendarDays,
-    title: "Calendar and workload",
-    body: "See the busy days coming and spread the work out before they arrive.",
-  },
-  {
-    icon: Megaphone,
-    title: "Announcements",
-    body: "New posts from every class, without opening each course.",
-  },
-  {
-    icon: BellRing,
     title: "Reminders",
-    body: "A gentle nudge before things are due, even when CanvasPro is closed.",
+    body: "A heads-up one to three days before things are due, even when CanvasPro is closed.",
   },
   {
-    icon: ListChecks,
-    title: "Get It Done",
-    body: "A short plan for today, built from what's due and how long it takes.",
+    title: "Study sessions",
+    body: "Line up a few assignments, set a timer or use Pomodoro, and add white or brown noise.",
   },
   {
-    icon: Smartphone,
-    title: "Every screen",
-    body: "Laptop or phone, light or dark. It feels the same everywhere.",
+    title: "Class schedule",
+    body: "Enter your class times once and get a reminder before each one starts.",
+  },
+  {
+    title: "Announcements",
+    body: "New posts from every class in one feed, without opening each course.",
+  },
+  {
+    title: "Your colors",
+    body: "Four color themes, light or dark, and a wallpaper to match.",
   },
 ];
 
-const STATEMENT =
-  "CanvasPro reads your Canvas, sorts what matters, and hands you one clear next step, so the rest of your day can breathe.".split(
-    " ",
-  );
-const STATEMENT_ACCENT = new Set(["one", "clear", "next", "step,"]);
-
-const faq = [
+const FAQ = [
   {
     question: "What does CanvasPro bring together?",
     answer:
@@ -191,8 +189,7 @@ const faq = [
   },
   {
     question: "Is CanvasPro free?",
-    answer:
-      "Yes. The dashboard, planning tools, grade calculator, and notifications are free, with no credit card.",
+    answer: "Yes. 100% free, no payment method required.",
   },
   {
     question: "How do I connect my Canvas account?",
@@ -210,229 +207,209 @@ const faq = [
   },
 ];
 
-/** A heading split into lines that rise one after another when it scrolls into view. */
-function Lines({ lines }: { lines: ReactNode[] }) {
+// Layout effects run before paint on the client; the server has no layout.
+const useBrowserLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
+
+function prefersReducedMotion() {
   return (
-    <>
-      {lines.map((line, index) => (
-        <span className="hm-line" key={index} style={{ "--line": index } as CSSProperties}>
-          <span>{line}</span>
+    typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
+/**
+ * A week of work as Canvas lists it. When it scrolls into view it sorts itself
+ * into the order to do it; visitors can check off the top task and watch the
+ * next one move up. Rows glide to their new places (measured before and after).
+ */
+function SortingWeek() {
+  const [sorted, setSorted] = useState(false);
+  const [done, setDone] = useState<string[]>([]);
+  const [finishing, setFinishing] = useState<string | null>(null);
+  const sheet = useRef<HTMLDivElement>(null);
+  const rows = useRef(new Map<string, HTMLLIElement>());
+  const tops = useRef(new Map<string, number>());
+
+  // Sort once the visitor can actually see it happen.
+  useEffect(() => {
+    const el = sheet.current;
+    if (!el || prefersReducedMotion() || !("IntersectionObserver" in window)) {
+      setSorted(true);
+      return;
+    }
+    let timer = 0;
+    const watch = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return;
+        watch.disconnect();
+        timer = window.setTimeout(() => setSorted(true), 700);
+      },
+      { threshold: 0.6 },
+    );
+    watch.observe(el);
+    return () => {
+      watch.disconnect();
+      window.clearTimeout(timer);
+    };
+  }, []);
+
+  const visible = (sorted ? SORTED_ORDER : CANVAS_ORDER).filter((task) => !done.includes(task.id));
+
+  // Each row glides from where it was to where it is now. offsetTop is
+  // relative to the list, so the page's own scrolling doesn't count.
+  useBrowserLayoutEffect(() => {
+    const still = prefersReducedMotion();
+    rows.current.forEach((row, id) => {
+      const top = row.offsetTop;
+      const before = tops.current.get(id);
+      if (!still && before !== undefined && before !== top) {
+        row.animate([{ transform: `translateY(${before - top}px)` }, { transform: "none" }], {
+          duration: 820,
+          easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+        });
+      }
+      tops.current.set(id, top);
+    });
+  });
+
+  function finish(id: string) {
+    if (finishing) return;
+    setFinishing(id);
+    window.setTimeout(
+      () => {
+        tops.current.delete(id);
+        setDone((list) => [...list, id]);
+        setFinishing(null);
+      },
+      prefersReducedMotion() ? 0 : 480,
+    );
+  }
+
+  function startOver() {
+    tops.current.clear();
+    setDone([]);
+  }
+
+  return (
+    <div className="hp-week" ref={sheet} aria-label="Example: one student's week">
+      <div className="hp-week__head">
+        <span>This week</span>
+        <span className="hp-week__state" aria-live="polite">
+          {sorted ? "Sorted by CanvasPro" : "As Canvas lists them"}
         </span>
-      ))}
-    </>
-  );
-}
-
-function Screenshot({ id, alt, eager }: { id: string; alt: string; eager?: boolean }) {
-  return (
-    <picture>
-      <source srcSet={`/home/${id}-dark.webp`} media="(prefers-color-scheme: dark)" />
-      <img
-        src={`/home/${id}-light.webp`}
-        alt={alt}
-        width={1600}
-        height={1000}
-        loading={eager ? "eager" : "lazy"}
-        decoding="async"
-      />
-    </picture>
-  );
-}
-
-function Laptop({ path, children }: { path: string; children: ReactNode }) {
-  return (
-    <div className="hm-laptop">
-      <div className="hm-laptop__lid">
-        <div className="hm-laptop__bar" aria-hidden="true">
-          <span className="hm-laptop__dots">
-            <i />
-            <i />
-            <i />
-          </span>
-          <span className="hm-laptop__url" data-url>
-            {path}
-          </span>
-        </div>
-        <div className="hm-laptop__screen">{children}</div>
       </div>
-      <div className="hm-laptop__base" aria-hidden="true" />
+      {visible.length === 0 ? (
+        <div className="hp-week__empty">
+          <p>Nothing left this week.</p>
+          <button type="button" onClick={startOver}>
+            Start over
+          </button>
+        </div>
+      ) : (
+        <ol className="hp-week__list">
+          {visible.map((task, index) => {
+            const next = sorted && index === 0;
+            return (
+              <li
+                key={task.id}
+                ref={(el) => {
+                  if (el) rows.current.set(task.id, el);
+                  else rows.current.delete(task.id);
+                }}
+                className={
+                  "hp-task" +
+                  (next ? " is-next" : "") +
+                  (finishing === task.id ? " is-finishing" : "")
+                }
+              >
+                <button
+                  type="button"
+                  className="hp-task__check"
+                  onClick={() => finish(task.id)}
+                  disabled={!sorted || finishing !== null}
+                  aria-label={`Mark ${task.title} done`}
+                />
+                <div className="hp-task__body">
+                  <p className="hp-task__title">{task.title}</p>
+                  <p className="hp-task__meta">
+                    {task.course} ·{" "}
+                    <span className={task.today ? "hp-task__today" : undefined}>{task.due}</span>
+                  </p>
+                </div>
+                <div className="hp-task__side">
+                  {next && <span className="hp-task__next">Next</span>}
+                  <span className="hp-task__time">{task.time}</span>
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      )}
     </div>
   );
 }
 
-const clamp = (value: number, min = 0, max = 1) => Math.min(max, Math.max(min, value));
-const smooth = (value: number) => {
-  const t = clamp(value);
-  return t * t * (3 - 2 * t);
-};
-
 /**
- * Everything that moves with the page. Scroll and pointer set a target; the
- * screen glides toward it each frame, so motion stays fluid instead of
- * jumping with every wheel step. Each screen holds still for a while before
- * the next one slides up into the laptop.
+ * The page is dark unless the visitor picked Light in the app, so both
+ * screenshots are on the page and CSS shows one. The hidden one is lazy, and
+ * hidden lazy images never download.
  */
-function useHomeMotion(onStep: (index: number) => void) {
-  const rootRef = useRef<HTMLDivElement>(null);
-  const storyRef = useRef<HTMLElement>(null);
-  const stageRef = useRef<HTMLDivElement>(null);
-  const statementRef = useRef<HTMLParagraphElement>(null);
-  const stepsRef = useRef<HTMLDivElement>(null);
+function Shot({ id, alt, eager }: { id: string; alt: string; eager?: boolean }) {
+  return (
+    <>
+      <img
+        className="hp-shot-dark"
+        src={`/home/${id}-dark.webp`}
+        alt={alt}
+        width={1600}
+        height={1000}
+        loading={eager ? "eager" : "lazy"}
+        fetchPriority={eager ? "high" : undefined}
+        decoding="async"
+      />
+      <img
+        className="hp-shot-light"
+        src={`/home/${id}-light.webp`}
+        alt={alt}
+        width={1600}
+        height={1000}
+        loading="lazy"
+        decoding="async"
+      />
+    </>
+  );
+}
 
+/** Sections breathe in as they first scroll into view. */
+function useBreathe() {
+  const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const root = rootRef.current;
-    const story = storyRef.current;
-    const stage = stageRef.current;
-    if (!root || !story || !stage) return;
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const shots = Array.from(stage.querySelectorAll<HTMLElement>(".hm-shot"));
-    const url = stage.querySelector<HTMLElement>("[data-url]");
-    const panels = Array.from(story.querySelectorAll<HTMLElement>(".hm-copy__panel"));
-    const tabs = Array.from(story.querySelectorAll<HTMLElement>(".hm-steps-nav button"));
-    const words = Array.from(statementRef.current?.querySelectorAll<HTMLElement>("span") ?? []);
-    const last = SCREENS.length - 1;
-
-    let frame = 0;
-    let shown = -1;
-    let current = 0;
-    let target = 0;
-    let raw = 0;
-
-    const measure = () => {
-      const vh = window.innerHeight;
-      const rect = story.getBoundingClientRect();
-      const travel = Math.max(1, rect.height - (vh - 64));
-      raw = clamp((64 - rect.top) / travel) * last;
-      if (reduce.matches) {
-        target = Math.round(raw);
-      } else {
-        const segment = Math.min(last - 1, Math.floor(raw));
-        target = raw >= last ? last : segment + smooth((raw - segment - 0.3) / 0.4);
-      }
-    };
-
-    const render = () => {
-      frame = 0;
-      measure();
-      const vh = window.innerHeight;
-      const doc = document.documentElement;
-      root.style.setProperty(
-        "--hm-read",
-        clamp(window.scrollY / Math.max(1, doc.scrollHeight - vh)).toFixed(4),
-      );
-
-      // Glide toward the target so the slide stays smooth.
-      current += (target - current) * (reduce.matches ? 1 : 0.14);
-      if (Math.abs(target - current) < 0.0005) current = target;
-      const p = current;
-
-      shots.forEach((shot, index) => {
-        shot.style.setProperty("--hm-offset", clamp(index - p, -1, 1).toFixed(4));
-      });
-      panels.forEach((panel, index) => {
-        const distance = index - p;
-        panel.style.setProperty("--hm-show", (1 - clamp(Math.abs(distance) * 1.7)).toFixed(3));
-        panel.style.setProperty("--hm-shift", (distance * 40).toFixed(1));
-        panel.classList.toggle("is-active", Math.round(p) === index);
-      });
-
-      const active = Math.round(p);
-      tabs.forEach((tab, index) => {
-        tab.style.setProperty(
-          "--hm-fill",
-          index === active ? clamp(raw - index + 0.5).toFixed(3) : "0",
-        );
-      });
-      if (active !== shown) {
-        shown = active;
-        if (url) url.textContent = SCREENS[active].path;
-        onStep(active);
-      }
-
-      // A sentence that lights up word by word.
-      const statement = statementRef.current;
-      if (statement && words.length) {
-        const box = statement.getBoundingClientRect();
-        if (box.bottom > 0 && box.top < vh) {
-          const reveal = clamp((vh * 0.85 - box.top) / (box.height + vh * 0.25)) * words.length;
-          words.forEach((word, index) => {
-            word.style.setProperty("--hm-word", clamp(reveal - index).toFixed(3));
-          });
-        }
-      }
-
-      // How it works: a rail fills as you read down the steps.
-      const steps = stepsRef.current;
-      if (steps) {
-        const box = steps.getBoundingClientRect();
-        if (box.bottom > 0 && box.top < vh) {
-          const line = vh * 0.6;
-          steps.style.setProperty(
-            "--hm-steps-fill",
-            clamp((line - box.top) / box.height).toFixed(3),
-          );
-          steps.querySelectorAll<HTMLElement>(".hm-step").forEach((step) => {
-            step.classList.toggle("is-reached", step.getBoundingClientRect().top + 24 < line);
-          });
-        }
-      }
-
-      if (current !== target) frame = window.requestAnimationFrame(render);
-    };
-
-    const request = () => {
-      if (!frame) frame = window.requestAnimationFrame(render);
-    };
-    measure();
-    current = target;
-    render();
-    window.addEventListener("scroll", request, { passive: true });
-    window.addEventListener("resize", request);
-    reduce.addEventListener("change", request);
-    return () => {
-      window.removeEventListener("scroll", request);
-      window.removeEventListener("resize", request);
-      reduce.removeEventListener("change", request);
-      if (frame) window.cancelAnimationFrame(frame);
-    };
-  }, [onStep]);
-
-  // Headings and cards rise in once, as they scroll into view.
-  useEffect(() => {
-    const root = rootRef.current;
-    const elements = root?.querySelectorAll<HTMLElement>("[data-reveal], [data-lines]") ?? [];
-    if (
-      !("IntersectionObserver" in window) ||
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    ) {
-      elements.forEach((element) => element.classList.add("is-visible"));
-      return;
-    }
-    root?.classList.add("hm--motion");
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (!entry.isIntersecting) return;
-          entry.target.classList.add("is-visible");
-          observer.unobserve(entry.target);
-        });
-      },
-      { threshold: 0.12, rootMargin: "0px 0px -6% 0px" },
+    const root = ref.current;
+    if (!root || prefersReducedMotion() || !("IntersectionObserver" in window)) return;
+    // Only what starts below the fold waits; what's already on screen stays put.
+    const waiting = Array.from(root.querySelectorAll<HTMLElement>("[data-breathe]")).filter(
+      (el) => el.getBoundingClientRect().top > window.innerHeight * 0.92,
     );
-    elements.forEach((element) => observer.observe(element));
-    return () => {
-      observer.disconnect();
-      root?.classList.remove("hm--motion");
-    };
+    waiting.forEach((el) => el.classList.add("is-waiting"));
+    const watch = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          entry.target.classList.remove("is-waiting");
+          watch.unobserve(entry.target);
+        }
+      },
+      { threshold: 0.15, rootMargin: "0px 0px -6% 0px" },
+    );
+    waiting.forEach((el) => watch.observe(el));
+    return () => watch.disconnect();
   }, []);
-
-  return { rootRef, storyRef, stageRef, statementRef, stepsRef };
+  return ref;
 }
 
 function LandingPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [step, setStep] = useState(0);
-  const { rootRef, storyRef, stageRef, statementRef, stepsRef } = useHomeMotion(setStep);
+  const [screen, setScreen] = useState(0);
+  const pageRef = useBreathe();
 
   useEffect(() => {
     let active = true;
@@ -445,313 +422,182 @@ function LandingPage() {
   }, []);
 
   const cta = isLoggedIn ? "/dashboard" : "/signup";
-
-  /** Scrolls to the point where a screen sits still in the laptop. */
-  function goToScreen(index: number) {
-    const story = storyRef.current;
-    if (!story) return;
-    const travel = story.offsetHeight - (window.innerHeight - 64);
-    const top = story.getBoundingClientRect().top + window.scrollY - 64;
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    window.scrollTo({
-      top: top + (travel * index) / (SCREENS.length - 1) + 2,
-      behavior: reduce ? "auto" : "smooth",
-    });
-  }
-
-  /** Moves the glow on a feature card to the pointer. */
-  function followPointer(event: ReactPointerEvent<HTMLElement>) {
-    const card = (event.target as HTMLElement).closest<HTMLElement>(".hm-feature");
-    if (!card) return;
-    const box = card.getBoundingClientRect();
-    card.style.setProperty("--mx", `${event.clientX - box.left}px`);
-    card.style.setProperty("--my", `${event.clientY - box.top}px`);
-  }
-
-  const ctaButtons = (
-    <div className="hm-copy__actions">
-      <Link to={cta} preload="intent" className="hm-button">
-        {isLoggedIn ? "Open your dashboard" : "Get started free"}
-        <ArrowRight size={16} aria-hidden="true" />
-      </Link>
-      {!isLoggedIn && (
-        <Link to="/auth" preload="intent" className="hm-button hm-button--quiet">
-          Sign in
-        </Link>
-      )}
-    </div>
-  );
-
-  const copy = (screen: (typeof SCREENS)[number], index: number) => (
-    <>
-      <span className="hm-kicker">{screen.kicker}</span>
-      {index === 0 ? <h1>{screen.title}</h1> : <h2>{screen.title}</h2>}
-      <p>{screen.body}</p>
-      {index === 0 && ctaButtons}
-    </>
-  );
-
-  const flowRow = (items: string[], reverse = false) => (
-    <div className={"hm-marquee" + (reverse ? " hm-marquee--reverse" : "")}>
-      {[...items, ...items].map((item, index) => (
-        <span
-          className="hm-pill"
-          key={index}
-          aria-hidden={index >= items.length ? true : undefined}
-        >
-          {index % 2 ? (
-            <Check size={15} aria-hidden="true" />
-          ) : (
-            <Sparkles size={15} aria-hidden="true" />
-          )}
-          {item}
-        </span>
-      ))}
-    </div>
-  );
+  const ctaLabel = isLoggedIn ? "Open your dashboard" : "Get started free";
 
   return (
-    <div className="hm" ref={rootRef}>
-      <div className="hm-aurora" aria-hidden="true">
-        <i />
-        <i />
-        <i />
-        <i />
-      </div>
-      <a className="hm-skip" href="#main">
+    <div className="hp" ref={pageRef}>
+      <a className="hp-skip" href="#main">
         Skip to content
       </a>
-      <div className="hm-progress" aria-hidden="true">
-        <span />
-      </div>
 
-      <header className="hm-nav">
-        <Link to="/" className="hm-brand" aria-label="CanvasPro home">
-          canvaspro<span>.</span>
+      <header className="hp-bar">
+        <Link to="/" className="hp-brand" aria-label="CanvasPro home">
+          CanvasPro
         </Link>
-        <nav className="hm-nav__links" aria-label="Main navigation">
-          <a href="#features">Features</a>
-          <a href="#how-it-works">How it works</a>
-          <a href="#questions">Questions</a>
-          <Link to="/canvas-grade-calculator" preload="intent">
+        <nav className="hp-bar__links" aria-label="Main navigation">
+          <Link to="/canvas-grade-calculator" preload="intent" className="hp-bar__secondary">
             Grade calculator
           </Link>
-        </nav>
-        <div className="hm-nav__actions">
-          <Link
-            to={isLoggedIn ? "/dashboard" : "/auth"}
-            preload="intent"
-            className="hm-nav__signin"
-          >
-            {isLoggedIn ? "Dashboard" : "Sign in"}
-          </Link>
-          <Link to={cta} preload="intent" className="hm-button hm-button--small">
+          {!isLoggedIn && (
+            <Link to="/auth" preload="intent">
+              Sign in
+            </Link>
+          )}
+          <Link to={cta} preload="intent" className="hp-button hp-button--small">
             {isLoggedIn ? "Open app" : "Get started"}
           </Link>
-        </div>
+        </nav>
       </header>
 
       <main id="main">
-        <section
-          className="hm-story"
-          ref={storyRef}
-          style={{ "--hm-steps": SCREENS.length } as CSSProperties}
-          aria-label="A look inside CanvasPro"
-        >
-          <div className="hm-story__pin">
-            {/* Wide screens: text on the left, one laptop whose screen slides. */}
-            <div className="hm-copy">
-              {SCREENS.map((screen, index) => (
-                <article
-                  key={screen.id}
-                  className={"hm-copy__panel" + (index === 0 ? " is-active" : "")}
-                  style={{ "--hm-show": index === 0 ? 1 : 0 } as CSSProperties}
-                >
-                  {copy(screen, index)}
-                </article>
-              ))}
+        <section className="hp-hero" aria-labelledby="hp-title">
+          <h1 id="hp-title" className="hp-rise">
+            Every Canvas deadline, <span className="hp-quiet">in the order you should do it.</span>
+          </h1>
+          <div className="hp-hero__side">
+            <p className="hp-lede hp-rise">
+              CanvasPro reads your courses and puts your assignments, grades and announcements on
+              one calm page. Free for students.
+            </p>
+            <div className="hp-actions hp-rise">
+              <Link to={cta} preload="intent" className="hp-button">
+                {ctaLabel}
+              </Link>
+              {!isLoggedIn && (
+                <Link to="/auth" preload="intent" className="hp-link">
+                  Sign in
+                </Link>
+              )}
             </div>
-            <div className="hm-stage" ref={stageRef}>
-              <Laptop path={SCREENS[0].path}>
-                {SCREENS.map((screen, index) => (
-                  <div
-                    key={screen.id}
-                    className="hm-shot"
-                    style={{ "--hm-offset": index === 0 ? 0 : 1 } as CSSProperties}
-                    aria-hidden={index !== step}
-                  >
-                    <Screenshot id={screen.id} alt={screen.alt} eager={index === 0} />
-                  </div>
-                ))}
-              </Laptop>
-            </div>
-            <div className="hm-steps-nav" role="tablist" aria-label="Screens">
-              {SCREENS.map((screen, index) => (
-                <button
-                  key={screen.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={index === step}
-                  className={index === step ? "is-active" : undefined}
-                  onClick={() => goToScreen(index)}
-                >
-                  {screen.label}
-                </button>
-              ))}
-            </div>
+          </div>
+        </section>
 
-            {/* Phones: each screen follows its own text. */}
-            <div className="hm-stack">
-              {SCREENS.map((screen, index) => (
-                // The first screen is what visitors see first, so it never waits to fade in.
-                <div key={screen.id} data-reveal={index > 0 ? true : undefined}>
-                  <div className="hm-copy__panel">{copy(screen, index)}</div>
-                  <Laptop path={screen.path}>
-                    <div className="hm-shot">
-                      <Screenshot id={screen.id} alt={screen.alt} eager={index === 0} />
-                    </div>
-                  </Laptop>
+        <section className="hp-screens hp-rise" aria-label="The app">
+          <div className="hp-tabs" role="tablist" aria-label="Screens">
+            {SCREENS.map((item, index) => (
+              <button
+                key={item.id}
+                type="button"
+                role="tab"
+                id={`hp-tab-${item.id}`}
+                aria-controls="hp-screen-panel"
+                aria-selected={index === screen}
+                onClick={() => setScreen(index)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+          <figure
+            className="hp-screens__stage"
+            id="hp-screen-panel"
+            role="tabpanel"
+            aria-labelledby={`hp-tab-${SCREENS[screen].id}`}
+          >
+            <div className="hp-screens__frame">
+              {SCREENS.map((item, index) => (
+                <div
+                  key={item.id}
+                  className={"hp-screens__shot" + (index === screen ? " is-shown" : "")}
+                  aria-hidden={index !== screen}
+                >
+                  <Shot id={item.id} alt={item.alt} eager={index === 0} />
                 </div>
               ))}
             </div>
+            <figcaption key={screen}>{SCREENS[screen].caption}</figcaption>
+          </figure>
+        </section>
+
+        <section className="hp-statement" aria-label="Why CanvasPro">
+          <p data-breathe>
+            Canvas tells you everything.{" "}
+            <span className="hp-quiet">CanvasPro tells you what&rsquo;s next.</span>
+          </p>
+        </section>
+
+        <section className="hp-split" aria-labelledby="hp-sort-title">
+          <div className="hp-split__text" data-breathe>
+            <h2 id="hp-sort-title">Sorted by what comes first</h2>
+            <p>
+              Canvas lists work course by course. CanvasPro looks at due dates, points and how long
+              each assignment takes, then puts the next thing to do at the top.
+            </p>
+            <p className="hp-muted">Check off the top task to see the next one move up.</p>
+          </div>
+          <div data-breathe style={{ "--d": "0.12s" } as CSSProperties}>
+            <SortingWeek />
           </div>
         </section>
 
-        <p className="hm-statement" id="why" ref={statementRef}>
-          {STATEMENT.map((word, index) => (
-            <span key={index} className={STATEMENT_ACCENT.has(word) ? "is-accent" : undefined}>
-              {word}{" "}
-            </span>
-          ))}
-        </p>
-
-        <section className="hm-band" id="flow" aria-labelledby="hm-band-title">
-          <div className="hm-band__head" data-reveal>
-            <span className="hm-kicker">All of it, built in</span>
-            <h2 id="hm-band-title" data-lines>
-              <Lines lines={["Everything you need.", "Nothing you don't."]} />
-            </h2>
-            <p>Every tool works from your real Canvas data, so there's nothing to set up twice.</p>
+        <section className="hp-split" aria-labelledby="hp-more-title">
+          <div className="hp-split__text" data-breathe>
+            <h2 id="hp-more-title">Also in CanvasPro</h2>
           </div>
-          <div className="hm-marquees">
-            {flowRow(FLOW.slice(0, 8))}
-            {flowRow(FLOW.slice(8), true)}
-          </div>
-        </section>
-
-        <section className="hm-section" id="features" aria-labelledby="hm-features-title">
-          <div className="hm-section__head" data-reveal>
-            <span className="hm-kicker">More than four screens</span>
-            <h2 id="hm-features-title" data-lines>
-              <Lines lines={["The rest of your semester,", <em key="em">in its place.</em>]} />
-            </h2>
-          </div>
-          <div className="hm-grid" onPointerMove={followPointer}>
-            {FEATURES.map(({ icon: Icon, title, body }, index) => (
-              <article
-                key={title}
-                className="hm-feature"
-                data-reveal
-                style={{ "--delay": index } as CSSProperties}
-              >
-                <span className="hm-feature__icon">
-                  <Icon size={20} aria-hidden="true" />
-                </span>
-                <h3>{title}</h3>
-                <p>{body}</p>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section className="hm-section" id="how-it-works" aria-labelledby="hm-steps-title">
-          <div className="hm-section__head" data-reveal>
-            <span className="hm-kicker">Begin simply</span>
-            <h2 id="hm-steps-title" data-lines>
-              <Lines lines={["Three small steps.", <em key="em">A lot more breathing room.</em>]} />
-            </h2>
-          </div>
-          <div className="hm-steps" ref={stepsRef}>
-            <span className="hm-steps__rail" aria-hidden="true">
-              <i />
-            </span>
-            {[
-              ["01", "Create your space", "Make a free CanvasPro account in minutes."],
-              [
-                "02",
-                "Connect Canvas",
-                "Add a personal access token from your school's Canvas settings.",
-              ],
-              [
-                "03",
-                "Find your rhythm",
-                "See your classes, pick a next task, and make the day yours.",
-              ],
-            ].map(([number, title, detail], index) => (
-              <div
-                className="hm-step"
-                key={number}
-                data-reveal
-                style={{ "--delay": index } as CSSProperties}
-              >
-                <span>{number}</span>
-                <strong>{title}</strong>
-                <p>{detail}</p>
+          <dl className="hp-more" data-breathe style={{ "--d": "0.12s" } as CSSProperties}>
+            {MORE.map((item) => (
+              <div key={item.title}>
+                <dt>{item.title}</dt>
+                <dd>{item.body}</dd>
               </div>
             ))}
+          </dl>
+        </section>
+
+        <section className="hp-split" aria-labelledby="hp-setup-title">
+          <div className="hp-split__text" data-breathe>
+            <h2 id="hp-setup-title">Set up in a few minutes</h2>
           </div>
-          <div className="hm-trust" data-reveal>
-            <LockKeyhole size={16} aria-hidden="true" />
-            <span>Your school password stays with your school.</span>
+          <div className="hp-setup" data-breathe style={{ "--d": "0.12s" } as CSSProperties}>
+            <p>
+              Make a free account. In Canvas, open Account, then Settings, and create a new access
+              token. Paste it into CanvasPro, and your classes, grades and deadlines show up right
+              away.
+            </p>
+            <p className="hp-muted">
+              You never type your school password into CanvasPro. The token only lets it read your
+              courses, and you can revoke it in Canvas at any time.
+            </p>
           </div>
         </section>
 
-        <section
-          className="hm-section hm-questions"
-          id="questions"
-          aria-labelledby="hm-questions-title"
-        >
-          <div className="hm-section__head" data-reveal>
-            <span className="hm-kicker">Good to know</span>
-            <h2 id="hm-questions-title" data-lines>
-              <Lines lines={["A few things", <em key="em">you might wonder.</em>]} />
-            </h2>
+        <section className="hp-split" aria-labelledby="hp-faq-title">
+          <div className="hp-split__text" data-breathe>
+            <h2 id="hp-faq-title">Questions</h2>
           </div>
-          <Accordion type="single" collapsible className="hm-questions__list" data-reveal>
-            {faq.map((item, index) => (
-              <AccordionItem key={item.question} value={"question-" + index}>
-                <AccordionTrigger>{item.question}</AccordionTrigger>
-                <AccordionContent>{item.answer}</AccordionContent>
+          <Accordion
+            type="single"
+            collapsible
+            className="hp-faq"
+            data-breathe
+            style={{ "--d": "0.12s" } as CSSProperties}
+          >
+            {FAQ.map((item, index) => (
+              <AccordionItem
+                key={item.question}
+                value={"question-" + index}
+                className="hp-faq__item"
+              >
+                <AccordionTrigger className="hp-faq__q">{item.question}</AccordionTrigger>
+                <AccordionContent className="hp-faq__a">{item.answer}</AccordionContent>
               </AccordionItem>
             ))}
           </Accordion>
         </section>
 
-        <section className="hm-section hm-finale" aria-labelledby="hm-finale-title">
-          <div className="hm-finale__glow" aria-hidden="true" />
-          <span className="hm-kicker" data-reveal>
-            Free for every student
-          </span>
-          <h2 id="hm-finale-title" data-lines>
-            <Lines
-              lines={[
-                "Less looking.",
-                <>
-                  More <em>living.</em>
-                </>,
-              ]}
-            />
+        <section className="hp-end" aria-labelledby="hp-end-title">
+          <h2 id="hp-end-title" data-breathe>
+            Try it with your own classes.
           </h2>
-          <p data-reveal>A place for your coursework to make sense.</p>
-          <div data-reveal>
-            <Link to={cta} preload="intent" className="hm-button">
-              {isLoggedIn ? "Open your dashboard" : "Get started for free"}
-              <ArrowRight size={16} aria-hidden="true" />
+          <div className="hp-actions" data-breathe style={{ "--d": "0.12s" } as CSSProperties}>
+            <Link to={cta} preload="intent" className="hp-button">
+              {ctaLabel}
             </Link>
+            <span className="hp-muted">Free for students. No card needed.</span>
           </div>
-          <small data-reveal>No subscription. No credit card.</small>
         </section>
       </main>
+      <HomeFooter />
     </div>
   );
 }

@@ -28,6 +28,7 @@ import { maintainBackgroundPush } from "@/lib/push-client";
 import { isOfflineLike, readStoredUser } from "@/lib/offline-session";
 import { registerOfflineSupport } from "@/lib/offline";
 import { OfflineNotice } from "@/components/offline-notice";
+import { FocusNoisePlayer } from "@/components/focus-noise";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -92,6 +93,7 @@ function AuthenticatedLayout() {
       <AppStartupWelcome ready={startupReady} user={user} />
       <ProfileCompletionDialog user={user} />
       <RouteProgress />
+      <FocusNoisePlayer />
       <AppSidebar />
       <MobileNav />
       <main

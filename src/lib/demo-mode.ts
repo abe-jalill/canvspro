@@ -368,6 +368,22 @@ function installDemoMode() {
   if (studyMode === "total" || studyMode === "per" || studyMode === "pomodoro") {
     localStorage.setItem("canvas:study-time-mode", studyMode);
   }
+  // `neutral=1` shows the app's neutral charcoal look (no color theme, plain
+  // background) so homepage screenshots sit quietly on a monochrome page.
+  if (params.get("neutral") === "1") {
+    const root = document.documentElement;
+    const strip = () => {
+      if (root.hasAttribute("data-palette")) root.removeAttribute("data-palette");
+      if (root.dataset.wallpaper !== "plain") root.dataset.wallpaper = "plain";
+    };
+    new MutationObserver(strip).observe(root, {
+      attributes: true,
+      attributeFilter: ["data-palette", "data-wallpaper"],
+    });
+    strip();
+    // The dashboard greeting card falls back to green without a theme.
+    root.style.setProperty("--palette-saturation", "0%");
+  }
   const theme = params.get("theme");
   if (theme === "light" || theme === "dark") {
     sessionStorage.setItem(`${FLAG}-theme`, theme);

@@ -3,6 +3,14 @@
 
 import { sendWebPushWithRetry, type PushSubscriptionRecord } from "@/lib/webpush.server";
 import { endOfLocalDay, type TonightItem } from "@/lib/countdown-alerts.server";
+import { canvasRequestInit } from "@/lib/outbound-policy";
+
+export {
+  canvasRequestInit,
+  isAllowedCanvasHost,
+  isPushServiceEndpoint,
+  normalizeCanvasDomain,
+} from "@/lib/outbound-policy";
 
 export interface ServerPrefs {
   enabled: boolean;
@@ -60,6 +68,22 @@ export function isQuiet(prefs: ServerPrefs, offsetMinutes: number, now = new Dat
   return s < e ? h >= s && h < e : h >= s || h < e;
 }
 
+/**
+ * Whether a queued countdown should still go out under the account's current
+ * settings: the class reminder toggle and that exact lead time, or tonight's
+ * deadline reminders. Shared by the 5-minute sender and the health check.
+ */
+export function scheduledAlertAllowed(tag: string, prefs: ServerPrefs): boolean {
+  if (tag.startsWith("class:")) {
+    return (
+      prefs.countdownClass &&
+      Array.isArray(prefs.countdownLeads) &&
+      prefs.countdownLeads.includes(Number(tag.split(":").pop()))
+    );
+  }
+  return prefs.countdownTonight;
+}
+
 export interface Alert {
   id: string;
   title: string;
@@ -93,19 +117,6 @@ interface CanvasAnnouncement {
   context_code: string;
 }
 
-
-/**
- * Normalizes a user-supplied Canvas URL to a bare hostname, e.g.
- * "https://Yourschool.Instructure.com/" → "yourschool.instructure.com".
- * Returns "" when the value isn't a plausible hostname. Mirrors the edge fn.
- */
-export function normalizeCanvasDomain(raw: string | null | undefined): string {
-  let v = (raw ?? "").trim().toLowerCase();
-  if (!v) return "";
-  v = v.replace(/^https?:\/\//, "").split("/")[0]!.split("?")[0]!.trim();
-  return /^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/.test(v) ? v : "";
-}
-
 /**
  * Canvas answers throttling with 403 + "Rate Limit Exceeded" — the same status
  * it uses for a bad token. The body is therefore part of the error message so
@@ -115,10 +126,12 @@ export function normalizeCanvasDomain(raw: string | null | undefined): string {
 async function canvasFetch<T>(domain: string, token: string, path: string): Promise<T> {
   let lastMessage = "Canvas request failed";
   for (let attempt = 0; attempt < 3; attempt++) {
-    const res = await fetch(`https://${domain}/api/v1${path}`, {
-      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-    });
+    // User-Agent and redirect rules for Cloudflare Workers: see canvasRequestInit.
+    const res = await fetch(`https://${domain}/api/v1${path}`, canvasRequestInit(token));
     if (res.ok) return (await res.json()) as T;
+    if (res.status >= 300 && res.status < 400) {
+      throw new Error(`Canvas ${res.status}: redirect to another address was not followed`);
+    }
     const body = (await res.text().catch(() => "")).slice(0, 200);
     lastMessage = `Canvas ${res.status}: ${body}`;
     const throttled = res.status === 429 || /rate limit/i.test(body);
@@ -147,8 +160,17 @@ async function mapPooled<T, R>(
   return out;
 }
 
+/** Counts only (no names or ids), reported by the background check for diagnosis. */
+export interface BuildStats {
+  courses: number;
+  courseErrors: number;
+  assignments: number;
+  alerts: number;
+}
+
 export interface BuildResult {
   alerts: Alert[];
+  stats: BuildStats;
   /** Unsubmitted work due before 11:59 PM local time today. */
   tonight: TonightItem[];
 }
@@ -167,32 +189,38 @@ export async function buildAlertsForUser(
   const now = Date.now();
   const endToday = endOfLocalDay(new Date(now), tzOffsetMinutes);
 
+  const stats: BuildStats = { courses: 0, courseErrors: 0, assignments: 0, alerts: 0 };
+
+  // Same rule as the app's Canvas feed (supabase/functions/canvas/course-visibility.ts):
+  // enrollment_state=active is Canvas's own answer, so only courses the student
+  // chose to hide are dropped. A stricter local check (access_restricted_by_date,
+  // workflow_state !== "available") removed real, current classes, so the
+  // background check found nothing to send while the open app showed alerts.
   const courses = (
     await canvasFetch<CanvasCourse[]>(
       domain,
       token,
       "/courses?enrollment_state=active&per_page=100",
     )
-  ).filter(
-    (c) =>
-      !hiddenCourseIds.has(c.id) &&
-      !c.access_restricted_by_date &&
-      (!c.workflow_state || c.workflow_state === "available"),
-  );
-  if (courses.length === 0) return { alerts, tonight };
+  ).filter((c) => !hiddenCourseIds.has(c.id));
+  stats.courses = courses.length;
+  if (courses.length === 0) return { alerts, tonight, stats };
 
   const perCourse = await mapPooled(courses, 4, async (c) => {
     try {
       const list = await canvasFetch<CanvasAssignment[]>(
         domain,
         token,
-        `/courses/${c.id}/assignments?include[]=submission&per_page=100&order_by=due_at`,
+        // Section and student due-date overrides, exactly as the app shows them.
+        `/courses/${c.id}/assignments?include[]=submission&override_assignment_dates=true&per_page=100&order_by=due_at`,
       );
       return list.map((a) => ({ a, course: c }));
     } catch {
+      stats.courseErrors += 1;
       return [] as Array<{ a: CanvasAssignment; course: CanvasCourse }>;
     }
   });
+  stats.assignments = perCourse.reduce((sum, list) => sum + list.length, 0);
 
   for (const { a, course } of perCourse.flat()) {
     // Grades posted in the last day.
@@ -267,7 +295,8 @@ export async function buildAlertsForUser(
     }
   }
 
-  return { alerts, tonight };
+  stats.alerts = alerts.length;
+  return { alerts, tonight, stats };
 }
 
 export interface DeliveryReport {

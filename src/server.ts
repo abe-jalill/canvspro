@@ -49,8 +49,21 @@ function withSecurityHeaders(request: Request, response: Response): Response {
   headers.set("X-Content-Type-Options", "nosniff");
   headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
-  headers.set("Content-Security-Policy", "object-src 'none'; base-uri 'self'");
-  if (new URL(request.url).protocol === "https:") {
+  const url = new URL(request.url);
+  // The live site is never shown inside another site's frame, so its pages
+  // (above all the OAuth "Allow access" screen) can't be clickjacked. Lovable's
+  // editor frames previews on its own domains, which are left alone.
+  // Lovable's proxies overwrite X-Forwarded-Host, so it names the public host.
+  const host = (request.headers.get("x-forwarded-host") ?? url.hostname).split(":")[0]!.toLowerCase();
+  const production = host === "canvaspro.app" || host === "www.canvaspro.app";
+  headers.set(
+    "Content-Security-Policy",
+    production
+      ? "object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+      : "object-src 'none'; base-uri 'self'",
+  );
+  if (production) headers.set("X-Frame-Options", "DENY");
+  if (url.protocol === "https:") {
     headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   }
   return new Response(response.body, {

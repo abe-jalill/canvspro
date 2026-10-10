@@ -7,6 +7,7 @@ import { LegalConsent } from "@/components/legal-consent";
 import { createLegalConsentMetadata } from "@/lib/legal-consent";
 import { Capacitor } from "@capacitor/core";
 import { requestMobileApi } from "@/lib/mobile-api-client";
+import { safeReturnPath } from "@/lib/outbound-policy";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
@@ -30,12 +31,12 @@ export const Route = createFileRoute("/auth")({
 });
 
 /** Only same-origin app paths may be returned to (e.g. the OAuth consent page). */
-function safeReturnPath(): string | null {
+function returnPath(): string | null {
   if (typeof window === "undefined") return null;
-  const raw = new URLSearchParams(window.location.search).get("redirect");
-  if (!raw) return null;
-  if (!raw.startsWith("/") || raw.startsWith("//")) return null;
-  return raw;
+  return safeReturnPath(
+    new URLSearchParams(window.location.search).get("redirect"),
+    window.location.origin,
+  );
 }
 
 function LoginPage() {
@@ -49,7 +50,7 @@ function LoginPage() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       if (!data.session) return;
-      const back = safeReturnPath();
+      const back = returnPath();
       if (back) window.location.replace(back);
       else navigate({ to: "/dashboard", replace: true });
     });

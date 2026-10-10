@@ -78,6 +78,13 @@
       "when": 1791300806699,
       "tag": "0010_push_dispatch_every_30_minutes",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791472800000,
+      "tag": "0011_push_scheduled_every_5_minutes",
+      "breakpoints": true
     }
   ]
 }

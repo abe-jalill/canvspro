@@ -32,7 +32,7 @@ test("the dispatch route checks accounts in parallel and records each check", as
   // The route still requires the cron secret, and takes an optional user id.
   assert.match(route, /constantTimeEqual\(provided, expected\)/);
   assert.match(route, /run\(userId \|\| undefined\)/);
-  assert.match(route, /recordHeartbeat\(admin, userId\)/);
+  assert.match(route, /recordHeartbeat\(admin, userId, result\.reason, previousHeartbeat\)/);
 });
 
 test("the background check sends one request per account", async () => {
@@ -57,4 +57,28 @@ test("a shared run checks the accounts that waited longest first", async () => {
     "utf8",
   );
   assert.match(route, /users\.sort\(\(\[a\], \[b\]\) => \(lastCheck\.get\(a\) \?\? 0\) - \(lastCheck\.get\(b\) \?\? 0\)\)/);
+});
+
+test("the background check keeps the same courses as the app's Canvas feed", async () => {
+  const server = await readFile(new URL("../src/lib/push-dispatch.server.ts", import.meta.url), "utf8");
+  // A stricter local filter dropped real classes, so closed-app alerts found nothing to send.
+  assert.doesNotMatch(server, /access_restricted_by_date &&/);
+  assert.doesNotMatch(server, /workflow_state === "available"/);
+  assert.match(server, /\.filter\(\(c\) => !hiddenCourseIds\.has\(c\.id\)\)/);
+  assert.match(server, /override_assignment_dates=true/);
+  // Every run says where each account's check stopped.
+  const route = await readFile(new URL("../src/routes/api/public/push/dispatch.ts", import.meta.url), "utf8");
+  for (const reason of ["no-canvas-key", "alerts-off", "quiet-hours", "nothing-due", "already-sent", "delivered"]) {
+    assert.ok(route.includes(`"${reason}"`), reason);
+  }
+  assert.match(route, /Response\.json\(\{ users: byUser\.size, sent, failures, accounts \}\)/);
+});
+
+test("background Canvas requests send a User-Agent and never mistake a firewall page for a bad key", async () => {
+  const server = await readFile(new URL("../src/lib/push-dispatch.server.ts", import.meta.url), "utf8");
+  // Every Canvas call uses canvasRequestInit (its User-Agent and redirect rules are tested in outbound-policy.test.mjs).
+  assert.match(server, /fetch\(`https:\/\/\$\{domain\}\/api\/v1\$\{path\}`, canvasRequestInit\(token\)\)/);
+  const route = await readFile(new URL("../src/routes/api/public/push/dispatch.ts", import.meta.url), "utf8");
+  assert.match(route, /const isHtmlPage = \/<!doctype html\|<html\/i\.test\(message\);/);
+  assert.match(route, /!isHtmlPage &&/);
 });

@@ -1,6 +1,30 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { PALETTES, normalizePalette, normalizeThemeMode, resolveTheme } from "../src/lib/theme-options.ts";
+import { existsSync, readFileSync } from "node:fs";
+import {
+  PALETTES,
+  normalizePalette,
+  normalizeThemeMode,
+  normalizeWallpaper,
+  resolveTheme,
+} from "../src/lib/theme-options.ts";
+
+test("wallpaper is on by default and only an explicit 'plain' turns it off", () => {
+  assert.equal(normalizeWallpaper(undefined), "wave");
+  assert.equal(normalizeWallpaper("junk"), "wave");
+  assert.equal(normalizeWallpaper("plain"), "plain");
+});
+
+test("every palette has a dark and a light wallpaper wired up", () => {
+  const css = readFileSync(new URL("../src/targeted-design.css", import.meta.url), "utf8");
+  for (const { id } of PALETTES) {
+    for (const mode of ["dark", "light"]) {
+      const file = `/wallpapers/${id}-${mode}.webp`;
+      assert.ok(existsSync(new URL(`../public${file}`, import.meta.url)), `${file} missing`);
+      assert.ok(css.includes(`:root.${mode}[data-palette="${id}"] { --wallpaper: url("${file}"); }`));
+    }
+  }
+});
 
 test("offers exactly the four supported palettes", () => {
   assert.deepEqual(PALETTES.map((palette) => palette.id), ["forest", "blue", "violet", "rose"]);

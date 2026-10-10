@@ -195,24 +195,30 @@ async function canvasFetchAll<T>(creds: Creds, path: string): Promise<T[]> {
 
 // Reads the caller's Canvas API key from `user_settings` using their JWT,
 // so RLS guarantees a user can only ever use their own key.
-async function credsForRequest(req: Request, includeHidden = false): Promise<Creds> {
+/** The signed-in caller's user id, from their own session token. */
+async function requireUserId(req: Request): Promise<string> {
   const authHeader = req.headers.get("Authorization") ?? "";
   if (!authHeader.startsWith("Bearer ")) throw new Error("NOT_AUTHENTICATED");
-
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const publicKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!serviceKey) throw new Error("SERVER_CONFIGURATION_ERROR");
-
-  // Resolve the user from the signed token first, then perform the credential
-  // read with the service role and an explicit user filter. Browser clients no
-  // longer need SELECT permission on the secret canvas_api_key column.
   const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
     headers: { apikey: publicKey, Authorization: authHeader },
   });
   if (!userRes.ok) throw new Error("NOT_AUTHENTICATED");
   const user = (await userRes.json()) as { id?: string };
   if (!user.id) throw new Error("NOT_AUTHENTICATED");
+  return user.id;
+}
+
+async function credsForRequest(req: Request, includeHidden = false): Promise<Creds> {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!serviceKey) throw new Error("SERVER_CONFIGURATION_ERROR");
+
+  // Resolve the user from the signed token first, then perform the credential
+  // read with the service role and an explicit user filter. Browser clients no
+  // longer need SELECT permission on the secret canvas_api_key column.
+  const user = { id: await requireUserId(req) };
 
   const adminHeaders: Record<string, string> = { apikey: serviceKey };
   if (!serviceKey.startsWith("sb_secret_")) {
@@ -549,6 +555,9 @@ Deno.serve(async (req) => {
 
     // The stored credentials aren't needed when validating a freshly typed
     // pair (the caller may not have saved a key yet), so load them lazily.
+    // Checking a freshly typed key still requires a signed-in caller, so this
+    // function can't be used by anyone as a tester for stolen Canvas keys.
+    if (resource === "validate" && overrideToken) await requireUserId(req);
     const storedCreds =
       resource === "validate" && overrideToken ? null : await credsForRequest(req, includeHidden);
 

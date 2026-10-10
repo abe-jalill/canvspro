@@ -1,930 +1,668 @@
-/* Homepage: real app screenshots in a laptop, told as one flowing story.
-   Colors follow the device (prefers-color-scheme), not the in-app theme. */
+/* Homepage. Quiet and precise: near-monochrome, one typeface (Schibsted
+   Grotesk) at medium weights, real screenshots, and small motion that only
+   ever shows the product doing something. Colors follow the device's light or
+   dark setting (prefers-color-scheme), not the in-app theme. */
 
-.hm {
-  --hm-bg: #f2f6f1;
-  --hm-bg-soft: #e9f0e8;
-  --hm-fg: #0f1d15;
-  --hm-muted: rgba(15, 29, 21, 0.62);
-  --hm-faint: rgba(15, 29, 21, 0.42);
-  --hm-line: rgba(15, 29, 21, 0.1);
-  --hm-line-strong: rgba(15, 29, 21, 0.2);
-  --hm-card: rgba(255, 255, 255, 0.55);
-  --hm-card-strong: rgba(255, 255, 255, 0.78);
-  --hm-accent: #1f8a55;
-  --hm-accent-2: #0f9a9a;
-  --hm-accent-3: #7bbf3a;
-  --hm-gradient: linear-gradient(100deg, #1f8a55 0%, #0f9a9a 55%, #5aa832 100%);
-  --hm-blob-1: rgba(64, 196, 132, 0.4);
-  --hm-blob-2: rgba(32, 178, 190, 0.32);
-  --hm-blob-3: rgba(176, 222, 96, 0.32);
-  --hm-blob-4: rgba(120, 170, 255, 0.18);
-  --hm-device: #e3e9e2;
-  --hm-device-edge: rgba(15, 29, 21, 0.14);
-  --hm-shadow: 0 50px 100px -40px rgba(14, 60, 36, 0.4), 0 14px 34px -20px rgba(14, 60, 36, 0.3);
-  --hm-button-bg: #0f1d15;
-  --hm-button-fg: #f2f6f1;
-  --hm-band-bg: #0b2a1c;
-  --hm-band-fg: #e8f5ec;
-  --hm-band-muted: rgba(232, 245, 236, 0.66);
-  --hm-band-line: rgba(232, 245, 236, 0.14);
+.hp {
+  /* Dark by default; light only for visitors who picked Light in the app. */
+  --bg: #0c0d0f;
+  --surface: #131417;
+  --ink: #ececed;
+  --ink-2: #a3a5aa;
+  --ink-3: #75777d;
+  --line: #1f2024;
+  --line-2: #2c2d32;
+  --due: #f0806d;
+  --button: #ececed;
+  --button-ink: #0c0d0f;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 24px 48px -28px rgba(0, 0, 0, 0.8);
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Slow in, long soft landing: a breath rather than a pop. */
+  --breathe: cubic-bezier(0.33, 0.04, 0.17, 1);
+  --width: min(1120px, 100% - 48px);
 
-  position: relative;
-  isolation: isolate;
   min-height: 100vh;
-  background: var(--hm-bg);
-  color: var(--hm-fg);
-  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Schibsted Grotesk", var(--font-sans);
+  font-size: 17px;
+  line-height: 1.6;
   overflow-x: clip;
+  -webkit-font-smoothing: antialiased;
 }
 
-@media (prefers-color-scheme: dark) {
-  .hm {
-    --hm-bg: #060b08;
-    --hm-bg-soft: #0c1511;
-    --hm-fg: #ecf4ee;
-    --hm-muted: rgba(236, 244, 238, 0.64);
-    --hm-faint: rgba(236, 244, 238, 0.4);
-    --hm-line: rgba(236, 244, 238, 0.09);
-    --hm-line-strong: rgba(236, 244, 238, 0.2);
-    --hm-card: rgba(255, 255, 255, 0.035);
-    --hm-card-strong: rgba(255, 255, 255, 0.06);
-    --hm-accent: #5fe0a0;
-    --hm-accent-2: #44d3db;
-    --hm-accent-3: #b6ec72;
-    --hm-gradient: linear-gradient(100deg, #5fe0a0 0%, #44d3db 55%, #b6ec72 100%);
-    --hm-blob-1: rgba(38, 170, 104, 0.34);
-    --hm-blob-2: rgba(20, 140, 160, 0.3);
-    --hm-blob-3: rgba(110, 170, 40, 0.18);
-    --hm-blob-4: rgba(60, 90, 200, 0.16);
-    --hm-device: #141c18;
-    --hm-device-edge: rgba(236, 244, 238, 0.14);
-    --hm-shadow: 0 50px 110px -40px rgba(0, 0, 0, 0.9), 0 14px 40px -20px rgba(0, 0, 0, 0.7);
-    --hm-button-bg: #ecf4ee;
-    --hm-button-fg: #060b08;
-    --hm-band-bg: #0d3523;
-    --hm-band-fg: #ecf7ef;
-  }
+:root[data-theme-mode="light"] .hp {
+  --bg: #fafaf8;
+  --surface: #fefefd;
+  --ink: #111214;
+  --ink-2: #5b5e65;
+  --ink-3: #8b8e94;
+  --line: #e7e7e3;
+  --line-2: #d6d6d1;
+  --due: #b9412f;
+  --button: #111214;
+  --button-ink: #fafaf8;
+  --shadow: 0 1px 2px rgba(17, 18, 20, 0.04), 0 24px 48px -28px rgba(17, 18, 20, 0.22);
 }
 
-.hm em {
-  font-style: normal;
-  background: var(--hm-gradient);
-  background-size: 200% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: hm-gradient-drift 9s ease-in-out infinite alternate;
+/* One screenshot per theme; the hidden one is lazy, so it never downloads. */
+.hp .hp-shot-light,
+:root[data-theme-mode="light"] .hp-shot-dark {
+  display: none;
 }
-@keyframes hm-gradient-drift {
-  to {
-    background-position: 100% 0;
-  }
+:root[data-theme-mode="light"] .hp-shot-light {
+  display: block;
 }
 
-/* ── Fluid color behind everything ── */
-.hm-aurora {
-  position: fixed;
-  inset: -10vmax;
-  z-index: -1;
-  pointer-events: none;
-  overflow: hidden;
+/* Resets carry no weight, so component styles always win. */
+:where(.hp) *,
+:where(.hp) *::before,
+:where(.hp) *::after {
+  box-sizing: border-box;
 }
-.hm-aurora i {
-  position: absolute;
-  width: 55vmax;
-  height: 55vmax;
-  border-radius: 46% 54% 58% 42% / 44% 46% 54% 56%;
-  filter: blur(70px);
-  will-change: transform;
+:where(.hp) a {
+  color: inherit;
+  text-decoration: none;
 }
-.hm-aurora i:nth-child(1) {
-  left: 50%;
-  top: -5%;
-  background: var(--hm-blob-1);
-  animation: hm-blob-a 26s ease-in-out infinite alternate;
-}
-.hm-aurora i:nth-child(2) {
-  left: -10%;
-  top: 30%;
-  background: var(--hm-blob-2);
-  animation: hm-blob-b 32s ease-in-out infinite alternate;
-}
-.hm-aurora i:nth-child(3) {
-  left: 30%;
-  top: 60%;
-  width: 45vmax;
-  height: 45vmax;
-  background: var(--hm-blob-3);
-  animation: hm-blob-c 22s ease-in-out infinite alternate;
-}
-.hm-aurora i:nth-child(4) {
-  left: 70%;
-  top: 55%;
-  width: 40vmax;
-  height: 40vmax;
-  background: var(--hm-blob-4);
-  animation: hm-blob-a 36s ease-in-out infinite alternate-reverse;
-}
-@keyframes hm-blob-a {
-  0% { transform: translate3d(0, 0, 0) rotate(0deg) scale(1); }
-  50% { transform: translate3d(-12vmax, 10vmax, 0) rotate(40deg) scale(1.15); }
-  100% { transform: translate3d(-4vmax, 22vmax, 0) rotate(80deg) scale(0.95); }
-}
-@keyframes hm-blob-b {
-  0% { transform: translate3d(0, 0, 0) rotate(0deg) scale(1.05); }
-  50% { transform: translate3d(14vmax, -8vmax, 0) rotate(-35deg) scale(0.9); }
-  100% { transform: translate3d(24vmax, 6vmax, 0) rotate(-70deg) scale(1.12); }
-}
-@keyframes hm-blob-c {
-  0% { transform: translate3d(0, 0, 0) scale(1); }
-  50% { transform: translate3d(10vmax, -14vmax, 0) scale(1.2); }
-  100% { transform: translate3d(-10vmax, -6vmax, 0) scale(0.9); }
+:where(.hp) :is(h1, h2, h3, p, dl, dd, figure) {
+  margin: 0;
 }
 
-.hm-skip {
+.hp h1,
+.hp h2 {
+  font-family: inherit;
+  font-weight: 600;
+  text-wrap: balance;
+}
+.hp h2 {
+  font-size: clamp(1.5rem, 2.4vw, 2rem);
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+}
+.hp-muted {
+  color: var(--ink-3);
+}
+
+.hp-skip {
   position: absolute;
   left: 16px;
   top: -60px;
-  z-index: 60;
+  z-index: 10;
   padding: 10px 14px;
-  border-radius: 10px;
-  background: var(--hm-button-bg);
-  color: var(--hm-button-fg);
+  border-radius: 8px;
+  background: var(--button);
+  color: var(--button-ink);
 }
-.hm-skip:focus {
+.hp-skip:focus {
   top: 12px;
 }
 
-/* Reading progress, a hairline under the nav. */
-.hm-progress {
-  position: fixed;
-  inset: 0 0 auto 0;
-  height: 2px;
-  z-index: 55;
-  pointer-events: none;
+/* ── Top bar ── */
+.hp-bar {
+  width: var(--width);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: 72px;
 }
-.hm-progress span {
-  display: block;
-  height: 100%;
-  width: 100%;
-  background: var(--hm-gradient);
-  transform: scaleX(var(--hm-read, 0));
-  transform-origin: left;
+.hp-brand {
+  font-size: 1.05rem;
+  font-weight: 650;
+  letter-spacing: -0.025em;
 }
-
-/* ── Nav ── */
-.hm-nav {
-  position: sticky;
-  top: 0;
-  z-index: 50;
+.hp-bar__links {
   display: flex;
   align-items: center;
   gap: 24px;
-  height: 64px;
-  padding: 0 clamp(16px, 4vw, 48px);
-  background: color-mix(in srgb, var(--hm-bg) 70%, transparent);
-  backdrop-filter: blur(18px) saturate(1.4);
-  -webkit-backdrop-filter: blur(18px) saturate(1.4);
-  border-bottom: 1px solid var(--hm-line);
+  font-size: 15px;
+  color: var(--ink-2);
 }
-.hm-brand {
-  display: inline-flex;
-  align-items: center;
-  font-size: 17px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  color: var(--hm-fg);
+.hp-bar__links a:not(.hp-button) {
+  transition: color 0.15s;
 }
-.hm-brand span {
-  color: var(--hm-accent);
+.hp-bar__links a:not(.hp-button):hover {
+  color: var(--ink);
 }
-.hm-nav__links {
-  display: flex;
-  gap: 22px;
-  margin-left: 12px;
-  font-size: 14px;
-}
-.hm-nav__links a,
-.hm-nav__signin {
-  color: var(--hm-muted);
-  transition: color 0.2s ease;
-}
-.hm-nav__links a:hover,
-.hm-nav__signin:hover {
-  color: var(--hm-fg);
-}
-.hm-nav__actions {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  font-size: 14px;
+@media (max-width: 600px) {
+  .hp-bar__secondary {
+    display: none;
+  }
 }
 
-.hm-button {
-  position: relative;
+/* ── Buttons and links ── */
+.hp-button {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  min-height: 46px;
-  padding: 0 22px;
-  border-radius: 999px;
-  background: var(--hm-button-bg);
-  color: var(--hm-button-fg);
-  font-size: 14px;
-  font-weight: 500;
-  overflow: hidden;
-  transition:
-    transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
-    box-shadow 0.35s ease;
+  justify-content: center;
+  height: 46px;
+  padding: 0 20px;
+  border-radius: 8px;
+  background: var(--button);
+  color: var(--button-ink);
+  font-size: 15.5px;
+  font-weight: 550;
+  white-space: nowrap;
+  transition: opacity 0.15s;
 }
-.hm-button::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.35) 50%, transparent 70%);
-  transform: translateX(-120%);
-  transition: transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+.hp-button:hover {
+  opacity: 0.85;
 }
-.hm-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 14px 30px -14px color-mix(in srgb, var(--hm-accent) 70%, transparent);
+.hp-button--small {
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 7px;
+  font-size: 14.5px;
 }
-.hm-button:hover::after {
-  transform: translateX(120%);
+.hp-link {
+  font-weight: 550;
+  color: var(--ink-2);
+  transition: color 0.15s;
 }
-.hm-button svg {
-  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+.hp-link:hover {
+  color: var(--ink);
 }
-.hm-button:hover svg {
-  transform: translateX(3px);
-}
-.hm-button--small {
-  min-height: 36px;
-  padding: 0 16px;
-  font-size: 13px;
-}
-.hm-button--quiet {
-  background: transparent;
-  color: var(--hm-fg);
-  border: 1px solid var(--hm-line-strong);
-}
-.hm-button--quiet::after {
-  display: none;
+.hp :is(a, button):focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
 }
 
-/* ── Story: pinned laptop, text beside it ── */
-.hm-story {
-  position: relative;
-  height: calc(var(--hm-steps, 4) * 100vh);
-}
-.hm-story__pin {
-  position: sticky;
-  top: 64px;
-  height: calc(100vh - 64px);
-  display: grid;
-  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.35fr);
-  align-items: center;
-  gap: clamp(32px, 5vw, 80px);
-  padding: 0 clamp(16px, 4vw, 56px);
-  max-width: 1440px;
+/* ── Hero ── */
+/* Headline on the left, the short pitch and buttons beside it, so the first
+   screen is full without being crowded. */
+.hp-hero {
+  width: var(--width);
   margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.7fr);
+  align-items: end;
+  gap: 28px clamp(40px, 6vw, 88px);
+  padding: clamp(44px, 7vh, 80px) 0 clamp(32px, 5vh, 48px);
 }
-
-.hm-copy {
-  position: relative;
-  min-height: 380px;
+@media (max-width: 860px) {
+  .hp-hero {
+    grid-template-columns: 1fr;
+  }
 }
-.hm-copy__panel {
-  position: absolute;
-  inset: 50% 0 auto 0;
-  transform: translateY(calc(-50% + var(--hm-shift, 0) * 1px));
-  opacity: var(--hm-show, 0);
-  pointer-events: none;
-  will-change: transform, opacity;
+.hp-hero h1 {
+  max-width: 16ch;
+  font-size: clamp(2.4rem, 5vw, 4.2rem);
+  line-height: 1.05;
+  letter-spacing: -0.04em;
 }
-.hm-copy__panel.is-active {
-  pointer-events: auto;
+.hp-lede {
+  max-width: 30em;
+  font-size: clamp(1.05rem, 1.35vw, 1.18rem);
+  color: var(--ink-2);
 }
-.hm-kicker {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--hm-muted);
-}
-.hm-kicker::before {
-  content: "";
-  width: 22px;
-  height: 1px;
-  background: var(--hm-gradient);
-}
-.hm-copy__panel h1,
-.hm-copy__panel h2 {
-  margin: 18px 0 0;
-  font-size: clamp(36px, 4.4vw, 62px);
-  line-height: 1.06;
-  letter-spacing: -0.035em;
-  font-weight: 500;
-  text-wrap: balance;
-}
-.hm-copy__panel p {
-  margin: 18px 0 0;
-  max-width: 30rem;
-  font-size: clamp(15px, 1.2vw, 17px);
-  line-height: 1.6;
-  color: var(--hm-muted);
-}
-.hm-copy__actions {
+.hp-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  align-items: center;
+  gap: 12px 24px;
   margin-top: 28px;
 }
 
-/* Which screen you're on; the active one fills as you scroll through it. */
-.hm-steps-nav {
-  position: absolute;
-  left: clamp(16px, 4vw, 56px);
-  bottom: clamp(24px, 6vh, 56px);
-  display: flex;
-  gap: 8px;
-}
-.hm-steps-nav button {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  min-height: 32px;
-  padding: 0 12px;
-  border-radius: 999px;
-  border: 1px solid var(--hm-line);
-  color: var(--hm-faint);
-  font-size: 12px;
-  overflow: hidden;
-  transition:
-    color 0.35s ease,
-    border-color 0.35s ease;
-}
-.hm-steps-nav button::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  height: 2px;
-  width: 100%;
-  background: var(--hm-gradient);
-  transform: scaleX(var(--hm-fill, 0));
-  transform-origin: left;
-}
-.hm-steps-nav button.is-active {
-  color: var(--hm-fg);
-  border-color: var(--hm-line-strong);
-}
-
-/* ── Laptop ── */
-.hm-stage {
-  position: relative;
-  justify-self: end;
-  width: 100%;
-  max-width: 980px;
-}
-.hm-laptop {
-  position: relative;
-  width: 100%;
-}
-.hm-laptop__lid {
-  position: relative;
-  padding: 10px;
-  border-radius: 22px;
-  background: var(--hm-device);
-  border: 1px solid var(--hm-device-edge);
-  box-shadow: var(--hm-shadow);
-}
-.hm-laptop__bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  height: 34px;
-  padding: 0 12px;
-  border-radius: 12px 12px 0 0;
-  background: var(--hm-bg-soft);
-  border: 1px solid var(--hm-line);
-  border-bottom: 0;
-}
-.hm-laptop__dots {
-  display: flex;
-  gap: 6px;
-}
-.hm-laptop__dots i {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  border: 1px solid var(--hm-line-strong);
-}
-.hm-laptop__url {
-  flex: 1;
-  max-width: 340px;
+/* ── The app, one screen at a time ── */
+.hp-screens {
+  width: var(--width);
   margin: 0 auto;
-  height: 22px;
-  border-radius: 999px;
-  border: 1px solid var(--hm-line);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  color: var(--hm-faint);
 }
-.hm-laptop__screen {
+.hp-tabs {
+  display: inline-flex;
+  gap: 2px;
+  margin-bottom: 16px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  max-width: 100%;
+  overflow-x: auto;
+}
+.hp-tabs button {
+  padding: 6px 13px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 14.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 0.2s,
+    color 0.2s;
+}
+.hp-tabs button:hover {
+  color: var(--ink);
+}
+.hp-tabs button[aria-selected="true"] {
+  background: var(--line);
+  color: var(--ink);
+}
+.hp-screens__frame {
   position: relative;
   aspect-ratio: 16 / 10;
+  border: 1px solid var(--line);
+  border-radius: 12px;
   overflow: hidden;
-  border-radius: 0 0 12px 12px;
-  border: 1px solid var(--hm-line);
-  background: var(--hm-bg-soft);
+  background: var(--surface);
+  box-shadow: var(--shadow);
 }
-.hm-shot {
+.hp-screens__shot {
   position: absolute;
   inset: 0;
-  transform: translateY(calc(var(--hm-offset, 0) * 100%));
-  will-change: transform;
+  opacity: 0;
+  transform: scale(1.012);
+  transition:
+    opacity 0.45s var(--ease),
+    transform 0.6s var(--ease);
 }
-.hm-shot img {
+.hp-screens__shot.is-shown {
+  opacity: 1;
+  transform: none;
+}
+.hp-screens__shot img {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: top left;
 }
-.hm-laptop__base {
-  position: relative;
-  height: 14px;
-  margin: 0 -4%;
-  border-radius: 0 0 16px 16px;
-  background: var(--hm-device);
-  border: 1px solid var(--hm-device-edge);
-  border-top: 0;
-}
-.hm-laptop__base::before {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 0;
-  width: 14%;
-  height: 5px;
-  transform: translateX(-50%);
-  border-radius: 0 0 8px 8px;
-  border: 1px solid var(--hm-line);
-  border-top: 0;
-}
-
-/* ── Sections after the story ── */
-.hm-section {
-  position: relative;
-  padding: clamp(80px, 12vw, 150px) clamp(16px, 4vw, 56px);
-  max-width: 1200px;
-  margin: 0 auto;
-}
-.hm-section__head h2 {
-  margin: 16px 0 0;
-  font-size: clamp(34px, 4.2vw, 56px);
-  line-height: 1.08;
-  letter-spacing: -0.035em;
-  font-weight: 500;
-}
-.hm-section__head p {
-  margin: 16px 0 0;
-  max-width: 34rem;
-  color: var(--hm-muted);
-  line-height: 1.6;
-}
-
-/* A sentence that lights up word by word as you scroll. */
-.hm-statement {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: clamp(100px, 16vw, 200px) clamp(16px, 4vw, 56px);
-  font-size: clamp(30px, 4.4vw, 64px);
-  line-height: 1.18;
-  letter-spacing: -0.035em;
-  font-weight: 500;
-}
-.hm-statement span {
-  opacity: calc(0.14 + var(--hm-word, 0) * 0.86);
-  transition: opacity 0.2s linear;
-}
-.hm-statement span.is-accent {
-  background: var(--hm-gradient);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-/* Deep green band with features flowing past in two directions. */
-.hm-band {
-  position: relative;
-  margin: 0 clamp(8px, 2vw, 24px);
-  padding: clamp(72px, 10vw, 120px) 0;
-  border-radius: clamp(28px, 4vw, 48px);
-  background:
-    radial-gradient(60% 80% at 10% 0%, rgba(95, 224, 160, 0.28), transparent 60%),
-    radial-gradient(50% 70% at 100% 100%, rgba(68, 211, 219, 0.24), transparent 60%),
-    var(--hm-band-bg);
-  color: var(--hm-band-fg);
-  overflow: hidden;
-}
-.hm-band .hm-kicker {
-  color: var(--hm-band-muted);
-}
-.hm-band__head {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 clamp(16px, 4vw, 56px);
-}
-.hm-band__head h2 {
-  margin: 16px 0 0;
-  font-size: clamp(34px, 4.2vw, 56px);
-  line-height: 1.08;
-  letter-spacing: -0.035em;
-  font-weight: 500;
-}
-.hm-band__head p {
-  margin: 16px 0 0;
-  max-width: 32rem;
-  color: var(--hm-band-muted);
-  line-height: 1.6;
-}
-.hm-marquee {
-  display: flex;
-  width: max-content;
-  gap: 12px;
+.hp-screens figcaption {
   margin-top: 16px;
-  animation: hm-marquee 40s linear infinite;
+  font-size: 15px;
+  color: var(--ink-3);
 }
-.hm-marquee--reverse {
-  animation-direction: reverse;
-  animation-duration: 46s;
+
+/* ── Sections: heading on the left, content on the right ── */
+.hp-split {
+  width: var(--width);
+  margin: clamp(64px, 8vw, 104px) auto 0;
+  padding-top: 28px;
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: 28px clamp(40px, 7vw, 112px);
+  align-items: start;
+  border-top: 1px solid var(--line);
 }
-.hm-marquees {
-  margin-top: 56px;
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+.hp-split__text {
+  display: grid;
+  gap: 16px;
 }
-.hm-marquees:hover .hm-marquee {
-  animation-play-state: paused;
+.hp-split__text p {
+  max-width: 28em;
+  color: var(--ink-2);
 }
-@keyframes hm-marquee {
-  to {
-    transform: translateX(-50%);
+.hp-split__text .hp-muted {
+  color: var(--ink-3);
+  font-size: 15px;
+}
+@media (max-width: 860px) {
+  .hp-split {
+    grid-template-columns: 1fr;
   }
 }
-.hm-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 20px;
-  border-radius: 999px;
-  border: 1px solid var(--hm-band-line);
-  background: rgba(255, 255, 255, 0.04);
+
+/* The week, as Canvas lists it and then sorted. */
+.hp-week {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.hp-week__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
   font-size: 15px;
+  font-weight: 600;
+}
+.hp-week__state {
+  font-size: 13.5px;
+  font-weight: 450;
+  color: var(--ink-3);
+}
+.hp-week__list {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.hp-task {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+.hp-task:last-child {
+  border-bottom: 0;
+  border-radius: 0 0 12px 12px;
+}
+.hp-task__check {
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--line-2);
+  border-radius: 5px;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background-color 0.15s;
+}
+.hp-task__check:disabled {
+  cursor: default;
+}
+.hp-task.is-next .hp-task__check {
+  border-color: var(--ink-2);
+}
+.hp-task__check:not(:disabled):hover {
+  border-color: var(--ink);
+}
+.hp-task__title {
+  font-size: 15.5px;
+  font-weight: 550;
+  line-height: 1.35;
+}
+.hp-task__meta {
+  margin-top: 2px;
+  font-size: 13.5px;
+  color: var(--ink-3);
+}
+.hp-task__today {
+  color: var(--due);
+}
+.hp-task__side {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13.5px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.hm-pill svg {
-  color: #7fe7b0;
+.hp-task__next {
+  padding: 2px 8px;
+  border-radius: 5px;
+  background: var(--button);
+  color: var(--button-ink);
+  font-size: 12.5px;
+  font-weight: 550;
 }
-
-/* Feature grid with a glow that follows the pointer. */
-.hm-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-  margin-top: 56px;
+.hp-task.is-finishing .hp-task__check {
+  border-color: var(--ink);
+  background: var(--ink)
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M3.5 8.5l3 3 6-7' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>")
+    center / 12px no-repeat;
 }
-.hm-feature {
-  position: relative;
-  padding: 28px;
-  border-radius: 24px;
-  border: 1px solid var(--hm-line);
-  background: var(--hm-card);
-  overflow: hidden;
-  transition:
-    transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1),
-    border-color 0.4s ease;
+.hp-task.is-finishing .hp-task__title {
+  text-decoration: line-through;
+  color: var(--ink-3);
 }
-.hm-feature::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(
-    320px circle at var(--mx, 50%) var(--my, 0%),
-    color-mix(in srgb, var(--hm-accent) 22%, transparent),
-    transparent 60%
-  );
-  opacity: 0;
-  transition: opacity 0.4s ease;
+.hp-task.is-finishing {
+  opacity: 0.5;
+  transition: opacity 0.4s ease-out;
 }
-.hm-feature:hover {
-  transform: translateY(-4px);
-  border-color: var(--hm-line-strong);
-}
-.hm-feature:hover::before {
-  opacity: 1;
-}
-.hm-feature > * {
-  position: relative;
-}
-.hm-feature__icon {
-  display: inline-flex;
-  width: 44px;
-  height: 44px;
-  align-items: center;
-  justify-content: center;
-  border-radius: 14px;
-  border: 1px solid var(--hm-line);
-  color: var(--hm-accent);
-  transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-.hm-feature:hover .hm-feature__icon {
-  transform: rotate(-8deg) scale(1.08);
-}
-.hm-feature h3 {
-  margin: 22px 0 0;
-  font-size: 18px;
-  font-weight: 500;
-  letter-spacing: -0.01em;
-}
-.hm-feature p {
-  margin: 8px 0 0;
-  color: var(--hm-muted);
-  line-height: 1.55;
-  font-size: 14px;
-}
-
-/* How it works: a rail fills as you read down. */
-.hm-steps {
-  position: relative;
-  display: grid;
-  gap: 14px;
-  margin-top: 48px;
-  padding-left: 28px;
-}
-.hm-steps__rail {
-  position: absolute;
-  left: 0;
-  top: 8px;
-  bottom: 8px;
-  width: 2px;
-  border-radius: 2px;
-  background: var(--hm-line);
-}
-.hm-steps__rail i {
-  position: absolute;
-  inset: 0;
-  border-radius: 2px;
-  background: var(--hm-gradient);
-  transform: scaleY(var(--hm-steps-fill, 0));
-  transform-origin: top;
-}
-.hm-step {
-  display: grid;
-  grid-template-columns: 56px minmax(0, 0.8fr) minmax(0, 1.2fr);
-  align-items: center;
-  gap: 16px;
-  padding: 24px;
-  border-radius: 20px;
-  border: 1px solid var(--hm-line);
-  background: var(--hm-card);
-  transition:
-    border-color 0.5s ease,
-    transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-.hm-step.is-reached {
-  border-color: var(--hm-line-strong);
-  transform: translateX(6px);
-}
-.hm-step span {
-  font-size: 12px;
-  letter-spacing: 0.14em;
-  color: var(--hm-faint);
-  font-variant-numeric: tabular-nums;
-}
-.hm-step.is-reached span {
-  color: var(--hm-accent);
-}
-.hm-step strong {
-  font-size: 18px;
-  font-weight: 500;
-  letter-spacing: -0.01em;
-}
-.hm-step p {
-  margin: 0;
-  color: var(--hm-muted);
-  line-height: 1.55;
-}
-.hm-trust {
+.hp-week__empty {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-top: 28px;
-  color: var(--hm-muted);
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 20px;
+  font-weight: 550;
+}
+.hp-week__empty button {
+  padding: 7px 13px;
+  border: 1px solid var(--line-2);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
   font-size: 14px;
+  cursor: pointer;
+}
+@media (max-width: 520px) {
+  .hp-task {
+    padding-inline: 16px;
+  }
+  .hp-task__time {
+    display: none;
+  }
 }
 
-/* Questions */
-.hm-questions {
+/* ── Also in CanvasPro ── */
+.hp-more {
   display: grid;
-  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
-  gap: clamp(32px, 6vw, 96px);
-  align-items: start;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 40px;
 }
-.hm-questions__list {
-  border-top: 1px solid var(--hm-line);
+.hp-more > div {
+  padding: 0 0 22px;
 }
-.hm-questions__list [data-state] {
-  border-color: var(--hm-line);
+.hp-more dt {
+  font-weight: 600;
 }
-.hm-questions__list button {
+.hp-more dd {
+  margin-top: 4px;
+  color: var(--ink-2);
+  font-size: 15.5px;
+}
+@media (max-width: 560px) {
+  .hp-more {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Setup ── */
+.hp-setup {
+  display: grid;
+  gap: 16px;
+  max-width: 36em;
+}
+.hp-setup .hp-muted {
+  font-size: 15.5px;
+}
+
+/* ── Questions ── */
+.hp .hp-faq__item {
+  border-bottom: 1px solid var(--line);
+}
+.hp .hp-faq__item:first-child {
+  border-top: 1px solid var(--line);
+}
+.hp .hp-faq__q {
+  padding-block: 18px;
   font-size: 16px;
-  font-weight: 400;
-  color: var(--hm-fg);
+  font-weight: 550;
+  color: var(--ink);
 }
-.hm-questions__list [role="region"] {
-  color: var(--hm-muted);
+.hp .hp-faq__q:hover {
+  text-decoration: none;
+}
+.hp .hp-faq__q svg {
+  color: var(--ink-3);
+}
+.hp .hp-faq__a {
+  max-width: 36em;
+  padding-bottom: 18px;
+  font-size: 15.5px;
+  color: var(--ink-2);
 }
 
-/* Finale */
-.hm-finale {
-  position: relative;
-  text-align: center;
-  padding-bottom: clamp(110px, 14vw, 170px);
+/* ── Close ── */
+.hp-end {
+  width: var(--width);
+  margin: clamp(72px, 9vw, 120px) auto 0;
+  padding: 32px 0 clamp(56px, 7vw, 88px);
+  border-top: 1px solid var(--line);
 }
-.hm-finale__glow {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: min(900px, 90vw);
-  height: min(520px, 60vw);
-  translate: -50% -50%;
-  border-radius: 50%;
-  background: var(--hm-gradient);
-  filter: blur(110px);
-  opacity: 0.28;
-  animation: hm-breathe 8s ease-in-out infinite;
-  pointer-events: none;
+.hp-end h2 {
+  font-size: clamp(1.9rem, 3.6vw, 2.9rem);
+  letter-spacing: -0.035em;
 }
-@keyframes hm-breathe {
-  50% {
-    transform: scale(1.12);
-    opacity: 0.4;
+.hp-end .hp-muted {
+  font-size: 15px;
+}
+
+/* ── Motion: a short, calm entrance; the rest only moves when used ── */
+@media (prefers-reduced-motion: no-preference) {
+  .hp-rise {
+    animation: hp-rise 1.4s var(--breathe) both;
+  }
+  .hp-bar {
+    animation: hp-fade 1.2s var(--breathe) both;
+  }
+  .hp-hero h1 {
+    animation-delay: 0.1s;
+  }
+  .hp-hero .hp-lede {
+    animation-delay: 0.22s;
+  }
+  .hp-hero .hp-actions {
+    animation-delay: 0.34s;
+  }
+  .hp-screens.hp-rise {
+    animation-duration: 1.7s;
+    animation-delay: 0.46s;
+  }
+  /* Sections breathe in as they first scroll into view (index.tsx adds is-waiting). */
+  .hp [data-breathe] {
+    transition:
+      opacity 1.3s var(--breathe),
+      transform 1.6s var(--breathe);
+    transition-delay: var(--d, 0s);
+  }
+  .hp [data-breathe].is-waiting {
+    opacity: 0;
+    transform: translateY(26px) scale(0.985);
+  }
+  .hp-screens figcaption {
+    animation: hp-fade 0.5s var(--ease) both;
+  }
+  .hp-task__next {
+    animation: hp-fade 0.4s var(--ease) 0.5s both;
   }
 }
-.hm-finale > * {
-  position: relative;
+
+@keyframes hp-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
 }
-.hm-finale h2 {
-  margin: 22px auto 0;
-  font-size: clamp(44px, 6.5vw, 92px);
-  line-height: 1.08;
+@keyframes hp-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* ── Footer, in the page's own colors ── */
+.hp-footer {
+  width: var(--width);
+  margin: 0 auto;
+  padding: 32px 0 40px;
+  border-top: 1px solid var(--line);
+  font-size: 14px;
+  color: var(--ink-3);
+}
+.hp-footer__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px 40px;
+}
+.hp-footer .hp-brand {
+  color: var(--ink);
+}
+.hp-footer__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+}
+.hp-footer__links a {
+  transition: color 0.15s;
+}
+.hp-footer__links a:hover {
+  color: var(--ink);
+}
+.hp-footer__fine {
+  display: grid;
+  gap: 6px;
+  margin-top: 28px;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+/* ── Bolder: scale and contrast, not color or effects ── */
+.hp-quiet {
+  color: var(--ink-3);
+}
+.hp-hero h1 {
+  max-width: 14ch;
+  font-size: clamp(2.7rem, 6.2vw, 5.6rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.05em;
+}
+.hp h2 {
+  font-size: clamp(1.8rem, 3.1vw, 2.7rem);
+  font-weight: 650;
+  line-height: 1.1;
+  letter-spacing: -0.035em;
+}
+.hp-more dt {
+  font-size: 1.12rem;
+  letter-spacing: -0.015em;
+}
+
+/* One large line between the product and the details. */
+.hp-statement {
+  width: var(--width);
+  margin: clamp(88px, 11vw, 144px) auto 0;
+}
+.hp-statement p {
+  max-width: 17ch;
+  font-size: clamp(2.3rem, 5.6vw, 5rem);
+  font-weight: 700;
+  line-height: 1.02;
   letter-spacing: -0.045em;
-  font-weight: 500;
-}
-.hm-finale p {
-  margin: 22px auto 0;
-  font-size: 17px;
-  color: var(--hm-muted);
-}
-.hm-finale .hm-button {
-  margin-top: 34px;
-}
-.hm-finale small {
-  display: block;
-  margin-top: 20px;
-  font-size: 11px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--hm-faint);
+  text-wrap: balance;
 }
 
-/* ── Reveal on scroll ── */
-.hm-line {
-  display: block;
-  /* Room for descenders (g, y) so lines never clip or overlap. */
-  overflow: clip;
-  overflow-clip-margin: 0.25em;
-  padding-bottom: 0.08em;
+/* The close: a full-width inverted band. */
+.hp-end {
+  width: auto;
+  margin: clamp(88px, 11vw, 144px) 0 0;
+  padding: clamp(72px, 10vw, 128px) max(24px, calc((100% - 1120px) / 2));
+  border-top: 0;
+  background: var(--ink);
+  color: var(--bg);
 }
-.hm-line > span {
-  display: block;
+.hp-end h2 {
+  max-width: 14ch;
+  font-size: clamp(2.6rem, 6.2vw, 5.4rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.05em;
 }
-.hm--motion [data-lines] .hm-line > span {
-  transform: translateY(110%) rotate(2deg);
-  transform-origin: 0 100%;
-  transition: transform 1s cubic-bezier(0.2, 0.8, 0.2, 1);
-  transition-delay: calc(var(--line, 0) * 110ms);
+.hp-end .hp-actions {
+  margin-top: 40px;
 }
-.hm--motion [data-lines].is-visible .hm-line > span {
-  transform: none;
+.hp-end .hp-button {
+  background: var(--bg);
+  color: var(--ink);
 }
-.hm--motion [data-reveal] {
-  opacity: 0;
-  transform: translateY(26px);
-  filter: blur(6px);
-  transition:
-    opacity 0.9s ease,
-    transform 0.9s cubic-bezier(0.2, 0.8, 0.2, 1),
-    filter 0.9s ease;
-  transition-delay: calc(var(--delay, 0) * 90ms);
+.hp-end .hp-muted {
+  color: color-mix(in srgb, var(--bg) 62%, transparent);
 }
-.hm--motion [data-reveal].is-visible {
-  opacity: 1;
-  transform: none;
-  filter: none;
-}
-
-/* ── Phones and small tablets: no pinning; each screen follows its text. ── */
-@media (max-width: 899px) {
-  .hm-nav__links {
-    display: none;
-  }
-  .hm-story {
-    height: auto;
-  }
-  .hm-story__pin {
-    position: static;
-    height: auto;
-    display: block;
-    padding-top: 40px;
-  }
-  .hm-copy,
-  .hm-steps-nav,
-  .hm-story__pin > .hm-stage {
-    display: none;
-  }
-  .hm-stack {
-    display: grid;
-    gap: 80px;
-    padding-bottom: 40px;
-  }
-  .hm-stack .hm-copy__panel {
-    position: static;
-    transform: none;
-    opacity: 1;
-    pointer-events: auto;
-  }
-  .hm-stack .hm-laptop {
-    margin-top: 28px;
-  }
-  .hm-laptop__lid {
-    padding: 6px;
-    border-radius: 16px;
-  }
-  .hm-laptop__bar {
-    height: 26px;
-  }
-  .hm-laptop__url {
-    font-size: 10px;
-    height: 18px;
-  }
-  .hm-grid {
-    grid-template-columns: 1fr;
-  }
-  .hm-step {
-    grid-template-columns: 40px minmax(0, 1fr);
-  }
-  .hm-step p {
-    grid-column: 2;
-  }
-  .hm-questions {
-    grid-template-columns: 1fr;
-  }
-}
-@media (min-width: 900px) and (max-width: 1100px) {
-  .hm-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-@media (min-width: 900px) {
-  .hm-stack {
-    display: none;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .hm-aurora i,
-  .hm em,
-  .hm-finale__glow {
-    animation: none;
-  }
-  .hm-marquee {
-    animation: none;
-    flex-wrap: wrap;
-    width: auto;
-    padding: 0 clamp(16px, 4vw, 56px);
-  }
-  .hm-marquee[aria-hidden="true"] {
-    display: none;
-  }
+.hp-end + .hp-footer {
+  border-top: 0;
 }
