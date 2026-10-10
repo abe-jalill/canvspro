@@ -600,3 +600,69 @@
   font-size: 12.5px;
   line-height: 1.5;
 }
+
+/* ── Bolder: scale and contrast, not color or effects ── */
+.hp-quiet {
+  color: var(--ink-3);
+}
+.hp-hero h1 {
+  max-width: 14ch;
+  font-size: clamp(2.7rem, 6.2vw, 5.6rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.05em;
+}
+.hp h2 {
+  font-size: clamp(1.8rem, 3.1vw, 2.7rem);
+  font-weight: 650;
+  line-height: 1.1;
+  letter-spacing: -0.035em;
+}
+.hp-more dt {
+  font-size: 1.12rem;
+  letter-spacing: -0.015em;
+}
+
+/* One large line between the product and the details. */
+.hp-statement {
+  width: var(--width);
+  margin: clamp(88px, 11vw, 144px) auto 0;
+}
+.hp-statement p {
+  max-width: 17ch;
+  font-size: clamp(2.3rem, 5.6vw, 5rem);
+  font-weight: 700;
+  line-height: 1.02;
+  letter-spacing: -0.045em;
+  text-wrap: balance;
+}
+
+/* The close: a full-width inverted band. */
+.hp-end {
+  width: auto;
+  margin: clamp(88px, 11vw, 144px) 0 0;
+  padding: clamp(72px, 10vw, 128px) max(24px, calc((100% - 1120px) / 2));
+  border-top: 0;
+  background: var(--ink);
+  color: var(--bg);
+}
+.hp-end h2 {
+  max-width: 14ch;
+  font-size: clamp(2.6rem, 6.2vw, 5.4rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.05em;
+}
+.hp-end .hp-actions {
+  margin-top: 40px;
+}
+.hp-end .hp-button {
+  background: var(--bg);
+  color: var(--ink);
+}
+.hp-end .hp-muted {
+  color: color-mix(in srgb, var(--bg) 62%, transparent);
+}
+.hp-end + .hp-footer {
+  border-top: 0;
+}

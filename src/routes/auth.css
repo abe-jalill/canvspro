@@ -1,0 +1,158 @@
+/* Sign-in, sign-up, password and consent pages in the homepage's design.
+   The forms use the app's Tailwind color tokens (foreground, muted-foreground,
+   glass-inset…), so they are remapped here to the homepage palette instead of
+   rewriting every form. Dark by default, light for visitors who chose Light. */
+
+.hp-auth {
+  --background: 220 9% 5%;
+  --foreground: 240 2% 93%;
+  --muted-foreground: 223 3% 65%;
+  --primary: 240 2% 93%;
+  --primary-foreground: 220 9% 5%;
+  --border: 0 0% 100% / 0.09;
+  --input: 0 0% 100% / 0.12;
+  --ring: 0 0% 100% / 0.3;
+  --glass: 228 7% 8%;
+  --glass-strong: 228 7% 8%;
+  --glass-border: 0 0% 100% / 0.09;
+
+  display: flex;
+  flex-direction: column;
+}
+:root[data-theme-mode="light"] .hp-auth {
+  --background: 60 14% 98%;
+  --foreground: 225 8% 7%;
+  --muted-foreground: 223 5% 38%;
+  --primary: 225 8% 7%;
+  --primary-foreground: 60 14% 98%;
+  --border: 0 0% 0% / 0.1;
+  --input: 0 0% 0% / 0.14;
+  --ring: 0 0% 0% / 0.3;
+  --glass: 60 17% 99%;
+  --glass-strong: 60 17% 99%;
+  --glass-border: 0 0% 0% / 0.1;
+}
+
+.hp-auth__main {
+  flex: 1 0 auto;
+  width: var(--width);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 32px clamp(40px, 7vw, 112px);
+  align-items: start;
+  padding: clamp(48px, 9vh, 104px) 0 clamp(72px, 10vh, 120px);
+}
+.hp-auth__intro h1 {
+  font-size: clamp(2.2rem, 4.4vw, 3.6rem);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+}
+.hp-auth__intro p {
+  max-width: 26em;
+  margin-top: 16px;
+  font-size: 1.1rem;
+  color: var(--ink-2);
+}
+.hp-auth__form {
+  width: 100%;
+  max-width: 460px;
+}
+.hp-auth__form.max-w-xl {
+  max-width: 600px;
+}
+.hp-auth__footer {
+  margin-top: 24px;
+}
+@media (max-width: 860px) {
+  .hp-auth__main {
+    grid-template-columns: 1fr;
+    padding-top: 32px;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .hp-auth__form.hp-rise {
+    animation-delay: 0.12s;
+  }
+}
+
+/* Inputs: quiet fields with a clear focus state. */
+.hp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+.hp-field__label {
+  font-size: 14px;
+  font-weight: 550;
+  color: var(--ink);
+}
+.hp-field__input {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+  outline: none;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+.hp-field__input::placeholder {
+  color: var(--ink-3);
+}
+.hp-field__input:focus {
+  border-color: var(--ink-2);
+  box-shadow: 0 0 0 3px var(--line);
+}
+.hp-field__toggle {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  translate: 0 -50%;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+.hp-field__toggle:hover {
+  color: var(--ink);
+}
+
+/* The forms' shared Tailwind classes, in the homepage's shapes. */
+.hp-auth .glass-inset {
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.hp-auth .rounded-xl {
+  border-radius: 8px;
+}
+.hp-auth button.bg-foreground {
+  font-size: 15.5px;
+  font-weight: 600;
+  transition: opacity 0.15s;
+}
+.hp-auth button.bg-foreground:hover:not(:disabled) {
+  opacity: 0.85;
+}
+/* Sentence case, like the rest of the site. */
+.hp-auth .uppercase {
+  text-transform: none;
+  letter-spacing: 0;
+}

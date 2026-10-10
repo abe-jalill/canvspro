@@ -129,8 +129,13 @@ function RootComponent() {
     select: (state) => {
       const first = state.location.pathname.split("/")[1] ?? "";
       return ![
-        // The homepage draws its own footer in its own colors.
+        // The homepage and sign-in pages draw their own footer in their own colors.
         "",
+        "auth",
+        "signup",
+        "forgot-password",
+        "reset-password",
+        ".lovable",
         "admin",
         "announcements",
         "assignments",
