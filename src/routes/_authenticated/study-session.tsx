@@ -819,10 +819,10 @@ function StudySessionPage() {
         </div>
       )}
 
-      <div className="grid items-stretch gap-5 lg:h-[calc(100dvh-13rem)] lg:min-h-[36rem] lg:grid-cols-2">
+      <div className="grid items-stretch gap-5 lg:grid-cols-2">
         {/* Left: what to study, then how long. */}
-        <GlassCard className="premium-reveal flex flex-col gap-6 lg:min-h-0">
-          <section className="flex min-h-0 flex-1 flex-col gap-4">
+        <GlassCard className="premium-reveal flex flex-col gap-6">
+          <section className="flex flex-1 flex-col gap-4">
             <StepHeading
               step={1}
               title="Pick assignments"
@@ -865,7 +865,7 @@ function StudySessionPage() {
             ) : candidates.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">No matches.</p>
             ) : (
-              <ul className="max-h-[17.5rem] space-y-2 overflow-y-auto pr-1 lg:max-h-none lg:min-h-0 lg:flex-1">
+              <ul className="max-h-[17.5rem] space-y-2 overflow-y-auto pr-1">
                 {candidates.map((assignment) => {
                   const item = canvasItem(assignment);
                   const isSelected = selectedIds.has(item.id);
@@ -955,7 +955,7 @@ function StudySessionPage() {
                   onClick={() => changeTimeMode(mode.id)}
                   className={cn(
                     choiceButton(timeMode === mode.id),
-                    "whitespace-nowrap px-1.5 text-xs sm:px-3 sm:text-sm",
+                    "px-2 py-1.5 text-xs leading-tight sm:text-sm",
                   )}
                 >
                   {mode.label}
@@ -1086,7 +1086,7 @@ function StudySessionPage() {
 
         {/* Right: the session, in order, ready to start. */}
         <GlassCard
-          className="premium-reveal flex flex-col lg:min-h-0"
+          className="premium-reveal flex flex-col"
           title="Your session"
           action={
             <span className="text-xs tabular-nums text-muted-foreground">
@@ -1099,7 +1099,7 @@ function StudySessionPage() {
               Nothing picked yet.
             </p>
           ) : (
-            <ol className="space-y-2 pr-1 lg:max-h-[45%] lg:overflow-y-auto">
+            <ol className="max-h-[17.5rem] space-y-2 overflow-y-auto pr-1">
               {plannedItems.map((item, index) => (
                 <li
                   key={item.id}
@@ -1154,7 +1154,7 @@ function StudySessionPage() {
             </ol>
           )}
 
-          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 py-6">
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 py-6">
             <SessionRing
               segments={
                 timeMode === "per"

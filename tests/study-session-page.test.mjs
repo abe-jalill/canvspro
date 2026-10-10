@@ -9,9 +9,13 @@ const page = readFileSync(
 
 test("study session setup is two equal cards: pick and time on the left, session on the right", () => {
   assert.match(page, /grid items-stretch gap-5[^"]*lg:grid-cols-2/);
-  // On desktop both cards fit the window; long lists scroll inside them.
-  assert.ok(page.includes("lg:h-[calc(100dvh-13rem)]"));
-  assert.ok(page.includes("lg:max-h-none lg:min-h-0 lg:flex-1"));
+  // The cards take their natural height. Locking them to the window squeezed
+  // the fixed-size ring into the text and Start button on shorter screens.
+  assert.doesNotMatch(page, /\d+dvh/);
+  assert.doesNotMatch(page, /min-h-0/);
+  // Long lists scroll inside their card instead.
+  assert.ok(page.includes('<ul className="max-h-[17.5rem] space-y-2 overflow-y-auto pr-1">'));
+  assert.ok(page.includes('<ol className="max-h-[17.5rem] space-y-2 overflow-y-auto pr-1">'));
   assert.match(page, /title="Pick assignments"/);
   assert.match(page, /title="Choose time"/);
   assert.match(page, /title="Your session"/);
