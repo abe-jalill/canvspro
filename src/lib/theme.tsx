@@ -23,7 +23,7 @@ type ThemeContextValue = Appearance & {
   toggle: () => void;
 };
 const ThemeContext = createContext<ThemeContextValue | null>(null);
-const defaults: Appearance = { mode: "system", palette: "forest", wallpaper: "wave" };
+const defaults: Appearance = { mode: "system", palette: "forest", wallpaper: "plain" };
 
 function readAppearance(): Appearance {
   try {
