@@ -312,10 +312,13 @@ private struct CanvasProArc<Center: View>: View {
             Circle().trim(from: 0, to: 0.75)
                 .stroke(track, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                 .rotationEffect(.degrees(135))
-            Circle().trim(from: 0, to: 0.75 * max(0.002, min(1, progress)))
-                .stroke(color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
-                .rotationEffect(.degrees(135))
-                .widgetAccentable()
+            // No arc at all when there's nothing to show (hidden grades), not even a dot.
+            if progress > 0 {
+                Circle().trim(from: 0, to: 0.75 * min(1, progress))
+                    .stroke(color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                    .rotationEffect(.degrees(135))
+                    .widgetAccentable()
+            }
             center()
         }
     }
