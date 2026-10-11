@@ -50,6 +50,12 @@ struct CanvasProProvider: TimelineProvider {
             for session in snapshot.sessions(on: day, calendar: calendar) {
                 moments.insert(session.start)
                 moments.insert(session.end)
+                // The in-class progress bar moves every five minutes.
+                var step = session.start.addingTimeInterval(300)
+                while step < session.end {
+                    moments.insert(step)
+                    step = step.addingTimeInterval(300)
+                }
             }
         }
         let entries = moments.filter { $0 >= now && $0 <= horizon }.sorted().map { CanvasProEntry(date: $0, snapshot: snapshot, range: range) }

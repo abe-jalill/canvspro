@@ -288,7 +288,8 @@ private struct NativeLaunchView: View {
 private struct NativeWidgetGallery: View {
     @Environment(\.colorScheme) private var scheme
     let page: String
-    private let now = Date()
+    /// A fixed afternoon, so every build's screenshots show the same day.
+    private let now = Calendar.current.date(bySettingHour: 16, minute: 10, second: 0, of: Date()) ?? Date()
     private var snapshot: CanvasProWidgetSnapshot { .sample(now: now) }
     private var hiddenGrades: CanvasProWidgetSnapshot {
         var value = snapshot

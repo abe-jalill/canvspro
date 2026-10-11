@@ -511,14 +511,14 @@ struct CanvasProDueSoonView: View {
     }
 
     private var large: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 10) {
                 CanvasProCaption(text: "WHAT'S DUE", color: muted)
                 Spacer(minLength: 8)
                 rangePicker.frame(width: 180)
             }
             HStack(alignment: .center, spacing: 16) {
-                ring(size: 66, countSize: 22)
+                ring(size: 58, countSize: 20)
                 VStack(alignment: .leading, spacing: 3) {
                     Text("\(work.remaining.count) \(work.remaining.count == 1 ? "assignment" : "assignments") \(range.phrase)")
                         .font(.system(size: 12.5, weight: .medium)).foregroundStyle(fg).lineLimit(1)
@@ -531,7 +531,7 @@ struct CanvasProDueSoonView: View {
             }
             weekStrip
             Rectangle().fill(faint).frame(height: 0.5)
-            list(limit: 5)
+            list(limit: 4)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
@@ -546,12 +546,12 @@ struct CanvasProDueSoonView: View {
                 dayBar(entry, peak: peak, inside: entry.day < end)
             }
         }
-        .frame(height: 44, alignment: .bottom)
+        .frame(height: 36, alignment: .bottom)
     }
 
     private func dayBar(_ entry: CanvasProWidgetSnapshot.DayLoad, peak: Int, inside: Bool) -> some View {
         let isToday = Calendar.current.isDate(entry.day, inSameDayAs: date)
-        let height: CGFloat = entry.count == 0 ? 4 : 6 + 22 * CGFloat(entry.count) / CGFloat(peak)
+        let height: CGFloat = entry.count == 0 ? 4 : 6 + 14 * CGFloat(entry.count) / CGFloat(peak)
         let fill: Color = entry.count == 0 ? faint : (inside ? accent : muted.opacity(0.35))
         return VStack(spacing: 5) {
             Capsule().fill(fill).frame(width: 5, height: height).widgetAccentable(inside)
@@ -766,6 +766,12 @@ struct CanvasProNextClassView: View {
 
     private func isNow(_ session: CanvasProWidgetSnapshot.Session) -> Bool { session.start <= date }
 
+    private func elapsed(_ session: CanvasProWidgetSnapshot.Session) -> CGFloat {
+        let length = session.end.timeIntervalSince(session.start)
+        guard length > 0 else { return 0 }
+        return CGFloat(min(1, max(0, date.timeIntervalSince(session.start) / length)))
+    }
+
     @ViewBuilder private var home: some View {
         if let session {
             HStack(alignment: .top, spacing: 18) {
@@ -798,16 +804,16 @@ struct CanvasProNextClassView: View {
             }
             Spacer(minLength: 0)
             if isNow(session) {
-                ProgressView(timerInterval: session.start...session.end, countsDown: false) {
-                    EmptyView()
-                } currentValueLabel: {
-                    EmptyView()
+                // Steps forward with the timeline, every five minutes of class.
+                GeometryReader { bar in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(faint)
+                        Capsule().fill(accent).frame(width: bar.size.width * elapsed(session)).widgetAccentable()
+                    }
                 }
-                .progressViewStyle(.linear)
-                .tint(accent)
-                .labelsHidden()
-                (Text("Ends ") + Text(session.end, style: .relative))
-                    .font(.system(size: 9.5)).monospacedDigit().foregroundStyle(muted).lineLimit(1).padding(.top, 4)
+                .frame(height: 3)
+                Text("Until \(CanvasProWidgetFormat.time(session.end))")
+                    .font(.system(size: 9.5, weight: .medium)).monospacedDigit().foregroundStyle(muted).lineLimit(1).padding(.top, 5)
             } else {
                 Text("\(CanvasProWidgetFormat.time(session.start)) – \(CanvasProWidgetFormat.time(session.end))")
                     .font(.system(size: 10.5, weight: .medium)).monospacedDigit().foregroundStyle(fg.opacity(0.85)).lineLimit(1)
