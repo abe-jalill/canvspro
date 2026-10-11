@@ -19,17 +19,22 @@ struct NativeRootView: View {
     /// workflow takes. App Store builds can't turn it on.
     #if DEBUG
     private static let demo = UserDefaults.standard.bool(forKey: "CanvasProDemo")
+    /// `-CanvasProDemoWidgets home` (or `large`) lays out the widgets on sample data.
+    private static let demoWidgets = UserDefaults.standard.string(forKey: "CanvasProDemoWidgets")
     /// `-CanvasProDemoTutorial 3` opens the tutorial on that page (0–4), for screenshots.
     private static let demoTutorialPage: Int? = UserDefaults.standard.object(forKey: "CanvasProDemoTutorial") == nil ? nil : UserDefaults.standard.integer(forKey: "CanvasProDemoTutorial")
     #else
     private static let demo = false
+    private static let demoWidgets: String? = nil
     private static let demoTutorialPage: Int? = nil
     #endif
 
     var body: some View {
         ZStack {
             Group {
-                if Self.demo {
+                if Self.demo, let page = Self.demoWidgets {
+                    Self.widgetGallery(page)
+                } else if Self.demo {
                     NativeMainTabView(sessionStore: sessionStore, preview: true)
                         // `-CanvasProDemoPage grades` opens that tab, the way a link would
                         // (a simulator link stops at an "Open in CanvasPro?" prompt).
@@ -91,6 +96,14 @@ struct NativeRootView: View {
     private static func openedRecently() -> Bool {
         let last = UserDefaults.standard.double(forKey: "CanvasProLastActive")
         return last > 0 && Date().timeIntervalSince1970 - last < 600
+    }
+
+    @ViewBuilder private static func widgetGallery(_ page: String) -> some View {
+        #if DEBUG
+        NativeWidgetGallery(page: page)
+        #else
+        EmptyView()
+        #endif
     }
 
     /// UserDefaults is cleared when the app is deleted, so a fresh download sees
@@ -267,6 +280,68 @@ private struct NativeLaunchView: View {
         .task { appeared = true }
     }
 }
+
+#if DEBUG
+/// Every widget at its real iPhone size, drawn by the same views the widget
+/// extension uses, on sample data. The simulator can't place widgets on the
+/// home screen from a script, so the build's screenshots use this instead.
+private struct NativeWidgetGallery: View {
+    @Environment(\.colorScheme) private var scheme
+    let page: String
+    private let now = Date()
+    private var snapshot: CanvasProWidgetSnapshot { .sample(now: now) }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                if page == "large" {
+                    home(width: 364, height: 382) { CanvasProDueSoonView(snapshot: snapshot, date: now, family: .systemLarge) }
+                    lockScreen
+                } else {
+                    HStack(spacing: 22) {
+                        home(width: 170, height: 170) { CanvasProDueSoonView(snapshot: snapshot, date: now, family: .systemSmall) }
+                        home(width: 170, height: 170) { CanvasProNextClassView(snapshot: snapshot, date: now, family: .systemSmall) }
+                    }
+                    home(width: 364, height: 170) { CanvasProDueSoonView(snapshot: snapshot, date: now, family: .systemMedium) }
+                    home(width: 364, height: 170) { CanvasProNextClassView(snapshot: snapshot, date: now, family: .systemMedium) }
+                }
+            }
+            .padding(.vertical, 24)
+            .frame(maxWidth: .infinity)
+        }
+        .background(LinearGradient(colors: scheme == .dark ? [Color(white: 0.16), Color(white: 0.05)] : [Color(white: 0.86), Color(white: 0.72)], startPoint: .top, endPoint: .bottom).ignoresSafeArea())
+    }
+
+    private func home<Content: View>(width: CGFloat, height: CGFloat, @ViewBuilder _ content: () -> Content) -> some View {
+        content()
+            .padding(16)
+            .frame(width: width, height: height)
+            .background(CanvasProWidgetPalette(snapshot.palette).background(scheme), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+    }
+
+    /// The lock screen draws widgets in white over the wallpaper.
+    private var lockScreen: some View {
+        VStack(spacing: 14) {
+            Text(CanvasProWidgetFormat.time(now)).font(.system(size: 64, weight: .semibold, design: .rounded))
+            CanvasProDueSoonView(snapshot: snapshot, date: now, family: .accessoryInline)
+            HStack(spacing: 12) {
+                CanvasProDueSoonView(snapshot: snapshot, date: now, family: .accessoryCircular)
+                    .frame(width: 72, height: 72)
+                    .background(Color.white.opacity(0.14), in: Circle())
+                CanvasProDueSoonView(snapshot: snapshot, date: now, family: .accessoryRectangular)
+                    .frame(width: 160, height: 72)
+            }
+            CanvasProNextClassView(snapshot: snapshot, date: now, family: .accessoryRectangular)
+                .frame(width: 244, height: 72)
+        }
+        .padding(20)
+        .foregroundStyle(.white)
+        .environment(\.colorScheme, .dark)
+        .frame(width: 364)
+        .background(LinearGradient(colors: [Color(red: 0.10, green: 0.20, blue: 0.32), Color(red: 0.04, green: 0.08, blue: 0.14)], startPoint: .top, endPoint: .bottom), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+    }
+}
+#endif
 
 /// Five short pages shown once after the app is downloaded, before sign-in (or
 /// before the signed-in app, when the phone still holds a session). Next is the
@@ -1132,6 +1207,7 @@ struct NativeMainTabView: View {
     /// settings on screen. Waits for the saved settings so an offline launch
     /// keeps the reminders planned last time instead of using the defaults.
     @MainActor private func rescheduleLocalReminders() {
+        publishWidgetSnapshot()
         guard !contentStore.isPreview, sessionStore.session != nil, featureStore.notificationPreferencesLoaded else { return }
         guard NativeLocalReminders.deviceEnabled else { NativeLocalReminders.replace(with: []); return }
         let items = featureStore.shownAssignments(in: contentStore).compactMap { item -> NativeLocalReminders.DueItem? in
@@ -1139,6 +1215,43 @@ struct NativeMainTabView: View {
             return NativeLocalReminders.DueItem(id: item.id, name: item.name, course: contentStore.displayName(courseID: item.courseID, fallback: item.courseName), due: due)
         }
         NativeLocalReminders.replace(with: NativeLocalReminders.plan(items: items, schedule: featureStore.schedule, prefs: featureStore.notificationPreferences))
+    }
+
+    /// Hands the widgets what's due and the class schedule, through the shared
+    /// App Group. Runs whenever the reminders are re-planned, which is every time
+    /// coursework, completions, custom work or the schedule change.
+    @MainActor private func publishWidgetSnapshot() {
+        guard !contentStore.isPreview, sessionStore.session != nil, contentStore.lastSyncedAt != nil else { return }
+        let now = Date()
+        var upcoming: [CanvasProWidgetSnapshot.Assignment] = []
+        var overdue = 0
+        for item in featureStore.shownAssignments(in: contentStore) where item.isVisible(in: contentStore) {
+            guard let due = item.dueDate else { continue }
+            if due <= now { overdue += 1; continue }
+            let course = contentStore.displayName(courseID: item.courseID, fallback: item.courseName)
+            upcoming.append(CanvasProWidgetSnapshot.Assignment(id: item.id, name: item.name, course: course, due: due))
+        }
+        upcoming.sort { $0.due == $1.due ? $0.name < $1.name : $0.due < $1.due }
+        let weekdays: [String: Int] = ["U": 1, "M": 2, "T": 3, "W": 4, "R": 5, "F": 6, "S": 7]
+        let classes = featureStore.schedule.map { entry in
+            let title = entry.title.trimmingCharacters(in: .whitespaces)
+            return CanvasProWidgetSnapshot.ClassMeeting(
+                id: entry.id,
+                name: title.isEmpty ? entry.code : title,
+                location: entry.location.trimmingCharacters(in: .whitespaces),
+                weekdays: entry.days.compactMap { weekdays[$0] },
+                startMinutes: entry.startMinutes,
+                endMinutes: entry.endMinutes
+            )
+        }
+        CanvasProWidgetStore.save(CanvasProWidgetSnapshot(
+            signedIn: true,
+            palette: UserDefaults.standard.string(forKey: "CanvasProPalette") ?? "forest",
+            syncedAt: contentStore.lastSyncedAt,
+            assignments: Array(upcoming.prefix(20)),
+            overdueCount: overdue,
+            classes: classes
+        ))
     }
 
     /// Keeps this phone's reminders in step with what the student sees. Apart

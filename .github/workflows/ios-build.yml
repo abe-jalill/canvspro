@@ -83,6 +83,15 @@ jobs:
             sleep 8
             xcrun simctl io "$UDID" screenshot --type=jpeg "shots/tutorial-$((page + 1)).jpg"
           done
+          # Every widget at its real size on sample data (debug-only -CanvasProDemoWidgets).
+          for mode in dark light; do
+            for page in home large; do
+              xcrun simctl terminate "$UDID" "$BUNDLE" 2>/dev/null || true
+              xcrun simctl launch "$UDID" "$BUNDLE" -CanvasProDemo YES -CanvasProColorScheme "$mode" -CanvasProDemoWidgets "$page"
+              sleep 8
+              xcrun simctl io "$UDID" screenshot --type=jpeg "shots/widgets-$mode-$page.jpg"
+            done
+          done
           ls -la shots
 
       # One commit, replaced each run, on a branch nothing else uses (Lovable
