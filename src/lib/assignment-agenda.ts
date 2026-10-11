@@ -1,5 +1,5 @@
 import type { AssignmentItem } from "./canvas.functions.ts";
-import { endOfUpcomingDay } from "./assignment-window.ts";
+import { assignmentDueTime, endOfUpcomingDay } from "./assignment-window.ts";
 
 export type AgendaHorizon = 14 | 28;
 
@@ -34,7 +34,7 @@ export function buildAgendaView<T extends { assignment: Pick<AssignmentItem, "du
   const week1End = endOfUpcomingDay(now, 7);
   const week2End = endOfUpcomingDay(now, 14);
   const week4End = endOfUpcomingDay(now, 28);
-  const due = (item: T) => (item.assignment.due_at ? new Date(item.assignment.due_at).getTime() : null);
+  const due = (item: T) => assignmentDueTime(item.assignment);
   const inRange = (item: T, from: number, to: number) => {
     const t = due(item);
     return t != null && t > from && t <= to;

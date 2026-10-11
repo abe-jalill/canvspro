@@ -90,13 +90,19 @@ export function isPlaceholderAssignment(a: AssignmentItem): boolean {
   return !a.due_at && !(a.points_possible && a.points_possible > 0);
 }
 
-/** Soonest due date first; undated work last; ties broken by name. */
+/** A usable deadline, or null when the assignment has no valid due date. */
+export function assignmentDueTime(a: Pick<AssignmentItem, "due_at">): number | null {
+  const due = a.due_at ? Date.parse(a.due_at) : Number.NaN;
+  return Number.isFinite(due) ? due : null;
+}
+
+/** Soonest due date first; missing or invalid dates last; ties broken by name. */
 export function compareByDueDate(
   a: Pick<AssignmentItem, "due_at" | "name">,
   b: Pick<AssignmentItem, "due_at" | "name">,
 ): number {
-  const at = a.due_at ? new Date(a.due_at).getTime() : Number.POSITIVE_INFINITY;
-  const bt = b.due_at ? new Date(b.due_at).getTime() : Number.POSITIVE_INFINITY;
+  const at = assignmentDueTime(a) ?? Number.POSITIVE_INFINITY;
+  const bt = assignmentDueTime(b) ?? Number.POSITIVE_INFINITY;
   if (at !== bt) return at < bt ? -1 : 1;
   return a.name.localeCompare(b.name);
 }
