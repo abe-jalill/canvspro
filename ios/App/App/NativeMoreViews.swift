@@ -143,6 +143,8 @@ struct NativeSettingsView: View {
                         CPIconBadge(symbol: "eye.slash")
                         Toggle("Hide grades until tapped", isOn: $hideGrades)
                             .cpFont(13, .medium).foregroundStyle(CPTheme.foreground(scheme))
+                            // The Grades widget hides its numbers too.
+                            .onChange(of: hideGrades) { _, hide in CanvasProWidgetStore.updateHideGrades(hide) }
                     }
                     .frame(minHeight: 50)
                 }

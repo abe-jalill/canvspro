@@ -290,20 +290,32 @@ private struct NativeWidgetGallery: View {
     let page: String
     private let now = Date()
     private var snapshot: CanvasProWidgetSnapshot { .sample(now: now) }
+    private var hiddenGrades: CanvasProWidgetSnapshot {
+        var value = snapshot
+        value.hideGrades = true
+        return value
+    }
 
     var body: some View {
         ScrollView {
             VStack(spacing: 18) {
                 if page == "large" {
-                    home(width: 364, height: 382) { CanvasProDueSoonView(snapshot: snapshot, date: now, family: .systemLarge) }
+                    home(width: 364, height: 382) { CanvasProDueSoonView(snapshot: snapshot, date: now, family: .systemLarge, range: .week) }
                     lockScreen
+                } else if page == "classes" {
+                    HStack(spacing: 22) {
+                        home(width: 170, height: 170) { CanvasProNextClassView(snapshot: snapshot, date: now, family: .systemSmall) }
+                        home(width: 170, height: 170) { CanvasProGradesView(snapshot: hiddenGrades, family: .systemSmall) }
+                    }
+                    home(width: 364, height: 170) { CanvasProNextClassView(snapshot: snapshot, date: now, family: .systemMedium) }
+                    home(width: 364, height: 170) { CanvasProDueSoonView(snapshot: snapshot, date: now, family: .systemMedium, range: .twoDays) }
                 } else {
                     HStack(spacing: 22) {
                         home(width: 170, height: 170) { CanvasProDueSoonView(snapshot: snapshot, date: now, family: .systemSmall) }
-                        home(width: 170, height: 170) { CanvasProNextClassView(snapshot: snapshot, date: now, family: .systemSmall) }
+                        home(width: 170, height: 170) { CanvasProGradesView(snapshot: snapshot, family: .systemSmall) }
                     }
                     home(width: 364, height: 170) { CanvasProDueSoonView(snapshot: snapshot, date: now, family: .systemMedium) }
-                    home(width: 364, height: 170) { CanvasProNextClassView(snapshot: snapshot, date: now, family: .systemMedium) }
+                    home(width: 364, height: 170) { CanvasProGradesView(snapshot: snapshot, family: .systemMedium) }
                 }
             }
             .padding(.vertical, 24)
@@ -326,8 +338,9 @@ private struct NativeWidgetGallery: View {
             CanvasProDueSoonView(snapshot: snapshot, date: now, family: .accessoryInline)
             HStack(spacing: 12) {
                 CanvasProDueSoonView(snapshot: snapshot, date: now, family: .accessoryCircular)
-                    .frame(width: 72, height: 72)
-                    .background(Color.white.opacity(0.14), in: Circle())
+                    .frame(width: 64, height: 64)
+                CanvasProGradesView(snapshot: snapshot, family: .accessoryCircular)
+                    .frame(width: 64, height: 64)
                 CanvasProDueSoonView(snapshot: snapshot, date: now, family: .accessoryRectangular)
                     .frame(width: 160, height: 72)
             }
@@ -1217,21 +1230,43 @@ struct NativeMainTabView: View {
         NativeLocalReminders.replace(with: NativeLocalReminders.plan(items: items, schedule: featureStore.schedule, prefs: featureStore.notificationPreferences))
     }
 
-    /// Hands the widgets what's due and the class schedule, through the shared
-    /// App Group. Runs whenever the reminders are re-planned, which is every time
-    /// coursework, completions, custom work or the schedule change.
+    /// Hands the widgets coursework, grades and the class schedule, through the
+    /// shared App Group. Runs whenever the reminders are re-planned, which is every
+    /// time coursework, completions, custom work or the schedule change.
     @MainActor private func publishWidgetSnapshot() {
         guard !contentStore.isPreview, sessionStore.session != nil, contentStore.lastSyncedAt != nil else { return }
         let now = Date()
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: now)
+        let weekEnd = calendar.date(byAdding: .day, value: 8, to: today) ?? now
         var upcoming: [CanvasProWidgetSnapshot.Assignment] = []
+        var finished: [CanvasProWidgetSnapshot.Assignment] = []
         var overdue = 0
-        for item in featureStore.shownAssignments(in: contentStore) where item.isVisible(in: contentStore) {
+        for item in featureStore.shownAssignments(in: contentStore) {
             guard let due = item.dueDate else { continue }
-            if due <= now { overdue += 1; continue }
             let course = contentStore.displayName(courseID: item.courseID, fallback: item.courseName)
-            upcoming.append(CanvasProWidgetSnapshot.Assignment(id: item.id, name: item.name, course: course, due: due))
+            if item.isFinished(in: contentStore) {
+                // Finished work due this week counts toward the widget's progress ring.
+                if due >= today && due < weekEnd {
+                    finished.append(CanvasProWidgetSnapshot.Assignment(id: item.id, name: item.name, course: course, due: due, done: true))
+                }
+            } else if item.isVisible(in: contentStore) {
+                if due <= now { overdue += 1 } else {
+                    upcoming.append(CanvasProWidgetSnapshot.Assignment(id: item.id, name: item.name, course: course, due: due, done: false))
+                }
+            }
         }
         upcoming.sort { $0.due == $1.due ? $0.name < $1.name : $0.due < $1.due }
+        let courses = contentStore.bundle.courses
+            .filter { !featureStore.hiddenCourseIDs.contains($0.id) }
+            .map { course in
+                CanvasProWidgetSnapshot.Course(
+                    id: course.id,
+                    name: contentStore.displayName(courseID: course.id, fallback: course.name),
+                    score: course.currentScore,
+                    letter: NativeParity.courseLetter(course.currentGrade, score: course.currentScore)
+                )
+            }
         let weekdays: [String: Int] = ["U": 1, "M": 2, "T": 3, "W": 4, "R": 5, "F": 6, "S": 7]
         let classes = featureStore.schedule.map { entry in
             let title = entry.title.trimmingCharacters(in: .whitespaces)
@@ -1248,9 +1283,11 @@ struct NativeMainTabView: View {
             signedIn: true,
             palette: UserDefaults.standard.string(forKey: "CanvasProPalette") ?? "forest",
             syncedAt: contentStore.lastSyncedAt,
-            assignments: Array(upcoming.prefix(20)),
+            assignments: Array(upcoming.prefix(30)) + Array(finished.prefix(30)),
             overdueCount: overdue,
-            classes: classes
+            classes: classes,
+            courses: courses,
+            hideGrades: UserDefaults.standard.bool(forKey: "CanvasProHideGrades")
         ))
     }
 
