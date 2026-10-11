@@ -7,6 +7,7 @@ struct NativeRootView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @State private var showingLaunch = true
+    @State private var showingTutorial = NativeRootView.needsTutorial()
     @State private var quickReopen = NativeRootView.openedRecently()
     @AppStorage("CanvasProColorScheme") private var colorScheme = "dark"
     @AppStorage("CanvasProPalette") private var palette = "forest"
@@ -18,8 +19,11 @@ struct NativeRootView: View {
     /// workflow takes. App Store builds can't turn it on.
     #if DEBUG
     private static let demo = UserDefaults.standard.bool(forKey: "CanvasProDemo")
+    /// `-CanvasProDemoTutorial 3` opens the tutorial on that page (0–4), for screenshots.
+    private static let demoTutorialPage: Int? = UserDefaults.standard.object(forKey: "CanvasProDemoTutorial") == nil ? nil : UserDefaults.standard.integer(forKey: "CanvasProDemoTutorial")
     #else
     private static let demo = false
+    private static let demoTutorialPage: Int? = nil
     #endif
 
     var body: some View {
@@ -44,9 +48,16 @@ struct NativeRootView: View {
                 }
             }
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.24), value: userID)
-            .allowsHitTesting(!showingLaunch)
-            .accessibilityHidden(showingLaunch)
-            .environment(\.nativeLaunchIsVisible, showingLaunch)
+            .allowsHitTesting(!showingLaunch && !showingTutorial)
+            .accessibilityHidden(showingLaunch || showingTutorial)
+            // Signed-in screens load underneath, but hold their welcome and alerts until the tutorial is done.
+            .environment(\.nativeLaunchIsVisible, showingLaunch || showingTutorial)
+            // Shown once per install, before sign-in (or the signed-in app), as the launch fades.
+            if showingTutorial && !showingLaunch {
+                NativeTutorialView(startPage: Self.demoTutorialPage ?? 0) { finishTutorial() }
+                    .transition(.asymmetric(insertion: .identity, removal: .opacity))
+                    .zIndex(0.5)
+            }
             if showingLaunch {
                 NativeLaunchView(isSignedIn: sessionStore.session != nil || Self.demo) { finishLaunch() }
                     .transition(.opacity.combined(with: .scale(scale: 1.04)))
@@ -80,6 +91,22 @@ struct NativeRootView: View {
     private static func openedRecently() -> Bool {
         let last = UserDefaults.standard.double(forKey: "CanvasProLastActive")
         return last > 0 && Date().timeIntervalSince1970 - last < 600
+    }
+
+    /// UserDefaults is cleared when the app is deleted, so a fresh download sees
+    /// the tutorial again even if the Keychain still holds a signed-in session.
+    private static let tutorialSeenKey = "CanvasProTutorialSeen"
+
+    private static func needsTutorial() -> Bool {
+        if let page = demoTutorialPage { return page >= 0 }
+        return !demo && !UserDefaults.standard.bool(forKey: tutorialSeenKey)
+    }
+
+    private func finishTutorial() {
+        UserDefaults.standard.set(true, forKey: Self.tutorialSeenKey)
+        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.35)) {
+            showingTutorial = false
+        }
     }
 
     private static func markActive() {
@@ -241,135 +268,318 @@ private struct NativeLaunchView: View {
     }
 }
 
-/// A short, skippable welcome shown once to a new account: what CanvasPro is, how
-/// to get around, and connecting Canvas. `finish(true)` means "take me to connect".
-struct NativeOnboardingView: View {
-    @Environment(\.colorScheme) private var scheme
-    @Environment(\.cpPalette) private var paletteDependency
+/// Five short pages shown once after the app is downloaded, before sign-in (or
+/// before the signed-in app, when the phone still holds a session). Next is the
+/// only control; swiping between pages works too.
+struct NativeTutorialView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    let isConnected: Bool
-    let finish: (Bool) -> Void
-    @State private var page = 0
-    private let lastPage = 2
+    let finish: () -> Void
+    @State private var page: Int
+
+    private struct Page {
+        let title: String
+        let detail: String
+    }
+
+    private static let pages = [
+        Page(title: "Welcome to CanvasPro", detail: "Your classes, deadlines and grades from Canvas, in one calm place."),
+        Page(title: "See what's due", detail: "Today lists your work by due date. Swipe an assignment right when it's done."),
+        Page(title: "Study one thing at a time", detail: "Start a focus timer on any assignment. CanvasPro lets you know when it's time for a break."),
+        Page(title: "Every class at a glance", detail: "Grades and announcements from all your classes, side by side."),
+        Page(title: "Stay ahead, everywhere", detail: "Reminders arrive before things are due, even with the app closed. Your account stays in sync with canvaspro.app."),
+    ]
+    private var lastPage: Int { Self.pages.count - 1 }
+
+    init(startPage: Int = 0, finish: @escaping () -> Void) {
+        self.finish = finish
+        _page = State(initialValue: min(max(startPage, 0), Self.pages.count - 1))
+    }
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Spacer()
-                Button("Skip") { finish(false) }
-                    .cpFont(13)
-                    .foregroundStyle(CPTheme.muted(scheme))
-                    .frame(minWidth: 56, minHeight: 44)
-                    .opacity(page == lastPage ? 0 : 1)
-                    .disabled(page == lastPage)
-            }
-            .padding(.horizontal, 12)
-
             TabView(selection: $page) {
-                welcomePage.tag(0)
-                tourPage.tag(1)
-                connectPage.tag(2)
+                ForEach(Self.pages.indices, id: \.self) { index in
+                    pageView(index).tag(index)
+                }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
+            controls
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background {
+            LinearGradient(colors: [NativeBrandColors.base, NativeBrandColors.deep], startPoint: .top, endPoint: .bottom)
+                .ignoresSafeArea()
+        }
+        .foregroundStyle(.white)
+        .statusBarHidden()
+        .sensoryFeedback(.selection, trigger: page)
+    }
 
-            VStack(spacing: 18) {
-                HStack(spacing: 8) {
-                    ForEach(0...lastPage, id: \.self) { index in
-                        Capsule()
-                            .fill(CPTheme.foreground(scheme).opacity(index == page ? 0.9 : 0.2))
-                            .frame(width: index == page ? 22 : 7, height: 7)
+    private func pageView(_ index: Int) -> some View {
+        GeometryReader { proxy in
+            // A phone on its side puts the picture beside the words.
+            let sideBySide = proxy.size.width > proxy.size.height && proxy.size.height < 560
+            ScrollView {
+                Group {
+                    if sideBySide {
+                        HStack(spacing: 32) {
+                            illustration(index)
+                            pageText(index, alignment: .leading).frame(maxWidth: 360, alignment: .leading)
+                        }
+                    } else {
+                        VStack(spacing: 36) {
+                            illustration(index)
+                            pageText(index, alignment: .center)
+                        }
                     }
                 }
-                .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: page)
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel("Page \(page + 1) of \(lastPage + 1)")
+                .padding(.horizontal, 28)
+                .padding(.vertical, 24)
+                .frame(maxWidth: sideBySide ? 760 : 520)
+                .frame(maxWidth: .infinity, minHeight: proxy.size.height)
+            }
+            .scrollBounceBehavior(.basedOnSize)
+        }
+    }
 
-                if page < lastPage {
-                    Button {
-                        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.3)) { page += 1 }
-                    } label: { Text("Continue") }
-                        .buttonStyle(CPButtonStyle(kind: .primary, fullWidth: true))
-                } else if isConnected {
-                    Button { finish(false) } label: { Text("Get started") }
-                        .buttonStyle(CPButtonStyle(kind: .primary, fullWidth: true))
-                } else {
-                    VStack(spacing: 8) {
-                        Button { finish(true) } label: { Text("Connect Canvas") }
-                            .buttonStyle(CPButtonStyle(kind: .primary, fullWidth: true))
-                        Button { finish(false) } label: { Text("I'll do it later") }
-                            .buttonStyle(CPButtonStyle(kind: .quiet, fullWidth: true))
-                    }
+    private func pageText(_ index: Int, alignment: TextAlignment) -> some View {
+        VStack(alignment: alignment == .center ? .center : .leading, spacing: 10) {
+            Text(Self.pages[index].title)
+                .cpFont(28, .semibold).tracking(-0.8)
+                .accessibilityAddTraits(.isHeader)
+            Text(Self.pages[index].detail)
+                .cpFont(15).lineSpacing(3)
+                .foregroundStyle(.white.opacity(0.72))
+        }
+        .multilineTextAlignment(alignment)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var controls: some View {
+        VStack(spacing: 20) {
+            HStack(spacing: 8) {
+                ForEach(0...lastPage, id: \.self) { index in
+                    Capsule()
+                        .fill(index == page ? NativeBrandColors.mint : Color.white.opacity(0.25))
+                        .frame(width: index == page ? 22 : 7, height: 7)
                 }
             }
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: page)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Page \(page + 1) of \(lastPage + 1)")
+
+            Button(action: next) {
+                HStack(spacing: 8) {
+                    Text(page == lastPage ? "Get started" : "Next").cpFont(15, .semibold)
+                    Image(systemName: "arrow.right").cpIconFont(13, .bold).accessibilityHidden(true)
+                }
+                .frame(maxWidth: .infinity, minHeight: 52)
+                .foregroundStyle(NativeBrandColors.deep)
+                .background(NativeBrandColors.mint, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            }
+            .buttonStyle(CPPressStyle())
+            .frame(maxWidth: 420)
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 8)
+        .padding(.bottom, 20)
+    }
+
+    private func next() {
+        if page < lastPage {
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.3)) { page += 1 }
+        } else {
+            CPHaptics.success()
+            finish()
+        }
+    }
+
+    // MARK: Illustrations
+    //
+    // Small sketches of each part of the app, drawn as glass cards on the brand
+    // green. They are decoration, so VoiceOver reads only the words.
+
+    @ViewBuilder private func illustration(_ index: Int) -> some View {
+        Group {
+            switch index {
+            case 0: NativeBrandMark(size: 132).padding(.vertical, 20)
+            case 1: todaySketch
+            case 2: studySketch
+            case 3: gradesSketch
+            default: remindersSketch
+            }
+        }
+        .accessibilityHidden(true)
+    }
+
+    private func glassCard<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        content()
+            .padding(16)
+            .frame(maxWidth: 320)
+            .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(Color.white.opacity(0.12), lineWidth: 0.5))
+    }
+
+    private var todaySketch: some View {
+        glassCard {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("TODAY").cpFont(11, .semibold).tracking(1.5).foregroundStyle(.white.opacity(0.55))
+                sketchTask("Essay draft", "ENG 102", "11:59 PM", done: true)
+                sketchTask("Lab report", "BIO 110", "Tomorrow", done: false)
+                sketchTask("Problem set 4", "MATH 210", "Friday", done: false)
+            }
+        }
+    }
+
+    private func sketchTask(_ name: String, _ course: String, _ due: String, done: Bool) -> some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle().strokeBorder(done ? Color.clear : Color.white.opacity(0.35), lineWidth: 1.2)
+                if done {
+                    Circle().fill(NativeBrandColors.mint)
+                    Image(systemName: "checkmark").cpIconFont(9, .bold).foregroundStyle(NativeBrandColors.deep)
+                }
+            }
+            .frame(width: 20, height: 20)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name).cpFont(14, .medium).strikethrough(done, color: Color.white.opacity(0.5)).opacity(done ? 0.55 : 1)
+                Text(course).cpFont(11).foregroundStyle(.white.opacity(0.55))
+            }
+            Spacer(minLength: 8)
+            Text(due).cpFont(11, .medium).foregroundStyle(.white.opacity(done ? 0.4 : 0.75))
+        }
+        .lineLimit(1)
+    }
+
+    private var studySketch: some View {
+        VStack(spacing: 16) {
+            ZStack {
+                Circle().stroke(Color.white.opacity(0.10), lineWidth: 8)
+                Circle()
+                    .trim(from: 0, to: 0.64)
+                    .stroke(NativeBrandColors.mint, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                VStack(spacing: 2) {
+                    Text("16:05").cpFont(34, .light).monospacedDigit()
+                    Text("Focus").cpFont(12).foregroundStyle(.white.opacity(0.6))
+                }
+            }
+            .frame(width: 168, height: 168)
+            Text("Lab report · BIO 110")
+                .cpFont(12, .medium)
+                .padding(.horizontal, 14).padding(.vertical, 8)
+                .background(Color.white.opacity(0.08), in: Capsule())
+                .overlay(Capsule().strokeBorder(Color.white.opacity(0.12), lineWidth: 0.5))
+        }
+    }
+
+    private var gradesSketch: some View {
+        glassCard {
+            VStack(alignment: .leading, spacing: 14) {
+                sketchGrade("BIO 110", 0.94)
+                sketchGrade("ENG 102", 0.89)
+                sketchGrade("MATH 210", 0.91)
+                HStack(spacing: 10) {
+                    Image(systemName: "megaphone").cpIconFont(12).foregroundStyle(NativeBrandColors.mint)
+                    Text("Quiz moved to Thursday").cpFont(12).foregroundStyle(.white.opacity(0.8)).lineLimit(1)
+                }
+                .padding(.top, 2)
+            }
+        }
+    }
+
+    private func sketchGrade(_ course: String, _ score: Double) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(course).cpFont(13, .medium)
+                Spacer()
+                Text("\(Int((score * 100).rounded()))%").cpFont(13, .semibold).monospacedDigit()
+            }
+            GeometryReader { bar in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.white.opacity(0.10))
+                    Capsule().fill(NativeBrandColors.mint).frame(width: bar.size.width * score)
+                }
+            }
+            .frame(height: 5)
+        }
+    }
+
+    private var remindersSketch: some View {
+        VStack(spacing: 20) {
+            HStack(alignment: .top, spacing: 12) {
+                NativeBrandMark(size: 26)
+                    .padding(5)
+                    .background(NativeBrandColors.base, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack {
+                        Text("CanvasPro").cpFont(12, .semibold)
+                        Spacer()
+                        Text("now").cpFont(11).foregroundStyle(.white.opacity(0.55))
+                    }
+                    Text("Lab report is due in 2 hours").cpFont(13).foregroundStyle(.white.opacity(0.85)).fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(14)
+            .frame(maxWidth: 320)
+            .background(Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(Color.white.opacity(0.14), lineWidth: 0.5))
+            HStack(spacing: 18) {
+                Image(systemName: "iphone").cpIconFont(26, .light)
+                Image(systemName: "arrow.left.arrow.right").cpIconFont(14, .semibold).foregroundStyle(NativeBrandColors.mint)
+                Image(systemName: "laptopcomputer").cpIconFont(30, .light)
+            }
+            .foregroundStyle(.white.opacity(0.85))
+        }
+    }
+}
+
+/// Shown once to an account that hasn't connected Canvas yet, after the
+/// tutorial. `finish(true)` means "take me to connect".
+struct NativeOnboardingView: View {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
+    let finish: (Bool) -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 22) {
+                    Image(systemName: "link")
+                        .cpIconFont(26, .light)
+                        .foregroundStyle(CPTheme.foreground(scheme))
+                        .frame(width: 84, height: 84)
+                        .background(CPTheme.inset(scheme), in: Circle())
+                        .overlay(Circle().strokeBorder(CPTheme.insetBorder(scheme), lineWidth: 0.5))
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Connect your Canvas").cpFont(30, .regular).tracking(-1).foregroundStyle(CPTheme.foreground(scheme))
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityAddTraits(.isHeader)
+                        Text("CanvasPro brings in your classes, assignments and grades. Your school password is never used.")
+                            .cpFont(15).lineSpacing(3).foregroundStyle(CPTheme.muted(scheme))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(.horizontal, 28)
+                .padding(.top, 56)
+                .frame(maxWidth: 520, alignment: .leading)
+                .frame(maxWidth: .infinity)
+            }
+            .scrollBounceBehavior(.basedOnSize)
+
+            VStack(spacing: 8) {
+                Button { finish(true) } label: { Text("Connect Canvas") }
+                    .buttonStyle(CPButtonStyle(kind: .primary, fullWidth: true))
+                Button { finish(false) } label: { Text("I'll do it later") }
+                    .buttonStyle(CPButtonStyle(kind: .quiet, fullWidth: true))
+            }
+            .frame(maxWidth: 420)
             .padding(.horizontal, 24)
             .padding(.bottom, 28)
         }
         .background(CPBackdrop())
-        .sensoryFeedback(.selection, trigger: page)
-    }
-
-    private func pageLayout<Content: View>(title: String, detail: String? = nil, @ViewBuilder content: () -> Content) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
-                content()
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(title).cpFont(30, .regular).tracking(-1).foregroundStyle(CPTheme.foreground(scheme))
-                        .fixedSize(horizontal: false, vertical: true)
-                        .accessibilityAddTraits(.isHeader)
-                    if let detail {
-                        Text(detail).cpFont(15).lineSpacing(3).foregroundStyle(CPTheme.muted(scheme))
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                }
-            }
-            .padding(.horizontal, 28)
-            .padding(.top, 36)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
-    private var welcomePage: some View {
-        pageLayout(title: "Welcome to CanvasPro", detail: "Everything due, in one calm place.") {
-            NativeBrandMark(size: 96, animate: true)
-                .padding(.leading, -6)
-        }
-    }
-
-    private var tourPage: some View {
-        pageLayout(title: "Made to keep you calm") {
-            VStack(alignment: .leading, spacing: 16) {
-                tourRow("house", "Today", "What's due.")
-                tourRow("timer", "Study", "One thing at a time.")
-                tourRow("graduationcap", "Grades", "Every class at a glance.")
-                tourRow("hand.draw", "Swipe a task", "Right to finish, left to study.")
-            }
-        }
-    }
-
-    private func tourRow(_ symbol: String, _ title: String, _ detail: String) -> some View {
-        HStack(alignment: .center, spacing: 14) {
-            CPIconBadge(symbol: symbol)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).cpFont(15, .medium).foregroundStyle(CPTheme.foreground(scheme))
-                Text(detail).cpFont(13).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .accessibilityElement(children: .combine)
-    }
-
-    private var connectPage: some View {
-        pageLayout(
-            title: isConnected ? "You're all set" : "Connect your Canvas",
-            detail: isConnected ? "Your classes are ready." : "Your school password is never used."
-        ) {
-            Image(systemName: isConnected ? "checkmark" : "link")
-                .cpIconFont(26, .light)
-                .foregroundStyle(CPTheme.foreground(scheme))
-                .frame(width: 84, height: 84)
-                .background(CPTheme.inset(scheme), in: Circle())
-                .overlay(Circle().strokeBorder(CPTheme.insetBorder(scheme), lineWidth: 0.5))
-                .accessibilityHidden(true)
-        }
     }
 }
 
@@ -793,16 +1003,16 @@ struct NativeMainTabView: View {
     }
 
     var body: some View {
-        reminderTabs
+        syncedTabs
             .task {
                 // Remember whether this phone already had this student's data, to
                 // tell a returning student (no tour) from a new one.
                 hadSavedData = contentStore.lastSyncedAt != nil
                 await refreshAccountData()
             }
-            .task(id: launchIsVisible) { await presentOnboardingIfNeeded(launchVisible: launchIsVisible) }
+            .task(id: onboardingTrigger) { await presentOnboardingIfNeeded() }
             .fullScreenCover(isPresented: $showOnboarding) {
-                NativeOnboardingView(isConnected: !contentStore.needsCanvasConnection && contentStore.lastSyncedAt != nil) { connect in
+                NativeOnboardingView { connect in
                     markOnboarded()
                     showOnboarding = false
                     if connect { showConnect = true }
@@ -855,12 +1065,19 @@ struct NativeMainTabView: View {
     private var onboardingKey: String { "CanvasProOnboarded.\(sessionStore.session?.user.id ?? "")" }
     private func markOnboarded() { UserDefaults.standard.set(true, forKey: onboardingKey) }
 
-    /// New accounts see a short welcome once, after the opening animation.
-    @MainActor private func presentOnboardingIfNeeded(launchVisible: Bool) async {
-        guard !launchVisible, !contentStore.isPreview, !UserDefaults.standard.bool(forKey: onboardingKey) else { return }
-        if hadSavedData == true { markOnboarded(); return }
+    /// Re-checks the prompt when the opening screens close or Canvas finishes loading.
+    private var onboardingTrigger: String {
+        "\(launchIsVisible)-\(contentStore.needsCanvasConnection)-\(contentStore.lastSyncedAt != nil)"
+    }
+
+    /// The tutorial already showed the app, so an account only gets the
+    /// Connect Canvas prompt, once, and only when Canvas isn't connected yet.
+    @MainActor private func presentOnboardingIfNeeded() async {
+        guard !launchIsVisible, !contentStore.isPreview, !UserDefaults.standard.bool(forKey: onboardingKey) else { return }
+        if hadSavedData == true || contentStore.lastSyncedAt != nil { markOnboarded(); return }
+        guard contentStore.needsCanvasConnection else { return }
         try? await Task.sleep(for: .milliseconds(500))
-        guard !Task.isCancelled, !UserDefaults.standard.bool(forKey: onboardingKey) else { return }
+        guard !Task.isCancelled, contentStore.needsCanvasConnection, !UserDefaults.standard.bool(forKey: onboardingKey) else { return }
         showOnboarding = true
     }
 
@@ -936,6 +1153,29 @@ struct NativeMainTabView: View {
             .onReceive(NotificationCenter.default.publisher(for: .nativeLocalRemindersChanged)) { _ in rescheduleLocalReminders() }
             // After the welcome closes, ask for notifications right away.
             .onChange(of: showOnboarding) { _, showing in if !showing { Task { await refreshAccountData() } } }
+    }
+
+    /// Keeps the account in step after the opening screens close and while the
+    /// app is open. Its own view so each modifier chain stays type-checkable.
+    private var syncedTabs: some View {
+        reminderTabs
+            // Ask for notifications once the opening animation and tutorial close, if this phone hasn't been asked yet.
+            .onChange(of: launchIsVisible) { _, visible in
+                guard !visible else { return }
+                Task {
+                    let status = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
+                    if status == .notDetermined { await refreshAccountData() }
+                }
+            }
+            // A theme or setting changed on the website shows here within half a minute.
+            .task(id: scenePhase) {
+                guard scenePhase == .active else { return }
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .seconds(30))
+                    guard !Task.isCancelled else { return }
+                    await featureStore.refreshPreferences()
+                }
+            }
     }
 
     @ViewBuilder private var nativeTabs: some View {

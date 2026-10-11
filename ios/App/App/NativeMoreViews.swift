@@ -1628,7 +1628,7 @@ private struct AppearanceSettingsCard: View {
     @ObservedObject var features: NativeFeatureStore
     @AppStorage("CanvasProColorScheme") private var scheme = "dark"
     @AppStorage("CanvasProPalette") private var palette = "forest"
-    @AppStorage("CanvasProWallpaper") private var wallpaper = "wave"
+    @AppStorage("CanvasProWallpaper") private var wallpaper = "plain"
     @State private var status: String?
     private let columns = [GridItem(.flexible()), GridItem(.flexible())]
     var body: some View {

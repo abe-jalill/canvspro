@@ -368,6 +368,7 @@ final class NativeFeatureStore: ObservableObject {
     let isPreview: Bool
     unowned let sessionStore: NativeSessionStore
     private let previewStateKey = "CanvasProPreviewFeatureState"
+    private var savesInFlight = 0
 
     init(sessionStore: NativeSessionStore, preview: Bool = false) {
         self.sessionStore = sessionStore
@@ -428,7 +429,23 @@ final class NativeFeatureStore: ObservableObject {
         } catch { errorMessage = error.localizedDescription }
     }
 
+    /// Picks up changes made on the website while the app is open, such as a new
+    /// theme. Skipped while this phone is saving, so a refresh can't undo a choice
+    /// that hasn't reached the account yet.
+    func refreshPreferences() async {
+        guard !isPreview, !isLoading, savesInFlight == 0 else { return }
+        guard let api = sessionStore.api, let user = sessionStore.session?.user else { return }
+        guard let token = try? await sessionStore.accessToken(),
+              let fresh = try? await api.preferences(token: token, userID: user.id) else { return }
+        guard savesInFlight == 0, !isLoading, fresh != preferences else { return }
+        preferences = fresh
+        decodePreferenceModels()
+        applyAppearancePreferences()
+    }
+
     func savePreference<T: Encodable>(_ key: String, _ value: T) async throws {
+        savesInFlight += 1
+        defer { savesInFlight -= 1 }
         let data = try JSONEncoder().encode(value)
         let json = try JSONDecoder().decode(JSONValue.self, from: data)
         let previous = preferences[key]
@@ -526,16 +543,21 @@ final class NativeFeatureStore: ObservableObject {
         calendarPicks = preferences["calendar-picks"].flatMap { value in (try? JSONEncoder().encode(value)).flatMap { try? decoder.decode([CalendarPick].self, from: $0) } } ?? []
     }
 
+    /// Mirrors the account's theme. A color or background the account never
+    /// chose falls back to the website's defaults (Forest, plain color), so a
+    /// previous account's choice never lingers on this phone.
     private func applyAppearancePreferences() {
+        let defaults = UserDefaults.standard
         if case .some(.string(let mode)) = preferences["theme"], ["light", "dark", "system"].contains(mode) {
-            UserDefaults.standard.set(mode, forKey: "CanvasProColorScheme")
+            defaults.set(mode, forKey: "CanvasProColorScheme")
         }
-        if case .some(.string(let palette)) = preferences["color_theme"], CPPalette(rawValue: palette) != nil {
-            UserDefaults.standard.set(palette, forKey: "CanvasProPalette")
-        }
-        if case .some(.string(let wallpaper)) = preferences["wallpaper"], ["wave", "plain"].contains(wallpaper) {
-            UserDefaults.standard.set(wallpaper, forKey: "CanvasProWallpaper")
-        }
+        var palette = "forest"
+        if case .some(.string(let saved)) = preferences["color_theme"], CPPalette(rawValue: saved) != nil { palette = saved }
+        var wallpaper = "plain"
+        if case .some(.string(let saved)) = preferences["wallpaper"], ["wave", "plain"].contains(saved) { wallpaper = saved }
+        // Only write a change, so a refresh doesn't redraw every themed view.
+        if defaults.string(forKey: "CanvasProPalette") != palette { defaults.set(palette, forKey: "CanvasProPalette") }
+        if defaults.string(forKey: "CanvasProWallpaper") != wallpaper { defaults.set(wallpaper, forKey: "CanvasProWallpaper") }
     }
 
     var announcementWeeks: Int {

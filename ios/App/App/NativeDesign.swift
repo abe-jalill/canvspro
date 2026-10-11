@@ -145,12 +145,12 @@ enum CPLayout {
 
 // MARK: - Backdrop and surfaces
 
-/// The website's page background: the palette's blurred wallpaper ("wave", the
-/// default), or the tinted base with two soft glows at the top ("plain").
+/// The website's page background: the tinted base with two soft glows at the
+/// top ("plain", the default), or the palette's blurred wallpaper ("wave").
 struct CPBackdrop: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.cpPalette) private var paletteDependency
-    @AppStorage("CanvasProWallpaper") private var wallpaper = "wave"
+    @AppStorage("CanvasProWallpaper") private var wallpaper = "plain"
     @AppStorage("CanvasProPalette") private var palette = "forest"
     private var wallpaperName: String {
         "Wallpaper-\(CPPalette(rawValue: palette)?.rawValue ?? "forest")-\(scheme == .dark ? "dark" : "light")"

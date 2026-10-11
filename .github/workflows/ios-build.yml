@@ -76,6 +76,13 @@ jobs:
               xcrun simctl io "$UDID" screenshot --type=jpeg "shots/$mode-$page.jpg"
             done
           done
+          # The first-launch tutorial, one launch per page (debug-only -CanvasProDemoTutorial).
+          for page in 0 1 2 3 4; do
+            xcrun simctl terminate "$UDID" "$BUNDLE" 2>/dev/null || true
+            xcrun simctl launch "$UDID" "$BUNDLE" -CanvasProDemo YES -CanvasProDemoTutorial "$page"
+            sleep 8
+            xcrun simctl io "$UDID" screenshot --type=jpeg "shots/tutorial-$((page + 1)).jpg"
+          done
           ls -la shots
 
       # One commit, replaced each run, on a branch nothing else uses (Lovable
