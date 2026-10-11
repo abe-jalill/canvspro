@@ -9,9 +9,10 @@ import {
   resolveTheme,
 } from "../src/lib/theme-options.ts";
 
-test("wallpaper is on by default and only an explicit 'plain' turns it off", () => {
-  assert.equal(normalizeWallpaper(undefined), "wave");
-  assert.equal(normalizeWallpaper("junk"), "wave");
+test("the plain color is the default and only an explicit 'wave' shows the wallpaper", () => {
+  assert.equal(normalizeWallpaper(undefined), "plain");
+  assert.equal(normalizeWallpaper("junk"), "plain");
+  assert.equal(normalizeWallpaper("wave"), "wave");
   assert.equal(normalizeWallpaper("plain"), "plain");
 });
 
