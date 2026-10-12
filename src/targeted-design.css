@@ -62,7 +62,26 @@
   --glass-border: var(--palette-hue) 28% 18% / 0.11;
 }
 
+/* The page background sits on one fixed layer behind everything, so cards and
+   widgets scroll over it while it stays put. Phones ignore
+   background-attachment: fixed, so the body itself stays transparent. The layer
+   is as tall as the screen with the browser's bars hidden (100lvh): as Safari's
+   bars slide away during a scroll it doesn't resize, so it never re-zooms or
+   shifts. */
 :root[data-palette] body {
+  background: transparent;
+}
+
+:root[data-palette] body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 100vh;
+  height: 100lvh;
+  z-index: -1;
+  pointer-events: none;
   background-color: hsl(var(--background));
   background-image:
     radial-gradient(65rem 40rem at 18% 0%, hsl(var(--primary) / 0.13), transparent 70%),
@@ -82,16 +101,8 @@
 :root.light[data-palette="violet"] { --wallpaper: url("/wallpapers/violet-light.webp"); }
 :root.light[data-palette="rose"] { --wallpaper: url("/wallpapers/rose-light.webp"); }
 
-:root[data-palette][data-wallpaper="wave"] body {
-  background: transparent;
-}
-
+/* The wallpaper uses the same fixed layer. */
 :root[data-palette][data-wallpaper="wave"] body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
   background: hsl(var(--background)) var(--wallpaper, none) center / cover no-repeat;
 }
 
