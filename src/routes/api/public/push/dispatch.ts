@@ -174,6 +174,28 @@ async function deliverToUser(
 
 export const CANVAS_KEY_STATUS_PREF = "canvas_key_status";
 
+/**
+ * The student's class nicknames, so alerts name classes the way the app does.
+ * Best-effort: if they can't be read, alerts use the Canvas names and still go out.
+ */
+async function classNicknames(admin: Admin, userId: string): Promise<Map<number, string>> {
+  try {
+    const { data, error } = await admin
+      .from("class_nicknames")
+      .select("canvas_course_id,custom_name")
+      .eq("user_id", userId);
+    if (error) return new Map();
+    const names = new Map<number, string>();
+    for (const row of data ?? []) {
+      const name = (row.custom_name ?? "").trim();
+      if (name) names.set(Number(row.canvas_course_id), name);
+    }
+    return names;
+  } catch {
+    return new Map();
+  }
+}
+
 async function setCanvasKeyStatus(admin: Admin, userId: string, status: number): Promise<void> {
   await admin.from("user_preferences").upsert(
     {
@@ -335,6 +357,7 @@ async function dispatchUser(
         tz,
         hiddenIds,
         completedAssignmentIds(userPreferences),
+        await classNicknames(admin, userId),
       );
       alerts = built.alerts;
       tonight = built.tonight;

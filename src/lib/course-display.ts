@@ -123,6 +123,21 @@ export function formatCleanTitle(str?: string | null): string {
   return trimmed;
 }
 
+/**
+ * A class's name in a notification: the student's nickname, or else the same
+ * cleaned-up name the app shows. The nickname is passed in, because the server
+ * sends for many students and must never use this module's per-browser lookup.
+ */
+export function notificationCourseName(nickname: string | null | undefined, name?: string | null, code?: string | null) {
+  const nick = nickname?.trim();
+  if (nick) return formatCleanTitle(nick);
+  const haystacks = [name ?? "", code ?? ""];
+  for (const rule of RENAME_RULES) {
+    if (haystacks.some((h) => rule.match.test(h))) return rule.name;
+  }
+  return formatCleanTitle(name ?? code ?? "Course");
+}
+
 export function nicknameForCourseId(id?: number | null) {
   if (id == null) return undefined;
   return nicknameById.get(Number(id));
