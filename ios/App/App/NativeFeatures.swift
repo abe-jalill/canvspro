@@ -1,3 +1,4 @@
+import AppIntents
 import ActivityKit
 import Foundation
 import SwiftUI
@@ -896,6 +897,77 @@ enum NativeLiveActivities {
         lastTonight = nil
         for activity in Activity<CanvasProStudyActivity>.activities { Task { await activity.end(nil, dismissalPolicy: .immediate) } }
         for activity in Activity<CanvasProTonightActivity>.activities { Task { await activity.end(nil, dismissalPolicy: .immediate) } }
+    }
+}
+
+/// Siri, Shortcuts, Control Center, the Action button and widget buttons, as
+/// the app carries them out.
+@MainActor
+enum NativeWidgetActions {
+    /// The signed-in app's coursework, while its screens are open.
+    static weak var contentStore: NativeContentStore?
+
+    static func register() {
+        CanvasProIntentBridge.open = { path in NativeRouter.shared.pendingPath = path }
+        CanvasProIntentBridge.saveCompletions = { await saveCompletions() }
+    }
+
+    /// Saves work checked off on a widget to the account, so the website and the
+    /// other devices see it. If the phone is offline it waits for the next try.
+    static func saveCompletions() async {
+        let pending = CanvasProWidgetStore.pendingCompletions
+        guard !pending.isEmpty else { return }
+        let session = NativeSessionStore.shared
+        guard let api = session.api, let user = session.session?.user else { return }
+        var saved: [Int] = []
+        for (id, due) in pending {
+            let item = contentStore?.bundle.assignments.first { $0.id == id }
+                ?? AssignmentItem(id: id, name: "", description: nil, dueAt: ISO8601DateFormatter().string(from: due), htmlURL: "", pointsPossible: nil, courseID: 0, courseName: "", courseCode: "", submission: nil)
+            do {
+                try await api.setCompletion(true, assignment: item, reopenedAt: nil, token: try await session.accessToken(), userID: user.id)
+                saved.append(id)
+                contentStore?.completed.insert(id)
+                contentStore?.reopenedAt.removeValue(forKey: id)
+            } catch {
+                break
+            }
+        }
+        CanvasProWidgetStore.clearPending(saved)
+    }
+}
+
+/// What Siri and the Shortcuts app offer. Each one can also go on the Action button.
+struct CanvasProShortcuts: AppShortcutsProvider {
+    static var appShortcuts: [AppShortcut] {
+        AppShortcut(
+            intent: CanvasProWhatsDue(),
+            phrases: [
+                "What's due in \(.applicationName)",
+                "What's due \(\.$range) in \(.applicationName)",
+                "What do I have due in \(.applicationName)",
+            ],
+            shortTitle: "What's Due",
+            systemImageName: "checklist"
+        )
+        AppShortcut(
+            intent: CanvasProStartFocus(),
+            phrases: [
+                "Start a focus session in \(.applicationName)",
+                "Start a Pomodoro in \(.applicationName)",
+                "Start studying in \(.applicationName)",
+            ],
+            shortTitle: "Start Focus",
+            systemImageName: "timer"
+        )
+        AppShortcut(
+            intent: CanvasProGradeAverage(),
+            phrases: [
+                "What's my average in \(.applicationName)",
+                "What are my grades in \(.applicationName)",
+            ],
+            shortTitle: "Grade Average",
+            systemImageName: "chart.bar"
+        )
     }
 }
 

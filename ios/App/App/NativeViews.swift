@@ -3,7 +3,7 @@ import Combine
 import UserNotifications
 
 struct NativeRootView: View {
-    @StateObject private var sessionStore = NativeSessionStore()
+    @StateObject private var sessionStore = NativeSessionStore.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @State private var showingLaunch = true
@@ -1219,6 +1219,8 @@ struct NativeMainTabView: View {
 
     /// Shows the tab (and Today section) for a website-style path.
     private func route(to path: String) {
+        // Siri, Control Center or the Action button: open Study and start a Pomodoro.
+        if path.contains("pomodoro") { quickPomodoro = true; selection = .study; return }
         if path.contains("focus") || path.contains("coming-up") || path.contains("assignment") { todaySection = "Assignments"; selection = .today }
         else if path.contains("get-it-done") { todaySection = "Get It Done"; selection = .today }
         else if path.contains("announcement") { selection = .announcements }
@@ -1241,6 +1243,9 @@ struct NativeMainTabView: View {
         async let content: Void = contentStore.load()
         async let features: Void = featureStore.load()
         _ = await (content, features)
+        // Anything checked off on a widget while the app couldn't save it.
+        NativeWidgetActions.contentStore = contentStore
+        await NativeWidgetActions.saveCompletions()
         let prefs = featureStore.notificationPreferences
         let wantsAlerts = prefs.enabled && prefs.browserPush && NativeLocalReminders.deviceEnabled
         let center = UNUserNotificationCenter.current()
@@ -1283,6 +1288,9 @@ struct NativeMainTabView: View {
     /// time coursework, completions, custom work or the schedule change.
     @MainActor private func publishWidgetSnapshot() {
         guard !contentStore.isPreview, sessionStore.session != nil, contentStore.lastSyncedAt != nil else { return }
+        NativeWidgetActions.contentStore = contentStore
+        // Checked off on a widget but not saved yet: still done.
+        let pending = CanvasProWidgetStore.pendingCompletions
         let now = Date()
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: now)
@@ -1293,7 +1301,7 @@ struct NativeMainTabView: View {
         for item in featureStore.shownAssignments(in: contentStore) {
             guard let due = item.dueDate else { continue }
             let course = contentStore.displayName(courseID: item.courseID, fallback: item.courseName)
-            if item.isFinished(in: contentStore) {
+            if item.isFinished(in: contentStore) || pending[item.id] != nil {
                 // Finished work due this week counts toward the widget's progress ring.
                 if due >= today && due < weekEnd {
                     finished.append(CanvasProWidgetSnapshot.Assignment(id: item.id, name: item.name, course: course, due: due, done: true))

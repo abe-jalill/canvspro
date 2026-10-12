@@ -212,6 +212,38 @@ enum CanvasProWidgetStore {
     static func setWorkloadRange(_ range: CanvasProWorkloadRange) {
         defaults?.set(range.rawValue, forKey: rangeKey)
     }
+
+    // Check-offs from a widget
+
+    private static let pendingKey = "CanvasProPendingCompletions"
+
+    /// Work checked off on a widget that the app hasn't saved to the account
+    /// yet, with each one's due date.
+    static var pendingCompletions: [Int: Date] {
+        let raw = defaults?.dictionary(forKey: pendingKey) as? [String: Double] ?? [:]
+        var result: [Int: Date] = [:]
+        for (key, value) in raw { if let id = Int(key) { result[id] = Date(timeIntervalSince1970: value) } }
+        return result
+    }
+
+    /// Shows the assignment as done on every widget at once, and leaves it for
+    /// the app to save.
+    static func markDone(_ id: Int, due: Date) {
+        var raw = defaults?.dictionary(forKey: pendingKey) as? [String: Double] ?? [:]
+        raw[String(id)] = due.timeIntervalSince1970
+        defaults?.set(raw, forKey: pendingKey)
+        guard var snapshot = load(), let index = snapshot.assignments.firstIndex(where: { $0.id == id }) else { return }
+        let item = snapshot.assignments[index]
+        snapshot.assignments[index] = CanvasProWidgetSnapshot.Assignment(id: item.id, name: item.name, course: item.course, due: item.due, done: true)
+        save(snapshot)
+    }
+
+    /// The app saved these to the account.
+    static func clearPending(_ ids: [Int]) {
+        var raw = defaults?.dictionary(forKey: pendingKey) as? [String: Double] ?? [:]
+        for id in ids { raw.removeValue(forKey: String(id)) }
+        defaults?.set(raw, forKey: pendingKey)
+    }
 }
 
 // MARK: - Style
@@ -352,6 +384,8 @@ struct CanvasProDueSoonView: View {
     let date: Date
     let family: WidgetFamily
     var range: CanvasProWorkloadRange = .tonight
+    /// False under Siri's answer, where buttons can't be tapped.
+    var interactive = true
 
     private var palette: CanvasProWidgetPalette { CanvasProWidgetPalette(snapshot.palette) }
     private var fg: Color { palette.foreground(scheme) }
@@ -394,27 +428,53 @@ struct CanvasProDueSoonView: View {
     private var rangePicker: some View {
         HStack(spacing: 2) {
             ForEach(CanvasProWorkloadRange.allCases, id: \.self) { option in
-                Button(intent: CanvasProSetWorkloadRange(option)) {
-                    Text(option.title)
-                        .font(.system(size: 9.5, weight: .semibold))
-                        .foregroundStyle(option == range ? fg : muted)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 4)
-                        .background {
-                            if option == range { Capsule().fill(fg.opacity(scheme == .dark ? 0.12 : 0.08)) }
-                        }
-                        .contentShape(Capsule())
+                if interactive {
+                    Button(intent: CanvasProSetWorkloadRange(option)) { rangeLabel(option) }.buttonStyle(.plain)
+                } else {
+                    rangeLabel(option)
                 }
-                .buttonStyle(.plain)
             }
         }
         .padding(2)
         .background(Capsule().strokeBorder(fg.opacity(0.08), lineWidth: 0.5))
     }
 
+    private func rangeLabel(_ option: CanvasProWorkloadRange) -> some View {
+        Text(option.title)
+            .font(.system(size: 9.5, weight: .semibold))
+            .foregroundStyle(option == range ? fg : muted)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 4)
+            .background {
+                if option == range { Capsule().fill(fg.opacity(scheme == .dark ? 0.12 : 0.08)) }
+            }
+            .contentShape(Capsule())
+    }
+
+    private var checkCircle: some View {
+        Circle()
+            .strokeBorder(muted, lineWidth: 1)
+            .frame(width: 14, height: 14)
+            .padding(5)
+            .contentShape(Rectangle())
+            .padding(-5)
+            .widgetAccentable()
+    }
+
+    /// Tap to mark the assignment done, right from the widget.
+    @ViewBuilder private func checkButton(_ item: CanvasProWidgetSnapshot.Assignment) -> some View {
+        if interactive {
+            Button(intent: CanvasProCompleteAssignment(item)) { checkCircle }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Mark \(item.name) done")
+        } else {
+            checkCircle
+        }
+    }
+
     private func row(_ item: CanvasProWidgetSnapshot.Assignment) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Circle().fill(accent).frame(width: 4, height: 4).offset(y: -2).widgetAccentable()
+        HStack(alignment: .center, spacing: 9) {
+            checkButton(item)
             VStack(alignment: .leading, spacing: 1) {
                 Text(item.name).font(.system(size: 12, weight: .medium)).foregroundStyle(fg).lineLimit(1)
                 Text(item.course).font(.system(size: 10)).foregroundStyle(muted).lineLimit(1)
@@ -438,12 +498,12 @@ struct CanvasProDueSoonView: View {
                 ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                     row(item)
                     if index < items.count - 1 {
-                        Rectangle().fill(faint).frame(height: 0.5).padding(.vertical, 6).padding(.leading, 12)
+                        Rectangle().fill(faint).frame(height: 0.5).padding(.vertical, 6).padding(.leading, 23)
                     }
                 }
                 if work.remaining.count > limit {
                     Text("+\(work.remaining.count - limit) more").font(.system(size: 9.5, weight: .medium)).foregroundStyle(muted)
-                        .padding(.top, 6).padding(.leading, 12)
+                        .padding(.top, 6).padding(.leading, 23)
                 }
                 Spacer(minLength: 0)
             }
@@ -479,8 +539,14 @@ struct CanvasProDueSoonView: View {
             }
             Spacer(minLength: 0)
             if let next = work.remaining.first {
-                Text(next.name).font(.system(size: 11.5, weight: .medium)).foregroundStyle(fg).lineLimit(1)
-                Text("\(CanvasProWidgetFormat.due(next.due, now: date)) · \(next.course)").font(.system(size: 9.5)).monospacedDigit().foregroundStyle(muted).lineLimit(1)
+                HStack(alignment: .center, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(next.name).font(.system(size: 11.5, weight: .medium)).foregroundStyle(fg).lineLimit(1)
+                        Text("\(CanvasProWidgetFormat.due(next.due, now: date)) · \(next.course)").font(.system(size: 9.5)).monospacedDigit().foregroundStyle(muted).lineLimit(1)
+                    }
+                    Spacer(minLength: 4)
+                    checkButton(next)
+                }
             } else {
                 Text(range.emptyLine).font(.system(size: 10.5, weight: .medium)).foregroundStyle(muted).lineLimit(2)
             }
@@ -1160,5 +1226,157 @@ extension CanvasProTonightActivity.ContentState {
             .init(name: "Reading quiz", course: "PSY 101", due: midnight.addingTimeInterval(-120)),
             .init(name: "Lab report", course: "BIO 110", due: midnight.addingTimeInterval(-60)),
         ], remaining: 2, done: 1)
+    }
+}
+
+// MARK: - Siri, Shortcuts, Control Center and widget buttons
+//
+// These intents are compiled into the app and the widget extension. Anything
+// that needs the student's sign-in runs in the app: the app registers the
+// handlers in `CanvasProIntentBridge` when it launches.
+
+/// Work the app does on behalf of an intent. Set by the app at launch; empty in
+/// the widget extension.
+@MainActor
+enum CanvasProIntentBridge {
+    /// Opens a page in the app ("/pomodoro", "/assignments").
+    static var open: (@MainActor (String) -> Void)?
+    /// Saves completions made from a widget to the account.
+    static var saveCompletions: (@MainActor () async -> Void)?
+}
+
+extension CanvasProWorkloadRange: AppEnum {
+    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Range"
+    static let caseDisplayRepresentations: [CanvasProWorkloadRange: DisplayRepresentation] = [
+        .tonight: DisplayRepresentation(title: "tonight", synonyms: ["today"]),
+        .twoDays: DisplayRepresentation(title: "in the next 2 days", synonyms: ["in 2 days", "by tomorrow"]),
+        .week: DisplayRepresentation(title: "this week", synonyms: ["in the next week", "for the week"]),
+    ]
+}
+
+/// "What's due tonight in CanvasPro?" Answers from the last sync, without
+/// opening the app.
+struct CanvasProWhatsDue: AppIntent {
+    static let title: LocalizedStringResource = "What's Due"
+    static let description = IntentDescription("Tells you what's due tonight, in the next 2 days, or this week.")
+
+    @Parameter(title: "When", default: .tonight) var range: CanvasProWorkloadRange
+
+    init() {}
+
+    func perform() async throws -> some IntentResult & ProvidesDialog & ShowsSnippetView {
+        let now = Date()
+        let snapshot = CanvasProWidgetStore.load().flatMap { $0.signedIn ? $0 : nil }
+        let dialog: String
+        if let snapshot {
+            let work = snapshot.workload(range, at: now)
+            if work.remaining.isEmpty {
+                dialog = work.done > 0 ? "You're all done \(range.phrase). \(work.done) finished." : "Nothing due \(range.phrase)."
+            } else {
+                let names = work.remaining.prefix(3).map { "\($0.name), \(CanvasProWidgetFormat.due($0.due, now: now))" }
+                let more = work.remaining.count > 3 ? ", and \(work.remaining.count - 3) more" : ""
+                let count = work.remaining.count == 1 ? "1 assignment" : "\(work.remaining.count) assignments"
+                dialog = "You have \(count) due \(range.phrase): \(names.joined(separator: "; "))\(more)."
+            }
+        } else {
+            dialog = "Open CanvasPro and sign in first."
+        }
+        return .result(dialog: IntentDialog(stringLiteral: dialog), view: CanvasProDueSnippet(snapshot: snapshot, date: now, range: range))
+    }
+}
+
+/// What's Due under Siri's answer: the medium widget, without its buttons.
+private struct CanvasProDueSnippet: View {
+    let snapshot: CanvasProWidgetSnapshot?
+    let date: Date
+    let range: CanvasProWorkloadRange
+
+    var body: some View {
+        if let snapshot {
+            CanvasProDueSoonView(snapshot: snapshot, date: date, family: .systemMedium, range: range, interactive: false)
+                .padding(16)
+                .frame(height: 170)
+        }
+    }
+}
+
+/// "What's my average in CanvasPro?" Respects "Hide grades until tapped".
+struct CanvasProGradeAverage: AppIntent {
+    static let title: LocalizedStringResource = "Grade Average"
+    static let description = IntentDescription("Tells you your current average across your classes.")
+
+    init() {}
+
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        let dialog: String
+        if let snapshot = CanvasProWidgetStore.load(), snapshot.signedIn {
+            if snapshot.hideGrades {
+                dialog = "Your grades are hidden. Open CanvasPro to see them."
+            } else if let average = snapshot.average {
+                let classes = snapshot.scoredCourses.count
+                let letter = CanvasProWidgetFormat.letter(average).replacingOccurrences(of: "−", with: " minus")
+                dialog = "Your average is \(CanvasProWidgetFormat.score(average)) percent, a \(letter), across \(classes) \(classes == 1 ? "class" : "classes")."
+            } else {
+                dialog = "No grades yet."
+            }
+        } else {
+            dialog = "Open CanvasPro and sign in first."
+        }
+        return .result(dialog: IntentDialog(stringLiteral: dialog))
+    }
+}
+
+/// Opens Study Session and starts a Pomodoro. Used by Siri, Control Center and
+/// the Action button.
+struct CanvasProStartFocus: AppIntent {
+    static let title: LocalizedStringResource = "Start Focus Session"
+    static let description = IntentDescription("Opens CanvasPro and starts a Pomodoro focus session.")
+    static let openAppWhenRun = true
+
+    init() {}
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        CanvasProIntentBridge.open?("/pomodoro")
+        return .result()
+    }
+}
+
+/// Opens the assignment list. Used by Control Center and the Action button.
+struct CanvasProOpenWhatsDue: AppIntent {
+    static let title: LocalizedStringResource = "Open What's Due"
+    static let description = IntentDescription("Opens your assignments in CanvasPro.")
+    static let openAppWhenRun = true
+
+    init() {}
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        CanvasProIntentBridge.open?("/assignments")
+        return .result()
+    }
+}
+
+/// The circle beside an assignment on What's Due. A Live Activity intent, so iOS
+/// runs it in the app (which holds the sign-in) even when tapped on a widget.
+/// The widget updates at once; the app saves it to the account.
+struct CanvasProCompleteAssignment: LiveActivityIntent {
+    static let title: LocalizedStringResource = "Mark Assignment Done"
+    static let isDiscoverable = false
+
+    @Parameter(title: "Assignment") var assignmentID: Int
+    @Parameter(title: "Due") var due: Date
+
+    init() {}
+    init(_ item: CanvasProWidgetSnapshot.Assignment) {
+        assignmentID = item.id
+        due = item.due
+    }
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        CanvasProWidgetStore.markDone(assignmentID, due: due)
+        await CanvasProIntentBridge.saveCompletions?()
+        return .result()
     }
 }

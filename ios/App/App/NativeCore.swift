@@ -767,6 +767,9 @@ final class NativeSessionStore: ObservableObject {
     private var refreshTask: Task<NativeSession, Error>?
     private var refreshingToken: String?
     private static let installMarkerKey = "CanvasProInstalled"
+    /// The one sign-in the app uses, shared with Siri and widget buttons so a
+    /// token refresh never happens twice at once.
+    static let shared = NativeSessionStore()
 
     init() {
         // Keychain items outlive deleting the app. A fresh install starts signed out

@@ -10,6 +10,38 @@ struct CanvasProWidgets: WidgetBundle {
         CanvasProNextClassWidget()
         CanvasProStudyLiveActivity()
         CanvasProTonightLiveActivity()
+        if #available(iOS 18.0, *) {
+            CanvasProFocusControl()
+            CanvasProWhatsDueControl()
+        }
+    }
+}
+
+// MARK: - Controls (Control Center, Lock Screen, Action button)
+
+@available(iOS 18.0, *)
+struct CanvasProFocusControl: ControlWidget {
+    var body: some ControlWidgetConfiguration {
+        StaticControlConfiguration(kind: "CanvasProFocusControl") {
+            ControlWidgetButton(action: CanvasProStartFocus()) {
+                Label("Start Focus", systemImage: "timer")
+            }
+        }
+        .displayName("Start Focus")
+        .description("Starts a Pomodoro focus session in CanvasPro.")
+    }
+}
+
+@available(iOS 18.0, *)
+struct CanvasProWhatsDueControl: ControlWidget {
+    var body: some ControlWidgetConfiguration {
+        StaticControlConfiguration(kind: "CanvasProWhatsDueControl") {
+            ControlWidgetButton(action: CanvasProOpenWhatsDue()) {
+                Label("What's Due", systemImage: "checklist")
+            }
+        }
+        .displayName("What's Due")
+        .description("Opens your assignments in CanvasPro.")
     }
 }
 
