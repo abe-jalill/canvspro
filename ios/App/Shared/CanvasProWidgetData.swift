@@ -1066,8 +1066,10 @@ struct CanvasProStudyLockView: View {
 
     static func caption(_ state: CanvasProStudyActivity.ContentState) -> String {
         if state.finished { return "SESSION DONE" }
-        let phase = state.running ? state.phase.uppercased() : "PAUSED"
-        return state.step.map { "\(phase) · \($0.uppercased())" } ?? phase
+        guard let step = state.step?.uppercased() else { return state.running ? state.phase.uppercased() : "PAUSED" }
+        if !state.running { return "PAUSED · \(step)" }
+        // "Focus block 2 of 4" already says Focus.
+        return step.hasPrefix(state.phase.uppercased()) ? step : "\(state.phase.uppercased()) · \(step)"
     }
 
     var body: some View {
