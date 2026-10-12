@@ -157,6 +157,11 @@ struct CPBackdrop: View {
     }
     var body: some View {
         GeometryReader { proxy in
+            // Sized to the whole window, not to the space behind this page, and
+            // pinned to the top. When a bar slides away while scrolling (the tab
+            // bar on iOS 26), that space changes size; a backdrop that followed
+            // it would re-zoom and shift. This one stays exactly still.
+            let size = Self.windowSize ?? proxy.size
             ZStack(alignment: .top) {
                 CPTheme.background(scheme)
                 if wallpaper == "wave" {
@@ -164,22 +169,29 @@ struct CPBackdrop: View {
                     Image(wallpaperName)
                         .resizable()
                         .scaledToFill()
-                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .frame(width: size.width, height: size.height)
                         .accessibilityHidden(true)
                 } else {
                     // Each frame holds the whole glow, so it fades out instead of ending in a line.
                     RadialGradient(colors: [CPTheme.primary(scheme: scheme).opacity(0.13), .clear], center: .center, startRadius: 0, endRadius: 360)
                         .frame(width: 720, height: 720)
-                        .offset(x: -proxy.size.width * 0.32, y: -340)
+                        .offset(x: -size.width * 0.32, y: -340)
                     RadialGradient(colors: [CPTheme.primary(scheme: scheme).opacity(0.08), .clear], center: .center, startRadius: 0, endRadius: 300)
                         .frame(width: 600, height: 600)
-                        .offset(x: proxy.size.width * 0.35, y: -240)
+                        .offset(x: size.width * 0.35, y: -240)
                 }
             }
-            .frame(width: proxy.size.width, height: proxy.size.height)
+            .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
             .clipped()
         }
         .ignoresSafeArea()
+    }
+
+    /// The app window's size, which only changes on rotation or in split view.
+    @MainActor private static var windowSize: CGSize? {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
+        return scene?.windows.first { $0.isKeyWindow }?.bounds.size ?? scene?.windows.first?.bounds.size
     }
 }
 
