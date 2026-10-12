@@ -1248,9 +1248,9 @@ enum CanvasProIntentBridge {
 extension CanvasProWorkloadRange: AppEnum {
     static let typeDisplayRepresentation: TypeDisplayRepresentation = "Range"
     static let caseDisplayRepresentations: [CanvasProWorkloadRange: DisplayRepresentation] = [
-        .tonight: DisplayRepresentation(title: "tonight", synonyms: ["today"]),
-        .twoDays: DisplayRepresentation(title: "in the next 2 days", synonyms: ["in 2 days", "by tomorrow"]),
-        .week: DisplayRepresentation(title: "this week", synonyms: ["in the next week", "for the week"]),
+        .tonight: DisplayRepresentation(title: "tonight", synonyms: ["today", "by tonight", "by midnight", "tonight at midnight", "later today", "this evening", "right now", "soon"]),
+        .twoDays: DisplayRepresentation(title: "in the next 2 days", synonyms: ["in 2 days", "in two days", "in the next two days", "in the next couple days", "in the next couple of days", "by tomorrow", "tomorrow", "by tomorrow night", "tonight and tomorrow", "the next 48 hours"]),
+        .week: DisplayRepresentation(title: "this week", synonyms: ["in the next week", "for the week", "this coming week", "in the next 7 days", "in the next seven days", "over the next week", "next week", "before the weekend", "all week"]),
     ]
 }
 
