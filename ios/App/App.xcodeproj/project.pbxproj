@@ -419,6 +419,8 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.canvaspro.mobile;
+				SUPABASE_PUBLISHABLE_KEY = "sb_publishable_CG0S1Gz01JTdr_8PO2DTtg_GCmSY5Sx";
+				SUPABASE_URL = "https://vqmzhzvugzhmtprklzfm.supabase.co";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_VERSION = 5.0;
@@ -442,6 +444,8 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.canvaspro.mobile;
+				SUPABASE_PUBLISHABLE_KEY = "sb_publishable_CG0S1Gz01JTdr_8PO2DTtg_GCmSY5Sx";
+				SUPABASE_URL = "https://vqmzhzvugzhmtprklzfm.supabase.co";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
 				SWIFT_VERSION = 5.0;
