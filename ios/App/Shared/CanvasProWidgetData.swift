@@ -1,3 +1,4 @@
+import ActivityKit
 import AppIntents
 import SwiftUI
 import WidgetKit
@@ -215,41 +216,34 @@ enum CanvasProWidgetStore {
 
 // MARK: - Style
 
-/// The website's palettes, tuned for widgets: a deep tinted gradient, quiet
-/// text, and the palette color kept for rings and the selected range.
+/// Widgets are black and white: near-black or white surfaces, white or black
+/// text, grays for everything secondary. Grades are the only color, red through
+/// green as on the Grades tab. The account's color theme is not used here.
 struct CanvasProWidgetPalette {
-    let hue: Double
-    let saturation: Double
-
-    init(_ name: String) {
-        switch name {
-        case "blue": hue = 214; saturation = 0.58
-        case "violet": hue = 266; saturation = 0.48
-        case "rose": hue = 340; saturation = 0.45
-        default: hue = 148; saturation = 0.34
-        }
-    }
+    /// Kept so callers can pass the account theme; widgets stay black and white.
+    init(_ name: String = "") {}
 
     func background(_ scheme: ColorScheme) -> LinearGradient {
         let colors = scheme == .dark
-            ? [Self.hsl(hue, 0.20, 0.135), Self.hsl(hue, 0.26, 0.065)]
-            : [Self.hsl(hue, 0.22, 0.985), Self.hsl(hue, 0.20, 0.935)]
+            ? [Color(white: 0.12), Color(white: 0.035)]
+            : [Color(white: 1.0), Color(white: 0.945)]
         return LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing)
     }
     func foreground(_ scheme: ColorScheme) -> Color {
-        scheme == .dark ? Self.hsl(hue, 0.12, 0.95) : Self.hsl(hue, 0.28, 0.13)
+        scheme == .dark ? Color(white: 0.97) : Color(white: 0.06)
     }
     func muted(_ scheme: ColorScheme) -> Color {
-        scheme == .dark ? Self.hsl(hue, 0.08, 0.62) : Self.hsl(hue, 0.12, 0.42)
+        scheme == .dark ? Color(white: 0.58) : Color(white: 0.44)
     }
     func faint(_ scheme: ColorScheme) -> Color {
-        foreground(scheme).opacity(scheme == .dark ? 0.09 : 0.07)
+        foreground(scheme).opacity(scheme == .dark ? 0.11 : 0.08)
     }
+    /// Rings, dots and the selected range: the text color itself.
     func accent(_ scheme: ColorScheme) -> Color {
-        Self.hsl(hue, saturation + 0.12, scheme == .dark ? 0.70 : 0.38)
+        foreground(scheme)
     }
     static func overdue(_ scheme: ColorScheme) -> Color {
-        scheme == .dark ? hsl(351, 0.80, 0.72) : hsl(347, 0.65, 0.50)
+        scheme == .dark ? Color(white: 0.97) : Color(white: 0.06)
     }
     /// Red through green, as on the Grades tab, a little softer.
     static func grade(_ score: Double?, scheme: ColorScheme) -> Color {
@@ -952,5 +946,217 @@ extension CanvasProWidgetSnapshot {
             ],
             hideGrades: false
         )
+    }
+}
+
+// MARK: - Live Activities
+//
+// The app starts and updates these; the widget extension draws them on the lock
+// screen and in the Dynamic Island. Both stay black and white, like the widgets.
+
+/// A study session or Pomodoro, counting down on its own between updates.
+struct CanvasProStudyActivity: ActivityAttributes {
+    struct ContentState: Codable, Hashable {
+        /// The assignment being worked on, or "Study session".
+        var title: String
+        /// Course, and "2 of 3" when the session covers several assignments.
+        var detail: String
+        /// "Focus", "Short break", "Long break" or "Studying".
+        var phase: String
+        /// "Focus block 2 of 4" in a Pomodoro.
+        var step: String?
+        var running: Bool
+        /// The current block, while running. Both are the same fixed date when paused.
+        var blockStart: Date
+        var blockEnd: Date
+        /// Seconds left and the block's length, for the paused view and its bar.
+        var remaining: Int
+        var total: Int
+        var finished: Bool
+    }
+}
+
+/// Work still due before midnight, from 9 PM.
+struct CanvasProTonightActivity: ActivityAttributes {
+    struct Item: Codable, Hashable {
+        let name: String
+        let course: String
+        let due: Date
+    }
+
+    struct ContentState: Codable, Hashable {
+        /// The next few unfinished assignments, soonest first.
+        var items: [Item]
+        var remaining: Int
+        var done: Int
+    }
+
+    /// The night this covers, as the start of that day.
+    var day: Date
+}
+
+enum CanvasProActivityFormat {
+    static func clock(_ seconds: Int) -> String {
+        let value = max(0, seconds)
+        return value >= 3_600
+            ? String(format: "%d:%02d:%02d", value / 3_600, value % 3_600 / 60, value % 60)
+            : String(format: "%d:%02d", value / 60, value % 60)
+    }
+}
+
+/// The study timer: counts down live while running, holds still when paused.
+struct CanvasProStudyClock: View {
+    let state: CanvasProStudyActivity.ContentState
+    var size: CGFloat = 30
+
+    var body: some View {
+        Group {
+            if state.finished {
+                Image(systemName: "checkmark").font(.system(size: size * 0.62, weight: .light))
+            } else if state.running && state.blockEnd > state.blockStart {
+                Text(timerInterval: state.blockStart...state.blockEnd, countsDown: true)
+                    .font(.system(size: size, weight: .light)).monospacedDigit()
+            } else {
+                Text(CanvasProActivityFormat.clock(state.remaining))
+                    .font(.system(size: size, weight: .light)).monospacedDigit()
+            }
+        }
+        .foregroundStyle(.white)
+        .multilineTextAlignment(.trailing)
+        .lineLimit(1)
+    }
+}
+
+/// How far into the current block, as a hairline bar.
+struct CanvasProStudyBar: View {
+    let state: CanvasProStudyActivity.ContentState
+
+    var body: some View {
+        if state.running && !state.finished && state.blockEnd > state.blockStart {
+            ProgressView(timerInterval: state.blockStart...state.blockEnd, countsDown: false) {
+                EmptyView()
+            } currentValueLabel: {
+                EmptyView()
+            }
+            .progressViewStyle(.linear)
+            .tint(.white)
+            .labelsHidden()
+        } else {
+            let fraction = state.finished ? 1 : (state.total > 0 ? 1 - Double(state.remaining) / Double(state.total) : 0)
+            GeometryReader { bar in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.white.opacity(0.18))
+                    Capsule().fill(Color.white.opacity(state.finished ? 1 : 0.55)).frame(width: bar.size.width * min(1, max(0, fraction)))
+                }
+            }
+            .frame(height: 4)
+        }
+    }
+}
+
+private struct CanvasProActivityCaption: View {
+    let text: String
+    var body: some View {
+        Text(text).font(.system(size: 10, weight: .semibold)).tracking(1.1).foregroundStyle(.white.opacity(0.6)).lineLimit(1)
+    }
+}
+
+struct CanvasProStudyLockView: View {
+    let state: CanvasProStudyActivity.ContentState
+
+    static func caption(_ state: CanvasProStudyActivity.ContentState) -> String {
+        if state.finished { return "SESSION DONE" }
+        let phase = state.running ? state.phase.uppercased() : "PAUSED"
+        return state.step.map { "\(phase) · \($0.uppercased())" } ?? phase
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 14) {
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 6) {
+                        Circle().fill(Color.white.opacity(state.running && !state.finished ? 1 : 0.35)).frame(width: 5, height: 5)
+                        CanvasProActivityCaption(text: Self.caption(state))
+                    }
+                    Text(state.title).font(.system(size: 15, weight: .semibold)).foregroundStyle(.white).lineLimit(1)
+                    if !state.detail.isEmpty {
+                        Text(state.detail).font(.system(size: 12)).foregroundStyle(.white.opacity(0.6)).lineLimit(1)
+                    }
+                }
+                Spacer(minLength: 8)
+                CanvasProStudyClock(state: state, size: 30)
+            }
+            CanvasProStudyBar(state: state)
+        }
+        .padding(16)
+    }
+}
+
+/// A countdown to the next deadline tonight; never runs backwards.
+struct CanvasProTonightCountdown: View {
+    let due: Date
+    var size: CGFloat = 13
+
+    var body: some View {
+        Text(timerInterval: min(Date(), due)...due, countsDown: true)
+            .font(.system(size: size, weight: .light)).monospacedDigit()
+            .foregroundStyle(.white)
+            .multilineTextAlignment(.trailing)
+            .lineLimit(1)
+    }
+}
+
+struct CanvasProTonightLockView: View {
+    let state: CanvasProTonightActivity.ContentState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                CanvasProActivityCaption(text: "DUE TONIGHT")
+                Spacer(minLength: 8)
+                Text(state.remaining == 0 ? "All done" : "\(state.remaining) left · \(state.done) done")
+                    .font(.system(size: 11, weight: .medium)).foregroundStyle(.white.opacity(0.6))
+            }
+            if state.items.isEmpty {
+                Text("Everything due tonight is done.").font(.system(size: 14, weight: .medium)).foregroundStyle(.white)
+            } else {
+                VStack(alignment: .leading, spacing: 7) {
+                    ForEach(state.items, id: \.self) { item in
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Circle().fill(Color.white).frame(width: 4, height: 4).offset(y: -2)
+                            Text(item.name).font(.system(size: 13.5, weight: .medium)).foregroundStyle(.white).lineLimit(1)
+                            Text(item.course).font(.system(size: 11)).foregroundStyle(.white.opacity(0.5)).lineLimit(1)
+                            Spacer(minLength: 6)
+                            Text(CanvasProWidgetFormat.time(item.due)).font(.system(size: 12, weight: .medium)).monospacedDigit().foregroundStyle(.white.opacity(0.7))
+                        }
+                    }
+                }
+                if let next = state.items.first?.due {
+                    HStack(spacing: 5) {
+                        Text("Next due in").font(.system(size: 11)).foregroundStyle(.white.opacity(0.6))
+                        CanvasProTonightCountdown(due: next, size: 11).frame(maxWidth: 70, alignment: .leading)
+                        Spacer(minLength: 0)
+                    }
+                }
+            }
+        }
+        .padding(16)
+    }
+}
+
+extension CanvasProStudyActivity.ContentState {
+    /// A focus block twelve minutes in, for the screenshot gallery.
+    static func sample(now: Date = Date()) -> Self {
+        Self(title: "Lab report", detail: "BIO 110 · 1 of 2", phase: "Focus", step: "Focus block 2 of 4", running: true, blockStart: now.addingTimeInterval(-12 * 60), blockEnd: now.addingTimeInterval(13 * 60), remaining: 13 * 60, total: 25 * 60, finished: false)
+    }
+}
+
+extension CanvasProTonightActivity.ContentState {
+    static func sample(now: Date = Date()) -> Self {
+        let midnight = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: now)) ?? now
+        return Self(items: [
+            .init(name: "Reading quiz", course: "PSY 101", due: midnight.addingTimeInterval(-120)),
+            .init(name: "Lab report", course: "BIO 110", due: midnight.addingTimeInterval(-60)),
+        ], remaining: 2, done: 1)
     }
 }

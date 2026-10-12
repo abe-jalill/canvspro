@@ -1,3 +1,4 @@
+import ActivityKit
 import Foundation
 import SwiftUI
 import UserNotifications
@@ -810,6 +811,92 @@ enum NativeParity {
 extension Notification.Name {
     /// "This iPhone" was switched on or off in notification settings.
     static let nativeLocalRemindersChanged = Notification.Name("CanvasProNativeLocalRemindersChanged")
+}
+
+/// Starts, updates and ends the app's Live Activities: the study timer, and from
+/// 9 PM the work still due tonight. iOS only lets an app start one while it's
+/// open, so "tonight" begins the first time the app is used after 9 PM.
+@MainActor
+enum NativeLiveActivities {
+    private static var lastStudy: CanvasProStudyActivity.ContentState?
+    private static var lastTonight: CanvasProTonightActivity.ContentState?
+    /// The night "tonight" was last started, so one dismissed by the student stays gone.
+    private static let tonightStartedKey = "CanvasProTonightActivityDay"
+
+    private static var allowed: Bool { ActivityAuthorizationInfo().areActivitiesEnabled }
+
+    // Study session
+
+    /// Mirrors the study timer. `nil` ends it right away (the session was reset).
+    static func updateStudy(_ state: CanvasProStudyActivity.ContentState?) {
+        let activities = Activity<CanvasProStudyActivity>.activities
+        guard let state else {
+            lastStudy = nil
+            for activity in activities { Task { await activity.end(nil, dismissalPolicy: .immediate) } }
+            return
+        }
+        // The timer saves every second; only a real change reaches the lock screen.
+        guard state != lastStudy else { return }
+        lastStudy = state
+        let content = ActivityContent(state: state, staleDate: state.running ? state.blockEnd : nil)
+        if let activity = activities.first {
+            for extra in activities.dropFirst() { Task { await extra.end(nil, dismissalPolicy: .immediate) } }
+            if state.finished {
+                Task { await activity.end(content, dismissalPolicy: .after(Date().addingTimeInterval(10 * 60))) }
+            } else {
+                Task { await activity.update(content) }
+            }
+        } else if !state.finished, allowed {
+            _ = try? Activity.request(attributes: CanvasProStudyActivity(), content: content, pushType: nil)
+        }
+    }
+
+    // Due tonight
+
+    /// Starts "Due tonight" once a night from 9 PM while work is still due before
+    /// midnight, keeps it in step as work is finished, and ends it when everything
+    /// is done or the night is over.
+    static func updateTonight(_ snapshot: CanvasProWidgetSnapshot, now: Date = Date()) {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: now)
+        let midnight = calendar.date(byAdding: .day, value: 1, to: today) ?? now
+        let activities = Activity<CanvasProTonightActivity>.activities
+        for activity in activities where activity.attributes.day != today {
+            Task { await activity.end(nil, dismissalPolicy: .immediate) }
+        }
+        let work = snapshot.workload(.tonight, at: now)
+        let state = CanvasProTonightActivity.ContentState(
+            items: work.remaining.prefix(3).map { CanvasProTonightActivity.Item(name: $0.name, course: $0.course, due: $0.due) },
+            remaining: work.remaining.count,
+            done: work.done
+        )
+        let content = ActivityContent(state: state, staleDate: midnight)
+        if let tonight = activities.first(where: { $0.attributes.day == today }) {
+            guard state != lastTonight else { return }
+            lastTonight = state
+            if work.remaining.isEmpty {
+                Task { await tonight.end(content, dismissalPolicy: .after(now.addingTimeInterval(20 * 60))) }
+            } else {
+                Task { await tonight.update(content) }
+            }
+            return
+        }
+        let ninePM = calendar.date(bySettingHour: 21, minute: 0, second: 0, of: now) ?? midnight
+        let defaults = UserDefaults.standard
+        guard now >= ninePM, now < midnight, !work.remaining.isEmpty, allowed,
+              defaults.double(forKey: tonightStartedKey) != today.timeIntervalSince1970 else { return }
+        defaults.set(today.timeIntervalSince1970, forKey: tonightStartedKey)
+        lastTonight = state
+        _ = try? Activity.request(attributes: CanvasProTonightActivity(day: today), content: content, pushType: nil)
+    }
+
+    /// Sign-out: nothing of the previous student's stays on the lock screen.
+    static func endAll() {
+        lastStudy = nil
+        lastTonight = nil
+        for activity in Activity<CanvasProStudyActivity>.activities { Task { await activity.end(nil, dismissalPolicy: .immediate) } }
+        for activity in Activity<CanvasProTonightActivity>.activities { Task { await activity.end(nil, dismissalPolicy: .immediate) } }
+    }
 }
 
 /// Reminders this iPhone schedules for itself: due dates, class reminders and

@@ -1,3 +1,4 @@
+import ActivityKit
 import SwiftUI
 import WidgetKit
 
@@ -7,6 +8,95 @@ struct CanvasProWidgets: WidgetBundle {
         CanvasProDueSoonWidget()
         CanvasProGradesWidget()
         CanvasProNextClassWidget()
+        CanvasProStudyLiveActivity()
+        CanvasProTonightLiveActivity()
+    }
+}
+
+// MARK: - Live Activities
+
+struct CanvasProStudyLiveActivity: Widget {
+    var body: some WidgetConfiguration {
+        ActivityConfiguration(for: CanvasProStudyActivity.self) { context in
+            CanvasProStudyLockView(state: context.state)
+                .activityBackgroundTint(Color.black.opacity(0.82))
+                .activitySystemActionForegroundColor(.white)
+                .widgetURL(URL(string: "canvaspro://study-session"))
+        } dynamicIsland: { context in
+            DynamicIsland {
+                DynamicIslandExpandedRegion(.leading) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(CanvasProStudyLockView.caption(context.state))
+                            .font(.system(size: 10, weight: .semibold)).tracking(1).foregroundStyle(.white.opacity(0.6)).lineLimit(1)
+                        Text(context.state.title).font(.system(size: 14, weight: .semibold)).foregroundStyle(.white).lineLimit(1)
+                    }
+                    .padding(.leading, 6)
+                }
+                DynamicIslandExpandedRegion(.trailing) {
+                    CanvasProStudyClock(state: context.state, size: 24).padding(.trailing, 6)
+                }
+                DynamicIslandExpandedRegion(.bottom) {
+                    CanvasProStudyBar(state: context.state).padding(.horizontal, 6).padding(.top, 6)
+                }
+            } compactLeading: {
+                Image(systemName: context.state.finished ? "checkmark" : context.state.running ? "timer" : "pause.fill")
+                    .font(.system(size: 13, weight: .semibold)).foregroundStyle(.white)
+            } compactTrailing: {
+                CanvasProStudyClock(state: context.state, size: 14).frame(maxWidth: 48)
+            } minimal: {
+                Image(systemName: context.state.running ? "timer" : "pause.fill")
+                    .font(.system(size: 12, weight: .semibold)).foregroundStyle(.white)
+            }
+            .widgetURL(URL(string: "canvaspro://study-session"))
+            .keylineTint(.white)
+        }
+    }
+}
+
+struct CanvasProTonightLiveActivity: Widget {
+    var body: some WidgetConfiguration {
+        ActivityConfiguration(for: CanvasProTonightActivity.self) { context in
+            CanvasProTonightLockView(state: context.state)
+                .activityBackgroundTint(Color.black.opacity(0.82))
+                .activitySystemActionForegroundColor(.white)
+                .widgetURL(URL(string: "canvaspro://assignments"))
+        } dynamicIsland: { context in
+            DynamicIsland {
+                DynamicIslandExpandedRegion(.leading) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("DUE TONIGHT").font(.system(size: 10, weight: .semibold)).tracking(1).foregroundStyle(.white.opacity(0.6))
+                        Text(context.state.remaining == 0 ? "All done" : "\(context.state.remaining) left")
+                            .font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
+                    }
+                    .padding(.leading, 6)
+                }
+                DynamicIslandExpandedRegion(.trailing) {
+                    if let next = context.state.items.first?.due {
+                        CanvasProTonightCountdown(due: next, size: 20).frame(maxWidth: 96, alignment: .trailing).padding(.trailing, 6)
+                    }
+                }
+                DynamicIslandExpandedRegion(.bottom) {
+                    VStack(alignment: .leading, spacing: 5) {
+                        ForEach(context.state.items.prefix(2), id: \.self) { item in
+                            HStack {
+                                Text(item.name).font(.system(size: 13, weight: .medium)).foregroundStyle(.white).lineLimit(1)
+                                Spacer(minLength: 6)
+                                Text(CanvasProWidgetFormat.time(item.due)).font(.system(size: 12)).monospacedDigit().foregroundStyle(.white.opacity(0.65))
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 6).padding(.top, 4)
+                }
+            } compactLeading: {
+                Image(systemName: "checklist").font(.system(size: 13, weight: .semibold)).foregroundStyle(.white)
+            } compactTrailing: {
+                Text("\(context.state.remaining)").font(.system(size: 14, weight: .semibold)).monospacedDigit().foregroundStyle(.white)
+            } minimal: {
+                Text("\(context.state.remaining)").font(.system(size: 13, weight: .semibold)).monospacedDigit().foregroundStyle(.white)
+            }
+            .widgetURL(URL(string: "canvaspro://assignments"))
+            .keylineTint(.white)
+        }
     }
 }
 

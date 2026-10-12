@@ -303,6 +303,8 @@ private struct NativeWidgetGallery: View {
                 if page == "large" {
                     home(width: 364, height: 382) { CanvasProDueSoonView(snapshot: snapshot, date: now, family: .systemLarge, range: .week) }
                     lockScreen
+                } else if page == "live" {
+                    liveActivities
                 } else if page == "classes" {
                     HStack(spacing: 22) {
                         home(width: 170, height: 170) { CanvasProNextClassView(snapshot: snapshot, date: now, family: .systemSmall) }
@@ -330,6 +332,51 @@ private struct NativeWidgetGallery: View {
             .padding(16)
             .frame(width: width, height: height)
             .background(CanvasProWidgetPalette(snapshot.palette).background(scheme), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+    }
+
+    /// Both Live Activities as the lock screen shows them, then the Dynamic
+    /// Island's compact and expanded forms, drawn by the extension's own views.
+    private var liveActivities: some View {
+        let study = CanvasProStudyActivity.ContentState.sample(now: Date())
+        let tonight = CanvasProTonightActivity.ContentState.sample(now: Date())
+        return VStack(spacing: 16) {
+            CanvasProStudyLockView(state: study)
+                .frame(width: 364)
+                .background(Color.black.opacity(0.82), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            CanvasProTonightLockView(state: tonight)
+                .frame(width: 364)
+                .background(Color.black.opacity(0.82), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            // Compact: around the camera, leading and trailing.
+            HStack(spacing: 0) {
+                Image(systemName: "timer").font(.system(size: 13, weight: .semibold)).foregroundStyle(.white).padding(.leading, 14)
+                Spacer(minLength: 0)
+                CanvasProStudyClock(state: study, size: 14).frame(maxWidth: 48).padding(.trailing, 14)
+            }
+            .frame(width: 250, height: 37)
+            .background(Color.black, in: Capsule())
+            HStack(spacing: 0) {
+                Image(systemName: "checklist").font(.system(size: 13, weight: .semibold)).foregroundStyle(.white).padding(.leading, 14)
+                Spacer(minLength: 0)
+                Text("\(tonight.remaining)").font(.system(size: 14, weight: .semibold)).monospacedDigit().foregroundStyle(.white).padding(.trailing, 16)
+            }
+            .frame(width: 250, height: 37)
+            .background(Color.black, in: Capsule())
+            // Expanded.
+            VStack(spacing: 8) {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(CanvasProStudyLockView.caption(study)).font(.system(size: 10, weight: .semibold)).tracking(1).foregroundStyle(.white.opacity(0.6)).lineLimit(1)
+                        Text(study.title).font(.system(size: 14, weight: .semibold)).foregroundStyle(.white)
+                    }
+                    Spacer()
+                    CanvasProStudyClock(state: study, size: 24)
+                }
+                CanvasProStudyBar(state: study)
+            }
+            .padding(.horizontal, 22).padding(.vertical, 18)
+            .frame(width: 364)
+            .background(Color.black, in: RoundedRectangle(cornerRadius: 40, style: .continuous))
+        }
     }
 
     /// The lock screen draws widgets in white over the wallpaper.
@@ -1280,7 +1327,7 @@ struct NativeMainTabView: View {
                 endMinutes: entry.endMinutes
             )
         }
-        CanvasProWidgetStore.save(CanvasProWidgetSnapshot(
+        let snapshot = CanvasProWidgetSnapshot(
             signedIn: true,
             palette: UserDefaults.standard.string(forKey: "CanvasProPalette") ?? "forest",
             syncedAt: contentStore.lastSyncedAt,
@@ -1289,7 +1336,10 @@ struct NativeMainTabView: View {
             classes: classes,
             courses: courses,
             hideGrades: UserDefaults.standard.bool(forKey: "CanvasProHideGrades")
-        ))
+        )
+        CanvasProWidgetStore.save(snapshot)
+        // "Due tonight" on the lock screen, from 9 PM.
+        NativeLiveActivities.updateTonight(snapshot, now: now)
     }
 
     /// Keeps this phone's reminders in step with what the student sees. Apart
@@ -1325,6 +1375,8 @@ struct NativeMainTabView: View {
                     try? await Task.sleep(for: .seconds(30))
                     guard !Task.isCancelled else { return }
                     await featureStore.refreshPreferences()
+                    // Also starts "Due tonight" at 9 PM when the app is already open.
+                    publishWidgetSnapshot()
                 }
             }
     }
@@ -3559,6 +3611,32 @@ struct NativeStudyView: View {
     private func persistSession() {
         let value = StoredNativeStudySession(selected: selectedOrder, duration: duration, remaining: remaining, running: running, currentIndex: currentIndex, savedAt: Date(), manualTasks: manualTasks, completedIDs: Array(completedIDs), finished: sessionFinished, started: sessionStarted, pomodoroPlan: activePlan, phase: phase, round: round, blockEndsAt: blockEndsAt, itemMinutes: itemMinutes, perItem: perItem)
         if let data = try? JSONEncoder().encode(value) { UserDefaults.standard.set(data, forKey: sessionKey) }
+        syncLiveActivity()
+    }
+
+    /// The timer on the lock screen and in the Dynamic Island. It counts down by
+    /// itself from the block's end time, so only pauses, new blocks and the end
+    /// of the session send an update.
+    private func syncLiveActivity() {
+        guard sessionStarted || sessionFinished else { NativeLiveActivities.updateStudy(nil); return }
+        let course = currentItem.map { store.displayName(courseID: $0.courseID, fallback: $0.courseName) } ?? ""
+        let position = items.count > 1 ? "\(min(currentIndex + 1, items.count)) of \(items.count)" : ""
+        let isRunning = running && !sessionFinished
+        let end = isRunning ? (blockEndsAt ?? Date().addingTimeInterval(TimeInterval(remaining))) : Date(timeIntervalSince1970: 0)
+        let total = max(remaining, blockMinutes * 60)
+        NativeLiveActivities.updateStudy(CanvasProStudyActivity.ContentState(
+            title: sessionFinished ? "Session complete" : (currentItem?.name ?? (activePlan != nil ? "Focus session" : "Study session")),
+            detail: sessionFinished ? "\(focusedMinutes) min focused" : [course, position].filter { !$0.isEmpty }.joined(separator: " · "),
+            phase: activePlan == nil ? "Studying" : phase == "long-break" ? "Long break" : phase == "short-break" ? "Short break" : "Focus",
+            step: sessionFinished ? nil : activePlan.map { cycleText($0) },
+            running: isRunning,
+            blockStart: isRunning ? end.addingTimeInterval(-TimeInterval(total)) : end,
+            blockEnd: end,
+            // While running the clock comes from the dates, so this stays fixed.
+            remaining: isRunning ? 0 : remaining,
+            total: total,
+            finished: sessionFinished
+        ))
     }
     private var setupCandidates: [AssignmentItem] {
         let needle = search.trimmingCharacters(in: .whitespacesAndNewlines)
