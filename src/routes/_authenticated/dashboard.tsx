@@ -73,9 +73,15 @@ function Dashboard() {
 
   return (
     <div className="w-full min-w-0 space-y-4 pb-12 sm:space-y-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <PageTabs tabs={TODAY_TABS} label="Today sections" />
-        <DashboardPomodoro />
+      {/* Tabs centered like on Coming Up and Get It Done; Pomodoro on the right. */}
+      {/* Side by side only when both fit; narrower, Pomodoro goes under the tabs. */}
+      <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:items-start">
+        <div className="lg:col-start-2">
+          <PageTabs tabs={TODAY_TABS} label="Today sections" />
+        </div>
+        <div className="flex lg:col-start-3">
+          <DashboardPomodoro />
+        </div>
       </div>
       <DashboardHero />
 

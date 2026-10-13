@@ -27,9 +27,15 @@ export function DeleteAccountSection() {
     try {
       if (Capacitor.isNativePlatform()) {
         const { data, error } = await supabase.auth.getSession();
-        if (error || !data.session) throw new Error("Please sign in again before deleting your account.");
-        const result = await requestMobileApi<{ deleted: boolean }>("delete-account", { confirm: CONFIRM_WORD }, data.session.access_token);
-        if (result.deleted !== true) throw new Error("Could not confirm account deletion. Please try again.");
+        if (error || !data.session)
+          throw new Error("Please sign in again before deleting your account.");
+        const result = await requestMobileApi<{ deleted: boolean }>(
+          "delete-account",
+          { confirm: CONFIRM_WORD },
+          data.session.access_token,
+        );
+        if (result.deleted !== true)
+          throw new Error("Could not confirm account deletion. Please try again.");
       } else {
         await deleteAccount();
       }
@@ -44,9 +50,7 @@ export function DeleteAccountSection() {
       toast.success("Your account and all of its data were deleted.");
       navigate({ to: "/auth", replace: true });
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Could not delete your account.",
-      );
+      toast.error(error instanceof Error ? error.message : "Could not delete your account.");
       setBusy(false);
     }
   }
@@ -54,9 +58,8 @@ export function DeleteAccountSection() {
   return (
     <div className="flex w-full flex-col gap-3">
       <p className="text-sm text-muted-foreground">
-        Deleting your account permanently
-        removes your Canvas key, class names, schedule, notes, and every other
-        saved item. This cannot be undone.
+        Deleting your account permanently removes your Canvas key, class names, schedule, notes, and
+        every other saved item. This cannot be undone.
       </p>
 
       {!open ? (

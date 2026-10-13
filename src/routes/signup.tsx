@@ -132,10 +132,7 @@ function SignupPage() {
 
   if (awaitingCode) {
     return (
-      <AuthShell
-        title="Enter your code"
-        subtitle={`We emailed a 6-digit code to ${email.trim()}`}
-      >
+      <AuthShell title="Enter your code" subtitle={`We emailed a 6-digit code to ${email.trim()}`}>
         <form onSubmit={onVerify} className="flex w-full flex-col gap-4">
           <input
             value={code}

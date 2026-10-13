@@ -56,7 +56,6 @@ function LoginPage() {
     });
   }, [navigate]);
 
-
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -81,8 +80,13 @@ function LoginPage() {
         try {
           const credentials = { username: cleanIdentifier, password };
           const session = Capacitor.isNativePlatform()
-            ? await requestMobileApi<{ access_token: string; refresh_token: string }>("sign-in", credentials)
-                .then((data) => ({ accessToken: data.access_token, refreshToken: data.refresh_token }))
+            ? await requestMobileApi<{ access_token: string; refresh_token: string }>(
+                "sign-in",
+                credentials,
+              ).then((data) => ({
+                accessToken: data.access_token,
+                refreshToken: data.refresh_token,
+              }))
             : await signInWithUsername({ data: credentials });
           const { error } = await supabase.auth.setSession({
             access_token: session.accessToken,

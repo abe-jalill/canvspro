@@ -639,7 +639,8 @@
   padding: 32px 0 40px;
   border-top: 1px solid var(--line);
   font-size: 14px;
-  color: var(--ink-3);
+  /* ink-2, not ink-3: ink-3 is under 4.5:1 for 14px text in both themes. */
+  color: var(--ink-2);
 }
 .hp-footer__row {
   display: flex;

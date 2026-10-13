@@ -54,7 +54,9 @@ function withSecurityHeaders(request: Request, response: Response): Response {
   // (above all the OAuth "Allow access" screen) can't be clickjacked. Lovable's
   // editor frames previews on its own domains, which are left alone.
   // Lovable's proxies overwrite X-Forwarded-Host, so it names the public host.
-  const host = (request.headers.get("x-forwarded-host") ?? url.hostname).split(":")[0]!.toLowerCase();
+  const host = (request.headers.get("x-forwarded-host") ?? url.hostname)
+    .split(":")[0]!
+    .toLowerCase();
   const production = host === "canvaspro.app" || host === "www.canvaspro.app";
   headers.set(
     "Content-Security-Policy",

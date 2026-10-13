@@ -77,9 +77,67 @@ function leadLabel(minutes: number): string {
   return `starts in ${minutes} min`;
 }
 
+const CLASS_TAG = /^class:(\d{4}-\d{2}-\d{2}):(\d+):(.*):(\d+)$/s;
+const TONIGHT_TAG = /^tonight:(\d{4}-\d{2}-\d{2}):(\d+)$/;
+
+/**
+ * Which queued countdowns to send now and which are no longer worth sending.
+ * A 5-minute run can be missed (a deploy, a hiccup), so a late reminder still
+ * goes out while it is useful: within `graceMs` exactly as queued, after that
+ * with its countdown recalculated ("starts in 7 min"). It is dropped once the
+ * class has started or tonight's 11:59 PM deadline has passed. When several
+ * steps for the same class or night are due, only the latest goes out.
+ */
+export function planScheduledAlerts<T extends { tag: string; fire_at: string; title: string }>(
+  rows: T[],
+  now: Date,
+  graceMs: number,
+): { send: T[]; drop: T[] } {
+  const nowMs = now.getTime();
+  const drop: T[] = [];
+  const latest = new Map<string, { row: T; fire: number; endsAt: number; className?: string }>();
+
+  for (const row of rows) {
+    const fire = Date.parse(row.fire_at);
+    if (!Number.isFinite(fire) || fire > nowMs) continue;
+    const cls = CLASS_TAG.exec(row.tag);
+    const night = TONIGHT_TAG.exec(row.tag);
+    // When the reminder stops being useful: class start, or 11:59 PM that night.
+    const endsAt = cls
+      ? fire + Number(cls[4]) * 60_000
+      : night
+        ? fire + (23 * 60 + 59 - Number(night[2]) * 60) * 60_000
+        : fire + graceMs;
+    if (nowMs - fire > graceMs && nowMs >= endsAt) {
+      drop.push(row);
+      continue;
+    }
+    const key = cls
+      ? `class:${cls[1]}:${cls[2]}:${cls[3]}`
+      : night
+        ? `tonight:${night[1]}`
+        : row.tag;
+    const current = latest.get(key);
+    if (current && current.fire >= fire) {
+      drop.push(row);
+      continue;
+    }
+    if (current) drop.push(current.row);
+    latest.set(key, { row, fire, endsAt, className: cls?.[3] });
+  }
+
+  const send = Array.from(latest.values()).map(({ row, fire, endsAt, className }) => {
+    if (className === undefined || nowMs - fire <= graceMs) return row;
+    return { ...row, title: `${className} ${leadLabel(Math.ceil((endsAt - nowMs) / 60_000))}` };
+  });
+  return { send, drop };
+}
+
 /** The instant 11:59 PM tonight, local to the user. */
 export function endOfLocalDay(now: Date, tzOffsetMinutes: number): number {
-  return localDayStart(now, tzOffsetMinutes, 0) + 23 * 3_600_000 + 59 * 60_000 + tzOffsetMinutes * 60_000;
+  return (
+    localDayStart(now, tzOffsetMinutes, 0) + 23 * 3_600_000 + 59 * 60_000 + tzOffsetMinutes * 60_000
+  );
 }
 
 /**

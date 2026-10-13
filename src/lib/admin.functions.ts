@@ -64,9 +64,22 @@ export const getUsageStatsFn = createServerFn({ method: "GET" })
       }
     }
 
-    const { data: userList } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    // Every account, a page at a time: one page of 1,000 would silently undercount.
+    type AuthUser = Awaited<
+      ReturnType<typeof supabaseAdmin.auth.admin.listUsers>
+    >["data"]["users"][number];
+    const users: AuthUser[] = [];
+    for (let page = 1; ; page += 1) {
+      const { data, error: listError } = await supabaseAdmin.auth.admin.listUsers({
+        page,
+        perPage: 1000,
+      });
+      if (listError) throw new Error(listError.message);
+      users.push(...data.users);
+      if (data.users.length < 1000) break;
+    }
     const emails = new Map<string, string>();
-    for (const u of userList?.users ?? []) emails.set(u.id, u.email ?? "unknown");
+    for (const u of users) emails.set(u.id, u.email ?? "unknown");
 
     const recent: RecentUser[] = [...latest.entries()]
       .sort((a, b) => (a[1].lastSeenAt < b[1].lastSeenAt ? 1 : -1))
@@ -86,7 +99,7 @@ export const getUsageStatsFn = createServerFn({ method: "GET" })
     if (keyError) throw new Error(keyError.message);
     const signupSince = now.getTime() - 30 * 24 * 60 * 60 * 1000;
     const signupSources = summarizeSignupSources(
-      (userList?.users ?? [])
+      users
         .filter((u) => Date.parse(u.created_at) >= signupSince)
         .map((u) => ({ id: u.id, signupSource: u.user_metadata?.signup_source })),
       new Set((keyRows ?? []).map((row) => row.user_id)),
@@ -99,7 +112,7 @@ export const getUsageStatsFn = createServerFn({ method: "GET" })
       today: summary.today,
       week: summary.week,
       month: summary.month,
-      totalAccounts: userList?.users.length ?? 0,
+      totalAccounts: users.length,
       daily: summary.daily,
       recent,
       signupSources,

@@ -41,15 +41,7 @@ function weekdayLabel(date: string): string {
   return d.toLocaleDateString(undefined, { weekday: "short", timeZone: "UTC" });
 }
 
-function Stat({
-  label,
-  value,
-  detail,
-}: {
-  label: string;
-  value: number;
-  detail?: string;
-}) {
+function Stat({ label, value, detail }: { label: string; value: number; detail?: string }) {
   return (
     <div className="glass-inset rounded-2xl px-4 py-5">
       <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
@@ -111,7 +103,9 @@ function AdminUsagePage() {
         <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
           Private
         </p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl md:text-4xl">Usage</h1>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl md:text-4xl">
+          Usage
+        </h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
           How many people actually opened CanvasPro, day by day. Only you can see this.
         </p>

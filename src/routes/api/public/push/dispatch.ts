@@ -18,6 +18,7 @@ import {
 import {
   buildClassCountdownAlerts,
   buildTonightAlerts,
+  planScheduledAlerts,
   type ScheduledAlertRow,
   type ScheduleRow,
   type TonightItem,
@@ -88,11 +89,15 @@ async function enqueueCountdowns(
 }
 
 /**
- * How late a queued countdown may still go out. The scheduled run fires every
- * 5 minutes; anything later than this would show the wrong countdown
- * ("starts in 15 min" when class is already starting), so it is dropped.
+ * How late a queued countdown may go out with the text it was queued with. The
+ * scheduled run fires every 5 minutes; past this, the countdown would read
+ * wrong ("starts in 15 min" when class starts in 5), so a run that was missed
+ * sends it with the time recalculated, or drops it once class has started
+ * (planScheduledAlerts).
  */
 const SCHEDULED_GRACE_MS = 6 * 60_000;
+/** How far back the scheduled run looks for reminders a missed run left unsent. */
+const SCHEDULED_LOOKBACK_MS = 12 * 3_600_000;
 
 /**
  * Sends the alerts this account hasn't had yet to its devices, records what
@@ -104,8 +109,9 @@ async function deliverToUser(
   userSubs: SubRow[],
   due: Alert[],
   vapid: Vapid,
-): Promise<{ sent: number; failures: number; fresh: number }> {
-  const out = { sent: 0, failures: 0, fresh: 0 };
+): Promise<{ sent: number; failures: number; fresh: number; logged: string[] }> {
+  // `logged`: alerts this account has now had, sent earlier or just now.
+  const out = { sent: 0, failures: 0, fresh: 0, logged: [] as string[] };
   // Only real browser push services; a hand-written endpoint is never contacted.
   userSubs = userSubs.filter((s) => isPushServiceEndpoint(s.endpoint));
   if (due.length === 0 || userSubs.length === 0) return out;
@@ -118,6 +124,7 @@ async function deliverToUser(
       due.map((a) => a.id),
     );
   const already = new Set((sentRows ?? []).map((r) => r.alert_id as string));
+  out.logged = due.filter((a) => already.has(a.id)).map((a) => a.id);
   const fresh = due.filter((a) => !already.has(a.id)).slice(0, 12);
   out.fresh = fresh.length;
   if (fresh.length === 0) return out;
@@ -150,6 +157,7 @@ async function deliverToUser(
     await admin
       .from("push_sent_log")
       .upsert(loggable.map((a) => ({ user_id: userId, alert_id: a.id })));
+    out.logged.push(...loggable.map((a) => a.id));
   }
   if (dead.size > 0) {
     console.warn(`[push-dispatch] removing ${dead.size} expired subscription(s) user=${userId}`);
@@ -414,7 +422,11 @@ async function dispatchUser(
     result.failures = delivered.failures;
     // Alerts were due but no device took any of them (e.g. broken push keys).
     result.reason =
-      delivered.fresh === 0 ? "already-sent" : delivered.sent === 0 ? "delivery-failed" : "delivered";
+      delivered.fresh === 0
+        ? "already-sent"
+        : delivered.sent === 0
+          ? "delivery-failed"
+          : "delivered";
   } catch (err) {
     result.failures += 1;
     result.reason = "error";
@@ -514,8 +526,11 @@ async function run(onlyUserId?: string): Promise<Response> {
 
 /**
  * Sends queued countdowns (a class starting soon, tonight's deadlines) whose
- * moment has just arrived. Runs every 5 minutes and never calls Canvas, so a
- * "starts in 15 min" reminder lands 15 minutes before class.
+ * moment has arrived. Runs every 5 minutes and never calls Canvas, so a
+ * "starts in 15 min" reminder lands 15 minutes before class. A reminder a
+ * missed run left behind still goes out while it is useful. Every reminder it
+ * handles (sent, or dropped as too late) gets `sent_at`, so the health check
+ * only flags ones nothing handled.
  */
 async function runScheduled(): Promise<Response> {
   const { supabaseAdmin: admin } = await import("@/integrations/supabase/client.server");
@@ -532,9 +547,10 @@ async function runScheduled(): Promise<Response> {
   const now = Date.now();
   const { data: rows, error } = await admin
     .from("push_scheduled_alerts")
-    .select("user_id,tag,title,body,to_path,badge")
+    .select("user_id,tag,fire_at,title,body,to_path,badge")
+    .is("sent_at", null)
     .lte("fire_at", new Date(now).toISOString())
-    .gt("fire_at", new Date(now - SCHEDULED_GRACE_MS).toISOString());
+    .gt("fire_at", new Date(now - SCHEDULED_LOOKBACK_MS).toISOString());
   if (error) {
     console.error("[push-scheduled] lookup failed", error.message);
     return Response.json({ error: "scheduled lookup failed" }, { status: 500 });
@@ -560,9 +576,26 @@ async function runScheduled(): Promise<Response> {
       .in("user_id", userIds),
   ]);
 
+  const markHandled = async (userId: string, tags: string[]) => {
+    if (tags.length === 0) return;
+    const { error: markError } = await admin
+      .from("push_scheduled_alerts")
+      .update({ sent_at: new Date().toISOString() })
+      .eq("user_id", userId)
+      .in("tag", tags)
+      .is("sent_at", null);
+    if (markError) console.error("[push-scheduled] mark failed", userId, markError.message);
+  };
+
   let sent = 0;
   let failures = 0;
-  for (const [userId, list] of byUser) {
+  for (const [userId, queued] of byUser) {
+    // Too late to be useful, or replaced by a later step: never sent.
+    const { send: list, drop } = planScheduledAlerts(queued, new Date(now), SCHEDULED_GRACE_MS);
+    await markHandled(
+      userId,
+      drop.map((r) => r.tag),
+    );
     const userSubs = ((subs ?? []) as SubRow[]).filter((s) => s.user_id === userId);
     if (userSubs.length === 0) continue;
     const prefRow = (prefRows ?? []).find((p) => p.user_id === userId);
@@ -586,6 +619,8 @@ async function runScheduled(): Promise<Response> {
       const result = await deliverToUser(admin, userId, userSubs, alerts, keys);
       sent += result.sent;
       failures += result.failures;
+      // Not delivered stays unhandled, so the next run tries again.
+      await markHandled(userId, result.logged);
     } catch (err) {
       failures += 1;
       console.error("[push-scheduled]", userId, err instanceof Error ? err.message : err);
