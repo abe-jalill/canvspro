@@ -493,10 +493,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      has_active_subscription: {
-        Args: { check_env?: string; user_uuid: string }
-        Returns: boolean
-      }
       has_canvas_key: { Args: never; Returns: boolean }
       patch_notification_preferences: {
         Args: { changes: Json; device_timezone_offset: number }

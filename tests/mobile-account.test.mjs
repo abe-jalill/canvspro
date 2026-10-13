@@ -161,9 +161,3 @@ test("cleanup failures keep the auth account available for retry", async () => {
     assert.equal(state.authDeleted(), false);
   }
 });
-
-test("old billing records are deleted with the account", async () => {
-  const state = fakeAdmin();
-  await deleteAccountData("owner", state.client);
-  assert.ok(state.tables.includes("subscriptions"));
-});
