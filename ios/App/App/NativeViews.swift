@@ -1561,16 +1561,16 @@ private struct NativeDashboardView: View {
     // MARK: Hero (the website's DashboardHero)
 
     private var hero: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 6) {
                 Image(systemName: "calendar").cpIconFont(10, .medium)
                 Text(Date().formatted(.dateTime.weekday(.wide).month(.wide).day()).uppercased()).tracking(2)
             }
             .cpFont(11, .medium)
             .foregroundStyle(CPTheme.muted(scheme))
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text("\(greeting)\(studentName.map { ", \($0)." } ?? ".")")
-                    .cpFont(30, .regular).tracking(-1)
+                    .cpFont(28, .regular).tracking(-0.8)
                     .foregroundStyle(CPTheme.foreground(scheme))
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityAddTraits(.isHeader)
@@ -1581,7 +1581,7 @@ private struct NativeDashboardView: View {
             }
             heroStats
         }
-        .padding(20)
+        .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(heroBackground)
         .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
@@ -1603,11 +1603,11 @@ private struct NativeDashboardView: View {
         }
     }
 
-    /// "Next seven days" above two smaller cards, inside one soft shell.
+    /// Next up above two smaller cards, without an extra enclosing frame.
     private var heroStats: some View {
         VStack(spacing: 8) {
             Button { openFocus("7") } label: {
-                VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 10) {
                     HStack {
                         Text("NEXT UP").cpFont(11, .medium).tracking(2).foregroundStyle(CPTheme.muted(scheme))
                         Spacer()
@@ -1615,10 +1615,10 @@ private struct NativeDashboardView: View {
                     }
                     if let item = nextUp {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(item.name).cpFont(16).foregroundStyle(CPTheme.foreground(scheme))
+                            Text(item.name).cpFont(17, .medium).foregroundStyle(CPTheme.foreground(scheme))
                                 .lineLimit(2).multilineTextAlignment(.leading)
                             Text(store.displayName(courseID: item.courseID, fallback: item.courseName))
-                                .cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
+                                .cpFont(12).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
                         }
                         Text(nextUpDetail(item)).cpFont(12).monospacedDigit()
                             .foregroundStyle(CPTheme.foreground(scheme).opacity(0.85))
@@ -1627,7 +1627,7 @@ private struct NativeDashboardView: View {
                         Text("Nothing due in the next seven days.").cpFont(13).foregroundStyle(CPTheme.muted(scheme))
                     }
                 }
-                .padding(18)
+                .padding(14)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(heroCardBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(CPTheme.primary(scheme: scheme).opacity(0.3), lineWidth: 0.5))
@@ -1640,12 +1640,6 @@ private struct NativeDashboardView: View {
                 heroSmallStat(value: overdueCount, label: "To catch up", symbol: "arrow.uturn.backward", window: "overdue", soft: overdueCount > 0)
             }
         }
-        .padding(8)
-        .background(
-            LinearGradient(colors: [CPTheme.primary(scheme: scheme).opacity(0.13), CPTheme.primary(scheme: scheme).opacity(0.035)], startPoint: .topLeading, endPoint: .bottomTrailing),
-            in: RoundedRectangle(cornerRadius: 26, style: .continuous)
-        )
-        .overlay(RoundedRectangle(cornerRadius: 26, style: .continuous).strokeBorder(CPTheme.primary(scheme: scheme).opacity(0.2), lineWidth: 0.5))
     }
 
     private var heroCardBackground: LinearGradient {
@@ -1660,7 +1654,7 @@ private struct NativeDashboardView: View {
 
     private func heroSmallStat(value: Int, label: String, symbol: String, window: String, soft: Bool = false) -> some View {
         Button { openFocus(window) } label: {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 10) {
                 HStack {
                     Image(systemName: symbol).cpIconFont(15).foregroundStyle(soft ? CPTheme.danger : CPTheme.muted(scheme))
                     Spacer()
@@ -1669,9 +1663,9 @@ private struct NativeDashboardView: View {
                         .contentTransition(.numericText())
                         .animation(reduceMotion ? nil : .snappy, value: value)
                 }
-                Text(label).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1).minimumScaleFactor(0.85)
+                Text(label).cpFont(12).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1).minimumScaleFactor(0.85)
             }
-            .padding(16)
+            .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(heroCardBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(CPTheme.primary(scheme: scheme).opacity(0.3), lineWidth: 0.5))
@@ -2219,17 +2213,17 @@ struct NativeDueRow: View {
                 CPAdaptiveStack(spacing: 8) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(assignment.name)
-                            .cpFont(12, .medium)
+                            .cpFont(16, .medium)
                             .foregroundStyle(isComplete ? CPTheme.muted(scheme) : CPTheme.foreground(scheme))
                             .strikethrough(isComplete)
-                            .lineLimit(2)
+                            .lineLimit(3)
                         Text(showCourse ? store.displayName(courseID: assignment.courseID, fallback: assignment.courseName) : (countdown?.fullDate ?? "No due date"))
-                            .cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
+                            .cpFont(12).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
                     }
                     Spacer(minLength: 6)
                     if let countdown {
                         Text(countdown.label)
-                            .cpFont(11, countdown.urgency == "today" || countdown.urgency == "overdue" ? .semibold : .medium)
+                            .cpFont(12, countdown.urgency == "today" || countdown.urgency == "overdue" ? .semibold : .medium)
                             .monospacedDigit()
                             .foregroundStyle(CPTheme.urgency(countdown.urgency, scheme: scheme))
                             .lineLimit(1)
@@ -2606,12 +2600,12 @@ struct NativeAssignmentRow: View {
             NativeCompletionButton(assignment: assignment, store: store, onCompleted: onCompleted).padding(.top, 1)
             VStack(alignment: .leading, spacing: 4) {
                 Text(assignment.name)
-                    .cpFont(13, .semibold)
+                    .cpFont(16, .medium)
                     .foregroundStyle(isComplete ? CPTheme.muted(scheme) : CPTheme.foreground(scheme))
                     .strikethrough(isComplete)
                     .fixedSize(horizontal: false, vertical: true)
                 Text(store.displayName(courseID: assignment.courseID, fallback: assignment.courseName))
-                    .cpFont(11)
+                    .cpFont(12)
                     .foregroundStyle(CPTheme.muted(scheme))
                     .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 6) {
@@ -2623,7 +2617,7 @@ struct NativeAssignmentRow: View {
                     if let points = assignment.pointsPossible { CPPill(text: "\(points.formatted()) pts") }
                 }
                 if let countdown, !countdown.fullDate.isEmpty {
-                    Text(countdown.fullDate).cpFont(11).monospacedDigit().foregroundStyle(CPTheme.faint(scheme))
+                    Text(countdown.fullDate).cpFont(12).monospacedDigit().foregroundStyle(CPTheme.faint(scheme))
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -3764,13 +3758,13 @@ struct NativeStudyView: View {
                 }
                 .frame(width: 20, height: 20)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(item.name).cpFont(12, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(2)
+                    Text(item.name).cpFont(16, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(3)
                     Text(item.courseID == 0 ? item.courseName : store.displayName(courseID: item.courseID, fallback: item.courseName))
-                        .cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
+                        .cpFont(12).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
                 }
                 Spacer(minLength: 6)
                 if let due = item.dueDate {
-                    Text(due.formatted(.dateTime.month(.abbreviated).day())).cpFont(11, .medium).monospacedDigit().foregroundStyle(CPTheme.faint(scheme))
+                    Text(due.formatted(.dateTime.month(.abbreviated).day())).cpFont(12, .medium).monospacedDigit().foregroundStyle(CPTheme.faint(scheme))
                 }
             }
             .padding(.vertical, 9)
@@ -3922,10 +3916,10 @@ struct NativeStudyView: View {
                 .foregroundStyle(CPTheme.muted(scheme))
                 .frame(width: 22)
             VStack(alignment: .leading, spacing: 1) {
-                Text(item.name).cpFont(13).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
+                Text(item.name).cpFont(15, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
                 if !item.courseName.isEmpty {
                     Text(item.courseID == 0 ? item.courseName : store.displayName(courseID: item.courseID, fallback: item.courseName))
-                        .cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
+                        .cpFont(12).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
                 }
             }
             Spacer(minLength: 4)
@@ -3990,7 +3984,7 @@ struct NativeStudyView: View {
                     } else if let item = currentItem {
                         VStack(spacing: 4) {
                             Text("NOW STUDYING").cpFont(11, .semibold).tracking(0.6).foregroundStyle(CPTheme.muted(scheme))
-                            Text(item.name).cpFont(15, .semibold).multilineTextAlignment(.center).foregroundStyle(CPTheme.foreground(scheme))
+                            Text(item.name).cpFont(17, .medium).multilineTextAlignment(.center).foregroundStyle(CPTheme.foreground(scheme))
                                 .fixedSize(horizontal: false, vertical: true)
                             if !item.courseName.isEmpty {
                                 Text(item.courseID == 0 ? item.courseName : store.displayName(courseID: item.courseID, fallback: item.courseName))
@@ -4040,7 +4034,7 @@ struct NativeStudyView: View {
                                         .frame(width: 22, height: 22)
                                         .background(currentIndex == index ? CPTheme.foreground(scheme) : CPTheme.inset(scheme), in: Circle())
                                     VStack(alignment: .leading, spacing: 2) {
-                                        Text(item.name).cpFont(12, .medium).strikethrough(done)
+                                        Text(item.name).cpFont(15, .medium).strikethrough(done)
                                             .foregroundStyle(done ? CPTheme.muted(scheme) : CPTheme.foreground(scheme)).lineLimit(2)
                                         if !item.courseName.isEmpty { Text(item.courseName).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1) }
                                     }

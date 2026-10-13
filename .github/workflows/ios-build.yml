@@ -6,6 +6,9 @@ on:
   push:
     branches: [ios-native]
     paths: ["ios/**", "scripts/test-native-session-store.py", ".github/workflows/ios-build.yml"]
+  pull_request:
+    branches: [ios-native]
+    paths: ["ios/**", "scripts/test-native-session-store.py", ".github/workflows/ios-build.yml"]
   workflow_dispatch:
 
 concurrency:
@@ -94,10 +97,17 @@ jobs:
           done
           ls -la shots
 
+      - name: Upload simulator screenshots for review
+        if: steps.shots.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-simulator-screenshots
+          path: shots/
+
       # One commit, replaced each run, on a branch nothing else uses (Lovable
       # syncs only main), so the images are viewable without signing in.
       - name: Publish screenshots to the ios-screenshots branch
-        if: steps.shots.outcome == 'success'
+        if: steps.shots.outcome == 'success' && github.ref == 'refs/heads/ios-native'
         run: |
           cd shots
           git init -q -b ios-screenshots
