@@ -4,6 +4,7 @@ import { ChevronDown, ChevronUp, Eye, EyeOff, RotateCcw, SlidersHorizontal, X } 
 import { cn } from "@/lib/utils";
 import { useDashboardLayout, type WidgetId, type WidgetSize } from "@/lib/dashboard-layout";
 import { WIDGETS } from "@/components/widgets/dashboard-widgets";
+import { MasonryCell, MasonryGrid } from "@/components/widgets/masonry-grid";
 import { DashboardHero } from "@/components/dashboard-hero";
 import { DashboardPomodoro } from "@/components/dashboard-pomodoro";
 import { PageTabs } from "@/components/page-tabs";
@@ -205,24 +206,22 @@ function Dashboard() {
         </section>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-5 min-w-0 [grid-auto-flow:dense]">
+      {/* Masonry: a short card never leaves a hole; later cards move up into it. */}
+      <MasonryGrid className="grid-cols-1 md:grid-cols-2 lg:grid-cols-12">
         {visible.map((id, index) => {
           const meta = WIDGETS[id];
           return (
-            <div
+            <MasonryCell
               key={id}
               data-widget-card
-              className={cn(
-                colSpanClass(sizeOf(id)),
-                "premium-card min-w-0 transition-all duration-200",
-              )}
+              className={cn(colSpanClass(sizeOf(id)), "premium-card")}
               style={{ animationDelay: `${Math.min(index, 5) * 55 + 90}ms` }}
             >
               {meta.render()}
-            </div>
+            </MasonryCell>
           );
         })}
-      </div>
+      </MasonryGrid>
     </div>
   );
 }
