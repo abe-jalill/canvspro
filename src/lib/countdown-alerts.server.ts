@@ -52,6 +52,22 @@ function timeLabel(minutes: number): string {
   return `${h12}:${String(m).padStart(2, "0")} ${period}`;
 }
 
+/**
+ * When work is due, the way a person says it: "today at 7:30 PM", "tomorrow at
+ * 9:00 AM", or "10/17 at 11:59 PM". In the student's own time zone, with no
+ * seconds, no leading zero and no year.
+ */
+export function dueLabel(due: Date, now: Date, tzOffsetMinutes: number): string {
+  const local = localMs(due, tzOffsetMinutes);
+  const day = Math.floor(local / DAY_MS);
+  const today = Math.floor(localMs(now, tzOffsetMinutes) / DAY_MS);
+  const wall = new Date(local);
+  const time = timeLabel(wall.getUTCHours() * 60 + wall.getUTCMinutes());
+  if (day === today) return `today at ${time}`;
+  if (day === today + 1) return `tomorrow at ${time}`;
+  return `${wall.getUTCMonth() + 1}/${wall.getUTCDate()} at ${time}`;
+}
+
 function leadLabel(minutes: number): string {
   if (minutes <= 0) return "starts now";
   if (minutes % 60 === 0) {

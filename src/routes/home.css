@@ -297,6 +297,53 @@
   color: var(--ink-3);
 }
 
+/* Homepage-only polish; other public pages share the base styles above. */
+.hp-home .hp-hero .hp-quiet {
+  color: var(--ink-2);
+}
+.hp-preview-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 46px;
+}
+.hp-home .hp-screens {
+  scroll-margin-top: 24px;
+}
+.hp-home .hp-tabs {
+  gap: 4px;
+  padding: 4px;
+  border-color: var(--line-2);
+  background: var(--surface);
+}
+.hp-home .hp-tabs button {
+  min-height: 40px;
+  padding: 8px 14px;
+}
+.hp-home .hp-tabs button[aria-selected="true"] {
+  background: var(--button);
+  color: var(--button-ink);
+}
+.hp-home .hp-screens__frame {
+  border-color: var(--line-2);
+}
+.hp-home .hp-screens figcaption {
+  max-width: 58ch;
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+@media (max-width: 600px) {
+  .hp-home .hp-hero {
+    gap: 24px;
+    padding-top: 32px;
+  }
+  .hp-home .hp-tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+}
+
 /* ── Sections: heading on the left, content on the right ── */
 .hp-split {
   width: var(--width);

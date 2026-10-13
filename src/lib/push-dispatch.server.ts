@@ -2,7 +2,8 @@
 // rules in src/lib/notification-prefs.ts + use-notification-engine.ts.
 
 import { sendWebPushWithRetry, type PushSubscriptionRecord } from "@/lib/webpush.server";
-import { endOfLocalDay, type TonightItem } from "@/lib/countdown-alerts.server";
+import { dueLabel, endOfLocalDay, type TonightItem } from "@/lib/countdown-alerts.server";
+import { notificationCourseName } from "@/lib/course-display";
 import { canvasRequestInit } from "@/lib/outbound-policy";
 
 export {
@@ -183,10 +184,13 @@ export async function buildAlertsForUser(
   /** Course ids this account chose to hide. Per-user, never hardcoded. */
   hiddenCourseIds: Set<number> = new Set<number>(),
   completedIds: Set<string> = new Set<string>(),
+  /** The student's class nicknames by Canvas course id, so alerts match the app. */
+  nicknames: Map<number, string> = new Map<number, string>(),
 ): Promise<BuildResult> {
   const alerts: Alert[] = [];
   const tonight: TonightItem[] = [];
   const now = Date.now();
+  const courseName = (c: CanvasCourse) => notificationCourseName(nicknames.get(c.id), c.name, c.course_code);
   const endToday = endOfLocalDay(new Date(now), tzOffsetMinutes);
 
   const stats: BuildStats = { courses: 0, courseErrors: 0, assignments: 0, alerts: 0 };
@@ -238,7 +242,7 @@ export async function buildAlertsForUser(
         alerts.push({
           id: `grade:${a.id}:${score}`,
           title: `Good job! You scored ${pct}% on ${a.name}`,
-          body: course.name,
+          body: courseName(course),
           to: "/grades",
         });
       }
@@ -248,7 +252,7 @@ export async function buildAlertsForUser(
     const due = new Date(a.due_at).getTime();
     if (due <= now) continue;
     const hoursLeft = (due - now) / 3_600_000;
-    if (due <= endToday) tonight.push({ name: a.name, courseName: course.name });
+    if (due <= endToday) tonight.push({ name: a.name, courseName: courseName(course) });
 
     for (const w of DUE_WINDOWS) {
       if (!prefs[w.key]) continue;
@@ -260,7 +264,7 @@ export async function buildAlertsForUser(
       alerts.push({
         id: `due:${a.id}:${w.key}`,
         title: `Due in ${w.label} or less: ${a.name}`,
-        body: `${course.name} · due ${new Date(a.due_at).toLocaleString("en-US")}`,
+        body: `${courseName(course)} · due ${dueLabel(new Date(a.due_at), new Date(now), tzOffsetMinutes)}`,
         to: "/assignments",
       });
     }
@@ -283,10 +287,11 @@ export async function buildAlertsForUser(
         const cid = Number(an.context_code.replace("course_", ""));
         if (hiddenCourseIds.has(cid)) continue;
         if (now - new Date(an.posted_at).getTime() > 26 * 3_600_000) continue;
+        const course = byId.get(cid);
         alerts.push({
           id: `announcement:${an.id}`,
           title: an.title,
-          body: `New announcement · ${byId.get(cid)?.name ?? ""}`.trim(),
+          body: course ? `New announcement · ${courseName(course)}` : "New announcement",
           to: "/announcements",
         });
       }

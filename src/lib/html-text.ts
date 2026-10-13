@@ -22,18 +22,22 @@ const NAMED: Record<string, string> = {
 };
 
 export function decodeEntities(input: string): string {
-  return input.replace(/&(#x?[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);/g, (m, ent: string) => {
-    if (ent.startsWith("#x") || ent.startsWith("#X")) {
-      const cp = parseInt(ent.slice(2), 16);
-      return Number.isFinite(cp) ? String.fromCodePoint(cp) : m;
-    }
-    if (ent.startsWith("#")) {
-      const cp = parseInt(ent.slice(1), 10);
-      return Number.isFinite(cp) ? String.fromCodePoint(cp) : m;
-    }
-    const hit = NAMED[ent.toLowerCase()];
-    return hit ?? m;
-  });
+  return input.replace(
+    /&(#(?:[xX][0-9a-fA-F]+|[0-9]+)|[a-zA-Z][a-zA-Z0-9]*);/g,
+    (m, ent: string) => {
+      if (ent.startsWith("#")) {
+        const hex = ent[1].toLowerCase() === "x";
+        const cp = parseInt(ent.slice(hex ? 2 : 1), hex ? 16 : 10);
+        // Invalid Unicode references must not crash a whole description preview.
+        if (!Number.isFinite(cp) || cp === 0 || cp > 0x10ffff || (cp >= 0xd800 && cp <= 0xdfff)) {
+          return "\uFFFD";
+        }
+        return String.fromCodePoint(cp);
+      }
+      const hit = NAMED[ent.toLowerCase()];
+      return hit ?? m;
+    },
+  );
 }
 
 export function htmlToText(html: string): string {

@@ -431,7 +431,7 @@ function LandingPage() {
   const ctaLabel = isLoggedIn ? "Open your dashboard" : "Get started free";
 
   return (
-    <div className="hp" ref={pageRef}>
+    <div className="hp hp-home" ref={pageRef}>
       <a className="hp-skip" href="#main">
         Skip to content
       </a>
@@ -474,16 +474,14 @@ function LandingPage() {
               <Link to={cta} preload="intent" className="hp-button">
                 {ctaLabel}
               </Link>
-              {!isLoggedIn && (
-                <Link to="/auth" preload="intent" className="hp-link">
-                  Sign in
-                </Link>
-              )}
+              <a href="#app-preview" className="hp-link hp-preview-link">
+                See how it works <span aria-hidden="true">↓</span>
+              </a>
             </div>
           </div>
         </section>
 
-        <section className="hp-screens hp-rise" aria-label="The app">
+        <section id="app-preview" className="hp-screens hp-rise" aria-label="The app">
           <div className="hp-tabs" role="tablist" aria-label="Screens">
             {SCREENS.map((item, index) => (
               <button
