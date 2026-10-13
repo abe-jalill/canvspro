@@ -126,10 +126,6 @@ export function formatCleanTitle(str?: string | null): string {
 export function notificationCourseName(nickname: string | null | undefined, name?: string | null, code?: string | null) {
   const nick = nickname?.trim();
   if (nick) return formatCleanTitle(nick);
-  const haystacks = [name ?? "", code ?? ""];
-  for (const rule of RENAME_RULES) {
-    if (haystacks.some((h) => rule.match.test(h))) return rule.name;
-  }
   return formatCleanTitle(name ?? code ?? "Course");
 }
 
