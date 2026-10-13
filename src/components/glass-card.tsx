@@ -19,7 +19,7 @@ export function GlassCard({ children, id, className, title, subtitle, action, st
       id={id}
       className={cn(
         strong ? "glass-panel-strong" : "glass-panel",
-        "min-w-0 overflow-hidden p-4 sm:p-6 md:p-7",
+        "glass-flat min-w-0 overflow-hidden p-4 sm:p-6 md:p-7",
         className,
       )}
     >

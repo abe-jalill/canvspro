@@ -129,7 +129,7 @@ export function DigestCard({ announcements, assignments, courses }: Props) {
   if (total === 0) {
     return (
       <GlassCard>
-        <div className="glass-hover flex items-center justify-between rounded-2xl px-1 py-1">
+        <div className="flex items-center justify-between rounded-2xl px-1 py-1">
           <div className="flex min-w-0 items-center gap-3">
             <div className="glass-inset flex h-9 w-9 shrink-0 items-center justify-center rounded-xl">
               <Check className="h-4 w-4" />

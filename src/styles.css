@@ -319,6 +319,17 @@
   border-radius: var(--radius-lg);
 }
 
+/* Page cards sit on the fixed, already-smooth page background, so a live blur
+   adds nothing there. On large cards on high-DPI screens Chrome tiles the blur
+   and leaves a visible vertical seam when anything inside repaints (hover).
+   Menus and popovers that float over content keep the blur. */
+.glass-panel.glass-flat,
+.glass-panel-strong.glass-flat {
+  /* Unprefixed only: the build adds the -webkit- copy, and listing both here
+     makes it drop this one. */
+  backdrop-filter: none;
+}
+
 .light .glass-inset {
   background: hsl(216 30% 20% / 0.035);
   border-color: hsl(216 30% 20% / 0.07);
