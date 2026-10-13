@@ -13,7 +13,15 @@ interface GlassCardProps {
   strong?: boolean;
 }
 
-export function GlassCard({ children, id, className, title, subtitle, action, strong }: GlassCardProps) {
+export function GlassCard({
+  children,
+  id,
+  className,
+  title,
+  subtitle,
+  action,
+  strong,
+}: GlassCardProps) {
   return (
     <section
       id={id}
@@ -27,9 +35,13 @@ export function GlassCard({ children, id, className, title, subtitle, action, st
         <header className="mb-5 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
           <div className="min-w-0">
             {title && (
-              <h2 className="truncate text-base font-normal tracking-tight text-foreground sm:text-lg">{title}</h2>
+              <h2 className="truncate text-base font-normal tracking-tight text-foreground sm:text-lg">
+                {title}
+              </h2>
             )}
-            {subtitle && <p className="mt-0.5 text-xs font-normal text-muted-foreground">{subtitle}</p>}
+            {subtitle && (
+              <p className="mt-0.5 text-xs font-normal text-muted-foreground">{subtitle}</p>
+            )}
           </div>
           {action ? <div className="shrink-0">{action}</div> : <span />}
         </header>

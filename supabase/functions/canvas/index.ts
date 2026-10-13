@@ -244,7 +244,10 @@ async function credsForRequest(req: Request, includeHidden = false): Promise<Cre
   // accounts working until they save their own.
   const requestedDomain = rows?.[0]?.canvas_domain?.trim() || Deno.env.get("CANVAS_DOMAIN");
   const domain = normalizeDomain(requestedDomain);
-  if (!domain) throw new Error(normalizeCanvasDomain(requestedDomain) ? "CANVAS_DOMAIN_NOT_ALLOWED" : "NO_CANVAS_DOMAIN");
+  if (!domain)
+    throw new Error(
+      normalizeCanvasDomain(requestedDomain) ? "CANVAS_DOMAIN_NOT_ALLOWED" : "NO_CANVAS_DOMAIN",
+    );
 
   let excluded = new Set<number>();
   if (!includeHidden) {
@@ -279,31 +282,37 @@ async function fetchActiveCourses(creds: Creds): Promise<CanvasCourse[]> {
   return courses.filter((course) => isCanvasCourseVisible(course, creds.excluded));
 }
 
-async function mapLimited<T, R>(items: T[], limit: number, task: (item: T) => Promise<R>): Promise<R[]> {
+async function mapLimited<T, R>(
+  items: T[],
+  limit: number,
+  task: (item: T) => Promise<R>,
+): Promise<R[]> {
   const results = new Array<R>(items.length);
   let next = 0;
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (next < items.length) {
-      const index = next++;
-      results[index] = await task(items[index]);
-    }
-  }));
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, async () => {
+      while (next < items.length) {
+        const index = next++;
+        results[index] = await task(items[index]);
+      }
+    }),
+  );
   return results;
 }
 
 async function handleCourses(creds: Creds) {
   const courses = await fetchActiveCourses(creds);
   const detailed = await mapLimited(courses, 6, async (course) => {
-      if ((course.syllabus_body ?? "").trim()) return course;
-      try {
-        return await canvasFetch<CanvasCourse>(
-          creds,
-          `/courses/${course.id}?include[]=total_scores&include[]=syllabus_body`,
-        );
-      } catch {
-        return course;
-      }
-    });
+    if ((course.syllabus_body ?? "").trim()) return course;
+    try {
+      return await canvasFetch<CanvasCourse>(
+        creds,
+        `/courses/${course.id}?include[]=total_scores&include[]=syllabus_body`,
+      );
+    } catch {
+      return course;
+    }
+  });
   return detailed.map((c) => {
     const enr = c.enrollments?.find((e) => e.type === "student") ?? c.enrollments?.[0];
     const syllabus = (c.syllabus_body ?? "").trim();
@@ -321,28 +330,39 @@ async function handleCourses(creds: Creds) {
 
 async function handleAssignments(creds: Creds) {
   const courses = await fetchActiveCourses(creds);
-  const results = await mapLimited(courses, 6, async (c): Promise<PromiseSettledResult<(CanvasAssignment & { course_name: string; course_code: string })[]>> => {
-    try {
-      const assignments = await canvasFetchAll<CanvasAssignment>(
-        creds,
-        `/courses/${c.id}/assignments?include[]=submission&override_assignment_dates=true&per_page=100&order_by=due_at`,
-      );
-      return { status: "fulfilled", value: assignments.map((a) => ({
-        id: a.id,
-        name: a.name,
-        description: a.description ?? null,
-        due_at: a.due_at,
-        html_url: a.html_url,
-        points_possible: a.points_possible,
-        course_id: a.course_id,
-        submission: a.submission,
-        course_name: c.name,
-        course_code: c.course_code,
-      })) };
-    } catch (reason) {
-      return { status: "rejected", reason };
-    }
-  });
+  const results = await mapLimited(
+    courses,
+    6,
+    async (
+      c,
+    ): Promise<
+      PromiseSettledResult<(CanvasAssignment & { course_name: string; course_code: string })[]>
+    > => {
+      try {
+        const assignments = await canvasFetchAll<CanvasAssignment>(
+          creds,
+          `/courses/${c.id}/assignments?include[]=submission&override_assignment_dates=true&per_page=100&order_by=due_at`,
+        );
+        return {
+          status: "fulfilled",
+          value: assignments.map((a) => ({
+            id: a.id,
+            name: a.name,
+            description: a.description ?? null,
+            due_at: a.due_at,
+            html_url: a.html_url,
+            points_possible: a.points_possible,
+            course_id: a.course_id,
+            submission: a.submission,
+            course_name: c.name,
+            course_code: c.course_code,
+          })),
+        };
+      } catch (reason) {
+        return { status: "rejected", reason };
+      }
+    },
+  );
   const failures = results.filter((result) => result.status === "rejected");
   if (courses.length > 0 && failures.length === courses.length) {
     const reason = failures[0].reason;
@@ -570,7 +590,12 @@ Deno.serve(async (req) => {
           overrideToken && storedCreds === null
             ? (() => {
                 const d = normalizeDomain(overrideDomain);
-                if (!d) throw new Error(normalizeCanvasDomain(overrideDomain) ? "CANVAS_DOMAIN_NOT_ALLOWED" : "INVALID_DOMAIN");
+                if (!d)
+                  throw new Error(
+                    normalizeCanvasDomain(overrideDomain)
+                      ? "CANVAS_DOMAIN_NOT_ALLOWED"
+                      : "INVALID_DOMAIN",
+                  );
                 return {
                   domain: d,
                   token: overrideToken,
@@ -582,7 +607,12 @@ Deno.serve(async (req) => {
               ? (() => {
                   // URL-only change: check the saved key against the new URL.
                   const d = normalizeDomain(overrideDomain);
-                  if (!d) throw new Error(normalizeCanvasDomain(overrideDomain) ? "CANVAS_DOMAIN_NOT_ALLOWED" : "INVALID_DOMAIN");
+                  if (!d)
+                    throw new Error(
+                      normalizeCanvasDomain(overrideDomain)
+                        ? "CANVAS_DOMAIN_NOT_ALLOWED"
+                        : "INVALID_DOMAIN",
+                    );
                   return { ...storedCreds, domain: d, cacheScope: "validation" };
                 })()
               : storedCreds!;
@@ -657,7 +687,9 @@ Deno.serve(async (req) => {
         ? 401
         : message === "NO_CANVAS_KEY" || message === "NO_CANVAS_DOMAIN"
           ? 428
-        : message === "INVALID_DOMAIN" || message === "CANVAS_DOMAIN_NOT_ALLOWED" || /^Canvas API 4\d\d/.test(message)
+          : message === "INVALID_DOMAIN" ||
+              message === "CANVAS_DOMAIN_NOT_ALLOWED" ||
+              /^Canvas API 4\d\d/.test(message)
             ? 400
             : 500;
     if (status === 500) console.error("[canvas]", message);
