@@ -328,9 +328,6 @@ function answer(
     if (resource in bundle) return json(bundle[resource as keyof typeof bundle]);
     return json(bundle.assignments);
   }
-  if (path.startsWith("/functions/v1/subscription-access")) {
-    return json({ active: true, plan: "pro", status: "active" });
-  }
   if (path.startsWith("/functions/v1/")) return json({});
   if (path.startsWith("/rest/v1/rpc/")) {
     const name = path.slice("/rest/v1/rpc/".length);

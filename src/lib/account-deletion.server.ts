@@ -12,27 +12,7 @@ export async function deleteAccountData(
   const supabaseAdmin =
     client ?? (await import("@/integrations/supabase/client.server")).supabaseAdmin;
 
-  // Deleting the database row does not cancel a subscription at Stripe.
-  // Never orphan a renewal by removing its owner and billing identifiers.
-  const { data: subscriptions, error: subscriptionError } = await supabaseAdmin
-    .from("subscriptions")
-    .select("status,cancel_at_period_end,environment")
-    .eq("user_id", userId);
-  if (subscriptionError)
-    throw new Error("Could not check existing subscriptions. Please try again.");
-  if (
-    subscriptions?.some(
-      (subscription) =>
-        subscription.environment === "live" &&
-        !subscription.cancel_at_period_end &&
-        ["active", "trialing", "past_due", "unpaid", "incomplete"].includes(subscription.status),
-    )
-  ) {
-    throw new Error(
-      "An existing subscription may still renew. Cancel it through billing or contact support@canvaspro.app before deleting your account.",
-    );
-  }
-
+  // "subscriptions" holds only old billing records; CanvasPro has no paid plans.
   const tables = [
     "account_profiles",
     "class_nicknames",

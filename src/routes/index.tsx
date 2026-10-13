@@ -202,11 +202,6 @@ const FAQ = [
     question: "Can I use it on my phone?",
     answer: "Yes. The website works on any screen, and CanvasPro is also coming to iPhone.",
   },
-  {
-    question: "What happens to an existing subscription?",
-    answer:
-      "Email support@canvaspro.app and we'll cancel it for you. CanvasPro stays free after cancellation.",
-  },
 ];
 
 // Layout effects run before paint on the client; the server has no layout.

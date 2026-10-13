@@ -2175,7 +2175,7 @@ enum NativeWeekday {
 enum NativeLegalPage: String, Identifiable {
     case privacy, terms
     var id: String { rawValue }
-    var title: String { self == .privacy ? "Privacy Policy" : "Terms of Service" }
+    var title: String { self == .privacy ? "Privacy Policy" : "Terms of Use" }
     var url: URL { NativeConfiguration.websiteURL.appendingPathComponent(rawValue) }
 }
 
@@ -2195,7 +2195,7 @@ struct NativeLegalLinks: View {
     @State private var page: NativeLegalPage?
     var body: some View {
         HStack(spacing: compact ? 16 : 20) {
-            Button(compact ? "Terms" : "Terms of Service") { page = .terms }
+            Button(compact ? "Terms" : "Terms of Use") { page = .terms }
             Button(compact ? "Privacy" : "Privacy Policy") { page = .privacy }
         }
         .cpFont(compact ? 12 : 13)

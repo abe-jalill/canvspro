@@ -5,6 +5,7 @@ import { AuthShell, Field } from "@/components/auth-ui";
 import { LegalConsent } from "@/components/legal-consent";
 import { createLegalConsentMetadata } from "@/lib/legal-consent";
 import { createAgeConfirmationMetadata, MINIMUM_ACCOUNT_AGE } from "@/lib/signup-age";
+import { browserStorage, clearSignupSource, signupSourceMetadata } from "@/lib/signup-source";
 
 export const Route = createFileRoute("/signup")({
   ssr: false,
@@ -112,6 +113,7 @@ function SignupPage() {
           profile_setup_completed: true,
           ...ageMetadata,
           ...consent,
+          ...signupSourceMetadata(browserStorage()),
         },
       },
     });
@@ -120,6 +122,7 @@ function SignupPage() {
       setError(error.message);
       return;
     }
+    clearSignupSource(browserStorage());
     if (data.session) {
       navigate({ to: "/dashboard", replace: true });
       return;

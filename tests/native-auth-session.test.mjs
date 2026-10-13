@@ -44,7 +44,7 @@ test("signup keeps required consent and metadata while login accepts existing pa
   assert.match(auth, /mode == \.signIn \|\| \(password.count >= 6/);
   assert.match(auth, /ageConfirmed && legalAccepted/);
   assert.match(auth, /guard canSubmit else/);
-  for (const key of ["first_name", "last_name", "age_13_or_older_confirmed", "age_confirmed_at", "terms_accepted_version", "privacy_accepted_version", "legal_accepted_at"]) {
+  for (const key of ["first_name", "last_name", "age_18_or_older_confirmed", "age_confirmed_at", "terms_accepted_version", "privacy_accepted_version", "legal_accepted_at"]) {
     assert.ok(auth.includes(`"${key}"`), key);
   }
   assert.match(auth, /typeSize.isAccessibilitySize/);

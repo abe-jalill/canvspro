@@ -1,4 +1,4 @@
-export const LEGAL_POLICY_VERSION = "2026-10-10";
+export const LEGAL_POLICY_VERSION = "2026-10-12";
 
 export function createLegalConsentMetadata(accepted: boolean, now = new Date()) {
   if (!accepted)

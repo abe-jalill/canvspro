@@ -914,9 +914,9 @@ private struct NativeAuthView: View {
     private var signupDetails: some View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(spacing: 0) {
-                NativeAuthConsent(title: "I am at least 13 years old", isOn: $ageConfirmed)
+                NativeAuthConsent(title: "I am at least 18 years old", isOn: $ageConfirmed)
                 CPRowDivider(leading: 34)
-                NativeAuthConsent(title: "I agree to the Terms of Service and Privacy Policy", isOn: $legalAccepted)
+                NativeAuthConsent(title: "I agree to the Terms of Use, including individual arbitration and the class-action waiver, and the Privacy Policy", isOn: $legalAccepted)
             }
             .padding(.horizontal, 12)
             .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: CPLayout.innerRadius, style: .continuous))
@@ -937,8 +937,9 @@ private struct NativeAuthView: View {
                 let metadata: [String: Any] = [
                     "first_name": cleanFirst, "last_name": cleanLast, "full_name": "\(cleanFirst) \(cleanLast)",
                     "profile_setup_prompted": true, "profile_setup_completed": true,
-                    "age_13_or_older_confirmed": true, "age_confirmation_version": 1, "age_confirmed_at": now,
-                    "terms_accepted_version": "2026-09-28", "privacy_accepted_version": "2026-09-28", "legal_accepted_at": now,
+                    // Keep in step with src/lib/signup-age.ts and src/lib/legal-consent.ts.
+                    "age_18_or_older_confirmed": true, "age_confirmation_version": 2, "age_confirmed_at": now,
+                    "terms_accepted_version": "2026-10-12", "privacy_accepted_version": "2026-10-12", "legal_accepted_at": now,
                 ]
                 if await sessionStore.signUp(email: email, password: password, metadata: metadata) {
                     notice = "Check your email to verify your account."

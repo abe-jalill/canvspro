@@ -20,15 +20,16 @@ const sections = [
   {
     title: "1. Who we are and what you accept",
     paragraphs: [
-      "These Terms of Use are an agreement between you and the independent operator of CanvasPro (“CanvasPro,” “we,” “us”), reachable at support@canvaspro.app. They govern canvaspro.app, the installed web app, the mobile app, and related account services. By selecting the agreement checkbox when creating an account or signing in, you accept these Terms and acknowledge the data practices described in the Privacy Policy. If you do not agree, do not create an account or sign in.",
+      "These Terms of Use are an agreement between you and the independent operator of CanvasPro (“CanvasPro,” “we,” “us”), reachable at support@canvaspro.app. They govern canvaspro.app, the installed web app, the mobile app, and related account services. By selecting the agreement checkbox when creating an account or signing in, or by selecting “I agree” when we present updated Terms, you accept these Terms and acknowledge the data practices described in the Privacy Policy. If you do not agree, do not create an account or sign in.",
+      "PLEASE READ SECTION 13 CAREFULLY. IT REQUIRES MOST DISPUTES TO BE RESOLVED BY BINDING INDIVIDUAL ARBITRATION, NOT IN COURT, AND WAIVES CLASS ACTIONS AND JURY TRIALS. YOU CAN OPT OUT OF ARBITRATION WITHIN 30 DAYS AS SECTION 13 EXPLAINS.",
       "CanvasPro is not affiliated with, sponsored by, endorsed by, or officially connected to Instructure, Inc., Canvas LMS, or your educational institution. Canvas and Canvas LMS are their owners’ trademarks. References identify compatibility only.",
     ],
   },
   {
-    title: "2. Eligibility: age 13 and older",
+    title: "2. Eligibility: age 18 and older",
     paragraphs: [
-      "You must be at least 13 years old to create an account or use CanvasPro. Children under 13 may not use the service, including with a parent’s account or permission. Do not submit personal information about a child under 13.",
-      "If you are 13 or older but below the age of legal adulthood where you live, you may use CanvasPro only with a parent or legal guardian’s permission and supervision. Ask them to review these Terms and the Privacy Policy with you. You must also meet any higher age or consent requirement that applies in your location. The age checkbox is your confirmation; it is not independent identity or age verification.",
+      "You must be at least 18 years old and able to form a binding contract to create an account or use CanvasPro. The age checkbox is your confirmation; it is not independent identity or age verification. Children under 13 may never use the service, including with a parent’s account or permission. Do not submit personal information about a child under 13.",
+      "Accounts created before October 12, 2026 by people aged 13 to 17 with a parent or legal guardian’s permission, as our earlier terms allowed, may continue. For those accounts, the parent or guardian remains responsible for supervising use and accepts these Terms on the account holder’s behalf, and the holder must also meet any higher age or consent requirement where they live.",
       "You must have authority to access the school account and records you connect. A school account does not by itself establish permission to use third-party software.",
     ],
   },
@@ -67,14 +68,14 @@ const sections = [
     title: "7. Notifications, integrations, and availability",
     paragraphs: [
       "Notifications depend on your settings, device permissions, operating system, network, browser, installation method, and external services. They can be delayed, duplicated, missing, or displayed on a lock screen. Background delivery and timers are not guaranteed when an app or device is closed, offline, suspended, or in a battery-saving mode. Maintain your own deadline reminders.",
-      "Canvas, hosting, email, payment, and device services are outside our direct control and have their own terms. Their outages, API changes, token revocation, school restrictions, and maintenance can interrupt CanvasPro. We do not promise continuous availability, a particular response time, indefinite support, or preservation of every feature.",
+      "Canvas, hosting, email, and device services are outside our direct control and have their own terms. Their outages, API changes, token revocation, school restrictions, and maintenance can interrupt CanvasPro. We do not promise continuous availability, a particular response time, indefinite support, or preservation of every feature.",
     ],
   },
   {
-    title: "8. Fees and existing billing arrangements",
+    title: "8. Fees",
     paragraphs: [
-      "CanvasPro currently offers its features free of charge and does not offer new subscriptions. An existing subscription may continue to renew under the billing terms originally accepted until canceled. If a billing portal is available in your account, use it to cancel; otherwise contact support@canvaspro.app. Access to current free features does not depend on keeping an existing subscription.",
-      "Canceling a subscription, deleting an app, revoking a Canvas key, and deleting an account are different actions. Cancel any existing subscription before deleting your account, or contact support@canvaspro.app for assistance. Refunds and cancellation rights required by law remain available. Any future paid offering will disclose its price and billing terms and require authorization before charging you.",
+      "CanvasPro is free. We do not offer paid plans or subscriptions, and every past subscription has ended. We will never charge you unless you separately and expressly agree to a clearly disclosed price for a future paid feature.",
+      "Any refund or cancellation right the law gives you for a past payment remains available. Contact support@canvaspro.app with questions about a past charge.",
     ],
   },
   {
@@ -103,20 +104,28 @@ const sections = [
     title: "12. Suspension, closure, and deletion",
     paragraphs: [
       "We may suspend or terminate access for material violations, security risks, legal requirements, or discontinuation of the service. Where reasonably practicable, we will provide notice and an opportunity to address the issue; urgent security or legal circumstances may require immediate action. Contact support to ask us to review a restriction.",
-      "You may stop using CanvasPro, revoke Canvas access, or delete your account in Settings. Deletion and retention are addressed in the Privacy Policy. Keep independent copies of information you need. Provisions concerning accrued payment obligations, intellectual property, liability, disputes, and obligations intended to survive remain effective after account closure, subject to applicable law.",
+      "You may stop using CanvasPro, revoke Canvas access, or delete your account in Settings. Deletion and retention are addressed in the Privacy Policy. Keep independent copies of information you need. Provisions concerning intellectual property, liability, disputes, and obligations intended to survive remain effective after account closure, subject to applicable law.",
     ],
   },
   {
-    title: "13. Disputes and applicable law",
+    title: "13. Disputes, arbitration, and class-action waiver",
     paragraphs: [
-      "Michigan law governs these Terms, excluding its conflict-of-laws rules, except that mandatory protections of your place of residence continue to apply. Courts in Michigan have jurisdiction to the extent permitted by law; this does not prevent a consumer from bringing a claim in a court that applicable law entitles them to use.",
-      "Please contact support@canvaspro.app with a description of a dispute so we can try to resolve it. Contacting us is encouraged, not a condition that removes access to courts, regulators, small-claims procedures, or time-sensitive relief. These Terms do not impose mandatory arbitration or a class-action waiver.",
+      "Governing law. The Federal Arbitration Act governs this Section 13. Otherwise, Michigan law governs these Terms, excluding its conflict-of-laws rules, except that mandatory consumer protections of the place where you live continue to apply.",
+      "Try to resolve it first. Before starting arbitration or a court case, the party with a dispute must send the other a written notice describing it and the relief sought. Send yours to support@canvaspro.app with your name and account email; we will send ours to your account email. Both sides will try in good faith to resolve the dispute for 30 days after the notice is received. Deadlines to file a claim are paused during those 30 days.",
+      "Binding individual arbitration. If the dispute is not resolved, you and CanvasPro agree that any dispute, claim, or controversy arising out of or relating to these Terms, the Privacy Policy, or the service, including its formation, scope, or validity, will be resolved by binding individual arbitration rather than in court, except as stated below. The American Arbitration Association (AAA) will administer it under its Consumer Arbitration Rules before a single arbitrator. You may choose to have the hearing by phone or video, on written submissions, or in the county where you live. The arbitrator may award the same individual relief a court could, and the award may be entered in any court with jurisdiction.",
+      "Costs. For claims you bring, we will pay the filing, administrative, and arbitrator fees that the AAA Consumer Arbitration Rules assign to the business. Each side pays its own attorneys’ fees unless the law or the rules allow the arbitrator to award them.",
+      "Exceptions. Either side may instead bring an individual claim in small-claims court if it qualifies. Either side may ask a court for an order to stop infringement or misuse of intellectual property or unauthorized access to the service. Nothing here stops you from reporting a concern to a government agency.",
+      "CLASS-ACTION AND JURY-TRIAL WAIVER. YOU AND CANVASPRO EACH WAIVE THE RIGHT TO A JURY TRIAL AND AGREE TO BRING CLAIMS ONLY IN AN INDIVIDUAL CAPACITY, NOT AS A PLAINTIFF OR CLASS MEMBER IN ANY CLASS, COLLECTIVE, CONSOLIDATED, OR REPRESENTATIVE PROCEEDING. The arbitrator may not combine more than one person’s claims and may award relief only to the individual party and only as needed for that party’s claim. If a court decides that this waiver cannot be enforced for a particular claim or remedy, that claim or remedy, and only that one, will be decided by a court in Michigan after any arbitration of the remaining claims, and not in arbitration.",
+      "Mass filings. If 25 or more similar demands for arbitration are filed against CanvasPro by or with the help of the same or coordinated counsel, the AAA Mass Arbitration Supplementary Rules apply, and the demands may be administered and decided in batches. The parties will cooperate in good faith to resolve them efficiently.",
+      "30-day right to opt out. You may opt out of arbitration and the class-action waiver by emailing support@canvaspro.app within 30 days after you first accept these Terms, or within 30 days after you accept a version that first adds this Section 13, with your name, your account email, and a clear statement that you opt out of arbitration. Opting out does not affect any other part of these Terms.",
+      "Courts. Any dispute not decided in arbitration or small-claims court will be heard only in the state or federal courts located in Michigan, and you and CanvasPro consent to their jurisdiction, except where the law of the place you live gives you a right to sue there. For accounts held by minors under our earlier terms, this Section 13 applies only to the extent the law allows it to bind them.",
     ],
   },
   {
     title: "14. Changes and general provisions",
     paragraphs: [
       "We will identify revisions by the updated date. Material changes will be communicated through the service or account contact information, and renewed agreement will be requested where required. Changes do not retroactively waive existing claims or authorize materially different uses of previously collected data without any consent required by law.",
+      "A change to Section 13 applies only to disputes that arise after you accept it. Until you accept an updated version of these Terms, the version you last accepted continues to apply to you. If you do not accept a future change to Section 13, the version of Section 13 you last accepted continues to apply to disputes between us.",
       "If a provision is unenforceable, it will be limited or severed to the extent necessary and the remaining provisions continue where lawful. Failure to enforce a provision is not a waiver. These Terms and expressly agreed feature-specific terms form the agreement about service use; the Privacy Policy explains data handling and does not waive privacy rights.",
       "Questions, account concerns, legal notices, and complaints may be sent to support@canvaspro.app.",
     ],
