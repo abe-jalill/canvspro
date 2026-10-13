@@ -61,3 +61,15 @@ test("empty sections are dropped", () => {
   const view = buildAgendaView([entry("a", 2)], now, 14, false);
   assert.deepEqual(keysOf(view), ["week1:a"]);
 });
+
+test("a malformed deadline stays findable in No due date at either horizon and during search", () => {
+  const malformed = { assignment: { id: "bad-date", due_at: "not-a-date" } };
+  for (const horizon of [14, 28]) {
+    for (const searching of [false, true]) {
+      const view = buildAgendaView([malformed, entry("soon", 1), entry("none", null)], now, horizon, searching);
+      assert.deepEqual(keysOf(view), ["week1:soon", "undated:bad-date+none"]);
+      assert.equal(view.hiddenWeeks34, 0);
+      assert.equal(view.hiddenBeyond, 0);
+    }
+  }
+});

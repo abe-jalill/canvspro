@@ -41,6 +41,7 @@ import { AssignmentProgressEditor } from "@/components/assignment-progress";
 import { buildAgendaView, type AgendaHorizon } from "@/lib/assignment-agenda";
 import { useAssignmentMetaMap } from "@/hooks/use-assignment-meta";
 import {
+  assignmentDueTime,
   compareByDueDate,
   isAssignmentComplete,
   isAssignmentVisible,
@@ -527,7 +528,7 @@ function AssignmentsPage() {
                     const highlightProps = highlight(course);
                     const firstForCourse =
                       shownItems.find((entry) => entry.course === course)?.assignment.id === a.id;
-                    const due = a.due_at ? Date.parse(a.due_at) : null;
+                    const due = assignmentDueTime(a);
                     const dueText =
                       due != null
                         ? `${new Intl.DateTimeFormat(undefined, {
@@ -592,7 +593,7 @@ function AssignmentsPage() {
                             {dueText}
                           </p>
                           <span className="flex items-center gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100">
-                            {a.due_at && <AddToCalendarButton assignment={a} />}
+                            {due != null && <AddToCalendarButton assignment={a} />}
                             {mine && (
                               <button
                                 type="button"
