@@ -43,4 +43,7 @@ CanvasPro is free for everyone. The earlier Pro plan, paywall and Stripe billing
 - [x] Account deletion no longer checks for renewing subscriptions; it still deletes old `subscriptions` rows
 - [x] `subscriptions` table kept for historical billing records (tax and disputes)
 - [x] Old billing records erased, payment packages removed, billing table retired (empty)
-- [ ] User: disconnect Stripe in Lovable Payments tab (removes Stripe keys); publish, then remove the old `subscription-access` function
+- [x] Stripe disconnected by the user (2026-10-12); `subscription-access` and payments webhook functions confirmed gone from the server; billing rows deleted; privacy policy updated to stop claiming we hold billing records
+- [ ] User: remove the leftover Stripe API keys in Project Settings → Secrets (Lovable holds them, I cannot)
+- [ ] Empty retired `subscriptions` table still in the database — dropping it needs "Execute backward incompatible database migrations" allowed in Cloud tool preferences
+- [ ] Publish when ready (SEO title/description and this copy are editor-only until then)
