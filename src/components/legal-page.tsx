@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { LEGAL_POLICY_VERSION } from "@/lib/legal-consent";
+import { LEGAL_POLICY_VERSION, LEGAL_TEXT_UPDATED } from "@/lib/legal-consent";
 
 export function LegalPage({
   title,
@@ -12,7 +12,9 @@ export function LegalPage({
     <main className="min-h-svh px-4 py-10 sm:px-6 lg:px-8">
       <article className="mx-auto max-w-3xl">
         <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-          Effective and last updated: {LEGAL_POLICY_VERSION}
+          {LEGAL_TEXT_UPDATED === LEGAL_POLICY_VERSION
+            ? `Effective and last updated: ${LEGAL_POLICY_VERSION}`
+            : `Effective: ${LEGAL_POLICY_VERSION} · Last updated: ${LEGAL_TEXT_UPDATED}`}
         </p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">{title}</h1>
         <nav aria-label="Legal documents" className="mt-5 flex flex-wrap gap-4 text-sm">
