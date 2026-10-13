@@ -14,8 +14,12 @@ import {
   type ServerPrefs,
 } from "@/lib/push-dispatch.server";
 
-/** A queued reminder this late should already have gone out (the sender runs every 5 minutes). */
-const OVERDUE_AFTER_MS = 10 * 60_000;
+/**
+ * A queued reminder this late should already have been handled: the sender runs
+ * every 5 minutes and picks up what a missed run left, so this allows one
+ * missed run before raising the alarm.
+ */
+const OVERDUE_AFTER_MS = 15 * 60_000;
 const LOOKBACK_MS = 3 * 60 * 60_000;
 
 /**
@@ -31,6 +35,8 @@ async function check(): Promise<string[]> {
     admin
       .from("push_scheduled_alerts")
       .select("user_id,tag,fire_at")
+      // Handled by the sender: sent, or dropped once class started or the night ended.
+      .is("sent_at", null)
       .lte("fire_at", new Date(now - OVERDUE_AFTER_MS).toISOString())
       .gte("fire_at", new Date(now - LOOKBACK_MS).toISOString()),
   ]);
