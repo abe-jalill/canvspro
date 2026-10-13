@@ -85,6 +85,13 @@
       "when": 1791472800000,
       "tag": "0011_push_scheduled_every_5_minutes",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791909677779,
+      "tag": "0012_retire_payments",
+      "breakpoints": true
     }
   ]
 }
