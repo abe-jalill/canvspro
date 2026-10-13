@@ -12,7 +12,6 @@ export async function deleteAccountData(
   const supabaseAdmin =
     client ?? (await import("@/integrations/supabase/client.server")).supabaseAdmin;
 
-  // "subscriptions" holds only old billing records; CanvasPro has no paid plans.
   const tables = [
     "account_profiles",
     "class_nicknames",
@@ -22,7 +21,6 @@ export async function deleteAccountData(
     "push_scheduled_alerts",
     "push_sent_log",
     "push_subscriptions",
-    "subscriptions",
     "user_assignment_meta",
     "user_activity_daily",
     "user_preferences",
