@@ -8,7 +8,7 @@ export const Route = createFileRoute("/privacy")({
       {
         name: "description",
         content:
-          "How CanvasPro handles account, Canvas, usage, notification, and billing information.",
+          "What CanvasPro collects, why, who receives it, how long it is kept, and the privacy rights every US user has.",
       },
     ],
     links: [{ rel: "canonical", href: "https://canvaspro.app/privacy" }],
@@ -18,103 +18,122 @@ export const Route = createFileRoute("/privacy")({
 
 const sections = [
   {
-    title: "1. Scope and operator",
+    title: "1. Who we are and what this covers",
     paragraphs: [
-      "This policy explains how the independent operator of CanvasPro handles information through canvaspro.app, its installed web app, mobile app, and related services. Contact support@canvaspro.app for privacy requests. CanvasPro is independent of Instructure, Canvas LMS, and your school; their services have separate privacy policies.",
-      "This notice describes data handling; accepting it does not waive your privacy rights or provide blanket consent to unrelated optional processing.",
+      "This Privacy Policy explains how the independent operator of CanvasPro, based in Michigan, United States (“CanvasPro,” “we,” “us”), collects, uses, discloses, keeps, and protects personal information through canvaspro.app, the installed web app, the mobile app, and related services (the “service”). It is also our notice at collection: it tells you, before or when we collect information, what we collect and why.",
+      "CanvasPro is independent of Instructure, Canvas LMS, and your school. Their services have their own privacy policies. Contact support@canvaspro.app with any privacy question or request.",
+      "Accepting this policy does not waive any privacy right you have by law, and it is not blanket consent to optional processing that this policy does not describe.",
     ],
   },
   {
-    title: "2. Account, profile, and agreement information",
+    title: "2. What we collect",
     paragraphs: [
-      "We process your email address, account identifier, authentication information, first and last name, and any username, nickname, profile image, school, major, or graduation year you provide. Some profile fields are optional. Supabase provides account authentication and session management.",
-      "We store your self-confirmation that you are at least 13, its time and version, and the policy versions and timestamp associated with your agreement. We do not request a birth date or identity document for the age checkbox. These confirmations are not independent age verification.",
-      "When you contact support, we receive your message, contact details, attachments you choose to send, and information needed to resolve the issue. Do not send passwords or Canvas API keys by email.",
+      "Account and agreement information. Your email address, account identifier, first and last name, and any username, nickname, profile image, school, major, or graduation year you choose to add. We also keep your confirmation that you are at least 18 (or, for accounts made before October 12, 2026, at least 13), when you gave it, which version of the confirmation you saw, and which versions of the Terms and this policy you accepted and when. You provide this. We keep it until you delete your account.",
+      "Login credentials (sensitive personal information). Your password is handled by our authentication provider, Supabase, which stores it in hashed form; we cannot read it. When you connect Canvas, we store your school’s Canvas address and the personal access token you create there. The token is available to our server so it can request your Canvas data, including for background reminders. It is not end-to-end encrypted from our backend. We use these credentials only to sign you in and to provide the features you use, never for any other purpose. We keep the token until you remove it in Settings or delete your account.",
+      "Education information from Canvas. Depending on what your school makes available and the features you use, we retrieve courses, course codes, enrollments, assignments, due dates, submission status, scores, grade details and weights, syllabus information, announcements, and calendar items through your token. This information is cached temporarily on our servers and your device to load pages quickly, and it is refreshed or expires as you use the service.",
+      "Information you create. Hidden courses, course nicknames, class schedules, completion check marks, priorities and time estimates, daily-plan choices, study-session state, dashboard layout, and appearance settings. Some of it stays only on your device; account-backed items are stored on our backend until you change them or delete your account.",
+      "Usage activity. The days you used the service, your last-seen time, and approximate activity counts. These are not a record of every click. We keep them for as long as your account exists.",
+      "Campaign source. If you arrive through a link that carries campaign tags, the tags, the page you landed on, the name of the website that sent you, and the time. Section 4 explains exactly how this works. We keep it with your account for as long as your account exists.",
+      "Device and technical information. Our hosting and infrastructure providers process IP addresses, browser and device details, request times, security and authentication logs, and error details, which can include the page you were on. These logs are kept for limited periods under our providers’ log schedules.",
+      "Notification information. If you turn on notifications: push subscription endpoints, delivery keys or device tokens, browser or device details, reminder preferences, scheduled alerts, and delivery records. We keep these until you turn notifications off, the device stops accepting them, or you delete your account.",
+      "Support messages. What you send us, your contact details, and attachments you choose to include. We keep support messages for up to 2 years after the issue is resolved. Never send a password or Canvas token by email.",
+      "Past billing records. CanvasPro once offered a paid plan. For former subscribers we hold Stripe customer and subscription identifiers, plan, status, and billing dates, never full card numbers. Our copy is deleted when you delete your account. Stripe keeps its own payment records under its privacy policy and legal obligations.",
+      "What we do not collect. We do not collect precise location, biometric information, health information, government identification numbers, or financial account or card numbers.",
     ],
   },
   {
-    title: "3. Canvas credentials and academic information",
+    title: "3. How we use information",
     paragraphs: [
-      "When you connect Canvas, we receive your institution’s Canvas address and personal API access token. The saved token is available to authorized server components so they can make authenticated requests on your behalf, including background notification checks. It is not end-to-end encrypted from CanvasPro’s backend, and this policy does not promise that the operator is technically unable to access it.",
-      "Depending on what your institution exposes and the features you use, we retrieve courses, course codes, enrollments, assignments, due dates, submission status, scores, grade details and weights, syllabus information, announcements, and calendar information. Data may be temporarily cached on servers and on your device to improve loading and support recent views.",
-      "We also process preferences and information you create in CanvasPro: hidden courses, course nicknames, schedules, assignment completion flags, priorities and time estimates, daily-plan choices, study-session state, dashboard widgets, and appearance settings. Some state is stored on your device; account-backed preferences are stored on our backend.",
+      "We use information to create and secure your account, connect to Canvas, display and organize your coursework, calculate estimates and plans, save your preferences, send the reminders and account emails you ask for, answer support requests, measure how the service is used and which campaigns bring new accounts, find and fix problems, prevent fraud and abuse, and meet legal obligations.",
+      "We do not sell personal information. We do not share it for cross-context behavioral advertising, use it for targeted advertising, or use it for profiling that produces legal or similarly significant effects. We make no automated decisions about you with legal or similarly significant effects. Your academic information is used only for the service’s productivity features, never to make official educational decisions, and we are not your school’s official records system.",
+      "If we ever want to use personal information for a purpose that is materially different from those described here, we will tell you first and ask for your consent where the law requires it.",
     ],
   },
   {
-    title: "4. Usage measurement and technical information",
+    title: "4. How we measure ads and links",
     paragraphs: [
-      "We record account-linked activity dates, last-seen times, and periodic activity counts to understand daily, weekly, and monthly use. Authorized administrators can see aggregate totals and a recent-activity list that includes an account email or identifier, last-seen time, and counts. These counts are approximate activity measures, not a recording of every click or an exact measure of time spent studying.",
-      "Our infrastructure and service providers may process IP addresses, browser or device information, request times, security and authentication logs, and error details. Error reporting can include the current route and diagnostic context. We use this information to operate, troubleshoot, secure, and improve the app and to detect abuse.",
+      "Ads and links to CanvasPro can carry campaign tags in the web address (utm_source, utm_medium, utm_campaign, utm_content, and utm_term). When you open such a link, our website saves those tags, the page you landed on, the name of the website that sent you (not its full address), and the time in your browser’s local storage for up to 30 days. If you create an account during that time, this information is saved with your account and removed from the browser.",
+      "This measurement is entirely our own. We do not use advertising pixels, third-party advertising cookies, or advertising software development kits; we do not store ad-platform click identifiers; and we do not send this information to any advertising platform. We review it only as totals, such as how many accounts each campaign brought and how many of them connected Canvas.",
+      "The advertising platform that showed you an ad may separately know that you clicked it, under that platform’s own policies. You can remove a saved campaign from your browser by clearing site data, and you can ask us to delete the campaign information saved with your account.",
     ],
   },
   {
     title: "5. Device storage and notifications",
     paragraphs: [
-      "We use browser or app storage for login sessions, account-scoped cached Canvas results, settings, plan and study state, and related functionality. Service workers cache app resources for installed-web-app operation. This is first-party functional storage and usage measurement; the app does not currently use advertising trackers or sell personal information for targeted advertising.",
-      "Clearing browser storage may sign you out and remove locally stored preferences or unsynced data. Signing out clears account-scoped storage on that device, but does not remove data on other devices, downloaded files, operating-system backups, or information already sent elsewhere.",
-      "If you enable notifications, we process push subscription endpoints, delivery keys or device tokens where applicable, browser/device details, reminder preferences, scheduled-alert information, and delivery records. Push providers route messages to your device. Notification text can contain assignment titles, courses, deadlines, or grade/announcement information and may appear on your lock screen. You can change permissions in the app and device settings.",
+      "We use browser and app storage for sign-in sessions, cached Canvas results, settings, plan and study state, and the campaign information described in Section 4. A service worker caches app files so the installed web app works offline. This is first-party, functional storage; we do not use advertising cookies or third-party tracking technologies.",
+      "Clearing browser storage may sign you out and remove preferences or unsynced data on that device. Signing out clears account-specific storage on that device, but does not remove data on other devices, downloaded files, operating-system backups, or information already sent elsewhere.",
+      "Push services operated by your browser or device maker deliver notifications to you. Notification text can include assignment titles, class names, deadlines, grades, or announcements and may appear on your lock screen. You can change notification permissions in CanvasPro and in your device settings at any time.",
     ],
   },
   {
-    title: "6. Why we use information",
+    title: "6. Who receives information",
     paragraphs: [
-      "We use information to authenticate you, connect to Canvas, display and organize academic information, calculate estimates, save preferences, deliver requested reminders and account emails, provide support, measure service use, diagnose problems, prevent abuse, and meet legal obligations.",
-      "We do not sell your personal or academic information or share it for cross-context behavioral advertising. Academic data is used for the service’s productivity functions, not to make official educational decisions. We do not claim to be your institution’s designated school official or to provide an institutional records system.",
+      "Service providers that process information on our behalf, only as needed to run the service and under terms that limit their use of it: Supabase (authentication, database, and storage), Cloudflare (hosting and network delivery), Lovable (development and hosting infrastructure), our email-delivery provider (account emails), and the push service of your browser or device (notifications). Stripe holds past billing records only. Your school’s Canvas service receives the requests we make with your token.",
+      "Authorized personnel may access information when needed for administration, support, troubleshooting, or security. We may disclose information to comply with law or valid legal process, to protect the rights, property, and safety of users, the public, or CanvasPro, to investigate fraud or abuse, at your direction, or as part of a merger, acquisition, or sale of the service, in which case this policy or equally protective terms will continue to apply to your information. Other users never receive your private academic data.",
+      "The public website links to optional Google Forms for problem reports and surveys. If you open or submit one, Google and the form owner receive what you submit and technical information under Google’s privacy terms. Do not include a password, Canvas token, or academic record in those forms.",
+      "In the past 12 months we have not sold or shared personal information, as those terms are defined in California and other state privacy laws. We disclosed the categories of personal information listed in Section 2 only to the service providers above, for the business purposes in Section 3.",
     ],
   },
   {
-    title: "7. Who receives information",
+    title: "7. Keeping and deleting information",
     paragraphs: [
-      "Service providers process information as needed to operate the app: Supabase for authentication, databases, and storage; hosting and development infrastructure such as Cloudflare and Lovable; email-delivery services for account messages; and the push service associated with your browser or device for notifications. Your institution’s Canvas service receives authenticated requests using your token. Providers’ processing is also governed by their applicable terms and privacy notices.",
-      "If you have an existing billing relationship, Stripe processes payment information and we process related customer or subscription identifiers and billing status. Payment credentials are entered with the payment provider; CanvasPro does not collect your full payment-card number through its own forms.",
-      "Authorized personnel may access information when needed for administration, support, troubleshooting, or security. We may disclose information to comply with valid legal process, protect rights and safety, investigate fraud, or carry out a business transfer subject to applicable privacy requirements. We may also disclose information when you direct us to do so. Other students are not given access to your account’s private academic data through the app.",
-      "The public website links to optional Google Forms for problem reports and surveys. If you choose to open or submit one of those forms, Google and the form owner receive the information you submit and technical information described by Google’s privacy terms. Do not include a password, Canvas API token, or academic record in those forms.",
+      "We keep each kind of information only as long as Section 2 states, or as long as reasonably necessary for the purposes in Section 3, unless a longer period is required by law or needed to resolve a dispute, enforce our agreements, or protect security.",
+      "You can delete your account in Settings or by emailing support@canvaspro.app. Deleting your account removes your sign-in account and the records linked to it, including your Canvas token, preferences, schedules, activity history, campaign source, notification registrations, and past billing rows we hold. Copies may persist in encrypted backups and provider logs until those are overwritten on their regular schedule, and in records we must keep by law. Deletion does not remove your school’s Canvas records.",
+      "Removing your Canvas key stops its future use once the change takes effect; requests already in progress, cached results, or queued notifications may remain briefly. Revoke the token in Canvas to invalidate it at its source.",
     ],
   },
   {
-    title: "8. Retention and deletion",
+    title: "8. Security",
     paragraphs: [
-      "We retain account information and saved preferences while needed to provide your account, with additional retention where reasonably necessary for security, disputes, billing, or legal obligations. Canvas caches are temporary and may be refreshed or expire. Retention varies by category and provider; we do not promise a single deletion period for all systems.",
-      "You can delete your account in Settings or request help at support@canvaspro.app. Account deletion removes the authentication account and associated app records through deletion and database relationships. Limited records may remain in backups, provider logs, legal holds, or records that must be retained by law until their applicable retention period ends. Deletion does not remove your institution’s Canvas records.",
-      "Removing a saved key stops future use of that saved key after the change takes effect; requests already in progress, cached results, or queued notifications may persist temporarily. Revoke the token in Canvas to invalidate it at its source. Removing a key is not the same as deleting your account. Cancel any existing billing subscription separately through an available billing portal or contact support@canvaspro.app.",
+      "We use authenticated access, per-account access rules in our database, encrypted connections, and limits on who can access data. No service or transmission is completely secure, and we cannot guarantee that unauthorized access, loss, or misuse will never happen.",
+      "Protect your device and login, avoid shared-device sessions, revoke a Canvas token you think was exposed, and report suspected incidents to support@canvaspro.app. If a security incident affects your personal information, we will notify you and regulators as the laws of your state require.",
     ],
   },
   {
-    title: "9. Security",
+    title: "9. Your privacy rights",
     paragraphs: [
-      "We use authenticated access, account-scoped storage, database access controls, and transport security to help protect information. No service or transmission method is completely secure. We do not guarantee that unauthorized access, data loss, or security incidents can never occur.",
-      "Protect your device and login credentials, avoid shared-device sessions, revoke exposed Canvas tokens, and report suspected incidents to support. We will provide notices of data incidents where required by applicable law.",
+      "Residents of California, Colorado, Connecticut, Delaware, Indiana, Iowa, Kentucky, Maryland, Minnesota, Montana, Nebraska, New Hampshire, New Jersey, Oregon, Rhode Island, Tennessee, Texas, Utah, Virginia, and other states with privacy laws have specific rights over their personal information. We extend the same rights to every user in the United States, whether or not a law requires it.",
+      "Those rights are: to know what personal information we have about you, including the categories, sources, purposes, and recipients described in this policy; to get a copy of it in a portable format; to correct inaccurate information; to delete it; to opt out of the sale or sharing of personal information, targeted advertising, and profiling that produces legal or similarly significant effects; and to limit the use of sensitive personal information. We do not sell or share personal information, use it for targeted advertising or such profiling, or use sensitive personal information beyond what is needed to provide the service, so there is nothing to opt out of today; you may still ask, and if our practices ever change, your request will apply.",
+      "You can use many of these rights yourself in Settings, where you can edit your profile, remove your Canvas key, manage notifications, and delete your account. For anything else, email support@canvaspro.app with the subject “Privacy request.” We verify requests by confirming you control the email address on the account, and we never ask for your password or Canvas token. You may use an authorized agent; we may ask the agent for your signed permission and confirm your identity directly with you.",
+      "We respond within 45 days. If we need more time, we will tell you why within that period and may take up to 45 more days where the law allows. Requests are free, up to twice in any 12-month period; we may decline or charge a reasonable fee for requests that are manifestly unfounded or excessive, and we will explain why. We will never deny you the service, charge you differently, or provide a different quality of service because you used a privacy right.",
+      "If we decline your request, you may appeal by replying with the subject “Appeal.” We will answer the appeal in writing within 45 days, or within any longer period your state permits, and explain our decision. If you disagree with the outcome, you may contact your state attorney general’s office of consumer protection.",
+      "Global Privacy Control and Do Not Track. We treat a Global Privacy Control signal as a valid request to opt out of the sale and sharing of personal information and of targeted advertising, for that browser and, if you are signed in, for your account. Because we do neither, these signals do not change how the service works today. We do not respond differently to legacy Do Not Track signals, because we do not track you across other websites.",
     ],
   },
   {
-    title: "10. Your choices and privacy requests",
+    title: "10. Notices for specific states",
     paragraphs: [
-      "You can edit available profile fields and preferences in Settings, remove a Canvas key, revoke it at Canvas, manage notification permissions, clear device storage, and delete your account. For information not accessible through those controls, contact support@canvaspro.app.",
-      "Depending on where you live and which laws apply, you may have rights to access, correct, delete, or receive a portable copy of personal information; restrict or object to processing; withdraw consent for consent-based processing; or appeal a denied request. We assess requests under applicable law and may need proportionate identity verification. We will explain any lawful restriction on a request. We do not require you to provide your password or Canvas token to make a request.",
-      "Where available, you can authorize an agent and complain to your privacy regulator. Withdrawing optional consent does not affect earlier lawful processing. Agreeing to our Terms or this policy does not remove statutory privacy rights.",
-      "Browser privacy signals: CanvasPro does not currently sell personal information or share it for cross-context behavioral advertising, and it does not use third-party advertising trackers. Because there is no sale or targeted-advertising sharing to opt out of, Global Privacy Control and legacy Do Not Track signals do not change the app’s necessary account, security, or service operation. If these practices change, we will update this notice and honor legally required opt-out signals.",
-      "Third parties may collect information when you deliberately leave CanvasPro for an external service, such as Canvas, Stripe, or an optional Google Form. CanvasPro does not authorize those services to track your activity across unrelated websites on our behalf for advertising.",
+      "California. In the past 12 months we collected these categories of personal information under the California Consumer Privacy Act: identifiers; customer records such as name and email; non-public education information; internet or other electronic network activity; commercial information limited to past billing records; and sensitive personal information limited to account login credentials and the Canvas token. Sources, purposes, recipients, and retention periods are in Sections 2 through 7. We do not create inferences about you for profiling.",
+      "California “Shine the Light.” We do not disclose personal information to third parties for their own direct marketing purposes.",
+      "California minors. If you are under 18 and used CanvasPro under an account made before October 12, 2026, you may ask us to remove content you posted to the service by emailing support@canvaspro.app. Removal may not ensure complete deletion where the content was copied or is kept by law.",
+      "Nevada. We do not sell covered information as defined in Nevada law. Nevada residents may still send a request to support@canvaspro.app, and we will record it.",
+      "Washington, Nevada, and other consumer health data laws. We do not collect consumer health data.",
+      "Texas and other states with sensitive-data notice rules. We do not sell sensitive personal data or biometric data.",
     ],
   },
   {
-    title: "11. International processing",
+    title: "11. Children and minors",
     paragraphs: [
-      "CanvasPro and its providers may process information in the United States and other countries where their systems operate. Privacy laws may differ from those in your location. Where applicable law requires transfer safeguards or a legal basis for processing, those requirements continue to apply.",
-      "Where applicable, processing needed to provide an account and requested features is based on service performance; security, troubleshooting, and proportionate usage measurement on legitimate interests where permitted; compliance on legal obligations; and optional consent-based features on consent. Contact support for questions about your particular location or the safeguards applicable to a request.",
+      "New accounts are for people 18 and older. Before October 12, 2026, people aged 13 to 17 could create accounts with a parent or guardian’s permission, and those accounts may continue. We never sell or share information from those accounts, never use it for targeted advertising or profiling, and their holders, or their parents or guardians, can ask us to access or delete it at support@canvaspro.app.",
+      "Children under 13 may not use CanvasPro, and we do not knowingly collect personal information from them. If we learn that we have, we will delete it promptly as the Children’s Online Privacy Protection Act requires. If you believe a child under 13 has given us information, contact support@canvaspro.app. We do not ignore a parent’s report because an account checked an age box.",
     ],
   },
   {
-    title: "12. Children and teenagers",
+    title: "12. Where information is processed",
     paragraphs: [
-      "CanvasPro is intended for people aged 13 and older, primarily college students. Children under 13 are not permitted to create accounts or use the service. Users below the age of legal adulthood need a parent or guardian’s permission and must satisfy any higher local age or consent requirements.",
-      "We do not knowingly collect personal information from children under 13. If you believe a child under 13 has provided personal information, contact support@canvaspro.app. We will investigate and take appropriate steps to stop collection and delete the information as required by law. A parent’s report is not ignored merely because an account checked the age-confirmation box.",
+      "CanvasPro is operated from the United States, and our providers process information in the United States and other countries where their systems run. If you use the service from outside the United States, your information is transferred to and processed in the United States, whose privacy laws may differ from yours. Where your local law requires a legal basis or transfer safeguards, we rely on providing the service you requested, our legitimate interests in security and proportionate measurement, legal obligations, and your consent where required.",
     ],
   },
   {
-    title: "13. Updates and contact",
+    title: "13. Changes to this policy",
     paragraphs: [
-      "We show the effective version date above. We will communicate material changes through the app or account contact information and obtain additional consent where required before materially different uses of previously collected information. The published policy does not override applicable law.",
-      "Send privacy questions, requests, or concerns to support@canvaspro.app. Our Terms of Use separately address service use, eligibility, and responsibilities.",
+      "The effective date at the top of this page shows when this policy last changed. If we make a material change, we will tell you in the app or by email before it takes effect and ask you to agree where the law requires. Changes never permit a materially different use of information we already collected without any consent the law requires.",
+    ],
+  },
+  {
+    title: "14. Contact",
+    paragraphs: [
+      "Send privacy questions, requests, appeals, and complaints to support@canvaspro.app. Our Terms of Use cover use of the service, eligibility, and how disputes are resolved.",
     ],
   },
 ];

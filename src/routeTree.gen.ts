@@ -17,7 +17,6 @@ import { Route as CanvasGradeCalculatorRouteImport } from './routes/canvas-grade
 import { Route as EmailVerifiedRouteImport } from './routes/email-verified'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as McpRouteImport } from './routes/mcp'
-import { Route as MobileBillingReturnRouteImport } from './routes/mobile-billing-return'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SignupRouteImport } from './routes/signup'
@@ -49,7 +48,6 @@ import { Route as AuthenticatedSettingsNotificationsRouteImport } from './routes
 import { Route as AuthenticatedSettingsProfileRouteImport } from './routes/_authenticated/settings.profile'
 import { Route as ApiMobileDeleteAccountRouteImport } from './routes/api/mobile/delete-account'
 import { Route as ApiMobileSignInRouteImport } from './routes/api/mobile/sign-in'
-import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as ApiPublicPushDispatchRouteImport } from './routes/api/public/push/dispatch'
 import { Route as ApiPublicPushHealthRouteImport } from './routes/api/public/push/health'
 import { Route as ApiPublicPushKeyRouteImport } from './routes/api/public/push/key'
@@ -94,11 +92,6 @@ const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
 const McpRoute = McpRouteImport.update({
   id: '/mcp',
   path: '/mcp',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MobileBillingReturnRoute = MobileBillingReturnRouteImport.update({
-  id: '/mobile-billing-return',
-  path: '/mobile-billing-return',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrivacyRoute = PrivacyRouteImport.update({
@@ -272,12 +265,6 @@ const ApiMobileSignInRoute = ApiMobileSignInRouteImport.update({
   path: '/api/mobile/sign-in',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicPaymentsWebhookRoute =
-  ApiPublicPaymentsWebhookRouteImport.update({
-    id: '/api/public/payments/webhook',
-    path: '/api/public/payments/webhook',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const ApiPublicPushDispatchRoute = ApiPublicPushDispatchRouteImport.update({
   id: '/api/public/push/dispatch',
   path: '/api/public/push/dispatch',
@@ -318,7 +305,6 @@ export interface FileRoutesByFullPath {
   '/email-verified': typeof EmailVerifiedRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/mcp': typeof McpRoute
-  '/mobile-billing-return': typeof MobileBillingReturnRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
@@ -350,7 +336,6 @@ export interface FileRoutesByFullPath {
   '/api/mobile/delete-account': typeof ApiMobileDeleteAccountRoute
   '/api/mobile/sign-in': typeof ApiMobileSignInRoute
   '/settings/': typeof AuthenticatedSettingsIndexRoute
-  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/push/dispatch': typeof ApiPublicPushDispatchRoute
   '/api/public/push/health': typeof ApiPublicPushHealthRoute
   '/api/public/push/key': typeof ApiPublicPushKeyRoute
@@ -366,7 +351,6 @@ export interface FileRoutesByTo {
   '/email-verified': typeof EmailVerifiedRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/mcp': typeof McpRoute
-  '/mobile-billing-return': typeof MobileBillingReturnRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
@@ -397,7 +381,6 @@ export interface FileRoutesByTo {
   '/api/mobile/delete-account': typeof ApiMobileDeleteAccountRoute
   '/api/mobile/sign-in': typeof ApiMobileSignInRoute
   '/settings': typeof AuthenticatedSettingsIndexRoute
-  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/push/dispatch': typeof ApiPublicPushDispatchRoute
   '/api/public/push/health': typeof ApiPublicPushHealthRoute
   '/api/public/push/key': typeof ApiPublicPushKeyRoute
@@ -415,7 +398,6 @@ export interface FileRoutesById {
   '/email-verified': typeof EmailVerifiedRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/mcp': typeof McpRoute
-  '/mobile-billing-return': typeof MobileBillingReturnRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
@@ -447,7 +429,6 @@ export interface FileRoutesById {
   '/api/mobile/delete-account': typeof ApiMobileDeleteAccountRoute
   '/api/mobile/sign-in': typeof ApiMobileSignInRoute
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
-  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/push/dispatch': typeof ApiPublicPushDispatchRoute
   '/api/public/push/health': typeof ApiPublicPushHealthRoute
   '/api/public/push/key': typeof ApiPublicPushKeyRoute
@@ -465,7 +446,6 @@ export interface FileRouteTypes {
     | '/email-verified'
     | '/forgot-password'
     | '/mcp'
-    | '/mobile-billing-return'
     | '/privacy'
     | '/reset-password'
     | '/signup'
@@ -497,7 +477,6 @@ export interface FileRouteTypes {
     | '/api/mobile/delete-account'
     | '/api/mobile/sign-in'
     | '/settings/'
-    | '/api/public/payments/webhook'
     | '/api/public/push/dispatch'
     | '/api/public/push/health'
     | '/api/public/push/key'
@@ -513,7 +492,6 @@ export interface FileRouteTypes {
     | '/email-verified'
     | '/forgot-password'
     | '/mcp'
-    | '/mobile-billing-return'
     | '/privacy'
     | '/reset-password'
     | '/signup'
@@ -544,7 +522,6 @@ export interface FileRouteTypes {
     | '/api/mobile/delete-account'
     | '/api/mobile/sign-in'
     | '/settings'
-    | '/api/public/payments/webhook'
     | '/api/public/push/dispatch'
     | '/api/public/push/health'
     | '/api/public/push/key'
@@ -561,7 +538,6 @@ export interface FileRouteTypes {
     | '/email-verified'
     | '/forgot-password'
     | '/mcp'
-    | '/mobile-billing-return'
     | '/privacy'
     | '/reset-password'
     | '/signup'
@@ -593,7 +569,6 @@ export interface FileRouteTypes {
     | '/api/mobile/delete-account'
     | '/api/mobile/sign-in'
     | '/_authenticated/settings/'
-    | '/api/public/payments/webhook'
     | '/api/public/push/dispatch'
     | '/api/public/push/health'
     | '/api/public/push/key'
@@ -611,7 +586,6 @@ export interface RootRouteChildren {
   EmailVerifiedRoute: typeof EmailVerifiedRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   McpRoute: typeof McpRoute
-  MobileBillingReturnRoute: typeof MobileBillingReturnRoute
   PrivacyRoute: typeof PrivacyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRoute
@@ -621,7 +595,6 @@ export interface RootRouteChildren {
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   ApiMobileDeleteAccountRoute: typeof ApiMobileDeleteAccountRoute
   ApiMobileSignInRoute: typeof ApiMobileSignInRoute
-  ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
   ApiPublicPushDispatchRoute: typeof ApiPublicPushDispatchRoute
   ApiPublicPushHealthRoute: typeof ApiPublicPushHealthRoute
   ApiPublicPushKeyRoute: typeof ApiPublicPushKeyRoute
@@ -686,13 +659,6 @@ declare module '@tanstack/react-router' {
       path: '/mcp'
       fullPath: '/mcp'
       preLoaderRoute: typeof McpRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/mobile-billing-return': {
-      id: '/mobile-billing-return'
-      path: '/mobile-billing-return'
-      fullPath: '/mobile-billing-return'
-      preLoaderRoute: typeof MobileBillingReturnRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacy': {
@@ -912,13 +878,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMobileSignInRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/payments/webhook': {
-      id: '/api/public/payments/webhook'
-      path: '/api/public/payments/webhook'
-      fullPath: '/api/public/payments/webhook'
-      preLoaderRoute: typeof ApiPublicPaymentsWebhookRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/push/dispatch': {
       id: '/api/public/push/dispatch'
       path: '/api/public/push/dispatch'
@@ -1039,7 +998,6 @@ const rootRouteChildren: RootRouteChildren = {
   EmailVerifiedRoute: EmailVerifiedRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   McpRoute: McpRoute,
-  MobileBillingReturnRoute: MobileBillingReturnRoute,
   PrivacyRoute: PrivacyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRoute,
@@ -1050,7 +1008,6 @@ const rootRouteChildren: RootRouteChildren = {
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   ApiMobileDeleteAccountRoute: ApiMobileDeleteAccountRoute,
   ApiMobileSignInRoute: ApiMobileSignInRoute,
-  ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
   ApiPublicPushDispatchRoute: ApiPublicPushDispatchRoute,
   ApiPublicPushHealthRoute: ApiPublicPushHealthRoute,
   ApiPublicPushKeyRoute: ApiPublicPushKeyRoute,

@@ -16,6 +16,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from "@/integrations/supabase/client";
 import { purgeScopedStorage } from "@/lib/user-scope";
 import { getActiveIdentity, syncAuthIdentity } from "@/lib/auth-user";
+import { browserStorage, captureSignupSource } from "@/lib/signup-source";
 import { SiteFooter } from "@/components/site-footer";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/lib/theme";
@@ -77,7 +78,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "See every Canvas class, grade, and deadline in one clean dashboard — free for everyone, with no subscription required.",
       },
       { property: "og:type", content: "website" },
+      { property: "og:site_name", content: "CanvasPro" },
+      // Site-wide share image; pages that set their own still override it.
+      // Without it, Lovable's publish injects an old unbranded screenshot.
+      { property: "og:image", content: "https://canvaspro.app/canvaspro-homepage-preview.png" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: "https://canvaspro.app/canvaspro-homepage-preview.png" },
       {
         name: "google-site-verification",
         content: "P8Sm6eDHpOJ5ZpV1NufDHGqBEtfhaWG4FTZ1gkc2w0M",
@@ -184,6 +190,11 @@ function RootComponent() {
         void SplashScreen.hide();
       }
     };
+  }, []);
+
+  // Remember which campaign (UTM tags) brought this visitor, for sign-up.
+  useEffect(() => {
+    captureSignupSource(window.location.href, document.referrer, browserStorage());
   }, []);
 
   useEffect(() => {

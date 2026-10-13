@@ -8,6 +8,7 @@ import {
   type UsagePeriod,
   type DailyCount,
 } from "@/lib/usage-stats";
+import { summarizeSignupSources, type SignupSourceRow } from "@/lib/signup-source";
 
 export type RecentUser = { label: string; lastSeenAt: string; interactions: number };
 
@@ -21,6 +22,8 @@ export type UsageStats = {
   totalAccounts: number;
   daily: DailyCount[];
   recent: RecentUser[];
+  /** Accounts created in the last 30 days, by campaign, and how many connected Canvas. */
+  signupSources: SignupSourceRow[];
 };
 
 export const getUsageStatsFn = createServerFn({ method: "GET" })
@@ -74,6 +77,21 @@ export const getUsageStatsFn = createServerFn({ method: "GET" })
         interactions: info.interactions,
       }));
 
+    // Only who has a Canvas key, never the key itself.
+    const { data: keyRows, error: keyError } = await supabaseAdmin
+      .from("user_settings")
+      .select("user_id")
+      .not("canvas_api_key", "is", null)
+      .neq("canvas_api_key", "");
+    if (keyError) throw new Error(keyError.message);
+    const signupSince = now.getTime() - 30 * 24 * 60 * 60 * 1000;
+    const signupSources = summarizeSignupSources(
+      (userList?.users ?? [])
+        .filter((u) => Date.parse(u.created_at) >= signupSince)
+        .map((u) => ({ id: u.id, signupSource: u.user_metadata?.signup_source })),
+      new Set((keyRows ?? []).map((row) => row.user_id)),
+    );
+
     return {
       activeToday: summary.today.users,
       activeThisWeek: summary.week.users,
@@ -84,5 +102,6 @@ export const getUsageStatsFn = createServerFn({ method: "GET" })
       totalAccounts: userList?.users.length ?? 0,
       daily: summary.daily,
       recent,
+      signupSources,
     };
   });

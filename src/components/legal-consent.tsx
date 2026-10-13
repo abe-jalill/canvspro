@@ -20,8 +20,8 @@ export function LegalConsent({
       />
       <div>
         <label htmlFor={id} className="cursor-pointer">
-          I agree to the Terms of Use and Privacy Policy. If I am under the age of legal adulthood,
-          I have my parent or guardian’s permission to use CanvasPro.
+          I agree to the Terms of Use, including individual arbitration and the class-action waiver,
+          and the Privacy Policy.
         </label>
         <p className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
           <a

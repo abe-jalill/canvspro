@@ -33,10 +33,6 @@ export async function handleMobileDeletion(
     await deleteAccount(userId);
     return Response.json({ deleted: true }, { headers });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "";
-    if (message.startsWith("An existing subscription")) {
-      return Response.json({ error: message }, { status: 409, headers });
-    }
     console.error("[mobile/delete-account]", error);
     return Response.json(
       { error: "Could not delete your account. Please try again." },

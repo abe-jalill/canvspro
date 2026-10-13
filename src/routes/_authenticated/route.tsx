@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppSidebar, MobileNav } from "@/components/app-sidebar";
 import { CanvasKeyBanner } from "@/components/canvas-key-banner";
+import { PolicyUpdateBanner } from "@/components/policy-update-banner";
 import { CanvasKeyGate } from "@/components/canvas-key-gate";
 import { ClassNamesGate } from "@/components/class-names-editor";
 import { NotificationCenter } from "@/components/notification-center";
@@ -116,6 +117,7 @@ function AuthenticatedLayout() {
             </span>
           </div>
           <OfflineNotice />
+          <PolicyUpdateBanner />
           <CanvasKeyBanner />
           <CanvasKeyGate>
             <ClassNamesGate>

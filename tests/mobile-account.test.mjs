@@ -74,17 +74,6 @@ test("mobile deletion uses the verified identity, never a supplied user id", asy
   assert.deepEqual(await response.json(), { deleted: true });
 });
 
-test("renewing subscription blocks mobile deletion with an actionable response", async () => {
-  const response = await handleMobileDeletion(
-    request(),
-    async () => "owner",
-    async () => {
-      throw new Error("An existing subscription may still renew.");
-    },
-  );
-  assert.equal(response.status, 409);
-});
-
 test("installed client calls the hosted API with its token and handles server errors", async () => {
   await requestMobileApi("delete-account", { confirm: "DELETE" }, "valid", async (url, init) => {
     assert.equal(url, "https://canvaspro.app/api/mobile/delete-account");
@@ -109,12 +98,7 @@ test("installed client calls the hosted API with its token and handles server er
   );
 });
 
-function fakeAdmin({
-  count = 205,
-  storageError = false,
-  tableError = false,
-  subscriptions = [],
-} = {}) {
+function fakeAdmin({ count = 205, storageError = false, tableError = false } = {}) {
   let files = Array.from({ length: count }, (_, i) => ({ name: `image-${i}` }));
   const removed = [],
     tables = [];
@@ -122,9 +106,6 @@ function fakeAdmin({
   const client = {
     from(table) {
       return {
-        select() {
-          return { eq: async () => ({ data: subscriptions, error: null }) };
-        },
         delete() {
           return {
             eq: async (column, id) => {
@@ -181,13 +162,8 @@ test("cleanup failures keep the auth account available for retry", async () => {
   }
 });
 
-test("potentially renewing subscriptions stop deletion before any cleanup", async () => {
-  for (const status of ["active", "trialing", "past_due", "unpaid", "incomplete"]) {
-    const state = fakeAdmin({
-      subscriptions: [{ status, environment: "live", cancel_at_period_end: false }],
-    });
-    await assert.rejects(deleteAccountData("owner", state.client), /subscription may still renew/);
-    assert.equal(state.tables.length, 0);
-    assert.equal(state.removed.length, 0);
-  }
+test("old billing records are deleted with the account", async () => {
+  const state = fakeAdmin();
+  await deleteAccountData("owner", state.client);
+  assert.ok(state.tables.includes("subscriptions"));
 });

@@ -34,28 +34,12 @@
 - [x] Verified: all user tables cascade-delete with the account; RLS on every table scoped to auth.uid()
 - [x] Verified end-to-end: complete-assignment write lands in DB and shows on a second fresh browser; sign-out clears device state; protected routes redirect when signed out
 
-## Paid access and billing portal incident
+## Payments removed (2026-10-12)
 
-- [x] Remove email-based Pro bypass and make entitlement server-verified per user
-- [x] Make Stripe portal opening resistant to popup blocking
-- [x] Verify free-account lockout, paid-row isolation, and portal opening behavior
+CanvasPro is free for everyone. The earlier Pro plan, paywall and Stripe billing were retired.
 
-## Switch to a fresh Stripe account
-
-- [x] User disconnects current Stripe in the Payments dashboard (three-dots menu)
-- [x] Re-enable built-in Stripe (fresh Lovable-managed account)
-- [x] Recreate Canvas Pro product at $2.99/month (pro_monthly, tax code set)
-- [x] Verify checkout + portal on the new account after publish (verified in preview: test payment → webhook → Pro active → portal opens on billing.stripe.com; live payments still require go-live in the Payments tab)
-- [x] Add yearly plan $30/year (pro_yearly) with Save 17%! messaging on homepage, pricing, billing, pro-gate, calculator, guide, terms
-- [x] Refund revokes Pro instantly (charge.refunded webhook sets status canceled + period end now)
-- [x] Cancel leftover sandbox test subscription and remove its row
-- [ ] User: run readiness check in Payments tab (Live), publish, make one real purchase, verify a refund ends Pro instantly, confirm payout bank account
-
-## Server-enforced paywall
-
-- [x] Canvas data service checks the paid record itself before returning anything (402 for free accounts)
-- [x] Free dashboard greeting uses a counts-only feed (due timestamps, no names/links/grades)
-- [x] All Canvas-backed dashboard widgets marked Pro so free accounts see locked cards
-- [x] Payment mode is decided by the server, never sent by the client (checkout, portal, access check)
-- [x] Only live-mode paid records grant Pro (test-mode checkouts can no longer unlock anything)
-- [x] Verified: free account gets 402 + locked widgets; paid record gets 200 + full data; checkout still opens
+- [x] Every subscription canceled in Stripe
+- [x] Checkout, billing portal, Stripe webhook, receipt email, billing-return page and `subscription-access` function removed from the code
+- [x] Account deletion no longer checks for renewing subscriptions; it still deletes old `subscriptions` rows
+- [x] `subscriptions` table kept for historical billing records (tax and disputes)
+- [ ] User: disconnect Stripe in Lovable's Payments tab, delete the deployed `subscription-access` function in Supabase, optionally remove `STRIPE_*` secrets

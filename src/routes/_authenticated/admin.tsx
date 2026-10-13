@@ -153,6 +153,48 @@ function AdminUsagePage() {
           </div>
 
           <GlassCard
+            title="Where sign-ups come from"
+            subtitle="Accounts made in the last 30 days, by ad campaign (UTM tags). Connected means they added a Canvas key."
+          >
+            {stats.data.signupSources.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No new accounts in the last 30 days.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[28rem] text-sm">
+                  <thead>
+                    <tr className="text-left text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                      <th className="py-2 pr-3 font-medium">Campaign</th>
+                      <th className="py-2 pr-3 text-right font-medium">Sign-ups</th>
+                      <th className="py-2 pr-3 text-right font-medium">Connected</th>
+                      <th className="py-2 text-right font-medium">Rate</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/40">
+                    {stats.data.signupSources.map((row) => (
+                      <tr key={`${row.source}|${row.medium}|${row.campaign}`}>
+                        <td className="py-2.5 pr-3">
+                          <span className="font-medium">{row.source}</span>
+                          {(row.medium || row.campaign) && (
+                            <span className="text-muted-foreground">
+                              {" "}
+                              · {[row.medium, row.campaign].filter(Boolean).join(" · ")}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2.5 pr-3 text-right tabular-nums">{row.signups}</td>
+                        <td className="py-2.5 pr-3 text-right tabular-nums">{row.connected}</td>
+                        <td className="py-2.5 text-right tabular-nums text-muted-foreground">
+                          {Math.round((row.connected / row.signups) * 100)}%
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </GlassCard>
+
+          <GlassCard
             strong
             title="Last 7 days"
             subtitle="People who used the app each day. Hover a bar for visits."
