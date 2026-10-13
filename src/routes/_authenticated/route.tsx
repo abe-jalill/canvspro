@@ -101,7 +101,9 @@ function AuthenticatedLayout() {
         id="app-main"
         data-scroll-restoration-id="app-main"
         className={cn(
-          "transition-[padding] duration-300 ease-in-out md:h-svh md:overflow-y-auto md:py-4 md:pr-4",
+          // A stable scrollbar gutter keeps centered content (the page tabs) in the
+          // same place on short pages that don't scroll.
+          "transition-[padding] duration-300 ease-in-out md:h-svh md:overflow-y-auto md:py-4 md:pr-4 md:[scrollbar-gutter:stable]",
           sidebarMode === "full" && "md:pl-64",
           sidebarMode === "rail" && "md:pl-[4.5rem]",
           sidebarMode === "hidden" && "md:pl-4",
