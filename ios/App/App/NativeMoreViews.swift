@@ -806,17 +806,17 @@ struct FocusView: View {
                 } label: {
                     CPAdaptiveStack(spacing: 8) {
                         VStack(alignment: .leading, spacing: 3) {
-                            Text(item.name).cpFont(13, .medium)
+                            Text(item.name).cpFont(16, .medium)
                                 .foregroundStyle(done ? CPTheme.muted(scheme) : CPTheme.foreground(scheme))
                                 .strikethrough(done)
                                 .lineLimit(3)
-                            Text(rowMeta(item, showCourse: showCourse, done: done)).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
+                            Text(rowMeta(item, showCourse: showCourse, done: done)).cpFont(12).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
                             if !done, let percent = features.progress[item.id], percent > 0 { NativeProgressBar(percent: percent) }
                         }
                         Spacer(minLength: 8)
                         VStack(alignment: .trailing, spacing: 3) {
                             if let countdown {
-                                Text(countdown.label).cpFont(12, countdown.urgency == "today" || countdown.urgency == "overdue" ? .medium : .regular)
+                                Text(countdown.label).cpFont(13, countdown.urgency == "today" || countdown.urgency == "overdue" ? .medium : .regular)
                                     .foregroundStyle(CPTheme.urgency(countdown.urgency, scheme: scheme))
                             }
                             Text("\(estimate(item)) min").cpFont(11).monospacedDigit().foregroundStyle(CPTheme.faint(scheme))

@@ -249,9 +249,9 @@ struct CPCardHeader<Trailing: View>: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).cpFont(16, .regular).tracking(-0.3).foregroundStyle(CPTheme.foreground(scheme)).fixedSize(horizontal: false, vertical: true)
+                Text(title).cpFont(17, .medium).tracking(-0.3).foregroundStyle(CPTheme.foreground(scheme)).fixedSize(horizontal: false, vertical: true)
                 if let subtitle {
-                    Text(subtitle).cpFont(12).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
+                    Text(subtitle).cpFont(13).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -338,7 +338,6 @@ struct CPInsetRow<Content: View>: View {
             .padding(12)
             .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
             .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: CPLayout.innerRadius, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: CPLayout.innerRadius, style: .continuous).strokeBorder(CPTheme.insetBorder(scheme), lineWidth: 0.5))
     }
 }
 
@@ -474,7 +473,7 @@ struct CPPressStyle: ButtonStyle {
 }
 
 /// The website's buttons: primary is inverted (light on dark), secondary is a
-/// soft inset tile, quiet is outlined. All 40 pt tall.
+/// soft inset tile, quiet is outlined. All have at least a 44-point target.
 struct CPButtonStyle: ButtonStyle {
     enum Kind { case primary, secondary, quiet }
     var kind: Kind = .primary
@@ -497,10 +496,10 @@ private struct CPButtonBody: View {
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
         configuration.label
-            .cpFont(13, .medium)
+            .cpFont(15, .medium)
             .lineLimit(1)
             .padding(.horizontal, 16)
-            .frame(maxWidth: fullWidth ? .infinity : nil, minHeight: 40)
+            .frame(maxWidth: fullWidth ? .infinity : nil, minHeight: 44)
             .foregroundStyle(kind == .primary ? CPTheme.background(scheme) : CPTheme.foreground(scheme))
             .background(kind == .primary ? CPTheme.foreground(scheme) : kind == .secondary ? CPTheme.inset(scheme) : Color.clear, in: shape)
             .overlay(shape.strokeBorder(kind == .primary ? Color.clear : kind == .secondary ? CPTheme.insetBorder(scheme) : CPTheme.outline(scheme), lineWidth: 0.5))
@@ -1048,7 +1047,7 @@ extension View {
 // MARK: - Adaptive layout
 
 /// A row that sits side by side at normal text sizes and stacks, left aligned,
-/// at the accessibility sizes, so long names never get squeezed by their dates.
+/// at larger text sizes, so long names never get squeezed by their dates.
 struct CPAdaptiveStack<Content: View>: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     var spacing: CGFloat = 8
@@ -1060,7 +1059,7 @@ struct CPAdaptiveStack<Content: View>: View {
     }
 
     var body: some View {
-        let layout = typeSize.isAccessibilitySize
+        let layout = typeSize >= .xxLarge
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: spacing))
             : AnyLayout(HStackLayout(alignment: .center, spacing: spacing))
         layout { content }
