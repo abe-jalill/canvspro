@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { isInFocusWindow } from "@/lib/focus-window";
 import { customToAssignmentItem, useCustomAssignments } from "@/lib/custom-assignments";
+import { notYetOpen } from "@/lib/assignment-availability";
 import { useAssignmentMeta } from "@/hooks/use-assignment-meta";
 import { isAssignmentComplete } from "@/lib/assignment-window";
 import { DashboardHeroMotion } from "@/components/dashboard-hero-motion";
@@ -90,8 +91,9 @@ export function DashboardHero() {
     day: "numeric",
   });
 
+  // Work Canvas hasn't opened yet stays off the dashboard.
   const allAssignments = [
-    ...(assignments.data ?? []),
+    ...(assignments.data ?? []).filter((a) => !notYetOpen(a, now.getTime())),
     ...custom.list.map((item) => customToAssignmentItem(item, undefined)),
   ];
   const summary = summarize(allAssignments, completed.has, now);

@@ -80,6 +80,8 @@ export interface AssignmentItem {
   name: string;
   description?: string | null;
   due_at: string | null;
+  /** Canvas "Available from"; missing on cached data from before it was fetched. */
+  unlock_at?: string | null;
   html_url: string;
   points_possible: number | null;
   course_id: number;
