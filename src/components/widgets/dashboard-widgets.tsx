@@ -33,6 +33,7 @@ import { isInFocusWindow } from "@/lib/focus-window";
 import { isAssignmentVisible } from "@/lib/assignment-window";
 import { useAnnouncementWindow, withinAnnouncementWindow } from "@/lib/announcement-window";
 import { customToAssignmentItem, useCustomAssignments } from "@/lib/custom-assignments";
+import { notYetOpen } from "@/lib/assignment-availability";
 
 import {
   coursesQueryOptions as coursesQO,
@@ -73,7 +74,7 @@ function DigestWidget() {
   return (
     <DigestCard
       courses={courses.data}
-      assignments={assignments.data}
+      assignments={assignments.data.filter((a) => !notYetOpen(a))}
       announcements={announcements.data.filter((item) =>
         withinAnnouncementWindow(item.posted_at, announcementWindow.weeks),
       )}
@@ -180,7 +181,7 @@ function UpcomingWidget() {
   const inWindow = [
     ...(data ?? []),
     ...custom.list.map((item) => customToAssignmentItem(item, courseById.get(item.course_id))),
-  ].filter((a) => isInFocusWindow(a, "7", Date.now(), completed.has(a.id)));
+  ].filter((a) => !notYetOpen(a) && isInFocusWindow(a, "7", Date.now(), completed.has(a.id)));
 
   // Group by course, keyed by course_id. We show one section per active
   // course (even if empty) so the widget makes per-class expectations clear.
@@ -543,7 +544,7 @@ function FocusWidget() {
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
 
   const soon = (data ?? [])
-    .filter((a) => isInFocusWindow(a, "2", Date.now(), completed.has(a.id)))
+    .filter((a) => !notYetOpen(a) && isInFocusWindow(a, "2", Date.now(), completed.has(a.id)))
     .sort(
       (a, b) => new Date(a.due_at as string).getTime() - new Date(b.due_at as string).getTime(),
     );
@@ -673,8 +674,11 @@ function HeatmapWidget() {
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
   // Same visibility rule as the Calendar page, so both heatmaps agree.
   const now = Date.now();
-  const visible = data?.filter((assignment) =>
-    isAssignmentVisible(assignment, completed.has(assignment.id), false, now),
+  // Not-yet-open work stays off the dashboard (the Calendar page still shows it).
+  const visible = data?.filter(
+    (assignment) =>
+      !notYetOpen(assignment, now) &&
+      isAssignmentVisible(assignment, completed.has(assignment.id), false, now),
   );
   return (
     <GlassCard title="Workload" subtitle="Remaining effort by week">

@@ -17,6 +17,7 @@ import { useClassSchedule } from "@/lib/user-class-schedule";
 import { DAY_LABELS } from "@/lib/class-schedule";
 import { ArrowLeft, Calendar, Clock, ExternalLink, CheckCircle2, CalendarPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { OpensLabel } from "@/components/assignment-description-link";
 import { htmlToText } from "@/lib/html-text";
 import { searchText } from "@/lib/search-params";
 import { COMPLETED_ASSIGNMENTS_KEY, useLocalSet } from "@/lib/local-state";
@@ -659,6 +660,7 @@ function CourseDetailPage() {
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="truncate text-sm font-medium text-foreground">{a.name}</p>
+                          <OpensLabel unlockAt={a.unlock_at} />
                           <DescriptionToggle
                             open={openDescriptions.has(a.id)}
                             onToggle={() => toggleDescription(a.id)}

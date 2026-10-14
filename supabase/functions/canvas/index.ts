@@ -41,6 +41,8 @@ interface CanvasAssignment {
   name: string;
   description?: string | null;
   due_at: string | null;
+  /** Canvas "Available from": the student can't open it before this. */
+  unlock_at?: string | null;
   html_url: string;
   points_possible: number | null;
   course_id: number;
@@ -350,6 +352,7 @@ async function handleAssignments(creds: Creds) {
             name: a.name,
             description: a.description ?? null,
             due_at: a.due_at,
+            unlock_at: a.unlock_at ?? null,
             html_url: a.html_url,
             points_possible: a.points_possible,
             course_id: a.course_id,

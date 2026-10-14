@@ -1,6 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { LockKeyhole } from "lucide-react";
 import { assignmentsQueryOptions } from "@/lib/canvas.queries";
+import { notYetOpen, opensLabel } from "@/lib/assignment-availability";
 import { cn } from "@/lib/utils";
 import { AssignmentProgressBar } from "@/components/assignment-progress";
 
@@ -23,16 +25,62 @@ export function AssignmentDescriptionLink({
   showProgress?: boolean;
 }) {
   const link = <DescriptionLink assignmentId={assignmentId} className={className} />;
-  if (!showProgress) return link;
+  const opens = <CachedOpensLabel assignmentId={assignmentId} />;
+  if (!showProgress) {
+    return (
+      <>
+        {opens}
+        {link}
+      </>
+    );
+  }
   return (
     <>
+      {opens}
       <AssignmentProgressBar assignmentId={assignmentId} className="mt-1" />
       {link}
     </>
   );
 }
 
-function DescriptionLink({ assignmentId, className }: { assignmentId: number; className?: string }) {
+/** "Opens Tue, Oct 20 at 9:00 AM" while Canvas hasn't opened the assignment yet; nothing after. */
+export function OpensLabel({
+  unlockAt,
+  className,
+}: {
+  unlockAt?: string | null;
+  className?: string;
+}) {
+  if (!unlockAt || !notYetOpen({ unlock_at: unlockAt })) return null;
+  return (
+    <p
+      className={cn(
+        "mt-0.5 flex items-center gap-1 text-[11px] font-medium text-foreground/80",
+        className,
+      )}
+    >
+      <LockKeyhole className="h-3 w-3 shrink-0" aria-hidden="true" />
+      {opensLabel(unlockAt)}
+    </p>
+  );
+}
+
+function CachedOpensLabel({ assignmentId }: { assignmentId: number }) {
+  const { data: unlockAt } = useQuery({
+    ...assignmentsQueryOptions,
+    enabled: false,
+    select: (items) => items.find((item) => item.id === assignmentId)?.unlock_at ?? null,
+  });
+  return <OpensLabel unlockAt={unlockAt} />;
+}
+
+function DescriptionLink({
+  assignmentId,
+  className,
+}: {
+  assignmentId: number;
+  className?: string;
+}) {
   const { data: courseId } = useQuery({
     ...assignmentsQueryOptions,
     enabled: false,
