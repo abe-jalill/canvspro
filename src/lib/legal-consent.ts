@@ -8,10 +8,10 @@ export const LEGAL_TEXT_UPDATED: string = "2026-10-14";
  * business), which Paddle requires in the Terms and Privacy Policy. Null
  * until it is filled in; the pages then name "the independent operator".
  */
-export const SELLER_LEGAL_NAME: string | null = "Ahmed Al-Bayati";
+export const SELLER_LEGAL_NAME: string | null = null;
 /** The seller's mailing address for the Privacy Policy, also required by Paddle. */
-// Null until the virtual mailbox address is set up (the home address is
-// deliberately not published). Paddle's live review needs it filled in.
+// The owner chose not to publish a personal name or address. Only a business
+// name and business address (for example, an LLC's) belong in these two.
 export const SELLER_ADDRESS: string | null = null;
 
 /** "Jane Doe, the independent operator of CanvasPro" (or without the name). */
