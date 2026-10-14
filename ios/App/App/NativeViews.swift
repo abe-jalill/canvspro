@@ -300,7 +300,14 @@ private struct NativeWidgetGallery: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 18) {
-                if page == "grades" {
+                if page == "today" {
+                    HStack(spacing: 22) {
+                        home(width: 170, height: 170) { CanvasProTodayView(snapshot: snapshot, date: now, family: .systemSmall) }
+                        home(width: 170, height: 170) { CanvasProGradesView(snapshot: snapshot, family: .systemSmall) }
+                    }
+                    home(width: 364, height: 170) { CanvasProTodayView(snapshot: snapshot, date: now, family: .systemMedium) }
+                    home(width: 364, height: 382) { CanvasProTodayView(snapshot: snapshot, date: now, family: .systemLarge) }
+                } else if page == "grades" {
                     home(width: 364, height: 382) { CanvasProGradesView(snapshot: snapshot, family: .systemLarge) }
                     home(width: 364, height: 170) { CanvasProGradesView(snapshot: snapshot, family: .systemMedium) }
                 } else if page == "large" {
@@ -367,7 +374,7 @@ private struct NativeWidgetGallery: View {
             // Expanded (long press): the same region views the island uses.
             expandedIsland(
                 badge: CanvasProIslandBadge(symbol: "timer"),
-                heading: CanvasProIslandHeading(caption: CanvasProStudyLockView.caption(study), title: study.title),
+                heading: CanvasProIslandHeading(caption: CanvasProStudyLockView.caption(study), title: study.title, detail: study.detail),
                 bottom: CanvasProStudyIslandBottom(state: study)
             )
             expandedIsland(
@@ -1357,7 +1364,11 @@ struct NativeMainTabView: View {
             overdueCount: overdue,
             classes: classes,
             courses: courses,
-            hideGrades: UserDefaults.standard.bool(forKey: "CanvasProHideGrades")
+            hideGrades: UserDefaults.standard.bool(forKey: "CanvasProHideGrades"),
+            // The same name the dashboard greets with, for the Today widget.
+            name: [featureStore.accountDetails.nickname, featureStore.accountDetails.firstName, featureStore.profile.username ?? ""]
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .first { !$0.isEmpty }
         )
         CanvasProWidgetStore.save(snapshot)
         // "Due tonight" on the lock screen, from 9 PM.
@@ -1373,6 +1384,7 @@ struct NativeMainTabView: View {
             .onChange(of: featureStore.notificationPreferences) { _, _ in rescheduleLocalReminders() }
             .onChange(of: featureStore.schedule) { _, _ in rescheduleLocalReminders() }
             .onChange(of: featureStore.customAssignments) { _, _ in rescheduleLocalReminders() }
+            .onChange(of: featureStore.accountDetails) { _, _ in rescheduleLocalReminders() }
             .onReceive(NotificationCenter.default.publisher(for: .nativeLocalRemindersChanged)) { _ in rescheduleLocalReminders() }
             // After the welcome closes, ask for notifications right away.
             .onChange(of: showOnboarding) { _, showing in if !showing { Task { await refreshAccountData() } } }
@@ -1582,10 +1594,11 @@ private struct NativeDashboardView: View {
             .cpFont(11, .medium)
             .foregroundStyle(CPTheme.muted(scheme))
             VStack(alignment: .leading, spacing: 6) {
+                // One line: a longer name shrinks the text instead of wrapping.
                 Text("\(greeting)\(studentName.map { ", \($0)." } ?? ".")")
                     .cpFont(28, .regular).tracking(-0.8)
                     .foregroundStyle(CPTheme.foreground(scheme))
-                    .fixedSize(horizontal: false, vertical: true)
+                    .lineLimit(1).minimumScaleFactor(0.6)
                     .accessibilityAddTraits(.isHeader)
                 Text(heroMessage)
                     .cpFont(14).lineSpacing(3)

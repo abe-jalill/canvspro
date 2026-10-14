@@ -47,6 +47,9 @@ struct CanvasProWidgetSnapshot: Codable, Equatable {
     var courses: [Course]
     /// "Hide grades until tapped" in the app's settings.
     var hideGrades: Bool
+    /// What the dashboard greets the student by (nickname, else first name).
+    /// Optional, so a snapshot saved before it existed still loads.
+    var name: String? = nil
 
     static let signedOut = CanvasProWidgetSnapshot(signedIn: false, palette: "forest", syncedAt: nil, assignments: [], overdueCount: 0, classes: [], courses: [], hideGrades: false)
 
@@ -171,6 +174,7 @@ enum CanvasProWidgetStore {
     static let dueSoonKind = "CanvasProDueSoon"
     static let gradesKind = "CanvasProGrades"
     static let nextClassKind = "CanvasProNextClass"
+    static let todayKind = "CanvasProToday"
     private static let key = "CanvasProWidgetSnapshot.v2"
     private static let rangeKey = "CanvasProWorkloadRange"
 
@@ -760,7 +764,8 @@ struct CanvasProGradesView: View {
         let fits = 7
         let shown = courses.count > fits ? Array(courses.prefix(fits - 1)) : courses
         return VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .center, spacing: 16) {
+            // Centred across the widget, not pushed to the left.
+            HStack(alignment: .center, spacing: 18) {
                 gauge(size: 84, valueSize: 19)
                 VStack(alignment: .leading, spacing: 4) {
                     CanvasProCaption(text: "AVERAGE", color: muted)
@@ -770,8 +775,9 @@ struct CanvasProGradesView: View {
                         .privacySensitive()
                     Text(classCount).font(.system(size: 11, weight: .semibold)).foregroundStyle(muted)
                 }
-                Spacer(minLength: 0)
+                .fixedSize()
             }
+            .frame(maxWidth: .infinity)
             Rectangle().fill(faint).frame(height: 0.5)
             VStack(alignment: .leading, spacing: 10) {
                 CanvasProCaption(text: "ALL CLASSES", color: muted)
@@ -836,6 +842,162 @@ struct CanvasProGradesView: View {
     private var inline: some View {
         guard snapshot.signedIn, !hidden, let average else { return Text("CanvasPro grades") }
         return Text("Average \(CanvasProWidgetFormat.score(average))% · \(CanvasProWidgetFormat.letter(average))")
+    }
+}
+
+// MARK: - Today (the dashboard hero)
+
+/// The app's hero card as a widget: the date, "Good evening, Abe.", the same
+/// one-line summary, and how much is due today, this week and overdue.
+struct CanvasProTodayView: View {
+    @Environment(\.colorScheme) private var scheme
+    let snapshot: CanvasProWidgetSnapshot
+    let date: Date
+    let family: WidgetFamily
+
+    private var palette: CanvasProWidgetPalette { CanvasProWidgetPalette(snapshot.palette) }
+    private var fg: Color { palette.foreground(scheme) }
+    private var muted: Color { palette.muted(scheme) }
+    private var faint: Color { palette.faint(scheme) }
+    private var today: Int { snapshot.workload(.tonight, at: date).remaining.count }
+    private var week: Int { snapshot.workload(.week, at: date).remaining.count }
+    private var overdue: Int { snapshot.overdueCount }
+
+    private var greeting: String {
+        let hour = Calendar.current.component(.hour, from: date)
+        return hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"
+    }
+    private var name: String? {
+        let trimmed = snapshot.name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return trimmed.isEmpty ? nil : trimmed
+    }
+    private var greetingLine: String { "\(greeting)\(name.map { ", \($0)." } ?? ".")" }
+    /// The hero's own summary line.
+    private var message: String {
+        if overdue > 0 { return "\(overdue) to catch up on, \(week) coming up this week." }
+        if today > 0 { return "\(today) due today." }
+        if week > 0 { return "You're done for today. \(week) coming up this week." }
+        return "You're clear for the next seven days."
+    }
+
+    var body: some View {
+        if !snapshot.signedIn {
+            CanvasProSignedOutView(palette: palette, symbol: "sun.max", line: "Open CanvasPro to see your day")
+        } else {
+            switch family {
+            case .systemSmall: small
+            case .systemLarge: large
+            default: medium
+            }
+        }
+    }
+
+    private func dateLine(_ style: Date.FormatStyle) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: "calendar").font(.system(size: 9, weight: .bold))
+            Text(date.formatted(style).uppercased())
+                .font(.system(size: 9.5, weight: .bold)).tracking(1.4)
+                .lineLimit(1).minimumScaleFactor(0.9)
+        }
+        .foregroundStyle(muted)
+    }
+
+    private func tile(_ value: Int, _ label: String, alert: Bool = false) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("\(value)")
+                .font(.system(size: 20, weight: .bold)).monospacedDigit()
+                .foregroundStyle(alert && value > 0 ? CanvasProWidgetPalette.overdue(scheme) : fg)
+            Text(label)
+                .font(.system(size: 9.5, weight: .semibold)).foregroundStyle(muted)
+                .lineLimit(1).minimumScaleFactor(0.9)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 10).padding(.vertical, 8)
+        .background(faint.opacity(0.6), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private var tiles: some View {
+        HStack(spacing: 8) {
+            tile(today, "Due today")
+            tile(week, "This week")
+            tile(overdue, "Overdue", alert: true)
+        }
+    }
+
+    private var small: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            dateLine(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
+            Spacer(minLength: 6)
+            Text("\(greeting),")
+                .font(.system(size: 12, weight: .semibold)).foregroundStyle(muted)
+                .lineLimit(1).minimumScaleFactor(0.85)
+            Text(name.map { "\($0)." } ?? "there.")
+                .font(.system(size: 22, weight: .bold)).foregroundStyle(fg)
+                .lineLimit(1).minimumScaleFactor(0.6)
+            Spacer(minLength: 6)
+            HStack(spacing: 0) {
+                smallStat(today, "Today")
+                smallStat(week, "Week")
+                smallStat(overdue, "Late", alert: true)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    }
+
+    private func smallStat(_ value: Int, _ label: String, alert: Bool = false) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text("\(value)")
+                .font(.system(size: 18, weight: .bold)).monospacedDigit()
+                .foregroundStyle(alert && value > 0 ? CanvasProWidgetPalette.overdue(scheme) : fg)
+            Text(label).font(.system(size: 9, weight: .semibold)).foregroundStyle(muted)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var heading: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(greetingLine)
+                .font(.system(size: 24, weight: .bold)).foregroundStyle(fg)
+                .lineLimit(1).minimumScaleFactor(0.6)
+            Text(message)
+                .font(.system(size: 11, weight: .medium)).foregroundStyle(muted)
+                .lineLimit(1).minimumScaleFactor(0.85)
+        }
+    }
+
+    private var medium: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            dateLine(.dateTime.weekday(.wide).month(.wide).day())
+            Spacer(minLength: 6)
+            heading
+            Spacer(minLength: 8)
+            tiles
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    }
+
+    private var large: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            dateLine(.dateTime.weekday(.wide).month(.wide).day())
+            heading
+            tiles
+            if let next = snapshot.workload(.week, at: date).remaining.first {
+                VStack(alignment: .leading, spacing: 4) {
+                    CanvasProCaption(text: "NEXT UP", color: muted)
+                    Text(next.name)
+                        .font(.system(size: 16, weight: .bold)).foregroundStyle(fg)
+                        .lineLimit(1).minimumScaleFactor(0.9)
+                    Text("\(next.course) · Due \(CanvasProWidgetFormat.due(next.due, now: date))")
+                        .font(.system(size: 11, weight: .semibold)).monospacedDigit().foregroundStyle(muted)
+                        .lineLimit(1).minimumScaleFactor(0.9)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(14)
+                .background(faint.opacity(0.6), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
 
@@ -1052,7 +1214,8 @@ extension CanvasProWidgetSnapshot {
                 Course(id: 6, name: "Graphics Lab", score: 92.5, letter: "A−"),
                 Course(id: 7, name: "Modern Texts", score: 90.9, letter: "A−"),
             ],
-            hideGrades: false
+            hideGrades: false,
+            name: "Maya"
         )
     }
 }
@@ -1294,9 +1457,12 @@ struct CanvasProLogoMark: View {
 struct CanvasProIslandHeading: View {
     let caption: String
     let title: String
+    /// A third line ("Physics Lab · 1 of 2"). It lives up here, not at the
+    /// bottom: iOS caps the expanded island's height and clips what doesn't fit.
+    var detail: String = ""
 
     var body: some View {
-        VStack(spacing: 2) {
+        VStack(spacing: 1) {
             Text(caption)
                 .font(.system(size: 10, weight: .heavy)).tracking(1.2)
                 .foregroundStyle(CanvasProLogoMark.mint)
@@ -1305,6 +1471,12 @@ struct CanvasProIslandHeading: View {
                 .font(.system(size: 16, weight: .bold))
                 .foregroundStyle(.white)
                 .lineLimit(1).minimumScaleFactor(0.8)
+            if !detail.isEmpty {
+                Text(detail)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.65))
+                    .lineLimit(1).minimumScaleFactor(0.85)
+            }
         }
         .multilineTextAlignment(.center)
         .frame(maxWidth: .infinity)
@@ -1335,16 +1507,10 @@ struct CanvasProStudyIslandBottom: View {
     let state: CanvasProStudyActivity.ContentState
 
     var body: some View {
-        VStack(spacing: 8) {
-            CanvasProStudyClock(state: state, size: 34, weight: .bold, alignment: .center)
+        VStack(spacing: 6) {
+            CanvasProStudyClock(state: state, size: 30, weight: .bold, alignment: .center)
                 .frame(maxWidth: .infinity)
             CanvasProStudyBar(state: state).padding(.horizontal, 6)
-            if !state.detail.isEmpty {
-                Text(state.detail)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.65))
-                    .lineLimit(1).minimumScaleFactor(0.9)
-            }
         }
         .frame(maxWidth: .infinity)
     }
@@ -1355,14 +1521,14 @@ struct CanvasProTonightIslandBottom: View {
     let state: CanvasProTonightActivity.ContentState
 
     var body: some View {
-        VStack(spacing: 5) {
+        VStack(spacing: 3) {
             if state.items.isEmpty {
                 Text("Everything due tonight is done.")
                     .font(.system(size: 13, weight: .bold)).foregroundStyle(.white)
             } else {
                 ForEach(state.items.prefix(2), id: \.self) { item in
                     Text("\(item.name) · \(CanvasProWidgetFormat.time(item.due))")
-                        .font(.system(size: 13, weight: .bold)).monospacedDigit()
+                        .font(.system(size: 12.5, weight: .bold)).monospacedDigit()
                         .foregroundStyle(.white)
                         .lineLimit(1).minimumScaleFactor(0.85)
                 }

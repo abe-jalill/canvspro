@@ -53,6 +53,9 @@ struct AccountProfile: Codable {
 }
 
 struct NativeAccountDetails: Equatable {
+    /// Same limit as the website, so greetings and widgets stay on one line.
+    static let nicknameLimit = 10
+
     var firstName = ""
     var lastName = ""
     var nickname = ""
@@ -72,7 +75,7 @@ struct NativeAccountDetails: Equatable {
     var metadata: [String: Any] { [
         "first_name": firstName.trimmingCharacters(in: .whitespacesAndNewlines),
         "last_name": lastName.trimmingCharacters(in: .whitespacesAndNewlines),
-        "nickname": nickname.trimmingCharacters(in: .whitespacesAndNewlines),
+        "nickname": String(nickname.trimmingCharacters(in: .whitespacesAndNewlines).prefix(Self.nicknameLimit)),
         "school": school.trimmingCharacters(in: .whitespacesAndNewlines),
         "major": major.trimmingCharacters(in: .whitespacesAndNewlines),
         "class_of": classOf.trimmingCharacters(in: .whitespacesAndNewlines),

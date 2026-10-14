@@ -1781,7 +1781,13 @@ private struct ProfileView: View {
             Section("About you") {
                 TextField("First name", text: $details.firstName).textContentType(.givenName)
                 TextField("Last name", text: $details.lastName).textContentType(.familyName)
-                TextField("Nickname", text: $details.nickname)
+                // Up to 10 letters, so the greeting and widgets stay on one line.
+                TextField("Nickname (up to \(NativeAccountDetails.nicknameLimit) letters)", text: $details.nickname)
+                    .onChange(of: details.nickname) { _, value in
+                        if value.count > NativeAccountDetails.nicknameLimit {
+                            details.nickname = String(value.prefix(NativeAccountDetails.nicknameLimit))
+                        }
+                    }
                 TextField("School", text: $details.school)
                 TextField("Major", text: $details.major)
                 TextField("Class of", text: $details.classOf)

@@ -5,6 +5,7 @@ import WidgetKit
 @main
 struct CanvasProWidgets: WidgetBundle {
     var body: some Widget {
+        CanvasProTodayWidget()
         CanvasProDueSoonWidget()
         CanvasProGradesWidget()
         CanvasProNextClassWidget()
@@ -64,7 +65,7 @@ struct CanvasProStudyLiveActivity: Widget {
                         .padding(.trailing, 4)
                 }
                 DynamicIslandExpandedRegion(.center) {
-                    CanvasProIslandHeading(caption: CanvasProStudyLockView.caption(context.state), title: context.state.title)
+                    CanvasProIslandHeading(caption: CanvasProStudyLockView.caption(context.state), title: context.state.title, detail: context.state.detail)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     CanvasProStudyIslandBottom(state: context.state).padding(.top, 4)
@@ -153,6 +154,10 @@ struct CanvasProProvider: TimelineProvider {
         let horizon = now.addingTimeInterval(24 * 3_600)
         var moments: Set<Date> = [now]
         if let midnight = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now)) { moments.insert(midnight) }
+        // The Today widget's greeting changes at noon and 6 PM.
+        for hour in [12, 18] {
+            if let turn = calendar.date(bySettingHour: hour, minute: 0, second: 0, of: now) { moments.insert(turn) }
+        }
         for item in snapshot.assignments where item.due > now && item.due < horizon {
             moments.insert(item.due.addingTimeInterval(1))
         }
@@ -212,6 +217,30 @@ private struct CanvasProDueSoonEntryView: View {
     var body: some View {
         CanvasProDueSoonView(snapshot: entry.snapshot, date: entry.date, family: family, range: entry.range)
             .widgetURL(URL(string: "canvaspro://assignments"))
+            .modifier(CanvasProWidgetBackground(palette: entry.snapshot.palette))
+    }
+}
+
+// MARK: - Today
+
+struct CanvasProTodayWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: CanvasProWidgetStore.todayKind, provider: CanvasProProvider()) { entry in
+            CanvasProTodayEntryView(entry: entry)
+        }
+        .configurationDisplayName("Today")
+        .description("Your dashboard greeting with what's due today, this week and overdue.")
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+    }
+}
+
+private struct CanvasProTodayEntryView: View {
+    @Environment(\.widgetFamily) private var family
+    let entry: CanvasProEntry
+
+    var body: some View {
+        CanvasProTodayView(snapshot: entry.snapshot, date: entry.date, family: family)
+            .widgetURL(URL(string: "canvaspro://dashboard"))
             .modifier(CanvasProWidgetBackground(palette: entry.snapshot.palette))
     }
 }
