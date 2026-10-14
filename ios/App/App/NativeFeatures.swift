@@ -372,7 +372,8 @@ final class NativeFeatureStore: ObservableObject {
     @Published var errorMessage: String?
     let isPreview: Bool
     unowned let sessionStore: NativeSessionStore
-    private let previewStateKey = "CanvasProPreviewFeatureState"
+    // Versioned: saves from the earlier, smaller sample set are ignored.
+    private let previewStateKey = "CanvasProPreviewFeatureState2"
     private var savesInFlight = 0
 
     init(sessionStore: NativeSessionStore, preview: Bool = false) {
@@ -387,10 +388,12 @@ final class NativeFeatureStore: ObservableObject {
             } else {
                 profile = AccountProfile(username: "Preview Student", avatarPath: nil)
                 schedule = [
-                    ClassScheduleEntry(id: "preview-1", code: "CS 230", section: "01", title: "Data Structures", crn: "", credits: 3, instructor: "Dr. Rivera", location: "Science 204", campus: "", scheduleType: "Lecture", days: ["M", "W"], startMinutes: 600, endMinutes: 675, term: "", dateRange: "", canvasCourseID: 102),
-                    ClassScheduleEntry(id: "preview-2", code: "ENG 102", section: "02", title: "College Writing", crn: "", credits: 3, instructor: "Prof. Chen", location: "Humanities 118", campus: "", scheduleType: "Lecture", days: ["T", "R"], startMinutes: 780, endMinutes: 855, term: "", dateRange: "", canvasCourseID: 103),
+                    ClassScheduleEntry(id: "preview-1", code: "BIO 201", section: "01", title: "Cell Biology", crn: "", credits: 4, instructor: "Dr. Rivera", location: "Science Hall 101", campus: "", scheduleType: "Lecture", days: ["M", "W"], startMinutes: 600, endMinutes: 675, term: "", dateRange: "", canvasCourseID: 9101),
+                    ClassScheduleEntry(id: "preview-2", code: "ENG 102", section: "02", title: "College Writing", crn: "", credits: 3, instructor: "Prof. Chen", location: "Humanities 118", campus: "", scheduleType: "Lecture", days: ["T", "R"], startMinutes: 780, endMinutes: 855, term: "", dateRange: "", canvasCourseID: 9104),
                 ]
-                estimates = [1001: 45, 1002: 60, 1003: 20]
+                // The sample student's saved estimates and progress, as on the website.
+                estimates = [8010: 90, 8014: 120, 8012: 60]
+                progress = [8010: 75, 8014: 40]
             }
         }
     }

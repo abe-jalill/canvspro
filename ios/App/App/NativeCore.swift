@@ -318,6 +318,20 @@ struct CalendarEventItem: Codable, Identifiable, Hashable {
     }
 }
 
+extension CalendarEventItem {
+    /// Builds an event in code (the sample student's calendar).
+    init(id: String, title: String, startAt: String?, endAt: String?, htmlURL: String? = nil, contextCode: String?, contextName: String?, locationName: String?) {
+        self.id = id
+        self.title = title
+        self.startAt = startAt
+        self.endAt = endAt
+        self.htmlURL = htmlURL
+        self.contextCode = contextCode
+        self.contextName = contextName
+        self.locationName = locationName
+    }
+}
+
 struct CanvasBundle: Codable {
     let courses: [CourseSummary]
     let assignments: [AssignmentItem]
@@ -470,31 +484,83 @@ private enum NativeCourseworkCacheStore {
     }
 }
 
+/// The sample student (Maya Chen): the same classes, work, announcements and
+/// events the website shows App Review's account (src/lib/demo-mode.ts), so the
+/// app and the site tell one story. Dates are relative to today. Links are left
+/// empty: the sample school isn't a real Canvas.
 enum NativePreviewData {
-    private static func date(daysFromToday: Int, hour: Int = 17) -> String {
-        let value = Calendar.current.date(byAdding: .day, value: daysFromToday, to: Date()) ?? Date()
-        let scheduled = Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: value) ?? value
-        return ISO8601DateFormatter().string(from: scheduled)
+    /// `days` from today at `hour`:`minute`, local time.
+    private static func at(_ days: Int, _ hour: Int, _ minute: Int = 0) -> String {
+        let day = Calendar.current.date(byAdding: .day, value: days, to: Date()) ?? Date()
+        let time = Calendar.current.date(bySettingHour: hour, minute: minute, second: 0, of: day) ?? day
+        return ISO8601DateFormatter().string(from: time)
     }
 
+    private struct Row {
+        let id: Int, courseID: Int, name: String, due: String, points: Double, score: Double?
+        init(_ id: Int, _ courseID: Int, _ name: String, _ due: String, _ points: Double, graded score: Double? = nil) {
+            self.id = id; self.courseID = courseID; self.name = name; self.due = due; self.points = points; self.score = score
+        }
+    }
+
+    private static let courses = [
+        CourseSummary(id: 9101, name: "Cell Biology", courseCode: "BIO 201", currentScore: 93.4, currentGrade: "A", finalScore: 93.4),
+        CourseSummary(id: 9102, name: "Introduction to Psychology", courseCode: "PSY 101", currentScore: 88.1, currentGrade: "B+", finalScore: 88.1),
+        CourseSummary(id: 9103, name: "General Chemistry", courseCode: "CHEM 110", currentScore: 81.6, currentGrade: "B-", finalScore: 81.6),
+        CourseSummary(id: 9104, name: "College Writing", courseCode: "ENG 102", currentScore: 95.2, currentGrade: "A", finalScore: 95.2),
+        CourseSummary(id: 9105, name: "Calculus I", courseCode: "MATH 151", currentScore: 90.3, currentGrade: "A-", finalScore: 90.3),
+    ]
+
+    private static func courseFor(_ id: Int) -> CourseSummary { courses.first { $0.id == id } ?? courses[0] }
+
     static var bundle: CanvasBundle {
-        let courses = [
-            CourseSummary(id: 101, name: "Introduction to Psychology", courseCode: "PSY 101", currentScore: 91.4, currentGrade: "A-", finalScore: nil, syllabusBody: "<h2>Introduction to Psychology</h2><p>Meetings: Monday and Wednesday. Topics include learning, memory, development, and research methods.</p><p>Assignments and announcements are posted in Canvas.</p>"),
-            CourseSummary(id: 102, name: "Data Structures", courseCode: "CS 230", currentScore: 87.2, currentGrade: "B+", finalScore: nil),
-            CourseSummary(id: 103, name: "College Writing", courseCode: "ENG 102", currentScore: 94.0, currentGrade: "A", finalScore: nil),
+        let rows = [
+            // Graded work from the last two weeks.
+            Row(8001, 9101, "Lab 3: Microscopy", at(-6, 23, 59), 50, graded: 47),
+            Row(8002, 9102, "Chapter 4 Quiz", at(-4, 11), 20, graded: 18),
+            Row(8003, 9104, "Personal Narrative Draft", at(-8, 23, 59), 100, graded: 95),
+            Row(8004, 9103, "Problem Set 3", at(-5, 23, 59), 50, graded: 40),
+            Row(8005, 9105, "Quiz 2: Limits", at(-3, 10), 30, graded: 27),
+            // One item to catch up on.
+            Row(8006, 9103, "Lab Report 2", at(-1, 18), 40),
+            // The weeks ahead.
+            Row(8007, 9105, "WebAssign 3.4: Derivatives", at(0, 23, 59), 20),
+            Row(8008, 9102, "Reading Response 5", at(0, 23, 59), 10),
+            Row(8009, 9101, "Lab 4: Osmosis Prelab", at(1, 11, 59), 15),
+            Row(8010, 9104, "Annotated Bibliography", at(2, 23, 59), 50),
+            Row(8011, 9103, "Quiz 4: Stoichiometry", at(2, 9), 25),
+            Row(8012, 9105, "Problem Set 4", at(3, 23, 59), 40),
+            Row(8013, 9102, "Research Methods Worksheet", at(4, 17), 30),
+            Row(8014, 9101, "Cell Signaling Case Study", at(5, 23, 59), 60),
+            Row(8015, 9103, "Problem Set 5", at(6, 14), 50),
+            Row(8016, 9104, "Argument Essay Outline", at(8, 23, 59), 40),
+            Row(8017, 9105, "Midterm Review Packet", at(9, 23, 59), 25),
+            Row(8018, 9101, "Midterm Exam", at(12, 9, 30), 100),
+            Row(8019, 9102, "Chapter 6 Quiz", at(13, 11), 20),
         ]
-        let assignments = [
-            AssignmentItem(id: 1001, name: "Research outline", description: "Prepare an outline with at least three peer-reviewed sources.", dueAt: date(daysFromToday: 1), htmlURL: "", pointsPossible: 25, courseID: 103, courseName: "College Writing", courseCode: "ENG 102", submission: nil),
-            AssignmentItem(id: 1002, name: "Linked list lab", description: "Implement insert, remove, and search operations.", dueAt: date(daysFromToday: 2), htmlURL: "", pointsPossible: 40, courseID: 102, courseName: "Data Structures", courseCode: "CS 230", submission: nil),
-            AssignmentItem(id: 1003, name: "Memory and learning quiz", description: "Review chapters 6–7 before taking the quiz.", dueAt: date(daysFromToday: 4), htmlURL: "", pointsPossible: 15, courseID: 101, courseName: "Introduction to Psychology", courseCode: "PSY 101", submission: nil),
-            AssignmentItem(id: 1004, name: "Discussion response", description: "Reply thoughtfully to two classmates.", dueAt: date(daysFromToday: -1), htmlURL: "", pointsPossible: 10, courseID: 101, courseName: "Introduction to Psychology", courseCode: "PSY 101", submission: AssignmentSubmission(workflowState: nil, submittedAt: nil, score: nil, gradedAt: nil, grade: nil, missing: true, excused: false, late: false)),
-            AssignmentItem(id: 1005, name: "Arrays practice", description: "Completed example assignment.", dueAt: date(daysFromToday: -2), htmlURL: "", pointsPossible: 20, courseID: 102, courseName: "Data Structures", courseCode: "CS 230", submission: AssignmentSubmission(workflowState: "graded", submittedAt: date(daysFromToday: -2), score: 19, gradedAt: date(daysFromToday: -1), grade: "A", missing: false, excused: false, late: false)),
-        ]
+        let assignments = rows.map { row -> AssignmentItem in
+            let course = courseFor(row.courseID)
+            let submission = row.score.map { score in
+                AssignmentSubmission(workflowState: "graded", submittedAt: row.due, score: score, gradedAt: row.due, grade: String(Int(score)), missing: nil, excused: nil, late: nil)
+            } ?? AssignmentSubmission(workflowState: "unsubmitted", submittedAt: nil, score: nil, gradedAt: nil, grade: nil, missing: nil, excused: nil, late: nil)
+            return AssignmentItem(id: row.id, name: row.name, description: "<p>\(row.name) for \(course.name).</p>", dueAt: row.due, htmlURL: "", pointsPossible: row.points, courseID: course.id, courseName: course.name, courseCode: course.courseCode, submission: submission)
+        }
         let announcements = [
-            AnnouncementItem(id: 501, title: "Reminder: outline workshop", message: "Bring a working thesis statement and one source to class on Thursday.", postedAt: date(daysFromToday: -1), htmlURL: "", contextCode: "course_103", courseID: 103, courseName: "College Writing", courseCode: "ENG 102"),
-            AnnouncementItem(id: 502, title: "Exam review materials posted", message: "The review guide and practice problems are now available in Modules.", postedAt: date(daysFromToday: -2), htmlURL: "", contextCode: "course_101", courseID: 101, courseName: "Introduction to Psychology", courseCode: "PSY 101"),
+            announcement(7001, 9101, "Lab 4 moved to Thursday", "The osmosis lab will run Thursday this week.", at(-1, 9, 15)),
+            announcement(7002, 9104, "Peer review partners posted", "Check the Discussions page for your partner.", at(-2, 14)),
+            announcement(7003, 9105, "Office hours this week", "Extra office hours Wednesday 3-5 PM before Problem Set 4.", at(0, 8, 30)),
         ]
-        return CanvasBundle(courses: courses, assignments: assignments, announcements: announcements, calendar: [], errors: nil)
+        let calendar = [
+            CalendarEventItem(id: "e1", title: "BIO 201 Study Group", startAt: at(1, 18), endAt: at(1, 19, 30), contextCode: "course_9101", contextName: "Cell Biology", locationName: "Library 204"),
+            CalendarEventItem(id: "e2", title: "Calculus Office Hours", startAt: at(2, 15), endAt: at(2, 17), contextCode: "course_9105", contextName: "Calculus I", locationName: "Math 112"),
+            CalendarEventItem(id: "e3", title: "Midterm Exam", startAt: at(12, 9, 30), endAt: at(12, 11), contextCode: "course_9101", contextName: "Cell Biology", locationName: "Science Hall 101"),
+        ]
+        return CanvasBundle(courses: courses, assignments: assignments, announcements: announcements, calendar: calendar, errors: nil)
+    }
+
+    private static func announcement(_ id: Int, _ courseID: Int, _ title: String, _ message: String, _ posted: String) -> AnnouncementItem {
+        let course = courseFor(courseID)
+        return AnnouncementItem(id: id, title: title, message: "<p>\(message)</p>", postedAt: posted, htmlURL: "", contextCode: "course_\(courseID)", courseID: courseID, courseName: course.name, courseCode: course.courseCode)
     }
 }
 
@@ -983,8 +1049,9 @@ final class NativeContentStore: ObservableObject {
     }
     private unowned let sessionStore: NativeSessionStore
     var persistenceScope: String { isPreview ? "preview" : (sessionStore.session?.user.id ?? "signed-out") }
-    private let previewCompletedKey = "CanvasProPreviewCompleted"
-    private let previewNicknamesKey = "CanvasProPreviewNicknames"
+    // Versioned: saves from the earlier, smaller sample set are ignored.
+    private let previewCompletedKey = "CanvasProPreviewCompleted2"
+    private let previewNicknamesKey = "CanvasProPreviewNicknames2"
 
     init(sessionStore: NativeSessionStore, preview: Bool = false) {
         self.sessionStore = sessionStore
@@ -993,7 +1060,7 @@ final class NativeContentStore: ObservableObject {
             bundle = NativePreviewData.bundle
             hasLoaded = true
             if let saved = UserDefaults.standard.array(forKey: previewCompletedKey) as? [NSNumber] { completed = Set(saved.map(\.intValue)) }
-            else { completed = [1005] }
+            else { completed = [] }
             if let data = UserDefaults.standard.data(forKey: previewNicknamesKey),
                let saved = try? JSONDecoder().decode([Int: ClassNickname].self, from: data) { nicknames = saved }
             lastSyncedAt = Date()
