@@ -1,11 +1,14 @@
 // Localhost-only sample student for homepage screenshots; first so it runs
-// before the backend client reads the session.
-import "@/lib/demo-mode";
+// before the backend client reads the session. The named import keeps the
+// module in production builds, where it also serves App Review's account.
+import { installReviewAccountMode } from "@/lib/demo-mode";
 import { QueryClient } from "@tanstack/react-query";
 import { createRouter, parseSearchWith, stringifySearchWith } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
 import { CANVAS_DATA_GC_MS, CANVAS_DATA_STALE_MS } from "@/lib/query-policy";
 import { watchReopenedAssignments } from "@/lib/reopened-assignments";
+
+installReviewAccountMode();
 
 // Keep plain search values (like ?window=7 or ?assignment=123) readable in the
 // address bar. The default JSON encoding wrapped number-like strings in quotes

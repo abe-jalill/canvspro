@@ -48,8 +48,13 @@ test("motion respects Reduce Motion and the old homepage styles are gone", () =>
   assert.equal(existsSync(new URL("../src/routes/landing-motion.css", import.meta.url)), false);
 });
 
-test("the sample student only ever runs on the local dev server", () => {
+test("the made-up demo session only ever runs on the local dev server", () => {
   const demo = read("src/lib/demo-mode.ts");
   assert.match(demo, /if \(import\.meta\.env\.DEV\) installDemoMode\(\);/);
-  assert.match(read("src/router.tsx"), /import "@\/lib\/demo-mode";/);
+  assert.equal((demo.match(/installDemoMode\(\)/g) ?? []).length, 2, "declared once, called once");
+  // In production only App Review's account sees the sample student (review-account.test.mjs).
+  assert.match(
+    read("src/router.tsx"),
+    /import \{ installReviewAccountMode \} from "@\/lib\/demo-mode";/,
+  );
 });

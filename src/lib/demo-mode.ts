@@ -1,10 +1,16 @@
-// Localhost-only demo student, used to capture the homepage screenshots.
+// The made-up sample student (Maya Chen), used two ways:
 //
-// Visit any signed-in page on the dev server with `?demo=1` (and optionally
-// `&theme=light|dark`). A made-up student's session is stored and every
-// backend request is answered with sample data, so no real account or real
-// Canvas data is ever shown. `?demo=0` turns it off. Production builds never
-// run this: the call below is behind `import.meta.env.DEV`.
+// 1. Localhost-only demo, for the homepage screenshots. Visit any signed-in
+//    page on the dev server with `?demo=1` (and optionally `&theme=light|dark`).
+//    A made-up session is stored and every backend request is answered with
+//    sample data, so no real account or real Canvas data is ever shown.
+//    `?demo=0` turns it off. Production builds never run this: the call below
+//    is behind `import.meta.env.DEV`.
+// 2. App Review's account (appreview@canvaspro.app), in every build. It signs
+//    in for real and keeps its own settings; only its Canvas data is this
+//    sample student's, the same set the iOS app shows it (NativePreviewData).
+
+import { emailFromAuthorization, isReviewAccount } from "@/lib/review-account";
 
 const FLAG = "cp-demo";
 const DEMO_USER_ID = "00000000-0000-4000-8000-00000000d3e0";
@@ -305,6 +311,19 @@ async function bodyOf(
   return {};
 }
 
+/** What the `canvas` function would send back for the sample student. */
+function sampleCanvas(resource: string): Response {
+  const bundle = {
+    courses: COURSES,
+    assignments: assignments(),
+    announcements: announcements(),
+    calendar: calendar(),
+  };
+  if (resource === "all") return json(bundle);
+  if (resource in bundle) return json(bundle[resource as keyof typeof bundle]);
+  return json(bundle.assignments);
+}
+
 function answer(
   url: URL,
   method: string,
@@ -316,18 +335,7 @@ function answer(
   if (path.startsWith("/auth/v1/token")) return json(session());
   if (path.startsWith("/auth/v1/logout")) return new Response(null, { status: 204 });
   if (path.startsWith("/auth/v1/")) return json({});
-  if (path === "/functions/v1/canvas") {
-    const bundle = {
-      courses: COURSES,
-      assignments: assignments(),
-      announcements: announcements(),
-      calendar: calendar(),
-    };
-    const resource = String(body.resource ?? "all");
-    if (resource === "all") return json(bundle);
-    if (resource in bundle) return json(bundle[resource as keyof typeof bundle]);
-    return json(bundle.assignments);
-  }
+  if (path === "/functions/v1/canvas") return sampleCanvas(String(body.resource ?? "all"));
   if (path.startsWith("/functions/v1/")) return json({});
   if (path.startsWith("/rest/v1/rpc/")) {
     const name = path.slice("/rest/v1/rpc/".length);
@@ -409,6 +417,63 @@ function installDemoMode() {
   };
 }
 
-if (import.meta.env.DEV) installDemoMode();
+/**
+ * The review account's Canvas requests, answered with the sample student.
+ * Null sends the request to the real backend: sign-in, the account's own
+ * settings and checking a newly typed Canvas key all stay real.
+ */
+function answerReview(
+  url: URL,
+  method: string,
+  headers: Headers,
+  body: Record<string, unknown>,
+): Response | null {
+  const path = url.pathname;
+  if (path === "/functions/v1/canvas") {
+    const resource = String(body.resource ?? "all");
+    if (resource !== "validate") return sampleCanvas(resource);
+    return typeof body.token === "string" ? null : json({ ok: true, name: "Maya Chen" });
+  }
+  if (path === "/rest/v1/rpc/has_canvas_key") return json(true);
+  if (
+    path === "/rest/v1/user_settings" &&
+    method === "GET" &&
+    url.searchParams.get("select") === "canvas_domain"
+  ) {
+    const row = { canvas_domain: "demo.instructure.com" };
+    return (headers.get("accept") ?? "").includes("vnd.pgrst.object") ? json(row) : json([row]);
+  }
+  return null;
+}
 
-export {};
+let reviewModeInstalled = false;
+
+/**
+ * Called by the router. A named call, not a bare import: with "sideEffects":
+ * false in package.json, production builds drop modules imported only for effect.
+ */
+export function installReviewAccountMode() {
+  if (typeof window === "undefined" || reviewModeInstalled) return;
+  reviewModeInstalled = true;
+  const backend = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.replace(/\/$/, "");
+  if (!backend) return;
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const raw = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    if (raw.startsWith(backend)) {
+      const headers = new Headers(
+        init?.headers ?? (input instanceof Request ? input.headers : undefined),
+      );
+      if (isReviewAccount(emailFromAuthorization(headers.get("authorization")))) {
+        const method = (
+          init?.method ?? (input instanceof Request ? input.method : "GET")
+        ).toUpperCase();
+        const response = answerReview(new URL(raw), method, headers, await bodyOf(input, init));
+        if (response) return response;
+      }
+    }
+    return realFetch(input, init);
+  };
+}
+
+if (import.meta.env.DEV) installDemoMode();
