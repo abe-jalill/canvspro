@@ -526,6 +526,13 @@ function LandingPage() {
         <section className="hp-split" aria-labelledby="hp-more-title">
           <div className="hp-split__text" data-breathe>
             <h2 id="hp-more-title">Also in CanvasPro</h2>
+            <p className="hp-muted">
+              No account yet? Try the free{" "}
+              <Link to="/canvas-grade-calculator" className="hp-link">
+                Canvas grade calculator
+              </Link>{" "}
+              for what-if and weighted grades.
+            </p>
           </div>
           <dl className="hp-more" data-breathe style={{ "--d": "0.12s" } as CSSProperties}>
             {MORE.map((item) => (
