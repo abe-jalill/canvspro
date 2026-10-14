@@ -1,5 +1,5 @@
-# Compiles the native iOS app on every push to ios-native, the same unsigned
-# simulator build Codemagic runs, so a Swift mistake shows up without a Mac.
+# Compiles the native iOS app on every push to ios-native, the same simulator
+# build Codemagic runs, so a Swift mistake shows up without a Mac.
 name: iOS build
 
 on:
@@ -33,7 +33,11 @@ jobs:
       - name: Check native session storage failure paths
         run: python3 scripts/test-native-session-store.py
 
-      - name: Compile the SwiftUI app (simulator, unsigned)
+      # Signed to run locally (ad hoc, no Apple account), not unsigned: an
+      # unsigned build drops the entitlements, so the app and the widget get
+      # separate storage instead of the shared App Group and every widget
+      # says "Open CanvasPro" however much the app has loaded.
+      - name: Compile the SwiftUI app (simulator, signed to run locally)
         run: |
           . ios/backend-public.env
           cd ios/App
@@ -47,11 +51,31 @@ jobs:
             -quiet \
             SUPABASE_URL="$CANVASPRO_DEFAULT_SUPABASE_URL" \
             SUPABASE_PUBLISHABLE_KEY="$CANVASPRO_DEFAULT_SUPABASE_PUBLISHABLE_KEY" \
-            CODE_SIGNING_ALLOWED=NO > build.log 2>&1 || status=$?
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY=- \
+            DEVELOPMENT_TEAM= \
+            PROVISIONING_PROFILE_SPECIFIER= \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=YES > build.log 2>&1 || status=$?
           cat build.log
           # Compiler errors as annotations, readable on the run page without the log.
           grep -E "error:" build.log | sort -u | head -40 | while IFS= read -r line; do echo "::error::${line#*/ios/App/}"; done
           exit $status
+
+      - name: Check the app and the widget share the App Group
+        run: |
+          cd ios/App/build/Build/Products/Debug-iphonesimulator
+          for target in App.app/App App.app/PlugIns/CanvasProWidgets.appex/CanvasProWidgets; do
+            bundle=$(dirname "$target")
+            signed=$(codesign -d --entitlements - --xml "$bundle" 2>/dev/null || true)
+            simulated=$(xcrun segedit "$target" -extract __TEXT __entitlements /dev/stdout 2>/dev/null || true)
+            if printf '%s%s' "$signed" "$simulated" | grep -q "group.app.canvaspro.mobile"; then
+              echo "::notice::$bundle has the App Group"
+            else
+              echo "::error::$bundle is missing the App Group entitlement: the widget can't read what the app saves"
+              exit 1
+            fi
+          done
 
       # A look at the real app: the build runs in an iPhone simulator on sample
       # data (debug-only -CanvasProDemo, no sign-in) and each tab is captured

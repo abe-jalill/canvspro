@@ -24,7 +24,14 @@ workflows:
             -configuration Debug \
             SUPABASE_URL="$BACKEND_URL" \
             SUPABASE_PUBLISHABLE_KEY="$BACKEND_KEY" \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY=- \
+            DEVELOPMENT_TEAM= \
+            PROVISIONING_PROFILE_SPECIFIER= \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=YES
+          # Signed to run locally, not unsigned: an unsigned build drops the App
+          # Group, so widgets can't read what the app saves and say "Open CanvasPro".
 
     artifacts:
       - ~/Library/Developer/Xcode/DerivedData/**/Build/Products/**/*.app

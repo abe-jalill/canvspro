@@ -300,7 +300,7 @@ private struct CanvasProCaption: View {
     let text: String
     let color: Color
     var body: some View {
-        Text(text).font(.system(size: 9.5, weight: .semibold)).tracking(1.1).foregroundStyle(color).lineLimit(1)
+        Text(text).font(.system(size: 9.5, weight: .bold)).tracking(1.1).foregroundStyle(color).lineLimit(1).minimumScaleFactor(0.75)
     }
 }
 
@@ -396,7 +396,7 @@ struct CanvasProDueSoonView: View {
 
     var body: some View {
         if !snapshot.signedIn && !family.isAccessory {
-            CanvasProSignedOutView(palette: palette, symbol: "checklist", line: "Sign in to see what's due")
+            CanvasProSignedOutView(palette: palette, symbol: "checklist", line: "Open CanvasPro to see what's due")
         } else {
             switch family {
             case .accessoryCircular: circular
@@ -414,8 +414,8 @@ struct CanvasProDueSoonView: View {
     private func ring(size: CGFloat, countSize: CGFloat) -> some View {
         CanvasProRing(progress: work.progress, color: accent, track: faint, lineWidth: size > 60 ? 4.5 : 4) {
             VStack(spacing: -1) {
-                Text("\(work.remaining.count)").font(.system(size: countSize, weight: .light)).monospacedDigit().foregroundStyle(fg)
-                Text("left").font(.system(size: 8.5, weight: .medium)).foregroundStyle(muted)
+                Text("\(work.remaining.count)").font(.system(size: countSize, weight: .bold)).monospacedDigit().foregroundStyle(fg)
+                Text("left").font(.system(size: 8.5, weight: .semibold)).foregroundStyle(muted)
             }
         }
         .frame(width: size, height: size)
@@ -441,7 +441,7 @@ struct CanvasProDueSoonView: View {
 
     private func rangeLabel(_ option: CanvasProWorkloadRange) -> some View {
         Text(option.title)
-            .font(.system(size: 9.5, weight: .semibold))
+            .font(.system(size: 9.5, weight: .bold))
             .foregroundStyle(option == range ? fg : muted)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 4)
@@ -476,13 +476,15 @@ struct CanvasProDueSoonView: View {
         HStack(alignment: .center, spacing: 9) {
             checkButton(item)
             VStack(alignment: .leading, spacing: 1) {
-                Text(item.name).font(.system(size: 12, weight: .medium)).foregroundStyle(fg).lineLimit(1)
-                Text(item.course).font(.system(size: 10)).foregroundStyle(muted).lineLimit(1)
+                Text(item.name).font(.system(size: 12, weight: .semibold)).foregroundStyle(fg).lineLimit(1).minimumScaleFactor(0.75)
+                Text(item.course).font(.system(size: 10, weight: .medium)).foregroundStyle(muted).lineLimit(1).minimumScaleFactor(0.75)
             }
             Spacer(minLength: 6)
+            // The time keeps its room; a long name truncates first.
             Text(CanvasProWidgetFormat.due(item.due, now: date))
-                .font(.system(size: 10, weight: .medium)).monospacedDigit()
-                .foregroundStyle(muted).lineLimit(1)
+                .font(.system(size: 10, weight: .semibold)).monospacedDigit()
+                .foregroundStyle(muted).lineLimit(1).minimumScaleFactor(0.75)
+                .layoutPriority(1)
         }
     }
 
@@ -492,7 +494,7 @@ struct CanvasProDueSoonView: View {
             if items.isEmpty {
                 Spacer(minLength: 0)
                 Label(range.emptyLine, systemImage: "checkmark.circle")
-                    .font(.system(size: 11, weight: .medium)).foregroundStyle(muted)
+                    .font(.system(size: 11, weight: .semibold)).foregroundStyle(muted)
                 Spacer(minLength: 0)
             } else {
                 ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
@@ -502,7 +504,7 @@ struct CanvasProDueSoonView: View {
                     }
                 }
                 if work.remaining.count > limit {
-                    Text("+\(work.remaining.count - limit) more").font(.system(size: 9.5, weight: .medium)).foregroundStyle(muted)
+                    Text("+\(work.remaining.count - limit) more").font(.system(size: 9.5, weight: .semibold)).foregroundStyle(muted)
                         .padding(.top, 6).padding(.leading, 23)
                 }
                 Spacer(minLength: 0)
@@ -533,22 +535,22 @@ struct CanvasProDueSoonView: View {
             HStack(spacing: 12) {
                 ring(size: 54, countSize: 19)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(work.remaining.count == 1 ? "assignment" : "assignments").font(.system(size: 11, weight: .medium)).foregroundStyle(fg)
-                    Text(doneLine).font(.system(size: 10)).foregroundStyle(muted)
+                    Text(work.remaining.count == 1 ? "assignment" : "assignments").font(.system(size: 11, weight: .semibold)).foregroundStyle(fg)
+                    Text(doneLine).font(.system(size: 10, weight: .medium)).foregroundStyle(muted)
                 }
             }
             Spacer(minLength: 0)
             if let next = work.remaining.first {
                 HStack(alignment: .center, spacing: 8) {
                     VStack(alignment: .leading, spacing: 0) {
-                        Text(next.name).font(.system(size: 11.5, weight: .medium)).foregroundStyle(fg).lineLimit(1)
-                        Text("\(CanvasProWidgetFormat.due(next.due, now: date)) · \(next.course)").font(.system(size: 9.5)).monospacedDigit().foregroundStyle(muted).lineLimit(1)
+                        Text(next.name).font(.system(size: 11.5, weight: .semibold)).foregroundStyle(fg).lineLimit(1).minimumScaleFactor(0.75)
+                        Text("\(CanvasProWidgetFormat.due(next.due, now: date)) · \(next.course)").font(.system(size: 9.5, weight: .medium)).monospacedDigit().foregroundStyle(muted).lineLimit(1).minimumScaleFactor(0.75)
                     }
                     Spacer(minLength: 4)
                     checkButton(next)
                 }
             } else {
-                Text(range.emptyLine).font(.system(size: 10.5, weight: .medium)).foregroundStyle(muted).lineLimit(2)
+                Text(range.emptyLine).font(.system(size: 10.5, weight: .semibold)).foregroundStyle(muted).lineLimit(2)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
@@ -564,7 +566,7 @@ struct CanvasProDueSoonView: View {
             HStack(alignment: .top, spacing: 16) {
                 VStack(spacing: 7) {
                     ring(size: 62, countSize: 21)
-                    Text(doneLine).font(.system(size: 9.5)).foregroundStyle(muted).lineLimit(1)
+                    Text(doneLine).font(.system(size: 9.5, weight: .medium)).foregroundStyle(muted).lineLimit(1).minimumScaleFactor(0.75)
                 }
                 .frame(width: 74)
                 list(limit: 3)
@@ -584,10 +586,10 @@ struct CanvasProDueSoonView: View {
                 ring(size: 58, countSize: 20)
                 VStack(alignment: .leading, spacing: 3) {
                     Text("\(work.remaining.count) \(work.remaining.count == 1 ? "assignment" : "assignments") \(range.phrase)")
-                        .font(.system(size: 12.5, weight: .medium)).foregroundStyle(fg).lineLimit(1)
-                    Text(doneLine).font(.system(size: 10.5)).foregroundStyle(muted)
+                        .font(.system(size: 12.5, weight: .semibold)).foregroundStyle(fg).lineLimit(1).minimumScaleFactor(0.75)
+                    Text(doneLine).font(.system(size: 10.5, weight: .medium)).foregroundStyle(muted)
                     if snapshot.overdueCount > 0 {
-                        Text("\(snapshot.overdueCount) to catch up").font(.system(size: 10.5, weight: .medium)).foregroundStyle(CanvasProWidgetPalette.overdue(scheme))
+                        Text("\(snapshot.overdueCount) to catch up").font(.system(size: 10.5, weight: .semibold)).foregroundStyle(CanvasProWidgetPalette.overdue(scheme))
                     }
                 }
                 Spacer(minLength: 0)
@@ -634,18 +636,18 @@ struct CanvasProDueSoonView: View {
             Text(snapshot.signedIn ? "\(work.remaining.count)" : "–").monospacedDigit()
         }
         .gaugeStyle(.accessoryCircularCapacity)
-        .accessibilityLabel(snapshot.signedIn ? "\(work.remaining.count) left \(range.phrase)" : "Sign in to CanvasPro")
+        .accessibilityLabel(snapshot.signedIn ? "\(work.remaining.count) left \(range.phrase)" : "Open CanvasPro")
     }
 
     private var rectangular: some View {
         VStack(alignment: .leading, spacing: 1) {
             Text(snapshot.signedIn ? "\(range.title) · \(work.remaining.count) left" : "CanvasPro")
-                .font(.system(size: 11, weight: .semibold)).widgetAccentable()
+                .font(.system(size: 11, weight: .bold)).widgetAccentable()
             if let next = work.remaining.first {
-                Text(next.name).font(.system(size: 13, weight: .medium)).lineLimit(1)
-                Text(CanvasProWidgetFormat.due(next.due, now: date)).font(.system(size: 11)).monospacedDigit().lineLimit(1)
+                Text(next.name).font(.system(size: 13, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.75)
+                Text(CanvasProWidgetFormat.due(next.due, now: date)).font(.system(size: 11, weight: .medium)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.75)
             } else {
-                Text(snapshot.signedIn ? range.emptyLine : "Sign in to see what's due").font(.system(size: 12, weight: .medium)).lineLimit(2)
+                Text(snapshot.signedIn ? range.emptyLine : "Open CanvasPro to see what's due").font(.system(size: 12, weight: .semibold)).lineLimit(2)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -674,7 +676,7 @@ struct CanvasProGradesView: View {
 
     var body: some View {
         if !snapshot.signedIn && !family.isAccessory {
-            CanvasProSignedOutView(palette: palette, symbol: "chart.bar", line: "Sign in to see your grades")
+            CanvasProSignedOutView(palette: palette, symbol: "chart.bar", line: "Open CanvasPro to see your grades")
         } else {
             switch family {
             case .accessoryCircular: circular
@@ -697,16 +699,16 @@ struct CanvasProGradesView: View {
         CanvasProArc(progress: hidden ? 0 : (average ?? 0) / 100, color: gradeColor, track: faint, lineWidth: 5) {
             VStack(spacing: 1) {
                 if hidden {
-                    Image(systemName: "eye.slash").font(.system(size: valueSize * 0.7, weight: .light)).foregroundStyle(muted)
+                    Image(systemName: "eye.slash").font(.system(size: valueSize * 0.7, weight: .bold)).foregroundStyle(muted)
                 } else {
                     HStack(alignment: .firstTextBaseline, spacing: 1) {
-                        Text(average.map(CanvasProWidgetFormat.score) ?? "—").font(.system(size: valueSize, weight: .light)).monospacedDigit().foregroundStyle(fg)
-                        if average != nil { Text("%").font(.system(size: valueSize * 0.45, weight: .medium)).foregroundStyle(muted) }
+                        Text(average.map(CanvasProWidgetFormat.score) ?? "—").font(.system(size: valueSize, weight: .bold)).monospacedDigit().foregroundStyle(fg)
+                        if average != nil { Text("%").font(.system(size: valueSize * 0.45, weight: .semibold)).foregroundStyle(muted) }
                     }
                     .privacySensitive()
                 }
                 Text(hidden ? "HIDDEN" : CanvasProWidgetFormat.letter(average))
-                    .font(.system(size: 9, weight: .semibold)).tracking(0.8)
+                    .font(.system(size: 9, weight: .bold)).tracking(0.8)
                     .foregroundStyle(hidden ? muted : gradeColor)
                     .privacySensitive()
             }
@@ -721,7 +723,7 @@ struct CanvasProGradesView: View {
             Spacer(minLength: 0)
             gauge(size: 92, valueSize: 21).frame(maxWidth: .infinity)
             Spacer(minLength: 0)
-            Text(classCount).font(.system(size: 10)).foregroundStyle(muted)
+            Text(classCount).font(.system(size: 10, weight: .medium)).foregroundStyle(muted)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
@@ -733,13 +735,13 @@ struct CanvasProGradesView: View {
                 Spacer(minLength: 0)
                 gauge(size: 92, valueSize: 21)
                 Spacer(minLength: 0)
-                Text(classCount).font(.system(size: 10)).foregroundStyle(muted)
+                Text(classCount).font(.system(size: 10, weight: .medium)).foregroundStyle(muted)
             }
             .frame(width: 96, alignment: .leading)
             VStack(alignment: .leading, spacing: 9) {
                 CanvasProCaption(text: "CLASSES", color: muted)
                 if snapshot.courses.isEmpty {
-                    Text("No classes yet").font(.system(size: 11, weight: .medium)).foregroundStyle(muted)
+                    Text("No classes yet").font(.system(size: 11, weight: .semibold)).foregroundStyle(muted)
                 }
                 ForEach(snapshot.courses.prefix(4)) { course in courseRow(course) }
                 Spacer(minLength: 0)
@@ -753,10 +755,10 @@ struct CanvasProGradesView: View {
         let fraction = hidden ? 0 : min(1, max(0, (course.score ?? 0) / 100))
         return VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline) {
-                Text(course.name).font(.system(size: 11, weight: .medium)).foregroundStyle(fg).lineLimit(1)
+                Text(course.name).font(.system(size: 11, weight: .semibold)).foregroundStyle(fg).lineLimit(1).minimumScaleFactor(0.75)
                 Spacer(minLength: 6)
                 Text(hidden ? "••" : course.score.map(CanvasProWidgetFormat.score) ?? "—")
-                    .font(.system(size: 10.5, weight: .medium)).monospacedDigit().foregroundStyle(muted)
+                    .font(.system(size: 10.5, weight: .semibold)).monospacedDigit().foregroundStyle(muted)
                     .privacySensitive()
             }
             GeometryReader { bar in
@@ -786,10 +788,10 @@ struct CanvasProGradesView: View {
 
     private var rectangular: some View {
         VStack(alignment: .leading, spacing: 1) {
-            Text("Average").font(.system(size: 11, weight: .semibold)).widgetAccentable()
+            Text("Average").font(.system(size: 11, weight: .bold)).widgetAccentable()
             Text(hidden || !snapshot.signedIn ? "Hidden" : average.map { "\(CanvasProWidgetFormat.score($0))% · \(CanvasProWidgetFormat.letter($0))" } ?? "No grades yet")
-                .font(.system(size: 15, weight: .medium)).monospacedDigit().privacySensitive()
-            Text(classCount).font(.system(size: 11))
+                .font(.system(size: 15, weight: .semibold)).monospacedDigit().privacySensitive()
+            Text(classCount).font(.system(size: 11, weight: .medium))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -817,7 +819,7 @@ struct CanvasProNextClassView: View {
 
     var body: some View {
         if !snapshot.signedIn && !family.isAccessory {
-            CanvasProSignedOutView(palette: palette, symbol: "calendar", line: "Sign in to see your classes")
+            CanvasProSignedOutView(palette: palette, symbol: "calendar", line: "Open CanvasPro to see your classes")
         } else {
             switch family {
             case .accessoryRectangular: rectangular
@@ -847,7 +849,7 @@ struct CanvasProNextClassView: View {
                 CanvasProCaption(text: "CLASSES", color: muted)
                 Spacer(minLength: 0)
                 Label(snapshot.classes.isEmpty ? "Add your schedule in CanvasPro" : "No classes this week", systemImage: "calendar")
-                    .font(.system(size: 11, weight: .medium)).foregroundStyle(muted)
+                    .font(.system(size: 11, weight: .semibold)).foregroundStyle(muted)
                 Spacer(minLength: 0)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
@@ -861,9 +863,9 @@ struct CanvasProNextClassView: View {
                 CanvasProCaption(text: isNow(session) ? "IN CLASS" : CanvasProWidgetFormat.day(session.start, now: date).uppercased(), color: isNow(session) ? accent : muted)
             }
             Spacer(minLength: 0)
-            Text(session.meeting.name).font(.system(size: 14, weight: .semibold)).foregroundStyle(fg).lineLimit(2)
+            Text(session.meeting.name).font(.system(size: 14, weight: .bold)).foregroundStyle(fg).lineLimit(2)
             if !session.meeting.location.isEmpty {
-                Text(session.meeting.location).font(.system(size: 10.5)).foregroundStyle(muted).lineLimit(1).padding(.top, 2)
+                Text(session.meeting.location).font(.system(size: 10.5, weight: .medium)).foregroundStyle(muted).lineLimit(1).minimumScaleFactor(0.75).padding(.top, 2)
             }
             Spacer(minLength: 0)
             if isNow(session) {
@@ -876,10 +878,10 @@ struct CanvasProNextClassView: View {
                 }
                 .frame(height: 3)
                 Text("Until \(CanvasProWidgetFormat.time(session.end))")
-                    .font(.system(size: 9.5, weight: .medium)).monospacedDigit().foregroundStyle(muted).lineLimit(1).padding(.top, 5)
+                    .font(.system(size: 9.5, weight: .semibold)).monospacedDigit().foregroundStyle(muted).lineLimit(1).minimumScaleFactor(0.75).padding(.top, 5)
             } else {
                 Text("\(CanvasProWidgetFormat.time(session.start)) – \(CanvasProWidgetFormat.time(session.end))")
-                    .font(.system(size: 10.5, weight: .medium)).monospacedDigit().foregroundStyle(fg.opacity(0.85)).lineLimit(1)
+                    .font(.system(size: 10.5, weight: .semibold)).monospacedDigit().foregroundStyle(fg.opacity(0.85)).lineLimit(1).minimumScaleFactor(0.75)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
@@ -909,8 +911,8 @@ struct CanvasProNextClassView: View {
             }
             .frame(width: 6)
             VStack(alignment: .leading, spacing: 1) {
-                Text(item.meeting.name).font(.system(size: 11, weight: current ? .semibold : .medium)).foregroundStyle(past ? muted : fg).lineLimit(1)
-                Text(CanvasProWidgetFormat.time(item.start)).font(.system(size: 9.5)).monospacedDigit().foregroundStyle(muted)
+                Text(item.meeting.name).font(.system(size: 11, weight: current ? .bold : .semibold)).foregroundStyle(past ? muted : fg).lineLimit(1).minimumScaleFactor(0.75)
+                Text(CanvasProWidgetFormat.time(item.start)).font(.system(size: 9.5, weight: .medium)).monospacedDigit().foregroundStyle(muted).lineLimit(1)
             }
             .padding(.bottom, 7)
         }
@@ -920,15 +922,15 @@ struct CanvasProNextClassView: View {
         if snapshot.signedIn, let session {
             VStack(alignment: .leading, spacing: 1) {
                 Text(isNow(session) ? "In class" : "\(CanvasProWidgetFormat.day(session.start, now: date)) · \(CanvasProWidgetFormat.time(session.start))")
-                    .font(.system(size: 11, weight: .semibold)).widgetAccentable()
-                Text(session.meeting.name).font(.system(size: 13, weight: .medium)).lineLimit(1)
-                if !session.meeting.location.isEmpty { Text(session.meeting.location).font(.system(size: 11)).lineLimit(1) }
+                    .font(.system(size: 11, weight: .bold)).widgetAccentable()
+                Text(session.meeting.name).font(.system(size: 13, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.75)
+                if !session.meeting.location.isEmpty { Text(session.meeting.location).font(.system(size: 11, weight: .medium)).lineLimit(1).minimumScaleFactor(0.75) }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         } else {
             VStack(alignment: .leading, spacing: 1) {
-                Text("Classes").font(.system(size: 11, weight: .semibold)).widgetAccentable()
-                Text(snapshot.signedIn ? "No classes ahead" : "Sign in to CanvasPro").font(.system(size: 13, weight: .medium))
+                Text("Classes").font(.system(size: 11, weight: .bold)).widgetAccentable()
+                Text(snapshot.signedIn ? "No classes ahead" : "Open CanvasPro").font(.system(size: 13, weight: .semibold))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -952,8 +954,8 @@ private struct CanvasProSignedOutView: View {
         VStack(alignment: .leading, spacing: 0) {
             CanvasProCaption(text: "CANVASPRO", color: palette.muted(scheme))
             Spacer(minLength: 0)
-            Image(systemName: symbol).font(.system(size: 18, weight: .light)).foregroundStyle(palette.accent(scheme)).widgetAccentable()
-            Text(line).font(.system(size: 11, weight: .medium)).foregroundStyle(palette.foreground(scheme)).lineLimit(2).padding(.top, 8)
+            Image(systemName: symbol).font(.system(size: 18, weight: .bold)).foregroundStyle(palette.accent(scheme)).widgetAccentable()
+            Text(line).font(.system(size: 11, weight: .semibold)).foregroundStyle(palette.foreground(scheme)).lineLimit(2).padding(.top, 8)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
@@ -986,7 +988,7 @@ extension CanvasProWidgetSnapshot {
             palette: "forest",
             syncedAt: now,
             assignments: [
-                Assignment(id: 1, name: "Lab report", course: "BIO 110", due: tonight, done: false),
+                Assignment(id: 1, name: "Lab report: enzyme kinetics and reaction rates", course: "BIO 110", due: tonight, done: false),
                 Assignment(id: 2, name: "Reading quiz", course: "PSY 101", due: tonight.addingTimeInterval(-60), done: false),
                 Assignment(id: 3, name: "Discussion post", course: "ENG 102", due: tonight, done: true),
                 Assignment(id: 4, name: "Research outline", course: "ENG 102", due: at(1, 9, 0), done: false),
@@ -1001,14 +1003,14 @@ extension CanvasProWidgetSnapshot {
             classes: [
                 ClassMeeting(id: "1", name: "Data Structures", location: "Science 204", weekdays: [weekday], startMinutes: current, endMinutes: current + 75),
                 ClassMeeting(id: "2", name: "College Writing", location: "Humanities 118", weekdays: [weekday], startMinutes: min(current + 90, 22 * 60), endMinutes: min(current + 140, 23 * 60)),
-                ClassMeeting(id: "3", name: "Intro to Psychology", location: "Hall B", weekdays: [weekday, tomorrow], startMinutes: min(current + 150, 23 * 60), endMinutes: min(current + 200, 23 * 60 + 59)),
+                ClassMeeting(id: "3", name: "Transportation Engineering Fundamentals", location: "Hall B", weekdays: [weekday, tomorrow], startMinutes: min(current + 150, 23 * 60), endMinutes: min(current + 200, 23 * 60 + 59)),
                 ClassMeeting(id: "4", name: "Calculus II", location: "Math 310", weekdays: [tomorrow], startMinutes: 9 * 60, endMinutes: 10 * 60 + 15),
             ],
             courses: [
                 Course(id: 1, name: "Biology", score: 94.2, letter: "A"),
                 Course(id: 2, name: "College Writing", score: 89.1, letter: "B+"),
                 Course(id: 3, name: "Calculus II", score: 82.4, letter: "B−"),
-                Course(id: 4, name: "Data Structures", score: 91.6, letter: "A−"),
+                Course(id: 4, name: "Fundamentals of Engineering Design Projects", score: 91.6, letter: "A−"),
             ],
             hideGrades: false
         )
