@@ -303,9 +303,9 @@ test("legal pages pass Paddle's review: merchant of record, a 14-day refund wind
   }
   // The owner's personal name and home address are never published on the site.
   const legal = read("src/lib/legal-consent.ts");
-  assert.match(legal, /SELLER_LEGAL_NAME: string \| null =/);
-  assert.match(legal, /SELLER_ADDRESS: string \| null =/);
-  assert.doesNotMatch(legal, /Brookview|Al-Bayati/i);
+  // Both stay null unless a business name and business address are chosen.
+  assert.match(legal, /SELLER_LEGAL_NAME: string \| null = null;/);
+  assert.match(legal, /SELLER_ADDRESS: string \| null = null;/);
   assert.match(terms, /\$\{sellerIdentity\(\)\}/);
   assert.match(privacy, /\$\{sellerIdentity\(\)\}[\s\S]{0,80}SELLER_ADDRESS/);
   // Free claims are gone from the public pages.
