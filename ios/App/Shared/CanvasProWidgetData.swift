@@ -300,7 +300,7 @@ private struct CanvasProCaption: View {
     let text: String
     let color: Color
     var body: some View {
-        Text(text).font(.system(size: 9.5, weight: .bold)).tracking(1.1).foregroundStyle(color).lineLimit(1).minimumScaleFactor(0.75)
+        Text(text).font(.system(size: 9.5, weight: .bold)).tracking(1.1).foregroundStyle(color).lineLimit(1).minimumScaleFactor(0.9)
     }
 }
 
@@ -476,14 +476,14 @@ struct CanvasProDueSoonView: View {
         HStack(alignment: .center, spacing: 9) {
             checkButton(item)
             VStack(alignment: .leading, spacing: 1) {
-                Text(item.name).font(.system(size: 12, weight: .semibold)).foregroundStyle(fg).lineLimit(1).minimumScaleFactor(0.75)
-                Text(item.course).font(.system(size: 10, weight: .medium)).foregroundStyle(muted).lineLimit(1).minimumScaleFactor(0.75)
+                Text(item.name).font(.system(size: 12, weight: .semibold)).foregroundStyle(fg).lineLimit(1).minimumScaleFactor(0.9)
+                Text(item.course).font(.system(size: 10, weight: .medium)).foregroundStyle(muted).lineLimit(1).minimumScaleFactor(0.9)
             }
             Spacer(minLength: 6)
             // The time keeps its room; a long name truncates first.
             Text(CanvasProWidgetFormat.due(item.due, now: date))
                 .font(.system(size: 10, weight: .semibold)).monospacedDigit()
-                .foregroundStyle(muted).lineLimit(1).minimumScaleFactor(0.75)
+                .foregroundStyle(muted).lineLimit(1).minimumScaleFactor(0.9)
                 .layoutPriority(1)
         }
     }
@@ -543,8 +543,8 @@ struct CanvasProDueSoonView: View {
             if let next = work.remaining.first {
                 HStack(alignment: .center, spacing: 8) {
                     VStack(alignment: .leading, spacing: 0) {
-                        Text(next.name).font(.system(size: 11.5, weight: .semibold)).foregroundStyle(fg).lineLimit(1).minimumScaleFactor(0.75)
-                        Text("\(CanvasProWidgetFormat.due(next.due, now: date)) · \(next.course)").font(.system(size: 9.5, weight: .medium)).monospacedDigit().foregroundStyle(muted).lineLimit(1).minimumScaleFactor(0.75)
+                        Text(next.name).font(.system(size: 11.5, weight: .semibold)).foregroundStyle(fg).lineLimit(1).minimumScaleFactor(0.9)
+                        Text("\(CanvasProWidgetFormat.due(next.due, now: date)) · \(next.course)").font(.system(size: 9.5, weight: .medium)).monospacedDigit().foregroundStyle(muted).lineLimit(1).minimumScaleFactor(0.9)
                     }
                     Spacer(minLength: 4)
                     checkButton(next)
@@ -566,7 +566,7 @@ struct CanvasProDueSoonView: View {
             HStack(alignment: .top, spacing: 16) {
                 VStack(spacing: 7) {
                     ring(size: 62, countSize: 21)
-                    Text(doneLine).font(.system(size: 9.5, weight: .medium)).foregroundStyle(muted).lineLimit(1).minimumScaleFactor(0.75)
+                    Text(doneLine).font(.system(size: 9.5, weight: .medium)).foregroundStyle(muted).lineLimit(1).minimumScaleFactor(0.9)
                 }
                 .frame(width: 74)
                 list(limit: 3)
@@ -586,7 +586,7 @@ struct CanvasProDueSoonView: View {
                 ring(size: 58, countSize: 20)
                 VStack(alignment: .leading, spacing: 3) {
                     Text("\(work.remaining.count) \(work.remaining.count == 1 ? "assignment" : "assignments") \(range.phrase)")
-                        .font(.system(size: 12.5, weight: .semibold)).foregroundStyle(fg).lineLimit(1).minimumScaleFactor(0.75)
+                        .font(.system(size: 12.5, weight: .semibold)).foregroundStyle(fg).lineLimit(1).minimumScaleFactor(0.9)
                     Text(doneLine).font(.system(size: 10.5, weight: .medium)).foregroundStyle(muted)
                     if snapshot.overdueCount > 0 {
                         Text("\(snapshot.overdueCount) to catch up").font(.system(size: 10.5, weight: .semibold)).foregroundStyle(CanvasProWidgetPalette.overdue(scheme))
@@ -644,8 +644,8 @@ struct CanvasProDueSoonView: View {
             Text(snapshot.signedIn ? "\(range.title) · \(work.remaining.count) left" : "CanvasPro")
                 .font(.system(size: 11, weight: .bold)).widgetAccentable()
             if let next = work.remaining.first {
-                Text(next.name).font(.system(size: 13, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.75)
-                Text(CanvasProWidgetFormat.due(next.due, now: date)).font(.system(size: 11, weight: .medium)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.75)
+                Text(next.name).font(.system(size: 13, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.9)
+                Text(CanvasProWidgetFormat.due(next.due, now: date)).font(.system(size: 11, weight: .medium)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.9)
             } else {
                 Text(snapshot.signedIn ? range.emptyLine : "Open CanvasPro to see what's due").font(.system(size: 12, weight: .semibold)).lineLimit(2)
             }
@@ -755,7 +755,7 @@ struct CanvasProGradesView: View {
         let fraction = hidden ? 0 : min(1, max(0, (course.score ?? 0) / 100))
         return VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline) {
-                Text(course.name).font(.system(size: 11, weight: .semibold)).foregroundStyle(fg).lineLimit(1).minimumScaleFactor(0.75)
+                Text(course.name).font(.system(size: 11, weight: .semibold)).foregroundStyle(fg).lineLimit(1).minimumScaleFactor(0.9)
                 Spacer(minLength: 6)
                 Text(hidden ? "••" : course.score.map(CanvasProWidgetFormat.score) ?? "—")
                     .font(.system(size: 10.5, weight: .semibold)).monospacedDigit().foregroundStyle(muted)
@@ -865,7 +865,7 @@ struct CanvasProNextClassView: View {
             Spacer(minLength: 0)
             Text(session.meeting.name).font(.system(size: 14, weight: .bold)).foregroundStyle(fg).lineLimit(2)
             if !session.meeting.location.isEmpty {
-                Text(session.meeting.location).font(.system(size: 10.5, weight: .medium)).foregroundStyle(muted).lineLimit(1).minimumScaleFactor(0.75).padding(.top, 2)
+                Text(session.meeting.location).font(.system(size: 10.5, weight: .medium)).foregroundStyle(muted).lineLimit(1).minimumScaleFactor(0.9).padding(.top, 2)
             }
             Spacer(minLength: 0)
             if isNow(session) {
@@ -878,10 +878,10 @@ struct CanvasProNextClassView: View {
                 }
                 .frame(height: 3)
                 Text("Until \(CanvasProWidgetFormat.time(session.end))")
-                    .font(.system(size: 9.5, weight: .semibold)).monospacedDigit().foregroundStyle(muted).lineLimit(1).minimumScaleFactor(0.75).padding(.top, 5)
+                    .font(.system(size: 9.5, weight: .semibold)).monospacedDigit().foregroundStyle(muted).lineLimit(1).minimumScaleFactor(0.9).padding(.top, 5)
             } else {
                 Text("\(CanvasProWidgetFormat.time(session.start)) – \(CanvasProWidgetFormat.time(session.end))")
-                    .font(.system(size: 10.5, weight: .semibold)).monospacedDigit().foregroundStyle(fg.opacity(0.85)).lineLimit(1).minimumScaleFactor(0.75)
+                    .font(.system(size: 10.5, weight: .semibold)).monospacedDigit().foregroundStyle(fg.opacity(0.85)).lineLimit(1).minimumScaleFactor(0.9)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
@@ -911,7 +911,7 @@ struct CanvasProNextClassView: View {
             }
             .frame(width: 6)
             VStack(alignment: .leading, spacing: 1) {
-                Text(item.meeting.name).font(.system(size: 11, weight: current ? .bold : .semibold)).foregroundStyle(past ? muted : fg).lineLimit(1).minimumScaleFactor(0.75)
+                Text(item.meeting.name).font(.system(size: 11, weight: current ? .bold : .semibold)).foregroundStyle(past ? muted : fg).lineLimit(1).minimumScaleFactor(0.9)
                 Text(CanvasProWidgetFormat.time(item.start)).font(.system(size: 9.5, weight: .medium)).monospacedDigit().foregroundStyle(muted).lineLimit(1)
             }
             .padding(.bottom, 7)
@@ -923,8 +923,8 @@ struct CanvasProNextClassView: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(isNow(session) ? "In class" : "\(CanvasProWidgetFormat.day(session.start, now: date)) · \(CanvasProWidgetFormat.time(session.start))")
                     .font(.system(size: 11, weight: .bold)).widgetAccentable()
-                Text(session.meeting.name).font(.system(size: 13, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.75)
-                if !session.meeting.location.isEmpty { Text(session.meeting.location).font(.system(size: 11, weight: .medium)).lineLimit(1).minimumScaleFactor(0.75) }
+                Text(session.meeting.name).font(.system(size: 13, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.9)
+                if !session.meeting.location.isEmpty { Text(session.meeting.location).font(.system(size: 11, weight: .medium)).lineLimit(1).minimumScaleFactor(0.9) }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         } else {
