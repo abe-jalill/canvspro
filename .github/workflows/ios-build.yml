@@ -69,27 +69,30 @@ jobs:
           find ios/App/build -name "*.xcent" | while read -r f; do
             echo "::notice::xcent $(basename "$f"): $(grep -c 'group.app.canvaspro.mobile' "$f") App Group match(es)"
           done
-          cd ios/App/build/Build/Products/Debug-iphonesimulator
-          missing=0
-          for target in App.app/App App.app/PlugIns/CanvasProWidgets.appex/CanvasProWidgets; do
-            bundle=$(dirname "$target")
-            # codesign prints part of this on stderr, so keep both streams.
-            signed=$(codesign -d --entitlements - "$bundle" 2>&1 || true)
-            kind=$(codesign -dv "$bundle" 2>&1 | grep -E "^Signature=" || echo "Signature=none")
-            tmp=$(mktemp)
-            xcrun segedit "$target" -extract __TEXT __entitlements "$tmp" >/dev/null 2>&1 || true
-            simulated=$(cat "$tmp" 2>/dev/null || true)
-            where=""
-            printf '%s' "$signed" | grep -q "group.app.canvaspro.mobile" && where="$where signature"
-            printf '%s' "$simulated" | grep -q "group.app.canvaspro.mobile" && where="$where binary-section"
-            if [ -n "$where" ]; then
-              echo "::notice::$bundle has the App Group ($kind; in:$where)"
-            else
-              echo "::error::$bundle is missing the App Group ($kind; signature said: $(printf '%s' "$signed" | tr '\n' ' ' | cut -c1-200))"
-              missing=1
+          # Both targets must ask for the App Group. On the simulator these
+          # "-Simulated" entitlements are the ones that count.
+          for name in App.app CanvasProWidgets.appex; do
+            f=$(find ios/App/build -name "$name-Simulated.xcent" | head -1)
+            if [ -z "$f" ] || ! grep -q "group.app.canvaspro.mobile" "$f"; then
+              echo "::error::$name does not request the App Group: the widget can't read what the app saves"
+              exit 1
             fi
           done
-          exit $missing
+          # The real test: installed in a simulator, does the app get the shared
+          # App Group folder the widget reads from?
+          UDID=$(xcrun simctl list devices available | grep -E "^ +iPhone" | head -1 | grep -oE "[0-9A-F-]{36}")
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b >/dev/null
+          xcrun simctl install "$UDID" ios/App/build/Build/Products/Debug-iphonesimulator/App.app
+          if folder=$(xcrun simctl get_app_container "$UDID" app.canvaspro.mobile group.app.canvaspro.mobile 2>&1); then
+            echo "::notice::App Group works on the simulator: $(basename "$folder")"
+            status=0
+          else
+            echo "::error::The installed app has no App Group folder: $folder"
+            status=1
+          fi
+          xcrun simctl shutdown "$UDID" || true
+          exit $status
 
       # A look at the real app: the build runs in an iPhone simulator on sample
       # data (debug-only -CanvasProDemo, no sign-in) and each tab is captured
