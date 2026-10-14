@@ -4,20 +4,21 @@ export const LEGAL_POLICY_VERSION = "2026-10-14";
 export const LEGAL_TEXT_UPDATED: string = "2026-10-14";
 
 /**
- * The seller's exact legal name (a person's full name, or the registered
- * business), which Paddle requires in the Terms and Privacy Policy. Null
- * until it is filled in; the pages then name "the independent operator".
+ * The company that sells CanvasPro, exactly as registered with Michigan.
+ * Paddle requires the seller's company name in the Terms. CanvasPro is its
+ * assumed name (DBA). Never a person's name.
  */
-export const SELLER_LEGAL_NAME: string | null = null;
-/** The seller's mailing address for the Privacy Policy, also required by Paddle. */
-// The owner chose not to publish a personal name or address. Only a business
-// name and business address (for example, an LLC's) belong in these two.
+export const SELLER_LEGAL_NAME: string | null = "Construction Safety & Managment, LLC";
+/**
+ * A business mailing address for the Privacy Policy. Optional (Paddle's
+ * domain review doesn't require one); never a home address.
+ */
 export const SELLER_ADDRESS: string | null = null;
 
-/** "Jane Doe, the independent operator of CanvasPro" (or without the name). */
+/** "Example Co, LLC, doing business as CanvasPro" (or the generic operator). */
 export function sellerIdentity(): string {
   return SELLER_LEGAL_NAME
-    ? `${SELLER_LEGAL_NAME}, the independent operator of CanvasPro`
+    ? `${SELLER_LEGAL_NAME}, doing business as CanvasPro`
     : "the independent operator of CanvasPro";
 }
 

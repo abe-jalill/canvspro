@@ -304,7 +304,9 @@ test("legal pages pass Paddle's review: merchant of record, a 14-day refund wind
   // The owner's personal name and home address are never published on the site.
   const legal = read("src/lib/legal-consent.ts");
   // Both stay null unless a business name and business address are chosen.
-  assert.match(legal, /SELLER_LEGAL_NAME: string \| null = null;/);
+  // The seller is the registered company (CanvasPro is its DBA), never a person.
+  assert.match(legal, /SELLER_LEGAL_NAME: string \| null = "[^"]+, LLC";/);
+  assert.match(legal, /doing business as CanvasPro/);
   assert.match(legal, /SELLER_ADDRESS: string \| null = null;/);
   assert.match(terms, /\$\{sellerIdentity\(\)\}/);
   assert.match(privacy, /\$\{sellerIdentity\(\)\}[\s\S]{0,80}SELLER_ADDRESS/);
