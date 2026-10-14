@@ -13,18 +13,18 @@ import "./home.css";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "CanvasPro | Less Planning. More Doing." },
+      { title: "CanvasPro — A Better Canvas Dashboard for Students" },
       {
         name: "description",
         content:
-          "Stay on top of assignments, manage deadlines, and organize your college workload with CanvasPro. Spend less time planning and more time getting things done.",
+          "Free Canvas LMS dashboard for students. Track assignments, check grades, manage deadlines, and calculate what-if grades—all in one place with CanvasPro.",
       },
       { property: "og:type", content: "website" },
-      { property: "og:title", content: "CanvasPro | Less Planning. More Doing." },
+      { property: "og:title", content: "CanvasPro — A Better Canvas Dashboard for Students" },
       {
         property: "og:description",
         content:
-          "Stay on top of assignments, manage deadlines, and organize your college workload with CanvasPro. Spend less time planning and more time getting things done.",
+          "Free Canvas LMS dashboard for students. Track assignments, check grades, manage deadlines, and calculate what-if grades—all in one place with CanvasPro.",
       },
       { property: "og:url", content: "https://canvaspro.app/" },
       {
