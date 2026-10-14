@@ -24,6 +24,12 @@ export function LegalPage({
           <Link to="/privacy" className="underline underline-offset-4">
             Privacy Policy
           </Link>
+          <Link to="/refund-policy" className="underline underline-offset-4">
+            Refund Policy
+          </Link>
+          <Link to="/pricing" className="underline underline-offset-4">
+            Pricing
+          </Link>
           <a href="mailto:support@canvaspro.app" className="underline underline-offset-4">
             Contact support
           </a>

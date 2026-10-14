@@ -22,7 +22,7 @@ const FAQ = [
   },
   {
     q: "What score do I need on my final to pass?",
-    a: "Leave the final exam score blank, enter the grade you want in \"What do I need on the final?\", and the calculator shows the percentage you need on the remaining work.",
+    a: 'Leave the final exam score blank, enter the grade you want in "What do I need on the final?", and the calculator shows the percentage you need on the remaining work.',
   },
 ];
 
@@ -341,7 +341,7 @@ function CalculatorPage() {
           <p className="text-sm text-muted-foreground">
             CanvasPro pulls your real scores straight from Canvas and keeps every class, assignment,
             and announcement on one dashboard you arrange yourself — with trend arrows when a grade
-            moves. Every feature is free, with no subscription required.
+            moves. Try every feature free for 14 days, then $5.00 a month.
           </p>
           <div className="flex flex-wrap gap-3">
             <Link

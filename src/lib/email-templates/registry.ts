@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 import { template as welcomeTemplate } from "./welcome";
+import { template as billingReminderTemplate } from "./billing-reminder";
 
 export interface TemplateEntry {
   component: ComponentType<any>;
@@ -20,4 +21,5 @@ export interface TemplateEntry {
  */
 export const TEMPLATES: Record<string, TemplateEntry> = {
   welcome: welcomeTemplate,
+  "billing-reminder": billingReminderTemplate,
 };

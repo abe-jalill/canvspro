@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { LegalPage } from "@/components/legal-page";
+import { PLANS, REFUND_WINDOW_DAYS, TRIAL_DAYS } from "@/lib/billing";
+import { sellerIdentity } from "@/lib/legal-consent";
 
 export const Route = createFileRoute("/terms")({
   head: () => ({
@@ -20,7 +22,7 @@ const sections = [
   {
     title: "1. Who we are and what you accept",
     paragraphs: [
-      "These Terms of Use are an agreement between you and the independent operator of CanvasPro (“CanvasPro,” “we,” “us”), reachable at support@canvaspro.app. They govern canvaspro.app, the installed web app, the mobile app, and related account services. By selecting the agreement checkbox when creating an account or signing in, or by selecting “I agree” when we present updated Terms, you accept these Terms and acknowledge the data practices described in the Privacy Policy. If you do not agree, do not create an account or sign in.",
+      `These Terms of Use are an agreement between you and ${sellerIdentity()} (“CanvasPro,” “we,” “us”), reachable at support@canvaspro.app; you contract with us. They govern canvaspro.app, the installed web app, the mobile app, and related account services. By selecting the agreement checkbox when creating an account, signing in, or subscribing, or by selecting “I agree” when we present updated Terms, you accept these Terms and acknowledge the data practices described in the Privacy Policy. If you do not agree, do not create an account or sign in.`,
       "PLEASE READ SECTION 13 CAREFULLY. IT REQUIRES MOST DISPUTES TO BE RESOLVED BY BINDING INDIVIDUAL ARBITRATION, NOT IN COURT, AND WAIVES CLASS ACTIONS AND JURY TRIALS. YOU CAN OPT OUT OF ARBITRATION WITHIN 30 DAYS AS SECTION 13 EXPLAINS.",
       "CanvasPro is not affiliated with, sponsored by, endorsed by, or officially connected to Instructure, Inc., Canvas LMS, or your educational institution. Canvas and Canvas LMS are their owners’ trademarks. References identify compatibility only.",
     ],
@@ -72,10 +74,16 @@ const sections = [
     ],
   },
   {
-    title: "8. Fees",
+    title: "8. Subscriptions, free trial, billing, and refunds",
     paragraphs: [
-      "CanvasPro is free. We do not offer paid plans or subscriptions, and every past subscription has ended. We will never charge you unless you separately and expressly agree to a clearly disclosed price for a future paid feature.",
-      "Any refund or cancellation right the law gives you for a past payment remains available. Contact support@canvaspro.app with questions about a past charge.",
+      `Price. CanvasPro is a paid subscription: US ${PLANS.monthly.price} per month or US ${PLANS.yearly.price} per year, plus any applicable sales tax, VAT, or similar taxes. The price, billing frequency, and taxes are shown before you buy. Without an active free trial or subscription, the service is limited to account settings, billing, and account deletion.`,
+      "Merchant of Record. Our order process is conducted by our online reseller Paddle.com. Paddle.com is the Merchant of Record for all our orders. Paddle provides all customer service inquiries and handles returns. Your purchase is also governed by Paddle’s Buyer Terms at paddle.com/legal/checkout-buyer-terms, and payments are processed by Paddle, not by CanvasPro.",
+      `Free trial. New subscribers can take one ${TRIAL_DAYS}-day free trial per person. You add a payment method to start it. Unless you cancel before the trial ends, your subscription starts automatically and you are charged the price of the plan you chose on the day the trial ends. We email you at least 7 days before that first charge. Accounts created before paid subscriptions launched receive ${TRIAL_DAYS} days of free access from launch instead of a trial; if they subscribe during those days, the first charge waits until those days end.`,
+      "Automatic renewal. Your subscription renews automatically at the end of each monthly or yearly period, and you authorize Paddle to charge your payment method for each renewal at the then-current price until you cancel. For yearly plans we email a reminder about 30 days before each renewal.",
+      "Canceling. You can cancel online at any time in Settings → Billing, or through Paddle at paddle.net. Cancellation takes effect at the end of your current trial or paid period: you keep access until then and are not charged again. Canceling does not by itself refund earlier charges.",
+      "Changing plans and prices. You can switch from monthly to yearly at any time. Paddle credits the unused part of your current month and charges the prorated difference right away; the amount is shown before you confirm. During a free trial, switching charges nothing until the trial ends. We will give you at least 30 days’ notice of a price increase before it applies to your next renewal, and you can cancel before it does.",
+      "Failed payments. If a renewal payment fails, Paddle retries it for a period and your access continues meanwhile. If the payment still cannot be collected, the subscription ends and access is limited until you subscribe again.",
+      `Refunds. You may request a refund for any reason within ${REFUND_WINDOW_DAYS} days of a charge, as explained in our Refund Policy at canvaspro.app/refund-policy. Refunds are not available for charges more than ${REFUND_WINDOW_DAYS} days old, except where the law requires otherwise. Nothing in these Terms limits rights you have under consumer protection law.`,
     ],
   },
   {
@@ -103,7 +111,7 @@ const sections = [
   {
     title: "12. Suspension, closure, and deletion",
     paragraphs: [
-      "We may suspend or terminate access for material violations, security risks, legal requirements, or discontinuation of the service. Where reasonably practicable, we will provide notice and an opportunity to address the issue; urgent security or legal circumstances may require immediate action. Contact support to ask us to review a restriction.",
+      "We may suspend or terminate access for material violations, non-payment, fraud, security risks, legal requirements, or discontinuation of the service. Where reasonably practicable, we will provide notice and an opportunity to address the issue; urgent security or legal circumstances may require immediate action. Contact support to ask us to review a restriction.",
       "You may stop using CanvasPro, revoke Canvas access, or delete your account in Settings. Deletion and retention are addressed in the Privacy Policy. Keep independent copies of information you need. Provisions concerning intellectual property, liability, disputes, and obligations intended to survive remain effective after account closure, subject to applicable law.",
     ],
   },

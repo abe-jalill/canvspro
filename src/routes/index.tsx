@@ -17,14 +17,14 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "See every Canvas assignment, grade and deadline in one clean dashboard, sorted by what's due first. Free for students.",
+          "See every Canvas assignment, grade and deadline in one clean dashboard, sorted by what's due first. Try it free for 14 days.",
       },
       { property: "og:type", content: "website" },
       { property: "og:title", content: "CanvasPro — A Better Canvas Dashboard for Students" },
       {
         property: "og:description",
         content:
-          "See every Canvas assignment, grade and deadline in one clean dashboard, sorted by what's due first. Free for students.",
+          "See every Canvas assignment, grade and deadline in one clean dashboard, sorted by what's due first. Try it free for 14 days.",
       },
       { property: "og:url", content: "https://canvaspro.app/" },
       {
@@ -65,7 +65,12 @@ export const Route = createFileRoute("/")({
           url: "https://canvaspro.app/",
           description:
             "A student dashboard for Canvas LMS with assignments, grades, schedules, Study Sessions, and a daily plan.",
-          offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+          offers: {
+            "@type": "Offer",
+            price: "5.00",
+            priceCurrency: "USD",
+            description: "14-day free trial, then $5.00 per month or $50.00 per year",
+          },
         }),
       },
     ],
@@ -188,8 +193,9 @@ const FAQ = [
       "Your Canvas courses, assignments, grades, announcements, and deadlines appear in one place, with a clear next step.",
   },
   {
-    question: "Is CanvasPro free?",
-    answer: "Yes. 100% free, no payment method required.",
+    question: "How much does CanvasPro cost?",
+    answer:
+      "Start with a 14-day free trial, then $5.00 a month or $50.00 a year. Cancel anytime in Settings before your trial ends and you won't be charged.",
   },
   {
     question: "How do I connect my Canvas account?",
@@ -417,7 +423,7 @@ function LandingPage() {
   }, []);
 
   const cta = isLoggedIn ? "/dashboard" : "/signup";
-  const ctaLabel = isLoggedIn ? "Open your dashboard" : "Get started free";
+  const ctaLabel = isLoggedIn ? "Open your dashboard" : "Start free trial";
 
   return (
     <div className="hp hp-home" ref={pageRef}>
@@ -452,7 +458,7 @@ function LandingPage() {
           <div className="hp-hero__side">
             <p className="hp-lede hp-rise">
               CanvasPro reads your courses and puts your assignments, grades and announcements on
-              one calm page. Free for students.
+              one calm page. Free for 14 days.
             </p>
             <div className="hp-actions hp-rise">
               <Link to={cta} preload="intent" className="hp-button">
@@ -550,9 +556,9 @@ function LandingPage() {
           </div>
           <div className="hp-setup" data-breathe style={{ "--d": "0.12s" } as CSSProperties}>
             <p>
-              Make a free account. In Canvas, open Account, then Settings, and create a new access
-              token. Paste it into CanvasPro, and your classes, grades and deadlines show up right
-              away.
+              Create an account and start your free trial. In Canvas, open Account, then Settings,
+              and create a new access token. Paste it into CanvasPro, and your classes, grades and
+              deadlines show up right away.
             </p>
             <p className="hp-muted">
               You never type your school password into CanvasPro. The token only lets it read your
@@ -593,7 +599,12 @@ function LandingPage() {
             <Link to={cta} preload="intent" className="hp-button">
               {ctaLabel}
             </Link>
-            <span className="hp-muted">Free for students. No card needed.</span>
+            <span className="hp-muted">
+              14 days free, then $5.00/month.{" "}
+              <Link to="/pricing" className="hp-link">
+                See pricing
+              </Link>
+            </span>
           </div>
         </section>
       </main>

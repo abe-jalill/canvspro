@@ -232,6 +232,16 @@ async function credsForRequest(req: Request, includeHidden = false): Promise<Cre
     adminHeaders.Authorization = `Bearer ${serviceKey}`;
   }
 
+  // Paid CanvasPro: Canvas data needs a trial, a subscription or launch free
+  // days (has_canvaspro_access, drizzle migration 0013). If the check itself
+  // can't run, Canvas keeps working rather than locking every student out.
+  const accessRes = await fetch(`${supabaseUrl}/rest/v1/rpc/has_canvaspro_access`, {
+    method: "POST",
+    headers: { ...adminHeaders, "Content-Type": "application/json" },
+    body: JSON.stringify({ user_uuid: user.id }),
+  });
+  if (accessRes.ok && (await accessRes.json()) === false) throw new Error("SUBSCRIPTION_REQUIRED");
+
   const res = await fetch(
     `${supabaseUrl}/rest/v1/user_settings?select=canvas_api_key,canvas_domain` +
       `&user_id=eq.${encodeURIComponent(user.id)}&limit=1`,
@@ -359,7 +369,10 @@ async function handleAssignments(creds: Creds) {
             due_at: a.due_at,
             // The assignment's own "Available from", else the date its module opens.
             unlock_at:
-              a.unlock_at ?? a.lock_info?.unlock_at ?? a.lock_info?.context_module?.unlock_at ?? null,
+              a.unlock_at ??
+              a.lock_info?.unlock_at ??
+              a.lock_info?.context_module?.unlock_at ??
+              null,
             html_url: a.html_url,
             points_possible: a.points_possible,
             course_id: a.course_id,
@@ -695,6 +708,8 @@ Deno.serve(async (req) => {
     const status =
       message === "NOT_AUTHENTICATED"
         ? 401
+        : message === "SUBSCRIPTION_REQUIRED"
+          ? 402
         : message === "NO_CANVAS_KEY" || message === "NO_CANVAS_DOMAIN"
           ? 428
           : message === "INVALID_DOMAIN" ||

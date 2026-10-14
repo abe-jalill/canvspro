@@ -26,6 +26,12 @@ export function SiteFooter() {
           <Link to="/terms" className="transition-colors hover:text-foreground">
             Terms of Use
           </Link>
+          <Link to="/refund-policy" className="transition-colors hover:text-foreground">
+            Refund Policy
+          </Link>
+          <Link to="/pricing" className="transition-colors hover:text-foreground">
+            Pricing
+          </Link>
           <a
             href="mailto:support@canvaspro.app?subject=Accessibility%20help"
             className="transition-colors hover:text-foreground"

@@ -194,8 +194,7 @@ function GuidePage() {
           CanvasPro reads the same Canvas data through your own access key and gives you a dashboard
           you actually arrange: drag widgets for grades, assignments, announcements, class calendar,
           and focus windows, hide the ones you don't need, rename every class once, and get
-          reminders on your schedule. Every CanvasPro feature is free, with no subscription
-          required.
+          reminders on your schedule. Try every feature free for 14 days, then $5.00 a month.
         </p>
         <div className="flex flex-wrap gap-3">
           <Link

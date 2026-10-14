@@ -3,6 +3,7 @@ import {
   Bell,
   Bot,
   ChevronRight,
+  CreditCard,
   GraduationCap,
   Link2,
   Megaphone,
@@ -73,6 +74,12 @@ const sections = [
     description: "Connect Claude, ChatGPT, or another assistant.",
     to: "/settings/ai-assistant" as const,
     icon: Bot,
+  },
+  {
+    title: "Billing",
+    description: "Your plan, payments, receipts and cancellation.",
+    to: "/settings/billing" as const,
+    icon: CreditCard,
   },
   {
     title: "Account",

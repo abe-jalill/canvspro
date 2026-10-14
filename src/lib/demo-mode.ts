@@ -324,6 +324,31 @@ function sampleCanvas(resource: string): Response {
   return json(bundle.assignments);
 }
 
+/**
+ * `?billing=none|trial|grace|active` shows the paywall, the trial banner, the
+ * launch free days or a paid plan; without it billing is off (null).
+ */
+function demoBilling() {
+  const mode = sessionStorage.getItem(`${FLAG}-billing`);
+  if (!mode) return null;
+  const now = Date.now();
+  const days = (n: number) => new Date(now + n * 86_400_000).toISOString();
+  return {
+    access: mode !== "none",
+    now: days(0),
+    enforce_from: days(-1),
+    grace_ends_at: mode === "grace" ? days(9) : null,
+    status: mode === "trial" ? "trialing" : mode === "active" ? "active" : null,
+    plan: mode === "trial" || mode === "active" ? "monthly" : null,
+    trial_ends_at: mode === "trial" ? days(2) : null,
+    current_period_end: mode === "active" ? days(20) : mode === "trial" ? days(2) : null,
+    cancel_at: null,
+    trial_used: mode === "active",
+    complimentary: false,
+    has_subscription: mode === "trial" || mode === "active",
+  };
+}
+
 function answer(
   url: URL,
   method: string,
@@ -339,6 +364,7 @@ function answer(
   if (path.startsWith("/functions/v1/")) return json({});
   if (path.startsWith("/rest/v1/rpc/")) {
     const name = path.slice("/rest/v1/rpc/".length);
+    if (name === "my_billing_status") return json(demoBilling());
     return json(name === "has_canvas_key" ? true : null);
   }
   if (path.startsWith("/rest/v1/")) {
@@ -369,6 +395,10 @@ function installDemoMode() {
   if (sessionStorage.getItem(FLAG) !== "1") return;
 
   // `studyMode=total|per|pomodoro` sets the Study session time choice for a capture.
+  const billing = params.get("billing");
+  if (billing === "off") sessionStorage.removeItem(`${FLAG}-billing`);
+  else if (billing) sessionStorage.setItem(`${FLAG}-billing`, billing);
+
   const studyMode = params.get("studyMode");
   if (studyMode === "total" || studyMode === "per" || studyMode === "pomodoro") {
     localStorage.setItem("canvas:study-time-mode", studyMode);

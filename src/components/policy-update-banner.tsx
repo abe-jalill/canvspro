@@ -60,8 +60,9 @@ export function PolicyUpdateBanner() {
             <Link to="/privacy" className="text-foreground underline underline-offset-4">
               Privacy Policy
             </Link>
-            . The Terms now use individual arbitration and a class-action waiver, which you can opt
-            out of within 30 days of agreeing.
+            . CanvasPro is becoming a paid subscription with a free trial, sold through Paddle; the
+            Terms now cover billing, renewals, cancellation and refunds, and still use individual
+            arbitration, which you can opt out of within 30 days of agreeing.
           </p>
           {error && <p className="mt-1 text-destructive">{error}</p>}
         </div>
