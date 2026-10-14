@@ -85,6 +85,15 @@ export function DashboardHero() {
     (emailPrefix ? emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1) : null);
   const greeting =
     now.getHours() < 12 ? "Good morning" : now.getHours() < 18 ? "Good afternoon" : "Good evening";
+  // Longer greetings ("Good afternoon, Alexandra.") step down in size so they
+  // stay on one line instead of wrapping.
+  const greetingLength = greeting.length + (displayName ? displayName.length + 3 : 1);
+  const greetingSize =
+    greetingLength <= 22
+      ? "text-[clamp(2rem,4vw,3.5rem)]"
+      : greetingLength <= 27
+        ? "text-[clamp(1.75rem,3.4vw,3rem)]"
+        : "text-[clamp(1.5rem,2.8vw,2.5rem)]";
   const date = now.toLocaleDateString(undefined, {
     weekday: "long",
     month: "long",
@@ -138,7 +147,9 @@ export function DashboardHero() {
             </div>
 
             <div className="dashboard-hero__greeting-wrap relative my-8 max-w-2xl">
-              <h1 className="dashboard-hero__greeting relative text-balance text-[clamp(2rem,4vw,3.5rem)] font-medium leading-[1.04] tracking-[-0.035em] text-foreground">
+              <h1
+                className={`dashboard-hero__greeting relative text-balance ${greetingSize} font-medium leading-[1.04] tracking-[-0.035em] text-foreground`}
+              >
                 {greeting}
                 {displayName ? `, ${displayName}.` : "."}
               </h1>
