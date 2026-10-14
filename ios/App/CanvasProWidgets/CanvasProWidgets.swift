@@ -57,18 +57,17 @@ struct CanvasProStudyLiveActivity: Widget {
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(CanvasProStudyLockView.caption(context.state))
-                            .font(.system(size: 10, weight: .semibold)).tracking(1).foregroundStyle(.white.opacity(0.6)).lineLimit(1)
-                        Text(context.state.title).font(.system(size: 14, weight: .semibold)).foregroundStyle(.white).lineLimit(1)
-                    }
-                    .padding(.leading, 6)
+                    CanvasProLogoMark(size: 34).padding(.leading, 4)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    CanvasProStudyClock(state: context.state, size: 24).padding(.trailing, 6)
+                    CanvasProIslandBadge(symbol: context.state.finished ? "checkmark" : context.state.running ? "timer" : "pause.fill")
+                        .padding(.trailing, 4)
+                }
+                DynamicIslandExpandedRegion(.center) {
+                    CanvasProIslandHeading(caption: CanvasProStudyLockView.caption(context.state), title: context.state.title)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    CanvasProStudyBar(state: context.state).padding(.horizontal, 6).padding(.top, 6)
+                    CanvasProStudyIslandBottom(state: context.state).padding(.top, 4)
                 }
             } compactLeading: {
                 Image(systemName: context.state.finished ? "checkmark" : context.state.running ? "timer" : "pause.fill")
@@ -95,29 +94,19 @@ struct CanvasProTonightLiveActivity: Widget {
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("DUE TONIGHT").font(.system(size: 10, weight: .semibold)).tracking(1).foregroundStyle(.white.opacity(0.6))
-                        Text(context.state.remaining == 0 ? "All done" : "\(context.state.remaining) left")
-                            .font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
-                    }
-                    .padding(.leading, 6)
+                    CanvasProLogoMark(size: 34).padding(.leading, 4)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    if let next = context.state.items.first?.due {
-                        CanvasProTonightCountdown(due: next, size: 20).frame(maxWidth: 96, alignment: .trailing).padding(.trailing, 6)
-                    }
+                    CanvasProIslandBadge(count: context.state.remaining).padding(.trailing, 4)
+                }
+                DynamicIslandExpandedRegion(.center) {
+                    CanvasProIslandHeading(
+                        caption: "DUE TONIGHT",
+                        title: context.state.remaining == 0 ? "All done" : "\(context.state.remaining) left · \(context.state.done) done"
+                    )
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    VStack(alignment: .leading, spacing: 5) {
-                        ForEach(context.state.items.prefix(2), id: \.self) { item in
-                            HStack {
-                                Text(item.name).font(.system(size: 13, weight: .medium)).foregroundStyle(.white).lineLimit(1)
-                                Spacer(minLength: 6)
-                                Text(CanvasProWidgetFormat.time(item.due)).font(.system(size: 12)).monospacedDigit().foregroundStyle(.white.opacity(0.65))
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 6).padding(.top, 4)
+                    CanvasProTonightIslandBottom(state: context.state).padding(.top, 4)
                 }
             } compactLeading: {
                 Image(systemName: "checklist").font(.system(size: 13, weight: .semibold)).foregroundStyle(.white)
@@ -236,7 +225,7 @@ struct CanvasProGradesWidget: Widget {
         }
         .configurationDisplayName("Grades")
         .description("Your average and each class at a glance. Hidden while your iPhone is locked.")
-        .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular, .accessoryInline])
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryCircular, .accessoryRectangular, .accessoryInline])
     }
 }
 

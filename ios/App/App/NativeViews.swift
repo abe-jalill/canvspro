@@ -300,7 +300,10 @@ private struct NativeWidgetGallery: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 18) {
-                if page == "large" {
+                if page == "grades" {
+                    home(width: 364, height: 382) { CanvasProGradesView(snapshot: snapshot, family: .systemLarge) }
+                    home(width: 364, height: 170) { CanvasProGradesView(snapshot: snapshot, family: .systemMedium) }
+                } else if page == "large" {
                     home(width: 364, height: 382) { CanvasProDueSoonView(snapshot: snapshot, date: now, family: .systemLarge, range: .week) }
                     lockScreen
                 } else if page == "live" {
@@ -361,22 +364,32 @@ private struct NativeWidgetGallery: View {
             }
             .frame(width: 250, height: 37)
             .background(Color.black, in: Capsule())
-            // Expanded.
-            VStack(spacing: 8) {
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(CanvasProStudyLockView.caption(study)).font(.system(size: 10, weight: .semibold)).tracking(1).foregroundStyle(.white.opacity(0.6)).lineLimit(1)
-                        Text(study.title).font(.system(size: 14, weight: .semibold)).foregroundStyle(.white)
-                    }
-                    Spacer()
-                    CanvasProStudyClock(state: study, size: 24)
-                }
-                CanvasProStudyBar(state: study)
-            }
-            .padding(.horizontal, 22).padding(.vertical, 18)
-            .frame(width: 364)
-            .background(Color.black, in: RoundedRectangle(cornerRadius: 40, style: .continuous))
+            // Expanded (long press): the same region views the island uses.
+            expandedIsland(
+                badge: CanvasProIslandBadge(symbol: "timer"),
+                heading: CanvasProIslandHeading(caption: CanvasProStudyLockView.caption(study), title: study.title),
+                bottom: CanvasProStudyIslandBottom(state: study)
+            )
+            expandedIsland(
+                badge: CanvasProIslandBadge(count: tonight.remaining),
+                heading: CanvasProIslandHeading(caption: "DUE TONIGHT", title: "\(tonight.remaining) left · \(tonight.done) done"),
+                bottom: CanvasProTonightIslandBottom(state: tonight)
+            )
         }
+    }
+
+    private func expandedIsland<Badge: View, Heading: View, Bottom: View>(badge: Badge, heading: Heading, bottom: Bottom) -> some View {
+        VStack(spacing: 10) {
+            HStack(alignment: .center, spacing: 10) {
+                CanvasProLogoMark(size: 34)
+                heading
+                badge
+            }
+            bottom
+        }
+        .padding(.horizontal, 20).padding(.vertical, 16)
+        .frame(width: 364)
+        .background(Color.black, in: RoundedRectangle(cornerRadius: 40, style: .continuous))
     }
 
     /// The lock screen draws widgets in white over the wallpaper.

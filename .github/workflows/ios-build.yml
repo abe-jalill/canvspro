@@ -129,7 +129,7 @@ jobs:
           done
           # Every widget at its real size on sample data (debug-only -CanvasProDemoWidgets).
           for mode in dark light; do
-            for page in home large classes live; do
+            for page in home large classes grades live; do
               xcrun simctl terminate "$UDID" "$BUNDLE" 2>/dev/null || true
               xcrun simctl launch "$UDID" "$BUNDLE" -CanvasProDemo YES -CanvasProColorScheme "$mode" -CanvasProDemoWidgets "$page"
               sleep 8

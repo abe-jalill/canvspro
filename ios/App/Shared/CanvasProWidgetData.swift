@@ -488,7 +488,7 @@ struct CanvasProDueSoonView: View {
         }
     }
 
-    private func list(limit: Int) -> some View {
+    private func list(limit: Int, gap: CGFloat = 6) -> some View {
         let items = Array(work.remaining.prefix(limit))
         return VStack(alignment: .leading, spacing: 0) {
             if items.isEmpty {
@@ -500,12 +500,12 @@ struct CanvasProDueSoonView: View {
                 ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                     row(item)
                     if index < items.count - 1 {
-                        Rectangle().fill(faint).frame(height: 0.5).padding(.vertical, 6).padding(.leading, 23)
+                        Rectangle().fill(faint).frame(height: 0.5).padding(.vertical, gap).padding(.leading, 23)
                     }
                 }
                 if work.remaining.count > limit {
-                    Text("+\(work.remaining.count - limit) more").font(.system(size: 9.5, weight: .semibold)).foregroundStyle(muted)
-                        .padding(.top, 6).padding(.leading, 23)
+                    Text("+\(work.remaining.count - limit) more").font(.system(size: 10, weight: .semibold)).foregroundStyle(muted)
+                        .padding(.top, gap).padding(.leading, 23)
                 }
                 Spacer(minLength: 0)
             }
@@ -569,7 +569,8 @@ struct CanvasProDueSoonView: View {
                     Text(doneLine).font(.system(size: 9.5, weight: .medium)).foregroundStyle(muted).lineLimit(1).minimumScaleFactor(0.9)
                 }
                 .frame(width: 74)
-                list(limit: 3)
+                // Two rows with room to breathe; the rest is "+N more".
+                list(limit: 2, gap: 9)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -596,7 +597,7 @@ struct CanvasProDueSoonView: View {
             }
             weekStrip
             Rectangle().fill(faint).frame(height: 0.5)
-            list(limit: 4)
+            list(limit: 4, gap: 7)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
@@ -683,6 +684,7 @@ struct CanvasProGradesView: View {
             case .accessoryRectangular: rectangular
             case .accessoryInline: inline
             case .systemSmall: small
+            case .systemLarge: large
             default: medium
             }
         }
@@ -747,6 +749,41 @@ struct CanvasProGradesView: View {
                 Spacer(minLength: 0)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    /// Every class, under the average. Seven fit; beyond that the last line
+    /// says how many more there are.
+    private var large: some View {
+        let courses = snapshot.courses
+        let fits = 7
+        let shown = courses.count > fits ? Array(courses.prefix(fits - 1)) : courses
+        return VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .center, spacing: 16) {
+                gauge(size: 84, valueSize: 19)
+                VStack(alignment: .leading, spacing: 4) {
+                    CanvasProCaption(text: "AVERAGE", color: muted)
+                    Text(hidden ? "Hidden" : average.map { "\(CanvasProWidgetFormat.letter($0)) overall" } ?? "No grades yet")
+                        .font(.system(size: 18, weight: .bold)).foregroundStyle(fg)
+                        .lineLimit(1).minimumScaleFactor(0.9)
+                        .privacySensitive()
+                    Text(classCount).font(.system(size: 11, weight: .semibold)).foregroundStyle(muted)
+                }
+                Spacer(minLength: 0)
+            }
+            Rectangle().fill(faint).frame(height: 0.5)
+            VStack(alignment: .leading, spacing: 10) {
+                CanvasProCaption(text: "ALL CLASSES", color: muted)
+                if courses.isEmpty {
+                    Text("No classes yet").font(.system(size: 12, weight: .semibold)).foregroundStyle(muted)
+                }
+                ForEach(shown) { course in courseRow(course) }
+                if courses.count > shown.count {
+                    Text("+\(courses.count - shown.count) more").font(.system(size: 10, weight: .semibold)).foregroundStyle(muted)
+                }
+            }
+            Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
@@ -1011,6 +1048,9 @@ extension CanvasProWidgetSnapshot {
                 Course(id: 2, name: "College Writing", score: 89.1, letter: "B+"),
                 Course(id: 3, name: "Calculus II", score: 82.4, letter: "B−"),
                 Course(id: 4, name: "Fundamentals of Engineering Design Projects", score: 91.6, letter: "A−"),
+                Course(id: 5, name: "Physics Lab", score: 82.8, letter: "B"),
+                Course(id: 6, name: "Graphics Lab", score: 92.5, letter: "A−"),
+                Course(id: 7, name: "Modern Texts", score: 90.9, letter: "A−"),
             ],
             hideGrades: false
         )
@@ -1076,21 +1116,23 @@ enum CanvasProActivityFormat {
 struct CanvasProStudyClock: View {
     let state: CanvasProStudyActivity.ContentState
     var size: CGFloat = 30
+    var weight: Font.Weight = .light
+    var alignment: TextAlignment = .trailing
 
     var body: some View {
         Group {
             if state.finished {
-                Image(systemName: "checkmark").font(.system(size: size * 0.62, weight: .light))
+                Image(systemName: "checkmark").font(.system(size: size * 0.62, weight: weight))
             } else if state.running && state.blockEnd > state.blockStart {
                 Text(timerInterval: state.blockStart...state.blockEnd, countsDown: true)
-                    .font(.system(size: size, weight: .light)).monospacedDigit()
+                    .font(.system(size: size, weight: weight)).monospacedDigit()
             } else {
                 Text(CanvasProActivityFormat.clock(state.remaining))
-                    .font(.system(size: size, weight: .light)).monospacedDigit()
+                    .font(.system(size: size, weight: weight)).monospacedDigit()
             }
         }
         .foregroundStyle(.white)
-        .multilineTextAlignment(.trailing)
+        .multilineTextAlignment(alignment)
         .lineLimit(1)
     }
 }
@@ -1166,12 +1208,14 @@ struct CanvasProStudyLockView: View {
 struct CanvasProTonightCountdown: View {
     let due: Date
     var size: CGFloat = 13
+    var weight: Font.Weight = .light
+    var alignment: TextAlignment = .trailing
 
     var body: some View {
         Text(timerInterval: min(Date(), due)...due, countsDown: true)
-            .font(.system(size: size, weight: .light)).monospacedDigit()
+            .font(.system(size: size, weight: weight)).monospacedDigit()
             .foregroundStyle(.white)
-            .multilineTextAlignment(.trailing)
+            .multilineTextAlignment(alignment)
             .lineLimit(1)
     }
 }
@@ -1211,6 +1255,130 @@ struct CanvasProTonightLockView: View {
             }
         }
         .padding(16)
+    }
+}
+
+// MARK: - Dynamic Island, expanded
+
+/// The CanvasPro mark (the app icon's three bars in a ring), drawn in SwiftUI
+/// so the widget extension needs no image asset.
+struct CanvasProLogoMark: View {
+    var size: CGFloat = 34
+    static let mint = Color(red: 0.49, green: 0.84, blue: 0.65)
+    static let teal = Color(red: 0.30, green: 0.72, blue: 0.70)
+    private let heights: [CGFloat] = [0.32, 0.70, 0.51]
+
+    var body: some View {
+        ZStack {
+            Circle().fill(Color(red: 0, green: 0.184, blue: 0.125))
+            Circle().stroke(
+                AngularGradient(colors: [Self.mint, Self.teal, Self.mint], center: .center),
+                lineWidth: size * 0.05
+            )
+            HStack(alignment: .bottom, spacing: size * 0.07) {
+                ForEach(0..<3, id: \.self) { index in
+                    RoundedRectangle(cornerRadius: size * 0.04, style: .continuous)
+                        .fill(index == 1 ? Self.mint : Color.white)
+                        .frame(width: size * 0.13, height: size * heights[index] * 0.85)
+                }
+            }
+            .rotationEffect(.degrees(-16))
+            .offset(y: size * 0.02)
+        }
+        .frame(width: size, height: size)
+        .accessibilityHidden(true)
+    }
+}
+
+/// Top of the expanded island: what's going on, bold and centred.
+struct CanvasProIslandHeading: View {
+    let caption: String
+    let title: String
+
+    var body: some View {
+        VStack(spacing: 2) {
+            Text(caption)
+                .font(.system(size: 10, weight: .heavy)).tracking(1.2)
+                .foregroundStyle(CanvasProLogoMark.mint)
+                .lineLimit(1).minimumScaleFactor(0.8)
+            Text(title)
+                .font(.system(size: 16, weight: .bold))
+                .foregroundStyle(.white)
+                .lineLimit(1).minimumScaleFactor(0.8)
+        }
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: .infinity)
+    }
+}
+
+/// A round badge on the island's right: a status symbol or a count.
+struct CanvasProIslandBadge: View {
+    var symbol: String? = nil
+    var count: Int? = nil
+
+    var body: some View {
+        ZStack {
+            Circle().fill(Color.white.opacity(0.14))
+            if let symbol {
+                Image(systemName: symbol).font(.system(size: 14, weight: .bold))
+            } else if let count {
+                Text("\(count)").font(.system(size: 16, weight: .heavy)).monospacedDigit()
+            }
+        }
+        .foregroundStyle(.white)
+        .frame(width: 34, height: 34)
+    }
+}
+
+/// Bottom of the study island: the big countdown, centred, over the block bar.
+struct CanvasProStudyIslandBottom: View {
+    let state: CanvasProStudyActivity.ContentState
+
+    var body: some View {
+        VStack(spacing: 8) {
+            CanvasProStudyClock(state: state, size: 34, weight: .bold, alignment: .center)
+                .frame(maxWidth: .infinity)
+            CanvasProStudyBar(state: state).padding(.horizontal, 6)
+            if !state.detail.isEmpty {
+                Text(state.detail)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.65))
+                    .lineLimit(1).minimumScaleFactor(0.9)
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+/// Bottom of the tonight island: what's left, centred, and the next deadline.
+struct CanvasProTonightIslandBottom: View {
+    let state: CanvasProTonightActivity.ContentState
+
+    var body: some View {
+        VStack(spacing: 5) {
+            if state.items.isEmpty {
+                Text("Everything due tonight is done.")
+                    .font(.system(size: 13, weight: .bold)).foregroundStyle(.white)
+            } else {
+                ForEach(state.items.prefix(2), id: \.self) { item in
+                    Text("\(item.name) · \(CanvasProWidgetFormat.time(item.due))")
+                        .font(.system(size: 13, weight: .bold)).monospacedDigit()
+                        .foregroundStyle(.white)
+                        .lineLimit(1).minimumScaleFactor(0.85)
+                }
+                if let next = state.items.first?.due {
+                    HStack(spacing: 4) {
+                        Text("Next due in").font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.65))
+                        CanvasProTonightCountdown(due: next, size: 11, weight: .bold, alignment: .leading)
+                            .fixedSize()
+                    }
+                    .padding(.top, 2)
+                }
+            }
+        }
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: .infinity)
     }
 }
 
