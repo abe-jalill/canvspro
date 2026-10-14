@@ -15,18 +15,18 @@ import "./home.css";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "CanvasPro | Less Planning. More Doing." },
+      { title: "CanvasPro — A Better Canvas Dashboard for Students" },
       {
         name: "description",
         content:
-          "Stay on top of assignments, manage deadlines, and organize your college workload with CanvasPro. Spend less time planning and more time getting things done.",
+          "See every Canvas assignment, grade and deadline in one clean dashboard, sorted by what's due first. Free for students.",
       },
       { property: "og:type", content: "website" },
-      { property: "og:title", content: "CanvasPro | Less Planning. More Doing." },
+      { property: "og:title", content: "CanvasPro — A Better Canvas Dashboard for Students" },
       {
         property: "og:description",
         content:
-          "Stay on top of assignments, manage deadlines, and organize your college workload with CanvasPro. Spend less time planning and more time getting things done.",
+          "See every Canvas assignment, grade and deadline in one clean dashboard, sorted by what's due first. Free for students.",
       },
       { property: "og:url", content: "https://canvaspro.app/" },
       {
@@ -537,6 +537,13 @@ function LandingPage() {
         <section className="hp-split" aria-labelledby="hp-more-title">
           <div className="hp-split__text" data-breathe>
             <h2 id="hp-more-title">Also in CanvasPro</h2>
+            <p className="hp-muted">
+              No account yet? Try the free{" "}
+              <Link to="/canvas-grade-calculator" className="hp-link">
+                Canvas grade calculator
+              </Link>{" "}
+              for what-if and weighted grades.
+            </p>
           </div>
           <dl className="hp-more" data-breathe style={{ "--d": "0.12s" } as CSSProperties}>
             {MORE.map((item) => (

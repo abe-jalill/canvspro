@@ -43,6 +43,11 @@ interface CanvasAssignment {
   due_at: string | null;
   /** Canvas "Available from": the student can't open it before this. */
   unlock_at?: string | null;
+  /** Why it's locked; a module that opens on a date leaves unlock_at empty. */
+  lock_info?: {
+    unlock_at?: string | null;
+    context_module?: { unlock_at?: string | null } | null;
+  } | null;
   html_url: string;
   points_possible: number | null;
   course_id: number;
@@ -352,7 +357,9 @@ async function handleAssignments(creds: Creds) {
             name: a.name,
             description: a.description ?? null,
             due_at: a.due_at,
-            unlock_at: a.unlock_at ?? null,
+            // The assignment's own "Available from", else the date its module opens.
+            unlock_at:
+              a.unlock_at ?? a.lock_info?.unlock_at ?? a.lock_info?.context_module?.unlock_at ?? null,
             html_url: a.html_url,
             points_possible: a.points_possible,
             course_id: a.course_id,

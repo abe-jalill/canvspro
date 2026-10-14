@@ -3,9 +3,28 @@ import { useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import "./public-pages.css";
 
-const TITLE = "Canvas Grade Calculator — Weighted Grades & Final Exam";
+const TITLE = "Canvas Grade Calculator — What-If & Weighted Grades";
 const DESCRIPTION =
-  "Free Canvas grade calculator: work out your weighted course grade and the score you need on the final exam. No login, no account.";
+  "Free Canvas grade calculator for what-if grades and weighted assignment groups. See your grade now, your total grade, and what you need on the final. No login.";
+
+const FAQ = [
+  {
+    q: "How do I use what-if grades in Canvas?",
+    a: "On your course's Grades page, click the score cell of an assignment and type a hypothetical score. Canvas recalculates your total, but only you see it and it doesn't change your real grade. This calculator does the same thing for every group at once, without opening Canvas.",
+  },
+  {
+    q: "How are weighted grades calculated in Canvas?",
+    a: "Each assignment group is averaged on its own, multiplied by its weight, and the results are added up. If your course uses weights, enter each group's weight and average above to get the same number Canvas shows.",
+  },
+  {
+    q: "Why is my Canvas grade different from what I calculated?",
+    a: "Usually because of ungraded work, dropped scores, excused assignments, or grades your instructor hasn't posted yet. Check whether Canvas is showing your current grade (graded work only) or your total grade (ungraded work counted as zero).",
+  },
+  {
+    q: "What score do I need on my final to pass?",
+    a: "Leave the final exam score blank, enter the grade you want in \"What do I need on the final?\", and the calculator shows the percentage you need on the remaining work.",
+  },
+];
 
 export const Route = createFileRoute("/canvas-grade-calculator")({
   head: () => ({
@@ -136,9 +155,9 @@ function CalculatorPage() {
           Canvas grade calculator
         </h1>
         <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground">
-          Enter each assignment group's weight and your score. Leave a score blank for work that
-          isn't graded yet — the calculator shows your grade now, your projected grade, and what you
-          need on what's left.
+          Try what-if grades for any Canvas class. Enter each assignment group's weight and your
+          score, and leave a score blank for work that isn't graded yet — the calculator shows your
+          weighted grade now, your projected grade, and what you need on what's left.
         </p>
       </header>
 
@@ -302,6 +321,18 @@ function CalculatorPage() {
               shows nothing even though scores exist. That's a posting policy, not a calculation
               error.
             </p>
+          </div>
+        </div>
+
+        <div className="glass-panel p-6">
+          <h2 className="text-xl font-semibold tracking-tight">Common questions</h2>
+          <div className="mt-4 space-y-5">
+            {FAQ.map((item) => (
+              <div key={item.q}>
+                <h3 className="text-sm font-semibold text-foreground">{item.q}</h3>
+                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{item.a}</p>
+              </div>
+            ))}
           </div>
         </div>
 
