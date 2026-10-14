@@ -64,18 +64,32 @@ jobs:
 
       - name: Check the app and the widget share the App Group
         run: |
+          # Every entitlements file Xcode generated for this build (simulator
+          # builds embed the "-Simulated" ones in the binary).
+          find ios/App/build -name "*.xcent" | while read -r f; do
+            echo "::notice::xcent $(basename "$f"): $(grep -c 'group.app.canvaspro.mobile' "$f") App Group match(es)"
+          done
           cd ios/App/build/Build/Products/Debug-iphonesimulator
+          missing=0
           for target in App.app/App App.app/PlugIns/CanvasProWidgets.appex/CanvasProWidgets; do
             bundle=$(dirname "$target")
-            signed=$(codesign -d --entitlements - --xml "$bundle" 2>/dev/null || true)
-            simulated=$(xcrun segedit "$target" -extract __TEXT __entitlements /dev/stdout 2>/dev/null || true)
-            if printf '%s%s' "$signed" "$simulated" | grep -q "group.app.canvaspro.mobile"; then
-              echo "::notice::$bundle has the App Group"
+            # codesign prints part of this on stderr, so keep both streams.
+            signed=$(codesign -d --entitlements - "$bundle" 2>&1 || true)
+            kind=$(codesign -dv "$bundle" 2>&1 | grep -E "^Signature=" || echo "Signature=none")
+            tmp=$(mktemp)
+            xcrun segedit "$target" -extract __TEXT __entitlements "$tmp" >/dev/null 2>&1 || true
+            simulated=$(cat "$tmp" 2>/dev/null || true)
+            where=""
+            printf '%s' "$signed" | grep -q "group.app.canvaspro.mobile" && where="$where signature"
+            printf '%s' "$simulated" | grep -q "group.app.canvaspro.mobile" && where="$where binary-section"
+            if [ -n "$where" ]; then
+              echo "::notice::$bundle has the App Group ($kind; in:$where)"
             else
-              echo "::error::$bundle is missing the App Group entitlement: the widget can't read what the app saves"
-              exit 1
+              echo "::error::$bundle is missing the App Group ($kind; signature said: $(printf '%s' "$signed" | tr '\n' ' ' | cut -c1-200))"
+              missing=1
             fi
           done
+          exit $missing
 
       # A look at the real app: the build runs in an iPhone simulator on sample
       # data (debug-only -CanvasProDemo, no sign-in) and each tab is captured
