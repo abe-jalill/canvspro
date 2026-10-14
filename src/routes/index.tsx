@@ -39,13 +39,6 @@ export const Route = createFileRoute("/")({
     ],
     links: [
       { rel: "canonical", href: "https://canvaspro.app/" },
-      // The homepage's one typeface.
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400..700&display=swap",
-      },
       // The first screenshot is the hero image; fetch it early.
       {
         rel: "preload",

@@ -27,12 +27,6 @@ export function AuthShell({
 }) {
   return (
     <div className="hp hp-auth">
-      {/* React hoists this into <head>; it's the homepage's one typeface. */}
-      <link
-        rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400..800&display=swap"
-        precedence="default"
-      />
       <header className="hp-bar">
         <Link to="/" className="hp-brand" aria-label="CanvasPro home">
           CanvasPro
