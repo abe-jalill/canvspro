@@ -256,7 +256,7 @@ function SignupPage() {
             onChange={(event) => setAgeConfirmed(event.target.checked)}
             className="mt-0.5 h-4 w-4 shrink-0 accent-foreground"
           />
-          <span>I confirm that I am at least {MINIMUM_ACCOUNT_AGE} years old.</span>
+          <span>I am {MINIMUM_ACCOUNT_AGE} or older.</span>
         </label>
         <LegalConsent checked={legalAccepted} onChange={setLegalAccepted} />
         {error && (
