@@ -17,14 +17,14 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Free Canvas LMS dashboard for students. Track assignments, check grades, manage deadlines, and calculate what-if grades—all in one place with CanvasPro.",
+          "See every Canvas assignment, grade and deadline in one clean dashboard, sorted by what's due first. Free for students.",
       },
       { property: "og:type", content: "website" },
       { property: "og:title", content: "CanvasPro — A Better Canvas Dashboard for Students" },
       {
         property: "og:description",
         content:
-          "Free Canvas LMS dashboard for students. Track assignments, check grades, manage deadlines, and calculate what-if grades—all in one place with CanvasPro.",
+          "See every Canvas assignment, grade and deadline in one clean dashboard, sorted by what's due first. Free for students.",
       },
       { property: "og:url", content: "https://canvaspro.app/" },
       {
