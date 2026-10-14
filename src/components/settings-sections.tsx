@@ -29,6 +29,7 @@ import {
   usernameValidationMessage,
   useUserProfile,
   useSaveUserProfile,
+  NICKNAME_MAX_LENGTH,
   type UserProfile,
 } from "@/lib/user-profile";
 import { ClassNamesSection } from "@/components/class-names-editor";
@@ -550,7 +551,7 @@ export function ProfileCard() {
           [
             ["firstName", "First name", "Your first name"],
             ["lastName", "Last name", "Your last name"],
-            ["nickname", "Nickname", "What you'd like to be called"],
+            ["nickname", "Nickname", `What you'd like to be called (up to ${NICKNAME_MAX_LENGTH} letters)`],
             ["school", "School", "e.g. Lawrence Technological University"],
             ["major", "Major", "e.g. Biomedical Engineering"],
             ["classOf", "Class of", "e.g. 2028"],
@@ -565,6 +566,7 @@ export function ProfileCard() {
               value={form[key]}
               onChange={(e) => set(key, e.target.value)}
               placeholder={isLoading ? "Loading…" : placeholder}
+              maxLength={key === "nickname" ? NICKNAME_MAX_LENGTH : undefined}
               autoComplete="off"
               className="glass-inset min-h-11 w-full rounded-xl bg-transparent px-4 text-base text-foreground outline-none placeholder:text-muted-foreground/60 focus:ring-1 focus:ring-foreground/20"
             />

@@ -18,6 +18,9 @@ export interface UserProfile {
 
 export const PROFILE_STORAGE_BASE_KEY = "canvas_user_profile";
 
+/** Same limit as the iOS app, so the greeting and widgets stay on one line. */
+export const NICKNAME_MAX_LENGTH = 10;
+
 // Per-account namespacing: a second account signing in on the same device
 // must never inherit the previous user's profile.
 function profileKey(): string {
@@ -156,7 +159,7 @@ export function useSaveUserProfile() {
         data: {
           first_name: profile.firstName.trim(),
           last_name: profile.lastName.trim(),
-          nickname: profile.nickname.trim(),
+          nickname: profile.nickname.trim().slice(0, NICKNAME_MAX_LENGTH),
           school: profile.school.trim(),
           major: profile.major.trim(),
           class_of: profile.classOf.trim(),
