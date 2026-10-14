@@ -301,6 +301,12 @@ test("legal pages pass Paddle's review: merchant of record, a 14-day refund wind
   ]) {
     assert.doesNotMatch(text, /no refunds|all sales are final/i, name);
   }
+  // Paddle requires the seller's exact legal name (Terms and Privacy) and address (Privacy).
+  const legal = read("src/lib/legal-consent.ts");
+  assert.match(legal, /SELLER_LEGAL_NAME: string \| null = "[^"]+"/);
+  assert.match(legal, /SELLER_ADDRESS: string \| null =\s+"[^"]+"/);
+  assert.match(terms, /\$\{sellerIdentity\(\)\}/);
+  assert.match(privacy, /\$\{sellerIdentity\(\)\}[\s\S]{0,80}SELLER_ADDRESS/);
   // Free claims are gone from the public pages.
   for (const page of [
     "src/routes/index.tsx",
