@@ -10,8 +10,9 @@ export const LEGAL_TEXT_UPDATED: string = "2026-10-14";
  */
 export const SELLER_LEGAL_NAME: string | null = "Ahmed Al-Bayati";
 /** The seller's mailing address for the Privacy Policy, also required by Paddle. */
-export const SELLER_ADDRESS: string | null =
-  "17162 Brookview Drive, Livonia, MI 48152, United States";
+// Null until the virtual mailbox address is set up (the home address is
+// deliberately not published). Paddle's live review needs it filled in.
+export const SELLER_ADDRESS: string | null = null;
 
 /** "Jane Doe, the independent operator of CanvasPro" (or without the name). */
 export function sellerIdentity(): string {
