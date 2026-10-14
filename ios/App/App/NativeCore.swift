@@ -224,6 +224,9 @@ struct AssignmentItem: Codable, Identifiable, Hashable {
     let courseName: String
     let courseCode: String
     let submission: AssignmentSubmission?
+    /// When Canvas opens it ("Available from", or the module's unlock date).
+    /// Missing on older data and custom work, which count as open.
+    var unlockAt: String? = nil
 
     enum CodingKeys: String, CodingKey {
         case id, name, description
@@ -234,6 +237,28 @@ struct AssignmentItem: Codable, Identifiable, Hashable {
         case courseName = "course_name"
         case courseCode = "course_code"
         case submission
+        case unlockAt = "unlock_at"
+    }
+}
+
+extension AssignmentItem {
+    var unlockDate: Date? { unlockAt.flatMap { ISO8601DateFormatter.canvasDate(from: $0) } }
+
+    /// Canvas hasn't opened it yet: kept off the dashboard, labelled elsewhere.
+    func notYetOpen(now: Date = Date()) -> Bool {
+        guard let opens = unlockDate else { return false }
+        return opens > now
+    }
+
+    /// "Opens today at 9:00 AM", "Opens tomorrow at 9:00 AM" or "Opens Tue, Oct 20 at 9:00 AM".
+    func opensLabel(now: Date = Date(), calendar: Calendar = .current) -> String? {
+        guard let opens = unlockDate, opens > now else { return nil }
+        let time = opens.formatted(date: .omitted, time: .shortened)
+        if calendar.isDate(opens, inSameDayAs: now) { return "Opens today at \(time)" }
+        if let tomorrow = calendar.date(byAdding: .day, value: 1, to: now), calendar.isDate(opens, inSameDayAs: tomorrow) {
+            return "Opens tomorrow at \(time)"
+        }
+        return "Opens \(opens.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())) at \(time)"
     }
 }
 

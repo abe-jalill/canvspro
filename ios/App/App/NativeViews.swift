@@ -1506,7 +1506,8 @@ private struct NativeDashboardView: View {
     private var dismissedAnnouncements: Set<Int> { Set(dismissedAnnouncementsRaw.split(separator: ",").compactMap { Int($0) }) }
     private var visibleCourses: [CourseSummary] { store.bundle.courses.filter { !features.hiddenCourseIDs.contains($0.id) } }
     private var allAssignments: [AssignmentItem] { features.shownAssignments(in: store) }
-    private var activeAssignments: [AssignmentItem] { allAssignments.filter { $0.isVisible(in: store) } }
+    // Work Canvas hasn't opened yet stays off the dashboard (hero counts included).
+    private var activeAssignments: [AssignmentItem] { allAssignments.filter { $0.isVisible(in: store) && !$0.notYetOpen() } }
     private var weekItems: [AssignmentItem] { activeAssignments.filter { NativeParity.isInFocusWindow($0, window: "7") } }
     private var todayCount: Int { activeAssignments.filter { NativeParity.isInFocusWindow($0, window: "1") }.count }
     private var overdueCount: Int { activeAssignments.filter { NativeParity.isInFocusWindow($0, window: "overdue") }.count }
@@ -2635,6 +2636,9 @@ struct NativeAssignmentRow: View {
                     .foregroundStyle(CPTheme.muted(scheme))
                     .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 6) {
+                    if let opens = assignment.opensLabel() {
+                        CPPill(text: opens, symbol: "lock")
+                    }
                     if let countdown {
                         CPPill(text: countdown.label, tone: countdown.urgency == "overdue" ? .danger : countdown.urgency == "today" ? .accent : .neutral, symbol: "clock")
                     }
