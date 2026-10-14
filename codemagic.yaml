@@ -67,7 +67,10 @@ workflows:
     # 1. Teams > Integrations > App Store Connect: add an API key named
     #    "CanvasPro App Store Connect".
     # 2. Code signing identities: let Codemagic fetch (or upload) an App Store
-    #    distribution certificate and profile for app.canvaspro.mobile.
+    #    distribution certificate. Automatic signing for app.canvaspro.mobile also
+    #    covers the widget extension, app.canvaspro.mobile.widgets. In the Apple
+    #    Developer portal both IDs need App Groups (group.app.canvaspro.mobile);
+    #    the app ID also needs Push Notifications.
     # 3. Environment variables: add APP_STORE_APPLE_ID (the app's numeric Apple ID
     #    from App Store Connect > App Information) to the "canvaspro_app_store" group.
     name: CanvasPro iOS TestFlight

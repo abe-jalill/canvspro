@@ -8,7 +8,7 @@ const root = source.slice(0, source.indexOf("private struct NativeLaunchVisibili
 
 test("login crossfade follows account identity without replaying launch on token updates", () => {
   assert.match(root, /private var userID: String\? \{ sessionStore\.session\?\.user\.id \}/);
-  assert.match(root, /NativeMainTabView\(sessionStore: sessionStore\)\s+\.id\(userID\)/);
+  assert.match(root, /NativeMainTabView\(sessionStore: sessionStore(, preview: [^\n]+)?\)\s+\.id\(userID\)/);
   assert.match(root, /\.animation\(reduceMotion \? nil : .*value: userID\)/);
   assert.doesNotMatch(root, /\.task\(id: userID\)|handoffPending|readyUserID/);
   assert.equal((root.match(/showingLaunch = true/g) ?? []).length, 1, "Launch is only enabled by initial state");

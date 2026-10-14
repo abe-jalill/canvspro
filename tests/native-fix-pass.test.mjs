@@ -20,7 +20,7 @@ test("no student's course names are hardcoded, on the website or in the app", ()
 test("the app runs on iOS 17 and is packaged for the App Store", () => {
   const project = read("ios/App/App.xcodeproj/project.pbxproj");
   const targets = project.match(/IPHONEOS_DEPLOYMENT_TARGET = [\d.]+;/g) ?? [];
-  assert.equal(targets.length, 4);
+  assert.ok(targets.length >= 4);
   for (const target of targets) assert.equal(target, "IPHONEOS_DEPLOYMENT_TARGET = 17.0;");
   assert.doesNotMatch(project, /capacitor|config\.xml|Main\.storyboard|debug\.xcconfig|COCOAPODS/i);
   assert.equal(existsSync(new URL("../ios/App/CapApp-SPM", import.meta.url)), false);

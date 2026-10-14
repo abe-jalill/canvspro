@@ -103,7 +103,9 @@ jobs:
         run: |
           APP=ios/App/build/Build/Products/Debug-iphonesimulator/App.app
           BUNDLE=app.canvaspro.mobile
-          UDID=$(xcrun simctl list devices available | grep -E "^ +iPhone 1[6-9] Pro \(" | head -1 | grep -oE "[0-9A-F-]{36}")
+          # A 6.9" Pro Max, the size App Store Connect requires for iPhone screenshots.
+          UDID=$(xcrun simctl list devices available | grep -E "^ +iPhone 1[6-9] Pro Max \(" | head -1 | grep -oE "[0-9A-F-]{36}")
+          [ -n "$UDID" ] || UDID=$(xcrun simctl list devices available | grep -E "^ +iPhone 1[6-9] Pro \(" | head -1 | grep -oE "[0-9A-F-]{36}")
           [ -n "$UDID" ] || UDID=$(xcrun simctl list devices available | grep -E "^ +iPhone" | head -1 | grep -oE "[0-9A-F-]{36}")
           echo "::notice::Simulator: $(xcrun simctl list devices | grep "$UDID" | sed 's/^ *//')"
           xcrun simctl boot "$UDID"

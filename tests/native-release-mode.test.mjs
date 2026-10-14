@@ -7,8 +7,11 @@ const workflow = readFileSync(new URL("../codemagic.yaml", import.meta.url), "ut
 
 test("Debug and Release both require a real session", () => {
   assert.doesNotMatch(root, /#if DEBUG\s+NativeMainTabView/);
-  assert.doesNotMatch(root, /preview: true/);
-  assert.match(root, /if sessionStore\.session != nil \{\s+NativeMainTabView\(sessionStore: sessionStore\)/);
+  // The screenshot demo is debug-only and hard-wired off in App Store builds.
+  assert.match(root, /#if DEBUG\s+private static let demo = UserDefaults/);
+  assert.match(root, /#else\s+private static let demo = false/);
+  // Real use needs a signed-in session; only App Review's own account sees sample data.
+  assert.match(root, /if sessionStore\.session != nil \{[\s\S]{0,240}?NativeMainTabView\(sessionStore: sessionStore, preview: NativeReviewAccount\.matches\(sessionStore\.session\?\.user\.email\)\)/);
   assert.match(root, /NativeAuthView\(sessionStore: sessionStore\)/);
 });
 

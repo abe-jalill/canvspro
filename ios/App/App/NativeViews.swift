@@ -44,7 +44,9 @@ struct NativeRootView: View {
                             }
                         }
                 } else if sessionStore.session != nil {
-                    NativeMainTabView(sessionStore: sessionStore)
+                    // App Review signs in with a real account; that one account sees sample
+                    // coursework, since reviewers have no Canvas of their own.
+                    NativeMainTabView(sessionStore: sessionStore, preview: NativeReviewAccount.matches(sessionStore.session?.user.email))
                         .id(userID)
                         .transition(.opacity)
                 } else {
@@ -1131,6 +1133,16 @@ extension Notification.Name {
     static let nativeStudyAssignment = Notification.Name("CanvasProNativeStudyAssignment")
     static let nativeStartPomodoro = Notification.Name("CanvasProNativeStartPomodoro")
     static let nativeOpenStudy = Notification.Name("CanvasProNativeOpenStudy")
+}
+
+/// The account given to Apple's App Review. Signing in is still required (it's a
+/// real account, created by the owner, with a confirmed address); once signed
+/// in it shows the built-in sample coursework instead of connecting to Canvas.
+enum NativeReviewAccount {
+    static let email = "appreview@canvaspro.app"
+    static func matches(_ address: String?) -> Bool {
+        address?.trimmingCharacters(in: .whitespaces).lowercased() == email
+    }
 }
 
 struct NativeMainTabView: View {
