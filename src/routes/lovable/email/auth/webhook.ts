@@ -9,7 +9,7 @@ import { EmailChangeEmail } from '@/lib/email-templates/email-change'
 import { ReauthenticationEmail } from '@/lib/email-templates/reauthentication'
 
 // Configuration
-const SITE_NAME = "CanvasPro"
+const SITE_NAME = "CoursePro"
 const SENDER_DOMAIN = "notify.canvaspro.app"
 const ROOT_DOMAIN = "canvaspro.app"
 const FROM_DOMAIN = "canvaspro.app"
@@ -28,7 +28,7 @@ export const Route = createFileRoute("/lovable/email/auth/webhook")({
           sendUrl: process.env['LOVABLE_SEND_URL'],
           emails: {
             signup: {
-              subject: 'Your CanvasPro verification code',
+              subject: 'Your CoursePro verification code',
               render: (data) =>
                 React.createElement(SignupEmail, {
                   siteName: SITE_NAME,

@@ -8,7 +8,7 @@ export const DESCRIPTION =
 export const Route = createFileRoute("/canvas-dashboard-guide")({
   head: () => ({
     meta: [
-      { title: "How to Customize Your Canvas Dashboard — CanvasPro" },
+      { title: "How to Customize Your Canvas Dashboard — CoursePro" },
       { name: "description", content: DESCRIPTION },
       { property: "og:title", content: TITLE },
       { property: "og:description", content: DESCRIPTION },
@@ -65,7 +65,7 @@ function GuidePage() {
     <article className="cp-public-tool mx-auto w-full max-w-3xl px-4 py-12 sm:py-16">
       <header className="text-center">
         <Link to="/" className="cp-public-tool__back">
-          ← CanvasPro
+          ← CoursePro
         </Link>
         <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
           Guide
@@ -191,18 +191,17 @@ function GuidePage() {
       <section className="glass-panel-strong mt-10 flex flex-col items-start gap-4 p-6">
         <h2 className="text-xl font-semibold tracking-tight">Or skip the settings entirely</h2>
         <p className="text-sm text-muted-foreground">
-          CanvasPro reads the same Canvas data through your own access key and gives you a dashboard
+          CoursePro reads the same Canvas data through your own access key and gives you a dashboard
           you actually arrange: drag widgets for grades, assignments, announcements, class calendar,
           and focus windows, hide the ones you don't need, rename every class once, and get
-          reminders on your schedule. Every CanvasPro feature is free, with no subscription
-          required.
+          reminders on your schedule. Try every feature free for 14 days, then $5.00 a month.
         </p>
         <div className="flex flex-wrap gap-3">
           <Link
             to="/signup"
             className="glass-hover inline-flex min-h-11 items-center justify-center rounded-xl bg-foreground px-4 text-sm font-semibold text-background"
           >
-            Try CanvasPro
+            Try CoursePro
           </Link>
           <Link
             to="/canvas-grade-calculator"

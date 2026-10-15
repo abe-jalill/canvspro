@@ -4,10 +4,10 @@ import { SettingsPage } from "@/components/settings-page";
 
 export const Route = createFileRoute("/_authenticated/settings/canvas")({
   head: () => ({ meta: [
-    { title: "Canvas Connection — CanvasPro" },
-    { name: "description", content: "Connect CanvasPro to your school's Canvas account." },
-    { property: "og:title", content: "Canvas Connection — CanvasPro" },
-    { property: "og:description", content: "Connect CanvasPro to your school's Canvas account." },
+    { title: "Canvas Connection — CoursePro" },
+    { name: "description", content: "Connect CoursePro to your school's Canvas account." },
+    { property: "og:title", content: "Canvas Connection — CoursePro" },
+    { property: "og:description", content: "Connect CoursePro to your school's Canvas account." },
     { property: "og:type", content: "website" },
     { name: "twitter:card", content: "summary_large_image" },
   ] }),
@@ -15,5 +15,5 @@ export const Route = createFileRoute("/_authenticated/settings/canvas")({
 });
 
 function CanvasConnectionPage() {
-  return <SettingsPage title="Canvas connection" description="Manage the school address and key CanvasPro uses to load your courses."><CanvasConnectionSettings /></SettingsPage>;
+  return <SettingsPage title="Canvas connection" description="Manage the school address and key CoursePro uses to load your courses."><CanvasConnectionSettings /></SettingsPage>;
 }

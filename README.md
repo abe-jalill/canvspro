@@ -1,6 +1,6 @@
-# CanvasPro
+# CoursePro
 
-CanvasPro is a productivity platform built for college students who want a faster, cleaner, and more organized way to manage their coursework. It brings assignments, courses, deadlines, and daily priorities into one streamlined experience.
+CoursePro is a productivity platform built for college students who want a faster, cleaner, and more organized way to manage their coursework. It brings assignments, courses, deadlines, and daily priorities into one streamlined experience.
 
 ## Features
 
@@ -14,12 +14,12 @@ CanvasPro is a productivity platform built for college students who want a faste
 
 ## Getting Started
 
-1. Create a CanvasPro account.
+1. Create a CoursePro account.
 2. Sign in to your school's Canvas website.
 3. Go to **Account → Settings → Approved Integrations**.
 4. Select **New Access Token** and generate a token.
-5. Copy the token and enter it into CanvasPro.
-6. CanvasPro will automatically load your supported Canvas courses and assignments.
+5. Copy the token and enter it into CoursePro.
+6. CoursePro will automatically load your supported Canvas courses and assignments.
 
 > Never share your Canvas API token or publish it publicly.
 
@@ -38,11 +38,11 @@ Never commit API keys, service-role keys, Stripe secrets, or other private crede
 
 ## Tech
 
-CanvasPro uses modern web technologies with Supabase for authentication, database functionality, and backend services. A native iOS version provides the same core CanvasPro experience for iPhone users.
+CoursePro uses modern web technologies with Supabase for authentication, database functionality, and backend services. A native iOS version provides the same core CoursePro experience for iPhone users.
 
 ## Disclaimer
 
-CanvasPro is an independent product and is not affiliated with, endorsed by, or sponsored by Instructure, Inc. or Canvas LMS.
+CoursePro is an independent product and is not affiliated with, endorsed by, or sponsored by Instructure, Inc. or Canvas LMS.
 
 ## Website
 

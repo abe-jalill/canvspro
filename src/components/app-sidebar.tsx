@@ -288,7 +288,7 @@ export function AppSidebar() {
                   className="block min-w-0 flex-1 px-2 press transition-opacity hover:opacity-80"
                   aria-label="Go to homepage"
                 >
-                  <span className="app-brand">canvaspro.</span>
+                  <span className="app-brand">coursepro.</span>
                 </Link>
                 <TrafficLights
                   className="relative z-10 shrink-0"
@@ -419,7 +419,7 @@ export function MobileNav() {
     return () => document.removeEventListener("keydown", onKey);
   }, [open]);
 
-  const current = navItems.find((i) => isActive(pathname, i.to))?.title ?? "CanvasPro";
+  const current = navItems.find((i) => isActive(pathname, i.to))?.title ?? "CoursePro";
 
   return (
     <div className="mobile-navigation sticky top-0 z-40 md:hidden">
@@ -456,9 +456,7 @@ export function MobileNav() {
         aria-hidden={!open}
         className={cn(
           "mobile-navigation-panel glass-panel-strong absolute inset-x-0 top-full z-40 mx-2 mt-2 flex max-h-[calc(100dvh-6rem)] flex-col gap-1 overflow-y-auto overscroll-contain p-2 transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none",
-          open
-            ? "translate-y-0 opacity-100"
-            : "pointer-events-none -translate-y-2 opacity-0",
+          open ? "translate-y-0 opacity-100" : "pointer-events-none -translate-y-2 opacity-0",
         )}
       >
         {navItems.map((item) => (

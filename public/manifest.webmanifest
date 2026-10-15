@@ -1,6 +1,6 @@
 {
-  "name": "CanvasPro",
-  "short_name": "CanvasPro",
+  "name": "CoursePro",
+  "short_name": "CoursePro",
   "description": "Your Canvas classes, grades, assignments and reminders in one calm dashboard.",
   "start_url": "/dashboard",
   "scope": "/",

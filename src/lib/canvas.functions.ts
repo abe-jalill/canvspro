@@ -11,6 +11,7 @@ import {
   canvasBundleHasSuccessfulSection,
   friendlyCanvasSectionError,
 } from "@/lib/canvas-key-status";
+import { BILLING_REQUIRED_EVENT } from "@/lib/billing";
 
 /**
  * Right after sign-in the session can still be settling. Waiting for it (and
@@ -52,6 +53,11 @@ async function invokeCanvas<T>(
       }
       // A missing Canvas key/URL renders the setup state, not an error banner.
       if (res.status === 428) return [] as unknown as T;
+    }
+    // No trial or subscription: the billing gate takes over the page.
+    if (res?.status === 402 || message === "SUBSCRIPTION_REQUIRED") {
+      window.dispatchEvent(new Event(BILLING_REQUIRED_EVENT));
+      throw new Error("Subscribe to keep using CoursePro.");
     }
     if (/428|NO_CANVAS_KEY|NO_CANVAS_DOMAIN/.test(message)) return [] as unknown as T;
     throw new Error(message);

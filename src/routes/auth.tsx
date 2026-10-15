@@ -13,15 +13,15 @@ export const Route = createFileRoute("/auth")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Sign in — CanvasPro" },
+      { title: "Sign in — CoursePro" },
       {
         name: "description",
-        content: "Sign in to CanvasPro to see your classes, grades, and assignments.",
+        content: "Sign in to CoursePro to see your classes, grades, and assignments.",
       },
-      { property: "og:title", content: "Sign in — CanvasPro" },
+      { property: "og:title", content: "Sign in — CoursePro" },
       {
         property: "og:description",
-        content: "Sign in to CanvasPro to see your classes, grades, and assignments.",
+        content: "Sign in to CoursePro to see your classes, grades, and assignments.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -119,7 +119,7 @@ function LoginPage() {
 
   return (
     <AuthShell
-      title="Sign in to CanvasPro"
+      title="Sign in to CoursePro"
       subtitle="Access your classes, grades, and assignments"
       footer={
         <p className="text-center text-sm text-muted-foreground">

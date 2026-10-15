@@ -1,5 +1,5 @@
 // App Review's sign-in. Apple's reviewers have no Canvas account, so this one
-// real CanvasPro account sees the built-in sample student's coursework instead
+// real CoursePro account sees the built-in sample student's coursework instead
 // of connecting to a school (the iOS app does the same: NativeReviewAccount).
 
 export const REVIEW_ACCOUNT_EMAIL = "appreview@canvaspro.app";

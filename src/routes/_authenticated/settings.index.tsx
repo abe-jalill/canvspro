@@ -3,6 +3,7 @@ import {
   Bell,
   Bot,
   ChevronRight,
+  CreditCard,
   GraduationCap,
   Link2,
   Megaphone,
@@ -14,15 +15,15 @@ import {
 export const Route = createFileRoute("/_authenticated/settings/")({
   head: () => ({
     meta: [
-      { title: "Settings — CanvasPro" },
+      { title: "Settings — CoursePro" },
       {
         name: "description",
-        content: "Manage your CanvasPro account, classes, alerts, appearance, and connections.",
+        content: "Manage your CoursePro account, classes, alerts, appearance, and connections.",
       },
-      { property: "og:title", content: "Settings — CanvasPro" },
+      { property: "og:title", content: "Settings — CoursePro" },
       {
         property: "og:description",
-        content: "Manage your CanvasPro account, classes, alerts, appearance, and connections.",
+        content: "Manage your CoursePro account, classes, alerts, appearance, and connections.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -73,6 +74,12 @@ const sections = [
     description: "Connect Claude, ChatGPT, or another assistant.",
     to: "/settings/ai-assistant" as const,
     icon: Bot,
+  },
+  {
+    title: "Billing",
+    description: "Your plan, payments, receipts and cancellation.",
+    to: "/settings/billing" as const,
+    icon: CreditCard,
   },
   {
     title: "Account",

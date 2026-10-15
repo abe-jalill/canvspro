@@ -11,6 +11,7 @@
 //    sample student's, the same set the iOS app shows it (NativePreviewData).
 
 import { emailFromAuthorization, isReviewAccount } from "@/lib/review-account";
+import { LEGAL_POLICY_VERSION } from "@/lib/legal-consent";
 
 const FLAG = "cp-demo";
 const DEMO_USER_ID = "00000000-0000-4000-8000-00000000d3e0";
@@ -200,7 +201,14 @@ const USER = {
   email_confirmed_at: "2026-08-20T12:00:00.000Z",
   phone: "",
   app_metadata: { provider: "email", providers: ["email"] },
-  user_metadata: { first_name: "Maya", last_name: "Chen", username: "maya", nickname: "Maya" },
+  user_metadata: {
+    first_name: "Maya",
+    last_name: "Chen",
+    username: "maya",
+    nickname: "Maya",
+    // Accepted the current Terms, so screenshots don't show the update notice.
+    terms_accepted_version: LEGAL_POLICY_VERSION,
+  },
   identities: [],
   created_at: "2026-08-20T12:00:00.000Z",
   updated_at: "2026-08-20T12:00:00.000Z",
@@ -324,6 +332,31 @@ function sampleCanvas(resource: string): Response {
   return json(bundle.assignments);
 }
 
+/**
+ * `?billing=none|trial|grace|active` shows the paywall, the trial banner, the
+ * launch free days or a paid plan; without it billing is off (null).
+ */
+function demoBilling() {
+  const mode = sessionStorage.getItem(`${FLAG}-billing`);
+  if (!mode) return null;
+  const now = Date.now();
+  const days = (n: number) => new Date(now + n * 86_400_000).toISOString();
+  return {
+    access: mode !== "none",
+    now: days(0),
+    enforce_from: days(-1),
+    grace_ends_at: mode === "grace" ? days(9) : null,
+    status: mode === "trial" ? "trialing" : mode === "active" ? "active" : null,
+    plan: mode === "trial" || mode === "active" ? "monthly" : null,
+    trial_ends_at: mode === "trial" ? days(2) : null,
+    current_period_end: mode === "active" ? days(20) : mode === "trial" ? days(2) : null,
+    cancel_at: null,
+    trial_used: mode === "active",
+    complimentary: false,
+    has_subscription: mode === "trial" || mode === "active",
+  };
+}
+
 function answer(
   url: URL,
   method: string,
@@ -339,6 +372,7 @@ function answer(
   if (path.startsWith("/functions/v1/")) return json({});
   if (path.startsWith("/rest/v1/rpc/")) {
     const name = path.slice("/rest/v1/rpc/".length);
+    if (name === "my_billing_status") return json(demoBilling());
     return json(name === "has_canvas_key" ? true : null);
   }
   if (path.startsWith("/rest/v1/")) {
@@ -369,6 +403,10 @@ function installDemoMode() {
   if (sessionStorage.getItem(FLAG) !== "1") return;
 
   // `studyMode=total|per|pomodoro` sets the Study session time choice for a capture.
+  const billing = params.get("billing");
+  if (billing === "off") sessionStorage.removeItem(`${FLAG}-billing`);
+  else if (billing) sessionStorage.setItem(`${FLAG}-billing`, billing);
+
   const studyMode = params.get("studyMode");
   if (studyMode === "total" || studyMode === "per" || studyMode === "pomodoro") {
     localStorage.setItem("canvas:study-time-mode", studyMode);

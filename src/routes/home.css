@@ -1,6 +1,7 @@
-/* Homepage. Quiet and precise: near-monochrome, one typeface (Schibsted
-   Grotesk) at medium weights, real screenshots, and small motion that only
-   ever shows the product doing something. Colors follow the device's light or
+/* Homepage. Quiet and precise: near-monochrome, the app's own typeface (San
+   Francisco on Apple devices, the system font elsewhere) at medium weights,
+   real screenshots, and small motion that only ever shows the product doing
+   something. Colors follow the device's light or
    dark setting (prefers-color-scheme), not the in-app theme. */
 
 .hp {
@@ -24,7 +25,7 @@
   min-height: 100vh;
   background: var(--bg);
   color: var(--ink);
-  font-family: "Schibsted Grotesk", var(--font-sans);
+  font-family: var(--font-sans);
   font-size: 17px;
   line-height: 1.6;
   overflow-x: clip;
@@ -506,7 +507,7 @@
   }
 }
 
-/* ── Also in CanvasPro ── */
+/* ── Also in CoursePro ── */
 .hp-more {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

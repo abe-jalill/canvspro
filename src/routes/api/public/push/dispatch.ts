@@ -657,7 +657,7 @@ async function runTest(accessToken: string): Promise<Response> {
   if (subs.length === 0) {
     return Response.json({
       ok: false,
-      message: "No device registered yet — turn on “Alerts when CanvasPro is closed” first.",
+      message: "No device registered yet — turn on “Alerts when CoursePro is closed” first.",
     });
   }
 
@@ -670,7 +670,7 @@ async function runTest(accessToken: string): Promise<Response> {
       const res = await sendWebPushWithRetry(
         s,
         {
-          title: "CanvasPro test notification",
+          title: "CoursePro test notification",
           body: "Push delivery is working on this device.",
           to: "/settings",
           tag: `test:${Date.now()}`,
@@ -699,7 +699,7 @@ async function runTest(accessToken: string): Promise<Response> {
       delivered > 0
         ? `Test notification sent to ${delivered} device${delivered === 1 ? "" : "s"}.`
         : dead.length > 0
-          ? "This device's registration was out of date and has been cleared — turn “Alerts when CanvasPro is closed” off and on, then test again."
+          ? "This device's registration was out of date and has been cleared — turn “Alerts when CoursePro is closed” off and on, then test again."
           : "Push delivery failed on every registered device — try turning background alerts off and on.",
   });
 }

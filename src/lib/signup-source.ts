@@ -34,9 +34,10 @@ export function browserStorage(): Store | undefined {
 
 function clean(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
-  // eslint-disable-next-line no-control-regex
-  const text = value
-    .replace(/[\u0000-\u001f\u007f]/g, "")
+  // Drop control characters (U+0000-U+001F and U+007F).
+  const text = Array.from(value)
+    .filter((ch) => ch.charCodeAt(0) > 0x1f && ch.charCodeAt(0) !== 0x7f)
+    .join("")
     .trim()
     .slice(0, MAX_LENGTH);
   return text || undefined;

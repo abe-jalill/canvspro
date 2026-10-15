@@ -302,7 +302,7 @@ export function CanvasTokenWalkthrough({
                 Click the blue <strong>+ New Access Token</strong> button.
               </li>
               <li>
-                Under Purpose, type <strong>CanvasPro</strong>.
+                Under Purpose, type <strong>CoursePro</strong>.
               </li>
               <li>
                 Leave the <em>Expires</em> field blank (so your connection stays active).
@@ -324,7 +324,7 @@ export function CanvasTokenWalkthrough({
               <div>
                 <span className="text-muted-foreground block mb-1">Purpose:</span>
                 <div className="rounded-lg border border-foreground/15 bg-background px-3 py-1.5 font-mono text-foreground font-medium">
-                  CanvasPro
+                  CoursePro
                 </div>
               </div>
 
@@ -500,7 +500,7 @@ export function CanvasTokenWalkthrough({
               Canvas functionality designed specifically for third-party student companion apps.
             </p>
             <p>
-              <strong>Zero Password Access:</strong> CanvasPro never sees or stores your
+              <strong>Zero Password Access:</strong> CoursePro never sees or stores your
               university password. The token only grants access to what your student account is
               already authorized to view.
             </p>

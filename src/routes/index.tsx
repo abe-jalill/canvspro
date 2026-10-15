@@ -15,18 +15,18 @@ import "./home.css";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "CanvasPro — A Better Canvas Dashboard for Students" },
+      { title: "CoursePro — A Better Canvas Dashboard for Students" },
       {
         name: "description",
         content:
-          "See every Canvas assignment, grade and deadline in one clean dashboard, sorted by what's due first. Free for students.",
+          "See every Canvas assignment, grade and deadline in one clean dashboard, sorted by what's due first. Try it free for 14 days.",
       },
       { property: "og:type", content: "website" },
-      { property: "og:title", content: "CanvasPro — A Better Canvas Dashboard for Students" },
+      { property: "og:title", content: "CoursePro — A Better Canvas Dashboard for Students" },
       {
         property: "og:description",
         content:
-          "See every Canvas assignment, grade and deadline in one clean dashboard, sorted by what's due first. Free for students.",
+          "See every Canvas assignment, grade and deadline in one clean dashboard, sorted by what's due first. Try it free for 14 days.",
       },
       { property: "og:url", content: "https://canvaspro.app/" },
       {
@@ -41,13 +41,6 @@ export const Route = createFileRoute("/")({
     ],
     links: [
       { rel: "canonical", href: "https://canvaspro.app/" },
-      // The homepage's one typeface.
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400..700&display=swap",
-      },
       // The first screenshot is the hero image; fetch it early.
       {
         rel: "preload",
@@ -61,13 +54,18 @@ export const Route = createFileRoute("/")({
         children: JSON.stringify({
           "@context": "https://schema.org",
           "@type": "SoftwareApplication",
-          name: "CanvasPro",
+          name: "CoursePro",
           applicationCategory: "EducationalApplication",
           operatingSystem: "Web",
           url: "https://canvaspro.app/",
           description:
             "A student dashboard for Canvas LMS with assignments, grades, schedules, Study Sessions, and a daily plan.",
-          offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+          offers: {
+            "@type": "Offer",
+            price: "5.00",
+            priceCurrency: "USD",
+            description: "14-day free trial, then $5.00 per month or $50.00 per year",
+          },
         }),
       },
     ],
@@ -81,7 +79,7 @@ const SCREENS = [
     id: "dashboard",
     label: "Dashboard",
     caption: "Your grades, the next thing to do, and everything due in the next 24 hours.",
-    alt: "The CanvasPro dashboard with a greeting, the next assignment up, and class grades.",
+    alt: "The CoursePro dashboard with a greeting, the next assignment up, and class grades.",
   },
   {
     id: "coming-up",
@@ -103,7 +101,7 @@ const SCREENS = [
   },
 ] as const;
 
-/** One student's week. `sorted` is the order CanvasPro would suggest. */
+/** One student's week. `sorted` is the order CoursePro would suggest. */
 const TASKS = [
   {
     id: "webassign",
@@ -163,7 +161,7 @@ const MORE = [
   },
   {
     title: "Reminders",
-    body: "A heads-up one to three days before things are due, even when CanvasPro is closed.",
+    body: "A heads-up one to three days before things are due, even when CoursePro is closed.",
   },
   {
     title: "Study sessions",
@@ -185,22 +183,23 @@ const MORE = [
 
 const FAQ = [
   {
-    question: "What does CanvasPro bring together?",
+    question: "What does CoursePro bring together?",
     answer:
       "Your Canvas courses, assignments, grades, announcements, and deadlines appear in one place, with a clear next step.",
   },
   {
-    question: "Is CanvasPro free?",
-    answer: "Yes. 100% free, no payment method required.",
+    question: "How much does CoursePro cost?",
+    answer:
+      "Start with a 14-day free trial, then $5.00 a month or $50.00 a year. Cancel anytime in Settings before your trial ends and you won't be charged.",
   },
   {
     question: "How do I connect my Canvas account?",
     answer:
-      "Create an account, make a personal access token in your school's Canvas settings, and add it in CanvasPro. You never enter your school password.",
+      "Create an account, make a personal access token in your school's Canvas settings, and add it in CoursePro. You never enter your school password.",
   },
   {
     question: "Can I use it on my phone?",
-    answer: "Yes. The website works on any screen, and CanvasPro is also coming to iPhone.",
+    answer: "Yes. The website works on any screen, and CoursePro is also coming to iPhone.",
   },
 ];
 
@@ -291,7 +290,7 @@ function SortingWeek() {
       <div className="hp-week__head">
         <span>This week</span>
         <span className="hp-week__state" aria-live="polite">
-          {sorted ? "Sorted by CanvasPro" : "As Canvas lists them"}
+          {sorted ? "Sorted by CoursePro" : "As Canvas lists them"}
         </span>
       </div>
       {visible.length === 0 ? (
@@ -423,7 +422,7 @@ function LandingPage() {
   }, []);
 
   const cta = isLoggedIn ? "/dashboard" : "/signup";
-  const ctaLabel = isLoggedIn ? "Open your dashboard" : "Get started free";
+  const ctaLabel = isLoggedIn ? "Open your dashboard" : "Start free trial";
 
   return (
     <div className="hp hp-home" ref={pageRef}>
@@ -432,8 +431,8 @@ function LandingPage() {
       </a>
 
       <header className="hp-bar">
-        <Link to="/" className="hp-brand" aria-label="CanvasPro home">
-          CanvasPro
+        <Link to="/" className="hp-brand" aria-label="CoursePro home">
+          CoursePro
         </Link>
         <nav className="hp-bar__links" aria-label="Main navigation">
           <Link to="/canvas-grade-calculator" preload="intent" className="hp-bar__secondary">
@@ -462,8 +461,8 @@ function LandingPage() {
           </h1>
           <div className="hp-hero__side">
             <p className="hp-lede hp-rise">
-              CanvasPro reads your courses and puts your assignments, grades and announcements on
-              one calm page. Free for students.
+              CoursePro reads your courses and puts your assignments, grades and announcements on
+              one calm page. Free for 14 days.
             </p>
             <div className="hp-actions hp-rise">
               <Link to={cta} preload="intent" className="hp-button">
@@ -513,10 +512,10 @@ function LandingPage() {
           </figure>
         </section>
 
-        <section className="hp-statement" aria-label="Why CanvasPro">
+        <section className="hp-statement" aria-label="Why CoursePro">
           <p data-breathe>
             Canvas tells you everything.{" "}
-            <span className="hp-quiet">CanvasPro tells you what&rsquo;s next.</span>
+            <span className="hp-quiet">CoursePro tells you what&rsquo;s next.</span>
           </p>
         </section>
 
@@ -524,7 +523,7 @@ function LandingPage() {
           <div className="hp-split__text" data-breathe>
             <h2 id="hp-sort-title">Sorted by what comes first</h2>
             <p>
-              Canvas lists work course by course. CanvasPro looks at due dates, points and how long
+              Canvas lists work course by course. CoursePro looks at due dates, points and how long
               each assignment takes, then puts the next thing to do at the top.
             </p>
             <p className="hp-muted">Check off the top task to see the next one move up.</p>
@@ -536,7 +535,7 @@ function LandingPage() {
 
         <section className="hp-split" aria-labelledby="hp-more-title">
           <div className="hp-split__text" data-breathe>
-            <h2 id="hp-more-title">Also in CanvasPro</h2>
+            <h2 id="hp-more-title">Also in CoursePro</h2>
             <p className="hp-muted">
               No account yet? Try the free{" "}
               <Link to="/canvas-grade-calculator" className="hp-link">
@@ -561,12 +560,12 @@ function LandingPage() {
           </div>
           <div className="hp-setup" data-breathe style={{ "--d": "0.12s" } as CSSProperties}>
             <p>
-              Make a free account. In Canvas, open Account, then Settings, and create a new access
-              token. Paste it into CanvasPro, and your classes, grades and deadlines show up right
-              away.
+              Create an account and start your free trial. In Canvas, open Account, then Settings,
+              and create a new access token. Paste it into CoursePro, and your classes, grades and
+              deadlines show up right away.
             </p>
             <p className="hp-muted">
-              You never type your school password into CanvasPro. The token only lets it read your
+              You never type your school password into CoursePro. The token only lets it read your
               courses, and you can revoke it in Canvas at any time.
             </p>
           </div>
@@ -604,7 +603,12 @@ function LandingPage() {
             <Link to={cta} preload="intent" className="hp-button">
               {ctaLabel}
             </Link>
-            <span className="hp-muted">Free for students. No card needed.</span>
+            <span className="hp-muted">
+              14 days free, then $5.00/month.{" "}
+              <Link to="/pricing" className="hp-link">
+                See pricing
+              </Link>
+            </span>
           </div>
         </section>
       </main>

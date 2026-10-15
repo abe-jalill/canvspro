@@ -20,7 +20,7 @@ export async function requestMobileApi<T>(
     throw new Error(
       typeof result?.error === "string"
         ? result.error
-        : "Could not reach CanvasPro. Please try again.",
+        : "Could not reach CoursePro. Please try again.",
     );
   }
   return result as T;

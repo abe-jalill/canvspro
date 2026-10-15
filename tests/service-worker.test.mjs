@@ -225,7 +225,7 @@ test("install saves the app pages and survives failures", async () => {
   assert.ok(!pages.includes(ORIGIN + "/grades"));
 });
 
-test("activate removes old CanvasPro caches and leaves others alone", async () => {
+test("activate removes old CoursePro caches and leaves others alone", async () => {
   const worker = createWorker({ network: async () => html() });
   for (const name of ["cp-assets-v0", "cp-pages-v1", "cp-assets-v1", "other-app"]) {
     await worker.caches.open(name);

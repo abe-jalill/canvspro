@@ -7,8 +7,8 @@ export const Route = createFileRoute("/reset-password")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Set new password — CanvasPro" },
-      { name: "description", content: "Choose a new password for your CanvasPro account." },
+      { title: "Set new password — CoursePro" },
+      { name: "description", content: "Choose a new password for your CoursePro account." },
       { name: "robots", content: "noindex" },
     ],
   }),

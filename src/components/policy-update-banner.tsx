@@ -52,7 +52,7 @@ export function PolicyUpdateBanner() {
         <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
         <div className="min-w-0 text-sm text-muted-foreground">
           <p>
-            We updated our{" "}
+            CanvasPro is now CoursePro. We updated our{" "}
             <Link to="/terms" className="text-foreground underline underline-offset-4">
               Terms of Use
             </Link>{" "}
@@ -60,8 +60,7 @@ export function PolicyUpdateBanner() {
             <Link to="/privacy" className="text-foreground underline underline-offset-4">
               Privacy Policy
             </Link>
-            . The Terms now use individual arbitration and a class-action waiver, which you can opt
-            out of within 30 days of agreeing.
+            .
           </p>
           {error && <p className="mt-1 text-destructive">{error}</p>}
         </div>

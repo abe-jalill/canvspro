@@ -17,7 +17,9 @@ import { Route as CanvasGradeCalculatorRouteImport } from './routes/canvas-grade
 import { Route as EmailVerifiedRouteImport } from './routes/email-verified'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as McpRouteImport } from './routes/mcp'
+import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as RefundPolicyRouteImport } from './routes/refund-policy'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
@@ -42,12 +44,15 @@ import { Route as AuthenticatedSettingsAccountRouteImport } from './routes/_auth
 import { Route as AuthenticatedSettingsAiAssistantRouteImport } from './routes/_authenticated/settings.ai-assistant'
 import { Route as AuthenticatedSettingsAnnouncementsRouteImport } from './routes/_authenticated/settings.announcements'
 import { Route as AuthenticatedSettingsAppearanceRouteImport } from './routes/_authenticated/settings.appearance'
+import { Route as AuthenticatedSettingsBillingRouteImport } from './routes/_authenticated/settings.billing'
 import { Route as AuthenticatedSettingsCanvasRouteImport } from './routes/_authenticated/settings.canvas'
 import { Route as AuthenticatedSettingsClassesRouteImport } from './routes/_authenticated/settings.classes'
 import { Route as AuthenticatedSettingsNotificationsRouteImport } from './routes/_authenticated/settings.notifications'
 import { Route as AuthenticatedSettingsProfileRouteImport } from './routes/_authenticated/settings.profile'
 import { Route as ApiMobileDeleteAccountRouteImport } from './routes/api/mobile/delete-account'
 import { Route as ApiMobileSignInRouteImport } from './routes/api/mobile/sign-in'
+import { Route as ApiPublicBillingRemindersRouteImport } from './routes/api/public/billing/reminders'
+import { Route as ApiPublicPaddleWebhookRouteImport } from './routes/api/public/paddle/webhook'
 import { Route as ApiPublicPushDispatchRouteImport } from './routes/api/public/push/dispatch'
 import { Route as ApiPublicPushHealthRouteImport } from './routes/api/public/push/health'
 import { Route as ApiPublicPushKeyRouteImport } from './routes/api/public/push/key'
@@ -94,9 +99,19 @@ const McpRoute = McpRouteImport.update({
   path: '/mcp',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PricingRoute = PricingRouteImport.update({
+  id: '/pricing',
+  path: '/pricing',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RefundPolicyRoute = RefundPolicyRouteImport.update({
+  id: '/refund-policy',
+  path: '/refund-policy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -231,6 +246,12 @@ const AuthenticatedSettingsAppearanceRoute =
     path: '/appearance',
     getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
+const AuthenticatedSettingsBillingRoute =
+  AuthenticatedSettingsBillingRouteImport.update({
+    id: '/billing',
+    path: '/billing',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
 const AuthenticatedSettingsCanvasRoute =
   AuthenticatedSettingsCanvasRouteImport.update({
     id: '/canvas',
@@ -263,6 +284,17 @@ const ApiMobileDeleteAccountRoute = ApiMobileDeleteAccountRouteImport.update({
 const ApiMobileSignInRoute = ApiMobileSignInRouteImport.update({
   id: '/api/mobile/sign-in',
   path: '/api/mobile/sign-in',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicBillingRemindersRoute =
+  ApiPublicBillingRemindersRouteImport.update({
+    id: '/api/public/billing/reminders',
+    path: '/api/public/billing/reminders',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicPaddleWebhookRoute = ApiPublicPaddleWebhookRouteImport.update({
+  id: '/api/public/paddle/webhook',
+  path: '/api/public/paddle/webhook',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicPushDispatchRoute = ApiPublicPushDispatchRouteImport.update({
@@ -305,7 +337,9 @@ export interface FileRoutesByFullPath {
   '/email-verified': typeof EmailVerifiedRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/mcp': typeof McpRoute
+  '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
+  '/refund-policy': typeof RefundPolicyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -329,6 +363,7 @@ export interface FileRoutesByFullPath {
   '/settings/ai-assistant': typeof AuthenticatedSettingsAiAssistantRoute
   '/settings/announcements': typeof AuthenticatedSettingsAnnouncementsRoute
   '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
+  '/settings/billing': typeof AuthenticatedSettingsBillingRoute
   '/settings/canvas': typeof AuthenticatedSettingsCanvasRoute
   '/settings/classes': typeof AuthenticatedSettingsClassesRoute
   '/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
@@ -336,6 +371,8 @@ export interface FileRoutesByFullPath {
   '/api/mobile/delete-account': typeof ApiMobileDeleteAccountRoute
   '/api/mobile/sign-in': typeof ApiMobileSignInRoute
   '/settings/': typeof AuthenticatedSettingsIndexRoute
+  '/api/public/billing/reminders': typeof ApiPublicBillingRemindersRoute
+  '/api/public/paddle/webhook': typeof ApiPublicPaddleWebhookRoute
   '/api/public/push/dispatch': typeof ApiPublicPushDispatchRoute
   '/api/public/push/health': typeof ApiPublicPushHealthRoute
   '/api/public/push/key': typeof ApiPublicPushKeyRoute
@@ -351,7 +388,9 @@ export interface FileRoutesByTo {
   '/email-verified': typeof EmailVerifiedRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/mcp': typeof McpRoute
+  '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
+  '/refund-policy': typeof RefundPolicyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -374,6 +413,7 @@ export interface FileRoutesByTo {
   '/settings/ai-assistant': typeof AuthenticatedSettingsAiAssistantRoute
   '/settings/announcements': typeof AuthenticatedSettingsAnnouncementsRoute
   '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
+  '/settings/billing': typeof AuthenticatedSettingsBillingRoute
   '/settings/canvas': typeof AuthenticatedSettingsCanvasRoute
   '/settings/classes': typeof AuthenticatedSettingsClassesRoute
   '/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
@@ -381,6 +421,8 @@ export interface FileRoutesByTo {
   '/api/mobile/delete-account': typeof ApiMobileDeleteAccountRoute
   '/api/mobile/sign-in': typeof ApiMobileSignInRoute
   '/settings': typeof AuthenticatedSettingsIndexRoute
+  '/api/public/billing/reminders': typeof ApiPublicBillingRemindersRoute
+  '/api/public/paddle/webhook': typeof ApiPublicPaddleWebhookRoute
   '/api/public/push/dispatch': typeof ApiPublicPushDispatchRoute
   '/api/public/push/health': typeof ApiPublicPushHealthRoute
   '/api/public/push/key': typeof ApiPublicPushKeyRoute
@@ -398,7 +440,9 @@ export interface FileRoutesById {
   '/email-verified': typeof EmailVerifiedRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/mcp': typeof McpRoute
+  '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
+  '/refund-policy': typeof RefundPolicyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -422,6 +466,7 @@ export interface FileRoutesById {
   '/_authenticated/settings/ai-assistant': typeof AuthenticatedSettingsAiAssistantRoute
   '/_authenticated/settings/announcements': typeof AuthenticatedSettingsAnnouncementsRoute
   '/_authenticated/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
+  '/_authenticated/settings/billing': typeof AuthenticatedSettingsBillingRoute
   '/_authenticated/settings/canvas': typeof AuthenticatedSettingsCanvasRoute
   '/_authenticated/settings/classes': typeof AuthenticatedSettingsClassesRoute
   '/_authenticated/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
@@ -429,6 +474,8 @@ export interface FileRoutesById {
   '/api/mobile/delete-account': typeof ApiMobileDeleteAccountRoute
   '/api/mobile/sign-in': typeof ApiMobileSignInRoute
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
+  '/api/public/billing/reminders': typeof ApiPublicBillingRemindersRoute
+  '/api/public/paddle/webhook': typeof ApiPublicPaddleWebhookRoute
   '/api/public/push/dispatch': typeof ApiPublicPushDispatchRoute
   '/api/public/push/health': typeof ApiPublicPushHealthRoute
   '/api/public/push/key': typeof ApiPublicPushKeyRoute
@@ -446,7 +493,9 @@ export interface FileRouteTypes {
     | '/email-verified'
     | '/forgot-password'
     | '/mcp'
+    | '/pricing'
     | '/privacy'
+    | '/refund-policy'
     | '/reset-password'
     | '/signup'
     | '/sitemap.xml'
@@ -470,6 +519,7 @@ export interface FileRouteTypes {
     | '/settings/ai-assistant'
     | '/settings/announcements'
     | '/settings/appearance'
+    | '/settings/billing'
     | '/settings/canvas'
     | '/settings/classes'
     | '/settings/notifications'
@@ -477,6 +527,8 @@ export interface FileRouteTypes {
     | '/api/mobile/delete-account'
     | '/api/mobile/sign-in'
     | '/settings/'
+    | '/api/public/billing/reminders'
+    | '/api/public/paddle/webhook'
     | '/api/public/push/dispatch'
     | '/api/public/push/health'
     | '/api/public/push/key'
@@ -492,7 +544,9 @@ export interface FileRouteTypes {
     | '/email-verified'
     | '/forgot-password'
     | '/mcp'
+    | '/pricing'
     | '/privacy'
+    | '/refund-policy'
     | '/reset-password'
     | '/signup'
     | '/sitemap.xml'
@@ -515,6 +569,7 @@ export interface FileRouteTypes {
     | '/settings/ai-assistant'
     | '/settings/announcements'
     | '/settings/appearance'
+    | '/settings/billing'
     | '/settings/canvas'
     | '/settings/classes'
     | '/settings/notifications'
@@ -522,6 +577,8 @@ export interface FileRouteTypes {
     | '/api/mobile/delete-account'
     | '/api/mobile/sign-in'
     | '/settings'
+    | '/api/public/billing/reminders'
+    | '/api/public/paddle/webhook'
     | '/api/public/push/dispatch'
     | '/api/public/push/health'
     | '/api/public/push/key'
@@ -538,7 +595,9 @@ export interface FileRouteTypes {
     | '/email-verified'
     | '/forgot-password'
     | '/mcp'
+    | '/pricing'
     | '/privacy'
+    | '/refund-policy'
     | '/reset-password'
     | '/signup'
     | '/sitemap.xml'
@@ -562,6 +621,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings/ai-assistant'
     | '/_authenticated/settings/announcements'
     | '/_authenticated/settings/appearance'
+    | '/_authenticated/settings/billing'
     | '/_authenticated/settings/canvas'
     | '/_authenticated/settings/classes'
     | '/_authenticated/settings/notifications'
@@ -569,6 +629,8 @@ export interface FileRouteTypes {
     | '/api/mobile/delete-account'
     | '/api/mobile/sign-in'
     | '/_authenticated/settings/'
+    | '/api/public/billing/reminders'
+    | '/api/public/paddle/webhook'
     | '/api/public/push/dispatch'
     | '/api/public/push/health'
     | '/api/public/push/key'
@@ -586,7 +648,9 @@ export interface RootRouteChildren {
   EmailVerifiedRoute: typeof EmailVerifiedRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   McpRoute: typeof McpRoute
+  PricingRoute: typeof PricingRoute
   PrivacyRoute: typeof PrivacyRoute
+  RefundPolicyRoute: typeof RefundPolicyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
@@ -595,6 +659,8 @@ export interface RootRouteChildren {
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   ApiMobileDeleteAccountRoute: typeof ApiMobileDeleteAccountRoute
   ApiMobileSignInRoute: typeof ApiMobileSignInRoute
+  ApiPublicBillingRemindersRoute: typeof ApiPublicBillingRemindersRoute
+  ApiPublicPaddleWebhookRoute: typeof ApiPublicPaddleWebhookRoute
   ApiPublicPushDispatchRoute: typeof ApiPublicPushDispatchRoute
   ApiPublicPushHealthRoute: typeof ApiPublicPushHealthRoute
   ApiPublicPushKeyRoute: typeof ApiPublicPushKeyRoute
@@ -661,11 +727,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof McpRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/pricing': {
+      id: '/pricing'
+      path: '/pricing'
+      fullPath: '/pricing'
+      preLoaderRoute: typeof PricingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/privacy': {
       id: '/privacy'
       path: '/privacy'
       fullPath: '/privacy'
       preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/refund-policy': {
+      id: '/refund-policy'
+      path: '/refund-policy'
+      fullPath: '/refund-policy'
+      preLoaderRoute: typeof RefundPolicyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reset-password': {
@@ -836,6 +916,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsAppearanceRouteImport
       parentRoute: typeof AuthenticatedSettingsRoute
     }
+    '/_authenticated/settings/billing': {
+      id: '/_authenticated/settings/billing'
+      path: '/billing'
+      fullPath: '/settings/billing'
+      preLoaderRoute: typeof AuthenticatedSettingsBillingRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
     '/_authenticated/settings/canvas': {
       id: '/_authenticated/settings/canvas'
       path: '/canvas'
@@ -876,6 +963,20 @@ declare module '@tanstack/react-router' {
       path: '/api/mobile/sign-in'
       fullPath: '/api/mobile/sign-in'
       preLoaderRoute: typeof ApiMobileSignInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/billing/reminders': {
+      id: '/api/public/billing/reminders'
+      path: '/api/public/billing/reminders'
+      fullPath: '/api/public/billing/reminders'
+      preLoaderRoute: typeof ApiPublicBillingRemindersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/paddle/webhook': {
+      id: '/api/public/paddle/webhook'
+      path: '/api/public/paddle/webhook'
+      fullPath: '/api/public/paddle/webhook'
+      preLoaderRoute: typeof ApiPublicPaddleWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/push/dispatch': {
@@ -928,6 +1029,7 @@ interface AuthenticatedSettingsRouteChildren {
   AuthenticatedSettingsAiAssistantRoute: typeof AuthenticatedSettingsAiAssistantRoute
   AuthenticatedSettingsAnnouncementsRoute: typeof AuthenticatedSettingsAnnouncementsRoute
   AuthenticatedSettingsAppearanceRoute: typeof AuthenticatedSettingsAppearanceRoute
+  AuthenticatedSettingsBillingRoute: typeof AuthenticatedSettingsBillingRoute
   AuthenticatedSettingsCanvasRoute: typeof AuthenticatedSettingsCanvasRoute
   AuthenticatedSettingsClassesRoute: typeof AuthenticatedSettingsClassesRoute
   AuthenticatedSettingsNotificationsRoute: typeof AuthenticatedSettingsNotificationsRoute
@@ -941,6 +1043,7 @@ const AuthenticatedSettingsRouteChildren: AuthenticatedSettingsRouteChildren = {
   AuthenticatedSettingsAnnouncementsRoute:
     AuthenticatedSettingsAnnouncementsRoute,
   AuthenticatedSettingsAppearanceRoute: AuthenticatedSettingsAppearanceRoute,
+  AuthenticatedSettingsBillingRoute: AuthenticatedSettingsBillingRoute,
   AuthenticatedSettingsCanvasRoute: AuthenticatedSettingsCanvasRoute,
   AuthenticatedSettingsClassesRoute: AuthenticatedSettingsClassesRoute,
   AuthenticatedSettingsNotificationsRoute:
@@ -998,7 +1101,9 @@ const rootRouteChildren: RootRouteChildren = {
   EmailVerifiedRoute: EmailVerifiedRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   McpRoute: McpRoute,
+  PricingRoute: PricingRoute,
   PrivacyRoute: PrivacyRoute,
+  RefundPolicyRoute: RefundPolicyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
@@ -1008,6 +1113,8 @@ const rootRouteChildren: RootRouteChildren = {
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   ApiMobileDeleteAccountRoute: ApiMobileDeleteAccountRoute,
   ApiMobileSignInRoute: ApiMobileSignInRoute,
+  ApiPublicBillingRemindersRoute: ApiPublicBillingRemindersRoute,
+  ApiPublicPaddleWebhookRoute: ApiPublicPaddleWebhookRoute,
   ApiPublicPushDispatchRoute: ApiPublicPushDispatchRoute,
   ApiPublicPushHealthRoute: ApiPublicPushHealthRoute,
   ApiPublicPushKeyRoute: ApiPublicPushKeyRoute,

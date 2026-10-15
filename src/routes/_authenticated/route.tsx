@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AppSidebar, MobileNav } from "@/components/app-sidebar";
 import { CanvasKeyBanner } from "@/components/canvas-key-banner";
 import { PolicyUpdateBanner } from "@/components/policy-update-banner";
+import { BillingBanner, BillingGate } from "@/components/billing-gate";
 import { CanvasKeyGate } from "@/components/canvas-key-gate";
 import { ClassNamesGate } from "@/components/class-names-editor";
 import { NotificationCenter } from "@/components/notification-center";
@@ -120,16 +121,19 @@ function AuthenticatedLayout() {
           </div>
           <OfflineNotice />
           <PolicyUpdateBanner />
+          <BillingBanner email={user?.email} />
           <CanvasKeyBanner />
-          <CanvasKeyGate>
-            <ClassNamesGate>
-              <PullToRefresh>
-                <PageTransition>
-                  <Outlet />
-                </PageTransition>
-              </PullToRefresh>
-            </ClassNamesGate>
-          </CanvasKeyGate>
+          <BillingGate email={user?.email}>
+            <CanvasKeyGate>
+              <ClassNamesGate>
+                <PullToRefresh>
+                  <PageTransition>
+                    <Outlet />
+                  </PageTransition>
+                </PullToRefresh>
+              </ClassNamesGate>
+            </CanvasKeyGate>
+          </BillingGate>
           <CanvasTrademarkNotice className="mx-auto mt-10 max-w-3xl border-t border-border/30 px-4 pt-5" />
         </div>
       </main>

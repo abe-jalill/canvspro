@@ -1,4 +1,4 @@
-/* Palette tokens only: the existing CanvasPro layout and glass system stay intact. */
+/* Palette tokens only: the existing CoursePro layout and glass system stay intact. */
 :root[data-palette] {
   --palette-hue: 148;
   --palette-saturation: 34%;

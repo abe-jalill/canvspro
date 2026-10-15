@@ -27,7 +27,7 @@ test("the homepage shows four real screens, each in light and dark", () => {
 test("the hero shows the product's job: a week that sorts itself into the order to do it", () => {
   assert.match(page, /function SortingWeek\(/);
   assert.match(page, /As Canvas lists them/);
-  assert.match(page, /Sorted by CanvasPro/);
+  assert.match(page, /Sorted by CoursePro/);
   assert.match(page, /aria-label=\{`Mark \$\{task.title\} done`\}/);
 });
 

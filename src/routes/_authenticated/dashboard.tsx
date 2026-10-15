@@ -19,13 +19,13 @@ import {
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
     meta: [
-      { title: "Dashboard — CanvasPro" },
+      { title: "Dashboard — CoursePro" },
       {
         name: "description",
         content:
           "Your customizable Canvas home: class calendar, grades, assignments, announcements, and focus widgets in one place.",
       },
-      { property: "og:title", content: "Dashboard — CanvasPro" },
+      { property: "og:title", content: "Dashboard — CoursePro" },
       {
         property: "og:description",
         content:

@@ -1,7 +1,7 @@
-// CanvasPro service worker.
+// CoursePro service worker.
 //
 //  1. Offline support: the signed-in pages and the app's own files are cached so
-//     CanvasPro still opens without a connection. Only generic page shells and
+//     CoursePro still opens without a connection. Only generic page shells and
 //     static files are stored here. Account data never is: the app keeps its own
 //     per-account cache, which is cleared on sign-out.
 //  2. Push notifications (below).
@@ -79,7 +79,7 @@ function offlineResponse() {
   const html =
     '<!doctype html><html lang="en"><head><meta charset="utf-8">' +
     '<meta name="viewport" content="width=device-width,initial-scale=1">' +
-    "<title>Offline - CanvasPro</title><style>" +
+    "<title>Offline - CoursePro</title><style>" +
     "body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;" +
     "font:16px/1.5 system-ui,sans-serif;background:#f4f6f8;color:#16202c}" +
     "@media(prefers-color-scheme:dark){body{background:#0b0d10;color:#e8ecf1}}" +
@@ -88,7 +88,7 @@ function offlineResponse() {
     "padding:.6rem 1.1rem;border-radius:.75rem;border:1px solid currentColor;background:none;" +
     "color:inherit;text-decoration:none;cursor:pointer}</style></head><body><main>" +
     "<h1>You're offline</h1>" +
-    "<p>CanvasPro needs a connection the first time you open a page. " +
+    "<p>CoursePro needs a connection the first time you open a page. " +
     "Pages you've opened before still work.</p>" +
     '<button onclick="location.reload()">Try again</button>' +
     '<a href="/dashboard">Open dashboard</a></main></body></html>';
@@ -195,9 +195,9 @@ self.addEventListener("push", (event) => {
   try {
     data = event.data ? event.data.json() : {};
   } catch {
-    data = { title: event.data ? event.data.text() : "CanvasPro" };
+    data = { title: event.data ? event.data.text() : "CoursePro" };
   }
-  const title = data.title || "CanvasPro";
+  const title = data.title || "CoursePro";
   event.waitUntil(
     (async () => {
       // Countdown pushes reuse one tag per class/day so the alert updates in

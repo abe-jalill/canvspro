@@ -184,7 +184,7 @@ export async function enableBackgroundPush(): Promise<
     return {
       ok: false,
       reason: needsHomeScreenInstall()
-        ? "On iPhone/iPad, add CanvasPro to your Home Screen first, then turn this on from the installed app."
+        ? "On iPhone/iPad, add CoursePro to your Home Screen first, then turn this on from the installed app."
         : "This browser doesn't support background notifications.",
     };
   }

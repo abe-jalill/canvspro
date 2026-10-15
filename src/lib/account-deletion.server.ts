@@ -12,6 +12,13 @@ export async function deleteAccountData(
   const supabaseAdmin =
     client ?? (await import("@/integrations/supabase/client.server")).supabaseAdmin;
 
+  // A deleted account must never be charged again: end its Paddle subscription
+  // first. (Tests pass their own client and have no billing.)
+  if (!client) {
+    const { cancelBillingForDeletion } = await import("@/lib/billing.server");
+    await cancelBillingForDeletion(userId);
+  }
+
   const tables = [
     "account_profiles",
     "class_nicknames",

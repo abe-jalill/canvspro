@@ -114,7 +114,7 @@ export const Route = createFileRoute("/_authenticated/study-session")({
       ...(picks ? { picks } : {}),
     };
   },
-  head: () => ({ meta: [{ title: "Study Session — CanvasPro" }] }),
+  head: () => ({ meta: [{ title: "Study Session — CoursePro" }] }),
   loader: ({ context }) => {
     if (context?.queryClient) {
       void context.queryClient.ensureQueryData(assignmentsQO);

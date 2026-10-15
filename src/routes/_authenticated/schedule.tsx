@@ -24,12 +24,12 @@ import { X } from "lucide-react";
 export const Route = createFileRoute("/_authenticated/schedule")({
   head: () => ({
     meta: [
-      { title: "Calendar — CanvasPro" },
+      { title: "Calendar — CoursePro" },
       {
         name: "description",
         content: "Your upcoming Canvas due dates and events.",
       },
-      { property: "og:title", content: "Calendar — CanvasPro" },
+      { property: "og:title", content: "Calendar — CoursePro" },
       {
         property: "og:description",
         content: "Your upcoming Canvas due dates and events.",

@@ -25,14 +25,14 @@
       <rect x="14" y="0" width="8" height="29" rx="3" fill="#e2faec"/>
       <rect x="28" y="7" width="8" height="22" rx="3" fill="#b7e7d5"/>
     </g>
-    <text x="122" y="76" fill="#ffffff" font-size="29" font-weight="700" letter-spacing="-1.5">canvaspro<tspan fill="#b0edc9">.</tspan></text>
+    <text x="122" y="76" fill="#ffffff" font-size="29" font-weight="700" letter-spacing="-1.5">coursepro<tspan fill="#b0edc9">.</tspan></text>
     <text x="76" y="172" fill="#caf4db" font-size="16" font-weight="700" letter-spacing="4">THE STUDENT DAY, REIMAGINED</text>
     <text x="70" y="278" fill="#ffffff" font-size="83" font-weight="600" letter-spacing="-5">A clearer day</text>
     <text x="70" y="370" fill="#ffffff" font-size="83" font-weight="600" letter-spacing="-5">starts <tspan fill="#bdf3d3">here.</tspan></text>
     <text x="76" y="439" fill="#d4e5db" font-size="24">Every class. Every deadline. One place to see</text>
     <text x="76" y="471" fill="#d4e5db" font-size="24">what matters and move forward.</text>
     <rect x="75" y="520" width="215" height="58" rx="29" fill="#f5faf7"/>
-    <text x="102" y="556" fill="#26382d" font-size="18" font-weight="700">Get started free</text>
+    <text x="102" y="556" fill="#26382d" font-size="18" font-weight="700">Start free trial</text>
     <path d="M253 549h14m-5-6 6 6-6 6" fill="none" stroke="#26382d" stroke-width="2"/>
   </g>
   <g transform="translate(790 131) rotate(6 185 175)" filter="url(#shadow)" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, 'Segoe UI', Arial, sans-serif">

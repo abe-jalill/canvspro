@@ -60,8 +60,8 @@ export const Route = createFileRoute("/_authenticated/courses/$courseId")({
     meta: [
       {
         title: loaderData?.courseTitle
-          ? `${loaderData.courseTitle} — CanvasPro`
-          : "Class Details — CanvasPro",
+          ? `${loaderData.courseTitle} — CoursePro`
+          : "Class Details — CoursePro",
       },
       {
         name: "description",

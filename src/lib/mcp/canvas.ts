@@ -64,7 +64,7 @@ export interface CanvasBundle {
 
 function env(name: string): string {
   const value = process.env[name];
-  if (!value) throw new ToolError("CanvasPro is not configured to reach its backend right now.");
+  if (!value) throw new ToolError("CoursePro is not configured to reach its backend right now.");
   return value;
 }
 
@@ -73,7 +73,7 @@ export async function fetchCanvasBundle(
   token: string | undefined,
   signal?: AbortSignal,
 ): Promise<CanvasBundle> {
-  if (!token) throw new ToolError("Sign in to CanvasPro to let this assistant read your classes.");
+  if (!token) throw new ToolError("Sign in to CoursePro to let this assistant read your classes.");
 
   const url = `${env("SUPABASE_URL").replace(/\/$/, "")}/functions/v1/canvas`;
   const apikey = env("SUPABASE_PUBLISHABLE_KEY");
@@ -91,17 +91,17 @@ export async function fetchCanvasBundle(
       signal,
     });
   } catch {
-    throw new ToolError("Couldn't reach CanvasPro's Canvas service. Try again in a moment.");
+    throw new ToolError("Couldn't reach CoursePro's Canvas service. Try again in a moment.");
   }
 
   const body = await response.text();
 
   if (response.status === 401) {
-    throw new ToolError("This CanvasPro connection is no longer valid. Reconnect the app.");
+    throw new ToolError("This CoursePro connection is no longer valid. Reconnect the app.");
   }
   if (response.status === 428) {
     throw new ToolError(
-      "No Canvas connection saved yet. Add your school's Canvas address and API key in CanvasPro settings first.",
+      "No Canvas connection saved yet. Add your school's Canvas address and API key in CoursePro settings first.",
     );
   }
   if (!response.ok) {
@@ -114,7 +114,7 @@ export async function fetchCanvasBundle(
     }
     if (/NO_CANVAS_KEY|NO_CANVAS_DOMAIN/.test(message)) {
       throw new ToolError(
-        "No Canvas connection saved yet. Add your school's Canvas address and API key in CanvasPro settings first.",
+        "No Canvas connection saved yet. Add your school's Canvas address and API key in CoursePro settings first.",
       );
     }
     throw new ToolError(`Canvas request failed: ${message}`);

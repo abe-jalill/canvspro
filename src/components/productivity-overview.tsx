@@ -220,7 +220,7 @@ export function ProductivityOverview({ showLink = true }: { showLink?: boolean }
         <p>
           {assignments.isError || prefs.isError
             ? "Some data could not refresh. Use Sync above to try again."
-            : "Based on Canvas submission dates and your CanvasPro checkmarks. Planning alerts use Monday–Sunday weeks."}
+            : "Based on Canvas submission dates and your CoursePro checkmarks. Planning alerts use Monday–Sunday weeks."}
         </p>
       </div>
     </section>

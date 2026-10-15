@@ -5,10 +5,10 @@ import { SettingsPage } from "@/components/settings-page";
 
 export const Route = createFileRoute("/_authenticated/settings/ai-assistant")({
   head: () => ({ meta: [
-    { title: "AI Assistant Connection — CanvasPro" },
-    { name: "description", content: "Connect an AI assistant to your CanvasPro classes and deadlines." },
-    { property: "og:title", content: "AI Assistant Connection — CanvasPro" },
-    { property: "og:description", content: "Connect an AI assistant to your CanvasPro classes and deadlines." },
+    { title: "AI Assistant Connection — CoursePro" },
+    { name: "description", content: "Connect an AI assistant to your CoursePro classes and deadlines." },
+    { property: "og:title", content: "AI Assistant Connection — CoursePro" },
+    { property: "og:description", content: "Connect an AI assistant to your CoursePro classes and deadlines." },
     { property: "og:type", content: "website" },
     { name: "twitter:card", content: "summary_large_image" },
   ] }),
@@ -16,5 +16,5 @@ export const Route = createFileRoute("/_authenticated/settings/ai-assistant")({
 });
 
 function AiAssistantPage() {
-  return <SettingsPage title="AI assistant" description="Connect an assistant securely with read-only access to your CanvasPro information."><GlassCard title="Connect an AI assistant" subtitle="Let an app like Claude or ChatGPT read your classes for you."><AiConnectionSection /></GlassCard></SettingsPage>;
+  return <SettingsPage title="AI assistant" description="Connect an assistant securely with read-only access to your CoursePro information."><GlassCard title="Connect an AI assistant" subtitle="Let an app like Claude or ChatGPT read your classes for you."><AiConnectionSection /></GlassCard></SettingsPage>;
 }

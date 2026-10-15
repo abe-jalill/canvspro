@@ -5,7 +5,8 @@ import sharp from "sharp";
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const rootDirectory = path.resolve(scriptDirectory, "..");
-const sourcePath = path.join(rootDirectory, "artwork", "canvaspro-icon-source.png");
+// 1024px CoursePro mark and wordmark (Inter Bold), white on the brand green.
+const sourcePath = path.join(rootDirectory, "artwork", "coursepro-icon-source.png");
 const publicDirectory = path.join(rootDirectory, "public");
 const appIconPath = path.join(
   rootDirectory,
@@ -17,8 +18,9 @@ const appIconPath = path.join(
   "AppIcon-512@2x.png",
 );
 
-const SOURCE_SIZE = 180;
-const FOREGROUND_OFFSET_Y = -5;
+const SOURCE_SIZE = 1024;
+// The source artwork is already optically centered.
+const FOREGROUND_OFFSET_Y = 0;
 const GREEN = { r: 0, g: 48, b: 28, alpha: 1 };
 const BLACK = { r: 0, g: 0, b: 0, alpha: 1 };
 
@@ -29,8 +31,7 @@ if (info.width !== SOURCE_SIZE || info.height !== SOURCE_SIZE) {
   throw new Error(`Expected ${SOURCE_SIZE}x${SOURCE_SIZE} source artwork.`);
 }
 
-// The supplied logo artwork sits about five pixels below its optical center.
-// Recover its light foreground as an alpha mask so the mark and wordmark can
+// Recover the artwork's light foreground as an alpha mask so the mark and wordmark can
 // move without shifting the rounded-square background around them.
 const mask = Buffer.alloc(SOURCE_SIZE * SOURCE_SIZE);
 for (let pixel = 0; pixel < SOURCE_SIZE * SOURCE_SIZE; pixel += 1) {
@@ -48,10 +49,11 @@ const centeredForeground = await sharp({
   },
 })
   .joinChannel(mask, { raw: { width: SOURCE_SIZE, height: SOURCE_SIZE, channels: 1 } })
-  .affine(
-    [1, 0, 0, 1],
-    { idx: 0, idy: FOREGROUND_OFFSET_Y, background: { r: 255, g: 255, b: 255, alpha: 0 } },
-  )
+  .affine([1, 0, 0, 1], {
+    idx: 0,
+    idy: FOREGROUND_OFFSET_Y,
+    background: { r: 255, g: 255, b: 255, alpha: 0 },
+  })
   .png()
   .toBuffer();
 
@@ -94,4 +96,4 @@ await Promise.all([
   render(1024, appIconPath, { rounded: false }),
 ]);
 
-console.log("Generated centered CanvasPro icons for web, PWA, and iOS.");
+console.log("Generated centered CoursePro icons for web, PWA, and iOS.");

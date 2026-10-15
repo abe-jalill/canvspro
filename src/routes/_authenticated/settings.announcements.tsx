@@ -5,10 +5,10 @@ import { SettingsPage } from "@/components/settings-page";
 
 export const Route = createFileRoute("/_authenticated/settings/announcements")({
   head: () => ({ meta: [
-    { title: "Announcement Settings — CanvasPro" },
-    { name: "description", content: "Choose how far back Canvas announcements appear in CanvasPro." },
-    { property: "og:title", content: "Announcement Settings — CanvasPro" },
-    { property: "og:description", content: "Choose how far back Canvas announcements appear in CanvasPro." },
+    { title: "Announcement Settings — CoursePro" },
+    { name: "description", content: "Choose how far back Canvas announcements appear in CoursePro." },
+    { property: "og:title", content: "Announcement Settings — CoursePro" },
+    { property: "og:description", content: "Choose how far back Canvas announcements appear in CoursePro." },
     { property: "og:type", content: "website" },
     { name: "twitter:card", content: "summary_large_image" },
   ] }),
