@@ -3,6 +3,6 @@ project_id = "vqmzhzvugzhmtprklzfm"
 [functions.canvas]
 verify_jwt = true
 
-# Called by the background check with the cron secret (checked inside), not a user session.
+# Called only by the background check, with the cron secret (checked inside).
 [functions.apns]
 verify_jwt = false

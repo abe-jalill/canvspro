@@ -4,7 +4,8 @@
 // Deno, whose fetch speaks HTTP/2; the site's own server runs on Cloudflare
 // Workers, where that isn't guaranteed (and a silent failure there is exactly
 // how web push broke before). Called by the background check with the cron
-// secret: POST { user_id, alerts: [{ id, title, body?, to, badge? }] }.
+// secret: POST { user_id, alerts: [{ id, title, body?, to, badge? }] }. It
+// answers which alert ids reached at least one iPhone ({ delivered: [...] }).
 //
 // Needs secrets APNS_TEAM_ID, APNS_KEY_ID, APNS_PRIVATE_KEY (and optionally
 // APNS_BUNDLE_ID), which require a paid Apple Developer account.
@@ -98,7 +99,8 @@ async function send(token: Token, alert: Alert, jwt: string, bundleId: string) {
       "thread-id": alert.id.split(":")[0],
       ...(alert.badge == null ? {} : { badge: alert.badge }),
     },
-    to: alert.to,
+    // The app opens this page when the notification is tapped (AppDelegate reads to_path).
+    to_path: alert.to,
   });
   const attempt = async (environment: Token["environment"]) => {
     const host = environment === "sandbox" ? "api.sandbox.push.apple.com" : "api.push.apple.com";
@@ -147,7 +149,7 @@ Deno.serve(async (req) => {
   const privateKey = Deno.env.get("APNS_PRIVATE_KEY")?.trim() ?? "";
   const bundleId = Deno.env.get("APNS_BUNDLE_ID")?.trim() || "app.canvaspro.mobile";
   if (!teamId || !keyId || !privateKey) {
-    return Response.json({ sent: 0, reason: "apns-not-configured" });
+    return Response.json({ sent: 0, delivered: [], reason: "apns-not-configured" });
   }
 
   const input = (await req.json().catch(() => null)) as {
@@ -163,14 +165,14 @@ Deno.serve(async (req) => {
   const tokensRes = await rest(
     `native_push_tokens?select=id,token,environment&user_id=eq.${encodeURIComponent(userId)}`,
   );
-  if (!tokensRes.ok) return Response.json({ sent: 0, reason: "no-token-table" });
+  if (!tokensRes.ok) return Response.json({ sent: 0, delivered: [], reason: "no-token-table" });
   const tokens = (await tokensRes.json()) as Token[];
-  if (tokens.length === 0) return Response.json({ sent: 0, reason: "no-devices" });
+  if (tokens.length === 0) return Response.json({ sent: 0, delivered: [], reason: "no-devices" });
 
   const jwt = await providerToken(teamId, keyId, privateKey);
   const dead = new Set<string>();
   const ok = new Set<string>();
-  let sent = 0;
+  const delivered: string[] = [];
   for (const alert of alerts) {
     const results = await Promise.all(
       tokens
@@ -185,7 +187,7 @@ Deno.serve(async (req) => {
       } else if (r?.dead) dead.add(t.id);
       else console.error(`[apns] token=${t.id} status=${r?.status} reason=${r?.reason}`);
     }
-    if (reached) sent += 1;
+    if (reached) delivered.push(alert.id);
   }
 
   if (dead.size > 0) {
@@ -197,5 +199,10 @@ Deno.serve(async (req) => {
       body: JSON.stringify({ failure_count: 0, last_success_at: new Date().toISOString() }),
     });
   }
-  return Response.json({ sent, devices: tokens.length, removed: dead.size });
+  return Response.json({
+    sent: delivered.length,
+    delivered,
+    devices: tokens.length,
+    removed: dead.size,
+  });
 });

@@ -127,6 +127,13 @@
       "when": 1792087986534,
       "tag": "0017_0017_lock_down_billing_config",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1792110000000,
+      "tag": "0018_native_push_tokens",
+      "breakpoints": true
     }
   ]
 }

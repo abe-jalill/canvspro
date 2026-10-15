@@ -26,6 +26,7 @@ import {
   type TonightItem,
 } from "@/lib/countdown-alerts.server";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { nativeAlertAllowed, nativeDelivered } from "@/lib/native-push";
 
 interface SubRow {
   id: string;
@@ -166,8 +167,54 @@ const SCHEDULED_GRACE_MS = 6 * 60_000;
 const SCHEDULED_LOOKBACK_MS = 12 * 3_600_000;
 
 /**
+ * New grades and announcements to the account's iPhones, through the apns
+ * function (Apple's push service needs HTTP/2, which Workers' fetch can't
+ * promise). Returns the alert ids at least one iPhone got. Best-effort: Apple
+ * push not set up yet, or any error, sends nothing and leaves web push alone.
+ */
+async function deliverToIphones(
+  admin: Admin,
+  userId: string,
+  alerts: Alert[],
+  cronSecret: string,
+): Promise<Set<string>> {
+  const wanted = alerts.filter((a) => nativeAlertAllowed(a.id));
+  if (wanted.length === 0) return new Set();
+  try {
+    const { data, error } = await admin.functions.invoke("apns", {
+      body: {
+        user_id: userId,
+        alerts: wanted.map((a) => ({
+          id: a.id,
+          title: a.title,
+          body: a.body,
+          to: a.to,
+          badge: a.badge,
+        })),
+      },
+      headers: { "x-cron-secret": cronSecret },
+    });
+    if (error) {
+      console.warn(`[push-dispatch] iphone push failed user=${userId} (${error.message})`);
+      return new Set();
+    }
+    return nativeDelivered(
+      data,
+      wanted.map((a) => a.id),
+    );
+  } catch (err) {
+    console.warn(
+      `[push-dispatch] iphone push failed user=${userId} (${err instanceof Error ? err.message : err})`,
+    );
+    return new Set();
+  }
+}
+
+/**
  * Sends the alerts this account hasn't had yet to its devices, records what
- * went out, and tidies up dead or failing subscriptions.
+ * went out, and tidies up dead or failing subscriptions. `iphone` carries the
+ * cron secret when the account has the iPhone app registered; an alert counts
+ * as delivered when a browser or an iPhone got it.
  */
 async function deliverToUser(
   admin: Admin,
@@ -175,12 +222,13 @@ async function deliverToUser(
   userSubs: SubRow[],
   due: Alert[],
   vapid: Vapid,
+  iphone: { cronSecret: string } | null = null,
 ): Promise<{ sent: number; failures: number; fresh: number; logged: string[] }> {
   // `logged`: alerts this account has now had, sent earlier or just now.
   const out = { sent: 0, failures: 0, fresh: 0, logged: [] as string[] };
   // Only real browser push services; a hand-written endpoint is never contacted.
   userSubs = userSubs.filter((s) => isPushServiceEndpoint(s.endpoint));
-  if (due.length === 0 || userSubs.length === 0) return out;
+  if (due.length === 0 || (userSubs.length === 0 && !iphone)) return out;
   const { data: sentRows } = await admin
     .from("push_sent_log")
     .select("alert_id")
@@ -199,13 +247,26 @@ async function deliverToUser(
   const failedSubs = new Set<string>();
   const okSubs = new Set<string>();
   const loggable: typeof fresh = [];
+  const onIphone = iphone
+    ? await deliverToIphones(admin, userId, fresh, iphone.cronSecret)
+    : new Set<string>();
   for (const alert of fresh) {
+    if (onIphone.has(alert.id)) {
+      loggable.push(alert);
+      out.sent += 1;
+      // Browsers still get it below when there are any; it's logged once.
+    }
     const targets = userSubs.filter((s) => !dead.has(s.id));
-    if (targets.length === 0) break;
+    if (targets.length === 0) {
+      if (onIphone.has(alert.id)) continue;
+      if (userSubs.length === 0) continue;
+      break;
+    }
     const report = await deliver(targets, alert, vapid);
     report.dead.forEach((id) => dead.add(id));
     report.failed.forEach((id) => failedSubs.add(id));
     report.delivered.forEach((id) => okSubs.add(id));
+    if (onIphone.has(alert.id)) continue;
     if (report.delivered.length > 0) {
       loggable.push(alert);
       out.sent += 1;
@@ -337,8 +398,12 @@ async function dispatchUser(
   userSubs: SubRow[],
   vapid: Vapid,
   defaultDomain: string,
+  iphone: { cronSecret: string } | null = null,
 ): Promise<DispatchResult> {
   const result: DispatchResult = { sent: 0, failures: 0, reason: "error" };
+  // An account with only the iPhone app: the phone schedules its own due-date,
+  // class, tonight and streak reminders, so only grades and announcements are sent.
+  const iphoneOnly = iphone !== null && !userSubs.some((s) => isPushServiceEndpoint(s.endpoint));
   let previousHeartbeat: unknown;
   try {
     const [
@@ -414,9 +479,11 @@ async function dispatchUser(
     // Class reminders need only the saved schedule, so they are queued before
     // quiet hours or a Canvas outage can stop this check. Quiet hours are
     // applied again when each one is sent.
-    await enqueueCountdowns(admin, userId, { ...prefs, countdownTonight: false }, tz, []);
-    // The streak reminder needs no Canvas data either.
-    await enqueueStreakReminder(admin, userId, prefs, tz);
+    if (!iphoneOnly) {
+      await enqueueCountdowns(admin, userId, { ...prefs, countdownTonight: false }, tz, []);
+      // The streak reminder needs no Canvas data either.
+      await enqueueStreakReminder(admin, userId, prefs, tz);
+    }
 
     if (isQuiet(prefs, tz)) {
       result.reason = "quiet-hours";
@@ -477,14 +544,18 @@ async function dispatchUser(
 
     // Queue tonight's deadline reminders (they need Canvas data); the 5-minute
     // scheduled run sends each one at its moment.
-    await enqueueCountdowns(admin, userId, { ...prefs, countdownClass: false }, tz, tonight);
+    if (!iphoneOnly) {
+      await enqueueCountdowns(admin, userId, { ...prefs, countdownClass: false }, tz, tonight);
+    } else {
+      alerts = alerts.filter((a) => nativeAlertAllowed(a.id));
+    }
     result.due = alerts.length;
     if (alerts.length === 0) {
       result.reason = "nothing-due";
       return result;
     }
 
-    const delivered = await deliverToUser(admin, userId, userSubs, alerts, vapid);
+    const delivered = await deliverToUser(admin, userId, userSubs, alerts, vapid, iphone);
     result.fresh = delivered.fresh;
     result.sent = delivered.sent;
     result.failures = delivered.failures;
@@ -511,6 +582,28 @@ async function dispatchUser(
  * slow Canvas school can't run the cron request out of time before later
  * accounts are reached.
  */
+/**
+ * Accounts with the iPhone app registered. Empty when the table isn't there
+ * yet or can't be read, so web push carries on exactly as before.
+ */
+async function iphoneUserIds(admin: Admin, onlyUserId?: string): Promise<Set<string>> {
+  try {
+    let query = streakDb(admin).from("native_push_tokens").select("user_id");
+    if (onlyUserId) query = query.eq("user_id", onlyUserId);
+    const { data, error } = await query;
+    if (error) return new Set();
+    return new Set(((data ?? []) as Array<{ user_id: string }>).map((r) => r.user_id));
+  } catch {
+    return new Set();
+  }
+}
+
+/** The cron secret, for the apns function's check. Empty if it can't be read. */
+async function iphoneCronSecret(admin: Admin): Promise<string> {
+  const { data } = await admin.from("push_cron_config").select("secret").limit(1).maybeSingle();
+  return ((data?.secret ?? "") as string) || "";
+}
+
 async function run(onlyUserId?: string): Promise<Response> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   // Global fallback only — each user's own Canvas URL takes priority, so
@@ -536,7 +629,12 @@ async function run(onlyUserId?: string): Promise<Response> {
     return Response.json({ error: "subscription lookup failed" }, { status: 500 });
   }
   const rows = (subs ?? []) as SubRow[];
-  if (rows.length === 0) return Response.json({ users: 0, sent: 0 });
+  // The apns function checks the same secret the cron sends.
+  const cronSecret = await iphoneCronSecret(supabaseAdmin);
+  const iphoneUsers = cronSecret
+    ? await iphoneUserIds(supabaseAdmin, onlyUserId)
+    : new Set<string>();
+  if (rows.length === 0 && iphoneUsers.size === 0) return Response.json({ users: 0, sent: 0 });
 
   const byUser = new Map<string, SubRow[]>();
   for (const r of rows) {
@@ -544,6 +642,8 @@ async function run(onlyUserId?: string): Promise<Response> {
     list.push(r);
     byUser.set(r.user_id, list);
   }
+  // Students who only use the iPhone app have no browser subscriptions.
+  for (const id of iphoneUsers) if (!byUser.has(id)) byUser.set(id, []);
 
   const users = Array.from(byUser);
   if (!onlyUserId) {
@@ -573,7 +673,14 @@ async function run(onlyUserId?: string): Promise<Response> {
         const i = next++;
         if (i >= users.length) return;
         const [userId, userSubs] = users[i]!;
-        const r = await dispatchUser(supabaseAdmin, userId, userSubs, keys, defaultDomain);
+        const r = await dispatchUser(
+          supabaseAdmin,
+          userId,
+          userSubs,
+          keys,
+          defaultDomain,
+          iphoneUsers.has(userId) ? { cronSecret } : null,
+        );
         sent += r.sent;
         failures += r.failures;
         accounts.push({
