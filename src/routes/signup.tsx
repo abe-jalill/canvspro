@@ -132,18 +132,18 @@ function SignupPage() {
 
   if (awaitingCode) {
     return (
-      <AuthShell title="Enter your code" subtitle={`We emailed a 6-digit code to ${email.trim()}`}>
+      <AuthShell title="Enter your code" subtitle={`We emailed a code to ${email.trim()}`}>
         <form onSubmit={onVerify} className="flex w-full flex-col gap-4">
           <input
             value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 8))}
             inputMode="numeric"
             autoComplete="one-time-code"
             placeholder="123456"
             aria-label="Verification code"
             required
-            minLength={6}
-            maxLength={6}
+            minLength={4}
+            maxLength={8}
             className="glass-inset min-h-14 w-full rounded-xl px-4 text-center text-2xl font-semibold tracking-[0.5em] text-foreground outline-none"
           />
           {error && (
@@ -154,7 +154,7 @@ function SignupPage() {
           {notice && <p className="text-sm text-muted-foreground">{notice}</p>}
           <button
             type="submit"
-            disabled={busy || code.length !== 6}
+            disabled={busy || code.length < 4}
             className="glass-hover min-h-12 w-full rounded-xl bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-60"
           >
             {busy ? "Verifying…" : "Verify"}
