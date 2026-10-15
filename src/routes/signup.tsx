@@ -154,7 +154,7 @@ function SignupPage() {
           {notice && <p className="text-sm text-muted-foreground">{notice}</p>}
           <button
             type="submit"
-            disabled={busy || code.length !== 6}
+            disabled={busy || code.length < 4}
             className="glass-hover min-h-12 w-full rounded-xl bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-60"
           >
             {busy ? "Verifying…" : "Verify"}
