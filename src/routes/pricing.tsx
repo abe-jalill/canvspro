@@ -1,10 +1,10 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { Check } from "lucide-react";
-import { PLANS, REFUND_WINDOW_DAYS, TRIAL_DAYS } from "@/lib/billing";
-import "./public-pages.css";
+import { PLANS, TRIAL_DAYS } from "@/lib/billing";
+import { PublicPage, PublicPageHeader } from "@/components/public-page";
 
 const TITLE = "CoursePro Pricing";
-const DESCRIPTION = `Start with a ${TRIAL_DAYS}-day free trial, then ${PLANS.monthly.price}/month or ${PLANS.yearly.price}/year. Cancel anytime.`;
+const DESCRIPTION = `Paid plans are coming soon: ${PLANS.monthly.price}/month or ${PLANS.yearly.price}/year, with a ${TRIAL_DAYS}-day free trial.`;
 
 export const Route = createFileRoute("/pricing")({
   head: () => ({
@@ -27,112 +27,56 @@ const INCLUDED = [
   "Due-date, grade and announcement alerts, even with the app closed",
   "Class schedule with countdowns and reminders",
   "Focus, study sessions and Today's Plan",
+  "Daily streaks, with a streak freeze every month",
   "Grade history for every class",
   "Connect Claude, ChatGPT or another AI assistant to your Canvas",
 ];
 
-const FAQ = [
-  {
-    q: "How does the free trial work?",
-    a: `You add a payment method and get ${TRIAL_DAYS} days free. We email you 7 days before your first charge. Cancel before the trial ends in Settings → Billing and you're never charged.`,
-  },
-  {
-    q: "Can I cancel anytime?",
-    a: "Yes. Cancel online in Settings → Billing. You keep CoursePro until the end of the period you've paid for, and you won't be charged again.",
-  },
-  {
-    q: "Can I switch from monthly to yearly?",
-    a: "Anytime, in Settings → Billing. The unused part of your month is credited, and you see the exact amount before you confirm.",
-  },
-  {
-    q: "What if I change my mind after paying?",
-    a: `Ask for a refund within ${REFUND_WINDOW_DAYS} days of a charge, for any reason. See the Refund Policy.`,
-  },
-  {
-    q: "Who processes the payment?",
-    a: "Our order process is conducted by our online reseller Paddle.com. Paddle.com is the Merchant of Record for all our orders, and it handles payments, taxes, receipts and refunds.",
-  },
-];
-
 function PricingPage() {
   return (
-    <article className="cp-public-tool mx-auto w-full max-w-3xl px-4 py-12 sm:py-16">
-      <header className="text-center">
-        <Link to="/" className="cp-public-tool__back">
-          ← CoursePro
-        </Link>
-        <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-          Pricing
+    <PublicPage>
+      <PublicPageHeader eyebrow="Pricing" title="One simple plan. Coming soon.">
+        <p>
+          Paid plans aren&rsquo;t open yet. Until they are, every part of CoursePro is free to use.
         </p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
-          {TRIAL_DAYS} days free. Then one simple plan.
-        </h1>
-        <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground">{DESCRIPTION}</p>
-      </header>
+      </PublicPageHeader>
 
-      <div className="mt-10 grid gap-4 sm:grid-cols-2">
+      <div className="hp-plans">
         {(["monthly", "yearly"] as const).map((plan) => (
-          <section key={plan} className="glass-panel flex flex-col p-6">
-            <h2 className="text-sm font-medium">{plan === "monthly" ? "Monthly" : "Yearly"}</h2>
-            <p className="mt-2 text-4xl font-semibold tracking-tight">
+          <section key={plan} className="hp-card hp-plan" aria-labelledby={`plan-${plan}`}>
+            <div className="flex items-center justify-between gap-3">
+              <h2 id={`plan-${plan}`} className="hp-eyebrow">
+                {plan === "monthly" ? "Monthly" : "Yearly"}
+              </h2>
+              <span className="hp-badge">Coming soon</span>
+            </div>
+            <p className="hp-plan__price">
               {PLANS[plan].price}
-              <span className="text-base font-normal text-muted-foreground">
-                /{PLANS[plan].per}
-              </span>
+              <span>/{PLANS[plan].per}</span>
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {plan === "yearly" ? "2 months free · billed once a year" : "Billed every month"} ·
-              plus applicable tax
+            <p className="hp-plan__note">
+              {plan === "yearly" ? "Two months free, billed once a year." : "Billed every month."}{" "}
+              {TRIAL_DAYS}-day free trial. Cancel anytime.
             </p>
-            <p className="mt-4 text-sm text-muted-foreground">
-              Free for {TRIAL_DAYS} days, then {PLANS[plan].price}/{PLANS[plan].per}, renewing
-              automatically until you cancel.
-            </p>
-            <Link
-              to="/signup"
-              className="glass-hover mt-6 inline-flex min-h-11 items-center justify-center rounded-xl bg-foreground px-4 text-sm font-semibold text-background"
-            >
-              Start your {TRIAL_DAYS}-day free trial
-            </Link>
+            <div className="hp-plan__spacer" />
+            <button type="button" className="hp-button" disabled aria-disabled="true">
+              Coming soon
+            </button>
           </section>
         ))}
       </div>
 
-      <section className="glass-panel mt-6 p-6">
-        <h2 className="text-lg font-semibold tracking-tight">Everything is included</h2>
-        <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+      <section className="hp-section hp-card" aria-labelledby="included-title">
+        <h2 id="included-title">Everything is included</h2>
+        <ul className="hp-checks">
           {INCLUDED.map((item) => (
-            <li key={item} className="flex gap-2">
-              <Check className="mt-0.5 h-4 w-4 shrink-0 text-foreground" aria-hidden />
+            <li key={item}>
+              <Check aria-hidden="true" />
               <span>{item}</span>
             </li>
           ))}
         </ul>
       </section>
-
-      <section className="mt-6 space-y-3">
-        <h2 className="px-1 text-lg font-semibold tracking-tight">Questions</h2>
-        {FAQ.map(({ q, a }) => (
-          <div key={q} className="glass-panel p-5">
-            <h3 className="text-sm font-medium">{q}</h3>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{a}</p>
-          </div>
-        ))}
-      </section>
-
-      <p className="mt-8 text-center text-xs text-muted-foreground">
-        <Link to="/terms" className="underline underline-offset-4">
-          Terms of Use
-        </Link>{" "}
-        ·{" "}
-        <Link to="/refund-policy" className="underline underline-offset-4">
-          Refund Policy
-        </Link>{" "}
-        ·{" "}
-        <Link to="/privacy" className="underline underline-offset-4">
-          Privacy Policy
-        </Link>
-      </p>
-    </article>
+    </PublicPage>
   );
 }

@@ -1,5 +1,13 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { LEGAL_POLICY_VERSION, LEGAL_TEXT_UPDATED } from "@/lib/legal-consent";
+import { PublicPage, PublicPageHeader } from "@/components/public-page";
+
+const DOCUMENTS = [
+  { to: "/terms", label: "Terms of Use" },
+  { to: "/privacy", label: "Privacy Policy" },
+  { to: "/refund-policy", label: "Refund Policy" },
+  { to: "/support", label: "Support" },
+] as const;
 
 export interface LegalTable {
   caption?: string;
@@ -27,6 +35,7 @@ function sectionId(title: string) {
     .replace(/^-|-$/g, "");
 }
 
+/** Terms, Privacy and Refunds, in the homepage's frame (components/public-page.tsx). */
 export function LegalPage({
   title,
   sections,
@@ -38,100 +47,82 @@ export function LegalPage({
   intro?: string;
   highlights?: LegalHighlight[];
 }) {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
   return (
-    <main className="min-h-svh px-4 py-10 sm:px-6 lg:px-8">
-      <article className="mx-auto max-w-3xl">
-        <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-          {LEGAL_TEXT_UPDATED === LEGAL_POLICY_VERSION
-            ? `Effective and last updated: ${LEGAL_POLICY_VERSION}`
-            : `Effective: ${LEGAL_POLICY_VERSION} · Last updated: ${LEGAL_TEXT_UPDATED}`}
-        </p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">{title}</h1>
-        {intro && <p className="mt-4 text-base leading-7 text-muted-foreground">{intro}</p>}
-        <nav aria-label="Legal documents" className="mt-5 flex flex-wrap gap-4 text-sm">
-          <Link to="/terms" className="underline underline-offset-4">
-            Terms of Use
-          </Link>
-          <Link to="/privacy" className="underline underline-offset-4">
-            Privacy Policy
-          </Link>
-          <Link to="/refund-policy" className="underline underline-offset-4">
-            Refund Policy
-          </Link>
-          <Link to="/pricing" className="underline underline-offset-4">
-            Pricing
-          </Link>
-          <a href="mailto:support@canvaspro.app" className="underline underline-offset-4">
-            Contact support
-          </a>
+    <PublicPage>
+      <PublicPageHeader
+        eyebrow={
+          LEGAL_TEXT_UPDATED === LEGAL_POLICY_VERSION
+            ? `Effective and last updated ${LEGAL_POLICY_VERSION}`
+            : `Effective ${LEGAL_POLICY_VERSION} · Last updated ${LEGAL_TEXT_UPDATED}`
+        }
+        title={title}
+      >
+        {intro && <p>{intro}</p>}
+        <nav aria-label="Legal documents" className="hp-doc-nav">
+          {DOCUMENTS.map((doc) => (
+            <Link key={doc.to} to={doc.to} aria-current={pathname === doc.to ? "page" : undefined}>
+              {doc.label}
+            </Link>
+          ))}
         </nav>
+      </PublicPageHeader>
 
-        {highlights && highlights.length > 0 && (
-          <section
-            aria-labelledby="legal-summary"
-            className="mt-8 rounded-2xl border border-border/40 bg-muted/30 p-5 sm:p-6"
-          >
-            <h2 id="legal-summary" className="text-base font-semibold tracking-tight">
-              The short version
-            </h2>
-            <dl className="mt-4 grid gap-4 sm:grid-cols-2">
-              {highlights.map((item) => (
-                <div key={item.title}>
-                  <dt className="text-sm font-medium">{item.title}</dt>
-                  <dd className="mt-1 text-sm leading-6 text-muted-foreground">{item.body}</dd>
-                </div>
-              ))}
-            </dl>
-            <p className="mt-4 text-xs leading-5 text-muted-foreground">
-              This summary is a convenience. The full policy below is what applies.
-            </p>
-          </section>
-        )}
+      {highlights && highlights.length > 0 && (
+        <section aria-labelledby="legal-summary" className="hp-section hp-card">
+          <h2 id="legal-summary">The short version</h2>
+          <dl className="hp-legal-summary">
+            {highlights.map((item) => (
+              <div key={item.title}>
+                <dt>{item.title}</dt>
+                <dd>{item.body}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="hp-muted hp-legal-note">
+            This summary is a convenience. The full policy below is what applies.
+          </p>
+        </section>
+      )}
 
-        {sections.length > 4 && (
-          <nav aria-label="On this page" className="mt-8">
-            <h2 className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              On this page
-            </h2>
-            <ol className="mt-3 grid gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
-              {sections.map((section) => (
-                <li key={section.title}>
-                  <a
-                    href={`#${sectionId(section.title)}`}
-                    className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-                  >
-                    {section.title}
-                  </a>
-                </li>
-              ))}
-            </ol>
-          </nav>
-        )}
+      {sections.length > 4 && (
+        <nav aria-label="On this page" className="hp-section hp-legal-toc">
+          <p className="hp-eyebrow">On this page</p>
+          <ol>
+            {sections.map((section) => (
+              <li key={section.title}>
+                <a href={`#${sectionId(section.title)}`}>{section.title}</a>
+              </li>
+            ))}
+          </ol>
+        </nav>
+      )}
 
+      <div className="hp-prose">
         {sections.map((section) => (
-          <section key={section.title} id={sectionId(section.title)} className="mt-10 scroll-mt-6">
-            <h2 className="text-lg font-semibold tracking-tight">{section.title}</h2>
-            <div className="mt-4 space-y-3 text-sm leading-7 text-muted-foreground">
+          <section key={section.title} id={sectionId(section.title)}>
+            <h2>{section.title}</h2>
+            <div>
               {section.paragraphs?.map((paragraph) => (
                 <p key={paragraph}>{paragraph}</p>
               ))}
               {section.bullets && (
-                <ul className="list-disc space-y-1.5 pl-5">
+                <ul className="hp-legal-list">
                   {section.bullets.map((bullet) => (
                     <li key={bullet}>{bullet}</li>
                   ))}
                 </ul>
               )}
               {section.table && (
-                <div className="overflow-x-auto rounded-xl border border-border/40">
-                  <table className="w-full min-w-[34rem] border-collapse text-left text-sm leading-6">
+                <div className="hp-legal-table">
+                  <table>
                     {section.table.caption && (
                       <caption className="sr-only">{section.table.caption}</caption>
                     )}
-                    <thead className="bg-muted/40 text-foreground">
+                    <thead>
                       <tr>
                         {section.table.headers.map((header) => (
-                          <th key={header} scope="col" className="px-4 py-2.5 font-medium">
+                          <th key={header} scope="col">
                             {header}
                           </th>
                         ))}
@@ -139,14 +130,9 @@ export function LegalPage({
                     </thead>
                     <tbody>
                       {section.table.rows.map((row) => (
-                        <tr key={row[0]} className="border-t border-border/40 align-top">
+                        <tr key={row[0]}>
                           {row.map((cell, index) => (
-                            <td
-                              key={`${row[0]}-${index}`}
-                              className={index === 0 ? "px-4 py-3 font-medium text-foreground" : "px-4 py-3"}
-                            >
-                              {cell}
-                            </td>
+                            <td key={`${row[0]}-${index}`}>{cell}</td>
                           ))}
                         </tr>
                       ))}
@@ -157,12 +143,7 @@ export function LegalPage({
             </div>
           </section>
         ))}
-        <div className="mt-12 border-t border-border/30 pt-6">
-          <Link to="/" className="text-sm font-medium underline underline-offset-4">
-            Back to CoursePro
-          </Link>
-        </div>
-      </article>
-    </main>
+      </div>
+    </PublicPage>
   );
 }

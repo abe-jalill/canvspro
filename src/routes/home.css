@@ -61,21 +61,21 @@
 :where(.hp) *::after {
   box-sizing: border-box;
 }
-:where(.hp) a {
+:where(.hp) a:where(:not(.cp-public-tool *)) {
   color: inherit;
   text-decoration: none;
 }
-:where(.hp) :is(h1, h2, h3, p, dl, dd, figure) {
+:where(.hp) :is(h1, h2, h3, p, dl, dd, figure):where(:not(.cp-public-tool *)) {
   margin: 0;
 }
 
-.hp h1,
-.hp h2 {
+.hp h1:where(:not(.cp-public-tool *)),
+.hp h2:where(:not(.cp-public-tool *)) {
   font-family: inherit;
   font-weight: 600;
   text-wrap: balance;
 }
-.hp h2 {
+.hp h2:where(:not(.cp-public-tool *)) {
   font-size: clamp(1.5rem, 2.4vw, 2rem);
   line-height: 1.2;
   letter-spacing: -0.025em;
@@ -683,7 +683,7 @@
   line-height: 1;
   letter-spacing: -0.05em;
 }
-.hp h2 {
+.hp h2:where(:not(.cp-public-tool *)) {
   font-size: clamp(1.8rem, 3.1vw, 2.7rem);
   font-weight: 650;
   line-height: 1.1;
@@ -736,4 +736,392 @@
 }
 .hp-end + .hp-footer {
   border-top: 0;
+}
+
+/* ── Inner pages (components/public-page.tsx): pricing, support, legal, guides ── */
+.hp-page {
+  width: min(760px, 100% - 48px);
+  margin: 0 auto;
+  padding: clamp(40px, 7vh, 72px) 0 clamp(80px, 10vw, 128px);
+}
+.hp-page--wide {
+  width: var(--width);
+}
+.hp-page__head {
+  padding-bottom: clamp(32px, 5vw, 48px);
+  border-bottom: 1px solid var(--line);
+}
+.hp-eyebrow {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.hp .hp-page__title {
+  max-width: 16ch;
+  margin-top: 14px;
+  font-size: clamp(2.5rem, 6vw, 4.6rem);
+  font-weight: 700;
+  line-height: 1.02;
+  letter-spacing: -0.05em;
+}
+.hp-page__lede {
+  max-width: 34em;
+  margin-top: 20px;
+  font-size: clamp(1.05rem, 1.35vw, 1.18rem);
+  color: var(--ink-2);
+}
+.hp-page__lede p + p {
+  margin-top: 10px;
+}
+.hp-section {
+  margin-top: clamp(40px, 6vw, 64px);
+}
+.hp .hp-section h2 {
+  font-size: clamp(1.4rem, 2.4vw, 1.9rem);
+  letter-spacing: -0.03em;
+}
+.hp-section > .hp-muted {
+  margin-top: 8px;
+  font-size: 15.5px;
+}
+.hp-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: clamp(20px, 3vw, 28px);
+}
+.hp-card h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+.hp-card .hp-muted {
+  font-size: 15px;
+}
+
+/* Pricing */
+.hp-plans {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: clamp(32px, 5vw, 48px);
+}
+@media (max-width: 640px) {
+  .hp-plans {
+    grid-template-columns: 1fr;
+  }
+}
+.hp-plan {
+  display: flex;
+  flex-direction: column;
+}
+.hp-plan__price {
+  margin-top: 10px;
+  font-size: clamp(2.4rem, 5vw, 3.2rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.045em;
+}
+.hp-plan__price span {
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--ink-3);
+}
+.hp-plan__note {
+  margin-top: 10px;
+  font-size: 14.5px;
+  color: var(--ink-2);
+}
+.hp-plan .hp-button {
+  margin-top: auto;
+  width: 100%;
+}
+.hp-plan__spacer {
+  min-height: 24px;
+  flex: 1;
+}
+.hp-button[aria-disabled="true"] {
+  background: transparent;
+  color: var(--ink-3);
+  border: 1px dashed var(--line-2);
+  cursor: not-allowed;
+  opacity: 1;
+}
+.hp-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--ink-2);
+}
+.hp-checks {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 0;
+  list-style: none;
+  font-size: 15.5px;
+  color: var(--ink-2);
+}
+.hp-checks li {
+  display: flex;
+  gap: 10px;
+}
+.hp-checks svg {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 3px;
+  color: var(--ink);
+}
+
+/* Legal documents */
+.hp-doc-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin-top: 22px;
+  font-size: 15px;
+}
+.hp-doc-nav a {
+  color: var(--ink-2);
+  text-decoration: underline;
+  text-decoration-color: var(--line-2);
+  text-underline-offset: 4px;
+  transition: color 0.15s;
+}
+.hp-doc-nav a:hover,
+.hp-doc-nav a[aria-current="page"] {
+  color: var(--ink);
+  text-decoration-color: currentColor;
+}
+.hp-prose section {
+  margin-top: clamp(36px, 5vw, 52px);
+}
+.hp .hp-prose h2 {
+  font-size: clamp(1.2rem, 2vw, 1.45rem);
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+.hp-prose section > div {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+  font-size: 15.5px;
+  line-height: 1.75;
+  color: var(--ink-2);
+}
+
+/* Support */
+.hp-contact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px 24px;
+}
+.hp-contact__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.hp-button--quiet {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--line-2);
+}
+.hp-section .hp-faq {
+  margin-top: 20px;
+}
+.hp-section .hp-faq__a p + p {
+  margin-top: 10px;
+}
+
+/* The grade calculator and dashboard guide keep their layout; they take the
+   homepage's colors here instead of the app's. */
+.hp .cp-public-tool {
+  --foreground: 240 3% 93%;
+  --muted-foreground: 223 3% 65%;
+  --background: 220 11% 5%;
+  --card: 228 9% 8%;
+  --glass: 228 9% 8% / 1;
+  --glass-strong: 228 9% 8% / 1;
+  --glass-border: 230 6% 18% / 1;
+  --border: 230 6% 18% / 1;
+  --input: 230 6% 18% / 1;
+  max-width: none;
+  padding: 0;
+  color: var(--ink);
+}
+:root[data-theme-mode="light"] .hp .cp-public-tool {
+  --foreground: 220 8% 7%;
+  --muted-foreground: 222 5% 38%;
+  --background: 60 14% 98%;
+  --card: 60 20% 99%;
+  --glass: 60 20% 99% / 1;
+  --glass-strong: 60 20% 99% / 1;
+  --glass-border: 60 5% 83% / 1;
+  --border: 60 5% 83% / 1;
+  --input: 60 5% 83% / 1;
+}
+.hp .cp-public-tool > header {
+  padding: 0 0 clamp(32px, 5vw, 48px);
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+.hp .cp-public-tool > header > p:first-of-type {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.hp .cp-public-tool > header h1 {
+  max-width: 16ch;
+  margin-top: 14px;
+  font-size: clamp(2.5rem, 6vw, 4.6rem);
+  font-weight: 700;
+  line-height: 1.02;
+  letter-spacing: -0.05em;
+}
+.hp .cp-public-tool > header > p:last-child {
+  max-width: 34em;
+  margin: 20px 0 0;
+  font-size: clamp(1.05rem, 1.35vw, 1.18rem);
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+.hp .cp-public-tool .glass-panel,
+.hp .cp-public-tool .glass-panel-strong {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.hp .cp-public-tool .glass-inset {
+  border-color: var(--line-2);
+  background: var(--bg);
+}
+.hp .cp-public-tool a:not(.hp-button) {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.hp .cp-public-tool input:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+.hp .hp-plan h2.hp-eyebrow {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0.14em;
+}
+.hp-badge {
+  white-space: nowrap;
+}
+.hp .cp-public-tool h2 {
+  font-weight: 650;
+  letter-spacing: -0.025em;
+}
+/* styles.css forces .font-semibold to 500 app-wide; public headings keep the homepage's weight. */
+.hp .cp-public-tool > header h1 {
+  font-weight: 700 !important;
+}
+.hp .cp-public-tool h2 {
+  font-weight: 650 !important;
+}
+
+/* Legal pages: summary, contents, lists and tables */
+.hp-legal-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 28px;
+  margin-top: 18px;
+}
+@media (max-width: 640px) {
+  .hp-legal-summary {
+    grid-template-columns: 1fr;
+  }
+}
+.hp-legal-summary dt {
+  font-size: 15px;
+  font-weight: 600;
+}
+.hp-legal-summary dd {
+  margin-top: 4px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+.hp-legal-note {
+  margin-top: 18px;
+  font-size: 13.5px;
+}
+.hp-legal-toc ol {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 28px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 15px;
+}
+@media (max-width: 640px) {
+  .hp-legal-toc ol {
+    grid-template-columns: 1fr;
+  }
+}
+.hp-legal-toc a {
+  color: var(--ink-2);
+  transition: color 0.15s;
+}
+.hp-legal-toc a:hover {
+  color: var(--ink);
+}
+.hp-prose section {
+  scroll-margin-top: 24px;
+}
+.hp-legal-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 20px;
+  list-style: disc;
+}
+.hp-legal-table {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.hp-legal-table table {
+  width: 100%;
+  min-width: 34rem;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 14.5px;
+  line-height: 1.6;
+}
+.hp-legal-table th {
+  padding: 10px 16px;
+  background: var(--surface);
+  font-weight: 600;
+  color: var(--ink);
+}
+.hp-legal-table td {
+  padding: 12px 16px;
+  border-top: 1px solid var(--line);
+  vertical-align: top;
+}
+.hp-legal-table td:first-child {
+  font-weight: 550;
+  color: var(--ink);
 }

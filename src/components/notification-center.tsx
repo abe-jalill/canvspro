@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Bell, Check, ChevronRight, Trash2, X } from "lucide-react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
@@ -48,11 +48,34 @@ function routeFor(n: AppNotification) {
   return null;
 }
 
-export function NotificationCenter({ className }: { className?: string }) {
+export function NotificationCenter({
+  className,
+  open: openProp,
+  onOpenChange,
+  hideTrigger = false,
+}: {
+  className?: string;
+  /** Controlled from outside (the phone's account menu opens it). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** Only the panel; something else opens it. */
+  hideTrigger?: boolean;
+}) {
   const { notifications, unread, markRead, markAllRead, remove, clear } = useNotifications();
   // Ensures this component re-renders once nicknames finish loading.
   useNicknames();
-  const [open, setOpen] = useState(false);
+  const [openState, setOpenState] = useState(false);
+  const open = openProp ?? openState;
+  // Stable, so effects that close the panel don't re-run every time it opens.
+  const latest = useRef({ open, onOpenChange });
+  useEffect(() => {
+    latest.current = { open, onOpenChange };
+  });
+  const setOpen = useCallback((next: boolean | ((current: boolean) => boolean)) => {
+    const value = typeof next === "function" ? next(latest.current.open) : next;
+    setOpenState(value);
+    latest.current.onOpenChange?.(value);
+  }, []);
   const [active, setActive] = useState<FilterKind[]>([]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const ref = useRef<HTMLDivElement>(null);
@@ -62,7 +85,7 @@ export function NotificationCenter({ className }: { className?: string }) {
   // Any navigation closes the panel (mobile especially).
   useEffect(() => {
     setOpen(false);
-  }, [locationHref]);
+  }, [locationHref, setOpen]);
 
   useEffect(() => {
     if (!open) return;
@@ -76,7 +99,7 @@ export function NotificationCenter({ className }: { className?: string }) {
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("keydown", onKey);
     };
-  }, [open]);
+  }, [open, setOpen]);
 
   const filtered = useMemo(
     () =>
@@ -117,20 +140,22 @@ export function NotificationCenter({ className }: { className?: string }) {
 
   return (
     <div ref={ref} className={cn("relative", className)}>
-      <button
-        onClick={() => setOpen((v) => !v)}
-        aria-label={`Notifications${unread ? ` (${unread} unread)` : ""}`}
-        aria-expanded={open}
-        className="glass-hover glass-inset relative flex h-11 w-11 items-center justify-center rounded-xl"
-        title="Notifications"
-      >
-        <Bell className="h-4 w-4" />
-        {unread > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[10px] font-semibold tabular-nums text-background">
-            {unread > 9 ? "9+" : unread}
-          </span>
-        )}
-      </button>
+      {!hideTrigger && (
+        <button
+          onClick={() => setOpen((v) => !v)}
+          aria-label={`Notifications${unread ? ` (${unread} unread)` : ""}`}
+          aria-expanded={open}
+          className="glass-hover glass-inset relative flex h-11 w-11 items-center justify-center rounded-xl"
+          title="Notifications"
+        >
+          <Bell className="h-4 w-4" />
+          {unread > 0 && (
+            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[10px] font-semibold tabular-nums text-background">
+              {unread > 9 ? "9+" : unread}
+            </span>
+          )}
+        </button>
+      )}
 
       {open && (
         <>
@@ -141,138 +166,140 @@ export function NotificationCenter({ className }: { className?: string }) {
             className="fixed inset-0 z-40 bg-background/70 backdrop-blur-sm sm:hidden"
           />
           <div className="fixed inset-x-3 top-16 z-50 max-h-[80vh] overflow-hidden rounded-2xl border border-border bg-background p-3 shadow-2xl sm:glass-panel-strong sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:max-h-none sm:w-[min(30rem,calc(100vw-1.5rem))]">
-          <div className="flex items-center justify-between gap-2 px-1 pb-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              Notifications
-            </p>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={markAllRead}
-                disabled={unread === 0}
-                className="glass-hover flex h-9 items-center gap-1 rounded-lg px-2.5 text-xs font-medium text-muted-foreground disabled:opacity-40"
-                title="Mark all read"
-              >
-                <Check className="h-3.5 w-3.5" /> Read
-              </button>
-              <button
-                onClick={clear}
-                disabled={notifications.length === 0}
-                className="glass-hover flex h-9 items-center gap-1 rounded-lg px-2.5 text-xs font-medium text-muted-foreground disabled:opacity-40"
-                title="Clear all"
-              >
-                <Trash2 className="h-3.5 w-3.5" /> Clear
-              </button>
-            </div>
-          </div>
-
-          <div
-            role="group"
-            aria-label="Filter notifications"
-            className="flex flex-wrap gap-1.5 px-1 pb-3"
-          >
-            {FILTERS.map((f) => {
-              const on = active.includes(f.id);
-              return (
-                <button
-                  key={f.id}
-                  aria-pressed={on}
-                  onClick={() =>
-                    setActive((prev) =>
-                      prev.includes(f.id) ? prev.filter((x) => x !== f.id) : [...prev, f.id],
-                    )
-                  }
-                  className={cn(
-                    "rounded-full px-3 py-1.5 text-[11px] font-medium transition-colors",
-                    on
-                      ? "bg-foreground text-background"
-                      : "glass-inset glass-hover text-muted-foreground",
-                  )}
-                >
-                  {f.label}
-                  {counts[f.id] ? (
-                    <span className="ml-1 tabular-nums opacity-60">{counts[f.id]}</span>
-                  ) : null}
-                </button>
-              );
-            })}
-            {active.length > 0 && (
-              <button
-                onClick={() => setActive([])}
-                className="glass-hover rounded-full px-3 py-1.5 text-[11px] font-medium text-muted-foreground"
-              >
-                All
-              </button>
-            )}
-          </div>
-
-          <div className="no-scrollbar max-h-[55vh] overflow-y-auto overscroll-contain sm:max-h-[70vh]">
-            {groups.length === 0 ? (
-              <p className="px-3 py-10 text-center text-sm text-muted-foreground/80">
-                You're all caught up.
+            <div className="flex items-center justify-between gap-2 px-1 pb-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                Notifications
               </p>
-            ) : (
-              <div className="space-y-4">
-                {groups.map(([course, items]) => {
-                  const isOpen = expanded[course];
-                  const shown = isOpen ? items : items.slice(0, PER_GROUP);
-                  const groupUnread = items.filter((n) => !n.read).length;
-                  return (
-                    <section key={course}>
-                      <header className="flex items-center justify-between gap-2 px-1 pb-1.5">
-                        <h3 className="min-w-0 truncate text-sm font-semibold tracking-tight">
-                          {course}
-                        </h3>
-                        <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
-                          {groupUnread > 0 ? `${groupUnread} new · ${items.length}` : items.length}
-                        </span>
-                      </header>
-                      <ul className="space-y-2">
-                        {shown.map((n) => (
-                          <li
-                            key={n.id}
-                            className={cn(
-                              "glass-inset glass-hover flex items-start gap-2 rounded-xl p-4",
-                              !n.read && "bg-foreground/[0.06]",
-                            )}
-                          >
-                            <button
-                              onClick={() => openNotification(n)}
-                              className="min-w-0 flex-1 text-left"
-                            >
-                              <p className="text-sm font-medium leading-snug">{n.title}</p>
-                              {n.body && (
-                                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                                  {n.body}
-                                </p>
-                              )}
-                              <p className="mt-1.5 flex items-center gap-1 text-[11px] text-muted-foreground/70">
-                                {timeAgo(n.ts)}
-                                {routeFor(n) && <ChevronRight className="h-3 w-3" />}
-                              </p>
-                            </button>
-                            <button
-                              onClick={() => remove(n.id)}
-                              aria-label="Dismiss notification"
-                              className="glass-hover flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                      {items.length > PER_GROUP && (
-                        <button
-                          onClick={() => setExpanded((p) => ({ ...p, [course]: !p[course] }))}
-                          className="glass-hover mt-2 w-full rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground"
-                        >
-                          {isOpen ? "See less" : `See more (${items.length - PER_GROUP})`}
-                        </button>
-                      )}
-                    </section>
-                  );
-                })}
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={markAllRead}
+                  disabled={unread === 0}
+                  className="glass-hover flex h-9 items-center gap-1 rounded-lg px-2.5 text-xs font-medium text-muted-foreground disabled:opacity-40"
+                  title="Mark all read"
+                >
+                  <Check className="h-3.5 w-3.5" /> Read
+                </button>
+                <button
+                  onClick={clear}
+                  disabled={notifications.length === 0}
+                  className="glass-hover flex h-9 items-center gap-1 rounded-lg px-2.5 text-xs font-medium text-muted-foreground disabled:opacity-40"
+                  title="Clear all"
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Clear
+                </button>
               </div>
-            )}
+            </div>
+
+            <div
+              role="group"
+              aria-label="Filter notifications"
+              className="flex flex-wrap gap-1.5 px-1 pb-3"
+            >
+              {FILTERS.map((f) => {
+                const on = active.includes(f.id);
+                return (
+                  <button
+                    key={f.id}
+                    aria-pressed={on}
+                    onClick={() =>
+                      setActive((prev) =>
+                        prev.includes(f.id) ? prev.filter((x) => x !== f.id) : [...prev, f.id],
+                      )
+                    }
+                    className={cn(
+                      "rounded-full px-3 py-1.5 text-[11px] font-medium transition-colors",
+                      on
+                        ? "bg-foreground text-background"
+                        : "glass-inset glass-hover text-muted-foreground",
+                    )}
+                  >
+                    {f.label}
+                    {counts[f.id] ? (
+                      <span className="ml-1 tabular-nums opacity-60">{counts[f.id]}</span>
+                    ) : null}
+                  </button>
+                );
+              })}
+              {active.length > 0 && (
+                <button
+                  onClick={() => setActive([])}
+                  className="glass-hover rounded-full px-3 py-1.5 text-[11px] font-medium text-muted-foreground"
+                >
+                  All
+                </button>
+              )}
+            </div>
+
+            <div className="no-scrollbar max-h-[55vh] overflow-y-auto overscroll-contain sm:max-h-[70vh]">
+              {groups.length === 0 ? (
+                <p className="px-3 py-10 text-center text-sm text-muted-foreground/80">
+                  You're all caught up.
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {groups.map(([course, items]) => {
+                    const isOpen = expanded[course];
+                    const shown = isOpen ? items : items.slice(0, PER_GROUP);
+                    const groupUnread = items.filter((n) => !n.read).length;
+                    return (
+                      <section key={course}>
+                        <header className="flex items-center justify-between gap-2 px-1 pb-1.5">
+                          <h3 className="min-w-0 truncate text-sm font-semibold tracking-tight">
+                            {course}
+                          </h3>
+                          <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+                            {groupUnread > 0
+                              ? `${groupUnread} new · ${items.length}`
+                              : items.length}
+                          </span>
+                        </header>
+                        <ul className="space-y-2">
+                          {shown.map((n) => (
+                            <li
+                              key={n.id}
+                              className={cn(
+                                "glass-inset glass-hover flex items-start gap-2 rounded-xl p-4",
+                                !n.read && "bg-foreground/[0.06]",
+                              )}
+                            >
+                              <button
+                                onClick={() => openNotification(n)}
+                                className="min-w-0 flex-1 text-left"
+                              >
+                                <p className="text-sm font-medium leading-snug">{n.title}</p>
+                                {n.body && (
+                                  <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                                    {n.body}
+                                  </p>
+                                )}
+                                <p className="mt-1.5 flex items-center gap-1 text-[11px] text-muted-foreground/70">
+                                  {timeAgo(n.ts)}
+                                  {routeFor(n) && <ChevronRight className="h-3 w-3" />}
+                                </p>
+                              </button>
+                              <button
+                                onClick={() => remove(n.id)}
+                                aria-label="Dismiss notification"
+                                className="glass-hover flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                        {items.length > PER_GROUP && (
+                          <button
+                            onClick={() => setExpanded((p) => ({ ...p, [course]: !p[course] }))}
+                            className="glass-hover mt-2 w-full rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground"
+                          >
+                            {isOpen ? "See less" : `See more (${items.length - PER_GROUP})`}
+                          </button>
+                        )}
+                      </section>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </>

@@ -211,6 +211,13 @@ function StreakPanel({ status, name }: { status: StreakStatus; name: string | nu
   );
 }
 
+/** This week's streak, for the phone's account menu. Nothing while it loads. */
+export function StreakDetails() {
+  const { data } = useStreak();
+  const name = useFirstName();
+  return data ? <StreakPanel status={data} name={name} /> : null;
+}
+
 /** The flame and day count in the header; opens this week's streak. */
 export function StreakButton({ className }: { className?: string }) {
   const { data } = useStreak();

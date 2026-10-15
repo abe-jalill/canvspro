@@ -155,6 +155,14 @@ function RootComponent() {
         "schedule",
         "settings",
         "study-session",
+        // Public pages drawn in the homepage's frame, with its footer.
+        "pricing",
+        "support",
+        "privacy",
+        "terms",
+        "refund-policy",
+        "canvas-grade-calculator",
+        "canvas-dashboard-guide",
       ].includes(first);
     },
   });
