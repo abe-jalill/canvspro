@@ -78,7 +78,7 @@ AS $$
         AND (b.complimentary OR b.status IN ('trialing', 'active', 'past_due'))
     );
 $$;
-REVOKE ALL ON FUNCTION public.has_canvaspro_access(uuid) FROM public, anon, authenticated;
+REVOKE ALL ON FUNCTION public.has_canvaspro_access(uuid) FROM public, anon;
 GRANT EXECUTE ON FUNCTION public.has_canvaspro_access(uuid) TO service_role;
 
 -- What the signed-in account's billing looks like, for the website and app.

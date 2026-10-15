@@ -6,7 +6,7 @@
     "type": "oauth",
     "issuer": "https://vqmzhzvugzhmtprklzfm.supabase.co/auth/v1",
     "resource": "https://canvaspro.app/mcp",
-    "resource_name": "CanvasPro",
+    "resource_name": "CoursePro",
     "resource_documentation": "https://canvaspro.app",
     "accepted_audiences": [
       "authenticated"
@@ -16,7 +16,7 @@
     "server": {
       "name": "canvaspro",
       "version": "0.1.0",
-      "title": "CanvasPro"
+      "title": "CoursePro"
     },
     "tools": [
       {
