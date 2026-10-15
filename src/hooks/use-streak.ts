@@ -49,3 +49,9 @@ export function useStreak() {
     retry: 1,
   });
 }
+
+/** The streak count for a compact row, or null before it loads. */
+export function useStreakSummary(): { current: number; counted: boolean } | null {
+  const { data } = useStreak();
+  return data ? { current: data.current, counted: data.last_active_on === data.today } : null;
+}
