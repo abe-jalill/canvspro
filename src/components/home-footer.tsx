@@ -12,6 +12,7 @@ export function HomeFooter() {
           <Link to="/canvas-grade-calculator">Grade calculator</Link>
           <Link to="/canvas-dashboard-guide">Canvas dashboard guide</Link>
           <Link to="/pricing">Pricing</Link>
+          <Link to="/support">Support</Link>
           <Link to="/privacy">Privacy</Link>
           <Link to="/terms">Terms</Link>
           <Link to="/refund-policy">Refunds</Link>

@@ -60,9 +60,10 @@ export const Route = createFileRoute("/")({
             "A student dashboard for Canvas LMS with assignments, grades, schedules, Study Sessions, and a daily plan.",
           offers: {
             "@type": "Offer",
-            price: "5.00",
+            price: "0.00",
             priceCurrency: "USD",
-            description: "14-day free trial, then $5.00 per month or $50.00 per year",
+            description:
+              "Free to use while paid plans ($5.00 per month or $50.00 per year) are coming soon",
           },
         }),
       },
@@ -188,7 +189,7 @@ const FAQ = [
   {
     question: "How much does CoursePro cost?",
     answer:
-      "Start with a 14-day free trial, then $5.00 a month or $50.00 a year. Cancel anytime in Settings before your trial ends and you won't be charged.",
+      "CoursePro is free to use right now. Paid plans are coming soon: $5.00 a month or $50.00 a year, with a 14-day free trial.",
   },
   {
     question: "How do I connect my Canvas account?",
@@ -416,7 +417,7 @@ function LandingPage() {
   }, []);
 
   const cta = isLoggedIn ? "/dashboard" : "/signup";
-  const ctaLabel = isLoggedIn ? "Open your dashboard" : "Start free trial";
+  const ctaLabel = isLoggedIn ? "Open your dashboard" : "Get started free";
 
   return (
     <div className="hp hp-home" ref={pageRef}>
@@ -549,9 +550,9 @@ function LandingPage() {
           </div>
           <div className="hp-setup" data-breathe style={{ "--d": "0.12s" } as CSSProperties}>
             <p>
-              Create an account and start your free trial. In Canvas, open Account, then Settings,
-              and create a new access token. Paste it into CoursePro, and your classes, grades and
-              deadlines show up right away.
+              Create a free account. In Canvas, open Account, then Settings, and create a new access
+              token. Paste it into CoursePro, and your classes, grades and deadlines show up right
+              away.
             </p>
             <p className="hp-muted">
               You never type your school password into CoursePro. The token only lets it read your
@@ -593,7 +594,7 @@ function LandingPage() {
               {ctaLabel}
             </Link>
             <span className="hp-muted">
-              14 days free, then $5.00/month.{" "}
+              Free for now. Paid plans are coming soon.{" "}
               <Link to="/pricing" className="hp-link">
                 See pricing
               </Link>
