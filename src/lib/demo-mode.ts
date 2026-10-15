@@ -6,7 +6,7 @@
 //    sample data, so no real account or real Canvas data is ever shown.
 //    `?demo=0` turns it off. Production builds never run this: the call below
 //    is behind `import.meta.env.DEV`.
-// 2. App Review's account (appreview@canvaspro.app), in every build. It signs
+// 2. App Review's account (app.preview@canvaspro.app), in every build. It signs
 //    in for real and keeps its own settings; only its Canvas data is this
 //    sample student's, the same set the iOS app shows it (NativePreviewData).
 

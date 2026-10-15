@@ -2,7 +2,7 @@
 // real CoursePro account sees the built-in sample student's coursework instead
 // of connecting to a school (the iOS app does the same: NativeReviewAccount).
 
-export const REVIEW_ACCOUNT_EMAIL = "appreview@canvaspro.app";
+export const REVIEW_ACCOUNT_EMAIL = "app.preview@canvaspro.app";
 
 export function isReviewAccount(email: string | null | undefined): boolean {
   return email?.trim().toLowerCase() === REVIEW_ACCOUNT_EMAIL;

@@ -11,10 +11,10 @@ const token = (claims) =>
   `Bearer eyJhbGciOiJIUzI1NiJ9.${Buffer.from(JSON.stringify(claims)).toString("base64url")}.signature`;
 
 test("only App Review's address counts as the review account", () => {
-  assert.equal(REVIEW_ACCOUNT_EMAIL, "appreview@canvaspro.app");
-  assert.equal(isReviewAccount("appreview@canvaspro.app"), true);
-  assert.equal(isReviewAccount(" AppReview@CanvasPro.app "), true);
-  assert.equal(isReviewAccount("appreview@canvaspro.app.evil.com"), false);
+  assert.equal(REVIEW_ACCOUNT_EMAIL, "app.preview@canvaspro.app");
+  assert.equal(isReviewAccount("app.preview@canvaspro.app"), true);
+  assert.equal(isReviewAccount(" App.Preview@CanvasPro.app "), true);
+  assert.equal(isReviewAccount("app.preview@canvaspro.app.evil.com"), false);
   assert.equal(isReviewAccount("student@school.edu"), false);
   assert.equal(isReviewAccount(null), false);
   assert.equal(isReviewAccount(undefined), false);
@@ -23,9 +23,9 @@ test("only App Review's address counts as the review account", () => {
 test("the email is read from a signed-in request's access token", () => {
   assert.equal(
     emailFromAuthorization(
-      token({ sub: "u1", email: "appreview@canvaspro.app", role: "authenticated" }),
+      token({ sub: "u1", email: "app.preview@canvaspro.app", role: "authenticated" }),
     ),
-    "appreview@canvaspro.app",
+    "app.preview@canvaspro.app",
   );
   // Non-ASCII names elsewhere in the token don't stop the email being read.
   assert.equal(
