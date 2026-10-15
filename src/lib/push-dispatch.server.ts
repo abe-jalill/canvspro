@@ -31,6 +31,8 @@ export interface ServerPrefs {
   countdownTonight: boolean;
   countdownTonightHours: number[];
   badge: boolean;
+  /** "Don't break your streak!!!" at 6 PM when today hasn't counted yet. */
+  streakReminder: boolean;
 }
 
 export const SERVER_DEFAULT_PREFS: ServerPrefs = {
@@ -51,6 +53,7 @@ export const SERVER_DEFAULT_PREFS: ServerPrefs = {
   countdownTonight: false,
   countdownTonightHours: [18],
   badge: false,
+  streakReminder: true,
 };
 
 const DUE_WINDOWS = [
@@ -71,10 +74,12 @@ export function isQuiet(prefs: ServerPrefs, offsetMinutes: number, now = new Dat
 
 /**
  * Whether a queued countdown should still go out under the account's current
- * settings: the class reminder toggle and that exact lead time, or tonight's
- * deadline reminders. Shared by the 5-minute sender and the health check.
+ * settings: the class reminder toggle and that exact lead time, tonight's
+ * deadline reminders, or the streak reminder. Shared by the 5-minute sender
+ * and the health check.
  */
 export function scheduledAlertAllowed(tag: string, prefs: ServerPrefs): boolean {
+  if (tag.startsWith("streak:")) return prefs.streakReminder !== false;
   if (tag.startsWith("class:")) {
     return (
       prefs.countdownClass &&

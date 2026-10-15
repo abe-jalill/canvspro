@@ -309,6 +309,13 @@ export function NotificationSettings() {
           disabled={off}
           onChange={() => setTonight(!prefs.countdownTonight)}
         />
+        <Toggle
+          label="Streak reminder"
+          description="“Don't break your streak!!!” at 6:00 PM if you haven't opened CoursePro today"
+          checked={prefs.streakReminder}
+          disabled={off}
+          onChange={() => toggle("streakReminder")}
+        />
       </div>
 
       <Toggle

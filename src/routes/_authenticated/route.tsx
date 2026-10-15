@@ -31,6 +31,7 @@ import { isOfflineLike, readStoredUser } from "@/lib/offline-session";
 import { registerOfflineSupport } from "@/lib/offline";
 import { OfflineNotice } from "@/components/offline-notice";
 import { FocusNoisePlayer } from "@/components/focus-noise";
+import { StreakButton, StreakCelebrationLayer } from "@/components/streak";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -96,6 +97,7 @@ function AuthenticatedLayout() {
       <ProfileCompletionDialog user={user} />
       <RouteProgress />
       <FocusNoisePlayer />
+      <StreakCelebrationLayer ready={startupReady} />
       <AppSidebar />
       <MobileNav />
       <main
@@ -115,6 +117,7 @@ function AuthenticatedLayout() {
             <CanvasLiveStatus />
             {/* Bell and profile already live in the mobile top bar — avoid duplicates on phones */}
             <span className="hidden items-center gap-2 md:inline-flex">
+              <StreakButton />
               <NotificationCenter />
               <ProfileButton />
             </span>

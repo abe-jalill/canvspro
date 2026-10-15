@@ -29,6 +29,8 @@ export interface NotificationPrefs {
   countdownTonightHours: number[];
   /** Show a number badge on the app icon for things due today. */
   badge: boolean;
+  /** "Don't break your streak!!!" at 6 PM when CoursePro hasn't been opened today. */
+  streakReminder: boolean;
 }
 
 export const DEFAULT_PREFS: NotificationPrefs = {
@@ -49,6 +51,7 @@ export const DEFAULT_PREFS: NotificationPrefs = {
   countdownTonight: false,
   countdownTonightHours: [18],
   badge: false,
+  streakReminder: true,
 };
 
 /** Lead-time choices for the "next class starts in…" countdown. */
