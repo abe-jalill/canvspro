@@ -1139,7 +1139,7 @@ extension Notification.Name {
 /// real account, created by the owner, with a confirmed address); once signed
 /// in it shows the built-in sample coursework instead of connecting to Canvas.
 enum NativeReviewAccount {
-    static let email = "appreview@canvaspro.app"
+    static let email = "app.preview@canvaspro.app"
     static func matches(_ address: String?) -> Bool {
         address?.trimmingCharacters(in: .whitespaces).lowercased() == email
     }

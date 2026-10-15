@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-// App Review's account (appreview@canvaspro.app) sees the same sample student
+// App Review's account (app.preview@canvaspro.app) sees the same sample student
 // on the website (src/lib/demo-mode.ts) and in the app (NativePreviewData).
 const web = readFileSync(new URL("../src/lib/demo-mode.ts", import.meta.url), "utf8");
 const core = readFileSync(new URL("../ios/App/App/NativeCore.swift", import.meta.url), "utf8");
