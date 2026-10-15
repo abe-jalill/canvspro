@@ -38,6 +38,87 @@ export type Database = {
         }
         Relationships: []
       }
+      billing_accounts: {
+        Row: {
+          cancel_at: string | null
+          complimentary: boolean
+          created_at: string
+          current_period_end: string | null
+          environment: string
+          grace_reminder_sent_at: string | null
+          last_event_at: string | null
+          paddle_customer_id: string | null
+          paddle_subscription_id: string | null
+          plan: string | null
+          price_id: string | null
+          renewal_reminder_for: string | null
+          status: string | null
+          trial_ends_at: string | null
+          trial_reminder_sent_at: string | null
+          trial_used: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cancel_at?: string | null
+          complimentary?: boolean
+          created_at?: string
+          current_period_end?: string | null
+          environment?: string
+          grace_reminder_sent_at?: string | null
+          last_event_at?: string | null
+          paddle_customer_id?: string | null
+          paddle_subscription_id?: string | null
+          plan?: string | null
+          price_id?: string | null
+          renewal_reminder_for?: string | null
+          status?: string | null
+          trial_ends_at?: string | null
+          trial_reminder_sent_at?: string | null
+          trial_used?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cancel_at?: string | null
+          complimentary?: boolean
+          created_at?: string
+          current_period_end?: string | null
+          environment?: string
+          grace_reminder_sent_at?: string | null
+          last_event_at?: string | null
+          paddle_customer_id?: string | null
+          paddle_subscription_id?: string | null
+          plan?: string | null
+          price_id?: string | null
+          renewal_reminder_for?: string | null
+          status?: string | null
+          trial_ends_at?: string | null
+          trial_reminder_sent_at?: string | null
+          trial_used?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      billing_config: {
+        Row: {
+          enforce_from: string | null
+          id: boolean
+          updated_at: string
+        }
+        Insert: {
+          enforce_from?: string | null
+          id?: boolean
+          updated_at?: string
+        }
+        Update: {
+          enforce_from?: string | null
+          id?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       class_nicknames: {
         Row: {
           canvas_course_id: number
@@ -488,17 +569,53 @@ export type Database = {
         }
         Relationships: []
       }
+      user_streaks: {
+        Row: {
+          current_streak: number
+          freeze_used_on: string | null
+          frozen_days: string[]
+          last_active_on: string | null
+          longest_streak: number
+          recent_days: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          current_streak?: number
+          freeze_used_on?: string | null
+          frozen_days?: string[]
+          last_active_on?: string | null
+          longest_streak?: number
+          recent_days?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          current_streak?: number
+          freeze_used_on?: string | null
+          frozen_days?: string[]
+          last_active_on?: string | null
+          longest_streak?: number
+          recent_days?: string[]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
       has_canvas_key: { Args: never; Returns: boolean }
+      has_canvaspro_access: { Args: { user_uuid: string }; Returns: boolean }
+      my_billing_status: { Args: never; Returns: Json }
       patch_notification_preferences: {
         Args: { changes: Json; device_timezone_offset: number }
         Returns: Json
       }
       record_activity_heartbeat: { Args: never; Returns: string }
+      record_streak_activity: { Args: { p_today: string }; Returns: Json }
       set_avatar_path: { Args: { requested_path: string }; Returns: string }
       set_username: { Args: { requested_username: string }; Returns: string }
       username_available: {
