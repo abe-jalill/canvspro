@@ -6,7 +6,7 @@ import { displayCourseName, displayCourseCode } from "../src/lib/course-display.
 // Source invariants for the October 2026 iOS fix pass. Swift itself is compiled
 // by Codemagic; these guard the decisions that must not regress.
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-const swiftFiles = ["NativeCore", "NativeDesign", "NativeFeatures", "NativeMoreViews", "NativeViews", "AppDelegate", "SceneDelegate"];
+const swiftFiles = ["NativeCore", "NativeDesign", "NativeFeatures", "NativeMoreViews", "NativeViews", "AppDelegate", "SceneDelegate", "NativeCelebrations"];
 const swift = Object.fromEntries(swiftFiles.map((name) => [name, read(`ios/App/App/${name}.swift`)]));
 const allSwift = Object.values(swift).join("\n");
 
@@ -167,7 +167,7 @@ test("a new student is walked through connecting Canvas, once, and failures are 
   // The welcome shows once per account, only for students who had no saved data.
   assert.match(swift.NativeViews, /struct NativeOnboardingView: View/);
   assert.ok(swift.NativeViews.includes('"CanvasProOnboarded.\\(sessionStore.session?.user.id ?? "")"'));
-  assert.match(swift.NativeViews, /if hadSavedData == true \{ markOnboarded\(\); return \}/);
+  assert.match(swift.NativeViews, /if hadSavedData == true \|\| contentStore\.lastSyncedAt != nil \{ markOnboarded\(\); return \}/);
   assert.match(swift.NativeViews, /\.fullScreenCover\(isPresented: \$showOnboarding\)/);
   // Connecting is three steps with a paste button and a link to the student's own Canvas.
   const connect = swift.NativeMoreViews.slice(swift.NativeMoreViews.indexOf("struct CanvasSettingsView"), swift.NativeMoreViews.indexOf("struct ClassScheduleView"));

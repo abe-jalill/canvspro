@@ -17,6 +17,7 @@
 		A10000072FE993A70072D4E8 /* NativeMoreViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000082FE993A70072D4E8 /* NativeMoreViews.swift */; };
 		A10000092FE993A70072D4E8 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A100000A2FE993A70072D4E8 /* PrivacyInfo.xcprivacy */; };
 		A100000B2FE993A70072D4E8 /* NativeDesign.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000C2FE993A70072D4E8 /* NativeDesign.swift */; };
+		A100000D2FE993A70072D4E8 /* NativeCelebrations.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000E2FE993A70072D4E8 /* NativeCelebrations.swift */; };
 		C0A100112FE993A70072D4E8 /* CanvasProWidgetData.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0A100012FE993A70072D4E8 /* CanvasProWidgetData.swift */; };
 		C0A100122FE993A70072D4E8 /* CanvasProWidgetData.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0A100012FE993A70072D4E8 /* CanvasProWidgetData.swift */; };
 		C0A100132FE993A70072D4E8 /* CanvasProWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0A100022FE993A70072D4E8 /* CanvasProWidgets.swift */; };
@@ -61,6 +62,7 @@
 		A10000082FE993A70072D4E8 /* NativeMoreViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeMoreViews.swift; sourceTree = "<group>"; };
 		A100000A2FE993A70072D4E8 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		A100000C2FE993A70072D4E8 /* NativeDesign.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeDesign.swift; sourceTree = "<group>"; };
+		A100000E2FE993A70072D4E8 /* NativeCelebrations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeCelebrations.swift; sourceTree = "<group>"; };
 		C0A100012FE993A70072D4E8 /* CanvasProWidgetData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasProWidgetData.swift; sourceTree = "<group>"; };
 		C0A100022FE993A70072D4E8 /* CanvasProWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasProWidgets.swift; sourceTree = "<group>"; };
 		C0A100032FE993A70072D4E8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -116,6 +118,7 @@
 				A10000082FE993A70072D4E8 /* NativeMoreViews.swift */,
 				A100000A2FE993A70072D4E8 /* PrivacyInfo.xcprivacy */,
 				A100000C2FE993A70072D4E8 /* NativeDesign.swift */,
+				A100000E2FE993A70072D4E8 /* NativeCelebrations.swift */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				504EC30E1FED79650016851F /* Assets.xcassets */,
 				504EC3101FED79650016851F /* LaunchScreen.storyboard */,
@@ -260,6 +263,7 @@
 				A10000052FE993A70072D4E8 /* NativeFeatures.swift in Sources */,
 				A10000072FE993A70072D4E8 /* NativeMoreViews.swift in Sources */,
 				A100000B2FE993A70072D4E8 /* NativeDesign.swift in Sources */,
+				A100000D2FE993A70072D4E8 /* NativeCelebrations.swift in Sources */,
 				C0A100112FE993A70072D4E8 /* CanvasProWidgetData.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

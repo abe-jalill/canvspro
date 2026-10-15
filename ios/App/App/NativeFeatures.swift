@@ -169,6 +169,8 @@ struct NotificationPreferences: Equatable {
     var countdownTonight = false
     var countdownTonightHours = [18]
     var badge = false
+    /// "Don't break your streak!!!" at 6 PM.
+    var streakReminder = true
 
     init(_ raw: [String: Any]? = nil) {
         guard let raw else { return }
@@ -183,6 +185,7 @@ struct NotificationPreferences: Equatable {
         countdownTonight = raw["countdownTonight"] as? Bool ?? countdownTonight
         countdownTonightHours = raw["countdownTonightHours"] as? [Int] ?? countdownTonightHours
         badge = raw["badge"] as? Bool ?? badge
+        streakReminder = raw["streakReminder"] as? Bool ?? streakReminder
     }
 
     var dictionary: [String: Any] {[
@@ -191,6 +194,7 @@ struct NotificationPreferences: Equatable {
         "browserPush": browserPush, "quietEnabled": quietEnabled, "quietStart": quietStart, "quietEnd": quietEnd,
         "countdownClass": countdownClass, "countdownLeads": countdownLeads,
         "countdownTonight": countdownTonight, "countdownTonightHours": countdownTonightHours, "badge": badge,
+        "streakReminder": streakReminder,
     ]}
 }
 

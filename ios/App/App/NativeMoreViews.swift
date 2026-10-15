@@ -1509,10 +1509,11 @@ private struct NotificationsView: View {
                         .pickerStyle(.segmented)
                     }
                     row("Due tonight", "At \(NativeLocalReminders.hourLabel(prefs.countdownTonightHours.first ?? 18)) if something is due by 11:59 PM", isOn: Binding(get: { prefs.countdownTonight }, set: setTonight))
+                    row("Streak reminder", "“Don't break your streak!!!” at 6 PM if you haven't opened CoursePro that day", isOn: bind(\.streakReminder))
                 } header: {
                     Text("Notify me about")
                 } footer: {
-                    Text("Due dates, class reminders and due tonight are set on this iPhone, so they arrive with the app closed. New grades and announcements show when the app refreshes.")
+                    Text("Due dates, class reminders, due tonight and streak reminders are set on this iPhone, so they arrive with the app closed. New grades and announcements show when the app refreshes.")
                 }
                 .disabled(off)
                 Section {

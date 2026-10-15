@@ -1162,7 +1162,7 @@ final class NativeContentStore: ObservableObject {
     func toggle(_ assignment: AssignmentItem) async {
         if isPreview {
             if assignment.isFinished(in: self) { completed.remove(assignment.id); reopenedAt[assignment.id] = Date() }
-            else { completed.insert(assignment.id); reopenedAt.removeValue(forKey: assignment.id); undoItem = assignment }
+            else { completed.insert(assignment.id); reopenedAt.removeValue(forKey: assignment.id); undoItem = assignment; NativeCelebrations.shared.assignmentCompleted(assignment.name) }
             UserDefaults.standard.set(Array(completed), forKey: previewCompletedKey)
             return
         }
@@ -1173,7 +1173,10 @@ final class NativeContentStore: ObservableObject {
         let next = !assignment.isFinished(in: self)
         let previousCompleted = completed.contains(assignment.id)
         let previousReopen = reopenedAt[assignment.id]
-        if next { completed.insert(assignment.id); reopenedAt.removeValue(forKey: assignment.id) }
+        if next {
+            completed.insert(assignment.id); reopenedAt.removeValue(forKey: assignment.id)
+            NativeCelebrations.shared.assignmentCompleted(assignment.name)
+        }
         else {
             completed.remove(assignment.id)
             if assignment.isCanvasFinished { reopenedAt[assignment.id] = Date() }

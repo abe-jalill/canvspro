@@ -360,16 +360,16 @@ private struct NativeWidgetGallery: View {
                 .background(Color.black.opacity(0.82), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
             // Compact: around the camera, leading and trailing.
             HStack(spacing: 0) {
-                Image(systemName: "timer").font(.system(size: 13, weight: .semibold)).foregroundStyle(.white).padding(.leading, 14)
+                Image(systemName: "timer").cpIconFont(13, .semibold).foregroundStyle(.white).padding(.leading, 14)
                 Spacer(minLength: 0)
                 CanvasProStudyClock(state: study, size: 14).frame(maxWidth: 48).padding(.trailing, 14)
             }
             .frame(width: 250, height: 37)
             .background(Color.black, in: Capsule())
             HStack(spacing: 0) {
-                Image(systemName: "checklist").font(.system(size: 13, weight: .semibold)).foregroundStyle(.white).padding(.leading, 14)
+                Image(systemName: "checklist").cpIconFont(13, .semibold).foregroundStyle(.white).padding(.leading, 14)
                 Spacer(minLength: 0)
-                Text("\(tonight.remaining)").font(.system(size: 14, weight: .semibold)).monospacedDigit().foregroundStyle(.white).padding(.trailing, 16)
+                Text("\(tonight.remaining)").cpFont(14, .semibold).monospacedDigit().foregroundStyle(.white).padding(.trailing, 16)
             }
             .frame(width: 250, height: 37)
             .background(Color.black, in: Capsule())
@@ -404,7 +404,7 @@ private struct NativeWidgetGallery: View {
     /// The lock screen draws widgets in white over the wallpaper.
     private var lockScreen: some View {
         VStack(spacing: 14) {
-            Text(CanvasProWidgetFormat.time(now)).font(.system(size: 64, weight: .semibold, design: .rounded))
+            Text(CanvasProWidgetFormat.time(now)).cpFont(64, .semibold, design: .rounded)
             CanvasProDueSoonView(snapshot: snapshot, date: now, family: .accessoryInline)
             HStack(spacing: 12) {
                 CanvasProDueSoonView(snapshot: snapshot, date: now, family: .accessoryCircular)
@@ -1160,6 +1160,7 @@ struct NativeMainTabView: View {
     @State private var showConnect = false
     @State private var hadSavedData: Bool?
     @ObservedObject private var router = NativeRouter.shared
+    @ObservedObject private var streaks = NativeStreakStore.shared
 
     init(sessionStore: NativeSessionStore, preview: Bool = false) {
         self.sessionStore = sessionStore
@@ -1173,6 +1174,14 @@ struct NativeMainTabView: View {
 
     var body: some View {
         syncedTabs
+            .overlay {
+                if !launchIsVisible && !showOnboarding, let streak = streaks.celebration {
+                    NativeStreakCelebrationView(streak: streak, name: NativeCelebrations.shared.firstName) {
+                        withAnimation(.easeOut(duration: 0.2)) { streaks.celebration = nil }
+                    }
+                    .transition(.opacity)
+                }
+            }
             .task {
                 // Remember whether this phone already had this student's data, to
                 // tell a returning student (no tour) from a new one.
@@ -1276,6 +1285,8 @@ struct NativeMainTabView: View {
         async let content: Void = contentStore.load()
         async let features: Void = featureStore.load()
         _ = await (content, features)
+        // Opening the app counts today toward the streak.
+        await NativeStreakStore.shared.refresh(sessionStore: sessionStore, preview: contentStore.isPreview)
         // Anything checked off on a widget while the app couldn't save it.
         NativeWidgetActions.contentStore = contentStore
         await NativeWidgetActions.saveCompletions()
@@ -1307,7 +1318,12 @@ struct NativeMainTabView: View {
     /// keeps the reminders planned last time instead of using the defaults.
     @MainActor private func rescheduleLocalReminders() {
         publishWidgetSnapshot()
+        // The confetti and streak say the same name the dashboard greets with.
+        NativeCelebrations.shared.firstName = [featureStore.accountDetails.nickname, featureStore.accountDetails.firstName]
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .first { !$0.isEmpty }
         guard !contentStore.isPreview, sessionStore.session != nil, featureStore.notificationPreferencesLoaded else { return }
+        NativeStreakReminders.schedule(NativeStreakStore.shared.streak, prefs: featureStore.notificationPreferences)
         guard NativeLocalReminders.deviceEnabled else { NativeLocalReminders.replace(with: []); return }
         let items = featureStore.shownAssignments(in: contentStore).compactMap { item -> NativeLocalReminders.DueItem? in
             guard let due = item.dueDate, !item.isFinished(in: contentStore) else { return nil }
@@ -1600,12 +1616,17 @@ private struct NativeDashboardView: View {
 
     private var hero: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 6) {
-                Image(systemName: "calendar").cpIconFont(10, .medium)
-                Text(Date().formatted(.dateTime.weekday(.wide).month(.wide).day()).uppercased()).tracking(2)
+            HStack(spacing: 8) {
+                HStack(spacing: 6) {
+                    Image(systemName: "calendar").cpIconFont(10, .medium)
+                    Text(Date().formatted(.dateTime.weekday(.wide).month(.wide).day()).uppercased()).tracking(2)
+                }
+                .cpFont(11, .medium)
+                .foregroundStyle(CPTheme.muted(scheme))
+                Spacer(minLength: 8)
+                NativeStreakChip()
             }
-            .cpFont(11, .medium)
-            .foregroundStyle(CPTheme.muted(scheme))
+            .frame(minHeight: 30)
             VStack(alignment: .leading, spacing: 6) {
                 // One line: a longer name shrinks the text instead of wrapping.
                 Text("\(greeting)\(studentName.map { ", \($0)." } ?? ".")")
@@ -4093,7 +4114,7 @@ struct NativeStudyView: View {
                         }
                     }
                 }
-                Button("End session", role: .destructive) { running = false; blockEndsAt = nil; sessionFinished = true }
+                Button("End session", role: .destructive) { running = false; blockEndsAt = nil; sessionFinished = true; celebrateSession(endedEarly: true) }
                     .buttonStyle(CPButtonStyle(kind: .quiet, fullWidth: true))
                     .foregroundStyle(CPTheme.danger)
             }
@@ -4230,7 +4251,7 @@ struct NativeStudyView: View {
                 return
             }
             remaining = 0; running = false; blockEndsAt = nil; sessionFinished = true
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            celebrateSession(endedEarly: false)
             return
         }
         var nextEnd = end
@@ -4284,7 +4305,15 @@ struct NativeStudyView: View {
         guard index + 1 < items.count else { return nil }
         return (index + 1..<items.count).first { !completedIDs.contains(items[$0].id) }
     }
-    private func finishTask() { guard items.indices.contains(currentIndex) else { return }; completedIDs.insert(items[currentIndex].id); if completedIDs.count >= items.count { running = false; blockEndsAt = nil; sessionFinished = true; UINotificationFeedbackGenerator().notificationOccurred(.success) } else { for step in 1...items.count { let next = (currentIndex + step) % items.count; if !completedIDs.contains(items[next].id) { focusTask(next); break } } } }
+    private func finishTask() { guard items.indices.contains(currentIndex) else { return }; completedIDs.insert(items[currentIndex].id); if completedIDs.count >= items.count { running = false; blockEndsAt = nil; sessionFinished = true; celebrateSession(endedEarly: false) } else { for step in 1...items.count { let next = (currentIndex + step) % items.count; if !completedIDs.contains(items[next].id) { focusTask(next); break } } } }
+    /// Full-screen confetti for a finished session. Ending early only counts
+    /// once some work is done, and claims only the time actually known.
+    private func celebrateSession(endedEarly: Bool) {
+        let focusedBlocks = activePlan != nil && round > 0
+        if endedEarly && completedIDs.isEmpty && !focusedBlocks { return }
+        let minutes = endedEarly && activePlan == nil ? 0 : focusedMinutes
+        NativeCelebrations.shared.studyFinished(minutes: minutes, tasks: completedIDs.count)
+    }
     private func resetSession(keepSelection: Bool) { running = false; blockEndsAt = nil; activePlan = nil; perItem = false; phase = "focus"; round = 0; sessionFinished = false; sessionStarted = false; completedIDs.removeAll(); remaining = duration * 60; currentIndex = 0; if !keepSelection { selected.removeAll(); selectedOrder.removeAll(); manualTasks.removeAll() } }
 }
 

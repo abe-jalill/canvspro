@@ -15,9 +15,9 @@ test("login crossfade follows account identity without replaying launch on token
 });
 
 test("launch blocks input and accessibility only while the overlay is present", () => {
-  assert.match(root, /\.allowsHitTesting\(!showingLaunch\)/);
-  assert.match(root, /\.accessibilityHidden\(showingLaunch\)/);
-  assert.match(root, /\.environment\(\\.nativeLaunchIsVisible, showingLaunch\)/);
+  assert.match(root, /\.allowsHitTesting\(!showingLaunch && !showingTutorial\)/);
+  assert.match(root, /\.accessibilityHidden\(showingLaunch \|\| showingTutorial\)/);
+  assert.match(root, /\.environment\(\\.nativeLaunchIsVisible, showingLaunch \|\| showingTutorial\)/);
   assert.equal((root.match(/\.transition\(\.opacity\)/g) ?? []).length, 2);
   // The launch overlay fades and gently grows as it hands over to the app.
   assert.match(root, /\.transition\(\.opacity\.combined\(with: \.scale\(scale: 1\.04\)\)\)/);
@@ -30,7 +30,7 @@ test("launch plays for 3-5 seconds, can be skipped, and never waits on remote lo
   // while the signed-in app loads Canvas underneath.
   assert.ok(Number(duration[1]) <= 1500);
   assert.ok(Number(duration[2]) >= 3000 && Number(duration[2]) <= 5000);
-  assert.match(root, /NativeLaunchView\(isSignedIn: sessionStore\.session != nil\) \{ finishLaunch\(\) \}/);
+  assert.match(root, /NativeLaunchView\(isSignedIn: sessionStore\.session != nil \|\| Self\.demo\) \{ finishLaunch\(\) \}/);
   assert.match(source, /\.onTapGesture \{ onSkip\(\) \}/);
   assert.equal((root.match(/Task\.sleep/g) ?? []).length, 1);
   assert.match(root, /guard !Task\.isCancelled/);
