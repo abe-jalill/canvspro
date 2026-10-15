@@ -12,6 +12,7 @@
 
 import { emailFromAuthorization, isReviewAccount } from "@/lib/review-account";
 import { LEGAL_POLICY_VERSION } from "@/lib/legal-consent";
+import { addDays, localDateKey } from "@/lib/streak";
 
 const FLAG = "cp-demo";
 const DEMO_USER_ID = "00000000-0000-4000-8000-00000000d3e0";
@@ -357,6 +358,32 @@ function demoBilling() {
   };
 }
 
+/**
+ * The sample student's streak: 12 days, with this month's freeze having
+ * covered one missed day, so every part of the streak shows.
+ */
+function demoStreak() {
+  const today = localDateKey();
+  const frozen = addDays(today, -3);
+  const active = Array.from({ length: 13 }, (_, i) => addDays(today, -i)).filter(
+    (day) => day !== frozen,
+  );
+  return {
+    current: 12,
+    longest: 21,
+    previous: 11,
+    extended: true,
+    froze: null,
+    lost: 0,
+    today,
+    last_active_on: today,
+    freeze_used_on: frozen,
+    freeze_available: frozen.slice(0, 7) !== today.slice(0, 7),
+    recent_days: active,
+    frozen_days: [frozen],
+  };
+}
+
 function answer(
   url: URL,
   method: string,
@@ -373,6 +400,7 @@ function answer(
   if (path.startsWith("/rest/v1/rpc/")) {
     const name = path.slice("/rest/v1/rpc/".length);
     if (name === "my_billing_status") return json(demoBilling());
+    if (name === "record_streak_activity") return json(demoStreak());
     return json(name === "has_canvas_key" ? true : null);
   }
   if (path.startsWith("/rest/v1/")) {
@@ -473,6 +501,7 @@ function answerReview(
     return typeof body.token === "string" ? null : json({ ok: true, name: "Maya Chen" });
   }
   if (path === "/rest/v1/rpc/has_canvas_key") return json(true);
+  if (path === "/rest/v1/rpc/record_streak_activity") return json(demoStreak());
   if (
     path === "/rest/v1/user_settings" &&
     method === "GET" &&

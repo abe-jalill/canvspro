@@ -1,6 +1,9 @@
-// Builds the time-scheduled "countdown" pushes: next class starting in X minutes
-// and tonight's 11:59 PM deadline summary. Rows are queued ahead of time so a
-// 5-minute warning lands on the minute even though the cron only runs every 15.
+// Builds the time-scheduled "countdown" pushes: next class starting in X minutes,
+// tonight's 11:59 PM deadline summary and the 6 PM streak reminder. Rows are
+// queued ahead of time so a 5-minute warning lands on the minute even though the
+// cron only runs every 15.
+
+import { STREAK_REMINDER_HOUR, streakReminder } from "./streak.ts";
 
 export interface ScheduleRow {
   title: string;
@@ -78,7 +81,8 @@ function leadLabel(minutes: number): string {
 }
 
 const CLASS_TAG = /^class:(\d{4}-\d{2}-\d{2}):(\d+):(.*):(\d+)$/s;
-const TONIGHT_TAG = /^tonight:(\d{4}-\d{2}-\d{2}):(\d+)$/;
+// Tonight's deadlines and the streak reminder both stop being useful at 11:59 PM.
+const TONIGHT_TAG = /^(tonight|streak):(\d{4}-\d{2}-\d{2}):(\d+)$/;
 
 /**
  * Which queued countdowns to send now and which are no longer worth sending.
@@ -106,7 +110,7 @@ export function planScheduledAlerts<T extends { tag: string; fire_at: string; ti
     const endsAt = cls
       ? fire + Number(cls[4]) * 60_000
       : night
-        ? fire + (23 * 60 + 59 - Number(night[2]) * 60) * 60_000
+        ? fire + (23 * 60 + 59 - Number(night[3]) * 60) * 60_000
         : fire + graceMs;
     if (nowMs - fire > graceMs && nowMs >= endsAt) {
       drop.push(row);
@@ -115,7 +119,7 @@ export function planScheduledAlerts<T extends { tag: string; fire_at: string; ti
     const key = cls
       ? `class:${cls[1]}:${cls[2]}:${cls[3]}`
       : night
-        ? `tonight:${night[1]}`
+        ? `${night[1]}:${night[2]}`
         : row.tag;
     const current = latest.get(key);
     if (current && current.fire >= fire) {
@@ -188,6 +192,48 @@ export function buildClassCountdownAlerts(
     }
   }
   return rows;
+}
+
+/**
+ * "Don't break your streak!!!" at 6 PM local, for a streak that ends at
+ * midnight unless the student opens CoursePro today. Queued like tonight's
+ * reminder; opening the app marks it handled (record_streak_activity) and the
+ * sender checks again before it goes out.
+ */
+export function buildStreakAlert(
+  streak: StreakRow | null,
+  prefs: { streakReminder?: boolean },
+  tzOffsetMinutes: number,
+  now = new Date(),
+  horizonMs = 4 * 3_600_000,
+): ScheduledAlertRow | null {
+  if (!streak || prefs.streakReminder === false) return null;
+  const dayStart = localDayStart(now, tzOffsetMinutes, 0);
+  const today = dateKey(dayStart);
+  const reminder = streakReminder(streak, today);
+  if (!reminder) return null;
+  const fire = dayStart + STREAK_REMINDER_HOUR * 3_600_000 + tzOffsetMinutes * 60_000;
+  const nowMs = now.getTime();
+  if (fire < nowMs - 5 * 60_000 || fire > nowMs + horizonMs) return null;
+  return {
+    tag: `streak:${today}:${STREAK_REMINDER_HOUR}`,
+    fire_at: new Date(fire).toISOString(),
+    title: reminder.title,
+    body: reminder.body,
+    to_path: "/dashboard",
+    badge: null,
+  };
+}
+
+/** The student's own date, `YYYY-MM-DD`, from their saved time zone offset. */
+export function localDateFor(now: Date, tzOffsetMinutes: number): string {
+  return dateKey(localDayStart(now, tzOffsetMinutes, 0));
+}
+
+export interface StreakRow {
+  current_streak: number;
+  last_active_on: string | null;
+  freeze_used_on: string | null;
 }
 
 export interface TonightItem {

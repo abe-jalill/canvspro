@@ -17,12 +17,15 @@ import {
 } from "@/lib/push-dispatch.server";
 import {
   buildClassCountdownAlerts,
+  buildStreakAlert,
   buildTonightAlerts,
   planScheduledAlerts,
   type ScheduledAlertRow,
   type ScheduleRow,
+  type StreakRow,
   type TonightItem,
 } from "@/lib/countdown-alerts.server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 interface SubRow {
   id: string;
@@ -86,6 +89,69 @@ async function enqueueCountdowns(
     .delete()
     .eq("user_id", userId)
     .lt("fire_at", new Date(now.getTime() - 3 * 86_400_000).toISOString());
+}
+
+/** `user_streaks` isn't in the generated types yet. */
+function streakDb(admin: Admin): SupabaseClient {
+  return admin as unknown as SupabaseClient;
+}
+
+/**
+ * Queues today's 6 PM "Don't break your streak!!!" when the student's streak
+ * ends at midnight and they haven't opened CoursePro today. Best-effort: a
+ * failed read (or the streak table not deployed yet) never stops the account's
+ * other alerts or changes the check's reason.
+ */
+async function enqueueStreakReminder(
+  admin: Admin,
+  userId: string,
+  prefs: ServerPrefs,
+  tz: number,
+): Promise<void> {
+  if (!prefs.streakReminder) return;
+  try {
+    const { data, error } = await streakDb(admin)
+      .from("user_streaks")
+      .select("current_streak,last_active_on,freeze_used_on")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) return;
+    const row = buildStreakAlert((data as StreakRow | null) ?? null, prefs, tz);
+    if (!row) return;
+    await admin
+      .from("push_scheduled_alerts")
+      .upsert({ ...row, user_id: userId }, { onConflict: "user_id,tag", ignoreDuplicates: true });
+  } catch (err) {
+    console.warn(
+      `[push-dispatch] streak reminder skipped user=${userId} (${err instanceof Error ? err.message : err})`,
+    );
+  }
+}
+
+/**
+ * Each account's latest active day, for the streak reminders about to go out:
+ * one opened CoursePro after it was queued is not sent. Null when the lookup
+ * failed, so those reminders wait for the next run instead of guessing.
+ */
+async function streakActiveDays(
+  admin: Admin,
+  userIds: string[],
+): Promise<Map<string, string | null> | null> {
+  if (userIds.length === 0) return new Map();
+  const { data, error } = await streakDb(admin)
+    .from("user_streaks")
+    .select("user_id,last_active_on")
+    .in("user_id", userIds);
+  if (error) {
+    console.error("[push-scheduled] streak lookup failed", error.message);
+    return null;
+  }
+  return new Map(
+    ((data ?? []) as Array<{ user_id: string; last_active_on: string | null }>).map((r) => [
+      r.user_id,
+      r.last_active_on,
+    ]),
+  );
 }
 
 /**
@@ -349,6 +415,8 @@ async function dispatchUser(
     // quiet hours or a Canvas outage can stop this check. Quiet hours are
     // applied again when each one is sent.
     await enqueueCountdowns(admin, userId, { ...prefs, countdownTonight: false }, tz, []);
+    // The streak reminder needs no Canvas data either.
+    await enqueueStreakReminder(admin, userId, prefs, tz);
 
     if (isQuiet(prefs, tz)) {
       result.reason = "quiet-hours";
@@ -576,6 +644,11 @@ async function runScheduled(): Promise<Response> {
       .in("user_id", userIds),
   ]);
 
+  const streakUsers = Array.from(byUser)
+    .filter(([, queued]) => queued.some((r) => r.tag.startsWith("streak:")))
+    .map(([userId]) => userId);
+  const activeOn = await streakActiveDays(admin, streakUsers);
+
   const markHandled = async (userId: string, tags: string[]) => {
     if (tags.length === 0) return;
     const { error: markError } = await admin
@@ -591,7 +664,20 @@ async function runScheduled(): Promise<Response> {
   let failures = 0;
   for (const [userId, queued] of byUser) {
     // Too late to be useful, or replaced by a later step: never sent.
-    const { send: list, drop } = planScheduledAlerts(queued, new Date(now), SCHEDULED_GRACE_MS);
+    const planned = planScheduledAlerts(queued, new Date(now), SCHEDULED_GRACE_MS);
+    const drop = [...planned.drop];
+    const list = planned.send.filter((r) => {
+      if (!r.tag.startsWith("streak:")) return true;
+      // Couldn't read streaks: leave it for the next run.
+      if (activeOn === null) return false;
+      // Opened CoursePro that day after it was queued: the streak is safe.
+      const last = activeOn.get(userId);
+      if (last && last >= r.tag.split(":")[1]!) {
+        drop.push(r);
+        return false;
+      }
+      return true;
+    });
     await markHandled(
       userId,
       drop.map((r) => r.tag),

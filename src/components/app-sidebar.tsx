@@ -25,6 +25,7 @@ import { purgeScopedStorage, useUserScope } from "@/lib/user-scope";
 import { syncAuthIdentity } from "@/lib/auth-user";
 import { NotificationCenter } from "@/components/notification-center";
 import { ProfileButton } from "@/components/profile-button";
+import { StreakButton } from "@/components/streak";
 import { TrafficLights } from "@/components/traffic-lights";
 import type { CourseSummary } from "@/lib/canvas.functions";
 import { displayCourseNameForCourse } from "@/lib/course-display";
@@ -434,6 +435,7 @@ export function MobileNav() {
           {current}
         </p>
         <div className="flex items-center gap-2">
+          <StreakButton />
           <NotificationCenter />
           <ProfileButton />
           <ThemeToggle compact />
