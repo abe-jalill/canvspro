@@ -32,13 +32,13 @@ const LEGACY_GRADE_LAYOUT_ENABLED = false;
 export const Route = createFileRoute("/_authenticated/grades")({
   head: () => ({
     meta: [
-      { title: "Grades — CanvasPro" },
+      { title: "Grades — CoursePro" },
       {
         name: "description",
         content:
           "Per-course grade breakdown across your Canvas assignments, with trends over time.",
       },
-      { property: "og:title", content: "Grades — CanvasPro" },
+      { property: "og:title", content: "Grades — CoursePro" },
       {
         property: "og:description",
         content:

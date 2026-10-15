@@ -4,10 +4,10 @@ import { SettingsPage } from "@/components/settings-page";
 
 export const Route = createFileRoute("/_authenticated/settings/classes")({
   head: () => ({ meta: [
-    { title: "Class Settings — CanvasPro" },
-    { name: "description", content: "Rename Canvas classes and choose which classes appear in CanvasPro." },
-    { property: "og:title", content: "Class Settings — CanvasPro" },
-    { property: "og:description", content: "Rename Canvas classes and choose which classes appear in CanvasPro." },
+    { title: "Class Settings — CoursePro" },
+    { name: "description", content: "Rename Canvas classes and choose which classes appear in CoursePro." },
+    { property: "og:title", content: "Class Settings — CoursePro" },
+    { property: "og:description", content: "Rename Canvas classes and choose which classes appear in CoursePro." },
     { property: "og:type", content: "website" },
     { name: "twitter:card", content: "summary_large_image" },
   ] }),
@@ -15,5 +15,5 @@ export const Route = createFileRoute("/_authenticated/settings/classes")({
 });
 
 function ClassSettingsPage() {
-  return <SettingsPage title="Class settings" description="Keep class names clear and decide which classes appear throughout CanvasPro."><ClassSettingsSection /></SettingsPage>;
+  return <SettingsPage title="Class settings" description="Keep class names clear and decide which classes appear throughout CoursePro."><ClassSettingsSection /></SettingsPage>;
 }

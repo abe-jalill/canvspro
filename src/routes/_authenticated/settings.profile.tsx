@@ -4,10 +4,10 @@ import { SettingsPage } from "@/components/settings-page";
 
 export const Route = createFileRoute("/_authenticated/settings/profile")({
   head: () => ({ meta: [
-    { title: "Profile Settings — CanvasPro" },
-    { name: "description", content: "Update your CanvasPro profile, username, photo, school, and major." },
-    { property: "og:title", content: "Profile Settings — CanvasPro" },
-    { property: "og:description", content: "Update your CanvasPro profile, username, photo, school, and major." },
+    { title: "Profile Settings — CoursePro" },
+    { name: "description", content: "Update your CoursePro profile, username, photo, school, and major." },
+    { property: "og:title", content: "Profile Settings — CoursePro" },
+    { property: "og:description", content: "Update your CoursePro profile, username, photo, school, and major." },
     { property: "og:type", content: "website" },
     { name: "twitter:card", content: "summary_large_image" },
   ] }),
@@ -15,5 +15,5 @@ export const Route = createFileRoute("/_authenticated/settings/profile")({
 });
 
 function ProfilePage() {
-  return <SettingsPage title="Profile" description="Manage how your name and school information appear across CanvasPro."><ProfileCard /></SettingsPage>;
+  return <SettingsPage title="Profile" description="Manage how your name and school information appear across CoursePro."><ProfileCard /></SettingsPage>;
 }

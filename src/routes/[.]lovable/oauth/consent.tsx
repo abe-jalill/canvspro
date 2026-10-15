@@ -1,4 +1,4 @@
-// Authorization screen for AI assistants (MCP clients) connecting to CanvasPro.
+// Authorization screen for AI assistants (MCP clients) connecting to CoursePro.
 // Supabase's OAuth server redirects here with an `authorization_id`; this page
 // shows who is asking, then approves or denies on the signed-in user's behalf.
 import { createFileRoute } from "@tanstack/react-router";
@@ -10,15 +10,15 @@ export const Route = createFileRoute("/.lovable/oauth/consent")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Authorize access — CanvasPro" },
+      { title: "Authorize access — CoursePro" },
       {
         name: "description",
-        content: "Review and approve an app's request to read your CanvasPro classes.",
+        content: "Review and approve an app's request to read your CoursePro classes.",
       },
-      { property: "og:title", content: "Authorize access — CanvasPro" },
+      { property: "og:title", content: "Authorize access — CoursePro" },
       {
         property: "og:description",
-        content: "Review and approve an app's request to read your CanvasPro classes.",
+        content: "Review and approve an app's request to read your CoursePro classes.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -142,7 +142,7 @@ function ConsentPage() {
       title="Authorize access"
       subtitle={
         details
-          ? `${clientName} wants to read your CanvasPro classes`
+          ? `${clientName} wants to read your CoursePro classes`
           : "Checking this request…"
       }
     >
@@ -167,7 +167,7 @@ function ConsentPage() {
                 ))}
             </ul>
             <p className="mt-3 text-xs text-muted-foreground">
-              It can only read. It can't change anything in Canvas or in CanvasPro, and it can't
+              It can only read. It can't change anything in Canvas or in CoursePro, and it can't
               see your Canvas API key.
             </p>
           </div>

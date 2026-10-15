@@ -5,7 +5,7 @@ export function HomeFooter() {
   return (
     <footer className="hp-footer">
       <div className="hp-footer__row">
-        <span className="hp-brand">CanvasPro</span>
+        <span className="hp-brand">CoursePro</span>
         <nav className="hp-footer__links" aria-label="Footer">
           <Link to="/dashboard">Dashboard</Link>
           <Link to="/auth">Sign in</Link>
@@ -25,9 +25,9 @@ export function HomeFooter() {
         </nav>
       </div>
       <div className="hp-footer__fine">
-        <p>© {new Date().getFullYear()} CanvasPro. All rights reserved.</p>
+        <p>© {new Date().getFullYear()} CoursePro. All rights reserved.</p>
         <p>
-          CanvasPro is an independent tool and is not affiliated with, endorsed by, sponsored by, or
+          CoursePro is an independent tool and is not affiliated with, endorsed by, sponsored by, or
           connected in any way to Canvas LMS or Instructure, Inc.
         </p>
       </div>

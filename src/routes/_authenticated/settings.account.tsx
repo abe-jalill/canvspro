@@ -5,10 +5,10 @@ import { SettingsPage } from "@/components/settings-page";
 
 export const Route = createFileRoute("/_authenticated/settings/account")({
   head: () => ({ meta: [
-    { title: "Account Settings — CanvasPro" },
-    { name: "description", content: "Manage permanent account deletion in CanvasPro." },
-    { property: "og:title", content: "Account Settings — CanvasPro" },
-    { property: "og:description", content: "Manage permanent account deletion in CanvasPro." },
+    { title: "Account Settings — CoursePro" },
+    { name: "description", content: "Manage permanent account deletion in CoursePro." },
+    { property: "og:title", content: "Account Settings — CoursePro" },
+    { property: "og:description", content: "Manage permanent account deletion in CoursePro." },
     { property: "og:type", content: "website" },
     { name: "twitter:card", content: "summary_large_image" },
   ] }),

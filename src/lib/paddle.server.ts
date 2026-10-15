@@ -74,7 +74,7 @@ export async function customerIdForEmail(email: string): Promise<string> {
   return created.id;
 }
 
-/** A checkout for one plan, tied to the CanvasPro account that started it. */
+/** A checkout for one plan, tied to the CoursePro account that started it. */
 export async function createCheckoutTransaction(input: {
   customerId: string;
   priceId: string;

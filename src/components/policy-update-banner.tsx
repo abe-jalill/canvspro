@@ -52,7 +52,7 @@ export function PolicyUpdateBanner() {
         <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
         <div className="min-w-0 text-sm text-muted-foreground">
           <p>
-            We updated our{" "}
+            CanvasPro is now CoursePro. We updated our{" "}
             <Link to="/terms" className="text-foreground underline underline-offset-4">
               Terms of Use
             </Link>{" "}

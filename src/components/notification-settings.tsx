@@ -135,8 +135,8 @@ function ThisDevice({ disabled }: { disabled: boolean }) {
     return (
       <p className="glass-inset rounded-xl p-3 text-xs text-muted-foreground">
         {needsHomeScreenInstall()
-          ? "On iPhone or iPad, add CanvasPro to your Home Screen and open it from there to get notifications."
-          : "This browser can't show notifications when CanvasPro is closed."}
+          ? "On iPhone or iPad, add CoursePro to your Home Screen and open it from there to get notifications."
+          : "This browser can't show notifications when CoursePro is closed."}
       </p>
     );
   }
@@ -151,7 +151,7 @@ function ThisDevice({ disabled }: { disabled: boolean }) {
       <div className="min-w-0">
         <p className="text-sm font-medium">This device</p>
         <p className="text-xs text-muted-foreground">
-          {on ? "Gets notifications, even with CanvasPro closed" : "Not getting notifications"}
+          {on ? "Gets notifications, even with CoursePro closed" : "Not getting notifications"}
         </p>
       </div>
       {on ? (

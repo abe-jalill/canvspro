@@ -55,7 +55,7 @@ export function AppStartupWelcome({ ready, user }: { ready: boolean; user: User 
       }`}
       role="status"
       aria-live="polite"
-      aria-label="Preparing CanvasPro"
+      aria-label="Preparing CoursePro"
     >
       <div className="absolute -left-24 top-[-15%] h-[28rem] w-[28rem] rounded-full bg-blue-500/10 blur-[110px]" />
       <div className="absolute -bottom-40 right-[-10%] h-[34rem] w-[34rem] rounded-full bg-violet-500/10 blur-[130px]" />
@@ -66,14 +66,14 @@ export function AppStartupWelcome({ ready, user }: { ready: boolean; user: User 
             <span className="grid h-10 w-10 place-items-center rounded-2xl border border-white/15 bg-white text-sm font-semibold text-black shadow-[0_14px_40px_rgba(255,255,255,0.12)]">
               CP
             </span>
-            <span>CanvasPro</span>
+            <span>CoursePro</span>
           </div>
 
           <div className="max-w-2xl animate-in fade-in slide-in-from-bottom-3 duration-700">
             <p className="mb-4 text-xs uppercase tracking-[0.24em] text-white/40">Your workspace</p>
             <h1 className="text-balance text-[clamp(2.6rem,7vw,6.8rem)] font-medium leading-[0.94] tracking-[-0.065em]">
               Hello, <span className="text-white/60">{name},</span>
-              <span className="mt-2 block">welcome to CanvasPro</span>
+              <span className="mt-2 block">welcome to CoursePro</span>
             </h1>
           </div>
 

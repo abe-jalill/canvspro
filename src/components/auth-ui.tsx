@@ -28,8 +28,8 @@ export function AuthShell({
   return (
     <div className="hp hp-auth">
       <header className="hp-bar">
-        <Link to="/" className="hp-brand" aria-label="CanvasPro home">
-          CanvasPro
+        <Link to="/" className="hp-brand" aria-label="CoursePro home">
+          CoursePro
         </Link>
         <nav className="hp-bar__links" aria-label="Main navigation">
           <Link to="/" className="hp-bar__secondary">

@@ -97,7 +97,7 @@ export function ProfileCompletionDialog({ user }: { user: User }) {
               One last detail
             </p>
             <DialogTitle className="mt-1 text-2xl font-medium tracking-[-0.035em] sm:text-3xl">
-              Make CanvasPro yours.
+              Make CoursePro yours.
             </DialogTitle>
             <DialogDescription className="mt-2 max-w-md leading-relaxed">
               Add your name so greetings and your workspace feel personal. Academic details are

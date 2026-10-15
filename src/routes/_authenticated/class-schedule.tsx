@@ -24,12 +24,12 @@ function ScheduleSkeleton() {
 export const Route = createFileRoute("/_authenticated/class-schedule")({
   head: () => ({
     meta: [
-      { title: "Class Schedule — CanvasPro" },
+      { title: "Class Schedule — CoursePro" },
       {
         name: "description",
         content: "Add your recurring class meeting times and see them as a clean weekly timetable.",
       },
-      { property: "og:title", content: "Class Schedule — CanvasPro" },
+      { property: "og:title", content: "Class Schedule — CoursePro" },
       {
         property: "og:description",
         content: "Add your recurring class meeting times and see them as a clean weekly timetable.",

@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/_authenticated/announcements")({
   head: () => ({
     meta: [
-      { title: "Announcements — CanvasPro" },
+      { title: "Announcements — CoursePro" },
       {
         name: "description",
         content: "Recent announcements from all of your Canvas courses, in one timeline.",

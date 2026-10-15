@@ -15,15 +15,15 @@ import {
 export const Route = createFileRoute("/_authenticated/settings/")({
   head: () => ({
     meta: [
-      { title: "Settings — CanvasPro" },
+      { title: "Settings — CoursePro" },
       {
         name: "description",
-        content: "Manage your CanvasPro account, classes, alerts, appearance, and connections.",
+        content: "Manage your CoursePro account, classes, alerts, appearance, and connections.",
       },
-      { property: "og:title", content: "Settings — CanvasPro" },
+      { property: "og:title", content: "Settings — CoursePro" },
       {
         property: "og:description",
-        content: "Manage your CanvasPro account, classes, alerts, appearance, and connections.",
+        content: "Manage your CoursePro account, classes, alerts, appearance, and connections.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

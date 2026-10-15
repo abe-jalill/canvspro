@@ -20,7 +20,7 @@ export async function verifySavedCanvasKey(): Promise<boolean> {
   if (error || data?.error) {
     const message = error ? await invokeError(error) : data!.error!;
     if (isCanvasAuthenticationRejected(message)) return false;
-    // Offline, expired CanvasPro sessions and service failures cannot prove a
+    // Offline, expired CoursePro sessions and service failures cannot prove a
     // Canvas token is invalid. Keep the warning hidden while these recover.
     throw new Error(message);
   }

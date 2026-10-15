@@ -149,7 +149,7 @@ export function SubscribePanel({ status }: { status: BillingStatus | null }) {
       {error && <p className="text-sm text-destructive">{error}</p>}
       {finishing && (
         <p role="status" className="text-sm text-muted-foreground">
-          Payment received — unlocking CanvasPro…
+          Payment received — unlocking CoursePro…
         </p>
       )}
 

@@ -14,9 +14,9 @@ interface BillingReminderProps {
 }
 
 const SUBJECTS: Record<Kind, string> = {
-  trial: 'Your CanvasPro free trial ends in 7 days',
-  renewal: 'Your CanvasPro yearly plan renews soon',
-  grace: 'Your free CanvasPro access ends in 3 days',
+  trial: 'Your CoursePro free trial ends in 7 days',
+  renewal: 'Your CoursePro yearly plan renews soon',
+  grace: 'Your free CoursePro access ends in 3 days',
 }
 
 const BillingReminderEmail = ({
@@ -30,7 +30,7 @@ const BillingReminderEmail = ({
     <Preview>{SUBJECTS[kind]}</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Text style={brand}>CanvasPro</Text>
+        <Text style={brand}>CoursePro</Text>
         {kind === 'trial' && (
           <>
             <Heading style={h1}>Your free trial ends {date}</Heading>
@@ -49,11 +49,11 @@ const BillingReminderEmail = ({
             <Heading style={h1}>Your yearly plan renews {date}</Heading>
             <Text style={text}>
               On {date} your card will be charged {price} plus applicable tax for another year of
-              CanvasPro.
+              CoursePro.
             </Text>
             <Text style={text}>
               To stop it from renewing, cancel before {date} in Settings → Billing. You keep
-              CanvasPro until then.
+              CoursePro until then.
             </Text>
           </>
         )}
@@ -61,7 +61,7 @@ const BillingReminderEmail = ({
           <>
             <Heading style={h1}>Your free access ends {date}</Heading>
             <Text style={text}>
-              CanvasPro is now a paid app ({price}). Subscribe before {date} to keep your
+              CoursePro is now a paid app ({price}). Subscribe before {date} to keep your
               dashboard, reminders and widgets. Your first charge waits until your free days end.
             </Text>
           </>
@@ -71,7 +71,7 @@ const BillingReminderEmail = ({
         </Button>
         <Hr style={hr} />
         <Text style={muted}>
-          You're receiving this because of your CanvasPro subscription. Our order process is
+          You're receiving this because of your CoursePro subscription. Our order process is
           conducted by our online reseller Paddle.com, the Merchant of Record for all our orders.
         </Text>
       </Container>

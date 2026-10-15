@@ -13,6 +13,6 @@ export async function invokeCanvasEdge<T>(body: Record<string, unknown>) {
 
 export function friendlyCanvasTransportError(message: string): string {
   return RETRYABLE_TRANSPORT_ERROR.test(message)
-    ? "Couldn't reach CanvasPro's secure Canvas service. Check your connection and try again."
+    ? "Couldn't reach CoursePro's secure Canvas service. Check your connection and try again."
     : message;
 }

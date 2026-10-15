@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// One-time Paddle setup for CanvasPro: creates the product, its four prices
+// One-time Paddle setup for CoursePro: creates the product, its four prices
 // (monthly and yearly, each with and without the 14-day trial) and the
 // webhook destination, then prints the values to add as Lovable secrets.
 //
@@ -34,7 +34,7 @@ async function paddle(path, body) {
 }
 
 const product = await paddle("/products", {
-  name: "CanvasPro",
+  name: "CoursePro",
   description:
     "Every Canvas class, assignment, grade and deadline in one dashboard, with reminders.",
   tax_category: taxCategory,
@@ -63,7 +63,7 @@ for (const [envName, price] of Object.entries(prices)) {
   const created = await paddle("/prices", {
     product_id: product.id,
     name: price.name,
-    description: `CanvasPro ${price.name}`,
+    description: `CoursePro ${price.name}`,
     unit_price: { amount: price.amount, currency_code: "USD" },
     billing_cycle: { interval: price.interval, frequency: 1 },
     ...(price.trial ? { trial_period: price.trial } : {}),
@@ -72,7 +72,7 @@ for (const [envName, price] of Object.entries(prices)) {
 }
 
 const destination = await paddle("/notification-settings", {
-  description: "CanvasPro subscriptions",
+  description: "CoursePro subscriptions",
   type: "url",
   destination: "https://canvaspro.app/api/public/paddle/webhook",
   api_version: 1,

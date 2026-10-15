@@ -13,7 +13,7 @@ export function OfflineNotice() {
       <WifiOff className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
       <p>
         You're offline, so this is what you last synced. Changes save when you reconnect, so keep
-        CanvasPro open until then.
+        CoursePro open until then.
       </p>
     </div>
   );

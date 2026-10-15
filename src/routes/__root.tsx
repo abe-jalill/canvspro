@@ -71,14 +71,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "CanvasPro — A Better Canvas Dashboard for Students" },
+      { title: "CoursePro — A Better Canvas Dashboard for Students" },
       {
         name: "description",
         content:
           "See every Canvas class, grade, and deadline in one clean dashboard — free for everyone, with no subscription required.",
       },
       { property: "og:type", content: "website" },
-      { property: "og:site_name", content: "CanvasPro" },
+      { property: "og:site_name", content: "CoursePro" },
       // Site-wide share image; pages that set their own still override it.
       // Without it, Lovable's publish injects an old unbranded screenshot.
       { property: "og:image", content: "https://canvaspro.app/canvaspro-homepage-preview.png" },
@@ -90,7 +90,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { name: "theme-color", content: "#000000" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
-      { name: "apple-mobile-web-app-title", content: "CanvasPro" },
+      { name: "apple-mobile-web-app-title", content: "CoursePro" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },

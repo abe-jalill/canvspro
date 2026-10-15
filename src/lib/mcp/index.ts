@@ -9,21 +9,21 @@ const ISSUER = "https://vqmzhzvugzhmtprklzfm.supabase.co/auth/v1";
 
 export default defineMcp({
   name: "canvaspro",
-  title: "CanvasPro",
+  title: "CoursePro",
   version: "0.1.0",
   instructions: [
-    "Read-only access to one CanvasPro student's Canvas LMS data: courses and current grades,",
+    "Read-only access to one CoursePro student's Canvas LMS data: courses and current grades,",
     "assignments with due dates and submission status, instructor announcements, and calendar events.",
     "Call list_courses first when you need course ids or grades. Use list_assignments for anything",
     "about deadlines, missing work or study planning. All times are ISO 8601 UTC.",
-    "CanvasPro is independent of Canvas LMS and Instructure, Inc.",
+    "CoursePro is independent of Canvas LMS and Instructure, Inc.",
   ].join(" "),
   auth: auth.oauth.issuer({
     issuer: ISSUER,
     resource: "https://canvaspro.app/mcp",
     // Supabase mints project-wide audiences for user access tokens.
     acceptedAudiences: ["authenticated"],
-    resourceName: "CanvasPro",
+    resourceName: "CoursePro",
     resourceDocumentation: "https://canvaspro.app",
   }),
   tools: [listCourses, listAssignments, listAnnouncements, listCalendarEvents],

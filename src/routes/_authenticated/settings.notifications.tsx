@@ -6,15 +6,15 @@ import { NotificationSettings } from "@/components/notification-settings";
 export const Route = createFileRoute("/_authenticated/settings/notifications")({
   head: () => ({
     meta: [
-      { title: "Notification Settings — CanvasPro" },
+      { title: "Notification Settings — CoursePro" },
       {
         name: "description",
-        content: "Choose CanvasPro alerts, reminders, delivery, and quiet hours.",
+        content: "Choose CoursePro alerts, reminders, delivery, and quiet hours.",
       },
-      { property: "og:title", content: "Notification Settings — CanvasPro" },
+      { property: "og:title", content: "Notification Settings — CoursePro" },
       {
         property: "og:description",
-        content: "Choose CanvasPro alerts, reminders, delivery, and quiet hours.",
+        content: "Choose CoursePro alerts, reminders, delivery, and quiet hours.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

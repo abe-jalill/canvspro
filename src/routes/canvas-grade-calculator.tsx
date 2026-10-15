@@ -146,7 +146,7 @@ function CalculatorPage() {
     <div className="cp-public-tool mx-auto w-full max-w-3xl px-4 py-12 sm:py-16">
       <header className="text-center">
         <Link to="/" className="cp-public-tool__back">
-          ← CanvasPro
+          ← CoursePro
         </Link>
         <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
           Free tool
@@ -339,7 +339,7 @@ function CalculatorPage() {
         <div className="glass-panel-strong flex flex-col items-start gap-4 p-6">
           <h2 className="text-xl font-semibold tracking-tight">Stop doing this by hand</h2>
           <p className="text-sm text-muted-foreground">
-            CanvasPro pulls your real scores straight from Canvas and keeps every class, assignment,
+            CoursePro pulls your real scores straight from Canvas and keeps every class, assignment,
             and announcement on one dashboard you arrange yourself — with trend arrows when a grade
             moves. Try every feature free for 14 days, then $5.00 a month.
           </p>
@@ -348,7 +348,7 @@ function CalculatorPage() {
               to="/signup"
               className="glass-hover inline-flex min-h-11 items-center justify-center rounded-xl bg-foreground px-4 text-sm font-semibold text-background"
             >
-              Try CanvasPro
+              Try CoursePro
             </Link>
             <Link
               to="/canvas-dashboard-guide"

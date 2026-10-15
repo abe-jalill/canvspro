@@ -5,10 +5,10 @@ import { REFUND_WINDOW_DAYS, TRIAL_DAYS } from "@/lib/billing";
 export const Route = createFileRoute("/refund-policy")({
   head: () => ({
     meta: [
-      { title: "Refund Policy — CanvasPro" },
+      { title: "Refund Policy — CoursePro" },
       {
         name: "description",
-        content: `CanvasPro refunds: request one within ${REFUND_WINDOW_DAYS} days of a charge. How to cancel and how to ask for a refund.`,
+        content: `CoursePro refunds: request one within ${REFUND_WINDOW_DAYS} days of a charge. How to cancel and how to ask for a refund.`,
       },
     ],
     links: [{ rel: "canonical", href: "https://canvaspro.app/refund-policy" }],
@@ -20,7 +20,7 @@ const sections = [
   {
     title: `1. ${REFUND_WINDOW_DAYS}-day refunds`,
     paragraphs: [
-      `You can ask for a full refund of any CanvasPro charge, for any reason, within ${REFUND_WINDOW_DAYS} days of the date you were charged. This includes the first charge after a free trial and each monthly or yearly renewal.`,
+      `You can ask for a full refund of any CoursePro charge, for any reason, within ${REFUND_WINDOW_DAYS} days of the date you were charged. This includes the first charge after a free trial and each monthly or yearly renewal.`,
       `Refunds are not available for charges more than ${REFUND_WINDOW_DAYS} days old, except where the law where you live requires otherwise. Your statutory consumer rights are not affected by this policy.`,
     ],
   },

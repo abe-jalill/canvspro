@@ -1,4 +1,4 @@
-// CanvasPro's paid plan: prices, the trial, and what an account's billing
+// CoursePro's paid plan: prices, the trial, and what an account's billing
 // state means. Pure (no imports) so the website, the webhook, the reminder
 // job and the tests share one definition.
 
@@ -9,7 +9,7 @@ export type SubscriptionStatus = "trialing" | "active" | "past_due" | "paused" |
 export const BILLING_REQUIRED_EVENT = "canvaspro:billing-required";
 
 export const TRIAL_DAYS = 14;
-/** Paddle requires 14-90 days; CanvasPro uses the minimum. */
+/** Paddle requires 14-90 days; CoursePro uses the minimum. */
 export const REFUND_WINDOW_DAYS = 14;
 /** Accounts from before the paywall get this many free days from launch. */
 export const LAUNCH_GRACE_DAYS = 14;
@@ -106,7 +106,7 @@ export function describeBilling(
     case "complimentary":
       return {
         state,
-        headline: "CanvasPro is on us",
+        headline: "CoursePro is on us",
         detail: "Your account has complimentary access.",
       };
     case "trial": {
@@ -122,33 +122,33 @@ export function describeBilling(
     case "active":
       return {
         state,
-        headline: `CanvasPro ${s.plan === "yearly" ? "yearly" : "monthly"}`,
+        headline: `CoursePro ${s.plan === "yearly" ? "yearly" : "monthly"}`,
         detail: `Renews ${formatDay(s.current_period_end, timeZone)} at ${charge} plus tax.`,
       };
     case "canceling":
       return {
         state,
         headline: "Subscription canceled",
-        detail: `You keep CanvasPro until ${formatDay(s.cancel_at ?? s.current_period_end, timeZone)}. You won't be charged again.`,
+        detail: `You keep CoursePro until ${formatDay(s.cancel_at ?? s.current_period_end, timeZone)}. You won't be charged again.`,
       };
     case "past_due":
       return {
         state,
         headline: "Your last payment didn't go through",
-        detail: "Update your payment method to keep CanvasPro.",
+        detail: "Update your payment method to keep CoursePro.",
       };
     case "grace":
       return {
         state,
         headline: `${daysLeft(s.grace_ends_at, now)} free days left`,
-        detail: `CanvasPro is now a paid app. Your free access ends ${formatDay(s.grace_ends_at, timeZone)}. Subscribe to keep your dashboard, reminders and widgets.`,
+        detail: `CoursePro is now a paid app. Your free access ends ${formatDay(s.grace_ends_at, timeZone)}. Subscribe to keep your dashboard, reminders and widgets.`,
       };
     case "free":
-      return { state, headline: "CanvasPro", detail: "" };
+      return { state, headline: "CoursePro", detail: "" };
     default:
       return {
         state,
-        headline: "Subscribe to keep using CanvasPro",
+        headline: "Subscribe to keep using CoursePro",
         detail: s.trial_used
           ? "Your free trial has ended."
           : `Start a ${TRIAL_DAYS}-day free trial. Cancel anytime before it ends and you won't be charged.`,
@@ -194,7 +194,7 @@ export function firstChargeForGrace(
   return new Date(graceEnds).toISOString();
 }
 
-/** The parts of a Paddle subscription entity CanvasPro reads. */
+/** The parts of a Paddle subscription entity CoursePro reads. */
 export interface PaddleSubscription {
   id: string;
   status: string;

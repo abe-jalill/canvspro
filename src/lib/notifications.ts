@@ -130,7 +130,7 @@ function flushPopUps() {
     return;
   }
   fireBrowserNotification(
-    `${batch.length} new CanvasPro alerts`,
+    `${batch.length} new CoursePro alerts`,
     `${batch[0]!.title} and ${batch.length - 1} more. Open the bell to see them all.`,
     "canvaspro-summary",
     "/notifications",

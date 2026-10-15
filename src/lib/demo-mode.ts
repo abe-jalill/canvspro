@@ -11,6 +11,7 @@
 //    sample student's, the same set the iOS app shows it (NativePreviewData).
 
 import { emailFromAuthorization, isReviewAccount } from "@/lib/review-account";
+import { LEGAL_POLICY_VERSION } from "@/lib/legal-consent";
 
 const FLAG = "cp-demo";
 const DEMO_USER_ID = "00000000-0000-4000-8000-00000000d3e0";
@@ -200,7 +201,14 @@ const USER = {
   email_confirmed_at: "2026-08-20T12:00:00.000Z",
   phone: "",
   app_metadata: { provider: "email", providers: ["email"] },
-  user_metadata: { first_name: "Maya", last_name: "Chen", username: "maya", nickname: "Maya" },
+  user_metadata: {
+    first_name: "Maya",
+    last_name: "Chen",
+    username: "maya",
+    nickname: "Maya",
+    // Accepted the current Terms, so screenshots don't show the update notice.
+    terms_accepted_version: LEGAL_POLICY_VERSION,
+  },
   identities: [],
   created_at: "2026-08-20T12:00:00.000Z",
   updated_at: "2026-08-20T12:00:00.000Z",

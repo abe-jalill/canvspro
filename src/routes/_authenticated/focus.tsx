@@ -38,12 +38,12 @@ import { SkeletonBlock } from "@/components/skeletons/dashboard-skeletons";
 export const Route = createFileRoute("/_authenticated/focus")({
   head: () => ({
     meta: [
-      { title: "Focus — CanvasPro" },
+      { title: "Focus — CoursePro" },
       {
         name: "description",
         content: "Everything due soon, laid out day by day or class by class.",
       },
-      { property: "og:title", content: "Focus — CanvasPro" },
+      { property: "og:title", content: "Focus — CoursePro" },
       {
         property: "og:description",
         content: "Everything due soon, laid out day by day or class by class.",

@@ -16,10 +16,10 @@ import {
 export const Route = createFileRoute("/_authenticated/settings/billing")({
   head: () => ({
     meta: [
-      { title: "Billing — CanvasPro" },
-      { name: "description", content: "Your CanvasPro plan, payments and cancellation." },
-      { property: "og:title", content: "Billing — CanvasPro" },
-      { property: "og:description", content: "Your CanvasPro plan, payments and cancellation." },
+      { title: "Billing — CoursePro" },
+      { name: "description", content: "Your CoursePro plan, payments and cancellation." },
+      { property: "og:title", content: "Billing — CoursePro" },
+      { property: "og:description", content: "Your CoursePro plan, payments and cancellation." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -92,7 +92,7 @@ function BillingSettingsPage() {
         </GlassCard>
       ) : !status ? (
         <GlassCard title="Your plan">
-          <p className="text-sm text-muted-foreground">CanvasPro is free for now.</p>
+          <p className="text-sm text-muted-foreground">CoursePro is free for now.</p>
         </GlassCard>
       ) : (
         <>
@@ -126,7 +126,7 @@ function BillingSettingsPage() {
                 ) : pending === "cancel" ? (
                   <div className="space-y-3 text-sm">
                     <p>
-                      Cancel your subscription? You keep CanvasPro until{" "}
+                      Cancel your subscription? You keep CoursePro until{" "}
                       {formatDay(
                         status.status === "trialing"
                           ? status.trial_ends_at

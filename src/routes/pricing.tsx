@@ -3,13 +3,13 @@ import { Check } from "lucide-react";
 import { PLANS, REFUND_WINDOW_DAYS, TRIAL_DAYS } from "@/lib/billing";
 import "./public-pages.css";
 
-const TITLE = "CanvasPro Pricing";
+const TITLE = "CoursePro Pricing";
 const DESCRIPTION = `Start with a ${TRIAL_DAYS}-day free trial, then ${PLANS.monthly.price}/month or ${PLANS.yearly.price}/year. Cancel anytime.`;
 
 export const Route = createFileRoute("/pricing")({
   head: () => ({
     meta: [
-      { title: "Pricing — CanvasPro" },
+      { title: "Pricing — CoursePro" },
       { name: "description", content: DESCRIPTION },
       { property: "og:title", content: TITLE },
       { property: "og:description", content: DESCRIPTION },
@@ -38,7 +38,7 @@ const FAQ = [
   },
   {
     q: "Can I cancel anytime?",
-    a: "Yes. Cancel online in Settings → Billing. You keep CanvasPro until the end of the period you've paid for, and you won't be charged again.",
+    a: "Yes. Cancel online in Settings → Billing. You keep CoursePro until the end of the period you've paid for, and you won't be charged again.",
   },
   {
     q: "Can I switch from monthly to yearly?",
@@ -59,7 +59,7 @@ function PricingPage() {
     <article className="cp-public-tool mx-auto w-full max-w-3xl px-4 py-12 sm:py-16">
       <header className="text-center">
         <Link to="/" className="cp-public-tool__back">
-          ← CanvasPro
+          ← CoursePro
         </Link>
         <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
           Pricing

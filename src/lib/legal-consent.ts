@@ -4,8 +4,8 @@ export const LEGAL_POLICY_VERSION = "2026-10-14";
 export const LEGAL_TEXT_UPDATED: string = "2026-10-14";
 
 /**
- * The company that sells CanvasPro, exactly as registered with Michigan.
- * Paddle requires the seller's company name in the Terms. CanvasPro is its
+ * The company that sells CoursePro, exactly as registered with Michigan.
+ * Paddle requires the seller's company name in the Terms. CoursePro is its
  * assumed name (DBA). Never a person's name.
  */
 export const SELLER_LEGAL_NAME: string | null = "Construction Safety & Managment, LLC";
@@ -15,11 +15,11 @@ export const SELLER_LEGAL_NAME: string | null = "Construction Safety & Managment
  */
 export const SELLER_ADDRESS: string | null = null;
 
-/** "Example Co, LLC, doing business as CanvasPro" (or the generic operator). */
+/** "Example Co, LLC, doing business as CoursePro" (or the generic operator). */
 export function sellerIdentity(): string {
   return SELLER_LEGAL_NAME
-    ? `${SELLER_LEGAL_NAME}, doing business as CanvasPro`
-    : "the independent operator of CanvasPro";
+    ? `${SELLER_LEGAL_NAME}, doing business as CoursePro`
+    : "the independent operator of CoursePro";
 }
 
 export function createLegalConsentMetadata(accepted: boolean, now = new Date()) {

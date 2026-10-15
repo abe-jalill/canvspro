@@ -63,13 +63,13 @@ const LEGACY_CLASS_LAYOUT_ENABLED = false;
 export const Route = createFileRoute("/_authenticated/assignments")({
   head: () => ({
     meta: [
-      { title: "Assignments — CanvasPro" },
+      { title: "Assignments — CoursePro" },
       {
         name: "description",
         content:
           "Every class in one card: current grade, overdue count, what's due soon, and the full assignment list.",
       },
-      { property: "og:title", content: "Assignments — CanvasPro" },
+      { property: "og:title", content: "Assignments — CoursePro" },
       {
         property: "og:description",
         content:

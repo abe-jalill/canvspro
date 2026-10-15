@@ -6,7 +6,7 @@ export function SiteFooter() {
     <footer className="site-footer mt-auto w-full shrink-0 border-t border-border/30 px-4 py-6 sm:px-6 lg:px-8">
       <CanvasTrademarkNotice className="mx-auto max-w-6xl px-4 pb-4 sm:px-6" />
       <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 text-xs text-muted-foreground sm:flex-row">
-        <p>© {new Date().getFullYear()} CanvasPro. All rights reserved.</p>
+        <p>© {new Date().getFullYear()} CoursePro. All rights reserved.</p>
         <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
           <Link to="/dashboard" className="transition-colors hover:text-foreground">
             Dashboard

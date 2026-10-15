@@ -22,7 +22,7 @@ function constantTimeEqual(a: string, b: string): boolean {
 type Row = ReminderRow & { user_id: string; grace_reminder_sent_at: string | null };
 
 const LIVE = new Set(["trialing", "active", "past_due"]);
-// Emails show dates the way most CanvasPro students read them.
+// Emails show dates the way most CoursePro students read them.
 const TIME_ZONE = "America/New_York";
 
 function priceLabel(plan: Plan | null): string {

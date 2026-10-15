@@ -10,10 +10,10 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
     meta: [
-      { title: "Usage — CanvasPro" },
-      { name: "description", content: "Private usage overview for CanvasPro." },
-      { property: "og:title", content: "Usage — CanvasPro" },
-      { property: "og:description", content: "Private usage overview for CanvasPro." },
+      { title: "Usage — CoursePro" },
+      { name: "description", content: "Private usage overview for CoursePro." },
+      { property: "og:title", content: "Usage — CoursePro" },
+      { property: "og:description", content: "Private usage overview for CoursePro." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -107,7 +107,7 @@ function AdminUsagePage() {
           Usage
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          How many people actually opened CanvasPro, day by day. Only you can see this.
+          How many people actually opened CoursePro, day by day. Only you can see this.
         </p>
       </header>
 

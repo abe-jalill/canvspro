@@ -24,10 +24,10 @@ const WelcomeEmail = ({ name, appUrl = 'https://canvaspro.app' }: WelcomeEmailPr
     <Preview>Your Canvas dashboard is ready</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Text style={brand}>CanvasPro</Text>
+        <Text style={brand}>CoursePro</Text>
         <Heading style={h1}>Welcome{name ? `, ${name}` : ''}</Heading>
         <Text style={text}>
-          CanvasPro brings your Canvas classes, grades, assignments, and announcements into one
+          CoursePro brings your Canvas classes, grades, assignments, and announcements into one
           calm dashboard.
         </Text>
         <Section style={{ margin: '24px 0' }}>
@@ -40,7 +40,7 @@ const WelcomeEmail = ({ name, appUrl = 'https://canvaspro.app' }: WelcomeEmailPr
         </Button>
         <Hr style={hr} />
         <Text style={muted}>
-          You are receiving this because you created a CanvasPro account.
+          You are receiving this because you created a CoursePro account.
         </Text>
       </Container>
     </Body>
@@ -49,7 +49,7 @@ const WelcomeEmail = ({ name, appUrl = 'https://canvaspro.app' }: WelcomeEmailPr
 
 export const template = {
   component: WelcomeEmail,
-  subject: 'Welcome to CanvasPro',
+  subject: 'Welcome to CoursePro',
   displayName: 'Welcome email',
   previewData: { name: 'Abrahim', appUrl: 'https://canvaspro.app' },
 } satisfies TemplateEntry
