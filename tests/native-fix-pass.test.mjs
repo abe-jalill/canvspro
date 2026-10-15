@@ -249,7 +249,7 @@ test("the app is gentle: soft late-work wording, one next step, hidden grades, q
 });
 
 test("no extra words: no descriptions under titles, short empty states", () => {
-  for (const text of ["Open focus view", "Showing assignments through", "Enjoy the breathing room", "Everything urgent is complete", "Read-only access to your CanvasPro information", "A little less chaos. A little more clarity.\" : \"Your classes"]) {
+  for (const text of ["Open focus view", "Showing assignments through", "Enjoy the breathing room", "Everything urgent is complete", "Read-only access to your CoursePro information", "A little less chaos. A little more clarity.\" : \"Your classes"]) {
     assert.ok(!(swift.NativeViews + swift.NativeMoreViews).includes(text), text);
   }
   // Empty states are one short title.

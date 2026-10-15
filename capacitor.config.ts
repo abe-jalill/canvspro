@@ -2,7 +2,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
   appId: "app.canvaspro.mobile",
-  appName: "CanvasPro",
+  appName: "CoursePro",
   // The iOS shell must boot the dedicated client bundle, never the live site.
   webDir: "dist-mobile",
   plugins: {

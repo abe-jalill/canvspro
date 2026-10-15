@@ -51,7 +51,7 @@ reopen and resubmission, cached data, and account switching.
 `main` (at `20304ec`) is merged into `ios-native`, and every file outside the
 iOS project now matches `main`. That removes the Stripe billing, pricing page,
 paywall and Capacitor-era web code this branch had kept after `main` made
-CanvasPro free. The SwiftUI app talks to Supabase directly and to two website
+CoursePro free. The SwiftUI app talks to Supabase directly and to two website
 endpoints, so nothing else on the website is iOS-specific.
 
 ### Needs the website to be live with this branch

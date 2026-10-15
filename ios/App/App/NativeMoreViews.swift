@@ -1583,7 +1583,7 @@ private struct NotificationsView: View {
         let center = UNUserNotificationCenter.current()
         if on {
             if permission == .denied {
-                status = "Allow notifications for CanvasPro in iOS Settings."
+                status = "Allow notifications for CoursePro in iOS Settings."
                 if let url = URL(string: UIApplication.openSettingsURLString) { _ = await UIApplication.shared.open(url) }
                 return
             }

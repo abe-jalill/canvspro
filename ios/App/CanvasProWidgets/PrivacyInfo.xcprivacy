@@ -15,7 +15,7 @@
             <string>NSPrivacyAccessedAPICategoryUserDefaults</string>
             <key>NSPrivacyAccessedAPITypeReasons</key>
             <array>
-                <!-- Reads what the CanvasPro app saved in the shared App Group. -->
+                <!-- Reads what the CoursePro app saved in the shared App Group. -->
                 <string>1C8F.1</string>
             </array>
         </dict>

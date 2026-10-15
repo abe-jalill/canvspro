@@ -400,7 +400,7 @@ struct CanvasProDueSoonView: View {
 
     var body: some View {
         if !snapshot.signedIn && !family.isAccessory {
-            CanvasProSignedOutView(palette: palette, symbol: "checklist", line: "Open CanvasPro to see what's due")
+            CanvasProSignedOutView(palette: palette, symbol: "checklist", line: "Open CoursePro to see what's due")
         } else {
             switch family {
             case .accessoryCircular: circular
@@ -641,25 +641,25 @@ struct CanvasProDueSoonView: View {
             Text(snapshot.signedIn ? "\(work.remaining.count)" : "–").monospacedDigit()
         }
         .gaugeStyle(.accessoryCircularCapacity)
-        .accessibilityLabel(snapshot.signedIn ? "\(work.remaining.count) left \(range.phrase)" : "Open CanvasPro")
+        .accessibilityLabel(snapshot.signedIn ? "\(work.remaining.count) left \(range.phrase)" : "Open CoursePro")
     }
 
     private var rectangular: some View {
         VStack(alignment: .leading, spacing: 1) {
-            Text(snapshot.signedIn ? "\(range.title) · \(work.remaining.count) left" : "CanvasPro")
+            Text(snapshot.signedIn ? "\(range.title) · \(work.remaining.count) left" : "CoursePro")
                 .font(.system(size: 11, weight: .bold)).widgetAccentable()
             if let next = work.remaining.first {
                 Text(next.name).font(.system(size: 13, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.9)
                 Text(CanvasProWidgetFormat.due(next.due, now: date)).font(.system(size: 11, weight: .medium)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.9)
             } else {
-                Text(snapshot.signedIn ? range.emptyLine : "Open CanvasPro to see what's due").font(.system(size: 12, weight: .semibold)).lineLimit(2)
+                Text(snapshot.signedIn ? range.emptyLine : "Open CoursePro to see what's due").font(.system(size: 12, weight: .semibold)).lineLimit(2)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var inline: some View {
-        if !snapshot.signedIn { return Text("CanvasPro") }
+        if !snapshot.signedIn { return Text("CoursePro") }
         if let next = work.remaining.first { return Text("\(work.remaining.count) due · \(next.name)") }
         return Text(range.emptyLine)
     }
@@ -681,7 +681,7 @@ struct CanvasProGradesView: View {
 
     var body: some View {
         if !snapshot.signedIn && !family.isAccessory {
-            CanvasProSignedOutView(palette: palette, symbol: "chart.bar", line: "Open CanvasPro to see your grades")
+            CanvasProSignedOutView(palette: palette, symbol: "chart.bar", line: "Open CoursePro to see your grades")
         } else {
             switch family {
             case .accessoryCircular: circular
@@ -840,7 +840,7 @@ struct CanvasProGradesView: View {
     }
 
     private var inline: some View {
-        guard snapshot.signedIn, !hidden, let average else { return Text("CanvasPro grades") }
+        guard snapshot.signedIn, !hidden, let average else { return Text("CoursePro grades") }
         return Text("Average \(CanvasProWidgetFormat.score(average))% · \(CanvasProWidgetFormat.letter(average))")
     }
 }
@@ -882,7 +882,7 @@ struct CanvasProTodayView: View {
 
     var body: some View {
         if !snapshot.signedIn {
-            CanvasProSignedOutView(palette: palette, symbol: "sun.max", line: "Open CanvasPro to see your day")
+            CanvasProSignedOutView(palette: palette, symbol: "sun.max", line: "Open CoursePro to see your day")
         } else {
             switch family {
             case .systemSmall: small
@@ -1018,7 +1018,7 @@ struct CanvasProNextClassView: View {
 
     var body: some View {
         if !snapshot.signedIn && !family.isAccessory {
-            CanvasProSignedOutView(palette: palette, symbol: "calendar", line: "Open CanvasPro to see your classes")
+            CanvasProSignedOutView(palette: palette, symbol: "calendar", line: "Open CoursePro to see your classes")
         } else {
             switch family {
             case .accessoryRectangular: rectangular
@@ -1047,7 +1047,7 @@ struct CanvasProNextClassView: View {
             VStack(alignment: .leading, spacing: 0) {
                 CanvasProCaption(text: "CLASSES", color: muted)
                 Spacer(minLength: 0)
-                Label(snapshot.classes.isEmpty ? "Add your schedule in CanvasPro" : "No classes this week", systemImage: "calendar")
+                Label(snapshot.classes.isEmpty ? "Add your schedule in CoursePro" : "No classes this week", systemImage: "calendar")
                     .font(.system(size: 11, weight: .semibold)).foregroundStyle(muted)
                 Spacer(minLength: 0)
             }
@@ -1129,14 +1129,14 @@ struct CanvasProNextClassView: View {
         } else {
             VStack(alignment: .leading, spacing: 1) {
                 Text("Classes").font(.system(size: 11, weight: .bold)).widgetAccentable()
-                Text(snapshot.signedIn ? "No classes ahead" : "Open CanvasPro").font(.system(size: 13, weight: .semibold))
+                Text(snapshot.signedIn ? "No classes ahead" : "Open CoursePro").font(.system(size: 13, weight: .semibold))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
     private var inline: some View {
-        guard snapshot.signedIn, let session else { return Text("CanvasPro") }
+        guard snapshot.signedIn, let session else { return Text("CoursePro") }
         return Text("\(session.meeting.name) · \(isNow(session) ? "now" : CanvasProWidgetFormat.time(session.start))")
     }
 }
@@ -1423,7 +1423,7 @@ struct CanvasProTonightLockView: View {
 
 // MARK: - Dynamic Island, expanded
 
-/// The CanvasPro mark (the app icon's three bars in a ring), drawn in SwiftUI
+/// The CoursePro mark (the app icon's three bars in a ring), drawn in SwiftUI
 /// so the widget extension needs no image asset.
 struct CanvasProLogoMark: View {
     var size: CGFloat = 34
@@ -1590,7 +1590,7 @@ extension CanvasProWorkloadRange: AppEnum {
     ]
 }
 
-/// "What's due tonight in CanvasPro?" Answers from the last sync, without
+/// "What's due tonight in CoursePro?" Answers from the last sync, without
 /// opening the app.
 struct CanvasProWhatsDue: AppIntent {
     static let title: LocalizedStringResource = "What's Due"
@@ -1615,7 +1615,7 @@ struct CanvasProWhatsDue: AppIntent {
                 dialog = "You have \(count) due \(range.phrase): \(names.joined(separator: "; "))\(more)."
             }
         } else {
-            dialog = "Open CanvasPro and sign in first."
+            dialog = "Open CoursePro and sign in first."
         }
         return .result(dialog: IntentDialog(stringLiteral: dialog), view: CanvasProDueSnippet(snapshot: snapshot, date: now, range: range))
     }
@@ -1636,7 +1636,7 @@ private struct CanvasProDueSnippet: View {
     }
 }
 
-/// "What's my average in CanvasPro?" Respects "Hide grades until tapped".
+/// "What's my average in CoursePro?" Respects "Hide grades until tapped".
 struct CanvasProGradeAverage: AppIntent {
     static let title: LocalizedStringResource = "Grade Average"
     static let description = IntentDescription("Tells you your current average across your classes.")
@@ -1647,7 +1647,7 @@ struct CanvasProGradeAverage: AppIntent {
         let dialog: String
         if let snapshot = CanvasProWidgetStore.load(), snapshot.signedIn {
             if snapshot.hideGrades {
-                dialog = "Your grades are hidden. Open CanvasPro to see them."
+                dialog = "Your grades are hidden. Open CoursePro to see them."
             } else if let average = snapshot.average {
                 let classes = snapshot.scoredCourses.count
                 let letter = CanvasProWidgetFormat.letter(average).replacingOccurrences(of: "−", with: " minus")
@@ -1656,7 +1656,7 @@ struct CanvasProGradeAverage: AppIntent {
                 dialog = "No grades yet."
             }
         } else {
-            dialog = "Open CanvasPro and sign in first."
+            dialog = "Open CoursePro and sign in first."
         }
         return .result(dialog: IntentDialog(stringLiteral: dialog))
     }
@@ -1666,7 +1666,7 @@ struct CanvasProGradeAverage: AppIntent {
 /// the Action button.
 struct CanvasProStartFocus: AppIntent {
     static let title: LocalizedStringResource = "Start Focus Session"
-    static let description = IntentDescription("Opens CanvasPro and starts a Pomodoro focus session.")
+    static let description = IntentDescription("Opens CoursePro and starts a Pomodoro focus session.")
     static let openAppWhenRun = true
 
     init() {}
@@ -1681,7 +1681,7 @@ struct CanvasProStartFocus: AppIntent {
 /// Opens the assignment list. Used by Control Center and the Action button.
 struct CanvasProOpenWhatsDue: AppIntent {
     static let title: LocalizedStringResource = "Open What's Due"
-    static let description = IntentDescription("Opens your assignments in CanvasPro.")
+    static let description = IntentDescription("Opens your assignments in CoursePro.")
     static let openAppWhenRun = true
 
     init() {}

@@ -29,7 +29,7 @@ struct CanvasProFocusControl: ControlWidget {
             }
         }
         .displayName("Start Focus")
-        .description("Starts a Pomodoro focus session in CanvasPro.")
+        .description("Starts a Pomodoro focus session in CoursePro.")
     }
 }
 
@@ -42,7 +42,7 @@ struct CanvasProWhatsDueControl: ControlWidget {
             }
         }
         .displayName("What's Due")
-        .description("Opens your assignments in CanvasPro.")
+        .description("Opens your assignments in CoursePro.")
     }
 }
 

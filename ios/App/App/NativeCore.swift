@@ -45,7 +45,7 @@ enum NativeErrorText {
         case "INVALID_DOMAIN":
             return "That doesn’t look like a Canvas address. Enter it like yourschool.instructure.com."
         case "CANVAS_DOMAIN_NOT_ALLOWED":
-            return "CanvasPro can’t connect to that Canvas address yet. Check it, or email support@canvaspro.app to add your school."
+            return "CoursePro can’t connect to that Canvas address yet. Check it, or email support@canvaspro.app to add your school."
         case "NOT_AUTHENTICATED":
             return "Please sign in again."
         default:
@@ -71,7 +71,7 @@ enum NativeErrorText {
             return "An account with that email already exists. Sign in instead."
         }
         if status >= 500 || raw.isEmpty {
-            return "CanvasPro had a problem. Please try again in a moment."
+            return "CoursePro had a problem. Please try again in a moment."
         }
         return raw
     }
@@ -88,7 +88,7 @@ struct NativeConfiguration {
         let rawURL = (info["SupabaseURL"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let key = (info["SupabasePublishableKey"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         guard let url = URL(string: rawURL), !key.isEmpty, !rawURL.contains("$(") else {
-            throw NativeAppError.configuration("CanvasPro’s native backend configuration is missing from this build.")
+            throw NativeAppError.configuration("CoursePro’s native backend configuration is missing from this build.")
         }
         return NativeConfiguration(supabaseURL: url, publishableKey: key)
     }
@@ -811,14 +811,14 @@ final class NativeAPI {
             case .notConnectedToInternet, .networkConnectionLost:
                 throw NativeAppError.server("Your connection was interrupted. Check your internet connection and try again.")
             case .timedOut:
-                throw NativeAppError.server("CanvasPro took too long to respond. Please try again.")
+                throw NativeAppError.server("CoursePro took too long to respond. Please try again.")
             case .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed:
-                throw NativeAppError.server("Could not reach CanvasPro. Please try again in a moment.")
+                throw NativeAppError.server("Could not reach CoursePro. Please try again in a moment.")
             default: throw error
             }
         }
         guard let http = response as? HTTPURLResponse else {
-            throw NativeAppError.server("CanvasPro sent an unexpected response. Please try again.")
+            throw NativeAppError.server("CoursePro sent an unexpected response. Please try again.")
         }
         guard (200..<300).contains(http.statusCode) else {
             let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
@@ -881,7 +881,7 @@ final class NativeSessionStore: ObservableObject {
         }
     }
 
-    /// Accepts an email address or a CanvasPro username, like the website.
+    /// Accepts an email address or a CoursePro username, like the website.
     func signIn(identifier: String, password: String) async {
         guard !isWorking else { return }
         guard let api else { errorMessage = configurationError; return }

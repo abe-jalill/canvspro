@@ -37,7 +37,7 @@ struct NativeRootView: View {
                 } else if Self.demo {
                     NativeMainTabView(sessionStore: sessionStore, preview: true)
                         // `-CanvasProDemoPage grades` opens that tab, the way a link would
-                        // (a simulator link stops at an "Open in CanvasPro?" prompt).
+                        // (a simulator link stops at an "Open in CoursePro?" prompt).
                         .task {
                             if let page = UserDefaults.standard.string(forKey: "CanvasProDemoPage"), !page.isEmpty {
                                 NativeRouter.shared.pendingPath = "/\(page)"
@@ -157,7 +157,7 @@ enum NativeBrandColors {
     static let teal = Color(red: 0.30, green: 0.72, blue: 0.70)
 }
 
-/// The CanvasPro mark: three rising bars inside a ring. With `animate`, the bars
+/// The CoursePro mark: three rising bars inside a ring. With `animate`, the bars
 /// grow in one by one and the ring draws itself around them.
 struct NativeBrandMark: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -209,7 +209,7 @@ private struct NativeLaunchView: View {
     let isSignedIn: Bool
     let onSkip: () -> Void
     @State private var appeared = false
-    private let word = Array("CanvasPro")
+    private let word = Array("CoursePro")
 
     var body: some View {
         let shown = reduceMotion || appeared
@@ -275,7 +275,7 @@ private struct NativeLaunchView: View {
         .contentShape(Rectangle())
         .onTapGesture { onSkip() }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(isSignedIn ? "CanvasPro. Syncing your classes." : "CanvasPro. Loading.")
+        .accessibilityLabel(isSignedIn ? "CoursePro. Syncing your classes." : "CoursePro. Loading.")
         .accessibilityAction(named: "Skip") { onSkip() }
         // The wordmark is one line of fixed artwork; huge text sizes would push it into the logo.
         .dynamicTypeSize(...DynamicTypeSize.xxLarge)
@@ -440,9 +440,9 @@ struct NativeTutorialView: View {
     }
 
     private static let pages = [
-        Page(title: "Welcome to CanvasPro", detail: "Your classes, deadlines and grades from Canvas, in one calm place."),
+        Page(title: "Welcome to CoursePro", detail: "Your classes, deadlines and grades from Canvas, in one calm place."),
         Page(title: "See what's due", detail: "Today lists your work by due date. Swipe an assignment right when it's done."),
-        Page(title: "Study one thing at a time", detail: "Start a focus timer on any assignment. CanvasPro lets you know when it's time for a break."),
+        Page(title: "Study one thing at a time", detail: "Start a focus timer on any assignment. CoursePro lets you know when it's time for a break."),
         Page(title: "Every class at a glance", detail: "Grades and announcements from all your classes, side by side."),
         Page(title: "Stay ahead, everywhere", detail: "Reminders arrive before things are due, even with the app closed. Your account stays in sync with canvaspro.app."),
     ]
@@ -672,7 +672,7 @@ struct NativeTutorialView: View {
                     .background(NativeBrandColors.base, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
                 VStack(alignment: .leading, spacing: 3) {
                     HStack {
-                        Text("CanvasPro").cpFont(12, .semibold)
+                        Text("CoursePro").cpFont(12, .semibold)
                         Spacer()
                         Text("now").cpFont(11).foregroundStyle(.white.opacity(0.55))
                     }
@@ -715,7 +715,7 @@ struct NativeOnboardingView: View {
                         Text("Connect your Canvas").cpFont(30, .regular).tracking(-1).foregroundStyle(CPTheme.foreground(scheme))
                             .fixedSize(horizontal: false, vertical: true)
                             .accessibilityAddTraits(.isHeader)
-                        Text("CanvasPro brings in your classes, assignments and grades. Your school password is never used.")
+                        Text("CoursePro brings in your classes, assignments and grades. Your school password is never used.")
                             .cpFont(15).lineSpacing(3).foregroundStyle(CPTheme.muted(scheme))
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -806,7 +806,7 @@ private struct NativeAuthView: View {
         VStack(alignment: .leading, spacing: 28) {
             HStack(spacing: 10) {
                 NativeBrandMark(size: 34)
-                Text("CanvasPro").cpFont(16, .semibold).tracking(-0.3).foregroundStyle(.white)
+                Text("CoursePro").cpFont(16, .semibold).tracking(-0.3).foregroundStyle(.white)
                 Spacer()
             }
             VStack(alignment: .leading, spacing: 8) {
@@ -979,7 +979,7 @@ private struct NativeAuthBrand: View {
             NativeBrandMark(size: 34)
                 .padding(4)
                 .background(NativeBrandColors.base, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            Text("CanvasPro").cpFont(16, .semibold).tracking(-0.3)
+            Text("CoursePro").cpFont(16, .semibold).tracking(-0.3)
         }
         .padding(.bottom, 4)
     }
@@ -1226,7 +1226,7 @@ struct NativeMainTabView: View {
             .onChange(of: router.pendingPath) { _, path in
                 if path != nil, let next = router.takePendingPath() { route(to: next) }
             }
-            .alert("CanvasPro", isPresented: Binding(get: { !launchIsVisible && (contentStore.errorMessage != nil || featureStore.errorMessage != nil) }, set: { if !$0 && !launchIsVisible { contentStore.errorMessage = nil; featureStore.errorMessage = nil } })) {
+            .alert("CoursePro", isPresented: Binding(get: { !launchIsVisible && (contentStore.errorMessage != nil || featureStore.errorMessage != nil) }, set: { if !$0 && !launchIsVisible { contentStore.errorMessage = nil; featureStore.errorMessage = nil } })) {
                 Button("OK", role: .cancel) {}
             } message: { Text(contentStore.errorMessage ?? featureStore.errorMessage ?? "") }
     }
@@ -2683,7 +2683,7 @@ struct AssignmentDetailView: View {
                 if !assignment.isFinished(in: store) { NativeProgressEditor(assignment: assignment, features: features) }
                 Stepper("Estimated time: \(estimate) min", value: $estimate, in: 5...480, step: 5)
                 Button("Save estimate") { Task { do { try await features.saveEstimate(estimate, for: assignment); status = "Estimate saved." } catch { status = error.localizedDescription } } }
-                Button("Add to CanvasPro Calendar") { addToCalendar() }
+                Button("Add to CoursePro Calendar") { addToCalendar() }
             }
             if let score = assignment.submission?.score { Section("Grade") { LabeledContent("Score", value: "\(score.formatted())\(assignment.pointsPossible.map { " / \($0.formatted())" } ?? "")") } }
             if let url = URL(string: assignment.htmlURL), !assignment.htmlURL.isEmpty { Section { Link("Open in Canvas", destination: url) } }
@@ -4288,7 +4288,7 @@ struct NativeStudyView: View {
     private func resetSession(keepSelection: Bool) { running = false; blockEndsAt = nil; activePlan = nil; perItem = false; phase = "focus"; round = 0; sessionFinished = false; sessionStarted = false; completedIDs.removeAll(); remaining = duration * 60; currentIndex = 0; if !keepSelection { selected.removeAll(); selectedOrder.removeAll(); manualTasks.removeAll() } }
 }
 
-/// Optional study music: CanvasPro plays nothing itself, it opens the music app
+/// Optional study music: CoursePro plays nothing itself, it opens the music app
 /// the student picked on study music. Off until they choose one, on this phone.
 enum StudyMusic {
     static let key = "CanvasProStudyMusicApp"
