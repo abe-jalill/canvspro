@@ -18,7 +18,7 @@ test("page surfaces cover native screens without replacing system navigation", (
 
 test("state transitions are short and respect Reduce Motion", () => {
   assert.match(design, /content.animation\(reduceMotion \? nil : \.easeInOut\(duration: 0.2\), value: value\)/);
-  for (const value of ["sessionFinished", "sessionStarted", "store.isFirstLoad"]) {
+  for (const value of ["sessionFinished", "sessionStarted", "store.showsSkeleton"]) {
     assert.ok(views.includes(`.cpStateChange(${value})`));
   }
   assert.ok((more.match(/AsyncImage\(url: (features\.avatarURL|url), transaction: Transaction\(animation: reduceMotion \? nil/g) ?? []).length >= 2);
