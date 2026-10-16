@@ -41,21 +41,10 @@ const product = await paddle("/products", {
 });
 
 const trial = { interval: "day", frequency: 14 };
+// One price per plan, each with the 14-day free trial.
 const prices = {
-  PADDLE_PRICE_MONTHLY_TRIAL: {
-    name: "Monthly (14-day trial)",
-    amount: "500",
-    interval: "month",
-    trial,
-  },
-  PADDLE_PRICE_YEARLY_TRIAL: {
-    name: "Yearly (14-day trial)",
-    amount: "5000",
-    interval: "year",
-    trial,
-  },
-  PADDLE_PRICE_MONTHLY: { name: "Monthly", amount: "500", interval: "month" },
-  PADDLE_PRICE_YEARLY: { name: "Yearly", amount: "5000", interval: "year" },
+  PADDLE_PRICE_MONTHLY: { name: "Monthly", amount: "500", interval: "month", trial },
+  PADDLE_PRICE_YEARLY: { name: "Yearly", amount: "5000", interval: "year", trial },
 };
 
 const ids = {};

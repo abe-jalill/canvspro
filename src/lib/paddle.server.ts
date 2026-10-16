@@ -14,8 +14,6 @@ const API = {
 } as const;
 
 const PRICE_ENV: Record<PriceKey, string> = {
-  monthly_trial: "PADDLE_PRICE_MONTHLY_TRIAL",
-  yearly_trial: "PADDLE_PRICE_YEARLY_TRIAL",
   monthly: "PADDLE_PRICE_MONTHLY",
   yearly: "PADDLE_PRICE_YEARLY",
 };

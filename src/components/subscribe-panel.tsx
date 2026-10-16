@@ -24,11 +24,10 @@ const FEATURES = [
 /** How this account's checkout starts: a trial, its launch free days, or paying now. */
 function checkoutOffer(status: BillingStatus | null, now = Date.now()) {
   const graceEnds = status?.grace_ends_at ? Date.parse(status.grace_ends_at) : NaN;
-  if (status?.trial_used) return { kind: "paid" as const, until: null };
-  if (Number.isFinite(graceEnds)) {
-    return graceEnds > now
-      ? { kind: "grace" as const, until: status!.grace_ends_at }
-      : { kind: "paid" as const, until: null };
+  // Inside the launch free days the first charge waits for them to end;
+  // otherwise every checkout starts with the free trial.
+  if (Number.isFinite(graceEnds) && graceEnds > now) {
+    return { kind: "grace" as const, until: status!.grace_ends_at };
   }
   return { kind: "trial" as const, until: new Date(now + TRIAL_DAYS * 86_400_000).toISOString() };
 }

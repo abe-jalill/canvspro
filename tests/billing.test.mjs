@@ -81,28 +81,18 @@ test("billing copy states the charge, the date and how to avoid it", () => {
   const grace = describeBilling(status({ grace_ends_at: iso(3) }), NOW, "UTC");
   assert.match(grace.detail, /free access ends Nov 4/);
   assert.match(
+    // Every checkout starts with the free trial, also after the launch days end.
     describeBilling(status({ trial_used: true, grace_ends_at: iso(-2) }), NOW).detail,
-    /trial has ended/,
+    /Start a 14-day free trial/,
   );
 });
 
-test("checkout price: one trial per account; launch accounts use their free days instead", () => {
-  assert.equal(
-    checkoutPriceKey({ plan: "monthly", trialUsed: false, graceEndsAt: null, now: NOW }),
-    "monthly_trial",
-  );
-  assert.equal(
-    checkoutPriceKey({ plan: "yearly", trialUsed: true, graceEndsAt: null, now: NOW }),
-    "yearly",
-  );
-  assert.equal(
-    checkoutPriceKey({ plan: "monthly", trialUsed: false, graceEndsAt: iso(4), now: NOW }),
-    "monthly_trial",
-  );
-  assert.equal(
-    checkoutPriceKey({ plan: "monthly", trialUsed: false, graceEndsAt: iso(-1), now: NOW }),
-    "monthly",
-  );
+test("checkout price: one price per plan, each with the free trial", () => {
+  assert.equal(checkoutPriceKey({ plan: "monthly" }), "monthly");
+  assert.equal(checkoutPriceKey({ plan: "yearly" }), "yearly");
+  const server = readFileSync(new URL("../src/lib/paddle.server.ts", import.meta.url), "utf8");
+  assert.match(server, /monthly: "PADDLE_PRICE_MONTHLY",\s+yearly: "PADDLE_PRICE_YEARLY",/);
+  assert.doesNotMatch(server, /_TRIAL/);
 });
 
 test("a launch account's first charge moves to the end of its free days, never later than the trial", () => {

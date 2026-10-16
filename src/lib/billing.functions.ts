@@ -47,23 +47,17 @@ export const startCheckoutFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator(planInput)
   .handler(async ({ context, data }) => {
-    const { accountBasics, graceEndsAt, readBillingRow, readEnforceFrom, saveBillingRow } =
-      await import("@/lib/billing.server");
+    const { accountBasics, readBillingRow, saveBillingRow } = await import("@/lib/billing.server");
     const paddle = await import("@/lib/paddle.server");
-    const [account, row, enforceFrom] = await Promise.all([
+    const [account, row] = await Promise.all([
       accountBasics(context.userId),
       readBillingRow(context.userId),
-      readEnforceFrom(),
     ]);
     if (!account.email) throw new Error("Add an email address to your account first.");
     if (row?.status && LIVE_STATUSES.has(row.status)) {
       throw new Error("You already have a subscription. Manage it in Settings → Billing.");
     }
-    const priceKey = checkoutPriceKey({
-      plan: data.plan,
-      trialUsed: row?.trial_used ?? false,
-      graceEndsAt: graceEndsAt(account.createdAt, enforceFrom),
-    });
+    const priceKey = checkoutPriceKey({ plan: data.plan });
     const customerId = row?.paddle_customer_id ?? (await paddle.customerIdForEmail(account.email));
     await saveBillingRow(context.userId, {
       paddle_customer_id: customerId,
@@ -74,7 +68,8 @@ export const startCheckoutFn = createServerFn({ method: "POST" })
       priceId: paddle.paddlePriceId(priceKey),
       userId: context.userId,
     });
-    return { transactionId, trial: priceKey.endsWith("_trial") };
+    // Both prices carry the free trial.
+    return { transactionId, trial: true };
   });
 
 /**
@@ -92,9 +87,7 @@ export const switchToYearlyFn = createServerFn({ method: "POST" })
     if (row.plan === "yearly") throw new Error("You're already on the yearly plan.");
     const trialing = row.status === "trialing";
     const change = {
-      items: [
-        { price_id: paddle.paddlePriceId(trialing ? "yearly_trial" : "yearly"), quantity: 1 },
-      ],
+      items: [{ price_id: paddle.paddlePriceId("yearly"), quantity: 1 }],
       proration_billing_mode: trialing
         ? ("do_not_bill" as const)
         : ("prorated_immediately" as const),

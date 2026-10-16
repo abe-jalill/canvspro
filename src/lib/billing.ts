@@ -20,7 +20,8 @@ export const PLANS: Record<Plan, { price: string; cents: number; per: "month" | 
 };
 
 /** Which Paddle price a checkout uses: the trial ones start with 14 free days. */
-export type PriceKey = "monthly_trial" | "yearly_trial" | "monthly" | "yearly";
+/** One Paddle price per plan; both carry the free trial. */
+export type PriceKey = Plan;
 
 /** The signed-in account's billing, as `my_billing_status()` returns it. */
 export interface BillingStatus {
@@ -149,30 +150,19 @@ export function describeBilling(
       return {
         state,
         headline: "Subscribe to keep using CoursePro",
-        detail: s.trial_used
-          ? "Your free trial has ended."
-          : `Start a ${TRIAL_DAYS}-day free trial. Cancel anytime before it ends and you won't be charged.`,
+        detail: `Start a ${TRIAL_DAYS}-day free trial. Cancel anytime before it ends and you won't be charged.`,
       };
   }
 }
 
 /**
- * Which price a new checkout uses. New accounts get the trial once. Accounts
- * from before launch have their free days instead: inside them they take the
- * trial price and the first charge is moved to the day those days end
- * (`firstChargeForGrace`); after them they pay from the start.
+ * Which price a new checkout uses: the plan's one price. Both prices carry the
+ * 14-day trial in Paddle, so every checkout starts with it. Accounts from
+ * before launch that subscribe inside their free days have the first charge
+ * moved to the day those days end (`firstChargeForGrace`).
  */
-export function checkoutPriceKey(input: {
-  plan: Plan;
-  trialUsed: boolean;
-  graceEndsAt: string | null;
-  now?: number;
-}): PriceKey {
-  const now = input.now ?? Date.now();
-  if (input.trialUsed) return input.plan;
-  const graceEnds = time(input.graceEndsAt);
-  if (graceEnds !== null) return now < graceEnds ? `${input.plan}_trial` : input.plan;
-  return `${input.plan}_trial`;
+export function checkoutPriceKey(input: { plan: Plan }): PriceKey {
+  return input.plan;
 }
 
 /**
