@@ -1109,7 +1109,8 @@ private struct PasswordResetSheet: View {
                 .frame(maxWidth: 460).frame(maxWidth: .infinity).padding(24)
             }
             .scrollDismissesKeyboard(.interactively)
-            .background(CPBackdrop())
+            // Signed out: the plain sign-in background, never the last account's wallpaper.
+            .background(CPTheme.background(scheme).ignoresSafeArea())
             .foregroundStyle(CPTheme.foreground(scheme))
             .cpNavigationTitle("Reset password").navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -1268,7 +1269,7 @@ struct NativeMainTabView: View {
         else if path.contains("announcement") { selection = .announcements }
         else if path.contains("grade") { selection = .grades }
         else if path.contains("study") { selection = .study }
-        else if path.contains("notification") || path.contains("settings") || path.contains("schedule") || path.contains("calendar") { selection = .more }
+        else if path.contains("notification") || path.contains("settings") || path.contains("schedule") || path.contains("calendar") || path.contains("support") || path.contains("help") { selection = .more }
         else { todaySection = "Dashboard"; selection = .today }
     }
 

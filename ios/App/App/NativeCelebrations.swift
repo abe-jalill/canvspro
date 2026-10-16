@@ -490,6 +490,48 @@ struct NativeStreakChip: View {
     }
 }
 
+/// The streak as a More row (the website's account menu has the same row);
+/// opens this week's streak. Hidden until the streak has loaded.
+struct NativeStreakRow: View {
+    @ObservedObject private var streaks = NativeStreakStore.shared
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
+    @State private var showDetails = false
+
+    var body: some View {
+        if let streak = streaks.streak {
+            Button {
+                CPHaptics.tap()
+                showDetails = true
+            } label: {
+                HStack(spacing: 12) {
+                    NativeStreakFlame(lit: streak.countedToday)
+                        .frame(width: 15, height: 18)
+                        .frame(width: 32, height: 32)
+                        .background(NativeStreakColors.orange.opacity(scheme == .dark ? 0.18 : 0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("\(streak.current) day streak").cpFont(13, .medium).foregroundStyle(CPTheme.foreground(scheme))
+                        Text(streak.countedToday ? "Today counts. See you tomorrow." : "Open today to keep it going.")
+                            .cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
+                    }
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.right").cpIconFont(9, .bold).foregroundStyle(CPTheme.faint(scheme))
+                }
+                .frame(minHeight: 50)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(CPPressStyle())
+            .accessibilityLabel("\(streak.current) day streak")
+            .accessibilityHint("Shows this week's streak")
+            .sheet(isPresented: $showDetails) {
+                NativeStreakDetails(streak: streak)
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
+            }
+        }
+    }
+}
+
 private struct NativeStreakDetails: View {
     let streak: NativeStreak
     @ObservedObject private var celebrations = NativeCelebrations.shared

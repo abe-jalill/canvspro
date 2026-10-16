@@ -462,7 +462,8 @@ final class NativeFeatureStore: ObservableObject {
         let json = try JSONDecoder().decode(JSONValue.self, from: data)
         let previous = preferences[key]
         preferences[key] = json
-        if isPreview { decodePreferenceModels(); persistPreviewState(); return }
+        // The sample preview keeps its choices on this phone, and still shows them.
+        if isPreview { decodePreferenceModels(); applyAppearancePreferences(); persistPreviewState(); return }
         decodePreferenceModels()
         applyAppearancePreferences()
         do {

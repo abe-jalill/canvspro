@@ -48,6 +48,8 @@ struct NativeMoreView: View {
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
     @ObservedObject var sessionStore: NativeSessionStore
+    @ObservedObject private var streaks = NativeStreakStore.shared
+    @AppStorage("CanvasProColorScheme") private var colorScheme = "dark"
 
     private var fullName: String {
         let name = "\(features.accountDetails.firstName) \(features.accountDetails.lastName)".trimmingCharacters(in: .whitespacesAndNewlines)
@@ -73,6 +75,22 @@ struct NativeMoreView: View {
                     }
                     .buttonStyle(CPPressStyle())
 
+                    // The website's phone account menu: mode, streak, notifications.
+                    NativeMenuGroup("Quick settings") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(spacing: 12) {
+                                CPIconBadge(symbol: "circle.lefthalf.filled")
+                                Text("Appearance").cpFont(13, .medium).foregroundStyle(CPTheme.foreground(scheme))
+                            }
+                            CPSegmented(selection: modeSelection, options: ["Light", "Dark", "System"], label: "Appearance")
+                        }
+                        .padding(.vertical, 12)
+                        if streaks.streak != nil {
+                            CPRowDivider(leading: 40)
+                            NativeStreakRow()
+                        }
+                    }
+
                     NativeMenuGroup("Plan") {
                         NavigationLink { NativeCalendarHub(store: store, features: features) } label: {
                             NativeMenuRow(title: "Calendar", symbol: "calendar")
@@ -87,12 +105,163 @@ struct NativeMoreView: View {
                             NativeMenuRow(title: "Settings", symbol: "gearshape")
                         }.buttonStyle(CPPressStyle())
                     }
+                    NativeMenuGroup("Help") {
+                        NavigationLink { NativeSupportView() } label: {
+                            NativeMenuRow(title: "Help & Support", detail: "Answers and contact", symbol: "questionmark.circle")
+                        }.buttonStyle(CPPressStyle())
+                    }
                 }
                 .cpPagePadding()
             }
             .background(CPBackdrop())
             .cpNavigationTitle("More")
             .navigationBarTitleDisplayMode(.inline)
+        }
+    }
+
+    /// Light, Dark or System, saved like Settings → Appearance (and shared with the website).
+    private var modeSelection: Binding<String> {
+        Binding(
+            get: { colorScheme == "light" ? "Light" : colorScheme == "system" ? "System" : "Dark" },
+            set: { label in
+                let value = label.lowercased()
+                guard value != colorScheme else { return }
+                Task { @MainActor in
+                    do { try await features.savePreference("theme", value) }
+                    catch { features.errorMessage = error.localizedDescription }
+                }
+            }
+        )
+    }
+}
+
+/// The website's Support page, worded for the iPhone app.
+enum NativeSupportFAQ {
+    static let email = "support@canvaspro.app"
+    static let reportForm = URL(string: "https://forms.gle/7bttezmTW3ji3zFU9")!
+
+    static let items: [(question: String, answer: String)] = [
+        ("How do I connect my Canvas account?",
+         "Open More, then Settings, then Canvas connection. Enter your school's Canvas address (for example yourschool.instructure.com) and a Canvas access token.\n\nTo make a token, sign in to Canvas, open Account, then Settings. Under Approved Integrations, choose New Access Token, give it a name, and copy the token into CoursePro. You never enter your school password."),
+        ("CoursePro can't connect to my school. What now?",
+         "Check that the address is the one you use to open Canvas, and that the token was copied in full. If it still won't connect, email us your school's Canvas address and we'll look into it."),
+        ("My notifications aren't arriving.",
+         "Open More, then Notifications, and make sure notifications are on.\n\nThen open your iPhone's Settings app, tap Notifications, then CoursePro, and allow notifications. Quiet at night pauses them overnight, and a Focus mode can hold them too."),
+        ("How do streaks work?",
+         "Open CoursePro on a day and that day counts. Come back the next day and your streak grows.\n\nMiss a day and your streak freeze covers it automatically, once each month. At 6 PM, if you haven't opened CoursePro yet that day, we'll remind you. You can turn that reminder off in More, then Notifications."),
+        ("Does CoursePro see my school password or change anything in Canvas?",
+         "No. CoursePro only reads your courses, assignments, grades and announcements using the token you created, and never asks for your school password. You can revoke the token in Canvas at any time."),
+        ("How do I delete my account?",
+         "Open More, then Settings, then Account, and delete your account. Your account and the data stored with it are removed permanently. If you can't sign in, email us from the address on your account and we'll delete it for you."),
+        ("Is CoursePro part of Canvas?",
+         "No. CoursePro is an independent app and isn't affiliated with, endorsed by or sponsored by Instructure, Inc. or Canvas LMS."),
+    ]
+}
+
+/// Help & Support: quick answers, email, and the policies.
+struct NativeSupportView: View {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.openURL) private var openURL
+    @State private var expanded: Int?
+    @State private var legalPage: NativeLegalPage?
+    @State private var showReport = false
+    @State private var copied = false
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                CPPageHeader(
+                    eyebrow: "Support",
+                    title: "How can we help?",
+                    detail: "Find a quick answer below, or email us and a real person will reply, usually within one to two business days."
+                )
+                CPGlassCard(title: "Contact us", strong: true) {
+                    Text(NativeSupportFAQ.email)
+                        .cpFont(13).foregroundStyle(CPTheme.muted(scheme))
+                        .textSelection(.enabled)
+                    VStack(spacing: 10) {
+                        Button(action: emailSupport) {
+                            Label(copied ? "Email address copied" : "Email support", systemImage: copied ? "checkmark" : "envelope")
+                        }
+                        .buttonStyle(CPButtonStyle(kind: .primary, fullWidth: true))
+                        Button { showReport = true } label: {
+                            Label("Report a problem", systemImage: "exclamationmark.bubble")
+                        }
+                        .buttonStyle(CPButtonStyle(kind: .secondary, fullWidth: true))
+                    }
+                }
+                NativeMenuGroup("Common questions") {
+                    ForEach(Array(NativeSupportFAQ.items.enumerated()), id: \.offset) { index, item in
+                        if index > 0 { CPRowDivider(leading: 0) }
+                        question(index, item.question, item.answer)
+                    }
+                }
+                NativeMenuGroup("Policies") {
+                    legalRow(.privacy, "hand.raised")
+                    CPRowDivider(leading: 40)
+                    legalRow(.terms, "doc.text")
+                }
+            }
+            .cpPagePadding()
+        }
+        .background(CPBackdrop())
+        .cpNavigationTitle("Help & Support")
+        .navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $legalPage) { page in NativeSafariView(url: page.url).ignoresSafeArea() }
+        .sheet(isPresented: $showReport) { NativeSafariView(url: NativeSupportFAQ.reportForm).ignoresSafeArea() }
+    }
+
+    private func question(_ index: Int, _ question: String, _ answer: String) -> some View {
+        let open = expanded == index
+        return VStack(alignment: .leading, spacing: 0) {
+            Button {
+                CPHaptics.tap()
+                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.22)) { expanded = open ? nil : index }
+            } label: {
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    Text(question)
+                        .cpFont(13, .medium).foregroundStyle(CPTheme.foreground(scheme))
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.down")
+                        .cpIconFont(10, .bold).foregroundStyle(CPTheme.faint(scheme))
+                        .rotationEffect(.degrees(open ? 180 : 0))
+                }
+                .padding(.vertical, 14)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityAddTraits(.isHeader)
+            .accessibilityValue(open ? "Expanded" : "Collapsed")
+            if open {
+                Text(answer)
+                    .cpFont(13).lineSpacing(3)
+                    .foregroundStyle(CPTheme.muted(scheme))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.bottom, 14)
+                    .transition(.opacity)
+            }
+        }
+    }
+
+    private func legalRow(_ page: NativeLegalPage, _ symbol: String) -> some View {
+        Button { legalPage = page } label: {
+            NativeMenuRow(title: page.title, symbol: symbol, trailingSymbol: "arrow.up.right")
+        }
+        .buttonStyle(CPPressStyle())
+    }
+
+    /// Opens Mail; without a mail account, copies the address instead.
+    private func emailSupport() {
+        guard let url = URL(string: "mailto:\(NativeSupportFAQ.email)?subject=CoursePro%20help") else { return }
+        openURL(url) { accepted in
+            guard !accepted else { return }
+            UIPasteboard.general.string = NativeSupportFAQ.email
+            CPHaptics.tap()
+            copied = true
         }
     }
 }
@@ -162,7 +331,9 @@ struct NativeSettingsView: View {
                     CPRowDivider(leading: 40)
                     settingsLink("Account", "person.crop.circle.badge.xmark") { NativeDeleteAccountView(sessionStore: sessionStore) }
                 }
-                NativeMenuGroup("Legal") {
+                NativeMenuGroup("Help & legal") {
+                    settingsLink("Help & Support", "questionmark.circle") { NativeSupportView() }
+                    CPRowDivider(leading: 40)
                     legalRow(.privacy, "hand.raised")
                     CPRowDivider(leading: 40)
                     legalRow(.terms, "doc.text")
