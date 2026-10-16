@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
-import { useLocation } from "@tanstack/react-router";
+import { Link, useLocation } from "@tanstack/react-router";
+import { ArrowRight, KeyRound } from "lucide-react";
 import { useCanvasKey } from "@/lib/user-settings";
-import { CanvasTokenWalkthrough } from "@/components/canvas-token-walkthrough";
 import { SkeletonBlock } from "@/components/skeletons/dashboard-skeletons";
 
 /**
@@ -67,10 +67,30 @@ export function CanvasKeyGate({ children }: { children: ReactNode }) {
     );
   }
 
-  // Interactive 3-Click Walkthrough directly in place
+  // One message, one button: the steps themselves live on Settings → Canvas.
   return (
-    <div className="py-4 sm:py-8">
-      <CanvasTokenWalkthrough />
+    <div className="py-6 sm:py-12">
+      <div className="glass-panel-strong mx-auto flex w-full max-w-md flex-col items-center gap-4 rounded-3xl p-6 text-center sm:p-8">
+        <span className="glass-inset flex h-12 w-12 items-center justify-center rounded-2xl text-primary">
+          <KeyRound className="h-6 w-6" aria-hidden="true" />
+        </span>
+        <div className="space-y-2">
+          <h2 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+            One quick step to start
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            In order to start, you need to enter your Canvas API key in Settings. It takes about a
+            minute.
+          </p>
+        </div>
+        <Link
+          to="/settings/canvas"
+          className="glass-hover inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-foreground px-6 text-sm font-semibold text-background sm:w-auto"
+        >
+          <span>Go to Settings</span>
+          <ArrowRight className="h-4 w-4" aria-hidden="true" />
+        </Link>
+      </div>
     </div>
   );
 }

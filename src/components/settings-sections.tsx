@@ -1,11 +1,18 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import {
   Camera,
   Check,
   ExternalLink,
   LoaderCircle,
-  Sparkles,
   Trash2,
   UserRound,
   X,
@@ -18,8 +25,8 @@ import {
   useSaveCanvasDomain,
   normalizeCanvasDomain,
 } from "@/lib/user-settings";
-import { CanvasTokenModal } from "@/components/canvas-token-modal";
-import { getCanvasTokenSettingsUrl } from "@/lib/school-domains";
+import { supabase } from "@/integrations/supabase/client";
+import { detectCanvasDomainFromEmail, getCanvasTokenSettingsUrl } from "@/lib/school-domains";
 import {
   isUsernameAvailable,
   normalizeUsername,
@@ -36,21 +43,51 @@ import { ClassNamesSection } from "@/components/class-names-editor";
 import { HiddenCoursesSection } from "@/components/hidden-courses-editor";
 import { useAnnouncementWindow } from "@/lib/announcement-window";
 
+function SetupStep({ n, title, children }: { n: number; title: string; children: ReactNode }) {
+  return (
+    <li className="flex gap-3">
+      <span
+        aria-hidden="true"
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-foreground text-xs font-semibold text-background"
+      >
+        {n}
+      </span>
+      <div className="min-w-0 flex-1 space-y-2">
+        <p className="pt-0.5 text-sm font-medium text-foreground">{title}</p>
+        {children}
+      </div>
+    </li>
+  );
+}
+
 export function CanvasConnectionSettings() {
+  const navigate = useNavigate();
   const { data: savedKey, isLoading } = useCanvasKey();
   const { data: savedDomain, isLoading: domainLoading } = useCanvasDomain();
   const save = useSaveCanvasKey();
   const [value, setValue] = useState("");
   const [domainValue, setDomainValue] = useState("");
   const [domainTouched, setDomainTouched] = useState(false);
+  const [emailGuess, setEmailGuess] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
-  // Pre-fill the Canvas URL once the saved value arrives, unless the user
-  // already started typing their own.
+
+  // Most students sign up with their school email, so guess the Canvas URL
+  // from it and spare them looking it up.
   useEffect(() => {
-    if (!domainTouched) setDomainValue(savedDomain ?? "");
-  }, [savedDomain, domainTouched]);
+    void supabase.auth.getUser().then(({ data }) => {
+      setEmailGuess(detectCanvasDomainFromEmail(data.user?.email)?.canvasDomain ?? null);
+    });
+  }, []);
+
+  // Pre-fill the Canvas URL once the saved value (or the email guess) arrives,
+  // unless the user already started typing their own.
+  useEffect(() => {
+    if (!domainTouched && !domainLoading) setDomainValue(savedDomain ?? emailGuess ?? "");
+  }, [savedDomain, emailGuess, domainLoading, domainTouched]);
 
   const saveDomain = useSaveCanvasDomain();
+  const cleanDomain = normalizeCanvasDomain(domainValue);
+  const guessedFromEmail = !savedDomain && !!emailGuess && domainValue === emailGuess;
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -68,10 +105,17 @@ export function CanvasConnectionSettings() {
       }
       return;
     }
+    if (!value.trim()) {
+      setStatus("Paste your Canvas API key in step 3 first.");
+      return;
+    }
+    const firstConnection = !savedKey;
     try {
       await save.mutateAsync({ key: value, domain: domainValue });
-      setStatus(value.trim() ? "Canvas connection saved and verified." : "Canvas API key cleared.");
-      if (value.trim()) setValue("");
+      setValue("");
+      setStatus("Canvas connection saved and verified.");
+      // First-time setup is done — take them straight to their classes.
+      if (firstConnection) void navigate({ to: "/dashboard" });
     } catch (err) {
       setStatus(err instanceof Error ? err.message : "Could not save.");
     }
@@ -90,112 +134,140 @@ export function CanvasConnectionSettings() {
     }
   }
 
+  const inputClass =
+    "glass-inset min-h-12 w-full rounded-xl bg-transparent px-4 text-base text-foreground outline-none placeholder:text-muted-foreground/60 focus:ring-1 focus:ring-foreground/20";
+
   return (
     <GlassCard
       title="Canvas connection"
-      subtitle="Your school's Canvas URL and API key."
-      action={
-        <CanvasTokenModal
-          trigger={
-            <button
-              type="button"
-              className="glass-inset glass-hover inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium text-foreground transition"
-            >
-              <Sparkles className="h-3.5 w-3.5 text-primary" />
-              <span>3-Step Visual Guide</span>
-            </button>
-          }
-        />
+      subtitle={
+        savedKey
+          ? "Connected. Paste a new key below any time you need to replace it."
+          : "Connect in 3 steps. It takes about a minute."
       }
     >
-      <form onSubmit={onSubmit} className="flex w-full flex-col gap-4">
-                <label className="flex w-full flex-col gap-1.5">
-                  <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    API key
-                  </span>
-                  <input
-                    type="password"
-                    value={value}
-                    onChange={(e) => setValue(e.target.value)}
-                    placeholder={
-                      isLoading
-                        ? "Loading…"
-                        : savedKey
-                          ? "A key is saved — paste a new one to replace it"
-                          : "Paste your Canvas access token"
-                    }
+      <form onSubmit={onSubmit} className="flex w-full flex-col gap-6">
+        {!isLoading && (
+          <p
+            className={
+              savedKey
+                ? "inline-flex w-fit items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-500"
+                : "inline-flex w-fit items-center gap-1.5 rounded-full bg-foreground/5 px-3 py-1 text-xs font-medium text-muted-foreground"
+            }
+          >
+            {savedKey && <Check className="h-3.5 w-3.5" aria-hidden="true" />}
+            {savedKey
+              ? `Connected${savedDomain ? ` · ${savedDomain}` : ""}`
+              : "Not connected yet"}
+          </p>
+        )}
 
-                    autoComplete="off"
-                    className="glass-inset min-h-12 w-full rounded-xl bg-transparent px-4 text-base text-foreground outline-none placeholder:text-muted-foreground/60 focus:ring-1 focus:ring-foreground/20"
-                  />
-                </label>
-                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-                  <p>Generate one in Canvas under Account → Settings → New Access Token.</p>
-                  {domainValue.trim() && (
-                    <a
-                      href={getCanvasTokenSettingsUrl(domainValue)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-primary hover:underline font-medium"
-                    >
-                      <span>Open {normalizeCanvasDomain(domainValue) || "Canvas"} Token Page</span>
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  )}
-                </div>
-                <label className="flex w-full flex-col gap-1.5">
-                  <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Canvas URL
-                  </span>
-                  <input
-                    type="text"
-                    value={domainValue}
-                    onChange={(e) => {
-                      setDomainTouched(true);
-                      setDomainValue(e.target.value);
-                    }}
-                    placeholder={
-                      domainLoading ? "Loading…" : (savedDomain ?? "yourschool.instructure.com")
-                    }
-                    inputMode="url"
-                    autoCapitalize="none"
-                    autoCorrect="off"
-                    spellCheck={false}
-                    autoComplete="off"
-                    className="glass-inset min-h-12 w-full rounded-xl bg-transparent px-4 text-base text-foreground outline-none placeholder:text-muted-foreground/60 focus:ring-1 focus:ring-foreground/20"
-                  />
-                </label>
-                <p className="text-xs text-muted-foreground">
-                  Your school's Canvas web address — what you type to open Canvas, e.g.{" "}
-                  <span className="whitespace-nowrap">yourschool.instructure.com</span>. Each
-                  student connects to their own school.
-                </p>
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <button
-                    type="submit"
-                    disabled={save.isPending}
-                    className="glass-hover min-h-11 w-full rounded-xl bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-60 sm:w-auto sm:min-w-24"
-                  >
-                    {save.isPending ? "Saving…" : "Save"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={onClear}
-                    disabled={save.isPending || (!savedKey && !value)}
-                    className="glass-hover glass-inset min-h-11 w-full rounded-xl px-4 text-sm font-medium disabled:opacity-50 sm:w-auto"
-                  >
-                    Clear key
-                  </button>
-                </div>
-                {status && <p className="text-sm text-muted-foreground">{status}</p>}
-                {!isLoading && (
-                  <p className="text-xs text-muted-foreground">
-                    Status:{" "}
-                    {savedKey
-                      ? `Key saved${savedDomain ? ` · ${savedDomain}` : ""}`
-                      : "No key saved yet"}
-                  </p>
-                )}
+        <ol className="flex flex-col gap-6">
+          <SetupStep n={1} title="Check your school's Canvas address">
+            <input
+              type="text"
+              aria-label="Canvas URL"
+              value={domainValue}
+              onChange={(e) => {
+                setDomainTouched(true);
+                setDomainValue(e.target.value);
+              }}
+              placeholder={domainLoading ? "Loading…" : "yourschool.instructure.com"}
+              inputMode="url"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              autoComplete="off"
+              className={inputClass}
+            />
+            <p className="text-xs text-muted-foreground">
+              {guessedFromEmail
+                ? "We filled this in from your email. Change it if it's not the address you use to open Canvas."
+                : "The address you type to open Canvas, like yourschool.instructure.com."}
+            </p>
+          </SetupStep>
+
+          <SetupStep n={2} title="Create a key in Canvas">
+            <a
+              href={getCanvasTokenSettingsUrl(cleanDomain || null)}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-disabled={!cleanDomain}
+              onClick={(e) => {
+                if (!cleanDomain) {
+                  e.preventDefault();
+                  setStatus("Enter your school's Canvas address in step 1 first.");
+                }
+              }}
+              className="glass-inset glass-hover inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium text-foreground aria-disabled:opacity-50 sm:w-auto"
+            >
+              <span>Open Canvas</span>
+              <ExternalLink className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+            </a>
+            <p className="text-xs leading-5 text-muted-foreground">
+              On that page, click <strong className="text-foreground">+ New Access Token</strong>,
+              type <strong className="text-foreground">CoursePro</strong> as the purpose, click{" "}
+              <strong className="text-foreground">Generate Token</strong>, then copy the key it
+              shows you.
+            </p>
+          </SetupStep>
+
+          <SetupStep n={3} title="Paste the key here">
+            <input
+              type="password"
+              aria-label="Canvas API key"
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              placeholder={
+                isLoading
+                  ? "Loading…"
+                  : savedKey
+                    ? "A key is saved — paste a new one to replace it"
+                    : "Paste your Canvas key"
+              }
+              autoComplete="off"
+              className={inputClass}
+            />
+          </SetupStep>
+        </ol>
+
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <button
+            type="submit"
+            disabled={save.isPending || saveDomain.isPending}
+            className="glass-hover inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-foreground px-6 text-sm font-semibold text-background disabled:opacity-60 sm:w-auto"
+          >
+            {(save.isPending || saveDomain.isPending) && (
+              <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+            )}
+            <span>
+              {save.isPending || saveDomain.isPending
+                ? "Checking with Canvas…"
+                : savedKey
+                  ? "Save"
+                  : "Connect"}
+            </span>
+          </button>
+          {savedKey && (
+            <button
+              type="button"
+              onClick={onClear}
+              disabled={save.isPending}
+              className="glass-hover glass-inset min-h-12 w-full rounded-xl px-4 text-sm font-medium disabled:opacity-50 sm:w-auto"
+            >
+              Clear key
+            </button>
+          )}
+        </div>
+        {status && (
+          <p role="status" className="text-sm text-muted-foreground">
+            {status}
+          </p>
+        )}
+        <p className="text-xs text-muted-foreground">
+          Your key only lets CoursePro read what your student account can already see. You can
+          delete it any time in Canvas under Settings → Approved Integrations.
+        </p>
       </form>
     </GlassCard>
   );

@@ -11,6 +11,7 @@ import {
   Trash2,
   UserRound,
 } from "lucide-react";
+import { useCanvasKey } from "@/lib/user-settings";
 
 export const Route = createFileRoute("/_authenticated/settings/")({
   head: () => ({
@@ -90,6 +91,9 @@ const sections = [
 ];
 
 function SettingsOverview() {
+  const { data: hasCanvasKey, isLoading: canvasKeyLoading } = useCanvasKey();
+  const needsCanvas = !canvasKeyLoading && !hasCanvasKey;
+
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 pb-10">
       <header className="premium-reveal px-1">
@@ -115,7 +119,14 @@ function SettingsOverview() {
               <Icon className="premium-icon h-5 w-5" aria-hidden="true" />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-base font-medium text-foreground">{title}</span>
+              <span className="flex items-center gap-2 text-base font-medium text-foreground">
+                {title}
+                {needsCanvas && to === "/settings/canvas" && (
+                  <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                    Start here
+                  </span>
+                )}
+              </span>
               <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
                 {description}
               </span>
