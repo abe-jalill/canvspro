@@ -53,3 +53,20 @@ test("signed-out screens never show the last account's wallpaper", () => {
   assert.ok(reset.length > 0);
   assert.doesNotMatch(reset, /CPBackdrop/);
 });
+
+test("the iPhone has a plain key guide, done in Safari because the Canvas app can't make keys", () => {
+  assert.match(more, /struct NativeCanvasKeyGuide: View/);
+  assert.match(more, /Label\("How do I get my key\?"/);
+  assert.match(more, /Not the Canvas app; it can't make keys\./);
+  assert.match(more, /New Access Token/);
+});
+
+test("the Canvas address is never guessed from the email", () => {
+  for (const file of [
+    "src/components/settings-sections.tsx",
+    "src/components/canvas-token-walkthrough.tsx",
+  ]) {
+    assert.doesNotMatch(read(file), /detectCanvasDomainFromEmail/, file);
+  }
+  assert.doesNotMatch(more, /detectCanvasDomainFromEmail|fromEmail/);
+});

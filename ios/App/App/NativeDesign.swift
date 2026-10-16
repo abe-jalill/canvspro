@@ -133,14 +133,14 @@ extension Color {
 enum CPLayout {
     /// Side margin of every screen.
     static let maxContentWidth: CGFloat = 680
-    static let gutter: CGFloat = 16
+    static let gutter: CGFloat = 20
     /// Space between cards.
-    static let stack: CGFloat = 16
+    static let stack: CGFloat = 20
     static let cardRadius: CGFloat = 26
-    static let cardPadding: CGFloat = 16
+    static let cardPadding: CGFloat = 20
     static let innerRadius: CGFloat = 16
     /// Space between rows inside a card.
-    static let rowGap: CGFloat = 8
+    static let rowGap: CGFloat = 10
 }
 
 // MARK: - Backdrop and surfaces
@@ -220,7 +220,7 @@ struct CPGlassCard<Content: View>: View {
     let title: String?; let subtitle: String?; let strong: Bool; let content: Content
     init(title: String? = nil, subtitle: String? = nil, strong: Bool = false, @ViewBuilder content: () -> Content) { self.title = title; self.subtitle = subtitle; self.strong = strong; self.content = content() }
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 18) {
             if let title {
                 CPCardHeader(title: title, subtitle: subtitle)
             } else if let subtitle {
@@ -784,7 +784,7 @@ extension View {
     /// Standard page padding: 16-point side margins and room above the tab bar.
     /// Content stays a comfortable reading width and centred on iPad and in landscape.
     func cpPagePadding() -> some View {
-        padding(.horizontal, CPLayout.gutter).padding(.top, 12).padding(.bottom, 32)
+        padding(.horizontal, CPLayout.gutter).padding(.top, 16).padding(.bottom, 40)
             .frame(maxWidth: CPLayout.maxContentWidth)
             .frame(maxWidth: .infinity)
     }

@@ -2066,6 +2066,63 @@ private struct HiddenCoursesView: View {
     }
 }
 
+/// How to make a Canvas key on an iPhone, in plain words. The Canvas Student app
+/// can't make one (it keeps its own key hidden), so it's done on the Canvas
+/// website in Safari.
+struct NativeCanvasKeyGuide: View {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
+    @Environment(\.dismiss) private var dismiss
+    let address: String?
+
+    private var steps: [(title: String, detail: String)] {
+        [
+            ("Open Canvas in Safari", "Not the Canvas app; it can't make keys. In Safari, go to \(address ?? "your school's Canvas address") and sign in."),
+            ("Go to Settings", "Tap the menu at the top left, then Account, then Settings."),
+            ("Make a new key", "Scroll down to Approved Integrations and tap New Access Token."),
+            ("Name it", "For Purpose, type CoursePro. Leave Expires empty. Tap Generate Token."),
+            ("Copy and paste", "Copy the long code it shows. You only see it once. Come back here and tap Paste."),
+        ]
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    CPPageHeader(eyebrow: "About a minute", title: "Get your Canvas key", detail: "A key lets CoursePro read your classes. Your school password is never used.")
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(Array(steps.enumerated()), id: \.offset) { index, step in
+                            HStack(alignment: .top, spacing: 14) {
+                                Text("\(index + 1)").cpFont(13, .medium).monospacedDigit()
+                                    .foregroundStyle(CPTheme.background(scheme))
+                                    .frame(width: 28, height: 28)
+                                    .background(CPTheme.foreground(scheme), in: Circle())
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(step.title).cpFont(15, .medium).foregroundStyle(CPTheme.foreground(scheme))
+                                    Text(step.detail).cpFont(13).lineSpacing(3).foregroundStyle(CPTheme.muted(scheme))
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+                            }
+                            .padding(.vertical, 16)
+                            .accessibilityElement(children: .combine)
+                            if index < steps.count - 1 { CPRowDivider(leading: 42) }
+                        }
+                    }
+                    .padding(.horizontal, CPLayout.cardPadding)
+                    .cpSurface()
+                    CPNotice(text: "Don't see New Access Token? Your school may have turned keys off. Email support@canvaspro.app and we'll help.", isError: false)
+                    Button("Got it") { dismiss() }
+                        .buttonStyle(CPButtonStyle(kind: .primary, fullWidth: true))
+                }
+                .cpPagePadding()
+            }
+            .background(CPBackdrop())
+            .cpNavigationTitle("Your Canvas key")
+            .navigationBarTitleDisplayMode(.inline)
+        }
+    }
+}
+
 /// Connecting Canvas in two steps: the school's address, then a token made in
 /// Canvas and pasted here. Used from Settings and from the first-run flow.
 struct CanvasSettingsView: View {
@@ -2081,6 +2138,7 @@ struct CanvasSettingsView: View {
     @State private var statusIsError = false
     @State private var connectedDomain: String?
     @State private var savedCount = 0
+    @State private var showKeyGuide = false
 
     private var cleanDomain: String {
         var value = domain.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -2119,6 +2177,10 @@ struct CanvasSettingsView: View {
                 step(2, title: "Your access token") {
                     Text("In Canvas: Account, Settings, Approved Integrations, New Access Token.")
                         .cpFont(12).lineSpacing(2).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
+                    Button { showKeyGuide = true } label: {
+                        Label("How do I get my key?", systemImage: "questionmark.circle")
+                    }
+                    .buttonStyle(CPButtonStyle(kind: .quiet, fullWidth: true))
                     CPFieldBox(title: "Access token", focused: focus == .token) {
                         SecureField("Paste the token", text: $canvasToken)
                             .focused($focus, equals: .token)
@@ -2155,6 +2217,11 @@ struct CanvasSettingsView: View {
         .cpNavigationTitle("Canvas")
         .navigationBarTitleDisplayMode(.inline)
         .sensoryFeedback(.success, trigger: savedCount)
+        .sheet(isPresented: $showKeyGuide) {
+            NativeCanvasKeyGuide(address: domainLooksValid ? cleanDomain : nil)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+        }
         .task {
             connectedDomain = await store.connectedCanvasDomain()
             if domain.isEmpty, let connectedDomain { domain = connectedDomain }
