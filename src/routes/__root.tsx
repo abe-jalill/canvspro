@@ -20,8 +20,9 @@ import { browserStorage, captureSignupSource } from "@/lib/signup-source";
 import { SiteFooter } from "@/components/site-footer";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/lib/theme";
+import { APP_SECTIONS, SURFACE_BOOT, surfaceFor } from "@/lib/app-surface";
 
-const themeBootScript = `try{var t=localStorage.getItem("canvas:theme"),p=localStorage.getItem("canvas:palette");document.documentElement.classList.add(t==="dark"||t!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.palette=["forest","blue","violet","rose"].includes(p)?p:"forest";document.documentElement.dataset.wallpaper=localStorage.getItem("canvas:wallpaper")==="wave"?"wave":"plain";document.documentElement.dataset.themeMode=t==="light"||t==="dark"?t:"system"}catch(e){document.documentElement.classList.add("light");document.documentElement.dataset.palette="forest";document.documentElement.dataset.wallpaper="plain"}`;
+const themeBootScript = `try{${SURFACE_BOOT}}catch(e){}try{var t=localStorage.getItem("canvas:theme"),p=localStorage.getItem("canvas:palette");document.documentElement.classList.add(t==="dark"||t!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.palette=["forest","blue","violet","rose"].includes(p)?p:"forest";document.documentElement.dataset.wallpaper=localStorage.getItem("canvas:wallpaper")==="wave"?"wave":"plain";document.documentElement.dataset.themeMode=t==="light"||t==="dark"?t:"system"}catch(e){document.documentElement.classList.add("light");document.documentElement.dataset.palette="forest";document.documentElement.dataset.wallpaper="plain"}`;
 
 function NotFoundComponent() {
   return (
@@ -142,19 +143,8 @@ function RootComponent() {
         "forgot-password",
         "reset-password",
         ".lovable",
-        "admin",
-        "announcements",
-        "assignments",
-        "class-schedule",
-        "courses",
-        "dashboard",
-        "focus",
-        "get-it-done",
-        "grades",
-        "notifications",
-        "schedule",
-        "settings",
-        "study-session",
+        // The signed-in app has its own layout.
+        ...APP_SECTIONS,
         // Public pages drawn in the homepage's frame, with its footer.
         "pricing",
         "support",
@@ -166,6 +156,15 @@ function RootComponent() {
       ].includes(first);
     },
   });
+
+  // The app's background (palette tint, wallpaper) only behind the signed-in
+  // app. Follows the page on screen, so a page still loading keeps its own.
+  const shownPath = useRouterState({
+    select: (state) => (state.resolvedLocation ?? state.location).pathname,
+  });
+  useEffect(() => {
+    document.documentElement.dataset.surface = surfaceFor(shownPath);
+  }, [shownPath]);
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;

@@ -88,6 +88,20 @@
     radial-gradient(50rem 35rem at 85% 12%, hsl(var(--primary) / 0.08), transparent 65%);
 }
 
+/* Outside the signed-in app (lib/app-surface.ts) the background is the
+   homepage's plain one, from the first frame and while a page loads: no palette
+   tint and never the wallpaper. Dark unless Light was picked, like the homepage. */
+:root:not([data-surface="app"]),
+:root:not([data-surface="app"]) body,
+:root:not([data-surface="app"])[data-palette] body::before {
+  background: #0c0d0f;
+}
+:root:not([data-surface="app"])[data-theme-mode="light"],
+:root:not([data-surface="app"])[data-theme-mode="light"] body,
+:root:not([data-surface="app"])[data-theme-mode="light"][data-palette] body::before {
+  background: #fafaf8;
+}
+
 /* Wallpaper (Settings > Appearance > Background). One pre-blurred image per
    palette and mode, so there is no live filter cost. It sits on a fixed layer
    so it stays put while pages scroll, including on iOS, which ignores
@@ -102,7 +116,7 @@
 :root.light[data-palette="rose"] { --wallpaper: url("/wallpapers/rose-light.webp"); }
 
 /* The wallpaper uses the same fixed layer. */
-:root[data-palette][data-wallpaper="wave"] body::before {
+:root[data-surface="app"][data-palette][data-wallpaper="wave"] body::before {
   background: hsl(var(--background)) var(--wallpaper, none) center / cover no-repeat;
 }
 
