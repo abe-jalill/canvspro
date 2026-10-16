@@ -402,7 +402,18 @@ final class NativeFeatureStore: ObservableObject {
         }
     }
 
+    /// Loads to the end even if the screen that asked (pull to refresh) redraws.
+    /// A second request while one is running waits for it instead of returning at once.
     func load() async {
+        if let running = currentLoad { await running.value; return }
+        let task = Task { await performLoad() }
+        currentLoad = task
+        await task.value
+        currentLoad = nil
+    }
+    private var currentLoad: Task<Void, Never>?
+
+    private func performLoad() async {
         guard !isPreview else { return }
         guard let api = sessionStore.api, let user = sessionStore.session?.user else { return }
         guard !isLoading else { return }
@@ -438,6 +449,9 @@ final class NativeFeatureStore: ObservableObject {
                 notificationPreferences = NotificationPreferences(row)
                 notificationPreferencesLoaded = true
             } catch {}
+        } catch is CancellationError {
+            // Nothing to report: the request was stopped, not refused.
+        } catch let error as URLError where error.code == .cancelled {
         } catch { errorMessage = error.localizedDescription }
     }
 

@@ -1047,6 +1047,10 @@ final class NativeContentStore: ObservableObject {
     var isFirstLoad: Bool {
         (isLoading || !hasLoaded) && bundle.courses.isEmpty && bundle.assignments.isEmpty && !needsCanvasConnection && loadFailure == nil
     }
+    /// A pull to refresh is running.
+    @Published private(set) var isRefreshing = false
+    /// Loading placeholders: the first load, or a pull to refresh.
+    var showsSkeleton: Bool { isFirstLoad || (isRefreshing && !needsCanvasConnection && loadFailure == nil) }
     private unowned let sessionStore: NativeSessionStore
     var persistenceScope: String { isPreview ? "preview" : (sessionStore.session?.user.id ?? "signed-out") }
     // Versioned: saves from the earlier, smaller sample set are ignored.
@@ -1069,7 +1073,28 @@ final class NativeContentStore: ObservableObject {
         }
     }
 
+    /// Loads to the end even if the screen that asked redraws or goes away.
+    /// SwiftUI cancels a pull-to-refresh's task when the view updates, which used
+    /// to stop the reload half-way and report "cancelled".
+    /// A second request while one is running waits for it instead of returning at once.
     func load() async {
+        if let running = currentLoad { await running.value; return }
+        let task = Task { await performLoad() }
+        currentLoad = task
+        await task.value
+        currentLoad = nil
+    }
+    private var currentLoad: Task<Void, Never>?
+
+    /// Pull to refresh: the screens show their loading placeholders meanwhile.
+    func refresh() async {
+        guard !isPreview else { return }
+        isRefreshing = true
+        defer { isRefreshing = false }
+        await load()
+    }
+
+    private func performLoad() async {
         guard !isPreview else { return }
         guard let api = sessionStore.api, let user = sessionStore.session?.user else { return }
         guard !isLoading else { return }

@@ -78,3 +78,18 @@ test("on the iPhone, work that hasn't opened never outranks open work", () => {
   assert.match(parity, /if item\.notYetOpen\(now: now\) \{ return nil \}/);
   assert.match(more, /if let open = NativeParity\.openFirst\(lhs, rhs\) \{ return open \}/);
 });
+
+test("pull to refresh finishes, shows placeholders, and never reports 'cancelled'", () => {
+  const core = read("ios/App/App/NativeCore.swift");
+  const features = read("ios/App/App/NativeFeatures.swift");
+  const views = read("ios/App/App/NativeViews.swift");
+  for (const source of [core, features]) {
+    // Runs in its own task, so SwiftUI redrawing the screen can't stop it half-way.
+    assert.match(source, /let task = Task \{ await performLoad\(\) \}/);
+    assert.match(source, /if let running = currentLoad \{ await running\.value; return \}/);
+    assert.match(source, /catch let error as URLError where error\.code == \.cancelled/);
+  }
+  assert.match(core, /var showsSkeleton: Bool \{ isFirstLoad \|\| \(isRefreshing/);
+  assert.doesNotMatch(views + more, /\.refreshable \{[^}]*store\.load\(\)/);
+  assert.doesNotMatch(views + more, /else if store\.isFirstLoad \{/);
+});

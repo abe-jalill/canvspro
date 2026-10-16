@@ -1587,7 +1587,7 @@ private struct NativeDashboardView: View {
                     NativeSyncStatusCard(store: store) { Task { await store.load() } }
                     if store.loadFailure != nil {
                         NativeLoadFailedCard(store: store)
-                    } else if store.isFirstLoad {
+                    } else if store.showsSkeleton {
                         CPSkeletonCard()
                         CPSkeletonCard()
                     } else {
@@ -1601,8 +1601,8 @@ private struct NativeDashboardView: View {
             .cpPagePadding()
         }
         .background(CPBackdrop())
-        .cpStateChange(store.isFirstLoad)
-        .refreshable { async let a: Void = store.load(); async let b: Void = features.load(); _ = await (a, b) }
+        .cpStateChange(store.showsSkeleton)
+        .refreshable { async let a: Void = store.refresh(); async let b: Void = features.load(); _ = await (a, b) }
         .onAppear { loadDigest() }
         .onChange(of: store.lastSyncedAt) { _, _ in if digest == nil { loadDigest() } }
         .sheet(isPresented: $showCustomize) {
@@ -2793,7 +2793,7 @@ private struct NativeGradesView: View {
                         NativeConnectCanvasCard(store: store)
                     } else if store.loadFailure != nil {
                         NativeLoadFailedCard(store: store)
-                    } else if store.isFirstLoad {
+                    } else if store.showsSkeleton {
                         CPSkeletonCard()
                         CPSkeletonCard()
                         CPSkeletonCard()
@@ -2821,10 +2821,10 @@ private struct NativeGradesView: View {
                 .cpPagePadding()
             }
             .background(CPBackdrop())
-            .cpStateChange(store.isFirstLoad)
+            .cpStateChange(store.showsSkeleton)
             .cpNavigationTitle("Grades").navigationBarTitleDisplayMode(.inline)
             .searchable(text: $search, prompt: "Find a course or graded assignment")
-            .refreshable { await store.load() }
+            .refreshable { await store.refresh() }
             .onAppear { loadAndRecordGrades() }.onChange(of: gradeSignature) { _, _ in loadAndRecordGrades() }
         }
     }

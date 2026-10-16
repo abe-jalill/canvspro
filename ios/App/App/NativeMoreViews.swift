@@ -576,7 +576,7 @@ struct GetItDoneView: View {
                     NativeConnectCanvasCard(store: store)
                 } else if store.loadFailure != nil {
                     NativeLoadFailedCard(store: store)
-                } else if store.isFirstLoad {
+                } else if store.showsSkeleton {
                     CPSkeletonCard()
                 } else if let first = recommendation {
                     recommendationCard(first)
@@ -584,7 +584,7 @@ struct GetItDoneView: View {
                     CPGlassCard { NativeEmptyState(title: "You're all clear.", symbol: "checkmark.circle") }
                 }
                 CPSegmented(selection: Binding(get: { window == 7 ? "One week" : "Two weeks" }, set: { value in window = value == "One week" ? 7 : 14; choiceOffset = 0; orderRaw = "" }), options: ["One week", "Two weeks"], label: "Planning window")
-                if !store.needsCanvasConnection && store.loadFailure == nil && !store.isFirstLoad { planCard }
+                if !store.needsCanvasConnection && store.loadFailure == nil && !store.showsSkeleton { planCard }
             }
             .cpPagePadding()
             .cpStateChange(recommendation?.id)
@@ -796,7 +796,7 @@ struct FocusView: View {
                         NativeConnectCanvasCard(store: store)
                     } else if store.loadFailure != nil {
                         NativeLoadFailedCard(store: store)
-                    } else if store.isFirstLoad {
+                    } else if store.showsSkeleton {
                         CPSkeletonCard()
                         CPSkeletonCard()
                     } else {
@@ -815,7 +815,7 @@ struct FocusView: View {
             .scrollDismissesKeyboard(.immediately)
         }
         .background(CPBackdrop())
-        .refreshable { async let a: Void = store.load(); async let b: Void = features.load(); _ = await (a, b) }
+        .refreshable { async let a: Void = store.refresh(); async let b: Void = features.load(); _ = await (a, b) }
         .sheet(isPresented: $showAdd) { AddAssignmentView(courses: visibleCourses, store: store, features: features) }
     }
 
@@ -1563,7 +1563,7 @@ struct AnnouncementsView: View {
         }
         .background(CPBackdrop())
         .searchable(text: $search)
-        .refreshable { await store.load() }
+        .refreshable { await store.refresh() }
         .cpNavigationTitle("Announcements")
         .navigationBarTitleDisplayMode(.inline)
     }
