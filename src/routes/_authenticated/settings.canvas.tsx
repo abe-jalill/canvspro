@@ -15,5 +15,5 @@ export const Route = createFileRoute("/_authenticated/settings/canvas")({
 });
 
 function CanvasConnectionPage() {
-  return <SettingsPage title="Canvas connection" description="Manage the school address and key CoursePro uses to load your courses."><CanvasConnectionSettings /></SettingsPage>;
+  return <SettingsPage title="Canvas connection" description="Connect your Canvas account so CoursePro can load your classes, due dates, and grades."><CanvasConnectionSettings /></SettingsPage>;
 }
