@@ -5,6 +5,24 @@ import {
   isAssignmentVisible,
   isStaleOverdue,
 } from "./assignment-window.ts";
+import { notYetOpen } from "./assignment-availability.ts";
+
+function opensAt(assignment: AssignmentItem): number {
+  const at = assignment.unlock_at ? Date.parse(assignment.unlock_at) : NaN;
+  return Number.isFinite(at) ? at : 0;
+}
+
+/**
+ * Work that hasn't opened in Canvas yet can't be started, so it always ranks
+ * below open work, however close its due date; closed work is ordered by when
+ * it opens. Returns 0 when both are open (or both closed at the same time).
+ */
+export function compareOpenFirst(a: AssignmentItem, b: AssignmentItem, now: number): number {
+  const aClosed = notYetOpen(a, now);
+  const bClosed = notYetOpen(b, now);
+  if (aClosed !== bClosed) return aClosed ? 1 : -1;
+  return aClosed ? opensAt(a) - opensAt(b) : 0;
+}
 
 export interface PlanInput {
   assignments: AssignmentItem[];
@@ -161,6 +179,8 @@ export function rankGetItDoneAssignments(input: PlanInput): RankedAssignment[] {
       };
     })
     .sort((a, b) => {
+      const open = compareOpenFirst(a.assignment, b.assignment, now);
+      if (open !== 0) return open;
       if (b.score !== a.score) return b.score - a.score;
       const ad = dueTime(a.assignment) ?? Number.POSITIVE_INFINITY;
       const bd = dueTime(b.assignment) ?? Number.POSITIVE_INFINITY;
@@ -237,6 +257,8 @@ export function buildTodayPlan(input: PlanInput): PlanItem[] {
     if (ai != null && bi != null) return ai - bi;
     if (ai != null) return -1;
     if (bi != null) return 1;
+    const open = compareOpenFirst(a.assignment, b.assignment, input.now ?? Date.now());
+    if (open !== 0) return open;
     return b.score - a.score;
   });
 
