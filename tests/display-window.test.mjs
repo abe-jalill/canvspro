@@ -76,10 +76,10 @@ test("unfinished work stays for three days after its deadline, then drops off", 
   assert.equal(isAssignmentVisible(item(at(-5)), false, false, now), false);
 });
 
-test("Focus 'all' stops four weeks out but keeps undated work", () => {
+test("Focus 'all' stops four weeks out and never shows undated work", () => {
   assert.equal(isDueInFocusWindow(item(at(27)), "all", now), true);
   assert.equal(isDueInFocusWindow(item(at(45)), "all", now), false);
-  assert.equal(isDueInFocusWindow(item(null), "all", now), true);
+  assert.equal(isDueInFocusWindow(item(null), "all", now), false);
 });
 
 test("a day is a day", () => {

@@ -21,8 +21,8 @@ export function normalizeFocusWindow(value: unknown): FocusWindow {
 /** Date selection is independent of completion, skips, and planner settings. */
 export function isDueInFocusWindow(assignment: AssignmentItem, window: FocusWindow, now: number): boolean {
   const due = assignment.due_at ? Date.parse(assignment.due_at) : NaN;
-  // "All" means everything inside the shared window: nothing beyond four weeks out.
-  if (window === "all") return !Number.isFinite(due) || due <= endOfAheadWindow(now);
+  // "All" means everything inside the shared window: dated, and nothing beyond four weeks out.
+  if (window === "all") return Number.isFinite(due) && due <= endOfAheadWindow(now);
   if (!Number.isFinite(due)) return false;
   if (window === "overdue") return due < now;
   const end = window === "7" ? endOfUpcomingDay(now, 7) : now + Number(window) * DAY_MS;
