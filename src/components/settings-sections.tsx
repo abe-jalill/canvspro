@@ -8,14 +8,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
-import {
-  Camera,
-  Check,
-  LoaderCircle,
-  Trash2,
-  UserRound,
-  X,
-} from "lucide-react";
+import { Camera, Check, LoaderCircle, Trash2, UserRound, X } from "lucide-react";
 import { GlassCard } from "@/components/glass-card";
 import {
   useCanvasKey,
@@ -24,7 +17,6 @@ import {
   useSaveCanvasDomain,
 } from "@/lib/user-settings";
 import { supabase } from "@/integrations/supabase/client";
-import { detectCanvasDomainFromEmail } from "@/lib/school-domains";
 import {
   isUsernameAvailable,
   normalizeUsername,
@@ -66,25 +58,16 @@ export function CanvasConnectionSettings() {
   const [value, setValue] = useState("");
   const [domainValue, setDomainValue] = useState("");
   const [domainTouched, setDomainTouched] = useState(false);
-  const [emailGuess, setEmailGuess] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
 
-  // Most students sign up with their school email, so guess the Canvas URL
-  // from it and spare them looking it up.
+  // Pre-fill the saved Canvas URL, unless the user already started typing.
+  // Never guessed from the email: a school's email domain often isn't its
+  // Canvas address (ltu.edu vs lawrencetech.instructure.com).
   useEffect(() => {
-    void supabase.auth.getUser().then(({ data }) => {
-      setEmailGuess(detectCanvasDomainFromEmail(data.user?.email)?.canvasDomain ?? null);
-    });
-  }, []);
-
-  // Pre-fill the Canvas URL once the saved value (or the email guess) arrives,
-  // unless the user already started typing their own.
-  useEffect(() => {
-    if (!domainTouched && !domainLoading) setDomainValue(savedDomain ?? emailGuess ?? "");
-  }, [savedDomain, emailGuess, domainLoading, domainTouched]);
+    if (!domainTouched && !domainLoading) setDomainValue(savedDomain ?? "");
+  }, [savedDomain, domainLoading, domainTouched]);
 
   const saveDomain = useSaveCanvasDomain();
-  const guessedFromEmail = !savedDomain && !!emailGuess && domainValue === emailGuess;
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -153,9 +136,7 @@ export function CanvasConnectionSettings() {
             }
           >
             {savedKey && <Check className="h-3.5 w-3.5" aria-hidden="true" />}
-            {savedKey
-              ? `Connected${savedDomain ? ` · ${savedDomain}` : ""}`
-              : "Not connected yet"}
+            {savedKey ? `Connected${savedDomain ? ` · ${savedDomain}` : ""}` : "Not connected yet"}
           </p>
         )}
 
@@ -178,9 +159,7 @@ export function CanvasConnectionSettings() {
               className={inputClass}
             />
             <p className="text-xs text-muted-foreground">
-              {guessedFromEmail
-                ? "We filled this in from your email. Change it if it's not the address you use to open Canvas."
-                : "The address you type to open Canvas, like yourschool.instructure.com."}
+              The address you type to open Canvas, like yourschool.instructure.com.
             </p>
           </SetupStep>
 
@@ -294,48 +273,48 @@ export function ClassSettingsSection() {
   return (
     <GlassCard title="Class settings" subtitle="Rename classes and choose which ones appear.">
       <div>
-          <div className="glass-inset mb-5 grid grid-cols-2 gap-1 rounded-xl p-1" role="tablist" aria-label="Class settings">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === "names"}
-              aria-controls="class-names-panel"
-              onClick={() => setTab("names")}
-              className={
-                tab === "names"
-                  ? "min-h-10 rounded-lg bg-foreground px-3 text-sm font-semibold text-background"
-                  : "glass-hover min-h-10 rounded-lg px-3 text-sm font-medium text-muted-foreground"
-              }
-            >
-              Class names
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === "visibility"}
-              aria-controls="classes-shown-panel"
-              onClick={() => setTab("visibility")}
-              className={
-                tab === "visibility"
-                  ? "min-h-10 rounded-lg bg-foreground px-3 text-sm font-semibold text-background"
-                  : "glass-hover min-h-10 rounded-lg px-3 text-sm font-medium text-muted-foreground"
-              }
-            >
-              Classes shown
-            </button>
-          </div>
-
-          <div
-            id={tab === "names" ? "class-names-panel" : "classes-shown-panel"}
-            role="tabpanel"
+        <div
+          className="glass-inset mb-5 grid grid-cols-2 gap-1 rounded-xl p-1"
+          role="tablist"
+          aria-label="Class settings"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === "names"}
+            aria-controls="class-names-panel"
+            onClick={() => setTab("names")}
+            className={
+              tab === "names"
+                ? "min-h-10 rounded-lg bg-foreground px-3 text-sm font-semibold text-background"
+                : "glass-hover min-h-10 rounded-lg px-3 text-sm font-medium text-muted-foreground"
+            }
           >
-            {tab === "names" ? <ClassNamesSection /> : <HiddenCoursesSection />}
-          </div>
+            Class names
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === "visibility"}
+            aria-controls="classes-shown-panel"
+            onClick={() => setTab("visibility")}
+            className={
+              tab === "visibility"
+                ? "min-h-10 rounded-lg bg-foreground px-3 text-sm font-semibold text-background"
+                : "glass-hover min-h-10 rounded-lg px-3 text-sm font-medium text-muted-foreground"
+            }
+          >
+            Classes shown
+          </button>
+        </div>
+
+        <div id={tab === "names" ? "class-names-panel" : "classes-shown-panel"} role="tabpanel">
+          {tab === "names" ? <ClassNamesSection /> : <HiddenCoursesSection />}
+        </div>
       </div>
     </GlassCard>
   );
 }
-
 
 export function AnnouncementWindowSection() {
   const { weeks, isLoading, ready, set } = useAnnouncementWindow();
@@ -442,7 +421,9 @@ export function ProfileCard() {
     try {
       await save.mutateAsync(form);
       setDirty(false);
-    } catch { /* The mutation displays the error and keeps the draft. */ }
+    } catch {
+      /* The mutation displays the error and keeps the draft. */
+    }
   }
 
   async function onAvatarSelected(e: ChangeEvent<HTMLInputElement>) {
@@ -500,141 +481,154 @@ export function ProfileCard() {
       subtitle="Your photo, username, name, and school — synced securely across your devices."
     >
       <form onSubmit={onSubmit}>
-        {isError && <p role="alert" className="mb-3 text-sm text-red-500">Could not load your profile. Reconnect and try again.</p>}
-        <fieldset disabled={save.isPending || avatarBusy || !isFetchedAfterMount || isError} className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-4 sm:col-span-2 sm:flex-row sm:items-center">
-          <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-full border border-foreground/15 bg-foreground/[0.06] shadow-glass">
-            {form.avatarUrl ? (
-              <img src={form.avatarUrl} alt="Profile" className="h-full w-full object-cover" />
-            ) : (
-              <span className="flex h-full w-full items-center justify-center text-muted-foreground">
-                <UserRound className="h-10 w-10" aria-hidden="true" />
-              </span>
-            )}
-            {avatarBusy && (
-              <span className="absolute inset-0 flex items-center justify-center bg-background/65">
-                <LoaderCircle className="h-6 w-6 animate-spin" aria-label="Uploading" />
-              </span>
-            )}
-          </div>
-          <div className="min-w-0 space-y-2">
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => fileInput.current?.click()}
-                disabled={avatarBusy}
-                className="glass-inset glass-hover inline-flex min-h-10 items-center gap-2 rounded-xl px-3 text-sm disabled:opacity-50"
-              >
-                <Camera className="h-4 w-4" />
-                {form.avatarPath ? "Change photo" : "Add photo"}
-              </button>
-              {form.avatarPath && (
-                <button
-                  type="button"
-                  onClick={removeAvatar}
-                  disabled={avatarBusy}
-                  className="glass-inset glass-hover inline-flex min-h-10 items-center gap-2 rounded-xl px-3 text-sm text-muted-foreground disabled:opacity-50"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Remove
-                </button>
+        {isError && (
+          <p role="alert" className="mb-3 text-sm text-red-500">
+            Could not load your profile. Reconnect and try again.
+          </p>
+        )}
+        <fieldset
+          disabled={save.isPending || avatarBusy || !isFetchedAfterMount || isError}
+          className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2"
+        >
+          <div className="flex flex-col gap-4 sm:col-span-2 sm:flex-row sm:items-center">
+            <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-full border border-foreground/15 bg-foreground/[0.06] shadow-glass">
+              {form.avatarUrl ? (
+                <img src={form.avatarUrl} alt="Profile" className="h-full w-full object-cover" />
+              ) : (
+                <span className="flex h-full w-full items-center justify-center text-muted-foreground">
+                  <UserRound className="h-10 w-10" aria-hidden="true" />
+                </span>
+              )}
+              {avatarBusy && (
+                <span className="absolute inset-0 flex items-center justify-center bg-background/65">
+                  <LoaderCircle className="h-6 w-6 animate-spin" aria-label="Uploading" />
+                </span>
               )}
             </div>
-            <p className="text-xs text-muted-foreground">JPEG, PNG, WebP, or GIF. Maximum 5 MB.</p>
-            {avatarError && <p className="text-xs text-red-400">{avatarError}</p>}
-            <input
-              ref={fileInput}
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              onChange={onAvatarSelected}
-              className="sr-only"
-            />
+            <div className="min-w-0 space-y-2">
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => fileInput.current?.click()}
+                  disabled={avatarBusy}
+                  className="glass-inset glass-hover inline-flex min-h-10 items-center gap-2 rounded-xl px-3 text-sm disabled:opacity-50"
+                >
+                  <Camera className="h-4 w-4" />
+                  {form.avatarPath ? "Change photo" : "Add photo"}
+                </button>
+                {form.avatarPath && (
+                  <button
+                    type="button"
+                    onClick={removeAvatar}
+                    disabled={avatarBusy}
+                    className="glass-inset glass-hover inline-flex min-h-10 items-center gap-2 rounded-xl px-3 text-sm text-muted-foreground disabled:opacity-50"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Remove
+                  </button>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                JPEG, PNG, WebP, or GIF. Maximum 5 MB.
+              </p>
+              {avatarError && <p className="text-xs text-red-400">{avatarError}</p>}
+              <input
+                ref={fileInput}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                onChange={onAvatarSelected}
+                className="sr-only"
+              />
+            </div>
           </div>
-        </div>
 
-        <label className="flex flex-col gap-1.5 sm:col-span-2">
-          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Username
-          </span>
-          <div className="relative">
-            <input
-              type="text"
-              value={form.username}
-              onChange={(e) => set("username", e.target.value.toLowerCase())}
-              placeholder={isLoading ? "Loading…" : "Choose a unique username"}
-              autoComplete="username"
-              maxLength={24}
-              aria-describedby="username-status"
-              className="glass-inset min-h-11 w-full rounded-xl bg-transparent px-4 pr-11 text-base text-foreground outline-none placeholder:text-muted-foreground/60 focus:ring-1 focus:ring-foreground/20"
-            />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2">
-              {usernameState === "checking" && <LoaderCircle className="h-4 w-4 animate-spin" />}
-              {usernameState === "available" && <Check className="h-4 w-4 text-emerald-400" />}
-              {(usernameState === "taken" || usernameState === "invalid") && (
-                <X className="h-4 w-4 text-red-400" />
-              )}
-            </span>
-          </div>
-          <p
-            id="username-status"
-            className={
-              usernameState === "taken" || usernameState === "invalid"
-                ? "text-xs text-red-400"
-                : usernameState === "available"
-                  ? "text-xs text-emerald-400"
-                  : "text-xs text-muted-foreground"
-            }
-          >
-            {usernameState === "taken"
-              ? "That username is already taken."
-              : usernameState === "invalid"
-                ? usernameValidationMessage(form.username)
-                : usernameState === "available"
-                  ? "Username is available. You can use it to sign in."
-                  : "3–24 characters: lowercase letters, numbers, and underscores."}
-          </p>
-        </label>
-
-        {(
-          [
-            ["firstName", "First name", "Your first name"],
-            ["lastName", "Last name", "Your last name"],
-            ["nickname", "Nickname", `What you'd like to be called (up to ${NICKNAME_MAX_LENGTH} letters)`],
-            ["school", "School", "e.g. Lawrence Technological University"],
-            ["major", "Major", "e.g. Biomedical Engineering"],
-            ["classOf", "Class of", "e.g. 2028"],
-          ] as [keyof UserProfile, string, string][]
-        ).map(([key, label, placeholder]) => (
-          <label key={key} className="flex flex-col gap-1.5">
+          <label className="flex flex-col gap-1.5 sm:col-span-2">
             <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {label}
+              Username
             </span>
-            <input
-              type="text"
-              value={form[key]}
-              onChange={(e) => set(key, e.target.value)}
-              placeholder={isLoading ? "Loading…" : placeholder}
-              maxLength={key === "nickname" ? NICKNAME_MAX_LENGTH : undefined}
-              autoComplete="off"
-              className="glass-inset min-h-11 w-full rounded-xl bg-transparent px-4 text-base text-foreground outline-none placeholder:text-muted-foreground/60 focus:ring-1 focus:ring-foreground/20"
-            />
+            <div className="relative">
+              <input
+                type="text"
+                value={form.username}
+                onChange={(e) => set("username", e.target.value.toLowerCase())}
+                placeholder={isLoading ? "Loading…" : "Choose a unique username"}
+                autoComplete="username"
+                maxLength={24}
+                aria-describedby="username-status"
+                className="glass-inset min-h-11 w-full rounded-xl bg-transparent px-4 pr-11 text-base text-foreground outline-none placeholder:text-muted-foreground/60 focus:ring-1 focus:ring-foreground/20"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2">
+                {usernameState === "checking" && <LoaderCircle className="h-4 w-4 animate-spin" />}
+                {usernameState === "available" && <Check className="h-4 w-4 text-emerald-400" />}
+                {(usernameState === "taken" || usernameState === "invalid") && (
+                  <X className="h-4 w-4 text-red-400" />
+                )}
+              </span>
+            </div>
+            <p
+              id="username-status"
+              className={
+                usernameState === "taken" || usernameState === "invalid"
+                  ? "text-xs text-red-400"
+                  : usernameState === "available"
+                    ? "text-xs text-emerald-400"
+                    : "text-xs text-muted-foreground"
+              }
+            >
+              {usernameState === "taken"
+                ? "That username is already taken."
+                : usernameState === "invalid"
+                  ? usernameValidationMessage(form.username)
+                  : usernameState === "available"
+                    ? "Username is available. You can use it to sign in."
+                    : "3–24 characters: lowercase letters, numbers, and underscores."}
+            </p>
           </label>
-        ))}
-        <div className="sm:col-span-2">
-          <button
-            type="submit"
-            disabled={
-              save.isPending ||
-              usernameState === "checking" ||
-              usernameState === "taken" ||
-              usernameState === "invalid" ||
-              (!dirty && isLoading)
-            }
-            className="glass-hover min-h-11 w-full rounded-xl bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-60 sm:w-auto sm:min-w-32"
-          >
-            {save.isPending ? "Saving…" : "Save profile"}
-          </button>
-        </div>
+
+          {(
+            [
+              ["firstName", "First name", "Your first name"],
+              ["lastName", "Last name", "Your last name"],
+              [
+                "nickname",
+                "Nickname",
+                `What you'd like to be called (up to ${NICKNAME_MAX_LENGTH} letters)`,
+              ],
+              ["school", "School", "e.g. Lawrence Technological University"],
+              ["major", "Major", "e.g. Biomedical Engineering"],
+              ["classOf", "Class of", "e.g. 2028"],
+            ] as [keyof UserProfile, string, string][]
+          ).map(([key, label, placeholder]) => (
+            <label key={key} className="flex flex-col gap-1.5">
+              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {label}
+              </span>
+              <input
+                type="text"
+                value={form[key]}
+                onChange={(e) => set(key, e.target.value)}
+                placeholder={isLoading ? "Loading…" : placeholder}
+                maxLength={key === "nickname" ? NICKNAME_MAX_LENGTH : undefined}
+                autoComplete="off"
+                className="glass-inset min-h-11 w-full rounded-xl bg-transparent px-4 text-base text-foreground outline-none placeholder:text-muted-foreground/60 focus:ring-1 focus:ring-foreground/20"
+              />
+            </label>
+          ))}
+          <div className="sm:col-span-2">
+            <button
+              type="submit"
+              disabled={
+                save.isPending ||
+                usernameState === "checking" ||
+                usernameState === "taken" ||
+                usernameState === "invalid" ||
+                (!dirty && isLoading)
+              }
+              className="glass-hover min-h-11 w-full rounded-xl bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-60 sm:w-auto sm:min-w-32"
+            >
+              {save.isPending ? "Saving…" : "Save profile"}
+            </button>
+          </div>
         </fieldset>
       </form>
     </GlassCard>

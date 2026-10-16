@@ -10,9 +10,7 @@ import {
   School,
   LoaderCircle,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useSaveCanvasKey, useCanvasDomain, normalizeCanvasDomain } from "@/lib/user-settings";
-import { detectCanvasDomainFromEmail } from "@/lib/school-domains";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -30,7 +28,6 @@ export function CanvasTokenWalkthrough({
 }: CanvasTokenWalkthroughProps) {
   const [step, setStep] = useState<1 | 2>(initialStep);
   const [schoolDomain, setSchoolDomain] = useState("");
-  const [detectedSchoolName, setDetectedSchoolName] = useState<string | null>(null);
   const [tokenInput, setTokenInput] = useState("");
   const [showSecurityFaq, setShowSecurityFaq] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -42,18 +39,8 @@ export function CanvasTokenWalkthrough({
   const tokenInputId = useId();
   const domainInputId = useId();
 
-  // Suggest the school from the account's email.
-  useEffect(() => {
-    void supabase.auth.getUser().then(({ data }) => {
-      const email = data.user?.email;
-      const detected = email ? detectCanvasDomainFromEmail(email) : null;
-      if (detected) {
-        setDetectedSchoolName(detected.schoolName);
-        setSchoolDomain((current) => current || detected.canvasDomain);
-      }
-    });
-  }, []);
-
+  // Only the saved address is filled in. Never guessed from the email: a
+  // school's email domain often isn't its Canvas address.
   useEffect(() => {
     if (savedDomain) setSchoolDomain((current) => current || savedDomain);
   }, [savedDomain]);
@@ -188,14 +175,6 @@ export function CanvasTokenWalkthrough({
                 />
               </div>
             </label>
-            {detectedSchoolName && (
-              <div className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-400">
-                <CheckCircle2 className="h-4 w-4 shrink-0" />
-                <span>
-                  Detected from your email: <strong>{detectedSchoolName}</strong>
-                </span>
-              </div>
-            )}
           </div>
           {errorMessage && <ErrorNote message={errorMessage} />}
           <div className="flex justify-end pt-2">
