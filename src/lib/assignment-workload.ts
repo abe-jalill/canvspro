@@ -1,4 +1,5 @@
 import type { AssignmentItem } from "./canvas.functions.ts";
+import { notYetOpen } from "./assignment-availability.ts";
 
 const DEFAULT_POINTS = 25;
 const WEEK_MS = 7 * 24 * 60 * 60 * 1_000;
@@ -16,12 +17,14 @@ export function remainingWork(assignment: Pick<AssignmentItem, "points_possible"
 }
 
 export function nextUpPriority(
-  assignment: Pick<AssignmentItem, "due_at" | "points_possible">,
+  assignment: Pick<AssignmentItem, "due_at" | "points_possible" | "unlock_at">,
   progress: number | null | undefined,
   now: number,
 ) {
   const due = assignment.due_at ? Date.parse(assignment.due_at) : NaN;
   if (!Number.isFinite(due) || due < now || due > now + WEEK_MS) return Number.NEGATIVE_INFINITY;
+  // Work that hasn't opened in Canvas yet can't be next up.
+  if (notYetOpen(assignment, now)) return Number.NEGATIVE_INFINITY;
 
   const deadlineScore = 60 * (1 - (due - now) / WEEK_MS);
   const impactScore = 35 * Math.min(1, Math.log1p(remainingWork(assignment, progress)) / Math.log1p(100));
