@@ -1,11 +1,18 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { Check, Loader2, Lock } from "lucide-react";
+import { ArrowLeft, Check, Loader2, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { startCheckoutFn } from "@/lib/billing.functions";
-import { openPaddleCheckout, paddleConfigured } from "@/lib/paddle-client";
+import {
+  closePaddleCheckout,
+  formatMoney,
+  openPaddleCheckout,
+  PADDLE_FRAME_CLASS,
+  paddleConfigured,
+  type PaddleCheckoutTotals,
+} from "@/lib/paddle-client";
 import { billingQueryKey } from "@/hooks/use-billing";
 import {
   formatDay,
@@ -45,6 +52,9 @@ export function SubscribePanel({ status }: { status: BillingStatus | null }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [finishing, setFinishing] = useState(false);
+  const [transactionId, setTransactionId] = useState<string | null>(null);
+  const [totals, setTotals] = useState<PaddleCheckoutTotals | null>(null);
+  const [frameReady, setFrameReady] = useState(false);
   const offer = checkoutOffer(status);
   const chosen = PLANS[plan];
   const price = `${chosen.price}/${chosen.per}`;
@@ -55,7 +65,23 @@ export function SubscribePanel({ status }: { status: BillingStatus | null }) {
     setError(null);
     try {
       const { transactionId } = await startCheckoutFn({ data: { plan } });
-      await openPaddleCheckout(transactionId, () => {
+      setTotals(null);
+      setFrameReady(false);
+      setTransactionId(transactionId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't start checkout.");
+      setBusy(false);
+    }
+  }
+
+  // Paddle draws into the frame element, so open it once that is on the page.
+  useEffect(() => {
+    if (!transactionId) return;
+    let cancelled = false;
+    openPaddleCheckout(transactionId, {
+      onTotals: (next) => !cancelled && setTotals(next),
+      onReady: () => !cancelled && setFrameReady(true),
+      onComplete: () => {
         // Paddle's webhook usually lands within seconds; check until it has.
         setFinishing(true);
         let tries = 0;
@@ -64,12 +90,102 @@ export function SubscribePanel({ status }: { status: BillingStatus | null }) {
           void queryClient.invalidateQueries({ queryKey: billingQueryKey });
           if (tries >= 15) window.clearInterval(timer);
         }, 2000);
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't start checkout.");
-    } finally {
-      setBusy(false);
-    }
+      },
+    })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : "Couldn't load the checkout.");
+        setTransactionId(null);
+      })
+      .finally(() => !cancelled && setBusy(false));
+    return () => {
+      cancelled = true;
+      closePaddleCheckout();
+    };
+  }, [transactionId, queryClient]);
+
+  if (transactionId) {
+    const renewal =
+      totals?.recurringTotal != null
+        ? `${formatMoney(totals.recurringTotal, totals.currency)}/${chosen.per}`
+        : `${price} + tax`;
+    return (
+      <div className="@container">
+        <div className="grid gap-6 @2xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] @2xl:gap-8">
+          <div className="space-y-5">
+            <button
+              type="button"
+              onClick={() => {
+                setTransactionId(null);
+                setFinishing(false);
+              }}
+              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition hover:text-foreground"
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden />
+              Change plan
+            </button>
+            <div>
+              <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                CoursePro {plan === "monthly" ? "Monthly" : "Yearly"}
+              </p>
+              <p className="mt-2 text-3xl tracking-tight text-foreground">
+                {offer.kind === "trial" ? `${TRIAL_DAYS} days free` : `Free until ${until}`}
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">Then {renewal}. Cancel anytime.</p>
+            </div>
+            <dl className="glass-inset space-y-3 rounded-2xl p-4 text-sm">
+              <div className="flex items-center justify-between">
+                <dt className="text-muted-foreground">Due today</dt>
+                <dd className="text-foreground">
+                  {totals ? formatMoney(totals.total, totals.currency) : "$0.00"}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between">
+                <dt className="text-muted-foreground">Starting {until}</dt>
+                <dd className="text-foreground">{renewal}</dd>
+              </div>
+              {totals?.recurringTax != null && totals.recurringTax > 0 && (
+                <div className="flex items-center justify-between text-xs">
+                  <dt className="text-muted-foreground">Includes tax</dt>
+                  <dd className="text-muted-foreground">
+                    {formatMoney(totals.recurringTax, totals.currency)}
+                  </dd>
+                </div>
+              )}
+            </dl>
+            <ul className="space-y-2.5 text-sm">
+              {FEATURES.map((feature) => (
+                <li key={feature} className="flex gap-2.5">
+                  <span className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full bg-foreground/10">
+                    <Check className="h-3 w-3 text-foreground" aria-hidden />
+                  </span>
+                  <span className="text-muted-foreground">{feature}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Lock className="h-3 w-3" aria-hidden />
+              Secure checkout by Paddle, our Merchant of Record
+            </p>
+          </div>
+          <div className="relative min-h-[450px] min-w-0">
+            {!frameReady && !error && (
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                Loading secure checkout…
+              </div>
+            )}
+            <div className={PADDLE_FRAME_CLASS} />
+            {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
+            {finishing && (
+              <p role="status" className="mt-3 text-sm text-muted-foreground">
+                Payment received — unlocking CoursePro…
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

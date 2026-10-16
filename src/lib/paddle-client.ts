@@ -1,8 +1,25 @@
-// Browser side of Paddle: loads Paddle.js once and opens its checkout overlay
-// for a transaction the server created (so the account can't be swapped).
+// Browser side of Paddle: loads Paddle.js once and shows its checkout inline,
+// inside our own page, for a transaction the server created (so the account
+// can't be swapped). Paddle only draws the payment form; the order summary
+// next to it is ours.
+
+/** What Paddle's checkout events carry that the summary shows. */
+export interface PaddleCheckoutTotals {
+  currency: string;
+  /** Charged today (0 during a trial). */
+  total: number;
+  /** What each renewal costs, tax included. */
+  recurringTotal: number | null;
+  recurringTax: number | null;
+}
 
 interface PaddleEventData {
   name?: string;
+  data?: {
+    currency_code?: string;
+    totals?: { total?: number };
+    recurring_totals?: { total?: number; tax?: number } | null;
+  };
 }
 
 interface PaddleJs {
@@ -12,12 +29,17 @@ interface PaddleJs {
     open(options: {
       transactionId: string;
       settings?: {
-        displayMode?: "overlay";
+        displayMode?: "overlay" | "inline";
+        variant?: "one-page" | "multi-page";
+        frameTarget?: string;
+        frameInitialHeight?: number;
+        frameStyle?: string;
         theme?: "light" | "dark";
-        successUrl?: string;
         allowLogout?: boolean;
+        showAddDiscounts?: boolean;
       };
     }): void;
+    close(): void;
   };
 }
 
@@ -28,6 +50,8 @@ declare global {
 }
 
 const SCRIPT_SRC = "https://cdn.paddle.com/paddle/v2/paddle.js";
+/** The class of the element the inline checkout draws into. */
+export const PADDLE_FRAME_CLASS = "cp-paddle-frame";
 
 let ready: Promise<PaddleJs> | null = null;
 let onEvent: ((event: PaddleEventData) => void) | null = null;
@@ -71,21 +95,58 @@ function loadPaddle(): Promise<PaddleJs> {
   return ready;
 }
 
-/** Opens the checkout; `onComplete` runs when Paddle reports the payment went through. */
+function readTotals(event: PaddleEventData): PaddleCheckoutTotals | null {
+  const data = event.data;
+  if (!data?.currency_code || typeof data.totals?.total !== "number") return null;
+  return {
+    currency: data.currency_code,
+    total: data.totals.total,
+    recurringTotal: data.recurring_totals?.total ?? null,
+    recurringTax: data.recurring_totals?.tax ?? null,
+  };
+}
+
+/**
+ * Draws the checkout into the element with `PADDLE_FRAME_CLASS` (it must be on
+ * the page). `onTotals` gets Paddle's prices with tax for the customer's
+ * country; `onComplete` runs when the payment went through.
+ */
 export async function openPaddleCheckout(
   transactionId: string,
-  onComplete: () => void,
+  handlers: {
+    onComplete: () => void;
+    onTotals?: (totals: PaddleCheckoutTotals) => void;
+    /** The form has drawn (or shown its own error). */
+    onReady?: () => void;
+  },
 ): Promise<void> {
   const paddle = await loadPaddle();
   onEvent = (event) => {
-    if (event.name === "checkout.completed") onComplete();
+    handlers.onReady?.();
+    if (event.name === "checkout.completed") handlers.onComplete();
+    const totals = readTotals(event);
+    if (totals) handlers.onTotals?.(totals);
   };
   paddle.Checkout.open({
     transactionId,
     settings: {
-      displayMode: "overlay",
+      displayMode: "inline",
+      variant: "one-page",
+      frameTarget: PADDLE_FRAME_CLASS,
+      frameInitialHeight: 450,
+      frameStyle: "width: 100%; min-width: 286px; background-color: transparent; border: none;",
       theme: document.documentElement.classList.contains("dark") ? "dark" : "light",
       allowLogout: false,
+      showAddDiscounts: false,
     },
   });
+}
+
+export function closePaddleCheckout(): void {
+  onEvent = null;
+  window.Paddle?.Checkout.close();
+}
+
+export function formatMoney(amount: number, currency: string): string {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(amount);
 }
