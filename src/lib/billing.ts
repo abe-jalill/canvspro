@@ -281,6 +281,31 @@ export async function verifyPaddleSignature(
   return signatures.some((signature) => sameText(signature, expected));
 }
 
+function ipv4ToNumber(ip: string): number | null {
+  const parts = ip.trim().split(".");
+  if (parts.length !== 4) return null;
+  let value = 0;
+  for (const part of parts) {
+    if (!/^\d{1,3}$/.test(part) || Number(part) > 255) return null;
+    value = value * 256 + Number(part);
+  }
+  return value;
+}
+
+/** Whether an IPv4 address is inside any of the CIDR blocks ("1.2.3.4/32"). */
+export function ipInCidrs(ip: string | null | undefined, cidrs: string[]): boolean {
+  const address = ip ? ipv4ToNumber(ip) : null;
+  if (address === null) return false;
+  return cidrs.some((cidr) => {
+    const [base, bitsText = "32"] = cidr.split("/");
+    const start = ipv4ToNumber(base ?? "");
+    const bits = Number(bitsText);
+    if (start === null || !Number.isInteger(bits) || bits < 0 || bits > 32) return false;
+    const size = 2 ** (32 - bits);
+    return Math.floor(address / size) === Math.floor(start / size);
+  });
+}
+
 /** Card-network rule: remind at least 7 days before a free trial's first charge. */
 export const TRIAL_REMINDER_DAYS = 7;
 /** Yearly renewals are announced 30 days ahead (California asks for 15-45). */
