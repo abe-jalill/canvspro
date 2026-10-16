@@ -71,13 +71,14 @@ struct CanvasProStudyLiveActivity: Widget {
                     CanvasProStudyIslandBottom(state: context.state).padding(.top, 4)
                 }
             } compactLeading: {
+                // Bold like the expanded view; the compact pill is read at a glance.
                 Image(systemName: context.state.finished ? "checkmark" : context.state.running ? "timer" : "pause.fill")
-                    .font(.system(size: 13, weight: .semibold)).foregroundStyle(.white)
+                    .font(.system(size: 13, weight: .bold)).foregroundStyle(.white)
             } compactTrailing: {
-                CanvasProStudyClock(state: context.state, size: 14).frame(maxWidth: 48)
+                CanvasProStudyClock(state: context.state, size: 14, weight: .bold).frame(maxWidth: 52)
             } minimal: {
                 Image(systemName: context.state.running ? "timer" : "pause.fill")
-                    .font(.system(size: 12, weight: .semibold)).foregroundStyle(.white)
+                    .font(.system(size: 12, weight: .bold)).foregroundStyle(.white)
             }
             .widgetURL(URL(string: "canvaspro://study-session"))
             .keylineTint(.white)
@@ -110,11 +111,11 @@ struct CanvasProTonightLiveActivity: Widget {
                     CanvasProTonightIslandBottom(state: context.state).padding(.top, 4)
                 }
             } compactLeading: {
-                Image(systemName: "checklist").font(.system(size: 13, weight: .semibold)).foregroundStyle(.white)
+                Image(systemName: "checklist").font(.system(size: 13, weight: .bold)).foregroundStyle(.white)
             } compactTrailing: {
-                Text("\(context.state.remaining)").font(.system(size: 14, weight: .semibold)).monospacedDigit().foregroundStyle(.white)
+                Text("\(context.state.remaining)").font(.system(size: 14, weight: .bold)).monospacedDigit().foregroundStyle(.white)
             } minimal: {
-                Text("\(context.state.remaining)").font(.system(size: 13, weight: .semibold)).monospacedDigit().foregroundStyle(.white)
+                Text("\(context.state.remaining)").font(.system(size: 13, weight: .bold)).monospacedDigit().foregroundStyle(.white)
             }
             .widgetURL(URL(string: "canvaspro://assignments"))
             .keylineTint(.white)

@@ -764,20 +764,20 @@ struct CanvasProGradesView: View {
         let fits = 7
         let shown = courses.count > fits ? Array(courses.prefix(fits - 1)) : courses
         return VStack(alignment: .leading, spacing: 14) {
-            // Lined up on the left with the class list, inset a little.
-            HStack(alignment: .center, spacing: 16) {
-                gauge(size: 84, valueSize: 19)
-                VStack(alignment: .leading, spacing: 4) {
+            // One tight row, flush left with the class names below.
+            HStack(alignment: .center, spacing: 12) {
+                gauge(size: 62, valueSize: 15)
+                VStack(alignment: .leading, spacing: 3) {
                     CanvasProCaption(text: "AVERAGE", color: muted)
-                    Text(hidden ? "Hidden" : average.map { "\(CanvasProWidgetFormat.letter($0)) overall" } ?? "No grades yet")
-                        .font(.system(size: 18, weight: .bold)).foregroundStyle(fg)
-                        .lineLimit(1).minimumScaleFactor(0.9)
-                        .privacySensitive()
-                    Text(classCount).font(.system(size: 11, weight: .semibold)).foregroundStyle(muted)
+                    HStack(alignment: .firstTextBaseline, spacing: 5) {
+                        Text(hidden ? "Hidden" : average.map { "\(CanvasProWidgetFormat.letter($0)) overall" } ?? "No grades yet")
+                            .font(.system(size: 16, weight: .bold)).foregroundStyle(fg)
+                            .privacySensitive()
+                        Text("· \(classCount)").font(.system(size: 12, weight: .semibold)).foregroundStyle(muted)
+                    }
+                    .lineLimit(1).minimumScaleFactor(0.85)
                 }
-                .fixedSize()
             }
-            .padding(.leading, 2)
             .frame(maxWidth: .infinity, alignment: .leading)
             Rectangle().fill(faint).frame(height: 0.5)
             VStack(alignment: .leading, spacing: 10) {
