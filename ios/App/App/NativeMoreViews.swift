@@ -22,7 +22,7 @@ struct NativeMenuRow: View {
             Spacer(minLength: 8)
             Image(systemName: trailingSymbol).cpIconFont(9, .bold).foregroundStyle(CPTheme.faint(scheme))
         }
-        .frame(minHeight: 50)
+        .frame(minHeight: 56)
         .contentShape(Rectangle())
     }
 }
@@ -33,7 +33,7 @@ struct NativeMenuGroup<Content: View>: View {
     let content: Content
     init(_ title: String? = nil, @ViewBuilder content: () -> Content) { self.title = title; self.content = content() }
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             if let title { CPSectionLabel(title) }
             VStack(spacing: 0) { content }
                 .padding(.horizontal, 14)
@@ -59,7 +59,7 @@ struct NativeMoreView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 24) {
                     NavigationLink { ProfileView(features: features, email: sessionStore.session?.user.email) } label: {
                         HStack(spacing: 12) {
                             NativeAvatar(url: features.avatarURL, size: 46)
@@ -84,7 +84,7 @@ struct NativeMoreView: View {
                             }
                             CPSegmented(selection: modeSelection, options: ["Light", "Dark", "System"], label: "Appearance")
                         }
-                        .padding(.vertical, 12)
+                        .padding(.vertical, 14)
                         if streaks.streak != nil {
                             CPRowDivider(leading: 40)
                             NativeStreakRow()
@@ -171,7 +171,7 @@ struct NativeSupportView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 24) {
                 CPPageHeader(
                     eyebrow: "Support",
                     title: "How can we help?",
@@ -299,7 +299,7 @@ struct NativeSettingsView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 24) {
                 CPPageHeader(eyebrow: nil, title: "Settings", detail: nil)
                 NativeMenuGroup("Personal") {
                     NavigationLink { ProfileView(features: features, email: sessionStore.session?.user.email) } label: {
@@ -315,7 +315,7 @@ struct NativeSettingsView: View {
                             // The Grades widget hides its numbers too.
                             .onChange(of: hideGrades) { _, hide in CanvasProWidgetStore.updateHideGrades(hide) }
                     }
-                    .frame(minHeight: 50)
+                    .frame(minHeight: 56)
                 }
                 NativeMenuGroup("Classes") {
                     settingsLink("Canvas connection", "link") { CanvasSettingsView(store: contentStore) }
@@ -747,6 +747,8 @@ struct FocusView: View {
         if isSearching {
             let query = search.trimmingCharacters(in: .whitespaces)
             return allItems.filter { item in
+                // Search stays inside the same four weeks; undated work never shows here.
+                NativeParity.isInFocusWindow(item, window: "all") &&
                 item.isVisible(in: store, showCompleted: showCompleted) &&
                 (item.name.localizedCaseInsensitiveContains(query) || store.displayName(courseID: item.courseID, fallback: item.courseName).localizedCaseInsensitiveContains(query))
             }.sorted(by: AssignmentItem.dueSort)

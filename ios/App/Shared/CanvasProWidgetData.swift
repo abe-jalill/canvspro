@@ -764,8 +764,8 @@ struct CanvasProGradesView: View {
         let fits = 7
         let shown = courses.count > fits ? Array(courses.prefix(fits - 1)) : courses
         return VStack(alignment: .leading, spacing: 14) {
-            // Centred across the widget, not pushed to the left.
-            HStack(alignment: .center, spacing: 18) {
+            // Lined up on the left with the class list, inset a little.
+            HStack(alignment: .center, spacing: 16) {
                 gauge(size: 84, valueSize: 19)
                 VStack(alignment: .leading, spacing: 4) {
                     CanvasProCaption(text: "AVERAGE", color: muted)
@@ -777,7 +777,8 @@ struct CanvasProGradesView: View {
                 }
                 .fixedSize()
             }
-            .frame(maxWidth: .infinity)
+            .padding(.leading, 2)
+            .frame(maxWidth: .infinity, alignment: .leading)
             Rectangle().fill(faint).frame(height: 0.5)
             VStack(alignment: .leading, spacing: 10) {
                 CanvasProCaption(text: "ALL CLASSES", color: muted)

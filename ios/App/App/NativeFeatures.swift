@@ -698,7 +698,8 @@ enum NativeParity {
     }
 
     static func isInFocusWindow(_ item: AssignmentItem, window: String, now: Date = Date()) -> Bool {
-        if window == "all" { return item.dueDate.map { $0 <= endOfUpcomingDay(28, from: now) } ?? true }
+        // Assignments only ever lists dated work due within four weeks (or overdue).
+        if window == "all" { return item.dueDate.map { $0 <= endOfUpcomingDay(28, from: now) } ?? false }
         guard let due = item.dueDate else { return false }
         if window == "overdue" { return due < now }
         guard let days = Int(window) else { return false }

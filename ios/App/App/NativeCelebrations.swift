@@ -517,7 +517,7 @@ struct NativeStreakRow: View {
                     Spacer(minLength: 8)
                     Image(systemName: "chevron.right").cpIconFont(9, .bold).foregroundStyle(CPTheme.faint(scheme))
                 }
-                .frame(minHeight: 50)
+                .frame(minHeight: 56)
                 .contentShape(Rectangle())
             }
             .buttonStyle(CPPressStyle())
