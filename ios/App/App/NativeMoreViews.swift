@@ -544,6 +544,7 @@ struct GetItDoneView: View {
             if let left, let right { return left < right }
             if left != nil { return true }
             if right != nil { return false }
+            if let open = NativeParity.openFirst(lhs, rhs) { return open }
             return score(lhs) > score(rhs)
         }
         var result: [AssignmentItem] = []

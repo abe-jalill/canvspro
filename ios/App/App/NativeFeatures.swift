@@ -743,6 +743,8 @@ enum NativeParity {
         let week: TimeInterval = 7 * 86_400
         func score(_ item: AssignmentItem) -> Double? {
             guard let due = item.dueDate, due >= now, due.timeIntervalSince(now) <= week else { return nil }
+            // Work that hasn't opened in Canvas yet can't be next up.
+            if item.notYetOpen(now: now) { return nil }
             let percent = Double(min(100, max(0, progress[item.id] ?? 0)))
             let deadline = 60 * (1 - due.timeIntervalSince(now) / week)
             let impact = 35 * min(1, log1p(remainingWork(item, progress: progress[item.id])) / log1p(100))
@@ -755,12 +757,24 @@ enum NativeParity {
         }.first?.item
     }
 
+    /// Work that hasn't opened in Canvas yet always sorts after open work, however
+    /// close its due date; closed work goes in the order it opens. Nil when both
+    /// are open (or open at the same time), so the score decides.
+    static func openFirst(_ left: AssignmentItem, _ right: AssignmentItem, now: Date = Date()) -> Bool? {
+        let leftClosed = left.notYetOpen(now: now)
+        let rightClosed = right.notYetOpen(now: now)
+        if leftClosed != rightClosed { return rightClosed }
+        guard leftClosed, let a = left.unlockDate, let b = right.unlockDate, a != b else { return nil }
+        return a < b
+    }
+
     static func rankedAssignments(_ items: [AssignmentItem], estimates: [Int: Int], now: Date = Date()) -> [AssignmentItem] {
         let dueSoon = Dictionary(grouping: items.filter {
             guard let due = $0.dueDate else { return false }
             return due >= now && due <= now.addingTimeInterval(3 * 86400)
         }, by: \.courseID).mapValues(\.count)
         return items.sorted { left, right in
+            if let open = openFirst(left, right, now: now) { return open }
             let a = getItDoneScore(left, estimate: estimates[left.id], dueSoonCount: dueSoon[left.courseID] ?? 0, now: now)
             let b = getItDoneScore(right, estimate: estimates[right.id], dueSoonCount: dueSoon[right.courseID] ?? 0, now: now)
             return a == b ? AssignmentItem.dueSort(left, right) : a > b

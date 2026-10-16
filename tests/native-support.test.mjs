@@ -70,3 +70,11 @@ test("the Canvas address is never guessed from the email", () => {
   }
   assert.doesNotMatch(more, /detectCanvasDomainFromEmail|fromEmail/);
 });
+
+test("on the iPhone, work that hasn't opened never outranks open work", () => {
+  const parity = read("ios/App/App/NativeFeatures.swift");
+  assert.match(parity, /static func openFirst\(_ left: AssignmentItem, _ right: AssignmentItem/);
+  assert.match(parity, /if let open = openFirst\(left, right, now: now\) \{ return open \}/);
+  assert.match(parity, /if item\.notYetOpen\(now: now\) \{ return nil \}/);
+  assert.match(more, /if let open = NativeParity\.openFirst\(lhs, rhs\) \{ return open \}/);
+});
