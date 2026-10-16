@@ -30,7 +30,7 @@ test("the webhook checks the caller against Paddle's live list before anything e
     /!ipInCidrs\(caller, cidrs\)\) \{\s+return new Response\("Forbidden", \{ status: 403 \}\)/,
   );
   assert.ok(
-    hook.indexOf("Forbidden") < hook.indexOf("verifyPaddleSignature(\n"),
+    hook.indexOf("Forbidden") < hook.search(/const valid = await verifyPaddleSignature\(/),
     "IP check runs first",
   );
   assert.match(hook, /verifyPaddleSignature\(/);
