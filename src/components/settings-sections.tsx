@@ -11,7 +11,6 @@ import {
 import {
   Camera,
   Check,
-  ExternalLink,
   LoaderCircle,
   Trash2,
   UserRound,
@@ -23,10 +22,9 @@ import {
   useCanvasDomain,
   useSaveCanvasKey,
   useSaveCanvasDomain,
-  normalizeCanvasDomain,
 } from "@/lib/user-settings";
 import { supabase } from "@/integrations/supabase/client";
-import { detectCanvasDomainFromEmail, getCanvasTokenSettingsUrl } from "@/lib/school-domains";
+import { detectCanvasDomainFromEmail } from "@/lib/school-domains";
 import {
   isUsernameAvailable,
   normalizeUsername,
@@ -86,7 +84,6 @@ export function CanvasConnectionSettings() {
   }, [savedDomain, emailGuess, domainLoading, domainTouched]);
 
   const saveDomain = useSaveCanvasDomain();
-  const cleanDomain = normalizeCanvasDomain(domainValue);
   const guessedFromEmail = !savedDomain && !!emailGuess && domainValue === emailGuess;
 
   async function onSubmit(e: FormEvent) {
@@ -106,7 +103,7 @@ export function CanvasConnectionSettings() {
       return;
     }
     if (!value.trim()) {
-      setStatus("Paste your Canvas API key in step 3 first.");
+      setStatus("Paste your Canvas API key in step 2 first.");
       return;
     }
     const firstConnection = !savedKey;
@@ -143,7 +140,7 @@ export function CanvasConnectionSettings() {
       subtitle={
         savedKey
           ? "Connected. Paste a new key below any time you need to replace it."
-          : "Connect in 3 steps. It takes about a minute."
+          : "Connect in 2 steps. It takes about a minute."
       }
     >
       <form onSubmit={onSubmit} className="flex w-full flex-col gap-6">
@@ -187,32 +184,7 @@ export function CanvasConnectionSettings() {
             </p>
           </SetupStep>
 
-          <SetupStep n={2} title="Create a key in Canvas">
-            <a
-              href={getCanvasTokenSettingsUrl(cleanDomain || null)}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-disabled={!cleanDomain}
-              onClick={(e) => {
-                if (!cleanDomain) {
-                  e.preventDefault();
-                  setStatus("Enter your school's Canvas address in step 1 first.");
-                }
-              }}
-              className="glass-inset glass-hover inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium text-foreground aria-disabled:opacity-50 sm:w-auto"
-            >
-              <span>Open Canvas</span>
-              <ExternalLink className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-            </a>
-            <p className="text-xs leading-5 text-muted-foreground">
-              On that page, click <strong className="text-foreground">+ New Access Token</strong>,
-              type <strong className="text-foreground">CoursePro</strong> as the purpose, click{" "}
-              <strong className="text-foreground">Generate Token</strong>, then copy the key it
-              shows you.
-            </p>
-          </SetupStep>
-
-          <SetupStep n={3} title="Paste the key here">
+          <SetupStep n={2} title="Paste your Canvas API key">
             <input
               type="password"
               aria-label="Canvas API key"
@@ -228,6 +200,10 @@ export function CanvasConnectionSettings() {
               autoComplete="off"
               className={inputClass}
             />
+            <p className="text-xs leading-5 text-muted-foreground">
+              In Canvas: Account, Settings, Approved Integrations,{" "}
+              <strong className="text-foreground">New Access Token</strong>.
+            </p>
           </SetupStep>
         </ol>
 
