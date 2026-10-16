@@ -169,10 +169,11 @@ test("a new student is walked through connecting Canvas, once, and failures are 
   assert.ok(swift.NativeViews.includes('"CanvasProOnboarded.\\(sessionStore.session?.user.id ?? "")"'));
   assert.match(swift.NativeViews, /if hadSavedData == true \|\| contentStore\.lastSyncedAt != nil \{ markOnboarded\(\); return \}/);
   assert.match(swift.NativeViews, /\.fullScreenCover\(isPresented: \$showOnboarding\)/);
-  // Connecting is three steps with a paste button and a link to the student's own Canvas.
+  // Connecting is two steps: the address, then the token with a paste button. No "open Canvas" link.
   const connect = swift.NativeMoreViews.slice(swift.NativeMoreViews.indexOf("struct CanvasSettingsView"), swift.NativeMoreViews.indexOf("struct ClassScheduleView"));
-  for (const text of ["Your Canvas address", "Make an access token", "Paste your token", "PasteButton(payloadType: String.self)", "Open my Canvas settings"]) assert.ok(connect.includes(text), text);
-  assert.match(connect, /\/profile\/settings/);
+  for (const text of ["Your Canvas address", "Your access token", "PasteButton(payloadType: String.self)"]) assert.ok(connect.includes(text), text);
+  assert.doesNotMatch(connect, /step\(3,/);
+  assert.doesNotMatch(connect, /\/profile\/settings|Open my Canvas settings/);
   // The first load shows placeholders, then data, a Connect step, or a retry card; never a false "no classes".
   assert.match(swift.NativeCore, /var isFirstLoad: Bool/);
   assert.match(swift.NativeCore, /loadFailure = errorMessage/);

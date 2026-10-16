@@ -2066,8 +2066,8 @@ private struct HiddenCoursesView: View {
     }
 }
 
-/// Connecting Canvas in three short steps: the school's address, a token made in
-/// Canvas, and pasting it here. Used from Settings and from the first-run flow.
+/// Connecting Canvas in two steps: the school's address, then a token made in
+/// Canvas and pasted here. Used from Settings and from the first-run flow.
 struct CanvasSettingsView: View {
     private enum Field: Hashable { case domain, token }
     @Environment(\.colorScheme) private var scheme
@@ -2092,7 +2092,6 @@ struct CanvasSettingsView: View {
     private var domainLooksValid: Bool { cleanDomain.range(of: "^[a-z0-9-]+(\\.[a-z0-9-]+)+$", options: .regularExpression) != nil }
     private var trimmedToken: String { canvasToken.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var canSave: Bool { domainLooksValid && trimmedToken.count >= 20 && !working }
-    private var settingsURL: URL? { domainLooksValid ? URL(string: "https://\(cleanDomain)/profile/settings") : nil }
 
     var body: some View {
         ScrollView {
@@ -2117,15 +2116,9 @@ struct CanvasSettingsView: View {
                             .cpFont(12).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
                     }
                 }
-                step(2, title: "Make an access token") {
-                    Text("Canvas Settings, then Approved Integrations, then New Access Token. Copy it.")
+                step(2, title: "Your access token") {
+                    Text("In Canvas: Account, Settings, Approved Integrations, New Access Token.")
                         .cpFont(12).lineSpacing(2).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
-                    if let settingsURL {
-                        Link(destination: settingsURL) { Label("Open my Canvas settings", systemImage: "arrow.up.right") }
-                            .buttonStyle(CPButtonStyle(kind: .secondary, fullWidth: true))
-                    }
-                }
-                step(3, title: "Paste your token") {
                     CPFieldBox(title: "Access token", focused: focus == .token) {
                         SecureField("Paste the token", text: $canvasToken)
                             .focused($focus, equals: .token)
