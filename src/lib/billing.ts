@@ -20,7 +20,8 @@ export const PLANS: Record<Plan, { price: string; cents: number; per: "month" | 
 };
 
 /** Which Paddle price a checkout uses: the trial ones start with 14 free days. */
-export type PriceKey = "monthly_trial" | "yearly_trial" | "monthly" | "yearly";
+/** One Paddle price per plan; both carry the free trial. */
+export type PriceKey = Plan;
 
 /** The signed-in account's billing, as `my_billing_status()` returns it. */
 export interface BillingStatus {
@@ -149,30 +150,19 @@ export function describeBilling(
       return {
         state,
         headline: "Subscribe to keep using CoursePro",
-        detail: s.trial_used
-          ? "Your free trial has ended."
-          : `Start a ${TRIAL_DAYS}-day free trial. Cancel anytime before it ends and you won't be charged.`,
+        detail: `Start a ${TRIAL_DAYS}-day free trial. Cancel anytime before it ends and you won't be charged.`,
       };
   }
 }
 
 /**
- * Which price a new checkout uses. New accounts get the trial once. Accounts
- * from before launch have their free days instead: inside them they take the
- * trial price and the first charge is moved to the day those days end
- * (`firstChargeForGrace`); after them they pay from the start.
+ * Which price a new checkout uses: the plan's one price. Both prices carry the
+ * 14-day trial in Paddle, so every checkout starts with it. Accounts from
+ * before launch that subscribe inside their free days have the first charge
+ * moved to the day those days end (`firstChargeForGrace`).
  */
-export function checkoutPriceKey(input: {
-  plan: Plan;
-  trialUsed: boolean;
-  graceEndsAt: string | null;
-  now?: number;
-}): PriceKey {
-  const now = input.now ?? Date.now();
-  if (input.trialUsed) return input.plan;
-  const graceEnds = time(input.graceEndsAt);
-  if (graceEnds !== null) return now < graceEnds ? `${input.plan}_trial` : input.plan;
-  return `${input.plan}_trial`;
+export function checkoutPriceKey(input: { plan: Plan }): PriceKey {
+  return input.plan;
 }
 
 /**
@@ -289,6 +279,31 @@ export async function verifyPaddleSignature(
   );
   const expected = hex(await crypto.subtle.sign("HMAC", key, encoder.encode(`${ts}:${rawBody}`)));
   return signatures.some((signature) => sameText(signature, expected));
+}
+
+function ipv4ToNumber(ip: string): number | null {
+  const parts = ip.trim().split(".");
+  if (parts.length !== 4) return null;
+  let value = 0;
+  for (const part of parts) {
+    if (!/^\d{1,3}$/.test(part) || Number(part) > 255) return null;
+    value = value * 256 + Number(part);
+  }
+  return value;
+}
+
+/** Whether an IPv4 address is inside any of the CIDR blocks ("1.2.3.4/32"). */
+export function ipInCidrs(ip: string | null | undefined, cidrs: string[]): boolean {
+  const address = ip ? ipv4ToNumber(ip) : null;
+  if (address === null) return false;
+  return cidrs.some((cidr) => {
+    const [base, bitsText = "32"] = cidr.split("/");
+    const start = ipv4ToNumber(base ?? "");
+    const bits = Number(bitsText);
+    if (start === null || !Number.isInteger(bits) || bits < 0 || bits > 32) return false;
+    const size = 2 ** (32 - bits);
+    return Math.floor(address / size) === Math.floor(start / size);
+  });
 }
 
 /** Card-network rule: remind at least 7 days before a free trial's first charge. */

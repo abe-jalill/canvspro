@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import {
   billingRowFromSubscription,
   firstChargeForGrace,
+  ipInCidrs,
   isNewerEvent,
   userIdFromSubscription,
   verifyPaddleSignature,
@@ -86,6 +87,15 @@ export const Route = createFileRoute("/api/public/paddle/webhook")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        // Only Paddle's own servers may deliver. Cloudflare sets the caller's
+        // address; if Paddle's list can't be read, the signature still decides.
+        const { paddleWebhookCidrs } = await import("@/lib/paddle.server");
+        const cidrs = await paddleWebhookCidrs();
+        const caller = request.headers.get("cf-connecting-ip");
+        if (cidrs && caller && !ipInCidrs(caller, cidrs)) {
+          return new Response("Forbidden", { status: 403 });
+        }
+        if (cidrs === null) console.error("[paddle] couldn't read Paddle's IP list");
         const raw = await request.text();
         const secret = process.env.PADDLE_WEBHOOK_SECRET ?? "";
         const valid = await verifyPaddleSignature(

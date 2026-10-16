@@ -42,7 +42,10 @@ export function BillingGate({ email, children }: { email?: string | null; childr
 
 /** Trial, launch free days and failed-payment notices above every page. */
 export function BillingBanner({ email }: { email?: string | null }) {
+  const { pathname } = useLocation();
   const billing = useBilling();
+  // The billing page already says all of this.
+  if (pathname.startsWith("/settings/billing")) return null;
   if (!billing.data || isReviewAccount(email)) return null;
   const copy = describeBilling(billing.data);
   const show =

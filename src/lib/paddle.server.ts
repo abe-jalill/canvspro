@@ -14,8 +14,6 @@ const API = {
 } as const;
 
 const PRICE_ENV: Record<PriceKey, string> = {
-  monthly_trial: "PADDLE_PRICE_MONTHLY_TRIAL",
-  yearly_trial: "PADDLE_PRICE_YEARLY_TRIAL",
   monthly: "PADDLE_PRICE_MONTHLY",
   yearly: "PADDLE_PRICE_YEARLY",
 };
@@ -28,6 +26,31 @@ function required(name: string): string {
 
 export function paddlePriceId(key: PriceKey): string {
   return required(PRICE_ENV[key]);
+}
+
+const IPS_TTL_MS = 60 * 60 * 1000;
+let ipsCache: { env: PaddleEnvironment; at: number; cidrs: string[] } | null = null;
+
+/**
+ * The addresses Paddle sends notifications from, read from Paddle's own list
+ * (it can change, so it is never hard-coded) and kept for an hour. Null when
+ * the list can't be read; the webhook's signature check still applies then.
+ */
+export async function paddleWebhookCidrs(): Promise<string[] | null> {
+  const env = paddleEnvironment();
+  if (ipsCache && ipsCache.env === env && Date.now() - ipsCache.at < IPS_TTL_MS) {
+    return ipsCache.cidrs;
+  }
+  try {
+    const response = await fetch(`${API[env]}/ips`);
+    const json = (await response.json()) as { data?: { ipv4_cidrs?: unknown } };
+    const cidrs = json.data?.ipv4_cidrs;
+    if (!response.ok || !Array.isArray(cidrs) || cidrs.length === 0) return ipsCache?.cidrs ?? null;
+    ipsCache = { env, at: Date.now(), cidrs: cidrs.filter((c) => typeof c === "string") };
+    return ipsCache.cidrs;
+  } catch {
+    return ipsCache?.env === env ? ipsCache.cidrs : null;
+  }
 }
 
 export class PaddleError extends Error {

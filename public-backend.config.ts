@@ -4,6 +4,9 @@ export function configurePublicBackend() {
     VITE_SUPABASE_PROJECT_ID: "vqmzhzvugzhmtprklzfm",
     VITE_SUPABASE_URL: "https://vqmzhzvugzhmtprklzfm.supabase.co",
     VITE_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_CG0S1Gz01JTdr_8PO2DTtg_GCmSY5Sx",
+    // Paddle client-side token (public by design). Switch both to live values at launch.
+    VITE_PADDLE_CLIENT_TOKEN: "test_926b548be2fc7808c5f517313f2",
+    VITE_PADDLE_ENV: "sandbox",
   };
   for (const [k, v] of Object.entries(PUBLIC_BACKEND)) {
     if (!process.env[k]) process.env[k] = v;
