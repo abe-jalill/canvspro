@@ -1,3 +1,4 @@
+import { AssignmentEstimateEditor } from "@/components/assignment-estimate";
 import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
@@ -5,6 +6,7 @@ import type { AssignmentItem } from "@/lib/canvas.functions";
 import { displayCourseName } from "@/lib/course-display";
 import { useAssignmentMetaMap } from "@/hooks/use-assignment-meta";
 import { remainingWork } from "@/lib/assignment-workload";
+import { dueTodayClass, formatAssignmentDue } from "@/lib/assignment-due";
 
 interface Props {
   assignments: AssignmentItem[];
@@ -137,21 +139,18 @@ export function WorkloadHeatmap({ assignments, weeks = 4 }: Props) {
               {openCell && (
                 <div className="glass-panel-strong mt-2 w-full p-3 text-left">
                   <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                    {openCell.date.toLocaleDateString(undefined, {
-                      weekday: "short",
-                      month: "short",
-                      day: "numeric",
-                    })}
+                    {formatAssignmentDue(openCell.date.toISOString(), Date.now(), false)}
                   </p>
                   <ul className="space-y-1.5">
                     {openCell.items.map((a) => (
-                      <li key={a.id} className="flex items-baseline justify-between gap-2">
+                      <li key={a.id} className={cn("flex items-baseline justify-between gap-2 rounded-lg border border-transparent p-2", dueTodayClass(a.due_at))}>
                         <div className="min-w-0">
                           <p className="truncate text-xs font-medium">{a.name}</p>
                           <p className="truncate text-[10px] text-muted-foreground">
                             {displayCourseName(a.course_name, a.course_code)}
                           </p>
                           <AssignmentDescriptionLink assignmentId={a.id} className="mt-0.5" />
+                          <AssignmentEstimateEditor assignment={a} className="mt-2" />
                         </div>
                         <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
                           {Math.round(remainingWork(a, metaMap.get(a.id)?.progressPercent))} remaining pt

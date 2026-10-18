@@ -1,3 +1,4 @@
+import { AssignmentEstimateEditor } from "@/components/assignment-estimate";
 import { Link } from "@tanstack/react-router";
 import { useQuery, queryOptions } from "@tanstack/react-query";
 import { useState, type ReactElement } from "react";
@@ -34,6 +35,8 @@ import { isAssignmentVisible } from "@/lib/assignment-window";
 import { useAnnouncementWindow, withinAnnouncementWindow } from "@/lib/announcement-window";
 import { customToAssignmentItem, useCustomAssignments } from "@/lib/custom-assignments";
 import { notYetOpen } from "@/lib/assignment-availability";
+import { dueTodayClass } from "@/lib/assignment-due";
+import { mergeAssignments } from "@/lib/assignment-sources";
 
 import {
   coursesQueryOptions as coursesQO,
@@ -303,10 +306,11 @@ function UpcomingWidget() {
                           className={cn(
                             "glass-inset glass-hover flex items-center justify-between gap-2 p-3",
                             cd && urgencyAccentClass(cd.urgency),
+                            dueTodayClass(a.due_at, done),
                             done && "opacity-60",
                           )}
                         >
-                          <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+                          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:gap-3">
                             <CompleteButton
                               done={done}
                               onClick={() => completed.toggle(a.id)}
@@ -321,6 +325,7 @@ function UpcomingWidget() {
                               {a.name}
                             </p>
                             <AssignmentDescriptionLink assignmentId={a.id} />
+                            <div className="basis-full pl-7"><AssignmentEstimateEditor assignment={a} /></div>
                           </div>
                           <div className="flex shrink-0 items-center gap-2">
                             <div className="text-right">
@@ -542,8 +547,10 @@ function IcsButton({ assignment }: { assignment: AssignmentItem }) {
 function FocusWidget() {
   const { data, isLoading, isError, error } = useQuery(assignmentsQO);
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
+  const custom = useCustomAssignments();
+  const courses = useQuery(coursesQO);
 
-  const soon = (data ?? [])
+  const soon = mergeAssignments(data ?? [], custom.list, courses.data ?? [])
     .filter((a) => !notYetOpen(a) && isInFocusWindow(a, "2", Date.now(), completed.has(a.id)))
     .sort(
       (a, b) => new Date(a.due_at as string).getTime() - new Date(b.due_at as string).getTime(),
@@ -583,6 +590,7 @@ function FocusWidget() {
                 className={cn(
                   "glass-inset glass-hover flex items-center justify-between gap-3 p-3",
                   cd && urgencyAccentClass(cd.urgency),
+                  dueTodayClass(a.due_at),
                 )}
               >
                 <div className="min-w-0">
@@ -591,6 +599,7 @@ function FocusWidget() {
                     {displayCourseName(a.course_name, a.course_code)}
                   </p>
                   <AssignmentDescriptionLink assignmentId={a.id} className="mt-1" />
+                  <AssignmentEstimateEditor assignment={a} className="mt-2" />
                 </div>
                 <span
                   className={cn(

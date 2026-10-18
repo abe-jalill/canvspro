@@ -1,3 +1,5 @@
+import { AssignmentEstimateEditor } from "@/components/assignment-estimate";
+import { dueTodayClass, formatAssignmentDue } from "@/lib/assignment-due";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, queryOptions } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -585,6 +587,7 @@ function CourseDetailPage() {
           </p>
           <p className="mt-1 text-sm font-medium text-foreground">{targetAssignment.name}</p>
           <AssignmentDescriptionPanel assignment={targetAssignment} />
+          <AssignmentEstimateEditor assignment={targetAssignment} className="mt-2" />
           {targetAssignment.html_url && (
             <a
               href={targetAssignment.html_url}
@@ -641,26 +644,19 @@ function CourseDetailPage() {
                   </p>
                 )}
                 {shown.map((a) => {
-                  const dueDate = a.due_at ? new Date(a.due_at) : null;
-                  const formattedDate = dueDate
-                    ? dueDate.toLocaleDateString(undefined, {
-                        month: "short",
-                        day: "numeric",
-                        hour: "numeric",
-                        minute: "2-digit",
-                      })
-                    : "No due date";
+                  const formattedDate = formatAssignmentDue(a.due_at);
 
                   return (
                     <GlassCard
                       key={a.id}
                       id={`assignment-${a.id}`}
-                      className={cn("hover-scale scroll-mt-24 p-4", flashId === a.id && "assignment-flash")}
+                      className={cn("hover-scale scroll-mt-24 p-4", flashId === a.id && "assignment-flash", dueTodayClass(a.due_at, isCompleted(a.id)))}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="truncate text-sm font-medium text-foreground">{a.name}</p>
                           <OpensLabel unlockAt={a.unlock_at} />
+                          <AssignmentEstimateEditor assignment={a} className="mt-2" />
                           <DescriptionToggle
                             open={openDescriptions.has(a.id)}
                             onToggle={() => toggleDescription(a.id)}
@@ -786,6 +782,7 @@ function CourseDetailPage() {
                         )}
                       </div>
                     </div>
+                    <AssignmentEstimateEditor assignment={a} className="mt-2" />
                     {openDescriptions.has(a.id) && <AssignmentDescriptionPanel assignment={a} />}
                   </GlassCard>
                 );

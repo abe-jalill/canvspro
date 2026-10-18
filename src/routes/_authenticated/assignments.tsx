@@ -47,6 +47,9 @@ import {
   isAssignmentVisible,
 } from "@/lib/assignment-window";
 import { htmlToText } from "@/lib/html-text";
+import { dueTodayClass, formatAssignmentDue } from "@/lib/assignment-due";
+import { AssignmentEstimateEditor } from "@/components/assignment-estimate";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import {
   coursesQueryOptions as coursesQO,
@@ -180,6 +183,7 @@ function PriorityAssignmentsCard({
               className={cn(
                 "glass-inset flex items-center justify-between gap-3 p-3",
                 isDone(p.assignment.id) && "opacity-60",
+                dueTodayClass(p.assignment.due_at, isDone(p.assignment.id)),
               )}
             >
               <CompleteToggle
@@ -199,6 +203,7 @@ function PriorityAssignmentsCard({
                 <p className="truncate text-xs text-muted-foreground">
                   {displayCourseName(p.assignment.course_name, p.assignment.course_code)}
                 </p>
+                <AssignmentEstimateEditor assignment={p.assignment} className="mt-2" />
               </div>
               <PriorityBadge urgency={p.urgency} />
             </li>
@@ -447,6 +452,7 @@ function AssignmentsPage() {
             {htmlToText(selectedAssignment.description ?? "") ||
               "Canvas does not provide a description for this assignment."}
           </p>
+          <AssignmentEstimateEditor assignment={selectedAssignment} className="mt-3" />
           {selectedAssignment.html_url && (
             <a
               href={selectedAssignment.html_url}
@@ -529,17 +535,7 @@ function AssignmentsPage() {
                     const firstForCourse =
                       shownItems.find((entry) => entry.course === course)?.assignment.id === a.id;
                     const due = assignmentDueTime(a);
-                    const dueText =
-                      due != null
-                        ? `${new Intl.DateTimeFormat(undefined, {
-                            weekday: "short",
-                            month: "short",
-                            day: "numeric",
-                          }).format(due)} · ${new Intl.DateTimeFormat(undefined, {
-                            hour: "numeric",
-                            minute: "2-digit",
-                          }).format(due)}`
-                        : "No due date";
+                    const dueText = formatAssignmentDue(a.due_at);
                     return (
                       <li
                         key={a.id}
@@ -547,6 +543,7 @@ function AssignmentsPage() {
                         className={cn(
                           "group grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3.5 rounded-lg border border-foreground/15 px-4 py-3.5",
                           done && "opacity-55",
+                          dueTodayClass(a.due_at, done),
                           highlightProps.className,
                         )}
                       >
@@ -572,6 +569,7 @@ function AssignmentsPage() {
                               </>
                             )}
                           </p>
+                          <AssignmentEstimateEditor assignment={a} className="mt-2" />
                           {notes && (
                             <p className="mt-1 line-clamp-2 whitespace-pre-wrap text-xs text-foreground/70">
                               {notes}
@@ -735,6 +733,7 @@ function AssignmentsPage() {
                                       </>
                                     )}
                                   </p>
+                                  <AssignmentEstimateEditor assignment={a} className="mt-2" />
                                   {notes && (
                                     <p className="mt-1 whitespace-pre-wrap text-xs text-foreground/70">
                                       {notes}
@@ -804,6 +803,7 @@ function AddAssignmentForm({
     due_at: string | null;
     points_possible: number | null;
     notes: string;
+    estimated_minutes?: number | null;
   }) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -811,16 +811,19 @@ function AddAssignmentForm({
   const [due, setDue] = useState("");
   const [points, setPoints] = useState("");
   const [notes, setNotes] = useState("");
+  const [minutes, setMinutes] = useState("");
   const [selected, setSelected] = useState<string>(courseId != null ? String(courseId) : "");
 
   const targetId = courseId ?? (selected ? Number(selected) : NaN);
-  const canSave = name.trim().length > 0 && Number.isFinite(targetId);
+  const validMinutes = minutes === "" || (Number.isInteger(Number(minutes)) && Number(minutes) > 0 && Number(minutes) <= 480);
+  const canSave = name.trim().length > 0 && Number.isFinite(targetId) && validMinutes;
 
   function reset() {
     setName("");
     setDue("");
     setPoints("");
     setNotes("");
+    setMinutes("");
     if (courseId == null) setSelected("");
   }
 
@@ -834,6 +837,7 @@ function AddAssignmentForm({
       due_at: due ? new Date(due).toISOString() : null,
       points_possible: Number.isNaN(pts) ? null : pts,
       notes: notes.trim(),
+      estimated_minutes: minutes === "" ? null : Number(minutes),
     });
     reset();
     setOpen(false);
@@ -858,19 +862,14 @@ function AddAssignmentForm({
   return (
     <form onSubmit={submit} className="glass-inset mt-3 space-y-3 p-3">
       {courseId == null && (
-        <select
-          value={selected}
-          onChange={(e) => setSelected(e.target.value)}
-          className={inputClass}
-          aria-label="Class"
-        >
-          <option value="">Choose a class…</option>
-          {(courseOptions ?? []).map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.label}
-            </option>
-          ))}
-        </select>
+        <Select value={selected} onValueChange={setSelected}>
+          <SelectTrigger aria-label="Class"><SelectValue placeholder="Choose a class…" /></SelectTrigger>
+          <SelectContent>
+            {(courseOptions ?? []).map((c) => (
+              <SelectItem key={c.id} value={String(c.id)} className="whitespace-normal break-words pr-9">{c.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       )}
       <input
         value={name}
@@ -902,6 +901,11 @@ function AddAssignmentForm({
           />
         </label>
       </div>
+      <label className="block space-y-1">
+        <span className="text-xs text-muted-foreground">Estimated time (minutes)</span>
+        <input type="number" min={1} max={480} step={1} value={minutes}
+          onChange={(e) => setMinutes(e.target.value)} placeholder="e.g. 45" className={inputClass} />
+      </label>
       <textarea
         value={notes}
         onChange={(e) => setNotes(e.target.value)}

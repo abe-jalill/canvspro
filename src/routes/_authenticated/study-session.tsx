@@ -1,3 +1,8 @@
+import { mergeAssignments } from "@/lib/assignment-sources";
+import { useCustomAssignments } from "@/lib/custom-assignments";
+import { coursesQueryOptions } from "@/lib/canvas.queries";
+import { AssignmentEstimateEditor, CachedAssignmentEstimate } from "@/components/assignment-estimate";
+import { dueTodayClass, formatAssignmentDue } from "@/lib/assignment-due";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -302,6 +307,9 @@ function MinutesField({
 function StudySessionPage() {
   const { assignment: requestedAssignment, picks: requestedPicks } = Route.useSearch();
   const assignments = useQuery(assignmentsQO);
+  const manualAssignments = useCustomAssignments();
+  const courses = useQuery(coursesQueryOptions);
+  const allAssignments = useMemo(() => mergeAssignments(assignments.data ?? [], manualAssignments.list, courses.data ?? []), [assignments.data, manualAssignments.list, courses.data]);
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
   const metaMap = useAssignmentMetaMap();
   const { session, setSession, ready } = useStudySession();
@@ -397,8 +405,8 @@ function StudySessionPage() {
       : (POMODORO_PRESETS.find((preset) => preset.id === presetId) ?? POMODORO_PRESETS[0]).plan;
 
   const assignmentById = useMemo(
-    () => new Map((assignments.data ?? []).map((item) => [`canvas:${item.id}`, item])),
-    [assignments.data],
+    () => new Map(allAssignments.map((item) => [`canvas:${item.id}`, item])),
+    [allAssignments],
   );
 
   /** Saved estimate, then a size-based guess for Canvas work, then 25 minutes. */
@@ -456,7 +464,7 @@ function StudySessionPage() {
   const { candidates, hiddenCount } = useMemo(() => {
     const needle = search.trim().toLowerCase();
     const now = Date.now();
-    const visible = (assignments.data ?? [])
+    const visible = allAssignments
       .filter((item) =>
         needle
           ? showCompleted || !isAssignmentComplete(item, completed.has(item.id))
@@ -474,7 +482,7 @@ function StudySessionPage() {
     const candidates = visible.filter((item) => isInStudySessionWindow(item.due_at, now, false));
     const searchable = visible.filter((item) => isInStudySessionWindow(item.due_at, now, true));
     return { candidates, hiddenCount: searchable.length - candidates.length };
-  }, [assignments.data, completed, search, showCompleted]);
+  }, [allAssignments, completed, search, showCompleted]);
 
   const selectedIds = useMemo(() => new Set(selected.map((item) => item.id)), [selected]);
 
@@ -699,6 +707,7 @@ function StudySessionPage() {
             </button>
           )}
 
+          {current?.source === "canvas" && <CachedAssignmentEstimate assignmentId={Number(current.id.replace("canvas:", ""))} className="mt-4" />}
           <FocusNoiseControls className="mt-8" />
         </section>
 
@@ -719,6 +728,7 @@ function StudySessionPage() {
                   className={cn(
                     "rounded-lg border px-4",
                     isCurrent && !done ? "border-foreground/50" : "border-foreground/15",
+                    dueTodayClass(item.dueAt ?? null, done),
                   )}
                 >
                   <button
@@ -766,6 +776,7 @@ function StudySessionPage() {
                       className="mb-3 ml-[2.125rem]"
                     />
                   )}
+                  {item.source === "canvas" && <CachedAssignmentEstimate assignmentId={Number(item.id.replace("canvas:", ""))} className="mb-3 ml-[2.125rem]" />}
                 </li>
               );
             })}
@@ -880,6 +891,7 @@ function StudySessionPage() {
                           isSelected
                             ? "border-foreground/50"
                             : "border-foreground/15 hover:border-foreground/30",
+                          dueTodayClass(assignment.due_at),
                         )}
                       >
                         <span
@@ -900,13 +912,11 @@ function StudySessionPage() {
                         </span>
                         {assignment.due_at && (
                           <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                            {new Date(assignment.due_at).toLocaleDateString(undefined, {
-                              month: "short",
-                              day: "numeric",
-                            })}
+                            {formatAssignmentDue(assignment.due_at, Date.now(), false)}
                           </span>
                         )}
                       </button>
+                      <AssignmentEstimateEditor assignment={assignment} className="ml-4 mt-1" />
                     </li>
                   );
                 })}
@@ -995,7 +1005,7 @@ function StudySessionPage() {
                   {selected.map((item) => (
                     <li
                       key={item.id}
-                      className="flex min-h-12 items-center gap-3 rounded-lg border border-foreground/15 px-3"
+                      className="flex min-h-12 flex-wrap items-center gap-3 rounded-lg border border-foreground/15 px-3 py-2"
                     >
                       <span className="min-w-0 flex-1 truncate text-sm">{item.name}</span>
                       <MinutesField
@@ -1005,6 +1015,7 @@ function StudySessionPage() {
                         }
                         label={`Minutes for ${item.name}`}
                       />
+                      {item.source === "canvas" && <CachedAssignmentEstimate assignmentId={Number(item.id.replace("canvas:", ""))} />}
                     </li>
                   ))}
                 </ul>
@@ -1103,7 +1114,7 @@ function StudySessionPage() {
               {plannedItems.map((item, index) => (
                 <li
                   key={item.id}
-                  className="group flex min-h-12 items-center gap-3 rounded-lg border border-foreground/15 px-3"
+                  className="group flex min-h-12 flex-wrap items-center gap-3 rounded-lg border border-foreground/15 px-3 py-2"
                 >
                   <span className="w-4 shrink-0 text-xs tabular-nums text-muted-foreground">
                     {index + 1}
@@ -1121,6 +1132,7 @@ function StudySessionPage() {
                       {item.minutes} min
                     </span>
                   )}
+                  {item.source === "canvas" && <CachedAssignmentEstimate assignmentId={Number(item.id.replace("canvas:", ""))} />}
                   <span className="flex items-center opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100">
                     <button
                       type="button"

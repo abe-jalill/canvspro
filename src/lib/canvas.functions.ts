@@ -82,6 +82,8 @@ export interface CourseSummary {
 }
 
 export interface AssignmentItem {
+  /** Time saved with a manually added assignment; metadata estimates override it. */
+  estimated_minutes?: number | null;
   id: number;
   name: string;
   description?: string | null;

@@ -1,3 +1,4 @@
+import { AssignmentEstimateEditor } from "@/components/assignment-estimate";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { courseLetter, getGradeColor } from "@/lib/grade-color";
 import { useQuery, queryOptions } from "@tanstack/react-query";
@@ -379,6 +380,7 @@ function GradesPage() {
                             <div className="min-w-0">
                               <p className="truncate text-sm">{item.name}</p>
                               <AssignmentDescriptionLink assignmentId={item.id} className="mt-1" />
+                              <AssignmentEstimateEditor assignment={item} className="mt-2" />
                             </div>
                             <p className="text-sm tabular-nums">
                               <span className="font-semibold">{item.submission?.score ?? "—"}</span>
@@ -494,7 +496,7 @@ function GradesPage() {
                     <ul className="divide-y divide-foreground/10">
                       {items.map((a) => (
                         <li key={a.id} className="flex items-center justify-between gap-3 py-2.5">
-                          <p className="min-w-0 truncate text-sm">{a.name}</p>
+                          <div className="min-w-0"><p className="truncate text-sm">{a.name}</p><AssignmentEstimateEditor assignment={a} className="mt-2" /></div>
                           <div className="whitespace-nowrap text-sm tabular-nums">
                             <span className="font-semibold">{a.submission?.score ?? "—"}</span>
                             <span className="text-muted-foreground">

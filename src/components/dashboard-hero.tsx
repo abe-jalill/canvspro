@@ -1,3 +1,5 @@
+import { AssignmentEstimateEditor } from "@/components/assignment-estimate";
+import { dueTodayClass, relativeDueDay } from "@/lib/assignment-due";
 import { useEffect, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -49,6 +51,8 @@ function StatValue({ loading, children }: { loading: boolean; children: ReactNod
 }
 
 function dueLabel(dueAt: string | null, now: number) {
+  const relative = relativeDueDay(dueAt, now);
+  if (relative) return relative;
   if (!dueAt) return null;
   const milliseconds = Date.parse(dueAt) - now;
   if (!Number.isFinite(milliseconds)) return null;
@@ -170,10 +174,11 @@ export function DashboardHero() {
           </div>
 
           <div className="dashboard-hero__stat-shell rounded-[1.6rem] p-2 backdrop-blur-md">
-            <Link
+            <div className={cn("dashboard-hero__stat-card press group relative flex min-h-36 flex-col justify-between rounded-[1.2rem] p-5", nextUp && dueTodayClass(nextUp.due_at))}>
+            <Link className="relative z-10 flex flex-1 flex-col justify-between gap-3"
               to="/assignments"
               preload="intent"
-              className="dashboard-hero__stat-card press group relative flex min-h-36 flex-col justify-between rounded-[1.2rem] p-5"
+
             >
               <div className="flex items-center justify-between gap-3">
                 <span className="relative z-10 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
@@ -212,6 +217,8 @@ export function DashboardHero() {
                 </p>
               )}
             </Link>
+            {nextUp && <AssignmentEstimateEditor assignment={nextUp} className="relative z-10 mt-3 self-start" />}
+            </div>
 
             <div className="mt-2 grid grid-cols-2 gap-2">
               <Link

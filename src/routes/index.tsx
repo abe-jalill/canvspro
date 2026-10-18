@@ -77,24 +77,28 @@ const SCREENS = [
   {
     id: "dashboard",
     label: "Dashboard",
+    title: "A clearer picture of your day.",
     caption: "Your grades, the next thing to do, and everything due in the next 24 hours.",
     alt: "The CoursePro dashboard with a greeting, the next assignment up, and class grades.",
   },
   {
     id: "coming-up",
     label: "Coming up",
+    title: "Your week, with room to breathe.",
     caption: "The week ahead, one day at a time, with how long each assignment should take.",
     alt: "The Coming Up page with a seven-day strip and assignments grouped by day.",
   },
   {
     id: "study",
     label: "Study session",
+    title: "A little focus goes a long way.",
     caption: "Pick assignments, choose a total time, time per assignment, or Pomodoro, and start.",
     alt: "The Study Session page: pick assignments on the left, your session and its time on the right.",
   },
   {
     id: "assignments",
     label: "Assignments",
+    title: "The right work. In the right order.",
     caption: "Every class in one list, ordered so the most pressing work is on top.",
     alt: "The Assignments page with a weekly count and a ranked list of work.",
   },
@@ -360,6 +364,7 @@ function Shot({ id, alt, eager }: { id: string; alt: string; eager?: boolean }) 
         loading={eager ? "eager" : "lazy"}
         fetchPriority={eager ? "high" : undefined}
         decoding="async"
+        draggable={false}
       />
       <img
         className="hp-shot-light"
@@ -369,8 +374,108 @@ function Shot({ id, alt, eager }: { id: string; alt: string; eager?: boolean }) 
         height={1000}
         loading="lazy"
         decoding="async"
+        draggable={false}
       />
     </>
+  );
+}
+
+/** One idea and its real screen travel together, like turning over a flashcard. */
+function ScreenShowcase() {
+  const [screen, setScreen] = useState(0);
+  const [direction, setDirection] = useState(1);
+  const tabs = useRef<(HTMLButtonElement | null)[]>([]);
+  const touch = useRef<{ id: number; x: number; y: number } | null>(null);
+
+  function select(index: number, focus = false) {
+    const next = (index + SCREENS.length) % SCREENS.length;
+    if (next !== screen) {
+      setDirection(index > screen ? 1 : -1);
+      setScreen(next);
+    }
+    if (focus) tabs.current[next]?.focus({ preventScroll: true });
+  }
+
+  return (
+    <section id="app-preview" className="hp-screens hp-rise" aria-label="Explore CoursePro">
+      <div className="hp-tabs" role="tablist" aria-label="Screens">
+        {SCREENS.map((item, index) => (
+          <button
+            key={item.id}
+            ref={(element) => { tabs.current[index] = element; }}
+            type="button"
+            role="tab"
+            id={`hp-tab-${item.id}`}
+            aria-controls={`hp-screen-${item.id}`}
+            aria-selected={index === screen}
+            tabIndex={index === screen ? 0 : -1}
+            onClick={() => select(index)}
+            onKeyDown={(event) => {
+              const target = event.key === "ArrowRight" ? screen + 1
+                : event.key === "ArrowLeft" ? screen - 1
+                : event.key === "Home" ? 0
+                : event.key === "End" ? SCREENS.length - 1 : null;
+              if (target === null) return;
+              event.preventDefault();
+              select(target, true);
+            }}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+      <div
+        className="hp-deck"
+        style={{ "--direction": direction } as CSSProperties}
+        onPointerDown={(event) => {
+          if (event.pointerType === "mouse") return;
+          touch.current = { id: event.pointerId, x: event.clientX, y: event.clientY };
+          event.currentTarget.setPointerCapture(event.pointerId);
+        }}
+        onPointerCancel={() => { touch.current = null; }}
+        onPointerUp={(event) => {
+          const start = touch.current;
+          touch.current = null;
+          if (!start || start.id !== event.pointerId) return;
+          const dx = event.clientX - start.x;
+          const dy = event.clientY - start.y;
+          if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) select(screen + (dx < 0 ? 1 : -1));
+        }}
+      >
+        {SCREENS.map((item, index) => (
+          <figure
+            key={item.id}
+            className={"hp-screen-card" + (index === screen ? " is-shown" : "")}
+            id={`hp-screen-${item.id}`}
+            role="tabpanel"
+            aria-labelledby={`hp-tab-${item.id}`}
+            aria-hidden={index !== screen}
+            inert={index !== screen}
+            tabIndex={index === screen ? 0 : -1}
+          >
+            <figcaption className="hp-screen-card__copy">
+              <h2>{item.title}</h2>
+              <p>{item.caption}</p>
+            </figcaption>
+            <div className="hp-screens__frame">
+              <Shot id={item.id} alt={item.alt} eager={index === 0} />
+            </div>
+          </figure>
+        ))}
+      </div>
+      <div className="hp-deck__controls">
+        <button type="button" onClick={() => select(screen - 1)} aria-label="Previous screen">
+          <span aria-hidden="true">←</span>
+        </button>
+        <p className="hp-deck__position" aria-live="polite" aria-atomic="true">
+          <span>{String(screen + 1).padStart(2, "0")} / 04</span>
+          {SCREENS[screen].label}
+        </p>
+        <button type="button" onClick={() => select(screen + 1)} aria-label="Next screen">
+          <span aria-hidden="true">→</span>
+        </button>
+      </div>
+    </section>
   );
 }
 
@@ -403,7 +508,6 @@ function useBreathe() {
 
 function LandingPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [screen, setScreen] = useState(0);
   const pageRef = useBreathe();
 
   useEffect(() => {
@@ -465,42 +569,7 @@ function LandingPage() {
           </div>
         </section>
 
-        <section id="app-preview" className="hp-screens hp-rise" aria-label="The app">
-          <div className="hp-tabs" role="tablist" aria-label="Screens">
-            {SCREENS.map((item, index) => (
-              <button
-                key={item.id}
-                type="button"
-                role="tab"
-                id={`hp-tab-${item.id}`}
-                aria-controls="hp-screen-panel"
-                aria-selected={index === screen}
-                onClick={() => setScreen(index)}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-          <figure
-            className="hp-screens__stage"
-            id="hp-screen-panel"
-            role="tabpanel"
-            aria-labelledby={`hp-tab-${SCREENS[screen].id}`}
-          >
-            <div className="hp-screens__frame">
-              {SCREENS.map((item, index) => (
-                <div
-                  key={item.id}
-                  className={"hp-screens__shot" + (index === screen ? " is-shown" : "")}
-                  aria-hidden={index !== screen}
-                >
-                  <Shot id={item.id} alt={item.alt} eager={index === 0} />
-                </div>
-              ))}
-            </div>
-            <figcaption key={screen}>{SCREENS[screen].caption}</figcaption>
-          </figure>
-        </section>
+        <ScreenShowcase />
 
         <section className="hp-statement" aria-label="Why CoursePro">
           <p data-breathe>
@@ -535,8 +604,8 @@ function LandingPage() {
             </p>
           </div>
           <dl className="hp-more" data-breathe style={{ "--d": "0.12s" } as CSSProperties}>
-            {MORE.map((item) => (
-              <div key={item.title}>
+            {MORE.map((item, index) => (
+              <div key={item.title} data-breathe style={{ "--d": `${index * 0.06}s` } as CSSProperties}>
                 <dt>{item.title}</dt>
                 <dd>{item.body}</dd>
               </div>

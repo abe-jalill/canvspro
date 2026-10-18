@@ -1,3 +1,5 @@
+import { AssignmentEstimateEditor } from "@/components/assignment-estimate";
+import { dueTodayClass, formatAssignmentDue } from "@/lib/assignment-due";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, queryOptions } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -28,7 +30,7 @@ import { cn } from "@/lib/utils";
 import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
 import { displayCourseName } from "@/lib/course-display";
 import { useLocalSet, COMPLETED_ASSIGNMENTS_KEY } from "@/lib/local-state";
-import { useAssignmentMetaMap, useSetAssignmentEstimate } from "@/hooks/use-assignment-meta";
+import { useAssignmentMetaMap } from "@/hooks/use-assignment-meta";
 import {
   buildTodayPlan,
   rankGetItDoneAssignments,
@@ -117,21 +119,7 @@ function useStoredPrefs() {
 }
 
 function dueLabel(dueAt: string | null) {
-  if (!dueAt) return "No due date";
-  const due = new Date(dueAt);
-  if (Number.isNaN(due.getTime())) return "No due date";
-  const time = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(due);
-  const startOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-  const days = Math.round((startOf(due) - startOf(new Date())) / 86_400_000);
-  if (days < 0) return `Was due ${new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(due)}`;
-  if (days === 0) return `Due today, ${time}`;
-  if (days === 1) return `Due tomorrow, ${time}`;
-  const day = new Intl.DateTimeFormat(undefined, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  }).format(due);
-  return `Due ${day}, ${time}`;
+  return formatAssignmentDue(dueAt);
 }
 
 /** Only states that need attention get a tag; "not started" is the default. */
@@ -166,7 +154,6 @@ function GetItDonePage() {
   const custom = useCustomAssignments();
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
   const metaMap = useAssignmentMetaMap();
-  const setEstimate = useSetAssignmentEstimate();
   const [prefs, setPrefs] = useStoredPrefs();
   const [choiceOffset, setChoiceOffset] = useState(0);
   const now = Date.now();
@@ -368,14 +355,7 @@ function GetItDonePage() {
         onSkip={skipAssignment}
         onMove={movePlanItem}
         onRegenerate={regeneratePlan}
-        onEstimate={(assignment, minutes) =>
-          setEstimate.mutate({
-            assignmentId: assignment.id,
-            courseId: assignment.course_id,
-            minutes,
-          })
-        }
-        estimatePending={setEstimate.isPending}
+
       />
 
       <LookingAhead windowDays={prefs.windowDays} onChange={setWindowDays} />
@@ -441,7 +421,7 @@ function RecommendationCard({
   const estimate = item.estimatedMinutes ?? defaultEstimateMinutes(assignment);
 
   return (
-    <section className="premium-reveal min-w-0 rounded-lg border border-foreground/15 p-5 sm:p-6">
+    <section className={cn("premium-reveal min-w-0 rounded-lg border border-foreground/15 p-5 sm:p-6", dueTodayClass(assignment.due_at, completed))}>
       <div className="flex items-start gap-3.5">
         <CompleteToggle
           done={completed}
@@ -506,6 +486,7 @@ function RecommendationCard({
             <ExternalLink className="h-3.5 w-3.5" />
           </a>
         )}
+        <AssignmentEstimateEditor assignment={assignment} />
         <AssignmentDescriptionLink assignmentId={assignment.id} />
       </div>
     </section>
@@ -520,8 +501,6 @@ function TodayPlanCard({
   onSkip,
   onMove,
   onRegenerate,
-  onEstimate,
-  estimatePending,
 }: {
   plan: PlanItem[];
   completed: ReturnType<typeof useLocalSet>;
@@ -530,8 +509,6 @@ function TodayPlanCard({
   onSkip: (id: number) => void;
   onMove: (id: number, direction: -1 | 1) => void;
   onRegenerate: () => void;
-  onEstimate: (assignment: AssignmentItem, minutes: number | null) => void;
-  estimatePending: boolean;
 }) {
   // The suggestion above is already the first thing on the plan, so the list
   // only shows what comes after it.
@@ -571,8 +548,6 @@ function TodayPlanCard({
                 onStart={() => onStart(item.assignment)}
                 onSkip={() => onSkip(item.assignment.id)}
                 onMove={(direction) => onMove(item.assignment.id, direction)}
-                onEstimate={(minutes) => onEstimate(item.assignment, minutes)}
-                estimatePending={estimatePending}
               />
             ),
           )}
@@ -591,8 +566,6 @@ function PlanRow({
   onStart,
   onSkip,
   onMove,
-  onEstimate,
-  estimatePending,
 }: {
   item: PlanItem;
   index: number;
@@ -602,29 +575,17 @@ function PlanRow({
   onStart: () => void;
   onSkip: () => void;
   onMove: (direction: -1 | 1) => void;
-  onEstimate: (minutes: number | null) => void;
-  estimatePending: boolean;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [minutes, setMinutes] = useState(String(item.estimatedMinutes ?? item.plannedMinutes));
   const assignment = item.assignment;
   const tag = attentionTag(assignment, done);
 
-  useEffect(() => {
-    setMinutes(String(item.estimatedMinutes ?? item.plannedMinutes));
-  }, [item.estimatedMinutes, item.plannedMinutes]);
-
-  function saveEstimate() {
-    const parsed = Number(minutes);
-    onEstimate(Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : null);
-    setEditing(false);
-  }
 
   return (
     <li
       className={cn(
         "group grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3.5 rounded-lg border border-foreground/15 px-4 py-3.5",
         done && "opacity-55",
+        dueTodayClass(assignment.due_at, done),
       )}
     >
       <CompleteToggle done={done} onToggle={onToggle} label={assignment.name} className="mt-0.5" />
@@ -640,45 +601,7 @@ function PlanRow({
       </div>
 
       <div className="flex items-center gap-1">
-        {editing ? (
-          <form
-            className="flex items-center gap-1.5"
-            onSubmit={(event) => {
-              event.preventDefault();
-              saveEstimate();
-            }}
-          >
-            <input
-              type="number"
-              min={5}
-              step={5}
-              value={minutes}
-              autoFocus
-              onChange={(event) => setMinutes(event.target.value)}
-              className="h-8 w-16 rounded-lg border border-glass-border bg-background/50 px-2 text-xs outline-none focus:ring-1 focus:ring-primary"
-              aria-label={`Estimated minutes for ${assignment.name}`}
-            />
-            <button
-              type="submit"
-              disabled={estimatePending}
-              className="glass-hover h-8 rounded-lg border border-glass-border px-2.5 text-xs font-medium disabled:opacity-50"
-            >
-              Save
-            </button>
-          </form>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            title="Change time estimate"
-            aria-label={`Time estimate for ${assignment.name}: ${formatMinutes(
-              item.estimatedMinutes ?? defaultEstimateMinutes(assignment),
-            )}. Change`}
-            className="inline-flex h-8 items-center rounded-lg px-2 text-xs tabular-nums text-muted-foreground transition-colors hover:text-foreground"
-          >
-            {formatMinutes(item.estimatedMinutes ?? defaultEstimateMinutes(assignment))}
-          </button>
-        )}
+        <AssignmentEstimateEditor assignment={assignment} />
 
         <DropdownMenu>
           <DropdownMenuTrigger

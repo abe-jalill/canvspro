@@ -716,6 +716,135 @@
   border-top: 0;
 }
 
+/* A centered introduction, then one idea and its screen on each card. */
+.hp-home .hp-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 26px;
+  padding: clamp(48px, 6vw, 72px) 0 clamp(40px, 5vw, 56px);
+  text-align: center;
+}
+.hp-home .hp-hero h1 {
+  max-width: 24ch;
+  font-size: clamp(2.6rem, 5.5vw, 4.8rem);
+  line-height: 1.04;
+}
+.hp-home .hp-hero__side {
+  display: grid;
+  justify-items: center;
+  gap: 26px;
+}
+.hp-home .hp-lede {
+  max-width: 45ch;
+  text-wrap: pretty;
+}
+.hp-home .hp-hero .hp-actions { justify-content: center; margin-top: 0; }
+.hp-home .hp-button { transition: opacity 180ms, transform 250ms var(--ease); }
+.hp-home .hp-button:hover { transform: translateY(-2px); }
+.hp-home .hp-button:active { transform: translateY(0) scale(0.98); }
+.hp-home .hp-screens { text-align: center; scroll-margin-top: 28px; }
+.hp-home .hp-tabs { margin-bottom: clamp(32px, 5vw, 56px); }
+.hp-home .hp-tabs button { transition: color 200ms, background-color 250ms, transform 250ms; }
+.hp-home .hp-tabs button:active { transform: scale(0.96); }
+.hp-deck { display: grid; perspective: 1800px; touch-action: pan-y pinch-zoom; }
+.hp-screen-card {
+  grid-area: 1 / 1;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(24px, 4vw, 40px);
+  min-width: 0;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform-origin: 50% 65%;
+}
+.hp-screen-card.is-shown { opacity: 1; visibility: visible; pointer-events: auto; z-index: 1; }
+.hp-home .hp-screens .hp-screen-card__copy {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 14px;
+  min-height: 148px;
+  width: 100%;
+  max-width: none;
+  margin: 0 auto;
+  color: var(--ink);
+}
+.hp-home .hp-screen-card__copy h2 { max-width: 24ch; font-size: clamp(1.8rem, 4.1vw, 3.7rem); }
+.hp-screen-card__copy p { max-width: 54ch; color: var(--ink-2); font-size: clamp(1rem, 1.6vw, 1.15rem); text-wrap: pretty; }
+.hp-home .hp-screen-card .hp-screens__frame {
+  width: 100%;
+  margin-top: auto;
+  border-radius: clamp(12px, 2vw, 22px);
+  box-shadow: 0 24px 64px -36px rgb(0 0 0 / 0.6);
+}
+.hp-screen-card img { width: 100%; height: 100%; vertical-align: middle; object-fit: cover; user-select: none; }
+.hp-deck__controls { display: flex; align-items: center; justify-content: center; gap: 24px; margin-top: 26px; }
+.hp-deck__controls button {
+  display: grid; place-items: center;
+  width: 46px; height: 46px;
+  border: 1px solid var(--line-2); border-radius: 50%;
+  background: var(--surface); color: var(--ink);
+  font: inherit; font-size: 22px; cursor: pointer;
+  transition: transform 220ms var(--ease), border-color 220ms;
+}
+.hp-deck__controls button:hover { transform: translateY(-2px); border-color: var(--ink-2); }
+.hp-deck__controls button:active { transform: scale(0.92); }
+.hp-deck__position { display: grid; gap: 2px; min-width: 132px; font-size: 13px; color: var(--ink-2); }
+.hp-deck__position span { font-variant-numeric: tabular-nums; letter-spacing: 0.1em; color: var(--ink-3); font-size: 11px; }
+.hp-home .hp-statement { text-align: center; }
+.hp-home .hp-statement p { max-width: 22ch; margin-inline: auto; }
+.hp-home .hp-split { grid-template-columns: minmax(0, 1fr); gap: 36px; padding-top: 44px; }
+.hp-home .hp-split__text { justify-items: center; max-width: 42em; margin-inline: auto; text-align: center; }
+.hp-home .hp-split__text p { max-width: 42em; }
+.hp-home .hp-week { width: 100%; max-width: 760px; margin-inline: auto; text-align: left; }
+.hp-home .hp-more { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px 44px; }
+.hp-home .hp-more > div { padding-top: 24px; border-top: 1px solid var(--line); }
+.hp-home .hp-setup { margin-inline: auto; text-align: center; }
+.hp-home .hp-faq { width: 100%; max-width: 760px; margin-inline: auto; }
+.hp-home .hp-faq__q { text-align: left; }
+.hp-home .hp-end { text-align: center; }
+.hp-home .hp-end h2 { max-width: 19ch; margin-inline: auto; }
+.hp-home .hp-end .hp-actions { justify-content: center; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .hp-screen-card {
+    transform: translate3d(calc(var(--direction) * -22px), -24px, -60px) rotateX(5deg) rotateZ(calc(var(--direction) * -1deg)) scale(0.97);
+    transition: transform 700ms var(--ease), opacity 300ms ease, visibility 0s 700ms;
+  }
+  .hp-screen-card.is-shown {
+    transform: none;
+    transition: transform 800ms var(--ease), opacity 500ms ease 100ms, visibility 0s;
+  }
+  .hp-screen-card.is-shown .hp-screen-card__copy { animation: hp-card-copy 650ms var(--ease) both; }
+  .hp-home [data-breathe] { transition-duration: 800ms, 1000ms; }
+}
+@keyframes hp-card-copy { from { opacity: 0; transform: translateY(12px); } }
+@media (max-width: 760px) {
+  .hp-home .hp-more { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 28px; }
+}
+@media (max-width: 480px) {
+  .hp-home { --width: min(1120px, 100% - 32px); }
+  .hp-home .hp-bar { height: auto; min-height: 72px; flex-wrap: wrap; gap: 12px; padding-block: 14px; }
+  .hp-home .hp-bar__links { flex-wrap: wrap; justify-content: flex-end; gap: 10px 14px; max-width: 100%; margin-left: auto; }
+  .hp-home .hp-hero { padding-top: 40px; gap: 22px; }
+  .hp-home .hp-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
+  .hp-home .hp-tabs button { padding-inline: 8px; min-height: 44px; }
+  .hp-home .hp-screens .hp-screen-card__copy { min-height: 178px; gap: 12px; }
+  .hp-home .hp-screen-card__copy h2 { font-size: clamp(1.75rem, 7.7vw, 2.25rem); }
+  .hp-home .hp-more { grid-template-columns: 1fr; }
+  .hp-home .hp-split { padding-top: 32px; gap: 28px; }
+  .hp-home .hp-end .hp-actions { flex-direction: column; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hp-home .hp-screen-card,
+  .hp-home .hp-screen-card__copy,
+  .hp-home .hp-button,
+  .hp-home .hp-tabs button,
+  .hp-home .hp-deck__controls button { animation: none; transition: none; transform: none; }
+}
+
 /* ── Inner pages (components/public-page.tsx): pricing, support, legal, guides ── */
 .hp-page {
   width: min(760px, 100% - 48px);

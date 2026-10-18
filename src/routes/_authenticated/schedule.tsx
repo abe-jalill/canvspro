@@ -1,3 +1,4 @@
+import { CachedAssignmentEstimate } from "@/components/assignment-estimate";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, queryOptions } from "@tanstack/react-query";
 import { useState } from "react";
@@ -20,6 +21,7 @@ import { SkeletonBlock, WorkloadHeatmapSkeleton } from "@/components/skeletons/d
 import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
 import { useCalendarPicks } from "@/lib/calendar-picks";
 import { X } from "lucide-react";
+import { dueTodayClass, relativeDueDay } from "@/lib/assignment-due";
 
 export const Route = createFileRoute("/_authenticated/schedule")({
   head: () => ({
@@ -203,7 +205,7 @@ function SchedulePage() {
               <div key={day}>
                 <div className="mb-2 flex items-baseline justify-between border-b border-foreground/10 pb-2">
                   <h3 className="text-sm font-semibold tracking-tight">
-                    {new Date(day).toLocaleDateString(undefined, {
+                    {relativeDueDay(day) ?? new Date(day).toLocaleDateString(undefined, {
                       weekday: "long",
                       month: "long",
                       day: "numeric",
@@ -217,7 +219,7 @@ function SchedulePage() {
                   {dayItems.map((it) => (
                     <li
                       key={it.key}
-                      className="glass-inset glass-hover flex items-start justify-between gap-3 p-3"
+                      className={`glass-inset glass-hover flex items-start justify-between gap-3 p-3 ${it.kind === "assignment" ? dueTodayClass(it.when.toISOString()) : ""}`}
                     >
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium">{it.title}</p>
@@ -232,6 +234,7 @@ function SchedulePage() {
                             className="mt-1"
                           />
                         )}
+                        {it.assignmentId != null && <CachedAssignmentEstimate assignmentId={it.assignmentId} className="mt-2" />}
                       </div>
                       {it.kind === "pick" && it.assignmentId != null ? (
                         <div className="flex shrink-0 items-center gap-1.5">

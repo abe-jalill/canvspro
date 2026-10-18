@@ -1,4 +1,5 @@
 // Countdown label + urgency for assignment due dates.
+import { formatAssignmentDue, relativeDueDay } from "./assignment-due.ts";
 
 export type Urgency = "overdue" | "today" | "soon" | "later" | "none";
 
@@ -24,13 +25,8 @@ export function getCountdown(
   if (Number.isNaN(dueDate.getTime())) return null;
 
   const now = new Date();
-  const fullDate = dueDate.toLocaleString(undefined, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  const fullDate = formatAssignmentDue(due, now.getTime());
+  const relative = relativeDueDay(due, now.getTime());
 
   const daysLeft = Math.round(
     (startOfDay(dueDate).getTime() - startOfDay(now).getTime()) /
@@ -41,12 +37,12 @@ export function getCountdown(
   if (opts?.completed) {
     return {
       label:
-        daysLeft >= 0
+        relative ?? (daysLeft >= 0
           ? dueDate.toLocaleDateString(undefined, {
               month: "short",
               day: "numeric",
             })
-          : "Completed",
+          : "Completed"),
       urgency: "none",
       daysLeft,
       fullDate,
@@ -54,13 +50,13 @@ export function getCountdown(
   }
 
   if (dueDate.getTime() < now.getTime()) {
-    return { label: "Overdue", urgency: "overdue", daysLeft, fullDate };
+    return { label: relative ?? "Overdue", urgency: "overdue", daysLeft, fullDate };
   }
   if (daysLeft <= 0) {
-    return { label: "Due today", urgency: "today", daysLeft, fullDate };
+    return { label: "Today", urgency: "today", daysLeft, fullDate };
   }
   if (daysLeft === 1) {
-    return { label: "Due tomorrow", urgency: "soon", daysLeft, fullDate };
+    return { label: "Tomorrow", urgency: "soon", daysLeft, fullDate };
   }
   if (daysLeft <= 6) {
     return {
@@ -82,7 +78,7 @@ export function urgencyTextClass(u: Urgency): string {
   switch (u) {
     case "overdue":
     case "today":
-      return "text-white font-semibold";
+      return "text-foreground font-semibold";
     case "soon":
       return "text-foreground/85";
     case "later":

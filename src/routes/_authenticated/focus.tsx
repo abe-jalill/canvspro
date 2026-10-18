@@ -1,3 +1,5 @@
+import { AssignmentEstimateEditor } from "@/components/assignment-estimate";
+import { dueTodayClass, formatAssignmentDue, relativeDueDay } from "@/lib/assignment-due";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, queryOptions } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -411,7 +413,7 @@ function groupByDay(items: AssignmentItem[], today: number) {
       } else {
         key = String(start);
         label = dayHeading(start, today);
-        date = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(start);
+        date = relativeDueDay(a.due_at) ? null : new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(start);
       }
     }
     const g = groups.get(key) ?? { key, label, date, items: [] };
@@ -460,7 +462,7 @@ function FocusRow({
       : null;
   const date =
     due != null && showDate
-      ? new Intl.DateTimeFormat(undefined, { weekday: "short", month: "short", day: "numeric" }).format(due)
+      ? formatAssignmentDue(a.due_at, Date.now(), false)
       : null;
   const missing = !done && a.submission?.missing;
 
@@ -469,6 +471,7 @@ function FocusRow({
       className={cn(
         "group grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3.5 rounded-lg border border-foreground/15 px-4 py-3.5",
         done && "opacity-55",
+        dueTodayClass(a.due_at, done),
       )}
     >
       <button
@@ -491,10 +494,11 @@ function FocusRow({
         <p className={cn("text-[15px] leading-snug", done && "line-through")}>{a.name}</p>
         <p className="mt-1 text-xs text-muted-foreground">
           {showCourse && <span>{course} · </span>}
-          <span>about {formatMinutes(estimate)}</span>
+
           {done && <span> · {canvasDone ? "Done in Canvas" : "Marked done"}</span>}
           {missing && <span> · Missing</span>}
         </p>
+        <AssignmentEstimateEditor assignment={a} className="mt-2" />
         <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100">
           <AssignmentDescriptionLink assignmentId={a.id} />
           {a.html_url && (
@@ -510,7 +514,7 @@ function FocusRow({
         </div>
       </div>
       <p className="whitespace-nowrap pt-0.5 text-right text-xs tabular-nums text-muted-foreground">
-        {date ? `${date}${time ? ` · ${time}` : ""}` : (time ?? "No due date")}
+        {date ? `${date}${time ? ` · ${time}` : ""}` : relativeDueDay(a.due_at) ? formatAssignmentDue(a.due_at) : (time ?? "No due date")}
       </p>
     </li>
   );
