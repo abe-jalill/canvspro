@@ -118,9 +118,11 @@ struct CustomAssignment: Codable, Identifiable, Hashable {
     var pointsPossible: Double?
     var notes: String
     var createdAt: String
+    var estimatedMinutes: Int? = nil
     enum CodingKeys: String, CodingKey {
         case id, name, notes
         case courseID = "course_id"; case dueAt = "due_at"; case pointsPossible = "points_possible"; case createdAt = "created_at"
+        case estimatedMinutes = "estimated_minutes"
     }
 }
 
@@ -666,11 +668,23 @@ final class NativeFeatureStore: ObservableObject {
 
 extension AssignmentItem {
     static func custom(_ item: CustomAssignment, course: CourseSummary?) -> AssignmentItem {
-        AssignmentItem(id: item.id, name: item.name, description: item.notes, dueAt: item.dueAt, htmlURL: "", pointsPossible: item.pointsPossible, courseID: item.courseID, courseName: course?.name ?? "", courseCode: course?.courseCode ?? "", submission: nil)
+        AssignmentItem(id: item.id, name: item.name, description: item.notes, dueAt: item.dueAt, htmlURL: "", pointsPossible: item.pointsPossible, courseID: item.courseID, courseName: course?.name ?? "", courseCode: course?.courseCode ?? "", submission: nil, estimatedMinutes: item.estimatedMinutes)
     }
 }
 
 enum NativeParity {
+    static func relativeDueDay(_ due: Date, now: Date = Date()) -> String? {
+        let calendar = Calendar.current
+        if calendar.isDate(due, inSameDayAs: now) { return "Today" }
+        if let tomorrow = calendar.date(byAdding: .day, value: 1, to: now), calendar.isDate(due, inSameDayAs: tomorrow) { return "Tomorrow" }
+        return nil
+    }
+
+    static func dueDisplay(_ due: Date, now: Date = Date(), includeTime: Bool = true) -> String {
+        let day = relativeDueDay(due, now: now) ?? due.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
+        return includeTime ? "\(day) · \(due.formatted(.dateTime.hour().minute()))" : day
+    }
+
     struct Countdown {
         let label: String
         let urgency: String
@@ -680,12 +694,16 @@ enum NativeParity {
     static func countdown(_ item: AssignmentItem, completed: Bool, now: Date = Date()) -> Countdown? {
         guard let due = item.dueDate else { return nil }
         let days = Calendar.current.dateComponents([.day], from: Calendar.current.startOfDay(for: now), to: Calendar.current.startOfDay(for: due)).day ?? 0
-        let fullDate = due.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().hour().minute())
+        let fullDate = dueDisplay(due, now: now)
         let shortDate = due.formatted(.dateTime.month(.abbreviated).day())
-        if completed { return Countdown(label: days >= 0 ? shortDate : "Completed", urgency: "none", fullDate: fullDate) }
-        if due < now { return Countdown(label: "Past due", urgency: "overdue", fullDate: fullDate) }
-        if days <= 0 { return Countdown(label: "Due today", urgency: "today", fullDate: fullDate) }
-        if days == 1 { return Countdown(label: "Due tomorrow", urgency: "soon", fullDate: fullDate) }
+        let relative = relativeDueDay(due, now: now)
+        if completed { return Countdown(label: relative ?? (days >= 0 ? shortDate : "Completed"), urgency: "none", fullDate: fullDate) }
+        if due < now {
+            if let relative { return Countdown(label: relative, urgency: "overdue", fullDate: fullDate) }
+            return Countdown(label: "Past due", urgency: "overdue", fullDate: fullDate)
+        }
+        if days <= 0 { return Countdown(label: "Today", urgency: "today", fullDate: fullDate) }
+        if days == 1 { return Countdown(label: "Tomorrow", urgency: "soon", fullDate: fullDate) }
         if days <= 6 { return Countdown(label: "\(days) days left", urgency: days <= 3 ? "soon" : "later", fullDate: fullDate) }
         return Countdown(label: "Due \(shortDate)", urgency: "later", fullDate: fullDate)
     }
@@ -737,6 +755,7 @@ enum NativeParity {
     }
 
     static func defaultEstimate(_ item: AssignmentItem) -> Int {
+        if let saved = item.estimatedMinutes, saved > 0 { return saved }
         let points = item.pointsPossible ?? 0
         if points >= 100 { return 90 }
         if points >= 50 { return 60 }

@@ -359,10 +359,10 @@ private struct CanvasProArc<Center: View>: View {
 enum CanvasProWidgetFormat {
     static func time(_ date: Date) -> String { date.formatted(date: .omitted, time: .shortened) }
 
-    /// "11:59 PM" today, "Tmrw 9:00 AM", then "Thu 5:00 PM".
+    /// Local day labels for today's and tomorrow's deadlines.
     static func due(_ date: Date, now: Date, calendar: Calendar = .current) -> String {
-        if calendar.isDate(date, inSameDayAs: now) { return time(date) }
-        if let tomorrow = calendar.date(byAdding: .day, value: 1, to: now), calendar.isDate(date, inSameDayAs: tomorrow) { return "Tmrw \(time(date))" }
+        if calendar.isDate(date, inSameDayAs: now) { return "Today \(time(date))" }
+        if let tomorrow = calendar.date(byAdding: .day, value: 1, to: now), calendar.isDate(date, inSameDayAs: tomorrow) { return "Tomorrow \(time(date))" }
         return "\(date.formatted(.dateTime.weekday(.abbreviated))) \(time(date))"
     }
 

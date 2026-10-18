@@ -1,6 +1,5 @@
 import { useCallback, useMemo } from "react";
 import { useUserPreferenceKey } from "@/hooks/use-user-preferences";
-import type { AssignmentItem } from "@/lib/canvas.functions";
 
 export const CUSTOM_ASSIGNMENTS_KEY = "custom-assignments";
 
@@ -13,6 +12,7 @@ export interface CustomAssignment {
   points_possible: number | null;
   notes: string;
   created_at: string;
+  estimated_minutes?: number | null;
 }
 
 function readList(value: unknown): CustomAssignment[] {
@@ -27,22 +27,7 @@ function readList(value: unknown): CustomAssignment[] {
   );
 }
 
-/** Turn a user-created assignment into the same shape as a Canvas assignment. */
-export function customToAssignmentItem(
-  custom: CustomAssignment,
-  course: { name: string; course_code: string } | undefined,
-): AssignmentItem {
-  return {
-    id: custom.id,
-    name: custom.name,
-    due_at: custom.due_at,
-    html_url: "",
-    points_possible: custom.points_possible,
-    course_id: custom.course_id,
-    course_name: course?.name ?? "",
-    course_code: course?.course_code ?? "",
-  };
-}
+export { customToAssignmentItem } from "./assignment-sources.ts";
 
 export function isCustomAssignmentId(id: number) {
   return id < 0;
@@ -73,6 +58,7 @@ export function useCustomAssignments() {
       due_at: string | null;
       points_possible: number | null;
       notes: string;
+      estimated_minutes?: number | null;
     }) => {
       const item: CustomAssignment = {
         ...input,

@@ -1,6 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import { createOptimisticWrites } from "@/lib/optimistic-writes";
+import { parseEstimateMinutes } from "@/lib/assignment-estimates";
+
+const estimateWrites = new WeakMap<object, ReturnType<typeof createOptimisticWrites>>();
+const estimateMutationKey = ["save-assignment-estimate"] as const;
 
 export const assignmentMetaQueryKey = ["user-assignment-meta"] as const;
 
@@ -38,7 +43,11 @@ export function useAssignmentMeta() {
 
 export function useSetAssignmentEstimate() {
   const qc = useQueryClient();
+  const tracker = estimateWrites.get(qc) ?? createOptimisticWrites();
+  estimateWrites.set(qc, tracker);
   return useMutation({
+    mutationKey: estimateMutationKey,
+    scope: { id: "assignment-estimates" },
     mutationFn: async ({
       assignmentId,
       courseId,
@@ -48,6 +57,8 @@ export function useSetAssignmentEstimate() {
       courseId: number;
       minutes: number | null;
     }) => {
+      if (minutes != null && parseEstimateMinutes(String(minutes)) == null)
+        throw new Error("Enter a whole number from 1 to 480 minutes.");
       const { data: userData } = await supabase.auth.getUser();
       const user = userData.user;
       if (!user) throw new Error("You must be signed in.");
@@ -68,27 +79,45 @@ export function useSetAssignmentEstimate() {
       await qc.cancelQueries({ queryKey: assignmentMetaQueryKey });
       const previous = qc.getQueryData<AssignmentMeta[]>(assignmentMetaQueryKey);
       const old = (previous ?? []).find((m) => m.assignmentId === assignmentId);
+      const ticket = tracker.start(String(assignmentId), old?.estimatedMinutes ?? null);
       const rest = (previous ?? []).filter((m) => m.assignmentId !== assignmentId);
       qc.setQueryData<AssignmentMeta[]>(assignmentMetaQueryKey, [
         ...rest,
-        { assignmentId, courseId, estimatedMinutes: minutes, progressPercent: old?.progressPercent ?? null },
+        {
+          assignmentId,
+          courseId,
+          estimatedMinutes: minutes,
+          progressPercent: old?.progressPercent ?? null,
+        },
       ]);
-      return { previous };
+      return ticket;
     },
-    onError: (_err, _vars, context) => {
-      if (context?.previous) qc.setQueryData(assignmentMetaQueryKey, context.previous);
+    onError: (_err, variables, context) => {
+      const rollback = context ? tracker.rollback(context) : null;
+      if (rollback?.apply) {
+        qc.setQueryData<AssignmentMeta[]>(assignmentMetaQueryKey, (current) =>
+          (current ?? []).map((row) =>
+            row.assignmentId === variables.assignmentId
+              ? { ...row, estimatedMinutes: rollback.value as number | null }
+              : row,
+          ),
+        );
+      }
     },
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: assignmentMetaQueryKey });
+    onSuccess: (saved, _variables, context) => {
+      if (context) tracker.commit(context, saved.minutes);
+    },
+    onSettled: (_data, _error, _variables, context) => {
+      if (context) tracker.finish(context);
+      if (qc.isMutating({ mutationKey: estimateMutationKey }) === 1)
+        return qc.invalidateQueries({ queryKey: assignmentMetaQueryKey });
     },
   });
 }
 
 export function useAssignmentMetaMap(): Map<number, AssignmentMeta> {
   const query = useAssignmentMeta();
-  return new Map(
-    (query.data ?? []).map((m) => [m.assignmentId, m]),
-  );
+  return new Map((query.data ?? []).map((m) => [m.assignmentId, m]));
 }
 
 export function useSetAssignmentProgress() {
@@ -124,7 +153,12 @@ export function useSetAssignmentProgress() {
       const rest = (previous ?? []).filter((m) => m.assignmentId !== assignmentId);
       qc.setQueryData<AssignmentMeta[]>(assignmentMetaQueryKey, [
         ...rest,
-        { assignmentId, courseId, estimatedMinutes: old?.estimatedMinutes ?? null, progressPercent: percent },
+        {
+          assignmentId,
+          courseId,
+          estimatedMinutes: old?.estimatedMinutes ?? null,
+          progressPercent: percent,
+        },
       ]);
       return { previous };
     },

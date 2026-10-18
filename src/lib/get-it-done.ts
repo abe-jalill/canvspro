@@ -78,6 +78,9 @@ export function assignmentIsComplete(
 }
 
 export function defaultEstimateMinutes(assignment: AssignmentItem): number {
+  if (assignment.estimated_minutes != null && Number.isFinite(assignment.estimated_minutes) && assignment.estimated_minutes > 0) {
+    return assignment.estimated_minutes;
+  }
   const points = assignment.points_possible ?? 0;
   if (points >= 100) return 90;
   if (points >= 50) return 60;

@@ -1,3 +1,4 @@
+import { AssignmentEstimateEditor } from "@/components/assignment-estimate";
 import { useMemo } from "react";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { Link } from "@tanstack/react-router";
@@ -10,10 +11,8 @@ import { buildPriorityQueue, describePriorityQueue } from "@/lib/get-it-done";
 import { PriorityBadge } from "@/components/priority-badge";
 import { cn } from "@/lib/utils";
 import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
-import { useAssignmentMetaMap, useSetAssignmentEstimate } from "@/hooks/use-assignment-meta";
-import { Clock } from "lucide-react";
+import { useAssignmentMetaMap } from "@/hooks/use-assignment-meta";
 import { CompleteToggle } from "@/components/complete-toggle";
-import { useState } from "react";
 
 const assignmentsQO = queryOptions({
   queryKey: ["canvas", "assignments"],
@@ -26,46 +25,6 @@ const coursesQO = queryOptions({
   queryFn: () => getCoursesFn(),
   staleTime: 5 * 60_000,
 });
-
-function EstimateEditor({
-  assignmentId,
-  courseId,
-  minutes,
-}: {
-  assignmentId: number;
-  courseId: number;
-  minutes: number | null;
-}) {
-  const [draft, setDraft] = useState<string>(minutes === null ? "" : String(minutes));
-  const { mutate, isPending } = useSetAssignmentEstimate();
-
-  function save() {
-    const value = parseInt(draft, 10);
-    mutate({
-      assignmentId,
-      courseId,
-      minutes: Number.isNaN(value) || value <= 0 ? null : value,
-    });
-  }
-
-  return (
-    <div className="flex items-center gap-2 text-xs">
-      <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-      <input
-        type="number"
-        min={0}
-        step={15}
-        placeholder="Time est. (min)"
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={save}
-        onKeyDown={(e) => e.key === "Enter" && save()}
-        disabled={isPending}
-        className="w-28 rounded-md border border-foreground/10 bg-background/50 px-2 py-1 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
-      />
-    </div>
-  );
-}
 
 export function PriorityAssignmentsWidget() {
   const assignments = useQuery(assignmentsQO);
@@ -157,11 +116,7 @@ export function PriorityAssignmentsWidget() {
                 </div>
                 <PriorityBadge urgency={p.urgency} />
               </div>
-              <EstimateEditor
-                assignmentId={p.assignment.id}
-                courseId={p.assignment.course_id}
-                minutes={p.estimatedMinutes}
-              />
+              <AssignmentEstimateEditor assignment={p.assignment} />
             </li>
           ))}
         </ul>

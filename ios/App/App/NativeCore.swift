@@ -227,6 +227,7 @@ struct AssignmentItem: Codable, Identifiable, Hashable {
     /// When Canvas opens it ("Available from", or the module's unlock date).
     /// Missing on older data and custom work, which count as open.
     var unlockAt: String? = nil
+    var estimatedMinutes: Int? = nil
 
     enum CodingKeys: String, CodingKey {
         case id, name, description
@@ -238,6 +239,7 @@ struct AssignmentItem: Codable, Identifiable, Hashable {
         case courseCode = "course_code"
         case submission
         case unlockAt = "unlock_at"
+        case estimatedMinutes = "estimated_minutes"
     }
 }
 
@@ -411,7 +413,8 @@ extension AssignmentItem {
             courseID: try c.decode(Int.self, forKey: .courseID),
             courseName: (try? c.decodeIfPresent(String.self, forKey: .courseName)) ?? "",
             courseCode: (try? c.decodeIfPresent(String.self, forKey: .courseCode)) ?? "",
-            submission: (try? c.decodeIfPresent(AssignmentSubmission.self, forKey: .submission))
+            submission: (try? c.decodeIfPresent(AssignmentSubmission.self, forKey: .submission)),
+            estimatedMinutes: (try? c.decodeIfPresent(Int.self, forKey: .estimatedMinutes))
         )
     }
 }

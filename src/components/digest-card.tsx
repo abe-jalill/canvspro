@@ -1,3 +1,4 @@
+import { AssignmentEstimateEditor } from "@/components/assignment-estimate";
 import { useEffect, useMemo } from "react";
 import { Link } from "@tanstack/react-router";
 import { Bell, TrendingUp, Clock, Check } from "lucide-react";
@@ -6,6 +7,7 @@ import { GlassCard } from "@/components/glass-card";
 import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
 import { displayCourseName } from "@/lib/course-display";
 import { getCountdown } from "@/lib/countdown";
+import { dueTodayClass, relativeDueDay } from "@/lib/assignment-due";
 import { isAssignmentVisible } from "@/lib/assignment-window";
 import { COMPLETED_ASSIGNMENTS_KEY, useLocalSet } from "@/lib/local-state";
 import {
@@ -225,6 +227,7 @@ export function DigestCard({ announcements, assignments, courses }: Props) {
                   View grade
                 </Link>
                 <AssignmentDescriptionLink assignmentId={a.id} />
+                <AssignmentEstimateEditor assignment={a} />
               </div>
             </div>
           ))}
@@ -237,12 +240,12 @@ export function DigestCard({ announcements, assignments, courses }: Props) {
           emptyText="Nothing new due soon"
         >
           {newlyUrgent.map(({ a, urgency }) => (
+            <div key={a.id} className={`glass-inset glass-hover block p-2.5 ${dueTodayClass(a.due_at)}`}>
             <Link
-              key={a.id}
               to="/assignments"
               search={{ assignment: String(a.id) }}
               preload="intent"
-              className="glass-inset glass-hover block p-2.5"
+              className="block"
             >
               <p className="truncate text-xs font-medium">{a.name}</p>
               <div className="mt-0.5 flex items-baseline justify-between gap-2">
@@ -250,13 +253,15 @@ export function DigestCard({ announcements, assignments, courses }: Props) {
                   {courseName(a.course_id, a.course_name, a.course_code)}
                 </p>
                 <p className="whitespace-nowrap text-[11px] font-semibold">
-                  {urgency === "today" ? "Due today" : "Due soon"}
+                  {relativeDueDay(a.due_at) ?? (urgency === "today" ? "Today" : "Due soon")}
                 </p>
               </div>
               <span className="mt-1.5 block text-[11px] font-medium text-muted-foreground underline decoration-foreground/20 underline-offset-2">
                 See description
               </span>
             </Link>
+            <AssignmentEstimateEditor assignment={a} className="mt-2" />
+            </div>
           ))}
         </Section>
       </div>

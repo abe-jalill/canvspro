@@ -1692,10 +1692,16 @@ private struct NativeDashboardView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(heroCardBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(CPTheme.primary(scheme: scheme).opacity(0.3), lineWidth: 0.5))
+                .overlay {
+                    if let item = nextUp, let due = item.dueDate, NativeParity.relativeDueDay(due) == "Today" {
+                        RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(CPTheme.warning, lineWidth: 1).allowsHitTesting(false)
+                    }
+                }
             }
             .buttonStyle(CPPressStyle())
             .accessibilityElement(children: .combine)
             .accessibilityHint("Opens Assignments")
+            if let item = nextUp { NativeEstimateEditor(assignment: item, features: features) }
             HStack(spacing: 8) {
                 heroSmallStat(value: todayCount, label: "Next 24 hours", symbol: "clock", window: "1")
                 heroSmallStat(value: overdueCount, label: "To catch up", symbol: "arrow.uturn.backward", window: "overdue", soft: overdueCount > 0)
@@ -1829,6 +1835,7 @@ private struct NativeDashboardView: View {
                             NavigationLink { courseDestination(for: item, section: .graded) } label: {
                                 digestItem(item.name, detail: store.displayName(courseID: item.courseID, fallback: item.courseName), trailing: gradeChangeText(item), shield: true)
                             }.buttonStyle(CPPressStyle())
+                            NativeEstimateEditor(assignment: item, features: features)
                         }
                     }
                     digestSection("Newly urgent", symbol: "clock", count: newlyUrgent.count, empty: "Nothing new due soon") {
@@ -1836,6 +1843,7 @@ private struct NativeDashboardView: View {
                             NavigationLink { courseDestination(for: item, highlight: true) } label: {
                                 digestItem(item.name, detail: store.displayName(courseID: item.courseID, fallback: item.courseName), trailing: urgency(for: item) == "today" ? "Due today" : "Due soon")
                             }.buttonStyle(CPPressStyle())
+                            NativeEstimateEditor(assignment: item, features: features)
                         }
                     }
                 }
@@ -2262,6 +2270,7 @@ struct NativeDueRow: View {
     private var countdown: NativeParity.Countdown? { NativeParity.countdown(assignment, completed: isComplete) }
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
         HStack(spacing: 10) {
             if showToggle { NativeCompletionButton(assignment: assignment, store: store) }
             NavigationLink {
@@ -2295,11 +2304,15 @@ struct NativeDueRow: View {
             }
             .buttonStyle(CPPressStyle())
         }
+            NativeEstimateEditor(assignment: assignment, features: features)
+                .padding(.leading, showToggle ? 30 : 0)
+        }
         .padding(12)
         .frame(minHeight: 44)
         .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: CPLayout.innerRadius, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: CPLayout.innerRadius, style: .continuous).strokeBorder(CPTheme.insetBorder(scheme), lineWidth: 0.5))
         .opacity(isComplete ? 0.6 : 1)
+        .cpAssignmentDueToday(assignment, completed: isComplete)
         .nativeAssignmentSwipe(assignment, store: store)
     }
 }
@@ -2466,6 +2479,106 @@ private struct NativeQuickPomodoro: View {
             .accessibilityLabel(live.map { "\($0.label), \($0.time) left" } ?? "Start a 25 minute Pomodoro")
             .accessibilityHint("Opens Study")
         }
+    }
+}
+
+/// The same saved time estimate can be changed from any assignment surface.
+struct NativeEstimateEditor: View {
+    @Environment(\.colorScheme) private var scheme
+    let assignment: AssignmentItem
+    @ObservedObject var features: NativeFeatureStore
+    @State private var showEditor = false
+
+    var body: some View {
+        let minutes = NativeParity.estimate(assignment, estimates: features.estimates)
+        Button { showEditor = true } label: {
+            Label("\(minutes) min", systemImage: "clock")
+                .cpFont(11, .medium).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
+                .padding(.horizontal, 10).frame(minHeight: 32)
+                .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(CPTheme.outline(scheme), lineWidth: 0.5))
+                .padding(.vertical, 6).contentShape(Rectangle()).padding(.vertical, -6)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Edit estimated time for \(assignment.name), \(minutes) minutes")
+        .disabled(features.isLoading)
+        .sheet(isPresented: $showEditor) { NativeEstimateSheet(assignment: assignment, features: features) }
+    }
+}
+
+struct NativeCachedEstimateEditor: View {
+    let assignmentID: Int
+    @ObservedObject var store: NativeContentStore
+    @ObservedObject var features: NativeFeatureStore
+    var body: some View {
+        if let item = features.shownAssignments(in: store).first(where: { $0.id == assignmentID }) {
+            NativeEstimateEditor(assignment: item, features: features)
+        }
+    }
+}
+
+private struct NativeEstimateSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var scheme
+    let assignment: AssignmentItem
+    @ObservedObject var features: NativeFeatureStore
+    @State private var draft = "30"
+    @State private var saving = false
+    @State private var error: String?
+    @ScaledMetric(relativeTo: .body) private var presetWidth: CGFloat = 84
+
+    private var validMinutes: Int? {
+        guard let value = Int(draft.trimmingCharacters(in: .whitespacesAndNewlines)), (1...480).contains(value) else { return nil }
+        return value
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Text(assignment.name).cpFont(15, .medium)
+                    LabeledContent("Minutes") {
+                        TextField("Minutes", text: $draft)
+                            .keyboardType(.numberPad).multilineTextAlignment(.trailing)
+                            .accessibilityLabel("Estimated minutes")
+                    }
+                } footer: { Text("Choose how long you expect the work to take.") }
+                Section("Quick estimates") {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: presetWidth), spacing: 10)], spacing: 10) {
+                        ForEach([15, 30, 45, 60, 90, 120], id: \.self) { value in
+                            Button("\(value) min") { draft = String(value) }
+                                .buttonStyle(.bordered).tint(CPTheme.foreground(scheme))
+                                .accessibilityAddTraits(validMinutes == value ? .isSelected : [])
+                        }
+                    }
+                }
+                if validMinutes == nil { Section { Text("Enter between 1 and 480 minutes.").foregroundStyle(CPTheme.danger) } }
+                if let error { Section { Text(error).foregroundStyle(CPTheme.danger) } }
+            }
+            .disabled(saving)
+            .cpListScreen()
+            .cpNavigationTitle("Estimated time")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.disabled(saving) }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(saving ? "Saving…" : "Save") {
+                        guard let minutes = validMinutes else { return }
+                        saving = true; error = nil
+                        Task { @MainActor in
+                            defer { saving = false }
+                            do { try await features.saveEstimate(minutes, for: assignment); dismiss() }
+                            catch { self.error = error.localizedDescription }
+                        }
+                    }
+                    .disabled(saving || validMinutes == nil)
+                }
+            }
+        }
+        .onAppear { draft = String(NativeParity.estimate(assignment, estimates: features.estimates)) }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+        .interactiveDismissDisabled(saving)
     }
 }
 
@@ -2653,6 +2766,7 @@ struct NativeAssignmentRow: View {
     @Environment(\.cpPalette) private var paletteDependency
     let assignment: AssignmentItem
     @ObservedObject var store: NativeContentStore
+    @ObservedObject var features: NativeFeatureStore
     var onCompleted: ((AssignmentItem) -> Void)? = nil
     private var isComplete: Bool { assignment.isFinished(in: store) }
     private var countdown: NativeParity.Countdown? { NativeParity.countdown(assignment, completed: isComplete) }
@@ -2683,10 +2797,12 @@ struct NativeAssignmentRow: View {
                 if let countdown, !countdown.fullDate.isEmpty {
                     Text(countdown.fullDate).cpFont(12).monospacedDigit().foregroundStyle(CPTheme.faint(scheme))
                 }
+                NativeEstimateEditor(assignment: assignment, features: features)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.vertical, 3)
+        .cpAssignmentDueToday(assignment, completed: isComplete)
     }
 }
 
@@ -2695,16 +2811,13 @@ struct AssignmentDetailView: View {
     let assignment: AssignmentItem
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
-    @State private var estimate = 25
     @State private var status: String?
     var body: some View {
         Form {
-            Section { NativeAssignmentRow(assignment: assignment, store: store) }
+            Section { NativeAssignmentRow(assignment: assignment, store: store, features: features) }
             if let description = assignment.description, !description.isEmpty { Section("Description") { Text(description.strippingHTML).cpFont(12).lineSpacing(3).textSelection(.enabled) } }
             Section("Planning") {
                 if !assignment.isFinished(in: store) { NativeProgressEditor(assignment: assignment, features: features) }
-                Stepper("Estimated time: \(estimate) min", value: $estimate, in: 5...480, step: 5)
-                Button("Save estimate") { Task { do { try await features.saveEstimate(estimate, for: assignment); status = "Estimate saved." } catch { status = error.localizedDescription } } }
                 Button("Add to CoursePro Calendar") { addToCalendar() }
             }
             if let score = assignment.submission?.score { Section("Grade") { LabeledContent("Score", value: "\(score.formatted())\(assignment.pointsPossible.map { " / \($0.formatted())" } ?? "")") } }
@@ -2715,7 +2828,6 @@ struct AssignmentDetailView: View {
         .cpListScreen()
         .cpNavigationTitle("Assignment")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear { estimate = features.estimates[assignment.id].flatMap { $0 > 0 ? $0 : nil } ?? 25 }
     }
     private func addToCalendar() {
         guard !features.calendarPicks.contains(where: { $0.assignmentID == assignment.id }) else { status = "Already on your calendar."; return }
@@ -2726,10 +2838,12 @@ struct AssignmentDetailView: View {
 
 struct AddAssignmentView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var scheme
     let courses: [CourseSummary]
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
-    @State private var name = ""; @State private var courseID: Int?; @State private var dueDate = Date(); @State private var hasDueDate = true; @State private var points = 0.0; @State private var notes = ""; @State private var error: String?
+    @State private var name = ""; @State private var courseID: Int?; @State private var dueDate = NativeParity.endOfUpcomingDay(0); @State private var hasDueDate = true; @State private var points = 0.0; @State private var notes = ""; @State private var error: String?
+    @State private var estimatedMinutes = 30
     @State private var saving = false
     var body: some View {
         NavigationStack {
@@ -2737,8 +2851,10 @@ struct AddAssignmentView: View {
                 Section {
                     TextField("Name", text: $name)
                     Picker("Class", selection: $courseID) { Text("Choose a class").tag(Int?.none); ForEach(courses) { course in Text(store.displayName(courseID: course.id, fallback: course.name)).tag(Optional(course.id)) } }
+                        .pickerStyle(.menu).tint(CPTheme.foreground(scheme))
                     Toggle("Due date", isOn: $hasDueDate); if hasDueDate { DatePicker("Due", selection: $dueDate) }
                     TextField("Points", value: $points, format: .number).keyboardType(.decimalPad)
+                    Stepper("Estimated time: \(estimatedMinutes) min", value: $estimatedMinutes, in: 5...480, step: 5)
                     TextField("Notes", text: $notes, axis: .vertical)
                 } header: {
                     Text("Assignment")
@@ -2760,7 +2876,7 @@ struct AddAssignmentView: View {
     private func save() {
         guard let courseID, !saving else { return }
         saving = true
-        let item = CustomAssignment(id: -Int(Date().timeIntervalSince1970 * 1000), courseID: courseID, name: name.trimmingCharacters(in: .whitespaces), dueAt: hasDueDate ? ISO8601DateFormatter().string(from: dueDate) : nil, pointsPossible: points > 0 ? points : nil, notes: notes, createdAt: ISO8601DateFormatter().string(from: Date()))
+        let item = CustomAssignment(id: -Int(Date().timeIntervalSince1970 * 1000), courseID: courseID, name: name.trimmingCharacters(in: .whitespaces), dueAt: hasDueDate ? ISO8601DateFormatter().string(from: dueDate) : nil, pointsPossible: points > 0 ? points : nil, notes: notes, createdAt: ISO8601DateFormatter().string(from: Date()), estimatedMinutes: estimatedMinutes)
         Task {
             defer { saving = false }
             do { try await features.savePreference("custom-assignments", features.customAssignments + [item]); CPHaptics.success(); dismiss() } catch { self.error = error.localizedDescription }
@@ -2937,6 +3053,7 @@ private struct NativeGradesView: View {
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(CPPressStyle())
+                        NativeEstimateEditor(assignment: item, features: features)
                         if item.id != graded.last?.id { CPRowDivider() }
                     }
                 }
@@ -3281,13 +3398,14 @@ struct CourseDetailView: View {
                         .fixedSize(horizontal: false, vertical: true)
                     HStack(spacing: 6) {
                         if let date = assignment.dueDate {
-                            Text(date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().hour().minute()))
+                            Text(NativeParity.dueDisplay(date))
                         } else {
                             Text("No due date")
                         }
                         if let points = assignment.pointsPossible { Text("· \(points.formatted()) pts") }
                     }
                     .cpFont(11).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
+                    NativeEstimateEditor(assignment: assignment, features: features)
                     if !isGraded, !isOpen, let percent = features.progress[assignment.id], percent > 0 {
                         NativeProgressBar(percent: percent)
                     }
@@ -3329,6 +3447,7 @@ struct CourseDetailView: View {
         }
         .padding(.vertical, 11)
         .background(highlightedID == assignment.id ? CPTheme.foreground(scheme).opacity(0.07) : .clear, in: RoundedRectangle(cornerRadius: 10))
+        .cpAssignmentDueToday(assignment, completed: assignment.isFinished(in: store), radius: 10)
         .id(assignment.id)
         .cpStateChange(isOpen)
     }
@@ -3807,7 +3926,8 @@ struct NativeStudyView: View {
 
     private func candidateRow(_ item: AssignmentItem) -> some View {
         let isSelected = selected.contains(item.id)
-        return Button {
+        return VStack(alignment: .leading, spacing: 6) {
+        Button {
             if isSelected { selected.remove(item.id); selectedOrder.removeAll { $0 == item.id } }
             else { selected.insert(item.id); selectedOrder.append(item.id) }
         } label: {
@@ -3828,7 +3948,7 @@ struct NativeStudyView: View {
                 }
                 Spacer(minLength: 6)
                 if let due = item.dueDate {
-                    Text(due.formatted(.dateTime.month(.abbreviated).day())).cpFont(12, .medium).monospacedDigit().foregroundStyle(CPTheme.faint(scheme))
+                    Text(NativeParity.dueDisplay(due, includeTime: false)).cpFont(12, .medium).monospacedDigit().foregroundStyle(CPTheme.faint(scheme))
                 }
             }
             .padding(.vertical, 9)
@@ -3836,6 +3956,9 @@ struct NativeStudyView: View {
         }
         .buttonStyle(CPPressStyle())
         .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .cpAssignmentDueToday(item, completed: item.isFinished(in: store))
+            NativeEstimateEditor(assignment: item, features: features)
+        }
     }
 
     private static let timeModes: [(id: String, label: String)] = [
@@ -3888,6 +4011,7 @@ struct NativeStudyView: View {
                         .frame(minHeight: 44)
                         .accessibilityLabel("Minutes for \(item.name)")
                         .accessibilityValue("\(plannedMinutes(item)) minutes")
+                        NativeEstimateEditor(assignment: item, features: features)
                         if item.id != items.last?.id { CPRowDivider() }
                     }
                 }
@@ -3975,6 +4099,7 @@ struct NativeStudyView: View {
     }
 
     private func sessionRow(_ item: AssignmentItem, index: Int) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
         HStack(spacing: 8) {
             Text("\(index + 1)").cpFont(11).monospacedDigit()
                 .foregroundStyle(CPTheme.muted(scheme))
@@ -3999,6 +4124,9 @@ struct NativeStudyView: View {
         }
         .foregroundStyle(CPTheme.muted(scheme))
         .buttonStyle(.plain)
+        .cpAssignmentDueToday(item, completed: completedIDs.contains(item.id))
+            NativeEstimateEditor(assignment: item, features: features)
+        }
     }
 
     private func minutesRow(_ title: String, value: Binding<Int>, unit: String = "min") -> some View {
@@ -4054,6 +4182,7 @@ struct NativeStudyView: View {
                                 Text(item.courseID == 0 ? item.courseName : store.displayName(courseID: item.courseID, fallback: item.courseName))
                                     .cpFont(11).foregroundStyle(CPTheme.muted(scheme))
                             }
+                            NativeEstimateEditor(assignment: item, features: features)
                         }
                         .frame(maxWidth: .infinity)
                     }
@@ -4111,6 +4240,7 @@ struct NativeStudyView: View {
                             }
                             .buttonStyle(CPPressStyle())
                             .accessibilityAddTraits(currentIndex == index ? .isSelected : [])
+                            NativeEstimateEditor(assignment: item, features: features)
                             if index < items.count - 1 { CPRowDivider(leading: 32) }
                         }
                     }

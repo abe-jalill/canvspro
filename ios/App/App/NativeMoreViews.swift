@@ -623,7 +623,7 @@ struct GetItDoneView: View {
             }
             HStack(spacing: 6) {
                 if let due = first.dueDate {
-                    CPPill(text: due.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().hour().minute()), tone: due < Date() ? .danger : .neutral, symbol: "calendar")
+                    CPPill(text: NativeParity.dueDisplay(due), tone: due < Date() ? .danger : .neutral, symbol: "calendar")
                 }
                 CPPill(text: "About \(estimate(for: first)) min", symbol: "clock")
             }
@@ -636,6 +636,7 @@ struct GetItDoneView: View {
                     Link(destination: url) { Text("Canvas") }.buttonStyle(CPButtonStyle(kind: .quiet))
                 }
             }
+            NativeEstimateEditor(assignment: first, features: features)
             NativeAssignmentDescriptionLink(assignment: first, store: store, features: features)
                 .cpFont(11, .semibold).foregroundStyle(CPTheme.foreground(scheme))
         }
@@ -646,6 +647,7 @@ struct GetItDoneView: View {
             in: RoundedRectangle(cornerRadius: 22, style: .continuous)
         )
         .cpSurface(strong: true, radius: 22)
+        .cpAssignmentDueToday(first, radius: 22)
     }
 
     /// The plan without the suggestion shown above it.
@@ -684,8 +686,7 @@ struct GetItDoneView: View {
                 Text(planMeta(item)).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(2)
                 HStack(spacing: 14) {
                     Button("Start") { NotificationCenter.default.post(name: .nativeStudyAssignment, object: item) }
-                    Button("\(estimate(for: item)) min") { estimateMinutes = estimate(for: item); editingEstimate = item.id }
-                        .accessibilityLabel("Change time estimate, \(estimate(for: item)) minutes")
+                    NativeEstimateEditor(assignment: item, features: features)
                     Button("Skip today") { skip(item.id) }
                     NativeAssignmentDescriptionLink(assignment: item, store: store, features: features).labelStyle(.titleOnly)
                 }
@@ -706,12 +707,13 @@ struct GetItDoneView: View {
             .buttonStyle(.plain)
         }
         .padding(.vertical, 10)
+        .cpAssignmentDueToday(item)
     }
 
     private func planMeta(_ item: AssignmentItem) -> String {
         var parts = [store.displayName(courseID: item.courseID, fallback: item.courseName)]
         if item.submission?.missing == true { parts.append("Missing") }
-        else if let due = item.dueDate { parts.append(due < Date() ? "Past due" : due.formatted(.dateTime.weekday(.abbreviated).hour().minute())) }
+        else if let due = item.dueDate { parts.append(NativeParity.dueDisplay(due)) }
         else { parts.append("No due date") }
         return parts.joined(separator: " · ")
     }
@@ -969,6 +971,7 @@ struct FocusView: View {
         let done = item.isFinished(in: store)
         let countdown = NativeParity.countdown(item, completed: done)
         return CPInsetRow {
+            VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .center, spacing: 12) {
                 NativeCompletionButton(assignment: item, store: store)
                 NavigationLink {
@@ -993,7 +996,6 @@ struct FocusView: View {
                                 Text(countdown.label).cpFont(13, countdown.urgency == "today" || countdown.urgency == "overdue" ? .medium : .regular)
                                     .foregroundStyle(CPTheme.urgency(countdown.urgency, scheme: scheme))
                             }
-                            Text("\(estimate(item)) min").cpFont(11).monospacedDigit().foregroundStyle(CPTheme.faint(scheme))
                         }
                         .fixedSize()
                     }
@@ -1001,15 +1003,18 @@ struct FocusView: View {
                 }
                 .buttonStyle(CPPressStyle())
             }
+                NativeEstimateEditor(assignment: item, features: features).padding(.leading, 32)
+            }
         }
         .opacity(done ? 0.6 : 1)
+        .cpAssignmentDueToday(item, completed: done)
         .nativeAssignmentSwipe(item, store: store)
     }
 
     private func rowMeta(_ item: AssignmentItem, showCourse: Bool, done: Bool) -> String {
         var parts: [String] = []
         if showCourse { parts.append(store.displayName(courseID: item.courseID, fallback: item.courseName)) }
-        if let due = item.dueDate { parts.append(due.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().hour().minute())) } else { parts.append("No due date") }
+        if let due = item.dueDate { parts.append(NativeParity.dueDisplay(due)) } else { parts.append("No due date") }
         if done { parts.append(item.isCanvasFinished ? "Done in Canvas" : "Marked done") }
         return parts.joined(separator: " · ")
     }
@@ -1040,6 +1045,7 @@ struct NativeCalendarEntry: Identifiable {
     let kind: String
     let url: URL?
     let pickID: Int?
+    var assignmentID: Int? { pickID ?? (id.hasPrefix("assignment-") ? Int(id.dropFirst("assignment-".count)) : nil) }
 }
 
 private struct CalendarDayGroup: Identifiable {
@@ -1305,6 +1311,7 @@ struct CalendarView: View {
                 Text(item.context)
                     .cpFont(11)
                     .foregroundStyle(CPTheme.muted(scheme))
+                if let id = item.assignmentID { NativeCachedEstimateEditor(assignmentID: id, store: store, features: features) }
                 HStack(spacing: 14) {
                     if let pickID = item.pickID {
                         Button("Change time") {
@@ -1460,11 +1467,12 @@ struct WorkloadView: View {
 
     private func dayDetail(_ day: Date, items: [AssignmentItem]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
+            Text(NativeParity.dueDisplay(day, includeTime: false))
                 .cpFont(12, .medium).foregroundStyle(CPTheme.foreground(scheme))
                 .padding(.horizontal, 2)
             ForEach(items) { item in
                 CPInsetRow {
+                    VStack(alignment: .leading, spacing: 8) {
                     HStack(alignment: .center, spacing: 10) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(item.name).cpFont(13, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(2)
@@ -1472,12 +1480,15 @@ struct WorkloadView: View {
                         }
                         Spacer(minLength: 8)
                         VStack(alignment: .trailing, spacing: 2) {
-                            if let due = item.dueDate { Text(due.formatted(.dateTime.hour().minute())).cpFont(11).monospacedDigit().foregroundStyle(CPTheme.muted(scheme)) }
+                            if let due = item.dueDate { Text(NativeParity.dueDisplay(due)).cpFont(11).monospacedDigit().foregroundStyle(CPTheme.muted(scheme)) }
                             if let points = item.pointsPossible { Text(pointsLeft(item, points: points)).cpFont(11).monospacedDigit().foregroundStyle(CPTheme.faint(scheme)) }
                         }
                         .fixedSize()
                     }
+                    NativeEstimateEditor(assignment: item, features: features)
+                    }
                 }
+                .cpAssignmentDueToday(item, completed: item.isFinished(in: store))
             }
         }
     }
@@ -1510,6 +1521,7 @@ struct AnnouncementsView: View {
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
     @AppStorage("CanvasProDismissedAnnouncements") private var dismissedRaw = ""
+    @AppStorage("CanvasProAnnouncementsGrouping") private var grouping = "By time"
     @State private var search = ""
     @State private var courseFilter: Int?
     @State private var expanded = Set<Int>()
@@ -1517,10 +1529,31 @@ struct AnnouncementsView: View {
     private var items: [AnnouncementItem] {
         store.bundle.announcements.filter { item in
             !features.hiddenCourseIDs.contains(item.courseID) && !dismissed.contains(item.id) && item.isWithin(weeks: features.announcementWeeks) && (search.isEmpty || item.title.localizedCaseInsensitiveContains(search) || item.courseName.localizedCaseInsensitiveContains(search))
-        }.sorted { $0.postedAt > $1.postedAt }
+        }.sorted {
+            let left = ISO8601DateFormatter.canvasDate(from: $0.postedAt) ?? .distantPast
+            let right = ISO8601DateFormatter.canvasDate(from: $1.postedAt) ?? .distantPast
+            return left == right ? $0.id > $1.id : left > right
+        }
     }
     private var feed: [AnnouncementItem] { items.filter { courseFilter == nil || $0.courseID == courseFilter } }
     private var courses: [Int] { Array(Set(items.map(\.courseID))).sorted { name(for: $0) < name(for: $1) } }
+    private var classGroups: [NativeAnnouncementGroup] {
+        Dictionary(grouping: feed, by: \.courseID)
+            .map { id, rows in NativeAnnouncementGroup(id: id, name: name(for: id), items: rows) }
+            .sorted {
+                let order = $0.name.localizedStandardCompare($1.name)
+                return order == .orderedSame ? $0.id < $1.id : order == .orderedAscending
+            }
+    }
+    private var dayGroups: [NativeAnnouncementDayGroup] {
+        let calendar = Calendar.current
+        return Dictionary(grouping: feed) { item -> Date in
+            guard let posted = ISO8601DateFormatter.canvasDate(from: item.postedAt) else { return .distantPast }
+            return calendar.startOfDay(for: posted)
+        }.sorted { $0.key > $1.key }.map { day, rows in
+            NativeAnnouncementDayGroup(day: day, items: rows)
+        }
+    }
     private func name(for id: Int) -> String { store.displayName(courseID: id, fallback: items.first(where: { $0.courseID == id })?.courseName ?? "Class") }
     private var courseCount: Int { Set(items.map(\.courseID)).count }
     private var windowTitle: String { features.announcementWeeks == 0 ? "All announcements" : features.announcementWeeks == 1 ? "Past week" : features.announcementWeeks == 4 ? "Past month" : "Past \(features.announcementWeeks) weeks" }
@@ -1532,6 +1565,7 @@ struct AnnouncementsView: View {
                     CPStatTile(value: "\(items.count)", label: "Recent posts")
                     CPStatTile(value: "\(courseCount)", label: "Active courses")
                 }
+                CPSegmented(selection: $grouping, options: ["By time", "By class"], label: "Group announcements")
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
                         Button { courseFilter = nil } label: { CPChip(text: "All updates · \(items.count)", selected: courseFilter == nil) }.buttonStyle(.plain)
@@ -1547,25 +1581,48 @@ struct AnnouncementsView: View {
                 .scrollClipDisabled()
                 if feed.isEmpty {
                     CPGlassCard { NativeEmptyState(title: "No announcements in this view.", symbol: "megaphone") }
-                } else {
-                    VStack(spacing: 0) {
-                        ForEach(feed) { item in
-                            announcementRow(item)
-                            if item.id != feed.last?.id { CPRowDivider() }
+                } else if grouping == "By class" {
+                    ForEach(classGroups) { group in
+                        VStack(alignment: .leading, spacing: 12) {
+                            CPSectionLabel(group.name, count: group.items.count)
+                            ForEach(group.items) { item in announcementRow(item) }
                         }
                     }
-                    .padding(.horizontal, 14)
-                    .cpSurface()
+                } else {
+                    ForEach(dayGroups) { group in
+                        VStack(alignment: .leading, spacing: 12) {
+                            CPSectionLabel(dayTitle(group.day), count: group.items.count)
+                            ForEach(group.items) { item in announcementRow(item) }
+                        }
+                    }
                 }
             }
             .cpPagePadding()
             .cpStateChange(courseFilter)
+            .cpStateChange(grouping)
+            .cpStateChange(feed.map(\.id))
         }
         .background(CPBackdrop())
         .searchable(text: $search)
         .refreshable { await store.refresh() }
         .cpNavigationTitle("Announcements")
         .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: courses) { _, ids in
+            if let courseFilter, !ids.contains(courseFilter) { self.courseFilter = nil }
+        }
+    }
+
+    private func dayTitle(_ day: Date) -> String {
+        if day == .distantPast { return "Date unavailable" }
+        if Calendar.current.isDateInToday(day) { return "Today" }
+        if Calendar.current.isDateInYesterday(day) { return "Yesterday" }
+        return day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
+    }
+
+    private func deleteAnnouncement(_ item: AnnouncementItem) {
+        dismissedRaw = dismissed.union([item.id]).sorted().map { String($0) }.joined(separator: ",")
+        expanded.remove(item.id)
+        CPHaptics.tap()
     }
 
     private func announcementRow(_ item: AnnouncementItem) -> some View {
@@ -1576,14 +1633,6 @@ struct AnnouncementsView: View {
                 Text(name(for: item.courseID).uppercased()).cpFont(11, .semibold).tracking(0.8).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
                 Spacer(minLength: 6)
                 Text(announcementDate(item)).cpFont(11).monospacedDigit().foregroundStyle(CPTheme.faint(scheme))
-                Button { dismissedRaw = dismissed.union([item.id]).sorted().map { String($0) }.joined(separator: ",") } label: {
-                    Image(systemName: "xmark").cpIconFont(8, .bold).foregroundStyle(CPTheme.muted(scheme))
-                        .frame(width: 22, height: 22).background(CPTheme.inset(scheme), in: Circle())
-                        .frame(width: 44, height: 32).contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .padding(.trailing, -11)
-                .accessibilityLabel("Dismiss \(item.title)")
             }
             Text(item.title).cpFont(13, .semibold).foregroundStyle(CPTheme.foreground(scheme)).fixedSize(horizontal: false, vertical: true)
             Text(message).cpFont(12).lineSpacing(2).foregroundStyle(CPTheme.muted(scheme)).lineLimit(isOpen ? nil : 3)
@@ -1601,9 +1650,18 @@ struct AnnouncementsView: View {
             .buttonStyle(.plain)
             .frame(minHeight: 28)
         }
-        .padding(.vertical, 10)
+        .padding(CPLayout.cardPadding)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cpSurface()
+        .cpSwipe(trailing: CPSwipeAction(title: "Delete", symbol: "trash") { deleteAnnouncement(item) })
     }
     private func announcementDate(_ item: AnnouncementItem) -> String { ISO8601DateFormatter.canvasDate(from: item.postedAt)?.formatted(.dateTime.month(.abbreviated).day().hour().minute()) ?? "Recent" }
+}
+
+private struct NativeAnnouncementDayGroup: Identifiable {
+    let day: Date
+    let items: [AnnouncementItem]
+    var id: Date { day }
 }
 
 struct AnnouncementDetailView: View {
