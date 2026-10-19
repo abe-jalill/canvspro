@@ -1649,6 +1649,7 @@ private struct NativeDashboardView: View {
     @State private var showCustomize = false
     @State private var expandedUpcoming = Set<Int>()
     @State private var expandedAnnouncements = Set<Int>()
+    @State private var collapsedWidgets = NativeCollapsedWidgets.load()
     private var digestKey: String { "CanvasProNativeDigest.\(store.persistenceScope)" }
     private var dismissedAnnouncements: Set<Int> { Set(dismissedAnnouncementsRaw.split(separator: ",").compactMap { Int($0) }) }
     private var visibleCourses: [CourseSummary] { store.bundle.courses.filter { !features.hiddenCourseIDs.contains($0.id) } }
@@ -1711,7 +1712,14 @@ private struct NativeDashboardView: View {
                     } else {
                         dashboardHeader
                         ForEach(Array(widgetIDs.enumerated()), id: \.element) { index, id in
-                            dashboardWidget(id).cpReveal(index)
+                            VStack(spacing: 0) {
+                                if collapsedWidgets.contains(id) {
+                                    collapsedWidget(id).transition(.opacity)
+                                } else {
+                                    dashboardWidget(id).transition(.opacity)
+                                }
+                            }
+                            .cpReveal(index)
                         }
                     }
                 }
@@ -1920,11 +1928,36 @@ private struct NativeDashboardView: View {
         case "calendar": calendarWidget
         case "announcements": announcementsWidget
         case "heatmap":
-            CPGlassCard(title: "Workload") {
+            CPGlassCard {
+                CPCardHeader(title: "Workload", collapse: collapse("heatmap"))
                 WorkloadView(assignments: activeAssignments, store: store, features: features, outlineDueToday: true)
             }
         default: EmptyView()
         }
+    }
+
+    // MARK: Collapsing
+
+    /// The name a widget keeps when folded: the same title its card shows.
+    private func widgetTitle(_ id: String) -> String { id == "upcoming" ? "This week" : NativeDashboardWidgetInfo.title(id) }
+
+    private func collapse(_ id: String) -> CPCollapse {
+        CPCollapse(title: widgetTitle(id), isCollapsed: collapsedWidgets.contains(id)) { toggleCollapsed(id) }
+    }
+
+    private func toggleCollapsed(_ id: String) {
+        var ids = collapsedWidgets
+        if ids.contains(id) { ids.remove(id) } else { ids.insert(id) }
+        CPHaptics.tap()
+        withAnimation(reduceMotion ? nil : .spring(duration: 0.34, bounce: 0)) { collapsedWidgets = ids }
+        NativeCollapsedWidgets.save(ids)
+    }
+
+    /// A folded widget: just its name and the chevron that opens it again.
+    private func collapsedWidget(_ id: String) -> some View {
+        CPGlassCard { CPCardHeader(title: widgetTitle(id), collapse: collapse(id)) }
+            .contentShape(Rectangle())
+            .onTapGesture { toggleCollapsed(id) }
     }
 
     // MARK: Since your last visit
@@ -1947,11 +1980,12 @@ private struct NativeDashboardView: View {
                     if stillUrgent > 0 {
                         Button { todaySection = "Get It Done" } label: { CPLinkLabel(text: "Plan it") }.buttonStyle(.plain)
                     }
+                    CPCollapseButton(collapse: collapse("digest"))
                 }
             }
         } else {
             CPGlassCard(strong: true) {
-                CPCardHeader(title: "Since your last visit", subtitle: "\(total) update\(total == 1 ? "" : "s")") {
+                CPCardHeader(title: "Since your last visit", subtitle: "\(total) update\(total == 1 ? "" : "s")", collapse: collapse("digest")) {
                     Button { markDigestSeen() } label: { CPLinkLabel(text: "Mark all seen") }.buttonStyle(.plain)
                 }
                 VStack(alignment: .leading, spacing: 18) {
@@ -2028,7 +2062,7 @@ private struct NativeDashboardView: View {
 
     private var classesWidget: some View {
         CPGlassCard {
-            CPCardHeader(title: "Classes & Grades") {
+            CPCardHeader(title: "Classes & Grades", collapse: collapse("classes")) {
                 Button { selection = .grades } label: { CPLinkLabel(text: "View all") }.buttonStyle(.plain)
             }
             if visibleCourses.isEmpty {
@@ -2075,7 +2109,7 @@ private struct NativeDashboardView: View {
         }
         let quiet = visibleCourses.count - groups.count
         return CPGlassCard {
-            CPCardHeader(title: "This week") {
+            CPCardHeader(title: "This week", collapse: collapse("upcoming")) {
                 Button { openFocus("7") } label: { CPLinkLabel(text: "View all") }.buttonStyle(.plain)
             }
             if visibleCourses.isEmpty {
@@ -2135,7 +2169,7 @@ private struct NativeDashboardView: View {
     private var focusWidget: some View {
         let soon = activeAssignments.filter { NativeParity.isInFocusWindow($0, window: "2") }.sorted(by: AssignmentItem.dueSort)
         return CPGlassCard {
-            CPCardHeader(title: "Next 48 hours") {
+            CPCardHeader(title: "Next 48 hours", collapse: collapse("focus")) {
                 Button { openFocus("2") } label: { CPLinkLabel(text: "Open") }.buttonStyle(.plain)
             }
             if soon.isEmpty {
@@ -2158,7 +2192,7 @@ private struct NativeDashboardView: View {
             return NativeDatedEvent(event: event, date: date)
         }.sorted { $0.date < $1.date }.prefix(4))
         return CPGlassCard {
-            CPCardHeader(title: "Calendar") {
+            CPCardHeader(title: "Calendar", collapse: collapse("calendar")) {
                 NavigationLink { NativeCalendarHub(store: store, features: features) } label: { CPLinkLabel(text: "View all") }.buttonStyle(.plain)
             }
             if events.isEmpty {
@@ -2192,7 +2226,7 @@ private struct NativeDashboardView: View {
             .map { id, items in NativeAnnouncementGroup(id: id, name: store.displayName(courseID: id, fallback: items.first?.courseName ?? "Class"), items: items.sorted { $0.postedAt > $1.postedAt }) }
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
         return CPGlassCard {
-            CPCardHeader(title: "Announcements") {
+            CPCardHeader(title: "Announcements", collapse: collapse("announcements")) {
                 NavigationLink { AnnouncementsView(store: store, features: features) } label: { CPLinkLabel(text: "View all") }.buttonStyle(.plain)
             }
             if groups.isEmpty {
@@ -2731,6 +2765,13 @@ struct NativeSyncStatusCard: View {
         if let date = store.lastSyncedAt { return "Updated \(date.formatted(.dateTime.month(.abbreviated).day().hour().minute()))" }
         return "Not synced yet"
     }
+}
+
+/// Which dashboard widgets are folded on this iPhone.
+enum NativeCollapsedWidgets {
+    private static let key = "CanvasProCollapsedWidgets"
+    static func load() -> Set<String> { Set((UserDefaults.standard.string(forKey: key) ?? "").split(separator: ",").map(String.init)) }
+    static func save(_ ids: Set<String>) { UserDefaults.standard.set(ids.sorted().joined(separator: ","), forKey: key) }
 }
 
 /// What each widget is, for the picker and settings.

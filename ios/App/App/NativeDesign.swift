@@ -240,10 +240,11 @@ struct CPCardHeader<Trailing: View>: View {
     @Environment(\.cpPalette) private var paletteDependency
     let title: String
     let subtitle: String?
+    let collapse: CPCollapse?
     let trailing: Trailing
 
-    init(title: String, subtitle: String? = nil, @ViewBuilder trailing: () -> Trailing) {
-        self.title = title; self.subtitle = subtitle; self.trailing = trailing()
+    init(title: String, subtitle: String? = nil, collapse: CPCollapse? = nil, @ViewBuilder trailing: () -> Trailing) {
+        self.title = title; self.subtitle = subtitle; self.collapse = collapse; self.trailing = trailing()
     }
 
     var body: some View {
@@ -258,12 +259,40 @@ struct CPCardHeader<Trailing: View>: View {
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(.isHeader)
             trailing
+            if let collapse { CPCollapseButton(collapse: collapse) }
         }
     }
 }
 
 extension CPCardHeader where Trailing == EmptyView {
-    init(title: String, subtitle: String? = nil) { self.init(title: title, subtitle: subtitle) { EmptyView() } }
+    init(title: String, subtitle: String? = nil, collapse: CPCollapse? = nil) { self.init(title: title, subtitle: subtitle, collapse: collapse) { EmptyView() } }
+}
+
+/// Folds a dashboard widget down to just its name, and back.
+struct CPCollapse {
+    let title: String
+    let isCollapsed: Bool
+    let toggle: () -> Void
+}
+
+/// The chevron at the top right of a widget: up folds it, down opens it.
+struct CPCollapseButton: View {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
+    let collapse: CPCollapse
+    var body: some View {
+        Button(action: collapse.toggle) {
+            Image(systemName: collapse.isCollapsed ? "chevron.down" : "chevron.up")
+                .cpIconFont(11, .semibold)
+                .foregroundStyle(CPTheme.muted(scheme))
+                .frame(width: 28, height: 28)
+                .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                // A 44-point target without changing the tile's size.
+                .padding(8).contentShape(Rectangle()).padding(-8)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(collapse.isCollapsed ? "Expand \(collapse.title)" : "Collapse \(collapse.title)")
+    }
 }
 
 /// The quiet "View all" text action used on cards, as on the website.
