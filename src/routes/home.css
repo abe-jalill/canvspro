@@ -21,18 +21,13 @@
   --button: #9fdcb4;
   --button-ink: #06190e;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 30px 60px -30px rgba(0, 0, 0, 0.85);
-  --halo: 0 40px 120px -48px rgb(120 185 142 / 0.4);
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
   /* Slow in, long soft landing: a breath rather than a pop. */
   --breathe: cubic-bezier(0.33, 0.04, 0.17, 1);
   --width: min(1120px, 100% - 48px);
 
   min-height: 100vh;
-  background:
-    radial-gradient(1100px 620px at 80% -8%, var(--accent-soft), transparent 70%),
-    radial-gradient(900px 520px at 0% 30%, rgb(143 208 165 / 0.05), transparent 70%),
-    var(--bg);
-  background-repeat: no-repeat;
+  background: var(--bg);
   color: var(--ink);
   font-family: var(--font-sans);
   font-size: 17px;
@@ -57,7 +52,6 @@
   --button: #1d5134;
   --button-ink: #ffffff;
   --shadow: 0 1px 2px rgba(14, 31, 21, 0.05), 0 24px 48px -28px rgba(14, 31, 21, 0.22);
-  --halo: 0 40px 100px -50px rgb(45 107 69 / 0.35);
 }
 
 /* One screenshot per theme; the hidden one is lazy, so it never downloads. */
@@ -166,7 +160,7 @@
   justify-content: center;
   height: 46px;
   padding: 0 20px;
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--button);
   color: var(--button-ink);
   font-size: 15.5px;
@@ -268,7 +262,7 @@
   letter-spacing: -0.05em;
 }
 .hp-hero .hp-quiet {
-  color: var(--accent);
+  color: var(--ink-2);
 }
 .hp-hero .hp-lede {
   max-width: 34em;
@@ -277,56 +271,20 @@
 .hp-hero .hp-actions {
   margin-top: 6px;
 }
-.hp-hello {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 14px 6px 12px;
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
-  border-radius: 999px;
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-size: 13.5px;
-  font-weight: 600;
-}
-.hp-hello::before {
-  content: "";
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--accent);
-}
 .hp-preview-link {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   min-height: 46px;
 }
-.hp-assure {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 20px;
-  margin: 4px 0 0;
-  padding: 0;
-  list-style: none;
+.hp-hero__fine {
   font-size: 14.5px;
-  color: var(--ink-2);
-}
-.hp-assure li {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-}
-.hp-assure svg {
-  color: var(--accent);
+  color: var(--ink-3);
 }
 .hp-hero__demo {
   display: grid;
   gap: 14px;
   min-width: 0;
-}
-.hp-hero__demo .hp-week {
-  box-shadow: var(--shadow), var(--halo);
 }
 .hp-hero__hint {
   font-size: 14px;
@@ -348,11 +306,11 @@
 }
 .hp-story__intro {
   display: grid;
-  justify-items: center;
-  gap: 14px;
+  gap: 12px;
   max-width: 40em;
-  margin: 0 auto clamp(24px, 4vw, 48px);
-  text-align: center;
+  margin: 0 0 clamp(16px, 3vw, 32px);
+  padding-top: 40px;
+  border-top: 1px solid var(--line);
 }
 .hp-story__intro p {
   color: var(--ink-2);
@@ -403,9 +361,15 @@
   display: flex;
   align-items: baseline;
   gap: 10px;
+  width: fit-content;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
   font-size: 14px;
   font-weight: 600;
   color: var(--accent);
+  cursor: pointer;
 }
 .hp-step__label span {
   font-size: 12px;
@@ -432,7 +396,7 @@
   border-radius: clamp(12px, 1.6vw, 18px);
   overflow: hidden;
   background: var(--surface);
-  box-shadow: var(--shadow), var(--halo);
+  box-shadow: var(--shadow);
 }
 .hp-frame img {
   display: block;
@@ -458,24 +422,47 @@
 .hp-story__shot.is-shown {
   opacity: 1;
 }
-.hp-story__dots {
+.hp-story__meta {
   display: flex;
-  justify-content: center;
-  gap: 10px;
-  margin-top: 20px;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 14px;
+  font-size: 14px;
+  color: var(--ink-2);
 }
-.hp-story__dots button {
-  width: 8px;
-  height: 8px;
-  padding: 0;
-  border: 0;
-  border-radius: 999px;
-  background: var(--line-2);
-  cursor: pointer;
+.hp-story__count {
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
 }
-.hp-story__dots button[aria-current="step"] {
-  width: 28px;
-  background: var(--accent);
+/* The zoom moves the whole shot; the outline and its label ride along. */
+.hp-zoom {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 0;
+}
+.hp-focus {
+  position: absolute;
+  border: calc(2px / var(--s)) solid var(--accent);
+  border-radius: calc(12px / var(--s));
+  opacity: 0;
+}
+.hp-focus__label {
+  position: absolute;
+  margin-top: calc(10px / var(--s));
+  padding: 5px 10px;
+  border-radius: 6px;
+  background: var(--button);
+  color: var(--button-ink);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  transform: scale(calc(1 / var(--s)));
+  transform-origin: 0 0;
+  opacity: 0;
+}
+:is(.hp-story__shot.is-shown, .hp-step.is-active .hp-step__shot) :is(.hp-focus, .hp-focus__label) {
+  opacity: 1;
 }
 /* Phones and narrow windows: each step carries its own screenshot. */
 @media (max-width: 860px) {
@@ -508,22 +495,20 @@
 .hp-statement {
   width: var(--width);
   margin: clamp(96px, 12vw, 160px) auto 0;
-  text-align: center;
 }
 .hp-statement p {
-  max-width: 22ch;
-  margin-inline: auto;
+  max-width: 20ch;
   font-size: clamp(2.3rem, 5.6vw, 5rem);
   font-weight: 700;
   line-height: 1.04;
   letter-spacing: -0.045em;
   text-wrap: balance;
 }
-.hp-statement .hp-quiet {
-  color: var(--accent);
-}
 .hp-word {
-  display: inline-block;
+  color: var(--line-2);
+}
+.hp-word.is-lit {
+  color: var(--ink);
 }
 
 /* ── Sections: heading on the left, content on the right ── */
@@ -694,50 +679,220 @@
   }
 }
 
-/* ── What CoursePro does with your account: one plain checklist ── */
-.hp-promises {
+/* ── What CoursePro can see: two plain columns ── */
+.hp-ledger {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 clamp(24px, 4vw, 48px);
+}
+.hp .hp-ledger h3 {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--ink-3);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--ink-2);
+}
+.hp-ledger ul {
   margin: 0;
   padding: 0;
   list-style: none;
-  border: 1px solid var(--line-2);
-  border-radius: 16px;
-  background: var(--surface);
-  box-shadow: var(--shadow);
 }
-.hp-promises li {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 16px;
-  padding: 20px 22px;
+.hp-ledger li {
+  padding: 14px 0;
   border-bottom: 1px solid var(--line);
+  font-size: 16px;
 }
-.hp-promises li:last-child {
-  border-bottom: 0;
+.hp-ledger__col--never li {
+  color: var(--ink-2);
 }
-.hp-promises__check {
+.hp-ledger__foot {
+  grid-column: 1 / -1;
+  margin-top: 22px;
+  max-width: 44em;
+  font-size: 15px;
+  color: var(--ink-3);
+}
+@media (max-width: 640px) {
+  .hp-ledger {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+  .hp-ledger__foot {
+    margin-top: 0;
+  }
+}
+
+/* ── Also in CoursePro ── */
+.hp-features {
+  grid-template-columns: 1fr;
+}
+.hp-features .hp-split__text {
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  align-items: end;
+  gap: 16px clamp(40px, 7vw, 112px);
+}
+@media (max-width: 860px) {
+  .hp-features .hp-split__text {
+    grid-template-columns: 1fr;
+  }
+}
+.hp-scenes {
   display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: var(--accent-soft);
-  color: var(--accent);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
 }
-.hp .hp-promises h3 {
-  font-size: 1.06rem;
+.hp-scene {
+  display: grid;
+  align-content: start;
+  gap: 18px;
+  min-width: 0;
+}
+.hp-scene__stage {
+  position: relative;
+  height: 220px;
+  overflow: hidden;
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.hp .hp-scene h3 {
+  font-size: 1.08rem;
   letter-spacing: -0.015em;
 }
-.hp-promises p {
+.hp-scene figcaption p {
   margin-top: 4px;
   font-size: 15.5px;
   color: var(--ink-2);
 }
+@media (max-width: 860px) {
+  .hp-scenes {
+    grid-template-columns: 1fr;
+    gap: 36px;
+  }
+}
 
-/* ── Also in CoursePro ── */
+/* Reminders arrive one after another, like they do on a phone. */
+.hp-notes {
+  padding: 18px 16px;
+}
+.hp-note {
+  position: absolute;
+  inset: auto 16px auto 16px;
+  top: calc(18px + var(--n) * 64px);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+.hp-note img {
+  border-radius: 7px;
+}
+.hp-note__top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+.hp-note__title {
+  overflow: hidden;
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.hp-note__body {
+  overflow: hidden;
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: var(--ink-2);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Grades: one bar per class. */
+.hp-grades {
+  display: grid;
+  align-content: center;
+  gap: 12px;
+  padding: 18px 20px;
+}
+.hp-grade {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 5px 12px;
+  font-size: 13.5px;
+}
+.hp-grade__name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.hp-grade__score {
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.hp-grade__bar {
+  grid-column: 1 / -1;
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(var(--accent), var(--accent)) 0 0 / var(--v) 100% no-repeat, var(--line);
+}
+
+/* Study session: the timer runs down beside the queue. */
+.hp-timer {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+  padding: 18px 20px;
+}
+.hp-timer svg {
+  transform: rotate(-90deg);
+}
+.hp-timer circle {
+  fill: none;
+  stroke-width: 7;
+}
+.hp-timer__track {
+  stroke: var(--line);
+}
+.hp-timer__run {
+  stroke: var(--accent);
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 28;
+}
+.hp-timer__queue {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  font-size: 13.5px;
+  color: var(--ink-3);
+}
+.hp-timer__queue p {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.hp-timer__mode {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+.hp-timer__queue .is-now {
+  color: var(--ink);
+  font-weight: 600;
+}
+
 .hp-more {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 24px 40px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px 20px;
 }
 .hp-more > div {
   padding-top: 20px;
@@ -757,7 +912,7 @@
   color: var(--ink-2);
   font-size: 15.5px;
 }
-@media (max-width: 560px) {
+@media (max-width: 760px) {
   .hp-more {
     grid-template-columns: 1fr;
   }
@@ -765,10 +920,21 @@
 
 /* ── Setup ── */
 .hp-steps {
+  position: relative;
   display: grid;
   margin: 0;
   padding: 0;
   list-style: none;
+}
+.hp-steps::before {
+  content: "";
+  position: absolute;
+  left: 16px;
+  top: 34px;
+  bottom: 34px;
+  width: 2px;
+  background: var(--accent);
+  transform-origin: top;
 }
 .hp-steps li {
   display: grid;
@@ -782,7 +948,9 @@
   padding-top: 0;
 }
 .hp-steps__n {
+  position: relative;
   display: grid;
+  background: var(--bg);
   place-items: center;
   width: 34px;
   height: 34px;
@@ -832,16 +1000,11 @@
 /* ── Close: a green band ── */
 .hp-end {
   margin: clamp(96px, 12vw, 160px) 0 0;
-  padding: clamp(72px, 10vw, 128px) max(24px, calc((100% - 1120px) / 2));
-  border-top: 1px solid var(--line-2);
-  background:
-    radial-gradient(900px 420px at 50% 0%, rgb(143 208 165 / 0.18), transparent 70%),
-    var(--surface-2);
-  text-align: center;
+  padding: clamp(72px, 10vw, 120px) max(24px, calc((100% - 1120px) / 2));
+  background: var(--surface-2);
 }
 .hp-end h2 {
-  max-width: 17ch;
-  margin-inline: auto;
+  max-width: 14ch;
 }
 .hp .hp-end h2 {
   font-size: clamp(2.4rem, 5.6vw, 4.8rem);
@@ -850,8 +1013,7 @@
   letter-spacing: -0.05em;
 }
 .hp-end .hp-actions {
-  justify-content: center;
-  margin-top: 36px;
+  margin-top: 32px;
 }
 .hp-end .hp-muted {
   font-size: 15px;
@@ -892,11 +1054,8 @@
   .hp-bar {
     animation: hp-fade 1.2s var(--breathe) both;
   }
-  .hp-hero .hp-hello {
-    animation-delay: 0.05s;
-  }
   .hp-hero h1 {
-    animation-delay: 0.14s;
+    animation-delay: 0.08s;
   }
   .hp-hero .hp-lede {
     animation-delay: 0.26s;
@@ -904,18 +1063,11 @@
   .hp-hero .hp-actions {
     animation-delay: 0.38s;
   }
-  .hp-hero .hp-assure {
+  .hp-hero .hp-hero__fine {
     animation-delay: 0.5s;
   }
   .hp-hero__demo.hp-rise {
     animation: hp-arrive 1.6s var(--breathe) 0.3s both;
-  }
-  /* The example week drifts gently while it waits to be used. */
-  .hp-hero__demo .hp-week {
-    animation: hp-float 7s ease-in-out 2.2s infinite;
-  }
-  .hp-hello::before {
-    animation: hp-pulse 2.6s ease-out 1.4s infinite;
   }
   .hp-home .hp-button:hover {
     transform: translateY(-2px);
@@ -958,26 +1110,75 @@
   .hp-story__shot.is-shown {
     transform: none;
   }
-  .hp-story__dots button {
+  /* Then it eases in on the part the step is about, and outlines it. */
+  .hp-zoom {
+    transition: transform 0.9s var(--ease);
+  }
+  :is(.hp-story__shot.is-shown, .hp-step.is-active .hp-step__shot) .hp-zoom {
+    transform: translate(var(--tx), var(--ty)) scale(var(--s));
+    transition: transform 1.5s var(--ease) 0.55s;
+  }
+  .hp-focus {
+    transform: scale(1.04);
     transition:
-      width 0.4s var(--ease),
-      background-color 0.3s;
+      opacity 0.3s,
+      transform 0.3s;
+  }
+  .hp-focus__label {
+    translate: 0 6px;
+    transition:
+      opacity 0.3s,
+      translate 0.3s;
+  }
+  :is(.hp-story__shot.is-shown, .hp-step.is-active .hp-step__shot) .hp-focus {
+    transform: none;
+    transition:
+      opacity 0.5s ease 1.5s,
+      transform 0.7s var(--ease) 1.5s;
+  }
+  :is(.hp-story__shot.is-shown, .hp-step.is-active .hp-step__shot) .hp-focus__label {
+    translate: 0 0;
+    transition:
+      opacity 0.5s ease 1.75s,
+      translate 0.7s var(--ease) 1.75s;
   }
 
-  /* The statement reads itself in, one word after another. */
-  .hp-statement [data-breathe].is-waiting {
-    opacity: 1;
-    transform: none;
-  }
+  /* The statement lights up as it scrolls by (index.tsx marks the lit words). */
   .hp-word {
-    transition:
-      opacity 0.8s var(--breathe),
-      transform 1s var(--breathe);
-    transition-delay: calc(var(--i) * 70ms);
+    transition: color 0.35s ease;
   }
-  .hp-statement .is-waiting .hp-word {
+
+  /* What CoursePro can see: the rows arrive one at a time. */
+  .hp-ledger li {
+    transition:
+      opacity 0.6s var(--breathe),
+      transform 0.8s var(--breathe);
+    transition-delay: calc(0.2s + var(--n) * 70ms);
+  }
+  .hp-ledger.is-waiting li {
     opacity: 0;
-    transform: translateY(0.45em);
+    transform: translateY(10px);
+  }
+
+  /* The three scenes only run while they're on screen. */
+  .hp-note {
+    opacity: 0;
+    animation: hp-note 9s var(--ease) infinite paused;
+    animation-delay: calc(var(--n) * 1.2s);
+  }
+  .hp-grade__bar {
+    background-size: 0% 100%;
+    transition: background-size 1.3s var(--ease);
+    transition-delay: calc(var(--n) * 90ms);
+  }
+  .hp-timer__run {
+    animation: hp-timer 14s linear infinite paused;
+  }
+  .hp-scenes.is-live :is(.hp-note, .hp-timer__run) {
+    animation-play-state: running;
+  }
+  .hp-scenes.is-live .hp-grade__bar {
+    background-size: var(--v) 100%;
   }
 
   .hp-task__next {
@@ -1002,18 +1203,66 @@
     opacity: 0;
   }
 }
-@keyframes hp-float {
-  50% {
-    transform: translateY(-6px);
+@keyframes hp-note {
+  0% {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.98);
+  }
+  6%,
+  80% {
+    opacity: 1;
+    transform: none;
+  }
+  92%,
+  100% {
+    opacity: 0;
+    transform: none;
   }
 }
-@keyframes hp-pulse {
-  0% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent);
+@keyframes hp-timer {
+  from {
+    stroke-dashoffset: 0;
   }
-  70%,
-  100% {
-    box-shadow: 0 0 0 8px transparent;
+  to {
+    stroke-dashoffset: 100;
+  }
+}
+@keyframes hp-draw {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+/* Where the browser can tie motion to scrolling, the setup line draws itself
+   as the steps scroll by and the tour's screen settles into place. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .hp-steps {
+      view-timeline: --hp-steps block;
+    }
+    .hp-steps::before {
+      animation: hp-draw linear both;
+      animation-timeline: --hp-steps;
+      animation-range: entry 30% cover 60%;
+    }
+    .hp-story__frame {
+      animation: hp-settle linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 100%;
+    }
+  }
+}
+@keyframes hp-settle {
+  from {
+    opacity: 0.4;
+    transform: perspective(1400px) rotateX(10deg) scale(0.94);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* No zoom, so the outline and its label keep their normal size. */
+  .hp-zoom {
+    --s: 1 !important;
   }
 }
 

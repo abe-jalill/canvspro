@@ -80,6 +80,7 @@ const SCREENS = [
     title: "A clearer picture of your day.",
     caption: "Your grades, the next thing to do, and everything due in the next 24 hours.",
     alt: "The CoursePro dashboard with a greeting, the next assignment up, and class grades.",
+    focus: { x: 68.9, y: 24.3, w: 24.8, h: 23.7, label: "The one thing to do next" },
   },
   {
     id: "coming-up",
@@ -87,6 +88,7 @@ const SCREENS = [
     title: "Your week, with room to breathe.",
     caption: "The week ahead, one day at a time, with how long each assignment should take.",
     alt: "The Coming Up page with a seven-day strip and assignments grouped by day.",
+    focus: { x: 24.4, y: 30.8, w: 69.4, h: 8.9, label: "Seven days at a glance" },
   },
   {
     id: "study",
@@ -94,6 +96,7 @@ const SCREENS = [
     title: "A little focus goes a long way.",
     caption: "Pick assignments, choose a total time, time per assignment, or Pomodoro, and start.",
     alt: "The Study Session page: pick assignments on the left, your session and its time on the right.",
+    focus: { x: 62.2, y: 29.1, w: 31.6, h: 14.5, label: "Your session, in order" },
   },
   {
     id: "assignments",
@@ -101,6 +104,7 @@ const SCREENS = [
     title: "The right work. In the right order.",
     caption: "Every class in one list, ordered so the most pressing work is on top.",
     alt: "The Assignments page with a weekly count and a ranked list of work.",
+    focus: { x: 24.1, y: 66, w: 70, h: 6.5, label: "What to do right now, in plain words" },
   },
 ] as const;
 
@@ -158,41 +162,42 @@ const CANVAS_ORDER = [...TASKS].sort((a, b) => a.title.localeCompare(b.title));
 const SORTED_ORDER = [...TASKS].sort((a, b) => a.sorted - b.sorted);
 
 /**
- * What CoursePro does and doesn't do with an account. Every line matches the
- * Privacy Policy and Support pages; keep them in step if either changes.
+ * What CoursePro reads and what it never does. Every line matches the Privacy
+ * Policy and Support pages; keep them in step if either changes.
  */
-const PROMISES = [
+const READS = [
+  "Your courses and class names",
+  "Assignments, due dates and whether you've submitted",
+  "Grades and how each class weights them",
+  "Announcements from each class",
+];
+const NEVER = [
+  "Asks for your school password",
+  "Submits, edits or deletes anything in Canvas",
+  "Sells your information or uses it for ads",
+];
+
+/** The sample student's classes, as the demo and the screenshots show them. */
+const GRADES = [
+  { course: "College Writing", score: 95 },
+  { course: "Cell Biology", score: 93 },
+  { course: "Calculus I", score: 90 },
+  { course: "Intro to Psychology", score: 88 },
+  { course: "General Chemistry", score: 82 },
+];
+
+/** Written the way CoursePro's own reminders read. */
+const NOTES = [
+  { when: "now", title: "Cell Biology starts in 15 min", body: "Class reminder" },
   {
-    title: "Never your school password",
-    body: "You connect with an access token you make in Canvas yourself, and you can revoke it there at any time.",
+    when: "6:00 PM",
+    title: "Due tonight by 11:59 PM: WebAssign 3.4",
+    body: "WebAssign 3.4: Derivatives · Calculus I",
   },
-  {
-    title: "Only reads Canvas",
-    body: "CoursePro reads your courses, assignments, grades and announcements. It never submits, edits or deletes anything.",
-  },
-  {
-    title: "Not for sale",
-    body: "We don't sell your information, use it for ads, or put advertising trackers on the site or in the app.",
-  },
-  {
-    title: "Yours to delete",
-    body: "Remove your Canvas key or delete your whole account from Settings, and the data linked to it goes with it.",
-  },
+  { when: "9:00 AM", title: "Lab Report 2 is due tomorrow at 11:59 PM", body: "General Chemistry" },
 ];
 
 const MORE = [
-  {
-    title: "Grades and GPA",
-    body: "Every class grade and your GPA in one place, plus a what-if calculator for the final.",
-  },
-  {
-    title: "Reminders",
-    body: "A heads-up one to three days before things are due, even when CoursePro is closed.",
-  },
-  {
-    title: "Study sessions",
-    body: "Line up a few assignments, set a timer or use Pomodoro, and add white or brown noise.",
-  },
   {
     title: "Class schedule",
     body: "Enter your class times once and get a reminder before each one starts.",
@@ -260,21 +265,6 @@ const useBrowserLayoutEffect = typeof window === "undefined" ? useEffect : useLa
 function prefersReducedMotion() {
   return (
     typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
-}
-
-function Check() {
-  return (
-    <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
-      <path
-        d="M3.5 8.5l3 3 6-7"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
   );
 }
 
@@ -445,6 +435,46 @@ function Shot({ id, alt, eager }: { id: string; alt: string; eager?: boolean }) 
 }
 
 /**
+ * One screenshot that, while `on`, eases in on the part of the screen its step
+ * describes and outlines it. The zoom is a translate and scale of the whole
+ * shot, kept inside the frame, so no empty edge ever shows.
+ */
+function FocusShot({
+  screen,
+  eager,
+}: {
+  screen: (typeof SCREENS)[number];
+  eager?: boolean;
+}) {
+  const { x, y, w, h, label } = screen.focus;
+  // Close enough to read the detail, never so close the outline leaves the frame.
+  const scale = Math.min(1.6, 96 / w, Math.max(1.3, 72 / w));
+  const clamp = (value: number) => Math.min(0, Math.max(100 - 100 * scale, value));
+  const style = {
+    "--s": scale,
+    "--tx": `${clamp(50 - scale * (x + w / 2))}%`,
+    "--ty": `${clamp(50 - scale * (y + h / 2))}%`,
+  } as CSSProperties;
+  return (
+    <div className="hp-zoom" style={style}>
+      <Shot id={screen.id} alt={screen.alt} eager={eager} />
+      <span
+        className="hp-focus"
+        aria-hidden="true"
+        style={{ left: `${x}%`, top: `${y}%`, width: `${w}%`, height: `${h}%` }}
+      />
+      <span
+        className="hp-focus__label"
+        aria-hidden="true"
+        style={{ left: `${x}%`, top: `${y + h}%` }}
+      >
+        {label}
+      </span>
+    </div>
+  );
+}
+
+/**
  * A tour of the real app. On wide screens the words scroll on the left while
  * the screenshot on the right stays put and changes to match the step in the
  * middle of the screen. On phones each step carries its own screenshot.
@@ -478,8 +508,8 @@ function ScreenStory() {
   return (
     <section id="app-preview" className="hp-story" aria-labelledby="hp-story-title">
       <div className="hp-story__intro" data-breathe>
-        <h2 id="hp-story-title">Take a look around.</h2>
-        <p>These are real screens from CoursePro, the way they look with your own classes.</p>
+        <h2 id="hp-story-title">What you&rsquo;ll use every day</h2>
+        <p>Real screens from CoursePro, shown with a sample student&rsquo;s classes.</p>
       </div>
       <div className="hp-story__grid" style={{ "--step": active } as CSSProperties}>
         <ol className="hp-story__steps">
@@ -493,16 +523,16 @@ function ScreenStory() {
               className={"hp-step" + (index === active ? " is-active" : "")}
             >
               <div className="hp-step__copy" data-breathe>
-                <p className="hp-step__label">
+                <button type="button" className="hp-step__label" onClick={() => show(index)}>
                   <span>{String(index + 1).padStart(2, "0")}</span>
                   {item.label}
-                </p>
+                </button>
                 <h3>{item.title}</h3>
                 <p>{item.caption}</p>
               </div>
               {/* Phones: the screenshot sits right under its words. */}
               <div className="hp-frame hp-step__shot" data-breathe>
-                <Shot id={item.id} alt={item.alt} />
+                <FocusShot screen={item} />
               </div>
             </li>
           ))}
@@ -518,20 +548,15 @@ function ScreenStory() {
                 }
                 aria-hidden={index !== active}
               >
-                <Shot id={item.id} alt={item.alt} eager={index === 0} />
+                <FocusShot screen={item} eager={index === 0} />
               </div>
             ))}
           </div>
-          <div className="hp-story__dots" role="group" aria-label="Jump to a screen">
-            {SCREENS.map((item, index) => (
-              <button
-                key={item.id}
-                type="button"
-                aria-label={`Show ${item.label}`}
-                aria-current={index === active ? "step" : undefined}
-                onClick={() => show(index)}
-              />
-            ))}
+          <div className="hp-story__meta" aria-hidden="true">
+            <span>{SCREENS[active].label}</span>
+            <span className="hp-story__count">
+              {String(active + 1).padStart(2, "0")} / {String(SCREENS.length).padStart(2, "0")}
+            </span>
           </div>
         </div>
       </div>
@@ -580,17 +605,138 @@ function useScrolled() {
 }
 
 /** One word at a time, so the line reads itself in as it arrives. */
-function Words({ text, from = 0 }: { text: string; from?: number }) {
+/**
+ * The statement lights up word by word as it scrolls up the screen, and dims
+ * again if the visitor scrolls back. Returns how many words are lit.
+ */
+function useLitWords(total: number) {
+  const ref = useRef<HTMLParagraphElement>(null);
+  const [lit, setLit] = useState(total);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || prefersReducedMotion()) return;
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const box = el.getBoundingClientRect();
+      const view = window.innerHeight;
+      // From the line's top reaching 85% of the screen to its bottom reaching 45%.
+      const progress = (view * 0.85 - box.top) / (box.height + view * 0.4);
+      setLit(Math.round(Math.min(1, Math.max(0, progress)) * total));
+    };
+    const schedule = () => {
+      if (!frame) frame = window.requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    return () => {
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      window.cancelAnimationFrame(frame);
+    };
+  }, [total]);
+  return { ref, lit };
+}
+
+function Words({ text, from = 0, lit }: { text: string; from?: number; lit: number }) {
   return (
     <>
       {text.split(" ").map((word, index) => (
         <span key={index}>
-          <span className="hp-word" style={{ "--i": from + index } as CSSProperties}>
-            {word}
-          </span>{" "}
+          <span className={"hp-word" + (from + index < lit ? " is-lit" : "")}>{word}</span>{" "}
         </span>
       ))}
     </>
+  );
+}
+
+/** Adds is-live while the element is on screen, so its loops only run when seen. */
+function useLive<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (!("IntersectionObserver" in window)) {
+      el.classList.add("is-live");
+      return;
+    }
+    const watch = new IntersectionObserver(
+      ([entry]) => el.classList.toggle("is-live", Boolean(entry?.isIntersecting)),
+      { threshold: 0.35 },
+    );
+    watch.observe(el);
+    return () => watch.disconnect();
+  }, []);
+  return ref;
+}
+
+/** Three features shown doing their job, in the app's own words and classes. */
+function LiveScenes() {
+  const ref = useLive<HTMLDivElement>();
+  return (
+    <div className="hp-scenes" ref={ref}>
+      <figure className="hp-scene" data-breathe>
+        <div className="hp-scene__stage hp-notes" aria-hidden="true">
+          {NOTES.map((note, index) => (
+            <div key={note.title} className="hp-note" style={{ "--n": index } as CSSProperties}>
+              <img src="/canvaspro-icon-v2-180.png" alt="" width={28} height={28} />
+              <div>
+                <p className="hp-note__top">
+                  <span>CoursePro</span>
+                  <span>{note.when}</span>
+                </p>
+                <p className="hp-note__title">{note.title}</p>
+                <p className="hp-note__body">{note.body}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        <figcaption>
+          <h3>Reminders</h3>
+          <p>Before a class starts, the night something is due, and days ahead. Even with CoursePro closed.</p>
+        </figcaption>
+      </figure>
+
+      <figure className="hp-scene" data-breathe style={{ "--d": "0.08s" } as CSSProperties}>
+        <div className="hp-scene__stage hp-grades" aria-hidden="true">
+          {GRADES.map((grade, index) => (
+            <div
+              key={grade.course}
+              className="hp-grade"
+              style={{ "--v": `${grade.score}%`, "--n": index } as CSSProperties}
+            >
+              <span className="hp-grade__name">{grade.course}</span>
+              <span className="hp-grade__score">{grade.score}%</span>
+              <span className="hp-grade__bar" />
+            </div>
+          ))}
+        </div>
+        <figcaption>
+          <h3>Grades and GPA</h3>
+          <p>Every class grade and your GPA in one place, plus a what-if calculator for the final.</p>
+        </figcaption>
+      </figure>
+
+      <figure className="hp-scene" data-breathe style={{ "--d": "0.16s" } as CSSProperties}>
+        <div className="hp-scene__stage hp-timer" aria-hidden="true">
+          <svg viewBox="0 0 120 120" width="112" height="112">
+            <circle className="hp-timer__track" cx="60" cy="60" r="52" />
+            <circle className="hp-timer__run" cx="60" cy="60" r="52" pathLength="100" />
+          </svg>
+          <div className="hp-timer__queue">
+            <p className="hp-timer__mode">Pomodoro · 25 min</p>
+            <p className="is-now">Lab Report 2</p>
+            <p>Reading Response 5</p>
+            <p>WebAssign 3.4</p>
+          </div>
+        </div>
+        <figcaption>
+          <h3>Study sessions</h3>
+          <p>Line up a few assignments, set a timer or use Pomodoro, and add white or brown noise.</p>
+        </figcaption>
+      </figure>
+    </div>
   );
 }
 
@@ -598,6 +744,7 @@ function LandingPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const pageRef = useBreathe();
   const scrolled = useScrolled();
+  const statement = useLitWords(9);
 
   useEffect(() => {
     let active = true;
@@ -649,7 +796,6 @@ function LandingPage() {
       <main id="main">
         <section className="hp-hero" aria-labelledby="hp-title">
           <div className="hp-hero__text">
-            <p className="hp-hello hp-rise">Made for students who use Canvas</p>
             <h1 id="hp-title" className="hp-rise">
               Every Canvas deadline, <span className="hp-quiet">in the order you should do it.</span>
             </h1>
@@ -662,20 +808,12 @@ function LandingPage() {
                 {ctaLabel}
               </Link>
               <a href="#app-preview" className="hp-link hp-preview-link">
-                Take a look around <span aria-hidden="true">↓</span>
+                See the app <span aria-hidden="true">↓</span>
               </a>
             </div>
-            <ul className="hp-assure hp-rise" aria-label="What to expect">
-              <li>
-                <Check /> No school password
-              </li>
-              <li>
-                <Check /> Only reads Canvas
-              </li>
-              <li>
-                <Check /> Delete anytime
-              </li>
-            </ul>
+            <p className="hp-hero__fine hp-rise">
+              Works with your school&rsquo;s Canvas. You never share your school password.
+            </p>
           </div>
           <div className="hp-hero__demo hp-rise">
             <SortingWeek />
@@ -686,20 +824,18 @@ function LandingPage() {
         <ScreenStory />
 
         <section className="hp-statement" aria-label="Why CoursePro">
-          <p data-breathe>
-            <Words text="Canvas tells you everything." />{" "}
-            <span className="hp-quiet">
-              <Words text="CoursePro tells you what’s next." from={4} />
-            </span>
+          <p ref={statement.ref}>
+            <Words text="Canvas tells you everything." lit={statement.lit} />{" "}
+            <Words text="CoursePro tells you what’s next." from={4} lit={statement.lit} />
           </p>
         </section>
 
         <section className="hp-split hp-trust" aria-labelledby="hp-trust-title">
           <div className="hp-split__text" data-breathe>
-            <h2 id="hp-trust-title">Your classes stay yours.</h2>
+            <h2 id="hp-trust-title">What CoursePro can see</h2>
             <p>
-              Connecting a school account is a big ask, so here is exactly what CoursePro does with
-              it, in plain words.
+              You connect with an access token you make in Canvas yourself. Here is everything it
+              lets CoursePro do, and what it never does.
             </p>
             <p className="hp-muted">
               Read the{" "}
@@ -713,26 +849,35 @@ function LandingPage() {
               with any question.
             </p>
           </div>
-          <ul className="hp-promises">
-            {PROMISES.map((item, index) => (
-              <li
-                key={item.title}
-                data-breathe
-                style={{ "--d": `${index * 0.08}s` } as CSSProperties}
-              >
-                <span className="hp-promises__check">
-                  <Check />
-                </span>
-                <div>
-                  <h3>{item.title}</h3>
-                  <p>{item.body}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <div className="hp-ledger" data-breathe style={{ "--d": "0.1s" } as CSSProperties}>
+            <div className="hp-ledger__col">
+              <h3>It reads</h3>
+              <ul>
+                {READS.map((line, index) => (
+                  <li key={line} style={{ "--n": index } as CSSProperties}>
+                    {line}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="hp-ledger__col hp-ledger__col--never">
+              <h3>It never</h3>
+              <ul>
+                {NEVER.map((line, index) => (
+                  <li key={line} style={{ "--n": index + READS.length } as CSSProperties}>
+                    {line}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <p className="hp-ledger__foot">
+              Remove the key or delete your account from Settings whenever you like. You can also
+              revoke the token in Canvas under Settings, Approved Integrations.
+            </p>
+          </div>
         </section>
 
-        <section className="hp-split" aria-labelledby="hp-more-title">
+        <section className="hp-split hp-features" aria-labelledby="hp-more-title">
           <div className="hp-split__text" data-breathe>
             <h2 id="hp-more-title">Also in CoursePro</h2>
             <p className="hp-muted">
@@ -743,6 +888,7 @@ function LandingPage() {
               for what-if and weighted grades.
             </p>
           </div>
+          <LiveScenes />
           <dl className="hp-more">
             {MORE.map((item, index) => (
               <div
@@ -806,7 +952,7 @@ function LandingPage() {
 
         <section className="hp-end" aria-labelledby="hp-end-title">
           <h2 id="hp-end-title" data-breathe>
-            Make this semester a little calmer.
+            Try it with your own classes.
           </h2>
           <div className="hp-actions" data-breathe style={{ "--d": "0.12s" } as CSSProperties}>
             <Link to={cta} preload="intent" className="hp-button">
