@@ -1949,7 +1949,7 @@ private struct NativeDashboardView: View {
 
     @ViewBuilder private func dashboardBlock(_ block: DashboardBlock) -> some View {
         if block.widgets.count > 1 {
-            CPWidgetStack(ids: block.widgets, initial: firstWidget(in: block)) { id in dashboardWidget(id) }
+            CPWidgetStack(ids: block.widgets, initial: firstWidget(in: block)) { id in dashboardWidget(id, compact: true) }
         } else if let id = block.widgets.first {
             dashboardWidget(id)
         }
@@ -1976,14 +1976,16 @@ private struct NativeDashboardView: View {
         }
     }
 
-    @ViewBuilder private func dashboardWidget(_ id: String) -> some View {
+    /// `compact` is the short form a stack holds: the first three rows and a
+    /// "See all", so a stack stays small and the page around it still scrolls.
+    @ViewBuilder private func dashboardWidget(_ id: String, compact: Bool = false) -> some View {
         switch id {
         case "digest": digestWidget
-        case "classes": classesWidget
-        case "upcoming": upcomingWidget
-        case "focus": focusWidget
-        case "calendar": calendarWidget
-        case "announcements": announcementsWidget
+        case "classes": classesWidget(compact: compact)
+        case "upcoming": upcomingWidget(compact: compact)
+        case "focus": focusWidget(compact: compact)
+        case "calendar": calendarWidget(compact: compact)
+        case "announcements": announcementsWidget(compact: compact)
         case "heatmap":
             CPGlassCard(title: "Workload") {
                 WorkloadView(assignments: activeAssignments, store: store, features: features, outlineDueToday: true)
@@ -2091,8 +2093,9 @@ private struct NativeDashboardView: View {
 
     // MARK: Classes & Grades
 
-    private var classesWidget: some View {
-        CPGlassCard {
+    private func classesWidget(compact: Bool) -> some View {
+        let shown = compact ? Array(visibleCourses.prefix(4)) : visibleCourses
+        return CPGlassCard {
             CPCardHeader(title: "Classes & Grades") {
                 Button { selection = .grades } label: { CPLinkLabel(text: "View all") }.buttonStyle(.plain)
             }
@@ -2100,7 +2103,7 @@ private struct NativeDashboardView: View {
                 NativeEmptyState(title: "No active courses.", symbol: "books.vertical")
             } else {
                 VStack(spacing: 8) {
-                    ForEach(visibleCourses) { course in
+                    ForEach(shown) { course in
                         NavigationLink {
                             CourseDetailView(course: course, store: store, features: features)
                         } label: {
@@ -2121,6 +2124,9 @@ private struct NativeDashboardView: View {
                         .buttonStyle(CPPressStyle())
                     }
                 }
+                if visibleCourses.count > shown.count {
+                    NativeMoreLine(count: visibleCourses.count - shown.count, noun: "class", plural: "classes") { selection = .grades }
+                }
             }
         }
     }
@@ -2133,7 +2139,7 @@ private struct NativeDashboardView: View {
 
     // MARK: Upcoming Assignments
 
-    private var upcomingWidget: some View {
+    private func upcomingWidget(compact: Bool) -> some View {
         let groups = visibleCourses.compactMap { course -> NativeCourseGroup? in
             let items = weekItems.filter { $0.courseID == course.id }.sorted(by: AssignmentItem.dueSort)
             return items.isEmpty ? nil : NativeCourseGroup(course: course, items: items)
@@ -2147,6 +2153,14 @@ private struct NativeDashboardView: View {
                 NativeEmptyState(title: "No active courses.", symbol: "books.vertical")
             } else if groups.isEmpty {
                 NativeEmptyState(title: "You're all clear", symbol: "checkmark.circle")
+            } else if compact {
+                let next = weekItems.sorted(by: AssignmentItem.dueSort)
+                VStack(spacing: 8) {
+                    ForEach(next.prefix(3)) { item in NativeDueRow(assignment: item, store: store, features: features, showToggle: false) }
+                }
+                if next.count > 3 {
+                    NativeMoreLine(count: next.count - 3, noun: "more this week", plural: "more this week", bare: true) { openFocus("7") }
+                }
             } else {
                 VStack(spacing: 0) {
                     ForEach(groups) { group in
@@ -2197,7 +2211,7 @@ private struct NativeDashboardView: View {
 
     // MARK: Focus
 
-    private var focusWidget: some View {
+    private func focusWidget(compact: Bool) -> some View {
         let soon = activeAssignments.filter { NativeParity.isInFocusWindow($0, window: "2") }.sorted(by: AssignmentItem.dueSort)
         return CPGlassCard {
             CPCardHeader(title: "Next 48 hours") {
@@ -2207,7 +2221,10 @@ private struct NativeDashboardView: View {
                 NativeEmptyState(title: "Nothing due in the next 48 hours.", symbol: "sun.max")
             } else {
                 VStack(spacing: 8) {
-                    ForEach(soon.prefix(5)) { item in NativeDueRow(assignment: item, store: store, features: features, showToggle: false) }
+                    ForEach(soon.prefix(compact ? 3 : 5)) { item in NativeDueRow(assignment: item, store: store, features: features, showToggle: false) }
+                }
+                if compact && soon.count > 3 {
+                    NativeMoreLine(count: soon.count - 3, noun: "more", plural: "more", bare: true) { openFocus("2") }
                 }
             }
         }
@@ -2215,13 +2232,13 @@ private struct NativeDashboardView: View {
 
     // MARK: Calendar
 
-    private var calendarWidget: some View {
+    private func calendarWidget(compact: Bool) -> some View {
         let now = Date()
         let end = now.addingTimeInterval(7 * 86400)
         let events = Array(store.bundle.calendar.compactMap { event -> NativeDatedEvent? in
             guard let raw = event.startAt, let date = ISO8601DateFormatter.canvasDate(from: raw), date >= now, date <= end else { return nil }
             return NativeDatedEvent(event: event, date: date)
-        }.sorted { $0.date < $1.date }.prefix(4))
+        }.sorted { $0.date < $1.date }.prefix(compact ? 3 : 4))
         return CPGlassCard {
             CPCardHeader(title: "Calendar") {
                 NavigationLink { NativeCalendarHub(store: store, features: features) } label: { CPLinkLabel(text: "View all") }.buttonStyle(.plain)
@@ -2251,7 +2268,7 @@ private struct NativeDashboardView: View {
 
     // MARK: Announcements
 
-    private var announcementsWidget: some View {
+    private func announcementsWidget(compact: Bool) -> some View {
         let visible = store.bundle.announcements.filter { !features.hiddenCourseIDs.contains($0.courseID) && $0.isWithin(weeks: features.announcementWeeks) && !dismissedAnnouncements.contains($0.id) }
         let groups = Dictionary(grouping: visible, by: \.courseID)
             .map { id, items in NativeAnnouncementGroup(id: id, name: store.displayName(courseID: id, fallback: items.first?.courseName ?? "Class"), items: items.sorted { $0.postedAt > $1.postedAt }) }
@@ -2262,6 +2279,29 @@ private struct NativeDashboardView: View {
             }
             if groups.isEmpty {
                 NativeEmptyState(title: "No new announcements.", symbol: "megaphone")
+            } else if compact {
+                let newest = visible.sorted { $0.postedAt > $1.postedAt }
+                VStack(spacing: 8) {
+                    ForEach(newest.prefix(3)) { item in
+                        NavigationLink { AnnouncementDetailView(item: item) } label: {
+                            CPInsetRow {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(item.title).cpFont(13, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
+                                    Text(store.displayName(courseID: item.courseID, fallback: item.courseName))
+                                        .cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                        }
+                        .buttonStyle(CPPressStyle())
+                    }
+                }
+                if newest.count > 3 {
+                    NavigationLink { AnnouncementsView(store: store, features: features) } label: {
+                        NativeMoreLabel(text: "\(newest.count - 3) more")
+                    }
+                    .buttonStyle(.plain)
+                }
             } else {
                 VStack(spacing: 0) {
                     ForEach(groups) { group in
@@ -2352,6 +2392,36 @@ private struct NativeDashboardView: View {
         else if !store.bundle.courses.isEmpty { markDigestSeen() }
     }
     private func markDigestSeen() { let snapshot = NativeDigestSnapshot(lastVisit: Date(), grades: gradeMap, urgency: urgencyMap); digest = snapshot; if let data = try? JSONEncoder().encode(snapshot) { UserDefaults.standard.set(data, forKey: digestKey) } }
+}
+
+/// "3 more classes" under a short card; tapping opens the full list.
+private struct NativeMoreLine: View {
+    let count: Int
+    let noun: String
+    let plural: String
+    var bare = false
+    let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            NativeMoreLabel(text: bare ? "\(count) \(noun)" : "\(count) more \(count == 1 ? noun : plural)")
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct NativeMoreLabel: View {
+    @Environment(\.colorScheme) private var scheme
+    let text: String
+    var body: some View {
+        HStack(spacing: 4) {
+            Text(text).cpFont(12, .medium)
+            Image(systemName: "chevron.right").cpIconFont(10, .semibold)
+        }
+        .foregroundStyle(CPTheme.muted(scheme))
+        .padding(.horizontal, 4)
+        .frame(minHeight: 32)
+        .contentShape(Rectangle())
+    }
 }
 
 struct NativeCourseGroup: Identifiable {

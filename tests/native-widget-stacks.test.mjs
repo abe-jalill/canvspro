@@ -45,3 +45,12 @@ test("it opens on what matters now and lists the cards with VoiceOver", () => {
   assert.match(dashboard, /start\.timeIntervalSince\(now\) <= 3 \* 3600/);
   assert.match(dashboard, /if !newAnnouncements\.isEmpty && block\.widgets\.contains\("announcements"\)/);
 });
+
+test("stacks hold the short form of each card, so the page around them still scrolls", () => {
+  assert.match(dashboard, /CPWidgetStack\(ids: block\.widgets, initial: firstWidget\(in: block\)\) \{ id in dashboardWidget\(id, compact: true\) \}/);
+  assert.match(dashboard, /let shown = compact \? Array\(visibleCourses\.prefix\(4\)\) : visibleCourses/);
+  assert.match(dashboard, /ForEach\(next\.prefix\(3\)\)/);
+  assert.match(dashboard, /ForEach\(soon\.prefix\(compact \? 3 : 5\)\)/);
+  assert.match(dashboard, /\.prefix\(compact \? 3 : 4\)\)/);
+  assert.match(dashboard, /ForEach\(newest\.prefix\(3\)\)/);
+});
