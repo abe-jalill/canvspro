@@ -440,7 +440,7 @@ function installDemoMode() {
     localStorage.setItem("canvas:study-time-mode", studyMode);
   }
   // `neutral=1` shows the app's neutral charcoal look (no color theme, plain
-  // background) so homepage screenshots sit quietly on a monochrome page.
+  // background). The homepage screenshots use the default Forest theme instead.
   if (params.get("neutral") === "1") {
     const root = document.documentElement;
     const strip = () => {

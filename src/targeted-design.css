@@ -94,12 +94,12 @@
 :root:not([data-surface="app"]),
 :root:not([data-surface="app"]) body,
 :root:not([data-surface="app"])[data-palette] body::before {
-  background: #0c0d0f;
+  background: #07110c;
 }
 :root:not([data-surface="app"])[data-theme-mode="light"],
 :root:not([data-surface="app"])[data-theme-mode="light"] body,
 :root:not([data-surface="app"])[data-theme-mode="light"][data-palette] body::before {
-  background: #fafaf8;
+  background: #f4f8f5;
 }
 
 /* Wallpaper (Settings > Appearance > Background). One pre-blurred image per

@@ -65,6 +65,6 @@ test("the wallpaper and palette tint stay behind the signed-in app", () => {
   assert.doesNotMatch(css, /^:root\[data-palette\]\[data-wallpaper="wave"\] body::before/m);
   assert.match(
     css,
-    /:root:not\(\[data-surface="app"\]\)\[data-palette\] body::before \{\s*background: #0c0d0f;/,
+    /:root:not\(\[data-surface="app"\]\)\[data-palette\] body::before \{\s*background: #07110c;/,
   );
 });
