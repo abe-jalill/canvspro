@@ -217,7 +217,6 @@ private struct CPSurfaceModifier: ViewModifier {
 struct CPGlassCard<Content: View>: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.cpPalette) private var paletteDependency
-    @Environment(\.cpFillsStack) private var fillsStack
     let title: String?; let subtitle: String?; let strong: Bool; let content: Content
     init(title: String? = nil, subtitle: String? = nil, strong: Bool = false, @ViewBuilder content: () -> Content) { self.title = title; self.subtitle = subtitle; self.strong = strong; self.content = content() }
     var body: some View {
@@ -227,11 +226,10 @@ struct CPGlassCard<Content: View>: View {
             } else if let subtitle {
                 Text(subtitle).cpFont(12).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
             }
-            // Only this card fills a widget stack, never a card inside it.
-            content.environment(\.cpFillsStack, false)
+            content
         }
         .padding(CPLayout.cardPadding)
-        .frame(maxWidth: .infinity, maxHeight: fillsStack ? .infinity : nil, alignment: fillsStack ? .topLeading : .leading)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .cpSurface(strong: strong)
     }
 }
@@ -1078,170 +1076,5 @@ struct CPAdaptiveStack<Content: View>: View {
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: spacing))
             : AnyLayout(HStackLayout(alignment: .center, spacing: spacing))
         layout { content }
-    }
-}
-
-// MARK: - Widget stacks
-
-private struct CPFillsStackKey: EnvironmentKey {
-    static let defaultValue = false
-}
-
-extension EnvironmentValues {
-    /// Set inside a widget stack, where every card is as tall as the stack,
-    /// like widgets of one size in a Home Screen stack.
-    var cpFillsStack: Bool {
-        get { self[CPFillsStackKey.self] }
-        set { self[CPFillsStackKey.self] = newValue }
-    }
-}
-
-private struct CPStackHeightKey: PreferenceKey {
-    static let defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
-}
-
-/// The Home Screen's widget stack, inside the app. Cards sit in one rounded
-/// frame and page vertically under the finger, one card per swipe, and roll
-/// over the edge they share like the faces of a turning box: the card leaving
-/// tips back from that edge and shrinks a little while the next tips up into
-/// place. It rubber-bands at the ends rather than wrapping. Vertical dots beside
-/// it show the position while it moves, then fade.
-///
-/// Opens on `initial` (the card that matters most right now) and then stays put.
-/// The stack is as tall as its tallest card. With VoiceOver the cards are simply
-/// listed, since swiping inside a stack is awkward there.
-struct CPWidgetStack<ID: Hashable, Page: View>: View {
-    @Environment(\.colorScheme) private var scheme
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOver
-    let ids: [ID]
-    let page: (ID) -> Page
-    @State private var current: ID?
-    @State private var measuredHeight: CGFloat = 0
-    @State private var dotsShown = false
-    @State private var fadeDots: Task<Void, Never>?
-
-    /// How far a card has turned when it is a whole card away (a box face is 90).
-    private static var tilt: Double { 62 }
-
-    init(ids: [ID], initial: ID?, @ViewBuilder page: @escaping (ID) -> Page) {
-        self.ids = ids
-        self.page = page
-        _current = State(initialValue: initial.flatMap { ids.contains($0) ? $0 : nil } ?? ids.first)
-    }
-
-    var body: some View {
-        if voiceOver {
-            VStack(spacing: 16) { ForEach(ids, id: \.self) { page($0) } }
-        } else {
-            stack
-        }
-    }
-
-    private var height: CGFloat { measuredHeight > 0 ? measuredHeight : 240 }
-
-    private var stack: some View {
-        let still = reduceMotion
-        let tilt = Self.tilt
-        return ScrollView(.vertical) {
-            VStack(spacing: 0) {
-                ForEach(ids, id: \.self) { id in
-                    page(id)
-                        .environment(\.cpFillsStack, true)
-                        .frame(height: height)
-                        .scrollTransition(.interactive, axis: .vertical) { content, phase in
-                            let amount = abs(phase.value)
-                            return content
-                                // Above the frame the card hinges on its bottom edge, below it on its top.
-                                .rotation3DEffect(
-                                    .degrees(still ? 0 : -phase.value * tilt),
-                                    axis: (x: 1, y: 0, z: 0),
-                                    anchor: phase.value < 0 ? .bottom : .top,
-                                    perspective: 0.55
-                                )
-                                .scaleEffect(still ? 1 : 1 - amount * 0.08)
-                                .opacity(1 - amount * 0.6)
-                        }
-                        .id(id)
-                }
-            }
-            .scrollTargetLayout()
-        }
-        // One card per swipe, snapping to each card's frame.
-        .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
-        .scrollPosition(id: $current)
-        .scrollIndicators(.hidden)
-        .frame(height: height)
-        .clipShape(RoundedRectangle(cornerRadius: CPLayout.cardRadius, style: .continuous))
-        .overlay(alignment: .trailing) { dots }
-        .background(alignment: .top) { sizer }
-        .onPreferenceChange(CPStackHeightKey.self) { value in
-            if value > 0, abs(value - measuredHeight) > 0.5 { measuredHeight = value }
-        }
-        .onChange(of: ids) { _, newIDs in
-            if let current, newIDs.contains(current) { return }
-            current = newIDs.first
-        }
-        .onChange(of: current) { _, _ in showDots(holding: false) }
-        .modifier(CPStackScrollWatcher { moving in showDots(holding: moving) })
-        .onAppear { showDots(holding: false) }
-        .onDisappear { fadeDots?.cancel() }
-        .accessibilityElement(children: .contain)
-    }
-
-    /// Vertical dots just outside the stack's trailing edge, in the page margin.
-    private var dots: some View {
-        VStack(spacing: 5) {
-            ForEach(ids, id: \.self) { id in
-                Circle()
-                    .fill(CPTheme.foreground(scheme).opacity(id == current ? 0.9 : 0.28))
-                    .frame(width: 5, height: 5)
-            }
-        }
-        .offset(x: CPLayout.gutter / 2 + 2.5)
-        .opacity(dotsShown ? 1 : 0)
-        .animation(.easeOut(duration: dotsShown ? 0.15 : 0.45), value: dotsShown)
-        .animation(.easeInOut(duration: 0.2), value: current)
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
-    }
-
-    /// Every card at its natural height, unseen, so the stack takes the tallest.
-    private var sizer: some View {
-        ZStack(alignment: .top) {
-            ForEach(ids, id: \.self) { id in page(id) }
-        }
-        .fixedSize(horizontal: false, vertical: true)
-        .hidden()
-        .background(GeometryReader { proxy in
-            Color.clear.preference(key: CPStackHeightKey.self, value: proxy.size.height)
-        })
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
-    }
-
-    /// Dots stay while a finger is on the stack, and fade a moment after it settles.
-    private func showDots(holding: Bool) {
-        fadeDots?.cancel()
-        dotsShown = true
-        guard !holding else { return }
-        fadeDots = Task { @MainActor in
-            try? await Task.sleep(for: .seconds(1.4))
-            if !Task.isCancelled { dotsShown = false }
-        }
-    }
-}
-
-/// Tells the stack when someone starts and stops moving it (iOS 18 and later;
-/// on iOS 17 the dots follow page changes only).
-private struct CPStackScrollWatcher: ViewModifier {
-    let onPhase: (_ moving: Bool) -> Void
-    func body(content: Content) -> some View {
-        if #available(iOS 18.0, *) {
-            content.onScrollPhaseChange { _, phase in onPhase(phase != .idle) }
-        } else {
-            content
-        }
     }
 }
