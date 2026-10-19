@@ -171,7 +171,7 @@ struct CPBackdrop: View {
                         .scaledToFill()
                         .frame(width: size.width, height: size.height)
                         .accessibilityHidden(true)
-                } else {
+                } else if wallpaper == "glow" {
                     // Each frame holds the whole glow, so it fades out instead of ending in a line.
                     RadialGradient(colors: [CPTheme.primary(scheme: scheme).opacity(0.13), .clear], center: .center, startRadius: 0, endRadius: 360)
                         .frame(width: 720, height: 720)

@@ -47,3 +47,12 @@ test("refined cards and selections preserve accessibility", () => {
   assert.match(views, /CPProgressBar\(value: \(course\.currentScore \?\? 0\) \/ 100, color: color\)/);
   assert.match(design, /struct CPProgressBar[\s\S]*?\.accessibilityHidden\(true\)/);
 });
+
+test("the background is one solid color unless Glow or Wallpaper is picked", () => {
+  const backdrop = design.slice(design.indexOf("struct CPBackdrop"), design.indexOf("struct CPGlassCard"));
+  assert.match(backdrop, /@AppStorage\("CanvasProWallpaper"\) private var wallpaper = "plain"/);
+  assert.match(backdrop, /\} else if wallpaper == "glow" \{/);
+  assert.match(more, /backgroundButton\("plain", "Solid", "square\.fill"\)/);
+  assert.match(more, /backgroundButton\("glow", "Glow"/);
+  assert.match(read("NativeFeatures"), /\["wave", "glow", "plain"\]\.contains\(saved\)/);
+});

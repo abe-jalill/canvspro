@@ -588,7 +588,7 @@ final class NativeFeatureStore: ObservableObject {
         var palette = "forest"
         if case .some(.string(let saved)) = preferences["color_theme"], CPPalette(rawValue: saved) != nil { palette = saved }
         var wallpaper = "plain"
-        if case .some(.string(let saved)) = preferences["wallpaper"], ["wave", "plain"].contains(saved) { wallpaper = saved }
+        if case .some(.string(let saved)) = preferences["wallpaper"], ["wave", "glow", "plain"].contains(saved) { wallpaper = saved }
         // Only write a change, so a refresh doesn't redraw every themed view.
         if defaults.string(forKey: "CanvasProPalette") != palette {
             defaults.set(palette, forKey: "CanvasProPalette")

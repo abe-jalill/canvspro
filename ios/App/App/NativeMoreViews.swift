@@ -1939,9 +1939,11 @@ private struct AppearanceSettingsCard: View {
                     }
                     if scheme == "system" { Text("Follows your iPhone.").cpFont(12).foregroundStyle(CPTheme.muted(resolvedScheme)) }
                     Text("BACKGROUND").cpFont(11, .semibold).tracking(1).foregroundStyle(CPTheme.muted(resolvedScheme)).padding(.top, 4)
-                    LazyVGrid(columns: [GridItem(.flexible(minimum: 0), spacing: 9), GridItem(.flexible(minimum: 0))], spacing: 9) {
+                    LazyVGrid(columns: [GridItem(.flexible(minimum: 0), spacing: 9), GridItem(.flexible(minimum: 0), spacing: 9), GridItem(.flexible(minimum: 0))], spacing: 9) {
+                        // Solid is the default: one flat color, no gradient.
+                        backgroundButton("plain", "Solid", "square.fill")
+                        backgroundButton("glow", "Glow", "circle.lefthalf.filled")
                         backgroundButton("wave", "Wallpaper", "photo")
-                        backgroundButton("plain", "Plain color", "square.fill")
                     }
                     if let status { Text(status).cpFont(12).foregroundStyle(.red) }
         }
@@ -1952,7 +1954,7 @@ private struct AppearanceSettingsCard: View {
                 .frame(maxWidth: .infinity, minHeight: 64).foregroundStyle(scheme == value ? CPTheme.primary(scheme: resolvedScheme) : CPTheme.foreground(resolvedScheme)).background(scheme == value ? CPTheme.primary(scheme: resolvedScheme).opacity(0.10) : CPTheme.inset(resolvedScheme), in: RoundedRectangle(cornerRadius: 12)).overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(scheme == value ? CPTheme.primary(scheme: resolvedScheme).opacity(0.55) : CPTheme.insetBorder(resolvedScheme), lineWidth: scheme == value ? 1 : 0.5))
         }.buttonStyle(.plain)
     }
-    /// The palette's blurred wallpaper or the plain color, shared with the website.
+    /// The solid palette color, a soft glow of it, or its blurred wallpaper, shared with the website.
     private func backgroundButton(_ value: String, _ title: String, _ symbol: String) -> some View {
         let selected = wallpaper == value
         let accent = CPTheme.primary(scheme: resolvedScheme)
