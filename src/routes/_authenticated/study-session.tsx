@@ -2,7 +2,7 @@ import { mergeAssignments } from "@/lib/assignment-sources";
 import { useCustomAssignments } from "@/lib/custom-assignments";
 import { coursesQueryOptions } from "@/lib/canvas.queries";
 import { AssignmentEstimateEditor, CachedAssignmentEstimate } from "@/components/assignment-estimate";
-import { dueTodayClass, formatAssignmentDue } from "@/lib/assignment-due";
+import { formatAssignmentDue } from "@/lib/assignment-due";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -728,7 +728,6 @@ function StudySessionPage() {
                   className={cn(
                     "rounded-lg border px-4",
                     isCurrent && !done ? "border-foreground/50" : "border-foreground/15",
-                    dueTodayClass(item.dueAt ?? null, done),
                   )}
                 >
                   <button
@@ -891,7 +890,6 @@ function StudySessionPage() {
                           isSelected
                             ? "border-foreground/50"
                             : "border-foreground/15 hover:border-foreground/30",
-                          dueTodayClass(assignment.due_at),
                         )}
                       >
                         <span

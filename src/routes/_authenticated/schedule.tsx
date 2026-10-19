@@ -21,7 +21,7 @@ import { SkeletonBlock, WorkloadHeatmapSkeleton } from "@/components/skeletons/d
 import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
 import { useCalendarPicks } from "@/lib/calendar-picks";
 import { X } from "lucide-react";
-import { dueTodayClass, relativeDueDay } from "@/lib/assignment-due";
+import { relativeDueDay } from "@/lib/assignment-due";
 
 export const Route = createFileRoute("/_authenticated/schedule")({
   head: () => ({
@@ -219,7 +219,7 @@ function SchedulePage() {
                   {dayItems.map((it) => (
                     <li
                       key={it.key}
-                      className={`glass-inset glass-hover flex items-start justify-between gap-3 p-3 ${it.kind === "assignment" ? dueTodayClass(it.when.toISOString()) : ""}`}
+                      className="glass-inset glass-hover flex items-start justify-between gap-3 p-3"
                     >
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium">{it.title}</p>

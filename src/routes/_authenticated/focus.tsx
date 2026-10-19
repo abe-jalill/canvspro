@@ -1,5 +1,5 @@
 import { AssignmentEstimateEditor } from "@/components/assignment-estimate";
-import { dueTodayClass, formatAssignmentDue, relativeDueDay } from "@/lib/assignment-due";
+import { formatAssignmentDue, relativeDueDay } from "@/lib/assignment-due";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, queryOptions } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -484,7 +484,6 @@ function FocusRow({
       className={cn(
         "group grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3.5 rounded-lg border border-foreground/15 px-4 py-3.5",
         done && "opacity-55",
-        dueTodayClass(a.due_at, done),
       )}
     >
       <button

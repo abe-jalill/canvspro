@@ -11,6 +11,8 @@ import { dueTodayClass, formatAssignmentDue } from "@/lib/assignment-due";
 interface Props {
   assignments: AssignmentItem[];
   weeks?: number;
+  /** Today's work gets the yellow outline only on the Dashboard. */
+  outlineDueToday?: boolean;
 }
 
 interface DayCell {
@@ -36,7 +38,7 @@ function sameDay(a: Date, b: Date) {
   );
 }
 
-export function WorkloadHeatmap({ assignments, weeks = 4 }: Props) {
+export function WorkloadHeatmap({ assignments, weeks = 4, outlineDueToday = false }: Props) {
   const [open, setOpen] = useState<string | null>(null);
   const metaMap = useAssignmentMetaMap();
 
@@ -143,7 +145,7 @@ export function WorkloadHeatmap({ assignments, weeks = 4 }: Props) {
                   </p>
                   <ul className="space-y-1.5">
                     {openCell.items.map((a) => (
-                      <li key={a.id} className={cn("flex items-baseline justify-between gap-2 rounded-lg border border-transparent p-2", dueTodayClass(a.due_at))}>
+                      <li key={a.id} className={cn("flex items-baseline justify-between gap-2 rounded-lg border border-transparent p-2", outlineDueToday && dueTodayClass(a.due_at))}>
                         <div className="min-w-0">
                           <p className="truncate text-xs font-medium">{a.name}</p>
                           <p className="truncate text-[10px] text-muted-foreground">

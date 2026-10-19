@@ -1,5 +1,5 @@
 import { AssignmentEstimateEditor } from "@/components/assignment-estimate";
-import { dueTodayClass, formatAssignmentDue } from "@/lib/assignment-due";
+import { formatAssignmentDue } from "@/lib/assignment-due";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, queryOptions } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -650,7 +650,7 @@ function CourseDetailPage() {
                     <GlassCard
                       key={a.id}
                       id={`assignment-${a.id}`}
-                      className={cn("hover-scale scroll-mt-24 p-4", flashId === a.id && "assignment-flash", dueTodayClass(a.due_at, isCompleted(a.id)))}
+                      className={cn("hover-scale scroll-mt-24 p-4", flashId === a.id && "assignment-flash")}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">

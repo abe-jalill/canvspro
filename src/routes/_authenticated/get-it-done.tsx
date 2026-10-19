@@ -1,5 +1,5 @@
 import { AssignmentEstimateEditor } from "@/components/assignment-estimate";
-import { dueTodayClass, formatAssignmentDue } from "@/lib/assignment-due";
+import { formatAssignmentDue } from "@/lib/assignment-due";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, queryOptions } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -421,7 +421,7 @@ function RecommendationCard({
   const estimate = item.estimatedMinutes ?? defaultEstimateMinutes(assignment);
 
   return (
-    <section className={cn("premium-reveal min-w-0 rounded-lg border border-foreground/15 p-5 sm:p-6", dueTodayClass(assignment.due_at, completed))}>
+    <section className="premium-reveal min-w-0 rounded-lg border border-foreground/15 p-5 sm:p-6">
       <div className="flex items-start gap-3.5">
         <CompleteToggle
           done={completed}
@@ -585,7 +585,6 @@ function PlanRow({
       className={cn(
         "group grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3.5 rounded-lg border border-foreground/15 px-4 py-3.5",
         done && "opacity-55",
-        dueTodayClass(assignment.due_at, done),
       )}
     >
       <CompleteToggle done={done} onToggle={onToggle} label={assignment.name} className="mt-0.5" />

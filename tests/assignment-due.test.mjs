@@ -45,3 +45,14 @@ test("manual work joins Canvas work in Focus and retains its time estimate and c
   assert.equal(defaultEstimateMinutes({ points_possible: 50 }), 60);
   assert.equal(defaultEstimateMinutes({ estimated_minutes: -5, points_possible: null }), 30);
 });
+
+test("the yellow due-today outline is only on the Dashboard", async () => {
+  const { readFileSync } = await import("node:fs");
+  const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
+  for (const page of ["study-session", "assignments", "get-it-done", "schedule", "focus", "courses.$courseId"]) {
+    assert.doesNotMatch(read(`src/routes/_authenticated/${page}.tsx`), /dueTodayClass/, page);
+  }
+  assert.match(read("src/components/workload-heatmap.tsx"), /outlineDueToday && dueTodayClass\(a\.due_at\)/);
+  assert.match(read("src/components/widgets/dashboard-widgets.tsx"), /<WorkloadHeatmap assignments=\{visible\} outlineDueToday \/>/);
+  assert.match(read("src/components/dashboard-hero.tsx"), /dueTodayClass/);
+});

@@ -693,7 +693,7 @@ function HeatmapWidget() {
     <GlassCard title="Workload" subtitle="Remaining effort by week">
       {isLoading && <WorkloadHeatmapSkeleton />}
       {isError && <ErrorState message={(error as Error).message} />}
-      {visible && <WorkloadHeatmap assignments={visible} />}
+      {visible && <WorkloadHeatmap assignments={visible} outlineDueToday />}
     </GlassCard>
   );
 }

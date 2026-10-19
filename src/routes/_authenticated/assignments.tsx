@@ -47,7 +47,7 @@ import {
   isAssignmentVisible,
 } from "@/lib/assignment-window";
 import { htmlToText } from "@/lib/html-text";
-import { dueTodayClass, formatAssignmentDue } from "@/lib/assignment-due";
+import { formatAssignmentDue } from "@/lib/assignment-due";
 import { AssignmentEstimateEditor } from "@/components/assignment-estimate";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -183,7 +183,6 @@ function PriorityAssignmentsCard({
               className={cn(
                 "glass-inset flex items-center justify-between gap-3 p-3",
                 isDone(p.assignment.id) && "opacity-60",
-                dueTodayClass(p.assignment.due_at, isDone(p.assignment.id)),
               )}
             >
               <CompleteToggle
@@ -543,7 +542,6 @@ function AssignmentsPage() {
                         className={cn(
                           "group grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3.5 rounded-lg border border-foreground/15 px-4 py-3.5",
                           done && "opacity-55",
-                          dueTodayClass(a.due_at, done),
                           highlightProps.className,
                         )}
                       >
