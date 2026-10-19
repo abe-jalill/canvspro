@@ -17,6 +17,13 @@ export const Route = createFileRoute("/api/mobile/delete-account")({
             const { deleteAccountData } = await import("@/lib/account-deletion.server");
             await deleteAccountData(userId);
           },
+          async (authorizationCode) => {
+            const { appleSignInConfig, revokeAppleAuthorization } =
+              await import("@/lib/apple-sign-in.server");
+            const config = appleSignInConfig();
+            if (!config) throw new Error("Sign in with Apple secrets are not set");
+            await revokeAppleAuthorization(authorizationCode, config);
+          },
         ),
     },
   },

@@ -19,6 +19,8 @@ export async function handleMobileDeletion(
   request: Request,
   authenticate: (token: string) => Promise<string | null>,
   deleteAccount: (userId: string) => Promise<void>,
+  /** Revokes Sign in with Apple when the app sends a fresh Apple authorization code. */
+  revokeApple?: (authorizationCode: string) => Promise<void>,
 ): Promise<Response> {
   const headers = mobileHeaders(request);
   const token = /^Bearer\s+(\S+)$/i.exec(request.headers.get("Authorization") ?? "")?.[1];
@@ -30,6 +32,14 @@ export async function handleMobileDeletion(
   try {
     const userId = await authenticate(token);
     if (!userId) return Response.json({ error: "NOT_AUTHENTICATED" }, { status: 401, headers });
+    const appleCode = body.appleAuthorizationCode;
+    if (revokeApple && typeof appleCode === "string" && appleCode.length > 0) {
+      // Deleting the account matters more than Apple's bookkeeping: a failed
+      // revocation is logged, and the deletion still goes ahead.
+      await revokeApple(appleCode).catch((error) =>
+        console.error("[mobile/delete-account] Apple revocation", error),
+      );
+    }
     await deleteAccount(userId);
     return Response.json({ deleted: true }, { headers });
   } catch (error) {
