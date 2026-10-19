@@ -49,6 +49,7 @@ struct NativeMoreView: View {
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
     @ObservedObject var sessionStore: NativeSessionStore
+    @Binding var showAnnouncements: Bool
     @ObservedObject private var streaks = NativeStreakStore.shared
     @AppStorage("CanvasProColorScheme") private var colorScheme = "dark"
 
@@ -93,6 +94,10 @@ struct NativeMoreView: View {
                     }
 
                     NativeMenuGroup("Plan") {
+                        Button { showAnnouncements = true } label: {
+                            NativeMenuRow(title: "Announcements", symbol: "megaphone")
+                        }.buttonStyle(CPPressStyle())
+                        CPRowDivider(leading: 40)
                         NavigationLink { NativeCalendarHub(store: store, features: features) } label: {
                             NativeMenuRow(title: "Calendar", symbol: "calendar")
                         }.buttonStyle(CPPressStyle())
@@ -117,6 +122,8 @@ struct NativeMoreView: View {
             .background(CPBackdrop())
             .cpNavigationTitle("More")
             .navigationBarTitleDisplayMode(.inline)
+            // Also opened from an announcement notification or link.
+            .navigationDestination(isPresented: $showAnnouncements) { AnnouncementsView(store: store, features: features) }
         }
     }
 

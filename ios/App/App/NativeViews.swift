@@ -1242,7 +1242,7 @@ private struct PasswordResetSheet: View {
     }
 }
 
-private enum NativeTab: String, Hashable { case today, study, grades, announcements, more }
+private enum NativeTab: String, Hashable { case today, study, grades, files, more }
 
 extension Notification.Name {
     static let nativeStudyAssignment = Notification.Name("CanvasProNativeStudyAssignment")
@@ -1274,6 +1274,7 @@ struct NativeMainTabView: View {
     @State private var showOnboarding = false
     @State private var showConnect = false
     @State private var hadSavedData: Bool?
+    @State private var showAnnouncements = false
     @ObservedObject private var router = NativeRouter.shared
     @ObservedObject private var streaks = NativeStreakStore.shared
 
@@ -1380,7 +1381,8 @@ struct NativeMainTabView: View {
         if path.contains("pomodoro") { quickPomodoro = true; selection = .study; return }
         if path.contains("focus") || path.contains("coming-up") || path.contains("assignment") { todaySection = "Assignments"; selection = .today }
         else if path.contains("get-it-done") { todaySection = "Get It Done"; selection = .today }
-        else if path.contains("announcement") { selection = .announcements }
+        else if path.contains("announcement") { showAnnouncements = true; selection = .more }
+        else if path.contains("files") { selection = .files }
         else if path.contains("grade") { selection = .grades }
         else if path.contains("study") { selection = .study }
         else if path.contains("notification") || path.contains("settings") || path.contains("schedule") || path.contains("calendar") || path.contains("support") || path.contains("help") { selection = .more }
@@ -1566,7 +1568,7 @@ struct NativeMainTabView: View {
     }
 
     // The standard iOS tab bar, in the website's sidebar order. Assignments
-    // live in Today; Calendar and Settings live under More.
+    // live in Today; Announcements, Calendar and Settings live under More.
     private var tabs: some View {
         TabView(selection: $selection) {
             NativeTodayView(store: contentStore, features: featureStore, selection: $selection, section: $todaySection, focusWindow: $focusWindow)
@@ -1575,9 +1577,12 @@ struct NativeMainTabView: View {
                 .tabItem { Label("Study Session", systemImage: "timer") }.tag(NativeTab.study)
             NativeGradesView(store: contentStore, features: featureStore)
                 .tabItem { Label("Grades", systemImage: "graduationcap") }.tag(NativeTab.grades)
-            NavigationStack { AnnouncementsView(store: contentStore, features: featureStore) }
-                .tabItem { Label("Announcements", systemImage: "megaphone") }.tag(NativeTab.announcements)
-            NativeMoreView(store: contentStore, features: featureStore, sessionStore: sessionStore)
+            // Files took Announcements' place: iPhone shows five tabs before it
+            // hides the rest. Announcements is first in More, on the dashboard
+            // and on every class page.
+            NativeFilesView(store: contentStore, features: featureStore)
+                .tabItem { Label("Files", systemImage: "folder") }.tag(NativeTab.files)
+            NativeMoreView(store: contentStore, features: featureStore, sessionStore: sessionStore, showAnnouncements: $showAnnouncements)
                 .tabItem { Label("More", systemImage: "ellipsis.circle") }.tag(NativeTab.more)
         }
         .sensoryFeedback(.selection, trigger: selection)
@@ -3407,7 +3412,7 @@ struct NativeAssignmentDescriptionLink: View {
 }
 
 enum CourseDetailSection: String, CaseIterable {
-    case upcoming = "Upcoming", graded = "Graded", announcements = "Announcements"
+    case upcoming = "Upcoming", graded = "Graded", announcements = "Announcements", files = "Files"
 }
 
 struct CourseDetailView: View {
@@ -3593,6 +3598,7 @@ struct CourseDetailView: View {
         case .upcoming: upcomingSection
         case .graded: gradedSection
         case .announcements: announcementsSection
+        case .files: NativeClassFilesSection(courseID: course.id, name: courseName)
         }
     }
 

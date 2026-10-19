@@ -70,7 +70,10 @@ workflows:
     #    distribution certificate. Automatic signing for app.canvaspro.mobile also
     #    covers the widget extension, app.canvaspro.mobile.widgets. In the Apple
     #    Developer portal both IDs need App Groups (group.app.canvaspro.mobile);
-    #    the app ID also needs Push Notifications.
+    #    the app ID also needs Push Notifications, Sign in with Apple, and iCloud
+    #    with "iCloud Documents" on and the container iCloud.app.canvaspro.mobile
+    #    (Files tab). After turning a capability on, delete the old App Store
+    #    profile in the portal so Codemagic makes a new one that includes it.
     # 3. Environment variables: add APP_STORE_APPLE_ID (the app's numeric Apple ID
     #    from App Store Connect > App Information) to the "canvaspro_app_store" group.
     name: CanvasPro iOS TestFlight

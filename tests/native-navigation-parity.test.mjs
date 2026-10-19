@@ -8,22 +8,24 @@ test("native tabs remain a compact projection of website navigation", () => {
   const tabs = source("ios/App/App/NativeViews.swift");
   const more = source("ios/App/App/NativeMoreViews.swift");
 
-  for (const title of ["Today", "Study Session", "Grades", "Announcements", "More"]) {
+  for (const title of ["Today", "Study Session", "Grades", "Files", "More"]) {
     assert.ok(tabs.includes(`Label("${title}"`), `${title} is a native tab`);
   }
   assert.equal((tabs.match(/\.tabItem\s*\{/g) ?? []).length, 5);
   assert.ok(!tabs.includes('Label("Profile"'), "Profile is not a bottom tab");
-  for (const title of ["Calendar", "Notifications", "Settings"]) {
+  for (const title of ["Announcements", "Calendar", "Notifications", "Settings"]) {
     assert.ok(more.includes(`NativeMenuRow(title: "${title}"`), `${title} is reachable through More`);
   }
   assert.ok(!more.includes('NativeMenuRow(title: "Assignments"'), "Assignments lives in Today");
-  assert.ok(!more.includes('NativeMenuRow(title: "Announcements"'), "Announcements has its own tab");
+  // Files took the fifth tab, so Announcements opens from More (and from links).
+  assert.ok(!/\.tabItem \{ Label\("Announcements"/.test(tabs), "Announcements is not a bottom tab");
+  assert.ok(more.includes(".navigationDestination(isPresented: $showAnnouncements)"));
   assert.ok(!more.includes('NativeMenuRow(title: "Get It Done"'), "Get It Done belongs inside Today");
   assert.ok(!more.includes('NativeMenuRow(title: "Class Schedule"'), "My classes belongs inside Calendar");
   assert.ok(tabs.includes('options: ["Dashboard", "Assignments", "Get It Done"]'));
   assert.ok(more.includes('options: ["Calendar", "My classes"]'));
   assert.ok(tabs.includes('todaySection = "Assignments"; selection = .today'));
-  assert.ok(tabs.includes('selection = .announcements'));
+  assert.ok(tabs.includes('showAnnouncements = true; selection = .more'));
 });
 
 test("website settings sections and profile fields stay reachable in native Settings", () => {
