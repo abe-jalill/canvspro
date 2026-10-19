@@ -116,7 +116,7 @@ function runGradeChecks(assignments: AssignmentItem[], popUp: boolean) {
     notify({
       id: `grade:${key}`,
       kind: "grade",
-      title: `Good job! You scored ${pct}% on ${a.name}!`,
+      title: `Grade posted: ${a.name}`,
       course: displayCourseName(a.course_name, a.course_code),
       course_id: a.course_id,
       course_name: a.course_name,

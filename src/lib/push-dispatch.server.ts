@@ -246,7 +246,7 @@ export async function buildAlertsForUser(
       if (pct >= prefs.gradeThreshold) {
         alerts.push({
           id: `grade:${a.id}:${score}`,
-          title: `Good job! You scored ${pct}% on ${a.name}`,
+          title: `Grade posted: ${a.name}`,
           body: courseName(course),
           to: "/grades",
         });
