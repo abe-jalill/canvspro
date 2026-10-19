@@ -69,3 +69,25 @@ test("three unfinished class assignments due this week appear in Focus and Get I
   assert.equal(assignments.filter((a) => isInFocusWindow(a, "7", now, false)).length, 3);
   assert.equal(filterAssignmentsForUpcomingWindow(assignments, now, 7).length, 3);
 });
+
+test("a picked day shows everything due that day, whatever the range says", async () => {
+  const { isDueOnDay } = await import("../src/lib/focus-window.ts");
+  const dayStart = Date.parse("2026-09-28T00:00:00.000Z");
+  assert.equal(isDueOnDay(assignment(dayStart + 9 * 60 * 60 * 1000), dayStart), true);
+  assert.equal(isDueOnDay(assignment(dayStart + day - 1), dayStart), true);
+  assert.equal(isDueOnDay(assignment(dayStart + day), dayStart), false);
+  assert.equal(isDueOnDay({ id: 2, due_at: null }, dayStart), false);
+  // Five days out: outside "Next 3 days", still listed when that day is picked.
+  const later = assignment(now + 5 * day);
+  assert.equal(isInFocusWindow(later, "3", now, false), false);
+  const laterDay = new Date(now + 5 * day);
+  laterDay.setHours(0, 0, 0, 0);
+  assert.equal(isDueOnDay(later, laterDay.getTime()), true);
+
+  const { readFileSync } = await import("node:fs");
+  const page = readFileSync(new URL("../src/routes/_authenticated/focus.tsx", import.meta.url), "utf8");
+  assert.match(page, /selectedDay == null \? isDueInFocusWindow\(a, win, now\) : isDueOnDay\(a, selectedDay\)/);
+  // The day strip shows for every range, Overdue included, and a range choice clears the day.
+  assert.doesNotMatch(page, /win !== "overdue" && \(\s*<ol/);
+  assert.match(page, /setSelectedDay\(null\);\s*void navigate/);
+});

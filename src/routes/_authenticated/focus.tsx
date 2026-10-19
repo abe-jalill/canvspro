@@ -22,7 +22,12 @@ import { displayCourseName } from "@/lib/course-display";
 import { useLocalSet, COMPLETED_ASSIGNMENTS_KEY } from "@/lib/local-state";
 import { defaultEstimateMinutes } from "@/lib/get-it-done";
 import { useAssignmentMetaMap } from "@/hooks/use-assignment-meta";
-import { normalizeFocusWindow, isDueInFocusWindow, type FocusWindow } from "@/lib/focus-window";
+import {
+  normalizeFocusWindow,
+  isDueInFocusWindow,
+  isDueOnDay,
+  type FocusWindow,
+} from "@/lib/focus-window";
 import {
   isAssignmentComplete,
   isAssignmentVisible,
@@ -94,6 +99,12 @@ function dayHeading(dayStart: number, today: number) {
   return new Intl.DateTimeFormat(undefined, { weekday: "long" }).format(dayStart);
 }
 
+/** "today", "tomorrow" or "on Wednesday", for the summary line. */
+function dueDayPhrase(dayStart: number, today: number) {
+  const heading = dayHeading(dayStart, today);
+  return heading === "Today" || heading === "Tomorrow" ? heading.toLowerCase() : `on ${heading}`;
+}
+
 function formatMinutes(minutes: number) {
   if (minutes < 60) return `${minutes} min`;
   const h = Math.floor(minutes / 60);
@@ -145,7 +156,10 @@ function FocusPage() {
     ...(assignments.data ?? []),
     ...custom.list.map((item) => customToAssignmentItem(item, courseById.get(item.course_id))),
   ];
-  const dueInWindow = allAssignments.filter((a) => isDueInFocusWindow(a, win, now));
+  // A picked day overrides the range dropdown: it shows everything due that day.
+  const dueInWindow = allAssignments.filter((a) =>
+    selectedDay == null ? isDueInFocusWindow(a, win, now) : isDueOnDay(a, selectedDay),
+  );
   const completedInWindow = dueInWindow.filter(
     (a) => isAssignmentComplete(a, completed.has(a.id)) && isInDisplayWindow(a, now),
   );
@@ -187,11 +201,8 @@ function FocusPage() {
     return { start, count };
   });
 
-  // Picking a day narrows the list below to that day; picking it again clears it.
-  const listItems =
-    selectedDay == null
-      ? inWindow
-      : inWindow.filter((a) => a.due_at && startOfDay(Date.parse(a.due_at)) === selectedDay);
+  // Picking a day shows that day; picking it again goes back to the dropdown's range.
+  const listItems = inWindow;
 
   const loading =
     assignments.isLoading || courses.isLoading || completed.isLoading || custom.isLoading;
@@ -199,6 +210,8 @@ function FocusPage() {
   const summary =
     unfinished.length === 0
       ? null
+      : selectedDay != null
+        ? `${unfinished.length} ${unfinished.length === 1 ? "thing" : "things"} due ${dueDayPhrase(selectedDay, today)}, about ${formatMinutes(minutesNeeded)} of work`
       : win === "overdue"
         ? `${unfinished.length} overdue, about ${formatMinutes(minutesNeeded)} of work`
         : `${unfinished.length} ${unfinished.length === 1 ? "thing" : "things"} due, about ${formatMinutes(minutesNeeded)} of work`;
@@ -221,22 +234,24 @@ function FocusPage() {
           <h1 className="text-3xl font-medium tracking-tight md:text-4xl">Coming up</h1>
           <DropdownMenu>
             <DropdownMenuTrigger
-              aria-label={`Time range: ${WINDOW_LABELS[win]}`}
+              aria-label={`Time range: ${selectedDay != null ? dayHeading(selectedDay, today) : WINDOW_LABELS[win]}`}
               className="inline-flex items-center gap-2 rounded-lg border border-foreground/15 px-3 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:border-foreground/30 hover:text-foreground focus-visible:ring-1 focus-visible:ring-foreground/30 data-[state=open]:border-foreground/30 data-[state=open]:text-foreground"
             >
-              {WINDOW_LABELS[win]}
+              {selectedDay != null ? dayHeading(selectedDay, today) : WINDOW_LABELS[win]}
               <ChevronDown className="h-4 w-4" aria-hidden="true" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-[11rem]">
               <DropdownMenuRadioGroup
-                value={win}
-                onValueChange={(value) =>
+                value={selectedDay != null ? "" : win}
+                onValueChange={(value) => {
+                  // Choosing a range takes over from a picked day.
+                  setSelectedDay(null);
                   void navigate({
                     to: "/focus",
                     search: { window: normalizeFocusWindow(value) },
                     replace: true,
-                  })
-                }
+                  });
+                }}
               >
                 {(WINDOW_CHOICES.includes(win) ? WINDOW_CHOICES : [...WINDOW_CHOICES, win]).map(
                   (id) => (
@@ -266,45 +281,43 @@ function FocusPage() {
         <ErrorState message={(assignments.error as Error).message} />
       ) : (
         <>
-          {win !== "overdue" && (
-            <ol className="premium-reveal grid grid-cols-7 gap-1 px-1" aria-label="Pick a day">
-              {strip.map((day, i) => {
-                const picked = selectedDay === day.start;
-                return (
-                  <li key={day.start}>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedDay(picked ? null : day.start)}
-                      aria-pressed={picked}
-                      aria-label={`${dayHeading(day.start, today)}: ${day.count} due`}
+          <ol className="premium-reveal grid grid-cols-7 gap-1 px-1" aria-label="Pick a day">
+            {strip.map((day, i) => {
+              const picked = selectedDay === day.start;
+              return (
+                <li key={day.start}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDay(picked ? null : day.start)}
+                    aria-pressed={picked}
+                    aria-label={`${dayHeading(day.start, today)}: ${day.count} due`}
+                    className={cn(
+                      "flex w-full flex-col items-center gap-0.5 rounded-lg border px-1 py-2.5 text-xs transition-colors duration-300 motion-reduce:transition-none",
+                      picked
+                        ? "border-foreground/60 text-foreground"
+                        : "border-foreground/15 text-muted-foreground hover:border-foreground/30 hover:text-foreground",
+                    )}
+                  >
+                    <span>
+                      {i === 0
+                        ? "Today"
+                        : new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(day.start)}
+                    </span>
+                    <span className="text-base font-normal tabular-nums text-foreground">
+                      {new Date(day.start).getDate()}
+                    </span>
+                    <span
                       className={cn(
-                        "flex w-full flex-col items-center gap-0.5 rounded-lg border px-1 py-2.5 text-xs transition-colors duration-300 motion-reduce:transition-none",
-                        picked
-                          ? "border-foreground/60 text-foreground"
-                          : "border-foreground/15 text-muted-foreground hover:border-foreground/30 hover:text-foreground",
+                        "mt-0.5 h-1 w-1 rounded-full bg-foreground/50",
+                        day.count === 0 && "opacity-0",
                       )}
-                    >
-                      <span>
-                        {i === 0
-                          ? "Today"
-                          : new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(day.start)}
-                      </span>
-                      <span className="text-base font-normal tabular-nums text-foreground">
-                        {new Date(day.start).getDate()}
-                      </span>
-                      <span
-                        className={cn(
-                          "mt-0.5 h-1 w-1 rounded-full bg-foreground/50",
-                          day.count === 0 && "opacity-0",
-                        )}
-                        aria-hidden="true"
-                      />
-                    </button>
-                  </li>
-                );
-              })}
-            </ol>
-          )}
+                      aria-hidden="true"
+                    />
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
 
           <div className="flex flex-wrap items-center justify-between gap-3 px-1 text-sm text-muted-foreground">
             <div className="inline-flex gap-2" role="group" aria-label="Group by">

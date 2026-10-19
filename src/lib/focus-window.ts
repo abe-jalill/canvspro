@@ -29,6 +29,15 @@ export function isDueInFocusWindow(assignment: AssignmentItem, window: FocusWind
   return due >= now && due <= end;
 }
 
+/**
+ * A day picked in Coming Up's day strip: everything due that calendar day,
+ * whatever the range dropdown says. `dayStart` is local midnight.
+ */
+export function isDueOnDay(assignment: AssignmentItem, dayStart: number): boolean {
+  const due = assignment.due_at ? Date.parse(assignment.due_at) : NaN;
+  return Number.isFinite(due) && due >= dayStart && due < dayStart + DAY_MS;
+}
+
 /** One definition for dashboard counts and the corresponding Focus lists. */
 export function isInFocusWindow(
   assignment: AssignmentItem,
