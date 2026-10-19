@@ -9,6 +9,7 @@ struct NativeRootView: View {
     @State private var showingLaunch = true
     @State private var showingTutorial = NativeRootView.needsTutorial()
     @State private var quickReopen = NativeRootView.openedRecently()
+    @State private var wasInBackground = false
     @AppStorage("CanvasProColorScheme") private var colorScheme = "dark"
     @AppStorage("CanvasProPalette") private var palette = "forest"
 
@@ -80,9 +81,19 @@ struct NativeRootView: View {
                 finishLaunch()
             } catch { /* View removal cancels launch. */ }
         }
-        .onAppear { Self.markActive() }
+        .onAppear {
+            NativeAppOpens.record()
+            Self.markActive()
+        }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .background { Self.markActive() }
+            if phase == .background {
+                Self.markActive()
+                wasInBackground = true
+            } else if phase == .active && wasInBackground {
+                // Pulling down Control Center doesn't count; coming back from the background does.
+                wasInBackground = false
+                NativeAppOpens.record()
+            }
         }
         .cpFont(12)
         .modifier(CPThemeModifier(palette: CPPalette(rawValue: palette) ?? .forest))
@@ -1295,8 +1306,10 @@ struct NativeMainTabView: View {
         let wantsAlerts = prefs.enabled && prefs.browserPush && NativeLocalReminders.deviceEnabled
         let center = UNUserNotificationCenter.current()
         var settings = await center.notificationSettings()
-        // Ask once, after the welcome, so reminders work without a trip to Settings.
-        if wantsAlerts && featureStore.notificationPreferencesLoaded && settings.authorizationStatus == .notDetermined && !showOnboarding && !launchIsVisible && !contentStore.isPreview {
+        // Ask once, from the third time the app is opened, so a new student isn't
+        // asked before they've seen what the reminders are for. Settings →
+        // Notifications can still turn them on any time before that.
+        if wantsAlerts && featureStore.notificationPreferencesLoaded && settings.authorizationStatus == .notDetermined && NativeAppOpens.count >= NativeAppOpens.askForNotificationsAt && !showOnboarding && !launchIsVisible && !contentStore.isPreview {
             _ = try? await center.requestAuthorization(options: [.alert, .badge, .sound])
             settings = await center.notificationSettings()
         }
@@ -1415,7 +1428,7 @@ struct NativeMainTabView: View {
             .onChange(of: featureStore.customAssignments) { _, _ in rescheduleLocalReminders() }
             .onChange(of: featureStore.accountDetails) { _, _ in rescheduleLocalReminders() }
             .onReceive(NotificationCenter.default.publisher(for: .nativeLocalRemindersChanged)) { _ in rescheduleLocalReminders() }
-            // After the welcome closes, ask for notifications right away.
+            // After the welcome closes, ask for notifications if this is the third open or later.
             .onChange(of: showOnboarding) { _, showing in if !showing { Task { await refreshAccountData() } } }
     }
 
@@ -1423,7 +1436,8 @@ struct NativeMainTabView: View {
     /// app is open. Its own view so each modifier chain stays type-checkable.
     private var syncedTabs: some View {
         reminderTabs
-            // Ask for notifications once the opening animation and tutorial close, if this phone hasn't been asked yet.
+            // Ask for notifications once the opening animation and tutorial close, if this phone hasn't
+            // been asked yet and the app has been opened at least three times.
             .onChange(of: launchIsVisible) { _, visible in
                 guard !visible else { return }
                 Task {

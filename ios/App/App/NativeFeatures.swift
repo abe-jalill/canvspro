@@ -1126,6 +1126,28 @@ struct CanvasProShortcuts: AppShortcutsProvider {
     }
 }
 
+/// How many times the student has opened the app on this phone. A fresh start
+/// or a return from the background counts; coming back within ten minutes (say,
+/// from copying a Canvas key in Safari) is still the same visit.
+enum NativeAppOpens {
+    /// The notification permission prompt waits for this open.
+    static let askForNotificationsAt = 3
+    private static let countKey = "CanvasProAppOpens"
+    /// Written by NativeRootView when the app goes to the background.
+    private static let lastActiveKey = "CanvasProLastActive"
+    private static let sameVisit: TimeInterval = 600
+
+    static var count: Int { UserDefaults.standard.integer(forKey: countKey) }
+
+    /// Call before the last-active time is refreshed.
+    static func record(now: Date = Date()) {
+        let defaults = UserDefaults.standard
+        let last = defaults.double(forKey: lastActiveKey)
+        guard last == 0 || now.timeIntervalSince1970 - last >= sameVisit else { return }
+        defaults.set(count + 1, forKey: countKey)
+    }
+}
+
 /// Reminders this iPhone schedules for itself: due dates, class reminders and
 /// "due tonight". iOS delivers them on time with the app closed, and they need
 /// no Apple push account. They are rebuilt from the latest coursework and

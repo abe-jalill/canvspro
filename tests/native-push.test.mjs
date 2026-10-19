@@ -81,3 +81,19 @@ test("the dispatch sends iPhones through the function, and web push is unchanged
   // A missing table or failed lookup never stops web push.
   assert.match(dispatch, /if \(error\) return new Set\(\);/);
 });
+
+test("the iPhone app asks for notifications only from the third time it's opened", () => {
+  const views = read("ios/App/App/NativeViews.swift");
+  const features = read("ios/App/App/NativeFeatures.swift");
+  assert.match(features, /static let askForNotificationsAt = 3/);
+  // Every automatic ask waits for the third open; the Settings switch still asks when tapped.
+  const asks = views.match(/requestAuthorization/g) ?? [];
+  assert.equal(asks.length, 1);
+  assert.match(
+    views,
+    /authorizationStatus == \.notDetermined && NativeAppOpens\.count >= NativeAppOpens\.askForNotificationsAt && [^\n]*\{\n\s*_ = try\? await center\.requestAuthorization/,
+  );
+  // A fresh start and a return from the background each count, Control Center doesn't.
+  assert.match(views, /\.onAppear \{\n\s*NativeAppOpens\.record\(\)\n\s*Self\.markActive\(\)/);
+  assert.match(views, /phase == \.active && wasInBackground \{[^}]*NativeAppOpens\.record\(\)/);
+});
