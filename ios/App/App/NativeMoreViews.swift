@@ -457,10 +457,19 @@ private struct NativeDeleteAccountView: View {
                     SignInWithAppleButton(.continue) { request in
                         request.requestedScopes = []
                     } onCompletion: { result in
-                        guard case .success(let authorization) = result,
-                              let credential = authorization.credential as? ASAuthorizationAppleIDCredential else { return }
-                        let code = credential.authorizationCode.flatMap { String(data: $0, encoding: .utf8) }
-                        Task { await sessionStore.deleteAccount(appleAuthorizationCode: code) }
+                        switch result {
+                        case .success(let authorization):
+                            let credential = authorization.credential as? ASAuthorizationAppleIDCredential
+                            let code = credential?.authorizationCode.flatMap { String(data: $0, encoding: .utf8) }
+                            Task { await sessionStore.deleteAccount(appleAuthorizationCode: code) }
+                        case .failure(let error):
+                            // Closing Apple's sheet means "not now". Any other failure must not
+                            // trap the account (Apple TN3194): delete it anyway; the person can
+                            // remove CoursePro under Settings > Apple Account > Sign in with Apple.
+                            if (error as? ASAuthorizationError)?.code != .canceled {
+                                Task { await sessionStore.deleteAccount() }
+                            }
+                        }
                     }
                     .signInWithAppleButtonStyle(scheme == .dark ? .white : .black)
                     .frame(height: 46)
