@@ -781,8 +781,13 @@ struct FocusView: View {
     private var allItems: [AssignmentItem] { features.shownAssignments(in: store) }
     private var visibleCourses: [CourseSummary] { store.bundle.courses.filter { !features.hiddenCourseIDs.contains($0.id) } }
     private var isSearching: Bool { !search.trimmingCharacters(in: .whitespaces).isEmpty }
+    /// A picked day overrides the range chips: it shows everything due that day.
+    private func inRange(_ item: AssignmentItem) -> Bool {
+        guard let selectedDay else { return NativeParity.isInFocusWindow(item, window: window) }
+        return item.dueDate.map { Calendar.current.isDate($0, inSameDayAs: selectedDay) } ?? false
+    }
     private var unfinished: [AssignmentItem] {
-        allItems.filter { NativeParity.isInFocusWindow($0, window: window) && $0.isVisible(in: store) }.sorted(by: AssignmentItem.dueSort)
+        allItems.filter { inRange($0) && $0.isVisible(in: store) }.sorted(by: AssignmentItem.dueSort)
     }
     private var items: [AssignmentItem] {
         if isSearching {
@@ -794,12 +799,9 @@ struct FocusView: View {
                 (item.name.localizedCaseInsensitiveContains(query) || store.displayName(courseID: item.courseID, fallback: item.courseName).localizedCaseInsensitiveContains(query))
             }.sorted(by: AssignmentItem.dueSort)
         }
-        return allItems.filter { NativeParity.isInFocusWindow($0, window: window) && $0.isVisible(in: store, showCompleted: showCompleted) }.sorted(by: AssignmentItem.dueSort)
+        return allItems.filter { inRange($0) && $0.isVisible(in: store, showCompleted: showCompleted) }.sorted(by: AssignmentItem.dueSort)
     }
-    private var listItems: [AssignmentItem] {
-        guard let selectedDay, !isSearching else { return items }
-        return items.filter { $0.dueDate.map { Calendar.current.isDate($0, inSameDayAs: selectedDay) } ?? false }
-    }
+    private var listItems: [AssignmentItem] { items }
     private var dayGroups: [NativeTitledGroup] {
         let calendar = Calendar.current
         return Dictionary(grouping: listItems) { item -> Date in
@@ -819,6 +821,21 @@ struct FocusView: View {
         return known.sorted { store.displayName(courseID: $0.course.id, fallback: $0.course.name).localizedStandardCompare(store.displayName(courseID: $1.course.id, fallback: $1.course.name)) == .orderedAscending }
     }
     private func estimate(_ item: AssignmentItem) -> Int { NativeParity.estimate(item, estimates: features.estimates) }
+    private var headerLine: String {
+        guard !unfinished.isEmpty else { return "All clear" }
+        let what: String
+        if let selectedDay { what = "due \(dayPhrase(selectedDay))" }
+        else { what = window == "overdue" ? "to catch up" : "due" }
+        let minutes = unfinished.reduce(0) { $0 + estimate($1) }
+        return "\(unfinished.count) \(what) · about \(minutes) min"
+    }
+    /// "today", "tomorrow" or "Friday", for the header line.
+    private func dayPhrase(_ day: Date) -> String {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(day) { return "today" }
+        if calendar.isDateInTomorrow(day) { return "tomorrow" }
+        return day.formatted(.dateTime.weekday(.wide))
+    }
     private func dayCount(_ day: Date) -> Int {
         allItems.reduce(0) { total, item in
             total + (item.isVisible(in: store) && item.dueDate.map { Calendar.current.isDate($0, inSameDayAs: day) } == true ? 1 : 0)
@@ -841,7 +858,7 @@ struct FocusView: View {
                         CPSkeletonCard()
                     } else {
                         if !isSearching { rangeChips }
-                        if !isSearching && window != "overdue" { weekStrip }
+                        if !isSearching { weekStrip }
                         controls
                         list
                     }
@@ -866,7 +883,7 @@ struct FocusView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Assignments").cpFont(28, .regular).tracking(-1).foregroundStyle(CPTheme.foreground(scheme))
                     .accessibilityAddTraits(.isHeader)
-                Text(unfinished.isEmpty ? "All clear" : "\(unfinished.count) \(window == "overdue" ? "to catch up" : "due") · about \(unfinished.reduce(0) { $0 + estimate($1) }) min")
+                Text(headerLine)
                     .cpFont(13).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
             }
             Spacer(minLength: 8)
@@ -907,7 +924,8 @@ struct FocusView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(windows, id: \.self) { value in
-                    Button { window = value; selectedDay = nil } label: { CPChip(text: focusLabel(value), selected: window == value) }
+                    // Choosing a range takes over from a picked day.
+                    Button { window = value; selectedDay = nil } label: { CPChip(text: focusLabel(value), selected: selectedDay == nil && window == value) }
                         .buttonStyle(.plain)
                 }
             }
