@@ -2,6 +2,8 @@ import Foundation
 import Security
 import UIKit
 import Combine
+import AuthenticationServices
+import CryptoKit
 
 enum NativeAppError: LocalizedError {
     case configuration(String)
@@ -97,6 +99,11 @@ struct NativeConfiguration {
 struct NativeUser: Codable, Equatable {
     let id: String
     let email: String?
+    /// "apple" for accounts made with Sign in with Apple. Optional so sessions
+    /// saved before it existed still load.
+    var provider: String? = nil
+
+    var usesApple: Bool { provider == "apple" }
 }
 
 struct NativeSession: Codable, Equatable {
@@ -608,6 +615,28 @@ final class NativeAPI {
         return try session(from: try await json(usernameRequest))
     }
 
+    /// Sign in with Apple: Supabase checks Apple's identity token (its audience
+    /// is this app's bundle ID) and the nonce, then signs in or creates the account.
+    func signInWithApple(idToken: String, rawNonce: String) async throws -> NativeSession {
+        var request = try request(path: "/auth/v1/token", query: [URLQueryItem(name: "grant_type", value: "id_token")])
+        request.httpMethod = "POST"
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["provider": "apple", "id_token": idToken, "nonce": rawNonce])
+        return try session(from: try await json(request))
+    }
+
+    func userMetadata(token: String) async throws -> [String: Any] {
+        let object = try await json(request(path: "/auth/v1/user", token: token)) as? [String: Any] ?? [:]
+        return object["user_metadata"] as? [String: Any] ?? [:]
+    }
+
+    /// Merges these fields into the account's metadata.
+    func updateUserMetadata(_ fields: [String: Any], token: String) async throws {
+        var request = try request(path: "/auth/v1/user", token: token)
+        request.httpMethod = "PUT"
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["data": fields])
+        _ = try await data(request)
+    }
+
     func signUp(email: String, password: String, metadata: [String: Any]) async throws {
         var request = try request(path: "/auth/v1/signup", query: [.init(name: "redirect_to", value: "https://canvaspro.app/email-verified")])
         request.httpMethod = "POST"
@@ -629,14 +658,17 @@ final class NativeAPI {
     }
 
     /// Uses the website's account deletion, so the app and the website remove
-    /// exactly the same data.
-    func deleteAccount(token: String) async throws {
+    /// exactly the same data. Apple accounts also send a fresh Apple
+    /// authorization code, which the server uses to revoke Sign in with Apple.
+    func deleteAccount(token: String, appleAuthorizationCode: String? = nil) async throws {
         var deleteRequest = URLRequest(url: NativeConfiguration.websiteURL.appendingPathComponent("api/mobile/delete-account"))
         deleteRequest.httpMethod = "POST"
         deleteRequest.timeoutInterval = 30
         deleteRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         deleteRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        deleteRequest.httpBody = try JSONSerialization.data(withJSONObject: ["confirm": "DELETE"])
+        var body: [String: Any] = ["confirm": "DELETE"]
+        if let appleAuthorizationCode { body["appleAuthorizationCode"] = appleAuthorizationCode }
+        deleteRequest.httpBody = try JSONSerialization.data(withJSONObject: body)
         _ = try await data(deleteRequest)
     }
 
@@ -847,7 +879,10 @@ final class NativeAPI {
               let user = object["user"] as? [String: Any],
               let id = user["id"] as? String else { throw NativeAppError.server("The sign-in response was incomplete.") }
         let seconds = (object["expires_in"] as? NSNumber)?.doubleValue ?? 3600
-        return NativeSession(accessToken: access, refreshToken: refresh, expiresAt: Date().addingTimeInterval(seconds), user: NativeUser(id: id, email: user["email"] as? String))
+        let appMetadata = user["app_metadata"] as? [String: Any] ?? [:]
+        let providers = appMetadata["providers"] as? [String] ?? []
+        let provider = providers.contains("apple") ? "apple" : appMetadata["provider"] as? String
+        return NativeSession(accessToken: access, refreshToken: refresh, expiresAt: Date().addingTimeInterval(seconds), user: NativeUser(id: id, email: user["email"] as? String, provider: provider))
     }
 }
 
@@ -896,6 +931,104 @@ final class NativeSessionStore: ObservableObject {
             try SecureSessionStore.save(newSession)
             session = newSession
         } catch { errorMessage = error.localizedDescription }
+    }
+
+    // MARK: Sign in with Apple
+
+    /// A brand-new Apple account waits here, signed in but not yet in the app,
+    /// until the person confirms their age and accepts the Terms like an email
+    /// sign-up does. Declining deletes it again.
+    struct PendingAppleAccount: Identifiable {
+        let session: NativeSession
+        let authorizationCode: String?
+        var id: String { session.user.id }
+    }
+
+    @Published var pendingAppleAccount: PendingAppleAccount?
+    private static let appleUserKey = "CanvasProAppleUserID"
+
+    /// A fresh random nonce for an Apple request. Apple gets its SHA-256 (in
+    /// `request.nonce`), Supabase the raw value, and Supabase checks they match.
+    static func makeNonce() -> (raw: String, hashed: String) {
+        var bytes = [UInt8](repeating: 0, count: 32)
+        if SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) != errSecSuccess {
+            bytes = (0..<32).map { _ in UInt8.random(in: .min ... .max) }
+        }
+        let raw = bytes.map { String(format: "%02x", $0) }.joined()
+        let hashed = SHA256.hash(data: Data(raw.utf8)).map { String(format: "%02x", $0) }.joined()
+        return (raw, hashed)
+    }
+
+    func signInWithApple(_ credential: ASAuthorizationAppleIDCredential, rawNonce: String) async {
+        guard !isWorking else { return }
+        guard let api else { errorMessage = configurationError; return }
+        guard let tokenData = credential.identityToken, let idToken = String(data: tokenData, encoding: .utf8) else {
+            errorMessage = "Apple didn't return a sign-in token. Please try again."
+            return
+        }
+        isWorking = true
+        errorMessage = nil
+        defer { isWorking = false }
+        do {
+            let newSession = try await api.signInWithApple(idToken: idToken, rawNonce: rawNonce)
+            UserDefaults.standard.set(credential.user, forKey: Self.appleUserKey)
+            // Apple shares the name only the first time; save it then and never ask again.
+            let given = credential.fullName?.givenName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let family = credential.fullName?.familyName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let metadata = try await api.userMetadata(token: newSession.accessToken)
+            var fields: [String: Any] = [:]
+            // Never prompt an Apple account for profile details it may have chosen to hide.
+            if metadata["profile_setup_prompted"] == nil { fields["profile_setup_prompted"] = true }
+            let savedName = (metadata["first_name"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            if savedName.isEmpty && (!given.isEmpty || !family.isEmpty) {
+                fields["first_name"] = given
+                fields["last_name"] = family
+                fields["full_name"] = [given, family].filter { !$0.isEmpty }.joined(separator: " ")
+                fields["profile_setup_completed"] = true
+            }
+            if !fields.isEmpty { try? await api.updateUserMetadata(fields, token: newSession.accessToken) }
+            let code = credential.authorizationCode.flatMap { String(data: $0, encoding: .utf8) }
+            if metadata["legal_accepted_at"] == nil || metadata["age_18_or_older_confirmed"] as? Bool != true {
+                pendingAppleAccount = PendingAppleAccount(session: newSession, authorizationCode: code)
+                return
+            }
+            try SecureSessionStore.save(newSession)
+            session = newSession
+        } catch { errorMessage = error.localizedDescription }
+    }
+
+    /// The same consent an email sign-up records (src/lib/signup-age.ts, src/lib/legal-consent.ts).
+    func acceptPendingAppleAccount() async {
+        guard let pending = pendingAppleAccount, let api, !isWorking else { return }
+        isWorking = true
+        errorMessage = nil
+        defer { isWorking = false }
+        let now = ISO8601DateFormatter().string(from: Date())
+        do {
+            try await api.updateUserMetadata([
+                "age_18_or_older_confirmed": true, "age_confirmation_version": 2, "age_confirmed_at": now,
+                "terms_accepted_version": "2026-10-12", "privacy_accepted_version": "2026-10-12", "legal_accepted_at": now,
+            ], token: pending.session.accessToken)
+            try SecureSessionStore.save(pending.session)
+            pendingAppleAccount = nil
+            session = pending.session
+        } catch { errorMessage = error.localizedDescription }
+    }
+
+    /// Declining removes the account that was just made, and revokes Apple.
+    func declinePendingAppleAccount() async {
+        guard let pending = pendingAppleAccount else { return }
+        pendingAppleAccount = nil
+        UserDefaults.standard.removeObject(forKey: Self.appleUserKey)
+        try? await api?.deleteAccount(token: pending.session.accessToken, appleAuthorizationCode: pending.authorizationCode)
+    }
+
+    /// Signs out when the person stopped using Sign in with Apple for CoursePro
+    /// (Settings > Apple Account > Sign in with Apple), as Apple asks.
+    func checkAppleCredential() async {
+        guard session?.user.usesApple == true, let appleUser = UserDefaults.standard.string(forKey: Self.appleUserKey) else { return }
+        let state = try? await ASAuthorizationAppleIDProvider().credentialState(forUserID: appleUser)
+        if state == .revoked || state == .notFound { await signOut() }
     }
 
     func signUp(email: String, password: String, metadata: [String: Any]) async -> Bool {
@@ -977,13 +1110,14 @@ final class NativeSessionStore: ObservableObject {
         clearLocalSession()
     }
 
-    func deleteAccount() async {
+    func deleteAccount(appleAuthorizationCode: String? = nil) async {
         guard let api, session != nil else { return }
         isWorking = true
         errorMessage = nil
         defer { isWorking = false }
         do {
-            try await api.deleteAccount(token: try await accessToken())
+            try await api.deleteAccount(token: try await accessToken(), appleAuthorizationCode: appleAuthorizationCode)
+            UserDefaults.standard.removeObject(forKey: Self.appleUserKey)
             clearLocalSession()
         } catch {
             errorMessage = error.localizedDescription

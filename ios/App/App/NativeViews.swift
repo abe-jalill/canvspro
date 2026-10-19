@@ -1,6 +1,7 @@
 import SwiftUI
 import Combine
 import UserNotifications
+import AuthenticationServices
 
 struct NativeRootView: View {
     @StateObject private var sessionStore = NativeSessionStore.shared
@@ -84,6 +85,7 @@ struct NativeRootView: View {
         .onAppear {
             NativeAppOpens.record()
             Self.markActive()
+            Task { await sessionStore.checkAppleCredential() }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .background {
@@ -93,7 +95,12 @@ struct NativeRootView: View {
                 // Pulling down Control Center doesn't count; coming back from the background does.
                 wasInBackground = false
                 NativeAppOpens.record()
+                Task { await sessionStore.checkAppleCredential() }
             }
+        }
+        // Stopped using Sign in with Apple for CoursePro in Settings: sign out.
+        .onReceive(NotificationCenter.default.publisher(for: ASAuthorizationAppleIDProvider.credentialRevokedNotification)) { _ in
+            Task { await sessionStore.checkAppleCredential() }
         }
         .cpFont(12)
         .modifier(CPThemeModifier(palette: CPPalette(rawValue: palette) ?? .forest))
@@ -808,6 +815,7 @@ private struct NativeAuthView: View {
             .toolbar(.hidden, for: .navigationBar)
             .onChange(of: mode) { _, _ in sessionStore.errorMessage = nil }
             .sheet(isPresented: $showReset) { PasswordResetSheet(sessionStore: sessionStore, email: email) }
+            .sheet(item: $sessionStore.pendingAppleAccount) { _ in NativeAppleConsentSheet(sessionStore: sessionStore) }
         }
     }
 
@@ -878,6 +886,8 @@ private struct NativeAuthView: View {
             }
             .buttonStyle(CPPressStyle())
             .disabled(!canSubmit)
+            NativeAuthDivider()
+            NativeAppleSignInButton(sessionStore: sessionStore, label: mode == .signIn ? .signIn : .signUp)
         }
         .padding(22)
         .cpSurface(strong: true, radius: 24)
@@ -1067,6 +1077,99 @@ private struct NativeAuthConsent: View {
         .buttonStyle(CPPressStyle())
         .accessibilityLabel(title).accessibilityValue(isOn ? "Selected" : "Not selected")
         .accessibilityAddTraits(isOn ? .isSelected : [])
+    }
+}
+
+private struct NativeAuthDivider: View {
+    @Environment(\.colorScheme) private var scheme
+    var body: some View {
+        HStack(spacing: 12) {
+            Rectangle().fill(CPTheme.muted(scheme).opacity(0.3)).frame(height: 1)
+            Text("or").cpFont(12).foregroundStyle(CPTheme.muted(scheme))
+            Rectangle().fill(CPTheme.muted(scheme).opacity(0.3)).frame(height: 1)
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+/// Apple's own button, as large as the main button and in Apple's black or
+/// white style (Human Interface Guidelines, Sign in with Apple).
+private struct NativeAppleSignInButton: View {
+    @Environment(\.colorScheme) private var scheme
+    @ObservedObject var sessionStore: NativeSessionStore
+    let label: SignInWithAppleButton.Label
+    @State private var rawNonce = ""
+
+    var body: some View {
+        SignInWithAppleButton(label) { request in
+            let nonce = NativeSessionStore.makeNonce()
+            rawNonce = nonce.raw
+            request.requestedScopes = [.fullName, .email]
+            request.nonce = nonce.hashed
+        } onCompletion: { result in
+            switch result {
+            case .success(let authorization):
+                guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential else { return }
+                let nonce = rawNonce
+                Task { await sessionStore.signInWithApple(credential, rawNonce: nonce) }
+            case .failure(let error):
+                // Closing Apple's sheet isn't an error worth showing.
+                if (error as? ASAuthorizationError)?.code != .canceled { sessionStore.errorMessage = error.localizedDescription }
+            }
+        }
+        .signInWithAppleButtonStyle(scheme == .dark ? .white : .black)
+        .frame(height: 50)
+        .clipShape(RoundedRectangle(cornerRadius: CPLayout.innerRadius, style: .continuous))
+        .disabled(sessionStore.isWorking || sessionStore.api == nil)
+        .id(scheme)
+    }
+}
+
+/// A new Apple account confirms the same two things an email sign-up does
+/// before it can use the app. Declining deletes the account again.
+private struct NativeAppleConsentSheet: View {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
+    @ObservedObject var sessionStore: NativeSessionStore
+    @State private var ageConfirmed = false
+    @State private var legalAccepted = false
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    Text("One last step").cpFont(24, .semibold).tracking(-0.6).accessibilityAddTraits(.isHeader)
+                    Text("Before you start, please confirm the following.")
+                        .cpFont(14).foregroundStyle(CPTheme.muted(scheme))
+                    VStack(spacing: 0) {
+                        NativeAuthConsent(title: "I am at least 18 years old", isOn: $ageConfirmed)
+                        CPRowDivider(leading: 34)
+                        NativeAuthConsent(title: "I agree to the Terms of Use, including individual arbitration and the class-action waiver, and the Privacy Policy", isOn: $legalAccepted)
+                    }
+                    .padding(.horizontal, 12)
+                    .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: CPLayout.innerRadius, style: .continuous))
+                    NativeLegalLinks(compact: true).foregroundStyle(CPTheme.muted(scheme))
+                    if let error = sessionStore.errorMessage { NativeAuthMessage(text: error, isError: true) }
+                    Button { Task { await sessionStore.acceptPendingAppleAccount() } } label: {
+                        NativeAuthActionLabel(title: "Continue", isWorking: sessionStore.isWorking)
+                    }
+                    .buttonStyle(CPPressStyle())
+                    .disabled(!ageConfirmed || !legalAccepted || sessionStore.isWorking)
+                    Button("Cancel and delete this account", role: .destructive) {
+                        Task { await sessionStore.declinePendingAppleAccount() }
+                    }
+                    .cpFont(13, .semibold)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .disabled(sessionStore.isWorking)
+                }
+                .padding(22)
+                .frame(maxWidth: 480)
+                .frame(maxWidth: .infinity)
+            }
+            .background(CPTheme.background(scheme).ignoresSafeArea())
+            .foregroundStyle(CPTheme.foreground(scheme))
+        }
+        .interactiveDismissDisabled()
     }
 }
 

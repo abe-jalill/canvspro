@@ -3,6 +3,7 @@ import UserNotifications
 import PhotosUI
 import SafariServices
 import UIKit
+import AuthenticationServices
 
 /// A grouped list row in the style of the iPhone Settings app.
 struct NativeMenuRow: View {
@@ -420,6 +421,10 @@ private struct NativeAIConnectionView: View {
                     .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: CPLayout.innerRadius, style: .continuous))
                     Text("Read-only. Your Canvas key is never shared.")
                         .cpFont(11).foregroundStyle(.secondary)
+                    // App Review Guideline 5.1.2(i): say what goes to a third-party AI before anything does.
+                    Text("Nothing is shared until you sign in and approve on CoursePro's consent screen. After that, the assistant can read your courses, grades, assignments, due dates, announcements and calendar, and its provider's terms and privacy policy cover what it receives. You can remove the connection in your assistant at any time.")
+                        .cpFont(11).lineSpacing(2).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .cpPagePadding()
             }
@@ -430,22 +435,46 @@ private struct NativeAIConnectionView: View {
 }
 
 private struct NativeDeleteAccountView: View {
+    @Environment(\.colorScheme) private var scheme
     @ObservedObject var sessionStore: NativeSessionStore
     @State private var confirmation = ""
+
+    private var confirmed: Bool {
+        confirmation.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() == "DELETE"
+    }
 
     var body: some View {
         Form {
             Section {
-                Text("Permanently deletes your account and data. This can't be undone.")
+                Text("Permanently deletes your account and everything saved with it: your Canvas key, settings, schedule, grade history and notification sign-ups. It happens right away and can't be undone. Your school's Canvas account isn't affected.")
             }
             Section("Type DELETE to confirm") {
                 TextField("DELETE", text: $confirmation)
                     .textInputAutocapitalization(.characters)
                     .autocorrectionDisabled()
-                Button("Permanently delete account", role: .destructive) {
-                    Task { await sessionStore.deleteAccount() }
+                if sessionStore.session?.user.usesApple == true {
+                    // Confirming with Apple also lets CoursePro stop using Sign in with Apple for you.
+                    SignInWithAppleButton(.continue) { request in
+                        request.requestedScopes = []
+                    } onCompletion: { result in
+                        guard case .success(let authorization) = result,
+                              let credential = authorization.credential as? ASAuthorizationAppleIDCredential else { return }
+                        let code = credential.authorizationCode.flatMap { String(data: $0, encoding: .utf8) }
+                        Task { await sessionStore.deleteAccount(appleAuthorizationCode: code) }
+                    }
+                    .signInWithAppleButtonStyle(scheme == .dark ? .white : .black)
+                    .frame(height: 46)
+                    .disabled(!confirmed || sessionStore.isWorking)
+                    .opacity(confirmed ? 1 : 0.4)
+                    .id(scheme)
+                    Text("Confirm with Apple to delete your account.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                } else {
+                    Button("Permanently delete account", role: .destructive) {
+                        Task { await sessionStore.deleteAccount() }
+                    }
+                    .disabled(!confirmed || sessionStore.isWorking)
                 }
-                .disabled(confirmation.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() != "DELETE" || sessionStore.isWorking)
             }
             if let error = sessionStore.errorMessage {
                 Section { Text(error).foregroundStyle(.red) }
