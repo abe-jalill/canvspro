@@ -374,6 +374,9 @@ final class NativeFeatureStore: ObservableObject {
     /// False until the account's saved notification settings have loaded, so an
     /// offline launch never plans reminders (or saves) from the defaults.
     @Published var notificationPreferencesLoaded = false
+    /// False until the account's saved preferences have loaded, so the widget
+    /// picker never appears for someone who has already chosen.
+    @Published var preferencesLoaded = false
     @Published var isLoading = false
     @Published var errorMessage: String?
     let isPreview: Bool
@@ -386,6 +389,7 @@ final class NativeFeatureStore: ObservableObject {
         self.sessionStore = sessionStore
         isPreview = preview
         notificationPreferencesLoaded = preview
+        preferencesLoaded = preview
         if preview {
             if let data = UserDefaults.standard.data(forKey: previewStateKey),
                let saved = try? JSONDecoder().decode(NativePreviewFeatureState.self, from: data) {
@@ -423,6 +427,7 @@ final class NativeFeatureStore: ObservableObject {
         do {
             let token = try await sessionStore.accessToken()
             preferences = try await api.preferences(token: token, userID: user.id)
+            preferencesLoaded = true
             decodePreferenceModels()
             applyAppearancePreferences()
             async let profileRow = api.accountProfile(token: token, userID: user.id)
@@ -605,10 +610,26 @@ final class NativeFeatureStore: ObservableObject {
     private var dashboardWidgets: [String] { Self.defaultDashboardOrder.filter { $0 != "gpa" } }
     /// The website's full default order, used to keep saved slots in place.
     private let websiteDashboardOrder = ["digest", "classes", "upcoming", "focus", "calendar", "announcements", "gpa", "heatmap"]
+    /// Whether this iPhone and the website share one dashboard (Settings >
+    /// Dashboard). On unless the student turned it off.
+    var dashboardSyncsWithWebsite: Bool {
+        if case .some(.bool(let value)) = preferences["dashboard-sync"] { return value }
+        return true
+    }
+    /// The shared layout, or the iPhone's own when it doesn't sync. Both are saved
+    /// to the account, so another iPhone signed in to it looks the same.
+    private var dashboardKey: String { dashboardSyncsWithWebsite ? "dashboard-layout" : "dashboard-layout-iphone" }
     private var dashboardObject: [String: JSONValue] {
-        if case .some(.object(let value)) = preferences["dashboard-layout"] { return value }
+        if case .some(.object(let value)) = preferences[dashboardKey] { return value }
         return [:]
     }
+    /// The student has chosen their widgets for this layout (the picker shows once).
+    var dashboardPicked: Bool {
+        if case .some(.string) = dashboardObject["picked_at"] { return true }
+        return false
+    }
+    /// The widgets the picker offers, in the website's order.
+    var pickableDashboardWidgets: [String] { dashboardWidgets }
     var dashboardOrder: [String] {
         let saved: [String]
         if case .some(.array(let values)) = dashboardObject["order"] {
@@ -623,7 +644,7 @@ final class NativeFeatureStore: ObservableObject {
         guard case .some(.array(let values)) = dashboardObject["hidden"] else { return ["focus", "calendar", "heatmap"] }
         return Set(values.compactMap { if case .string(let value) = $0 { return value }; return nil })
     }
-    func updateDashboard(order: [String]? = nil, hidden: Set<String>? = nil) async throws {
+    func updateDashboard(order: [String]? = nil, hidden: Set<String>? = nil, picked: Bool = false) async throws {
         var layout = dashboardObject
         var full: [String] = []
         if case .some(.array(let values)) = layout["order"] {
@@ -639,7 +660,41 @@ final class NativeFeatureStore: ObservableObject {
         layout["order"] = .array(full.map(JSONValue.string))
         layout["hidden"] = .array((hidden ?? dashboardHidden).sorted().map(JSONValue.string))
         if layout["sizes"] == nil { layout["sizes"] = .object([:]) }
-        try await savePreference("dashboard-layout", JSONValue.object(layout))
+        if picked { layout["picked_at"] = .string(ISO8601DateFormatter().string(from: Date())) }
+        try await savePreference(dashboardKey, JSONValue.object(layout))
+    }
+
+    /// Saves the picker's choice: the picked widgets in the order shown, every
+    /// other widget hidden. A widget only the website has keeps its setting.
+    func saveDashboardPicks(_ picks: Set<String>) async throws {
+        let order = dashboardOrder.filter { picks.contains($0) } + dashboardOrder.filter { !picks.contains($0) }
+        let websiteOnly = dashboardHidden.subtracting(dashboardWidgets)
+        let hidden = Set(dashboardWidgets.filter { !picks.contains($0) }).union(websiteOnly)
+        try await updateDashboard(order: order, hidden: hidden, picked: true)
+    }
+
+    /// Turns sharing the dashboard with the website on or off. Turning it off
+    /// starts the iPhone's own layout as a copy of the shared one. Turning it
+    /// back on keeps the website's layout, or puts the iPhone's in its place.
+    func setDashboardSync(_ on: Bool, keepIPhoneLayout: Bool = false) async throws {
+        guard on != dashboardSyncsWithWebsite else { return }
+        if on {
+            let mine = dashboardObject
+            try await savePreference("dashboard-sync", true)
+            if keepIPhoneLayout {
+                let order = Self.strings(mine["order"]).filter { dashboardWidgets.contains($0) }
+                let hidden = Set(Self.strings(mine["hidden"]))
+                try await updateDashboard(order: order.isEmpty ? nil : order, hidden: hidden, picked: mine["picked_at"] != nil)
+            }
+        } else {
+            try await savePreference("dashboard-layout-iphone", preferences["dashboard-layout"] ?? JSONValue.object([:]))
+            try await savePreference("dashboard-sync", false)
+        }
+    }
+
+    private static func strings(_ value: JSONValue?) -> [String] {
+        guard case .some(.array(let values)) = value else { return [] }
+        return values.compactMap { if case .string(let text) = $0 { return text }; return nil }
     }
 
     func persistPreviewState() {

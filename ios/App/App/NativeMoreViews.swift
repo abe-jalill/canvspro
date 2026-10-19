@@ -309,6 +309,8 @@ struct NativeSettingsView: View {
                     CPRowDivider(leading: 40)
                     settingsLink("Appearance", "paintpalette") { NativeAppearanceView(features: features) }
                     CPRowDivider(leading: 40)
+                    settingsLink("Dashboard", "square.grid.2x2") { NativeDashboardSettingsView(features: features) }
+                    CPRowDivider(leading: 40)
                     HStack(spacing: 12) {
                         CPIconBadge(symbol: "eye.slash")
                         Toggle("Hide grades until tapped", isOn: $hideGrades)

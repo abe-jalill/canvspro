@@ -1637,6 +1637,8 @@ private struct NativeDashboardView: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.cpPalette) private var paletteDependency
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.nativeLaunchIsVisible) private var launchIsVisible
+    @State private var showWidgetPicker = false
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
     @Binding var selection: NativeTab
@@ -1730,6 +1732,21 @@ private struct NativeDashboardView: View {
                     .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showCustomize = false } } }
             }
         }
+        // Everyone picks their widgets once, new accounts and existing ones alike.
+        .task(id: shouldAskForWidgets) {
+            guard shouldAskForWidgets else { return }
+            try? await Task.sleep(for: .milliseconds(700))
+            if !Task.isCancelled && shouldAskForWidgets { showWidgetPicker = true }
+        }
+        .sheet(isPresented: $showWidgetPicker) {
+            NativeDashboardPicker(features: features) { showWidgetPicker = false }
+                .interactiveDismissDisabled()
+        }
+    }
+
+    private var shouldAskForWidgets: Bool {
+        features.preferencesLoaded && !features.dashboardPicked && !store.isPreview &&
+            !store.needsCanvasConnection && !launchIsVisible && !store.showsSkeleton
     }
 
     // MARK: Hero (the website's DashboardHero)
@@ -2781,7 +2798,200 @@ struct NativeSyncStatusCard: View {
     }
 }
 
-private struct DashboardCustomizationView: View {
+/// What each widget is, for the picker and settings.
+enum NativeDashboardWidgetInfo {
+    static func title(_ id: String) -> String {
+        ["digest": "Since your last visit", "classes": "Classes & Grades", "upcoming": "Upcoming", "focus": "Next 48 hours", "calendar": "Calendar", "announcements": "Announcements", "heatmap": "Workload"][id] ?? id
+    }
+    static func detail(_ id: String) -> String {
+        [
+            "digest": "New grades, new posts and anything that just became urgent.",
+            "classes": "Each class and its current grade.",
+            "upcoming": "Everything due this week, by class.",
+            "focus": "What's due in the next two days.",
+            "calendar": "Canvas events in the week ahead.",
+            "announcements": "Recent posts from your classes.",
+            "heatmap": "How busy each day of the week is.",
+        ][id] ?? ""
+    }
+    static func symbol(_ id: String) -> String {
+        ["digest": "sparkles", "classes": "graduationcap", "upcoming": "list.bullet.rectangle", "focus": "clock", "calendar": "calendar", "announcements": "megaphone", "heatmap": "square.grid.3x3.fill"][id] ?? "square"
+    }
+}
+
+/// "What do you want on your dashboard?" Shown once for every account (and once
+/// for this iPhone's own layout when it doesn't sync with the website), and from
+/// Settings > Dashboard any time after.
+struct NativeDashboardPicker: View {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
+    @ObservedObject var features: NativeFeatureStore
+    let onDone: () -> Void
+    @State private var picks: Set<String>
+    @State private var syncs: Bool
+    @State private var saving = false
+    @State private var status: String?
+
+    init(features: NativeFeatureStore, onDone: @escaping () -> Void) {
+        _features = ObservedObject(wrappedValue: features)
+        self.onDone = onDone
+        _picks = State(initialValue: Set(features.dashboardOrder.filter { !features.dashboardHidden.contains($0) }))
+        _syncs = State(initialValue: features.dashboardSyncsWithWebsite)
+    }
+
+    private var options: [String] { features.dashboardOrder.filter { features.pickableDashboardWidgets.contains($0) } }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("What do you want on your dashboard?")
+                            .cpFont(26, .semibold).tracking(-0.7)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityAddTraits(.isHeader)
+                        Text("We recommend 4 or 5. Fewer cards means what matters is visible at a glance, with less scrolling and less to worry about.")
+                            .cpFont(14).lineSpacing(2).foregroundStyle(CPTheme.muted(scheme))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    VStack(spacing: 10) {
+                        ForEach(options, id: \.self) { id in option(id) }
+                    }
+                    Toggle(isOn: $syncs) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Use the same dashboard on the website").cpFont(14, .medium)
+                            Text("Change this any time in Settings.").cpFont(12).foregroundStyle(CPTheme.muted(scheme))
+                        }
+                    }
+                    .padding(16)
+                    .cpSurface(radius: CPLayout.innerRadius)
+                    if let status { Text(status).cpFont(12).foregroundStyle(CPTheme.danger) }
+                }
+                .padding(20)
+                .frame(maxWidth: 560)
+                .frame(maxWidth: .infinity)
+            }
+            .safeAreaInset(edge: .bottom) { footer }
+            .background(CPTheme.background(scheme).ignoresSafeArea())
+            .foregroundStyle(CPTheme.foreground(scheme))
+            .toolbar(.hidden, for: .navigationBar)
+        }
+    }
+
+    private func option(_ id: String) -> some View {
+        let on = picks.contains(id)
+        return Button {
+            if on { picks.remove(id) } else { picks.insert(id) }
+            CPHaptics.select()
+        } label: {
+            HStack(spacing: 14) {
+                Image(systemName: NativeDashboardWidgetInfo.symbol(id)).cpIconFont(16)
+                    .frame(width: 40, height: 40)
+                    .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(NativeDashboardWidgetInfo.title(id)).cpFont(15, .medium)
+                    Text(NativeDashboardWidgetInfo.detail(id)).cpFont(12).foregroundStyle(CPTheme.muted(scheme))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                Image(systemName: on ? "checkmark.circle.fill" : "circle").cpIconFont(20)
+                    .foregroundStyle(on ? CPTheme.primary(scheme: scheme) : CPTheme.muted(scheme).opacity(0.6))
+            }
+            .padding(14)
+            .cpSurface(radius: CPLayout.innerRadius)
+            .overlay(RoundedRectangle(cornerRadius: CPLayout.innerRadius, style: .continuous)
+                .strokeBorder(on ? CPTheme.primary(scheme: scheme).opacity(0.7) : .clear, lineWidth: 1))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(CPPressStyle())
+        .accessibilityLabel(NativeDashboardWidgetInfo.title(id))
+        .accessibilityHint(NativeDashboardWidgetInfo.detail(id))
+        .accessibilityAddTraits(on ? .isSelected : [])
+    }
+
+    private var footer: some View {
+        VStack(spacing: 8) {
+            Text(countLine).cpFont(12).foregroundStyle(CPTheme.muted(scheme)).multilineTextAlignment(.center)
+            Button { save() } label: {
+                Text(saving ? "Saving…" : "Done").frame(maxWidth: .infinity)
+            }
+            .buttonStyle(CPButtonStyle(kind: .primary, fullWidth: true))
+            .disabled(picks.isEmpty || saving)
+        }
+        .padding(.horizontal, 20).padding(.top, 10).padding(.bottom, 8)
+        .background(CPTheme.background(scheme).opacity(0.96).ignoresSafeArea(edges: .bottom))
+    }
+
+    private var countLine: String {
+        switch picks.count {
+        case 0: return "Pick at least one."
+        case 1...5: return "\(picks.count) selected"
+        default: return "\(picks.count) selected. That's a lot, and you can always change it in Settings."
+        }
+    }
+
+    private func save() {
+        saving = true
+        status = nil
+        Task {
+            defer { saving = false }
+            do {
+                try await features.setDashboardSync(syncs)
+                try await features.saveDashboardPicks(picks)
+                onDone()
+            } catch { status = error.localizedDescription }
+        }
+    }
+}
+
+/// Settings > Dashboard: share the layout with the website or not, pick widgets
+/// again, and set their order.
+struct NativeDashboardSettingsView: View {
+    @ObservedObject var features: NativeFeatureStore
+    @State private var showPicker = false
+    @State private var askWhichToKeep = false
+    @State private var status: String?
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle("Same dashboard on the website", isOn: Binding(get: { features.dashboardSyncsWithWebsite }, set: { on in
+                    if on { askWhichToKeep = true } else { change { try await features.setDashboardSync(false) } }
+                }))
+            } footer: {
+                Text(features.dashboardSyncsWithWebsite
+                     ? "Changes here show on the website, and changes there show here."
+                     : "This iPhone keeps its own dashboard. It's saved to your account, so it's the same on your other iPhones.")
+            }
+            Section {
+                Button("Choose widgets") { showPicker = true }
+                NavigationLink("Order and visibility") { DashboardCustomizationView(features: features) }
+            }
+            if let status { Section { Text(status).foregroundStyle(.secondary) } }
+        }
+        .cpListScreen()
+        .cpNavigationTitle("Dashboard")
+        .navigationBarTitleDisplayMode(.inline)
+        .confirmationDialog("Which dashboard do you want to keep?", isPresented: $askWhichToKeep, titleVisibility: .visible) {
+            Button("Keep the website's") { change { try await features.setDashboardSync(true) } }
+            Button("Keep this iPhone's") { change { try await features.setDashboardSync(true, keepIPhoneLayout: true) } }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("The other one is replaced.")
+        }
+        .sheet(isPresented: $showPicker) {
+            NativeDashboardPicker(features: features) { showPicker = false }
+        }
+    }
+
+    private func change(_ action: @escaping () async throws -> Void) {
+        Task {
+            do { try await action(); status = nil } catch { status = error.localizedDescription }
+        }
+    }
+}
+
+struct DashboardCustomizationView: View {
     @ObservedObject var features: NativeFeatureStore
     @State private var status: String?
     private var order: [String] { features.dashboardOrder }
@@ -2818,7 +3028,7 @@ private struct DashboardCustomizationView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    private func title(for id: String) -> String { ["digest": "Since your last visit", "classes": "Classes & Grades", "upcoming": "Upcoming Assignments", "focus": "Focus", "calendar": "Calendar", "announcements": "Announcements", "heatmap": "Workload heatmap"][id] ?? id }
+    private func title(for id: String) -> String { NativeDashboardWidgetInfo.title(id) }
     private func setVisible(_ id: String, _ visible: Bool) { var hidden = features.dashboardHidden; if visible { hidden.remove(id) } else { hidden.insert(id) }; Task { await save(hidden: hidden) } }
     private func move(_ index: Int, _ direction: Int) { var values = order; guard values.indices.contains(index + direction) else { return }; values.swapAt(index, index + direction); Task { await save(order: values) } }
     private func save(order: [String]? = nil, hidden: Set<String>? = nil) async { do { try await features.updateDashboard(order: order, hidden: hidden); status = nil } catch { status = error.localizedDescription } }
