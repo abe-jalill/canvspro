@@ -1647,7 +1647,6 @@ private struct NativeDashboardView: View {
     @State private var showCustomize = false
     @State private var expandedUpcoming = Set<Int>()
     @State private var expandedAnnouncements = Set<Int>()
-    @State private var showGpaScale = false
     private var digestKey: String { "CanvasProNativeDigest.\(store.persistenceScope)" }
     private var dismissedAnnouncements: Set<Int> { Set(dismissedAnnouncementsRaw.split(separator: ",").compactMap { Int($0) }) }
     private var visibleCourses: [CourseSummary] { store.bundle.courses.filter { !features.hiddenCourseIDs.contains($0.id) } }
@@ -1903,7 +1902,6 @@ private struct NativeDashboardView: View {
         case "focus": focusWidget
         case "calendar": calendarWidget
         case "announcements": announcementsWidget
-        case "gpa": gpaWidget
         case "heatmap":
             CPGlassCard(title: "Workload") {
                 WorkloadView(assignments: activeAssignments, store: store, features: features)
@@ -2250,56 +2248,6 @@ private struct NativeDashboardView: View {
         dismissedAnnouncementsRaw = dismissedAnnouncements.union([id]).sorted().map { String($0) }.joined(separator: ",")
     }
 
-    // MARK: GPA
-
-    private var gpaWidget: some View {
-        let result = NativeGPA.compute(courses: store.bundle.courses, schedule: features.schedule, displayName: { store.displayName(courseID: $0.id, fallback: $0.name) })
-        return CPGlassCard {
-            HStack(alignment: .top, spacing: 10) {
-                Image(systemName: "graduationcap").cpIconFont(16)
-                    .foregroundStyle(CPTheme.foreground(scheme))
-                    .frame(width: 38, height: 38)
-                    .background(CPTheme.foreground(scheme).opacity(0.07), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("GPA").cpFont(11, .medium).tracking(1.8).foregroundStyle(CPTheme.muted(scheme))
-                    Text(result.gpa.map { String(format: "%.2f", $0) } ?? "—").cpFont(26, .medium).tracking(-0.8).monospacedDigit()
-                        .foregroundStyle(CPTheme.foreground(scheme))
-                        .cpGradeShield()
-                }
-                Spacer()
-                Button { withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) { showGpaScale.toggle() } } label: {
-                    Image(systemName: "info.circle").cpIconFont(15).foregroundStyle(CPTheme.muted(scheme))
-                        .frame(width: 44, height: 44).contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .padding(.top, -6).padding(.trailing, -10)
-                .accessibilityLabel(showGpaScale ? "Hide grading scale" : "Show grading scale")
-            }
-            CPAdaptiveStack(spacing: 10) {
-                CPStatTile(value: String(format: "%.1f", result.totalCredits), label: "Total credits")
-                CPStatTile(value: String(format: "%.1f", result.countedCredits), label: "Counted")
-            }
-            if showGpaScale {
-                VStack(alignment: .leading, spacing: 0) {
-                    CPRowDivider().padding(.bottom, 10)
-                    Text("4.0 SCALE").cpFont(11, .medium).tracking(1).foregroundStyle(CPTheme.muted(scheme)).padding(.bottom, 4)
-                    ForEach(NativeGPA.scale, id: \.minimum) { entry in
-                        HStack { Text("\(entry.minimum)%+"); Spacer(); Text(String(format: "%.1f", entry.points)) }
-                            .cpFont(12).monospacedDigit().foregroundStyle(CPTheme.muted(scheme)).padding(.vertical, 3)
-                    }
-                }
-            }
-            HStack {
-                Text("\(store.bundle.courses.count) class\(store.bundle.courses.count == 1 ? "" : "es") loaded.").cpFont(12).foregroundStyle(CPTheme.muted(scheme))
-                Spacer()
-                if result.countedCredits == 0 {
-                    NavigationLink { ClassScheduleView(features: features, store: store) } label: { CPLinkLabel(text: "Add credits") }.buttonStyle(.plain)
-                }
-            }
-        }
-    }
-
     // MARK: Helpers
 
     private func openFocus(_ window: String) {
@@ -2340,37 +2288,6 @@ struct NativeDatedEvent: Identifiable {
     let event: CalendarEventItem
     let date: Date
     var id: String { event.id }
-}
-
-/// GPA from current scores and the credits saved in My classes, using the
-/// website's 4.0 scale and course matching.
-enum NativeGPA {
-    struct Step { let minimum: Int; let points: Double }
-    static let scale: [Step] = [Step(minimum: 93, points: 4.0), Step(minimum: 90, points: 3.7), Step(minimum: 87, points: 3.3), Step(minimum: 83, points: 3.0), Step(minimum: 80, points: 2.7), Step(minimum: 77, points: 2.3), Step(minimum: 73, points: 2.0), Step(minimum: 70, points: 1.7), Step(minimum: 67, points: 1.3), Step(minimum: 63, points: 1.0), Step(minimum: 60, points: 0.7), Step(minimum: 0, points: 0.0)]
-
-    struct Result { let gpa: Double?; let totalCredits: Double; let countedCredits: Double }
-
-    static func points(for score: Double?) -> Double? {
-        guard let score, score.isFinite else { return nil }
-        return scale.first { score >= Double($0.minimum) }?.points ?? 0
-    }
-
-    static func compute(courses: [CourseSummary], schedule: [ClassScheduleEntry], displayName: (CourseSummary) -> String) -> Result {
-        var total = 0.0, counted = 0.0, weighted = 0.0
-        for course in courses {
-            let display = displayName(course).lowercased()
-            let match = schedule.first { entry in
-                entry.canvasCourseID == course.id || entry.title.lowercased() == display || (!course.courseCode.isEmpty && entry.code.lowercased() == course.courseCode.lowercased())
-            }
-            let credits = match?.credits ?? 0
-            total += credits
-            if let value = points(for: course.currentScore), credits > 0 {
-                counted += credits
-                weighted += value * credits
-            }
-        }
-        return Result(gpa: counted > 0 ? weighted / counted : nil, totalCredits: total, countedCredits: counted)
-    }
 }
 
 /// One assignment in a compact list: done circle, name, class or date, and its
@@ -2836,7 +2753,7 @@ private struct DashboardCustomizationView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    private func title(for id: String) -> String { ["digest": "Since your last visit", "classes": "Classes & Grades", "upcoming": "Upcoming Assignments", "focus": "Focus", "calendar": "Calendar", "announcements": "Announcements", "gpa": "GPA", "heatmap": "Workload heatmap"][id] ?? id }
+    private func title(for id: String) -> String { ["digest": "Since your last visit", "classes": "Classes & Grades", "upcoming": "Upcoming Assignments", "focus": "Focus", "calendar": "Calendar", "announcements": "Announcements", "heatmap": "Workload heatmap"][id] ?? id }
     private func setVisible(_ id: String, _ visible: Bool) { var hidden = features.dashboardHidden; if visible { hidden.remove(id) } else { hidden.insert(id) }; Task { await save(hidden: hidden) } }
     private func move(_ index: Int, _ direction: Int) { var values = order; guard values.indices.contains(index + direction) else { return }; values.swapAt(index, index + direction); Task { await save(order: values) } }
     private func save(order: [String]? = nil, hidden: Set<String>? = nil) async { do { try await features.updateDashboard(order: order, hidden: hidden); status = nil } catch { status = error.localizedDescription } }

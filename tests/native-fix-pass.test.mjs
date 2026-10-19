@@ -128,7 +128,7 @@ test("legal pages show the live policies, and links open the right tab", () => {
 });
 
 test("the syllabus is only on the class page, and Today uses the website's tabs", () => {
-  const dashboard = swift.NativeViews.slice(swift.NativeViews.indexOf("private struct NativeDashboardView"), swift.NativeViews.indexOf("enum NativeGPA"));
+  const dashboard = swift.NativeViews.slice(swift.NativeViews.indexOf("private struct NativeDashboardView"), swift.NativeViews.indexOf("struct NativeCourseGroup"));
   assert.doesNotMatch(dashboard, /syllabus/i);
   const course = swift.NativeViews.slice(swift.NativeViews.indexOf("struct CourseDetailView"), swift.NativeViews.indexOf("private struct CountUpGrade"));
   assert.match(course, /Label\("Syllabus", systemImage: "doc.text"\)/);
@@ -296,4 +296,9 @@ test("study session matches the website: pick, choose time, your session with a 
   assert.match(views, /if perItem, let next = nextUnfinishedIndex\(after: currentIndex\)/);
   assert.match(views, /private func focusTask\(_ index: Int\)/);
   assert.doesNotMatch(views, /pomodoroEnabled|selectedOrderCard|durationCard/);
+});
+
+test("the iPhone dashboard has no GPA, and the website's saved layout keeps its slot", () => {
+  assert.match(swift.NativeFeatures, /dashboardWidgets: \[String\] \{ Self\.defaultDashboardOrder\.filter \{ \$0 != "gpa" \} \}/);
+  assert.doesNotMatch(swift.NativeViews, /gpaWidget|NativeGPA|case "gpa"/);
 });

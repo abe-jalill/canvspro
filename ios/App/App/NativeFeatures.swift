@@ -597,9 +597,12 @@ final class NativeFeatureStore: ObservableObject {
         return Int(value)
     }
 
-    /// Every website widget, in the website's default order. The app draws all of them.
+    /// Every website widget, in the website's default order.
     static let defaultDashboardOrder = ["digest", "classes", "upcoming", "focus", "calendar", "announcements", "gpa", "heatmap"]
-    private var dashboardWidgets: [String] { Self.defaultDashboardOrder }
+    /// The widgets the app draws. GPA is left out: it can't be exact from Canvas
+    /// scores (schools' scales differ, current scores aren't final grades, and past
+    /// terms aren't included). It keeps its slot in the website's saved layout.
+    private var dashboardWidgets: [String] { Self.defaultDashboardOrder.filter { $0 != "gpa" } }
     /// The website's full default order, used to keep saved slots in place.
     private let websiteDashboardOrder = ["digest", "classes", "upcoming", "focus", "calendar", "announcements", "gpa", "heatmap"]
     private var dashboardObject: [String: JSONValue] {
