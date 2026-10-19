@@ -405,3 +405,28 @@
     transition: none;
   }
 }
+
+/* Marking work complete: the check pops, the undo bar counts down. */
+@keyframes completion-check-pop {
+  0% { transform: scale(0.82); }
+  55% { transform: scale(1.14); }
+  100% { transform: scale(1); }
+}
+@keyframes completion-undo-progress {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+[data-completing="true"] {
+  animation: completion-check-pop 320ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.completion-undo-progress {
+  animation-name: completion-undo-progress;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-completing="true"],
+  .completion-undo-progress {
+    animation: none;
+  }
+}

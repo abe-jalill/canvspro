@@ -10,6 +10,7 @@ export const APP_SECTIONS = [
   "announcements",
   "assignments",
   "class-schedule",
+  "completed",
   "courses",
   "dashboard",
   "focus",

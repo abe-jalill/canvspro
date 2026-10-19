@@ -5,6 +5,14 @@ import { completedAssignmentIds, COMPLETION_PREFIX } from "@/lib/completion-reco
 import type { AssignmentItem } from "@/lib/canvas.functions";
 import { canvasSaysComplete, isAssignmentComplete } from "@/lib/assignment-window";
 import {
+  cancelCompletionExit,
+  dismissCompletionUndo,
+  isCompletionSaving,
+  showCompletionUndo,
+  startCompletionExit,
+} from "@/lib/completion-motion";
+import { CUSTOM_ASSIGNMENTS_KEY } from "@/lib/custom-assignments";
+import {
   useUserPreferenceKey,
   useSetUserPreference,
   useUserPreferences, userPreferencesQueryKey, type PrefMap,
@@ -40,21 +48,44 @@ export function useSyncedSet(baseKey: string) {
 
   const change = useCallback((id: string | number, operation: "add" | "remove" | "toggle") => {
     if (!ready) return;
-    const current = qc.getQueryData<PrefMap>(userKey(userPreferencesQueryKey, userId));
+    const preferencesKey = userKey(userPreferencesQueryKey, userId);
+    const current = qc.getQueryData<PrefMap>(preferencesKey);
     const ids = baseKey === COMPLETED_ASSIGNMENTS_KEY ? completedAssignmentIds(current) : readSet(current?.[baseKey]);
     const k = String(id);
     if (baseKey === COMPLETED_ASSIGNMENTS_KEY) {
       const assignment = qc.getQueryData<AssignmentItem[]>(["canvas", "assignments"])?.find((a) => String(a.id) === k);
       // Toggle from what the person sees: done by their own mark OR by Canvas.
-      const doneNow = assignment ? isAssignmentComplete(assignment, ids.has(k)) : ids.has(k);
+      // Work playing its completion exit already counts as done.
+      const doneNow = isCompletionSaving(k) || (assignment ? isAssignmentComplete(assignment, ids.has(k)) : ids.has(k));
       const completed = operation === "add" || (operation === "toggle" && !doneNow);
-      // Marking not-done over a Canvas submission is remembered as a reopen, so
-      // Canvas's status stops overriding it (until a newer submission arrives).
-      const reopen = !completed && assignment != null && canvasSaysComplete(assignment);
-      save.mutate({ key: `${COMPLETION_PREFIX}${k}`, value: {
-        completed, completedAt: completed ? new Date().toISOString() : null,
-        dueAt: assignment?.due_at ?? null,
-        ...(reopen ? { reopenedAt: new Date().toISOString() } : {}),
+      const write = (done: boolean) => {
+        // Marking not-done over a Canvas submission is remembered as a reopen, so
+        // Canvas's status stops overriding it (until a newer submission arrives).
+        const reopen = !done && assignment != null && canvasSaysComplete(assignment);
+        save.mutate({ key: `${COMPLETION_PREFIX}${k}`, value: {
+          completed: done, completedAt: done ? new Date().toISOString() : null,
+          dueAt: assignment?.due_at ?? null,
+          ...(reopen ? { reopenedAt: new Date().toISOString() } : {}),
+        } });
+      };
+      if (!completed) {
+        // Unticked before the save went out: nothing to undo.
+        if (cancelCompletionExit(k)) dismissCompletionUndo();
+        else write(false);
+        return;
+      }
+      if (doneNow) {
+        write(true);
+        return;
+      }
+      const custom = Array.isArray(current?.[CUSTOM_ASSIGNMENTS_KEY])
+        ? (current[CUSTOM_ASSIGNMENTS_KEY] as { id?: unknown; name?: unknown }[]).find((item) => String(item?.id) === k)
+        : undefined;
+      const name = assignment?.name ?? (typeof custom?.name === "string" ? custom.name : "Assignment");
+      startCompletionExit(k, () => write(true), () =>
+        completedAssignmentIds(qc.getQueryData<PrefMap>(preferencesKey)).has(k));
+      showCompletionUndo({ id: k, name, undo: () => {
+        if (!cancelCompletionExit(k)) write(false);
       } });
     } else {
       const completed = operation === "add" || (operation === "toggle" && !ids.has(k));

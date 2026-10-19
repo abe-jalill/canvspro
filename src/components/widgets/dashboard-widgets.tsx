@@ -1,3 +1,5 @@
+import { CompletionRow } from "@/components/completion-row";
+import { useCompletingIds } from "@/lib/completion-motion";
 import { AssignmentEstimateEditor } from "@/components/assignment-estimate";
 import { Link } from "@tanstack/react-router";
 import { useQuery, queryOptions } from "@tanstack/react-query";
@@ -177,6 +179,7 @@ function UpcomingWidget() {
   const { data, isLoading, isError, error } = useQuery(assignmentsQO);
   const courses = useQuery(coursesQO);
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
+  const completing = useCompletingIds();
   const custom = useCustomAssignments();
   const [expanded, setExpanded] = useState<number[]>([]);
 
@@ -298,10 +301,11 @@ function UpcomingWidget() {
                 {isOpen && g.items.length > 0 && (
                   <ul className="mt-2 space-y-2">
                     {g.items.map((a) => {
-                      const done = completed.has(a.id);
+                      const done = completed.has(a.id) || completing.has(String(a.id));
                       const cd = getCountdown(a.due_at, { completed: done });
                       return (
-                        <li
+                        <CompletionRow
+ assignmentId={a.id}
                           key={a.id}
                           className={cn(
                             "glass-inset glass-hover flex items-center justify-between gap-2 p-3",
@@ -313,6 +317,7 @@ function UpcomingWidget() {
                           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:gap-3">
                             <CompleteButton
                               done={done}
+                              completing={completing.has(String(a.id))}
                               onClick={() => completed.toggle(a.id)}
                               label={a.name}
                             />
@@ -345,7 +350,7 @@ function UpcomingWidget() {
                             </div>
                             <IcsButton assignment={a} />
                           </div>
-                        </li>
+                        </CompletionRow>
                       );
                     })}
                   </ul>
@@ -489,16 +494,19 @@ function CompleteButton({
   done,
   onClick,
   label,
+  completing = false,
 }: {
   done: boolean;
   onClick: () => void;
   label: string;
+  completing?: boolean;
 }) {
   return (
     <button
       onClick={onClick}
       aria-label={done ? `Mark ${label} incomplete` : `Mark ${label} complete`}
       aria-pressed={done}
+      data-completing={completing || undefined}
       className={
         "flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors " +
         (done

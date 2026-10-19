@@ -30,6 +30,7 @@ import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedAnnouncementsRouteImport } from './routes/_authenticated/announcements'
 import { Route as AuthenticatedAssignmentsRouteImport } from './routes/_authenticated/assignments'
 import { Route as AuthenticatedClassScheduleRouteImport } from './routes/_authenticated/class-schedule'
+import { Route as AuthenticatedCompletedRouteImport } from './routes/_authenticated/completed'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedFocusRouteImport } from './routes/_authenticated/focus'
 import { Route as AuthenticatedGetItDoneRouteImport } from './routes/_authenticated/get-it-done'
@@ -169,6 +170,11 @@ const AuthenticatedClassScheduleRoute =
     path: '/class-schedule',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedCompletedRoute = AuthenticatedCompletedRouteImport.update({
+  id: '/completed',
+  path: '/completed',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -356,6 +362,7 @@ export interface FileRoutesByFullPath {
   '/announcements': typeof AuthenticatedAnnouncementsRoute
   '/assignments': typeof AuthenticatedAssignmentsRoute
   '/class-schedule': typeof AuthenticatedClassScheduleRoute
+  '/completed': typeof AuthenticatedCompletedRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/focus': typeof AuthenticatedFocusRoute
   '/get-it-done': typeof AuthenticatedGetItDoneRoute
@@ -408,6 +415,7 @@ export interface FileRoutesByTo {
   '/announcements': typeof AuthenticatedAnnouncementsRoute
   '/assignments': typeof AuthenticatedAssignmentsRoute
   '/class-schedule': typeof AuthenticatedClassScheduleRoute
+  '/completed': typeof AuthenticatedCompletedRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/focus': typeof AuthenticatedFocusRoute
   '/get-it-done': typeof AuthenticatedGetItDoneRoute
@@ -461,6 +469,7 @@ export interface FileRoutesById {
   '/_authenticated/announcements': typeof AuthenticatedAnnouncementsRoute
   '/_authenticated/assignments': typeof AuthenticatedAssignmentsRoute
   '/_authenticated/class-schedule': typeof AuthenticatedClassScheduleRoute
+  '/_authenticated/completed': typeof AuthenticatedCompletedRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/focus': typeof AuthenticatedFocusRoute
   '/_authenticated/get-it-done': typeof AuthenticatedGetItDoneRoute
@@ -515,6 +524,7 @@ export interface FileRouteTypes {
     | '/announcements'
     | '/assignments'
     | '/class-schedule'
+    | '/completed'
     | '/dashboard'
     | '/focus'
     | '/get-it-done'
@@ -567,6 +577,7 @@ export interface FileRouteTypes {
     | '/announcements'
     | '/assignments'
     | '/class-schedule'
+    | '/completed'
     | '/dashboard'
     | '/focus'
     | '/get-it-done'
@@ -619,6 +630,7 @@ export interface FileRouteTypes {
     | '/_authenticated/announcements'
     | '/_authenticated/assignments'
     | '/_authenticated/class-schedule'
+    | '/_authenticated/completed'
     | '/_authenticated/dashboard'
     | '/_authenticated/focus'
     | '/_authenticated/get-it-done'
@@ -829,6 +841,13 @@ declare module '@tanstack/react-router' {
       path: '/class-schedule'
       fullPath: '/class-schedule'
       preLoaderRoute: typeof AuthenticatedClassScheduleRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/completed': {
+      id: '/_authenticated/completed'
+      path: '/completed'
+      fullPath: '/completed'
+      preLoaderRoute: typeof AuthenticatedCompletedRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/dashboard': {
@@ -1082,6 +1101,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAnnouncementsRoute: typeof AuthenticatedAnnouncementsRoute
   AuthenticatedAssignmentsRoute: typeof AuthenticatedAssignmentsRoute
   AuthenticatedClassScheduleRoute: typeof AuthenticatedClassScheduleRoute
+  AuthenticatedCompletedRoute: typeof AuthenticatedCompletedRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedFocusRoute: typeof AuthenticatedFocusRoute
   AuthenticatedGetItDoneRoute: typeof AuthenticatedGetItDoneRoute
@@ -1098,6 +1118,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAnnouncementsRoute: AuthenticatedAnnouncementsRoute,
   AuthenticatedAssignmentsRoute: AuthenticatedAssignmentsRoute,
   AuthenticatedClassScheduleRoute: AuthenticatedClassScheduleRoute,
+  AuthenticatedCompletedRoute: AuthenticatedCompletedRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedFocusRoute: AuthenticatedFocusRoute,
   AuthenticatedGetItDoneRoute: AuthenticatedGetItDoneRoute,

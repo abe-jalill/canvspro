@@ -18,6 +18,9 @@ import {
   customToAssignmentItem,
   isCustomAssignmentId,
 } from "@/lib/custom-assignments";
+import { CompletionRow } from "@/components/completion-row";
+import { CompletedLink } from "@/components/completed-link";
+import { useCompletingIds } from "@/lib/completion-motion";
 import { CompleteToggle } from "@/components/complete-toggle";
 import { getCountdown, urgencyTextClass, urgencyAccentClass } from "@/lib/countdown";
 import { AddToCalendarButton as SharedCalBtn } from "@/components/add-to-calendar-button";
@@ -131,6 +134,8 @@ function PriorityAssignmentsCard({
   isDone: (id: number) => boolean;
   onToggleDone: (id: number) => void;
 }) {
+  const completing = useCompletingIds();
+  const shownDone = (id: number) => isDone(id) || completing.has(String(id));
   if (loading) {
     return (
       <GlassCard
@@ -178,15 +183,17 @@ function PriorityAssignmentsCard({
       {topItems.length > 0 && (
         <ul className="mt-4 space-y-2">
           {topItems.map((p) => (
-            <li
+            <CompletionRow
+ assignmentId={p.assignment.id}
               key={p.assignment.id}
               className={cn(
                 "glass-inset flex items-center justify-between gap-3 p-3",
-                isDone(p.assignment.id) && "opacity-60",
+                shownDone(p.assignment.id) && "opacity-60",
               )}
             >
               <CompleteToggle
-                done={isDone(p.assignment.id)}
+                done={shownDone(p.assignment.id)}
+                completing={completing.has(String(p.assignment.id))}
                 onToggle={() => onToggleDone(p.assignment.id)}
                 label={p.assignment.name}
               />
@@ -194,7 +201,7 @@ function PriorityAssignmentsCard({
                 <p
                   className={cn(
                     "truncate text-sm font-medium",
-                    isDone(p.assignment.id) && "line-through",
+                    shownDone(p.assignment.id) && "line-through",
                   )}
                 >
                   {p.assignment.name}
@@ -205,7 +212,7 @@ function PriorityAssignmentsCard({
                 <AssignmentEstimateEditor assignment={p.assignment} className="mt-2" />
               </div>
               <PriorityBadge urgency={p.urgency} />
-            </li>
+            </CompletionRow>
           ))}
         </ul>
       )}
@@ -222,6 +229,7 @@ function AssignmentsPage() {
   const [horizon, setHorizon] = useState<AgendaHorizon>(14);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
+  const completing = useCompletingIds();
   const highlight = useCourseHighlight();
   const custom = useCustomAssignments();
   const routeSearch = Route.useSearch();
@@ -428,6 +436,7 @@ function AssignmentsPage() {
           />
           Show completed
         </label>
+        <CompletedLink />
         <span className="hidden text-xs tabular-nums text-muted-foreground sm:block">
           {shownItems.length} shown
         </span>
@@ -527,7 +536,7 @@ function AssignmentsPage() {
                 </div>
                 <ul className="mt-2 space-y-2" hidden={undatedCollapsed}>
                   {section.items.map(({ assignment: a, course }) => {
-                    const done = isDone(a, completed.has(a.id));
+                    const done = isDone(a, completed.has(a.id)) || completing.has(String(a.id));
                     const mine = isCustomAssignmentId(a.id);
                     const notes = custom.notesById.get(a.id);
                     const highlightProps = highlight(course);
@@ -536,7 +545,8 @@ function AssignmentsPage() {
                     const due = assignmentDueTime(a);
                     const dueText = formatAssignmentDue(a.due_at);
                     return (
-                      <li
+                      <CompletionRow
+ assignmentId={a.id}
                         key={a.id}
                         id={firstForCourse ? highlightProps.id : undefined}
                         className={cn(
@@ -547,6 +557,7 @@ function AssignmentsPage() {
                       >
                         <CompleteToggle
                           done={done}
+                          completing={completing.has(String(a.id))}
                           onToggle={() => completed.toggle(a.id)}
                           label={a.name}
                           disabled={!completed.ready}
@@ -602,7 +613,7 @@ function AssignmentsPage() {
                             )}
                           </span>
                         </div>
-                      </li>
+                      </CompletionRow>
                     );
                   })}
                 </ul>
@@ -690,12 +701,13 @@ function AssignmentsPage() {
                     <div className="border-t border-glass-border p-4 sm:p-6">
                       <ul className="space-y-2">
                         {g.items.map((a) => {
-                          const done = completed.has(a.id);
+                          const done = completed.has(a.id) || completing.has(String(a.id));
                           const cd = getCountdown(a.due_at, { completed: done });
                           const mine = isCustomAssignmentId(a.id);
                           const notes = custom.notesById.get(a.id);
                           return (
-                            <li
+                            <CompletionRow
+ assignmentId={a.id}
                               key={a.id}
                               className={cn(
                                 "glass-inset flex items-start justify-between gap-4 p-3 transition-opacity",
@@ -706,6 +718,7 @@ function AssignmentsPage() {
                               <div className="flex min-w-0 items-start gap-3">
                                 <CompleteToggle
                                   done={done}
+                                  completing={completing.has(String(a.id))}
                                   onToggle={() => completed.toggle(a.id)}
                                   label={a.name}
                                   disabled={!completed.ready}
@@ -768,7 +781,7 @@ function AssignmentsPage() {
                                   </button>
                                 )}
                               </div>
-                            </li>
+                            </CompletionRow>
                           );
                         })}
                       </ul>

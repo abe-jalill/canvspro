@@ -286,24 +286,53 @@ function tableRows(table: string): unknown[] {
         raw_code: course.course_code,
         custom_name: course.name,
       }));
-    case "user_preferences":
+    case "user_preferences": {
+      // Saved changes (ticking work off, settings) last for the demo session.
+      const saved = savedDemoPreferences();
       return [
-        {
-          user_id: DEMO_USER_ID,
-          key: "theme",
-          value: sessionStorage.getItem(`${FLAG}-theme`) ?? "system",
-        },
-        { user_id: DEMO_USER_ID, key: "color_theme", value: "forest" },
-        // The sample student already chose their widgets (every one), so the
-        // "What do you want on your dashboard?" picker doesn't cover screenshots.
-        {
-          user_id: DEMO_USER_ID,
-          key: "dashboard-layout",
-          value: { order: [], hidden: [], sizes: {}, picked_at: "2026-09-01T12:00:00.000Z" },
-        },
+        ...[
+          {
+            user_id: DEMO_USER_ID,
+            key: "theme",
+            value: sessionStorage.getItem(`${FLAG}-theme`) ?? "system",
+          },
+          { user_id: DEMO_USER_ID, key: "color_theme", value: "forest" },
+          // The sample student already chose their widgets (every one), so the
+          // "What do you want on your dashboard?" picker doesn't cover screenshots.
+          {
+            user_id: DEMO_USER_ID,
+            key: "dashboard-layout",
+            value: { order: [], hidden: [], sizes: {}, picked_at: "2026-09-01T12:00:00.000Z" },
+          },
+        ].filter((row) => !(row.key in saved)),
+        ...Object.entries(saved).map(([key, value]) => ({ user_id: DEMO_USER_ID, key, value })),
       ];
+    }
     default:
       return [];
+  }
+}
+
+function savedDemoPreferences(): Record<string, unknown> {
+  try {
+    return JSON.parse(sessionStorage.getItem(`${FLAG}-preferences`) ?? "{}") as Record<
+      string,
+      unknown
+    >;
+  } catch {
+    return {};
+  }
+}
+
+function saveDemoPreference(body: Record<string, unknown>) {
+  if (typeof body.key !== "string") return;
+  try {
+    sessionStorage.setItem(
+      `${FLAG}-preferences`,
+      JSON.stringify({ ...savedDemoPreferences(), [body.key]: body.value }),
+    );
+  } catch {
+    /* the demo just won't remember it */
   }
 }
 
@@ -412,7 +441,10 @@ function answer(
   }
   if (path.startsWith("/rest/v1/")) {
     const table = path.slice("/rest/v1/".length).split("/")[0];
-    if (method !== "GET" && method !== "HEAD") return json([], 201);
+    if (method !== "GET" && method !== "HEAD") {
+      if (table === "user_preferences" && method === "POST") saveDemoPreference(body);
+      return json([], 201);
+    }
     const rows = tableRows(table);
     const wantsObject = (headers.get("accept") ?? "").includes("vnd.pgrst.object");
     if (wantsObject) {

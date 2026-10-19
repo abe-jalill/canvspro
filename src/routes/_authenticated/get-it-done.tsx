@@ -1,3 +1,4 @@
+import { useCompletingIds } from "@/lib/completion-motion";
 import { AssignmentEstimateEditor } from "@/components/assignment-estimate";
 import { formatAssignmentDue } from "@/lib/assignment-due";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -153,6 +154,7 @@ function GetItDonePage() {
   const courses = useQuery(coursesQO);
   const custom = useCustomAssignments();
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
+  const completing = useCompletingIds();
   const metaMap = useAssignmentMetaMap();
   const [prefs, setPrefs] = useStoredPrefs();
   const [choiceOffset, setChoiceOffset] = useState(0);
@@ -328,7 +330,7 @@ function GetItDonePage() {
       {recommendation ? (
         <RecommendationCard
           item={recommendation}
-          completed={completed.has(recommendation.assignment.id)}
+          completed={completed.has(recommendation.assignment.id) || completing.has(String(recommendation.assignment.id))}
           onComplete={() => completed.toggle(recommendation.assignment.id)}
           onSkip={() => skipAssignment(recommendation.assignment.id)}
           onChooseAnother={ranked.length > 1 ? chooseAnother : undefined}
@@ -419,12 +421,14 @@ function RecommendationCard({
 }) {
   const assignment = item.assignment;
   const estimate = item.estimatedMinutes ?? defaultEstimateMinutes(assignment);
+  const completing = useCompletingIds().has(String(assignment.id));
 
   return (
     <section className="premium-reveal min-w-0 rounded-lg border border-foreground/15 p-5 sm:p-6">
       <div className="flex items-start gap-3.5">
         <CompleteToggle
           done={completed}
+          completing={completing}
           onToggle={onComplete}
           label={assignment.name}
           className="mt-2"
@@ -513,6 +517,7 @@ function TodayPlanCard({
   // The suggestion above is already the first thing on the plan, so the list
   // only shows what comes after it.
   const rest = plan.filter((item) => item.assignment.id !== upNextId);
+  const completing = useCompletingIds();
 
   return (
     <section className="premium-reveal min-w-0 px-1" style={{ animationDelay: "60ms" }}>
@@ -543,7 +548,7 @@ function TodayPlanCard({
                 item={item}
                 index={index}
                 count={plan.length}
-                done={completed.has(item.assignment.id)}
+                done={completed.has(item.assignment.id) || completing.has(String(item.assignment.id))}
                 onToggle={() => completed.toggle(item.assignment.id)}
                 onStart={() => onStart(item.assignment)}
                 onSkip={() => onSkip(item.assignment.id)}
@@ -578,6 +583,7 @@ function PlanRow({
 }) {
   const assignment = item.assignment;
   const tag = attentionTag(assignment, done);
+  const completing = useCompletingIds().has(String(assignment.id));
 
 
   return (
@@ -587,7 +593,7 @@ function PlanRow({
         done && "opacity-55",
       )}
     >
-      <CompleteToggle done={done} onToggle={onToggle} label={assignment.name} className="mt-0.5" />
+      <CompleteToggle done={done} completing={completing} onToggle={onToggle} label={assignment.name} className="mt-0.5" />
 
       <div className="min-w-0">
         <p className={cn("text-[15px] leading-snug", done && "line-through")}>{assignment.name}</p>

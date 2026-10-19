@@ -13,6 +13,8 @@ import { cn } from "@/lib/utils";
 import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
 import { useAssignmentMetaMap } from "@/hooks/use-assignment-meta";
 import { CompleteToggle } from "@/components/complete-toggle";
+import { CompletionRow } from "@/components/completion-row";
+import { useCompletingIds } from "@/lib/completion-motion";
 
 const assignmentsQO = queryOptions({
   queryKey: ["canvas", "assignments"],
@@ -30,6 +32,7 @@ export function PriorityAssignmentsWidget() {
   const assignments = useQuery(assignmentsQO);
   const courses = useQuery(coursesQO);
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
+  const completing = useCompletingIds();
   const metaMap = useAssignmentMetaMap();
 
   const queue = useMemo(() => {
@@ -92,10 +95,15 @@ export function PriorityAssignmentsWidget() {
       {topItems.length > 0 && (
         <ul className="mt-4 space-y-2">
           {topItems.map((p) => (
-            <li key={p.assignment.id} className="glass-inset flex flex-col gap-2 p-3">
+            <CompletionRow
+              assignmentId={p.assignment.id}
+              key={p.assignment.id}
+              className="glass-inset flex flex-col gap-2 p-3"
+            >
               <div className="flex items-center justify-between gap-3">
                 <CompleteToggle
-                  done={completed.has(p.assignment.id)}
+                  done={completed.has(p.assignment.id) || completing.has(String(p.assignment.id))}
+                  completing={completing.has(String(p.assignment.id))}
                   onToggle={() => completed.toggle(p.assignment.id)}
                   label={p.assignment.name}
                   disabled={!completed.ready}
@@ -104,7 +112,8 @@ export function PriorityAssignmentsWidget() {
                   <p
                     className={cn(
                       "truncate text-sm font-medium",
-                      completed.has(p.assignment.id) && "line-through opacity-60",
+                      (completed.has(p.assignment.id) || completing.has(String(p.assignment.id))) &&
+                        "line-through opacity-60",
                     )}
                   >
                     {p.assignment.name}
@@ -117,7 +126,7 @@ export function PriorityAssignmentsWidget() {
                 <PriorityBadge urgency={p.urgency} />
               </div>
               <AssignmentEstimateEditor assignment={p.assignment} />
-            </li>
+            </CompletionRow>
           ))}
         </ul>
       )}

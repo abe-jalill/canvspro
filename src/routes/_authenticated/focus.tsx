@@ -34,7 +34,8 @@ import {
   isInDisplayWindow,
 } from "@/lib/assignment-window";
 import { customToAssignmentItem, useCustomAssignments } from "@/lib/custom-assignments";
-import { toast } from "sonner";
+import { useCompletionExit } from "@/lib/completion-motion";
+import { CompletedLink } from "@/components/completed-link";
 
 import {
   coursesQueryOptions as coursesQO,
@@ -176,16 +177,8 @@ function FocusPage() {
   const estimateFor = (a: AssignmentItem) =>
     metaMap.get(a.id)?.estimatedMinutes ?? defaultEstimateMinutes(a);
 
-  function toggleComplete(assignment: AssignmentItem) {
-    // Done by the student's own mark or by Canvas: what they see on screen.
-    const wasComplete = isAssignmentComplete(assignment, completed.has(assignment.id));
-    completed.toggle(assignment.id);
-    if (!wasComplete)
-      toast.success("Marked complete", {
-        description: assignment.name,
-        action: { label: "Undo", onClick: () => completed.remove(assignment.id) },
-      });
-  }
+  // Marking done folds the row away and shows the undo bar (see completion-motion).
+  const toggleComplete = (assignment: AssignmentItem) => completed.toggle(assignment.id);
 
   const minutesNeeded = unfinished.reduce((s, a) => s + estimateFor(a), 0);
 
@@ -232,6 +225,8 @@ function FocusPage() {
       <header className="premium-reveal px-1">
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
           <h1 className="text-3xl font-medium tracking-tight md:text-4xl">Coming up</h1>
+          <div className="flex items-center gap-2">
+          <CompletedLink />
           <DropdownMenu>
             <DropdownMenuTrigger
               aria-label={`Time range: ${selectedDay != null ? dayHeading(selectedDay, today) : WINDOW_LABELS[win]}`}
@@ -263,6 +258,7 @@ function FocusPage() {
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
+          </div>
         </div>
         {summary && <p className="mt-1.5 text-sm text-muted-foreground">{summary}</p>}
       </header>
@@ -451,7 +447,7 @@ function FocusRow({
   assignment: a,
   course,
   estimate,
-  done,
+  done: savedDone,
   canvasDone,
   ready,
   onToggle,
@@ -477,10 +473,14 @@ function FocusRow({
     due != null && showDate
       ? formatAssignmentDue(a.due_at, Date.now(), false)
       : null;
+  const exit = useCompletionExit<HTMLLIElement>(a.id);
+  // Playing its completion exit: shown done until it folds away.
+  const done = savedDone || exit.completing;
   const missing = !done && a.submission?.missing;
 
   return (
     <li
+      ref={exit.ref}
       className={cn(
         "group grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3.5 rounded-lg border border-foreground/15 px-4 py-3.5",
         done && "opacity-55",
@@ -492,7 +492,11 @@ function FocusRow({
         disabled={!ready}
         aria-label={`Mark ${a.name} ${done ? "incomplete" : "complete"}`}
         aria-pressed={done}
-        className="group/check mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-foreground/30 transition-colors hover:border-foreground/60 disabled:cursor-default"
+        data-completing={exit.completing || undefined}
+        className={cn(
+          "group/check mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-foreground/30 transition-colors hover:border-foreground/60 disabled:cursor-default",
+          exit.completing && "border-foreground/70 bg-foreground text-background",
+        )}
       >
         <Check
           className={cn(

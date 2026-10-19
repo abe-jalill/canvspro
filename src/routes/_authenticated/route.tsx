@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect, useRouterState } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppSidebar, MobileNav } from "@/components/app-sidebar";
@@ -32,6 +32,10 @@ import { registerOfflineSupport } from "@/lib/offline";
 import { OfflineNotice } from "@/components/offline-notice";
 import { FocusNoisePlayer } from "@/components/focus-noise";
 import { StreakButton, StreakCelebrationLayer } from "@/components/streak";
+import { CompletionUndoBar } from "@/components/completion-undo-bar";
+
+/** Pages shown on their own, with their own back arrow instead of the sidebar. */
+const BARE_PAGES = new Set(["/completed"]);
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -64,6 +68,9 @@ export const Route = createFileRoute("/_authenticated")({
 function AuthenticatedLayout() {
   const { user } = Route.useRouteContext();
   const [sidebarMode] = useSidebarMode();
+  // From the URL path, like the root footer: route matches differ between
+  // server and client for this client-only area.
+  const bare = BARE_PAGES.has(useRouterState({ select: (s) => s.location.pathname }));
 
   useQueryCachePersistence();
   const startup = useAppPrefetch(true);
@@ -98,8 +105,9 @@ function AuthenticatedLayout() {
       <RouteProgress />
       <FocusNoisePlayer />
       <StreakCelebrationLayer ready={startupReady} />
-      <AppSidebar />
-      <MobileNav />
+      {!bare && <AppSidebar />}
+      {!bare && <MobileNav />}
+      <CompletionUndoBar />
       <main
         id="app-main"
         data-scroll-restoration-id="app-main"
@@ -107,13 +115,13 @@ function AuthenticatedLayout() {
           // A stable scrollbar gutter keeps centered content (the page tabs) in the
           // same place on short pages that don't scroll.
           "transition-[padding] duration-300 ease-in-out md:h-svh md:overflow-y-auto md:py-4 md:pr-4 md:[scrollbar-gutter:stable]",
-          sidebarMode === "full" && "md:pl-64",
-          sidebarMode === "rail" && "md:pl-[4.5rem]",
-          sidebarMode === "hidden" && "md:pl-4",
+          !bare && sidebarMode === "full" && "md:pl-64",
+          !bare && sidebarMode === "rail" && "md:pl-[4.5rem]",
+          (bare || sidebarMode === "hidden") && "md:pl-4",
         )}
       >
         <div className="mx-auto w-full min-w-0 max-w-6xl px-3 py-4 sm:px-4 md:p-6">
-          <div className="mb-2 flex min-w-0 items-center justify-end gap-2">
+          <div className={cn("mb-2 flex min-w-0 items-center justify-end gap-2", bare && "hidden")}>
             <CanvasLiveStatus />
             {/* Bell and profile already live in the mobile top bar — avoid duplicates on phones */}
             <span className="hidden items-center gap-2 md:inline-flex">
@@ -123,9 +131,13 @@ function AuthenticatedLayout() {
             </span>
           </div>
           <OfflineNotice />
-          <PolicyUpdateBanner />
-          <BillingBanner email={user?.email} />
-          <CanvasKeyBanner />
+          {!bare && (
+            <>
+              <PolicyUpdateBanner />
+              <BillingBanner email={user?.email} />
+              <CanvasKeyBanner />
+            </>
+          )}
           <BillingGate email={user?.email}>
             <CanvasKeyGate>
               <ClassNamesGate>
@@ -137,7 +149,9 @@ function AuthenticatedLayout() {
               </ClassNamesGate>
             </CanvasKeyGate>
           </BillingGate>
-          <CanvasTrademarkNotice className="mx-auto mt-10 max-w-3xl border-t border-border/30 px-4 pt-5" />
+          {!bare && (
+            <CanvasTrademarkNotice className="mx-auto mt-10 max-w-3xl border-t border-border/30 px-4 pt-5" />
+          )}
         </div>
       </main>
     </div>

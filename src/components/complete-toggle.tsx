@@ -7,8 +7,11 @@ export function CompleteToggle({
   label,
   className,
   disabled = false,
+  completing = false,
 }: {
   done: boolean;
+  /** Playing its completion exit: shown done, with a little pop. */
+  completing?: boolean;
   onToggle: () => void;
   label: string;
   className?: string;
@@ -20,12 +23,13 @@ export function CompleteToggle({
       type="button"
       onClick={onToggle}
       disabled={disabled}
-      aria-label={done ? `Mark ${label} incomplete` : `Mark ${label} complete`}
-      aria-pressed={done}
+      aria-label={done || completing ? `Mark ${label} incomplete` : `Mark ${label} complete`}
+      aria-pressed={done || completing}
+      data-completing={completing || undefined}
       className={cn(
         "flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-colors",
         disabled && "cursor-wait opacity-50",
-        done
+        done || completing
           ? "border-foreground/60 bg-foreground/80 text-background"
           : "border-foreground/30 text-transparent hover:border-foreground/60 hover:text-foreground/60",
         className,
