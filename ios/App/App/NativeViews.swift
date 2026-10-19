@@ -1707,9 +1707,12 @@ private struct NativeDashboardView: View {
                         CPSkeletonCard()
                         CPSkeletonCard()
                     } else {
+                        // What's new stays on screen under the greeting; the rest sit
+                        // a short scroll below, in Home Screen-style widget stacks.
+                        if widgetIDs.contains("digest") { digestWidget.cpReveal(0) }
                         dashboardHeader
-                        ForEach(Array(widgetIDs.enumerated()), id: \.element) { index, id in
-                            dashboardWidget(id).cpReveal(index)
+                        ForEach(Array(dashboardBlocks.enumerated()), id: \.element.id) { index, block in
+                            dashboardBlock(block).cpReveal(index + 1)
                         }
                     }
                 }
@@ -1892,6 +1895,68 @@ private struct NativeDashboardView: View {
             parts.append(percent >= 75 ? "Almost there, \(percent)% done" : "\(percent)% done")
         }
         return parts.joined(separator: " · ")
+    }
+
+    // MARK: Widget stacks
+
+    /// Which widgets share a stack. "What now?": this week, the next 48 hours and
+    /// the calendar. "Your classes": grades, announcements and the workload.
+    private static let stackGroups: [(id: String, members: [String])] = [
+        ("now", ["upcoming", "focus", "calendar"]),
+        ("classes", ["classes", "announcements", "heatmap"]),
+    ]
+
+    private struct DashboardBlock: Identifiable {
+        let id: String
+        let widgets: [String]
+    }
+
+    /// The widgets below the greeting, in the order chosen in Customize. Each stack
+    /// sits where its first widget would; a stack with one widget left is just that card.
+    private var dashboardBlocks: [DashboardBlock] {
+        let ids = widgetIDs.filter { $0 != "digest" }
+        var blocks: [DashboardBlock] = []
+        var placed = Set<String>()
+        for id in ids where !placed.contains(id) {
+            if let group = Self.stackGroups.first(where: { $0.members.contains(id) }) {
+                let members = ids.filter { group.members.contains($0) }
+                placed.formUnion(members)
+                blocks.append(DashboardBlock(id: group.id, widgets: members))
+            } else {
+                placed.insert(id)
+                blocks.append(DashboardBlock(id: id, widgets: [id]))
+            }
+        }
+        return blocks
+    }
+
+    @ViewBuilder private func dashboardBlock(_ block: DashboardBlock) -> some View {
+        if block.widgets.count > 1 {
+            CPWidgetStack(ids: block.widgets, initial: firstWidget(in: block)) { id in dashboardWidget(id) }
+        } else if let id = block.widgets.first {
+            dashboardWidget(id)
+        }
+    }
+
+    /// The card a stack opens on: whatever matters most right now, like Smart Rotate.
+    /// It's chosen when the dashboard appears, and doesn't change while someone reads.
+    private func firstWidget(in block: DashboardBlock) -> String? {
+        let now = Date()
+        switch block.id {
+        case "now":
+            let soonEvent = store.bundle.calendar.contains { event in
+                guard let raw = event.startAt, let start = ISO8601DateFormatter.canvasDate(from: raw) else { return false }
+                return start > now && start.timeIntervalSince(now) <= 3 * 3600
+            }
+            if soonEvent && block.widgets.contains("calendar") { return "calendar" }
+            if Calendar.current.component(.hour, from: now) >= 17 && todayCount > 0 && block.widgets.contains("focus") { return "focus" }
+            return block.widgets.contains("upcoming") ? "upcoming" : block.widgets.first
+        case "classes":
+            if !newAnnouncements.isEmpty && block.widgets.contains("announcements") { return "announcements" }
+            return block.widgets.contains("classes") ? "classes" : block.widgets.first
+        default:
+            return block.widgets.first
+        }
     }
 
     @ViewBuilder private func dashboardWidget(_ id: String) -> some View {
