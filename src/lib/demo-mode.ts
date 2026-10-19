@@ -294,6 +294,13 @@ function tableRows(table: string): unknown[] {
           value: sessionStorage.getItem(`${FLAG}-theme`) ?? "system",
         },
         { user_id: DEMO_USER_ID, key: "color_theme", value: "forest" },
+        // The sample student already chose their widgets (every one), so the
+        // "What do you want on your dashboard?" picker doesn't cover screenshots.
+        {
+          user_id: DEMO_USER_ID,
+          key: "dashboard-layout",
+          value: { order: [], hidden: [], sizes: {}, picked_at: "2026-09-01T12:00:00.000Z" },
+        },
       ];
     default:
       return [];

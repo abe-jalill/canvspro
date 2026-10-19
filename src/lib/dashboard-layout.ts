@@ -21,6 +21,8 @@ interface StoredLayout {
   order: WidgetId[];
   hidden: WidgetId[];
   sizes: Partial<Record<WidgetId, WidgetSize>>;
+  /** When the student chose their widgets (the website's or the iPhone's picker); asked once. */
+  picked_at?: string;
 }
 
 const SIZES: WidgetSize[] = ["sm", "md", "full"];
@@ -36,12 +38,13 @@ function normalize(raw: Partial<StoredLayout> | null): StoredLayout {
       sizes[id as WidgetId] = size as WidgetSize;
     }
   }
-  return { order, hidden, sizes };
+  const picked_at = typeof raw?.picked_at === "string" ? raw.picked_at : undefined;
+  return picked_at ? { order, hidden, sizes, picked_at } : { order, hidden, sizes };
 }
 
 /** Cross-device dashboard widget order + visibility, persisted via user_preferences. */
 export function useDashboardLayout() {
-  const { value, set } = useUserPreferenceKey<Partial<StoredLayout>>(DASHBOARD_LAYOUT_KEY, {});
+  const { value, set, ready } = useUserPreferenceKey<Partial<StoredLayout>>(DASHBOARD_LAYOUT_KEY, {});
   const layout = normalize(value);
 
   const update = useCallback(
@@ -92,13 +95,34 @@ export function useDashboardLayout() {
     [update],
   );
 
-  const reset = useCallback(() => update(() => normalize(null)), [update]);
+  const reset = useCallback(
+    () => update((prev) => ({ ...normalize(null), ...(prev.picked_at ? { picked_at: prev.picked_at } : {}) })),
+    [update],
+  );
+
+  /** The picker's choice: picked widgets first, in their current order, the rest hidden. */
+  const savePicks = useCallback(
+    (picks: WidgetId[]) =>
+      update((prev) => {
+        const chosen = new Set(picks);
+        return {
+          ...prev,
+          order: [...prev.order.filter((id) => chosen.has(id)), ...prev.order.filter((id) => !chosen.has(id))],
+          hidden: prev.order.filter((id) => !chosen.has(id)),
+          picked_at: new Date().toISOString(),
+        };
+      }),
+    [update],
+  );
 
   return {
     order: layout.order,
     hidden: layout.hidden,
     sizes: layout.sizes,
     isHidden: (id: WidgetId) => layout.hidden.includes(id),
+    /** Saved settings have loaded and no widgets have been picked yet. */
+    needsPicks: ready && !layout.picked_at,
+    savePicks,
     toggle,
     move,
     reorder,

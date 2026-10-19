@@ -7,6 +7,7 @@ import { WIDGETS } from "@/components/widgets/dashboard-widgets";
 import { MasonryCell, MasonryGrid } from "@/components/widgets/masonry-grid";
 import { DashboardHero } from "@/components/dashboard-hero";
 import { DashboardPomodoro } from "@/components/dashboard-pomodoro";
+import { DashboardWidgetPicker } from "@/components/dashboard-widget-picker";
 import { PageTabs } from "@/components/page-tabs";
 import { TODAY_TABS } from "@/lib/page-tab-sets";
 
@@ -73,6 +74,10 @@ function Dashboard() {
 
   return (
     <div className="w-full min-w-0 space-y-4 pb-12 sm:space-y-5">
+      {/* Every account picks its widgets once (shared with the iPhone app). */}
+      {layout.needsPicks && (
+        <DashboardWidgetPicker open order={layout.order} initial={visible} onSave={layout.savePicks} />
+      )}
       {/* Tabs centered like on Coming Up and Get It Done; Pomodoro on the right. */}
       {/* Side by side only when both fit; narrower, Pomodoro goes under the tabs. */}
       <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:items-start">
