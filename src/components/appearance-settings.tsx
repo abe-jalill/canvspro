@@ -1,4 +1,4 @@
-import { Check, Image as ImageIcon, Monitor, Moon, Square, Sun } from "lucide-react";
+import { Check, Image as ImageIcon, Monitor, Moon, Sparkles, Square, Sun } from "lucide-react";
 import type { CSSProperties } from "react";
 import { useTheme } from "@/lib/theme";
 import { PALETTES, type ThemeMode, type Wallpaper } from "@/lib/theme-options";
@@ -70,8 +70,9 @@ export function AppearanceSettings() {
         <div className="appearance-modes">
           {(
             [
+              { id: "plain", label: "Solid", icon: Square },
+              { id: "glow", label: "Glow", icon: Sparkles },
               { id: "wave", label: "Wallpaper", icon: ImageIcon },
-              { id: "plain", label: "Plain color", icon: Square },
             ] as const
           ).map(({ id, label, icon: Icon }) => (
             <button

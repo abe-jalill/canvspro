@@ -6,10 +6,13 @@ export const PALETTES = [
 ] as const;
 export type Palette = (typeof PALETTES)[number]["id"];
 export type ThemeMode = "light" | "dark" | "system";
-/** "plain" (the default) is the solid palette color; "wave" shows the palette's blurred wallpaper. */
-export type Wallpaper = "wave" | "plain";
+/**
+ * "plain" (the default) is one solid palette color, with no gradient; "glow" adds
+ * a soft glow of the palette color; "wave" shows the palette's blurred wallpaper.
+ */
+export type Wallpaper = "wave" | "glow" | "plain";
 export function normalizeWallpaper(value: unknown): Wallpaper {
-  return value === "wave" ? "wave" : "plain";
+  return value === "wave" || value === "glow" ? value : "plain";
 }
 export function normalizePalette(value: unknown): Palette {
   return PALETTES.some((palette) => palette.id === value) ? (value as Palette) : "forest";

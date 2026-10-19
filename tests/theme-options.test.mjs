@@ -49,3 +49,14 @@ test("system follows the device while an explicit mode stays fixed", () => {
   assert.equal(resolveTheme("dark", false), "dark");
   assert.equal(resolveTheme("light", true), "light");
 });
+
+test("the background is one solid color unless Glow or Wallpaper is picked", async () => {
+  assert.equal(normalizeWallpaper("glow"), "glow");
+  const { readFileSync } = await import("node:fs");
+  const css = readFileSync(new URL("../src/targeted-design.css", import.meta.url), "utf8");
+  const base = css.slice(css.indexOf(":root[data-palette] body::before {"), css.indexOf("}", css.indexOf(":root[data-palette] body::before {")));
+  assert.doesNotMatch(base, /gradient/);
+  assert.match(css, /:root\[data-surface="app"\]\[data-palette\]\[data-wallpaper="glow"\] body::before \{\s*background-image:\s*radial-gradient/);
+  const root = readFileSync(new URL("../src/routes/__root.tsx", import.meta.url), "utf8");
+  assert.match(root, /\["wave","glow"\]\.includes\(localStorage\.getItem\("canvas:wallpaper"\)\)/);
+});
