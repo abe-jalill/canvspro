@@ -768,7 +768,7 @@ struct GetItDoneView: View {
     private func move(_ id: Int, direction: Int) { var ids = rest.map(\.id); guard let index = ids.firstIndex(of: id), ids.indices.contains(index + direction) else { return }; ids.swapAt(index, index + direction); orderRaw = ids.map { String($0) }.joined(separator: ",") }
 }
 
-/// Today's Assignments page: the website's Coming Up view (range, week strip,
+/// Today's Assignments page: the website's Coming Up view (one row of choices,
 /// by day or by class), search, and adding your own work.
 struct FocusView: View {
     @Environment(\.colorScheme) private var scheme
@@ -783,15 +783,22 @@ struct FocusView: View {
     @State private var search = ""
     @State private var showAdd = false
     @FocusState private var searchFocused: Bool
-    private let windows = ["overdue", "1", "2", "3", "7", "all"]
+    /// One row of choices, exactly one picked: Catch up, This week, a day, or
+    /// Next 4 weeks. Links can still ask for the old ranges: 24 hours opens
+    /// Today, 2 or 3 days open This week.
+    private var range: String { window == "overdue" ? "overdue" : window == "all" ? "all" : "7" }
+    private var pickedDay: Date? { selectedDay ?? (window == "1" ? Calendar.current.startOfDay(for: Date()) : nil) }
 
     private var allItems: [AssignmentItem] { features.shownAssignments(in: store) }
     private var visibleCourses: [CourseSummary] { store.bundle.courses.filter { !features.hiddenCourseIDs.contains($0.id) } }
     private var isSearching: Bool { !search.trimmingCharacters(in: .whitespaces).isEmpty }
-    /// A picked day overrides the range chips: it shows everything due that day.
+    /// A day shows that day only; otherwise the picked range.
     private func inRange(_ item: AssignmentItem) -> Bool {
-        guard let selectedDay else { return NativeParity.isInFocusWindow(item, window: window) }
-        return item.dueDate.map { Calendar.current.isDate($0, inSameDayAs: selectedDay) } ?? false
+        guard let pickedDay else { return NativeParity.isInFocusWindow(item, window: range) }
+        return item.dueDate.map { Calendar.current.isDate($0, inSameDayAs: pickedDay) } ?? false
+    }
+    private func rangeCount(_ value: String) -> Int {
+        allItems.reduce(0) { $0 + (NativeParity.isInFocusWindow($1, window: value) && $1.isVisible(in: store) ? 1 : 0) }
     }
     private var unfinished: [AssignmentItem] {
         allItems.filter { inRange($0) && $0.isVisible(in: store) }.sorted(by: AssignmentItem.dueSort)
@@ -831,8 +838,8 @@ struct FocusView: View {
     private var headerLine: String {
         guard !unfinished.isEmpty else { return "All clear" }
         let what: String
-        if let selectedDay { what = "due \(dayPhrase(selectedDay))" }
-        else { what = window == "overdue" ? "to catch up" : "due" }
+        if let pickedDay { what = "due \(dayPhrase(pickedDay))" }
+        else { what = range == "overdue" ? "to catch up" : range == "7" ? "due this week" : "due in the next 4 weeks" }
         let minutes = unfinished.reduce(0) { $0 + estimate($1) }
         return "\(unfinished.count) \(what) · about \(minutes) min"
     }
@@ -864,17 +871,15 @@ struct FocusView: View {
                         CPSkeletonCard()
                         CPSkeletonCard()
                     } else {
-                        if !isSearching { rangeChips }
-                        if !isSearching { weekStrip }
+                        if !isSearching { choiceRow }
                         controls
                         list
                     }
                 }
                 .cpPagePadding()
-                .cpStateChange(window).cpStateChange(grouping).cpStateChange(showCompleted).cpStateChange(selectedDay)
+                .cpStateChange(pickedID).cpStateChange(grouping).cpStateChange(showCompleted)
                 .cpStateChange(listItems.map(\.id))
-                .sensoryFeedback(.selection, trigger: selectedDay)
-                .sensoryFeedback(.selection, trigger: window)
+                .sensoryFeedback(.selection, trigger: pickedID)
             }
             .scrollDismissesKeyboard(.immediately)
         }
@@ -931,46 +936,77 @@ struct FocusView: View {
 
     // MARK: Range, week and grouping
 
-    private var rangeChips: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(windows, id: \.self) { value in
-                    // Choosing a range takes over from a picked day.
-                    Button { window = value; selectedDay = nil } label: { CPChip(text: focusLabel(value), selected: selectedDay == nil && window == value) }
-                        .buttonStyle(.plain)
-                }
-            }
-            .padding(.horizontal, 1)
-        }
-        .scrollClipDisabled()
-    }
-
-    private var weekStrip: some View {
-        HStack(spacing: 6) {
-            ForEach(0..<7, id: \.self) { offset in
-                let day = Calendar.current.date(byAdding: .day, value: offset, to: Calendar.current.startOfDay(for: Date())) ?? Date()
-                let count = dayCount(day)
-                let isSelected = selectedDay == day
-                Button { selectedDay = isSelected ? nil : day } label: {
-                    VStack(spacing: 4) {
-                        Text(offset == 0 ? "Today" : day.formatted(.dateTime.weekday(.abbreviated)))
-                            .cpFont(11).lineLimit(1).minimumScaleFactor(0.7)
-                            .foregroundStyle(isSelected ? CPTheme.background(scheme) : CPTheme.muted(scheme))
-                        Text(day.formatted(.dateTime.day())).cpFont(15).monospacedDigit()
-                            .foregroundStyle(isSelected ? CPTheme.background(scheme) : CPTheme.foreground(scheme))
-                        Circle().fill(isSelected ? CPTheme.background(scheme) : CPTheme.foreground(scheme).opacity(0.6))
-                            .frame(width: 4, height: 4).opacity(count > 0 ? 1 : 0)
+    private var choiceRow: some View {
+        let today = Calendar.current.startOfDay(for: Date())
+        let days = (0..<7).compactMap { Calendar.current.date(byAdding: .day, value: $0, to: today) }
+        let catchUp = rangeCount("overdue")
+        return ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    if catchUp > 0 || range == "overdue" {
+                        rangeTile("overdue", title: "Catch up", count: catchUp)
                     }
-                    .frame(maxWidth: .infinity, minHeight: 60)
-                    .background(isSelected ? CPTheme.foreground(scheme) : CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(isSelected ? Color.clear : CPTheme.insetBorder(scheme), lineWidth: 0.5))
+                    rangeTile("7", title: "This week", count: rangeCount("7"))
+                    ForEach(Array(days.enumerated()), id: \.offset) { offset, day in
+                        dayTile(day, title: offset == 0 ? "Today" : day.formatted(.dateTime.weekday(.abbreviated)))
+                    }
+                    rangeTile("all", title: "Next 4 weeks", count: rangeCount("all"))
                 }
-                .buttonStyle(CPPressStyle())
-                .accessibilityLabel("\(day.formatted(date: .complete, time: .omitted)), \(count) due")
-                .accessibilityAddTraits(isSelected ? .isSelected : [])
+                .padding(.horizontal, 1)
             }
+            .scrollClipDisabled()
+            .onAppear { proxy.scrollTo(pickedID, anchor: .center) }
+            .onChange(of: pickedID) { _, id in withAnimation(.easeInOut(duration: 0.25)) { proxy.scrollTo(id, anchor: .center) } }
         }
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+    }
+
+    private var pickedID: String {
+        if let pickedDay { return "day-\(Int(pickedDay.timeIntervalSince1970))" }
+        return "range-\(range)"
+    }
+
+    private func rangeTile(_ value: String, title: String, count: Int) -> some View {
+        let isSelected = pickedDay == nil && range == value
+        return Button { window = value; selectedDay = nil } label: {
+            VStack(spacing: 4) {
+                Text(title).cpFont(11).lineLimit(1)
+                    .foregroundStyle(isSelected ? CPTheme.background(scheme) : CPTheme.muted(scheme))
+                Text("\(count)").cpFont(15).monospacedDigit()
+                    .foregroundStyle(isSelected ? CPTheme.background(scheme) : CPTheme.foreground(scheme))
+                Circle().fill(Color.clear).frame(width: 4, height: 4)
+            }
+            .padding(.horizontal, 12)
+            .frame(minWidth: 84, minHeight: 60)
+            .background(isSelected ? CPTheme.foreground(scheme) : CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(isSelected ? Color.clear : CPTheme.insetBorder(scheme), lineWidth: 0.5))
+        }
+        .buttonStyle(CPPressStyle())
+        .id("range-\(value)")
+        .accessibilityLabel("\(title), \(count) due")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private func dayTile(_ day: Date, title: String) -> some View {
+        let count = dayCount(day)
+        let isSelected = pickedDay.map { Calendar.current.isDate($0, inSameDayAs: day) } ?? false
+        return Button { selectedDay = day } label: {
+            VStack(spacing: 4) {
+                Text(title).cpFont(11).lineLimit(1).minimumScaleFactor(0.7)
+                    .foregroundStyle(isSelected ? CPTheme.background(scheme) : CPTheme.muted(scheme))
+                Text(day.formatted(.dateTime.day())).cpFont(15).monospacedDigit()
+                    .foregroundStyle(isSelected ? CPTheme.background(scheme) : CPTheme.foreground(scheme))
+                Circle().fill(isSelected ? CPTheme.background(scheme) : CPTheme.foreground(scheme).opacity(0.6))
+                    .frame(width: 4, height: 4).opacity(count > 0 ? 1 : 0)
+            }
+            .frame(width: 48, height: 60)
+            .background(isSelected ? CPTheme.foreground(scheme) : CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(isSelected ? Color.clear : CPTheme.insetBorder(scheme), lineWidth: 0.5))
+        }
+        .buttonStyle(CPPressStyle())
+        .id("day-\(Int(day.timeIntervalSince1970))")
+        .accessibilityLabel("\(day.formatted(date: .complete, time: .omitted)), \(count) due")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     private var controls: some View {
@@ -990,7 +1026,7 @@ struct FocusView: View {
         if listItems.isEmpty {
             CPGlassCard {
                 NativeEmptyState(
-                    title: isSearching ? "No matches" : selectedDay != nil ? "Nothing due this day." : window == "overdue" ? "Nothing to catch up on." : "You're all clear.",
+                    title: isSearching ? "No matches" : pickedDay != nil ? "Nothing due this day." : range == "overdue" ? "Nothing to catch up on." : "You're all clear.",
                     symbol: isSearching ? "magnifyingglass" : "checkmark.circle",
                     detail: nil
                 )
@@ -1086,16 +1122,6 @@ struct FocusView: View {
         return parts.joined(separator: " · ")
     }
 
-    private func focusLabel(_ value: String) -> String {
-        switch value {
-        case "overdue": return "Catch up"
-        case "1": return "24 hours"
-        case "2": return "2 days"
-        case "3": return "3 days"
-        case "7": return "7 days"
-        default: return "4 weeks"
-        }
-    }
 }
 
 struct NativeTitledGroup: Identifiable {

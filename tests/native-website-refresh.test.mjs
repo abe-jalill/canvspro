@@ -22,7 +22,7 @@ test("Today's Assignments page keeps the website Focus date strip and grouping h
 
 test("Assignments uses local-day ranges up to four weeks and search finds any assignment", () => {
   const page = more.slice(more.indexOf("struct FocusView"), more.indexOf("struct NativeTitledGroup"));
-  for (const value of ['"overdue", "1", "2", "3", "7", "all"', '"4 weeks"', '"Search assignments or classes"']) assert.ok(page.includes(value), value);
+  for (const value of ['window == "overdue" ? "overdue" : window == "all" ? "all" : "7"', '"Next 4 weeks"', '"Search assignments or classes"']) assert.ok(page.includes(value), value);
   // Searching ignores the range so any assignment can be found.
   assert.match(page, /if isSearching \{\s+let query/);
   assert.ok(views.includes('if dueAt == nil && (pointsPossible ?? 0) <= 0 { return showCompleted }'));
