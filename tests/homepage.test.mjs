@@ -58,3 +58,13 @@ test("the made-up demo session only ever runs on the local dev server", () => {
     /import \{ installReviewAccountMode \} from "@\/lib\/demo-mode";/,
   );
 });
+
+test("screenshots are versioned with the tour's highlight boxes measured on them", () => {
+  // Browsers and the service worker keep old copies of an unchanged image URL,
+  // which put the highlights on the wrong screens after a recapture.
+  assert.match(page, /const SHOTS_VERSION = "[\w-]+";/);
+  assert.match(page, /src=\{`\/home\/\$\{id\}-dark\.webp\?v=\$\{SHOTS_VERSION\}`\}/);
+  assert.match(page, /src=\{`\/home\/\$\{id\}-light\.webp\?v=\$\{SHOTS_VERSION\}`\}/);
+  assert.match(page, /href: `\/home\/dashboard-dark\.webp\?v=\$\{SHOTS_VERSION\}`/);
+  assert.equal((page.match(/focus: \{ x: [\d.]+, y: [\d.]+, w: [\d.]+, h: [\d.]+, label: "/g) ?? []).length, 4);
+});

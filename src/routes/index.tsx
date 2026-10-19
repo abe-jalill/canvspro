@@ -43,7 +43,7 @@ export const Route = createFileRoute("/")({
       {
         rel: "preload",
         as: "image",
-        href: "/home/dashboard-dark.webp",
+        href: `/home/dashboard-dark.webp?v=${SHOTS_VERSION}`,
       },
     ],
     scripts: [
@@ -71,6 +71,14 @@ export const Route = createFileRoute("/")({
   }),
   component: LandingPage,
 });
+
+/**
+ * The screenshots' version. The tour's highlight boxes (each screen's `focus`)
+ * are measured on these exact images, and browsers and the service worker keep
+ * old copies of an unchanged URL, so recapturing the screens means re-measuring
+ * `focus` and changing this together.
+ */
+const SHOTS_VERSION = "forest-2026-10-19";
 
 /** Real screens of the app. Screenshots live in /public/home, in light and dark. */
 const SCREENS = [
@@ -411,7 +419,7 @@ function Shot({ id, alt, eager }: { id: string; alt: string; eager?: boolean }) 
     <>
       <img
         className="hp-shot-dark"
-        src={`/home/${id}-dark.webp`}
+        src={`/home/${id}-dark.webp?v=${SHOTS_VERSION}`}
         alt={alt}
         width={1600}
         height={1000}
@@ -422,7 +430,7 @@ function Shot({ id, alt, eager }: { id: string; alt: string; eager?: boolean }) 
       />
       <img
         className="hp-shot-light"
-        src={`/home/${id}-light.webp`}
+        src={`/home/${id}-light.webp?v=${SHOTS_VERSION}`}
         alt={alt}
         width={1600}
         height={1000}
