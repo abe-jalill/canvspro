@@ -41,7 +41,7 @@ test("the iCloud container, Files app folder and camera are declared", () => {
 });
 
 test("Files is a tab, and every class page has its folder", () => {
-  assert.match(views, /NativeFilesView\(store: contentStore, features: featureStore\)\s*\.tabItem \{ Label\("Files", systemImage: "folder"\) \}\.tag\(NativeTab\.files\)/);
+  assert.match(views, /NativeFilesView\(store: contentStore, features: featureStore\)\s*\.cpUndoBar\(store: contentStore\)\s*\.tabItem \{ Label\("Files", systemImage: "folder"\) \}\.tag\(NativeTab\.files\)/);
   assert.match(views, /announcements = "Announcements", files = "Files"/);
   assert.match(views, /case \.files: NativeClassFilesSection\(courseID: course\.id, name: courseName\)/);
   // One folder per class, remembered by class ID so a renamed class keeps it.

@@ -1074,6 +1074,13 @@ struct CPFieldBox<Content: View>: View {
     }
 }
 
+extension AnyTransition {
+    /// A finished row: fades and slides a little to the right as the list closes up.
+    static var cpCompletionExit: AnyTransition {
+        .asymmetric(insertion: .opacity, removal: .opacity.combined(with: .offset(x: 28)))
+    }
+}
+
 extension View {
     /// Swipe right and/or left on a row to act on it.
     func cpSwipe(leading: CPSwipeAction? = nil, trailing: CPSwipeAction? = nil) -> some View {

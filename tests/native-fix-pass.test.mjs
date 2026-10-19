@@ -217,11 +217,11 @@ test("pages stay a readable width and the dashboard starts with the essentials",
 
 test("assignments are calmer: no Priority, one undo bar, a swipe hint, remembered view", () => {
   assert.doesNotMatch(swift.NativeMoreViews, /priorityCard|Priority/);
-  // Every finish, from any screen, shows the same Undo for five seconds.
+  // Every finish, from any screen, shows the same Undo for seven seconds, on every tab.
   assert.match(swift.NativeCore, /@Published var undoItem: AssignmentItem\?/);
   assert.match(swift.NativeViews, /private struct CPUndoBar: ViewModifier/);
-  assert.match(swift.NativeViews, /Task\.sleep\(nanoseconds: 5_000_000_000\)/);
-  assert.match(swift.NativeViews, /\.cpUndoBar\(store: store\)/);
+  assert.match(swift.NativeViews, /static let seconds = 7\.0/);
+  assert.equal((swift.NativeViews.match(/\.cpUndoBar\(store: contentStore\)/g) ?? []).length, 5);
   // The first swipeable row slides open once; never with Reduce Motion.
   assert.match(swift.NativeDesign, /CanvasProSwipeHinted/);
   assert.match(swift.NativeDesign, /guard leading != nil, !reduceMotion/);

@@ -1572,17 +1572,22 @@ struct NativeMainTabView: View {
     private var tabs: some View {
         TabView(selection: $selection) {
             NativeTodayView(store: contentStore, features: featureStore, selection: $selection, section: $todaySection, focusWindow: $focusWindow)
+                .cpUndoBar(store: contentStore)
                 .tabItem { Label("Today", systemImage: "house") }.tag(NativeTab.today)
             NativeStudyView(store: contentStore, features: featureStore, requestedAssignment: $studyRequest, quickPomodoro: $quickPomodoro)
+                .cpUndoBar(store: contentStore)
                 .tabItem { Label("Study Session", systemImage: "timer") }.tag(NativeTab.study)
             NativeGradesView(store: contentStore, features: featureStore)
+                .cpUndoBar(store: contentStore)
                 .tabItem { Label("Grades", systemImage: "graduationcap") }.tag(NativeTab.grades)
             // Files took Announcements' place: iPhone shows five tabs before it
             // hides the rest. Announcements is first in More, on the dashboard
             // and on every class page.
             NativeFilesView(store: contentStore, features: featureStore)
+                .cpUndoBar(store: contentStore)
                 .tabItem { Label("Files", systemImage: "folder") }.tag(NativeTab.files)
             NativeMoreView(store: contentStore, features: featureStore, sessionStore: sessionStore, showAnnouncements: $showAnnouncements)
+                .cpUndoBar(store: contentStore)
                 .tabItem { Label("More", systemImage: "ellipsis.circle") }.tag(NativeTab.more)
         }
         .sensoryFeedback(.selection, trigger: selection)
@@ -1616,7 +1621,6 @@ private struct NativeTodayView: View {
             // of the page; pages opened from them don't show the tabs.
             .cpNavigationTitle("Today")
             .toolbar(.hidden, for: .navigationBar)
-            .cpUndoBar(store: store)
         }
     }
 }
@@ -2356,7 +2360,7 @@ struct NativeDueRow: View {
     @ObservedObject var features: NativeFeatureStore
     var showCourse = true
     var showToggle = true
-    private var isComplete: Bool { assignment.isFinished(in: store) }
+    private var isComplete: Bool { assignment.showsDone(in: store) }
     private var countdown: NativeParity.Countdown? { NativeParity.countdown(assignment, completed: isComplete) }
 
     var body: some View {
@@ -2404,6 +2408,7 @@ struct NativeDueRow: View {
         .opacity(isComplete ? 0.6 : 1)
         .cpAssignmentDueToday(assignment, completed: isComplete)
         .nativeAssignmentSwipe(assignment, store: store)
+        .transition(.cpCompletionExit)
     }
 }
 
@@ -2420,7 +2425,7 @@ private struct NativeAssignmentSwipe: ViewModifier {
     var onCompleted: ((AssignmentItem) -> Void)?
 
     func body(content: Content) -> some View {
-        let done = item.isFinished(in: store)
+        let done = item.showsDone(in: store)
         return content.cpSwipe(
             leading: CPSwipeAction(title: done ? "Undo" : "Done", symbol: done ? "arrow.uturn.backward" : "checkmark") { toggle(wasDone: done) },
             trailing: done ? nil : CPSwipeAction(title: "Study", symbol: "timer") {
@@ -2430,48 +2435,96 @@ private struct NativeAssignmentSwipe: ViewModifier {
     }
 
     @MainActor private func toggle(wasDone: Bool) {
+        if !wasDone { CPHaptics.success() }
         Task {
             await store.toggle(item)
-            if !wasDone && item.isFinished(in: store) {
-                CPHaptics.success()
-                onCompleted?(item)
-            }
+            if !wasDone && item.isFinished(in: store) { onCompleted?(item) }
         }
     }
 }
 
-/// A small bar above the tab bar after finishing a task: Undo for five seconds.
+/// "Marked complete" with a large Undo, above the tab bar on every tab, for
+/// seven seconds after finishing a task. Swipe it down to dismiss it early.
 private struct CPUndoBar: ViewModifier {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject var store: NativeContentStore
+    static let seconds = 7.0
 
     func body(content: Content) -> some View {
         content
-            .safeAreaInset(edge: .bottom) {
+            .safeAreaInset(edge: .bottom, spacing: 0) {
                 if let item = store.undoItem {
-                    HStack(spacing: 10) {
-                        Text("Done").cpFont(13)
-                        Spacer()
-                        Button("Undo") {
-                            store.undoItem = nil
-                            Task { if item.isFinished(in: store) { await store.toggle(item) } }
-                        }
-                        .cpFont(13, .medium)
-                        .frame(minHeight: 44)
-                    }
-                    .padding(.horizontal, 16)
-                    .cpSurface(strong: true, radius: 18)
-                    .padding(.horizontal, CPLayout.gutter).padding(.bottom, 8)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    bar(item)
+                        .id(item.id)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
-            .animation(reduceMotion ? nil : .easeInOut(duration: 0.22), value: store.undoItem?.id)
+            .animation(reduceMotion ? nil : .spring(duration: 0.34, bounce: 0.12), value: store.undoItem?.id)
             .task(id: store.undoItem?.id) {
                 guard let id = store.undoItem?.id else { return }
-                try? await Task.sleep(nanoseconds: 5_000_000_000)
+                UIAccessibility.post(notification: .announcement, argument: "Marked complete. Undo is at the bottom of the screen.")
+                try? await Task.sleep(for: .seconds(Self.seconds))
                 if store.undoItem?.id == id { store.undoItem = nil }
             }
+    }
+
+    private func bar(_ item: AssignmentItem) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "checkmark").cpIconFont(12, .bold)
+                .frame(width: 30, height: 30)
+                .background(CPTheme.background(scheme).opacity(0.16), in: Circle())
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Marked complete").cpFont(14, .semibold)
+                Text(item.name).cpFont(12).opacity(0.7).lineLimit(1)
+            }
+            .accessibilityElement(children: .combine)
+            Spacer(minLength: 8)
+            Button { Task { await store.undo(item) } } label: {
+                Label("Undo", systemImage: "arrow.uturn.backward")
+                    .cpFont(14, .semibold)
+                    .foregroundStyle(CPTheme.foreground(scheme))
+                    .padding(.horizontal, 16)
+                    .frame(minHeight: 40)
+                    .background(CPTheme.background(scheme), in: Capsule())
+                    .contentShape(Capsule())
+            }
+            .buttonStyle(CPPressStyle())
+            .accessibilityLabel("Undo, mark \(item.name) not done")
+        }
+        .foregroundStyle(CPTheme.background(scheme))
+        .padding(.leading, 12).padding(.trailing, 6).padding(.vertical, 7)
+        .background(CPTheme.foreground(scheme), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay(alignment: .bottom) { CPUndoCountdown(seconds: Self.seconds, color: CPTheme.background(scheme).opacity(0.35)) }
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .shadow(color: .black.opacity(0.28), radius: 18, y: 8)
+        .padding(.horizontal, CPLayout.gutter)
+        .padding(.bottom, 8)
+        .gesture(DragGesture(minimumDistance: 12).onEnded { value in
+            if value.translation.height > 24 { store.undoItem = nil }
+        })
+    }
+}
+
+/// The thin line along the bottom of the Undo bar: how long is left to undo.
+private struct CPUndoCountdown: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let seconds: Double
+    let color: Color
+    @State private var remaining: CGFloat = 1
+
+    var body: some View {
+        GeometryReader { proxy in
+            Rectangle().fill(color)
+                .frame(width: proxy.size.width * remaining, height: 2)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+        .opacity(reduceMotion ? 0 : 1)
+        .onAppear { withAnimation(.linear(duration: seconds)) { remaining = 0 } }
     }
 }
 
@@ -2680,7 +2733,7 @@ struct NativeCompletionButton: View {
     let assignment: AssignmentItem
     @ObservedObject var store: NativeContentStore
     var onCompleted: ((AssignmentItem) -> Void)? = nil
-    private var isComplete: Bool { assignment.isFinished(in: store) }
+    private var isComplete: Bool { assignment.showsDone(in: store) }
 
     var body: some View {
         Button {
@@ -3058,7 +3111,7 @@ struct NativeAssignmentRow: View {
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
     var onCompleted: ((AssignmentItem) -> Void)? = nil
-    private var isComplete: Bool { assignment.isFinished(in: store) }
+    private var isComplete: Bool { assignment.showsDone(in: store) }
     private var countdown: NativeParity.Countdown? { NativeParity.countdown(assignment, completed: isComplete) }
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -3516,7 +3569,6 @@ struct CourseDetailView: View {
             }
         }
         .cpNavigationTitle(courseName)
-        .cpUndoBar(store: store)
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showSyllabus) {
             NavigationStack {
@@ -3632,6 +3684,7 @@ struct CourseDetailView: View {
         LazyVStack(spacing: 0) {
             ForEach(items) { assignment in
                 courseAssignmentRow(assignment, graded: isGraded)
+                    .transition(.cpCompletionExit)
                 if assignment.id != items.last?.id { CPRowDivider() }
             }
         }
@@ -4797,6 +4850,10 @@ extension AssignmentItem {
         guard isCanvasFinished else { return false }
         guard let reopened = store.reopenedAt[id] else { return true }
         return submission?.submittedAt.flatMap { ISO8601DateFormatter.canvasDate(from: $0) }.map { $0 > reopened } ?? false
+    }
+    /// Done, or ticked a moment ago and about to fold away.
+    @MainActor func showsDone(in store: NativeContentStore) -> Bool {
+        store.completing.contains(id) || isFinished(in: store)
     }
     @MainActor func isVisible(in store: NativeContentStore, showCompleted: Bool = false) -> Bool {
         if isFinished(in: store) { return showCompleted && NativeParity.isInDisplayWindow(self) }

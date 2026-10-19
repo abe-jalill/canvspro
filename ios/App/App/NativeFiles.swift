@@ -634,7 +634,7 @@ struct NativeFolderList: View {
                 CPSkeletonCard()
             } else if shown.isEmpty {
                 CPGlassCard {
-                    NativeEmptyState(title: "No files yet", symbol: "folder", detail: "Tap Add to bring in files, photos or a scan, or to make a folder.")
+                    NativeEmptyState(title: "No files yet", symbol: "folder")
                 }
             } else {
                 NativeFileRows(items: shown)

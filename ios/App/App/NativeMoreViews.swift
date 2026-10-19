@@ -894,6 +894,10 @@ struct FocusView: View {
                     .cpFont(13).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
             }
             Spacer(minLength: 8)
+            NavigationLink { NativeCompletedView(store: store, features: features) } label: {
+                Label("Completed", systemImage: "checkmark.circle")
+            }
+            .buttonStyle(CPButtonStyle(kind: .secondary))
             Button { showAdd = true } label: { CPIconButtonLabel(symbol: "plus") }
                 .buttonStyle(.plain)
                 .disabled(visibleCourses.isEmpty)
@@ -1031,7 +1035,7 @@ struct FocusView: View {
     }
 
     private func assignmentRow(_ item: AssignmentItem, showCourse: Bool) -> some View {
-        let done = item.isFinished(in: store)
+        let done = item.showsDone(in: store)
         let countdown = NativeParity.countdown(item, completed: done)
         return CPInsetRow {
             VStack(alignment: .leading, spacing: 8) {
@@ -1071,6 +1075,7 @@ struct FocusView: View {
         }
         .opacity(done ? 0.6 : 1)
         .nativeAssignmentSwipe(item, store: store)
+        .transition(.cpCompletionExit)
     }
 
     private func rowMeta(_ item: AssignmentItem, showCourse: Bool, done: Bool) -> String {
@@ -2610,6 +2615,147 @@ struct NativeLoadFailedCard: View {
             }
             .buttonStyle(CPButtonStyle(kind: .secondary, fullWidth: true))
             .disabled(store.isLoading)
+        }
+    }
+}
+
+// MARK: - Completed
+
+/// Everything finished (ticked off here or done in Canvas), most recent first.
+/// A page of its own: the tab bar hides and the back arrow returns.
+struct NativeCompletedView: View {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
+    @ObservedObject var store: NativeContentStore
+    @ObservedObject var features: NativeFeatureStore
+    @State private var search = ""
+
+    private struct Entry: Identifiable {
+        let item: AssignmentItem
+        let date: Date?
+        let inCanvas: Bool
+        var id: Int { item.id }
+    }
+
+    private var entries: [Entry] {
+        features.shownAssignments(in: store)
+            .filter { $0.isFinished(in: store) }
+            .map { item in
+                let marked = store.completed.contains(item.id)
+                let submitted = item.submission?.submittedAt.flatMap { ISO8601DateFormatter.canvasDate(from: $0) }
+                return Entry(item: item, date: (marked ? store.completedAt[item.id] : nil) ?? submitted ?? item.dueDate, inCanvas: !marked)
+            }
+            .sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
+    }
+
+    private var shown: [Entry] {
+        let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return entries }
+        return entries.filter { entry in
+            entry.item.name.localizedCaseInsensitiveContains(query) ||
+                store.displayName(courseID: entry.item.courseID, fallback: entry.item.courseName).localizedCaseInsensitiveContains(query)
+        }
+    }
+
+    var body: some View {
+        let all = entries
+        let groups = NativeCompletedGroups.groups(shown, date: \.date)
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: CPLayout.stack) {
+                if all.isEmpty {
+                    CPGlassCard {
+                        NativeEmptyState(title: "Nothing finished yet.", symbol: "checkmark.circle")
+                    }
+                } else {
+                    searchField
+                    if groups.isEmpty {
+                        CPGlassCard { NativeEmptyState(title: "No matches", symbol: "magnifyingglass") }
+                    }
+                    ForEach(groups, id: \.title) { group in
+                        VStack(alignment: .leading, spacing: 8) {
+                            CPSectionLabel(group.title, count: group.items.count)
+                            VStack(spacing: 0) {
+                                ForEach(group.items) { entry in
+                                    row(entry)
+                                        .transition(.cpCompletionExit)
+                                    if entry.id != group.items.last?.id { CPRowDivider(leading: 34) }
+                                }
+                            }
+                            .padding(.horizontal, 14)
+                            .cpSurface()
+                        }
+                    }
+                }
+            }
+            .cpPagePadding()
+        }
+        .background(CPBackdrop())
+        .scrollDismissesKeyboard(.immediately)
+        .cpNavigationTitle("Completed")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Text("\(all.count) finished").cpFont(12).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
+            }
+        }
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass").cpIconFont(13).foregroundStyle(CPTheme.muted(scheme))
+            TextField("Find a finished assignment or class", text: $search)
+                .cpFont(14)
+                .submitLabel(.search)
+                .autocorrectionDisabled()
+        }
+        .padding(.horizontal, 14)
+        .frame(minHeight: 44)
+        .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(CPTheme.insetBorder(scheme), lineWidth: 0.5))
+    }
+
+    private func row(_ entry: Entry) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            // Unticking puts it back on the lists.
+            NativeCompletionButton(assignment: entry.item, store: store).padding(.top, 1)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(entry.item.name).cpFont(15, .medium).foregroundStyle(CPTheme.foreground(scheme))
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("\(store.displayName(courseID: entry.item.courseID, fallback: entry.item.courseName)) · \(entry.inCanvas ? "Done in Canvas" : "Marked done")")
+                    .cpFont(12).foregroundStyle(CPTheme.muted(scheme)).lineLimit(2)
+            }
+            Spacer(minLength: 8)
+            if let date = entry.date {
+                Text(date.formatted(.dateTime.month(.abbreviated).day()))
+                    .cpFont(12).monospacedDigit().foregroundStyle(CPTheme.muted(scheme)).fixedSize()
+            }
+        }
+        .padding(.vertical, 12)
+        .accessibilityElement(children: .contain)
+    }
+}
+
+/// "Today", "Yesterday", "This week", "Earlier", the same groups as the website.
+enum NativeCompletedGroups {
+    struct Group<Item> {
+        let title: String
+        let items: [Item]
+    }
+
+    static func label(for date: Date?, now: Date = Date(), calendar: Calendar = .current) -> String {
+        guard let date else { return "Earlier" }
+        let today = calendar.startOfDay(for: now)
+        if date >= today { return "Today" }
+        if date >= today.addingTimeInterval(-86400) { return "Yesterday" }
+        if date >= today.addingTimeInterval(-6 * 86400) { return "This week" }
+        return "Earlier"
+    }
+
+    static func groups<Item>(_ items: [Item], date: KeyPath<Item, Date?>, now: Date = Date()) -> [Group<Item>] {
+        ["Today", "Yesterday", "This week", "Earlier"].compactMap { title in
+            let matching = items.filter { label(for: $0[keyPath: date], now: now) == title }
+            return matching.isEmpty ? nil : Group(title: title, items: matching)
         }
     }
 }

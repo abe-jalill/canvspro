@@ -1,5 +1,6 @@
 import Foundation
 import Security
+import SwiftUI
 import UIKit
 import Combine
 import AuthenticationServices
@@ -451,11 +452,13 @@ private struct NativeContentCache: Codable {
     let completed: [Int]
     let reopenedAt: [Int: Date]?
     let nicknames: [Int: ClassNickname]
+    var completedAt: [Int: Date]? = nil
 }
 
 struct NativeCompletionState {
     let completed: Set<Int>
     let reopenedAt: [Int: Date]
+    var completedAt: [Int: Date] = [:]
 }
 
 private enum NativeCourseworkCacheStore {
@@ -706,15 +709,19 @@ final class NativeAPI {
         ])
         var result = Set<Int>()
         var reopenedAt: [Int: Date] = [:]
+        var completedAt: [Int: Date] = [:]
         for row in rows {
             guard let key = row["key"] as? String,
                   let value = row["value"] as? [String: Any],
                   let id = Int(key.replacingOccurrences(of: "assignment-completion:", with: "")) else { continue }
-            if value["completed"] as? Bool == true { result.insert(id) }
+            if value["completed"] as? Bool == true {
+                result.insert(id)
+                if let text = value["completedAt"] as? String, let date = ISO8601DateFormatter.canvasDate(from: text) { completedAt[id] = date }
+            }
             else if let text = value["reopenedAt"] as? String,
                     let date = ISO8601DateFormatter.canvasDate(from: text) { reopenedAt[id] = date }
         }
-        return NativeCompletionState(completed: result, reopenedAt: reopenedAt)
+        return NativeCompletionState(completed: result, reopenedAt: reopenedAt, completedAt: completedAt)
     }
 
     func setCompletion(_ completed: Bool, assignment: AssignmentItem, reopenedAt: Date?, token: String, userID: String) async throws {
@@ -1161,7 +1168,11 @@ final class NativeContentStore: ObservableObject {
     @Published var bundle = CanvasBundle(courses: [], assignments: [], announcements: [], calendar: [], errors: nil)
     @Published var completed = Set<Int>()
     @Published var reopenedAt: [Int: Date] = [:]
+    /// When each task was marked done here, for the Completed page.
+    @Published var completedAt: [Int: Date] = [:]
     @Published var completionSavesInFlight = Set<Int>()
+    /// Ticked off a moment ago: the row shows its tick, then folds away.
+    @Published var completing = Set<Int>()
     /// The task finished most recently; the Undo bar shows it for a few seconds.
     @Published var undoItem: AssignmentItem?
     @Published var nicknames: [Int: ClassNickname] = [:]
@@ -1248,12 +1259,14 @@ final class NativeContentStore: ObservableObject {
             let freshBundle = try await bundleRequest
             var freshCompleted = completed
             var freshReopenedAt = reopenedAt
+            var freshCompletedAt = completedAt
             var savedPreferenceWarning: String?
 
             do {
                 let state = try await completionRequest
                 freshCompleted = state.completed
                 freshReopenedAt = state.reopenedAt
+                freshCompletedAt = state.completedAt
             } catch {
                 savedPreferenceWarning = "Coursework refreshed. Saved completion state could not update."
             }
@@ -1268,6 +1281,7 @@ final class NativeContentStore: ObservableObject {
             bundle = freshBundle
             completed = sanitizedCompletedIDs(freshCompleted, in: freshBundle)
             reopenedAt = freshReopenedAt
+            completedAt = freshCompletedAt
             lastSyncedAt = Date()
             isShowingCachedData = false
             needsCanvasConnection = false
@@ -1321,38 +1335,82 @@ final class NativeContentStore: ObservableObject {
         }.joined(separator: " ")
     }
 
+    /// How long a finished row keeps its tick on screen before folding away.
+    static let completionHold: Duration = .milliseconds(450)
+    private var completionMotion: Animation? {
+        UIAccessibility.isReduceMotionEnabled ? nil : .spring(duration: 0.42, bounce: 0)
+    }
+
     func toggle(_ assignment: AssignmentItem) async {
+        // Tapped again while its tick is still showing: nothing was saved yet.
+        if completing.contains(assignment.id) { cancelCompletion(assignment.id); return }
+        let id = assignment.id
+        let next = !assignment.isFinished(in: self)
+        if next {
+            // The tick and the Undo bar show right away; the row folds away a
+            // moment later, so lists don't jump the instant it's tapped.
+            undoItem = assignment
+            if !UIAccessibility.isReduceMotionEnabled {
+                completing.insert(id)
+                try? await Task.sleep(for: Self.completionHold)
+                guard completing.contains(id) else { return }
+            }
+        }
         if isPreview {
-            if assignment.isFinished(in: self) { completed.remove(assignment.id); reopenedAt[assignment.id] = Date() }
-            else { completed.insert(assignment.id); reopenedAt.removeValue(forKey: assignment.id); undoItem = assignment; NativeCelebrations.shared.assignmentCompleted(assignment.name) }
+            withAnimation(completionMotion) {
+                completing.remove(id)
+                if next { completed.insert(id); reopenedAt.removeValue(forKey: id); completedAt[id] = Date(); NativeCelebrations.shared.assignmentCompleted(assignment.name) }
+                else { completed.remove(id); reopenedAt[id] = Date(); completedAt.removeValue(forKey: id) }
+            }
+            if !next && undoItem?.id == id { undoItem = nil }
             UserDefaults.standard.set(Array(completed), forKey: previewCompletedKey)
             return
         }
-        guard let api = sessionStore.api, let user = sessionStore.session?.user else { return }
-        guard !completionSavesInFlight.contains(assignment.id) else { return }
-        completionSavesInFlight.insert(assignment.id)
-        defer { completionSavesInFlight.remove(assignment.id) }
-        let next = !assignment.isFinished(in: self)
-        let previousCompleted = completed.contains(assignment.id)
-        let previousReopen = reopenedAt[assignment.id]
-        if next {
-            completed.insert(assignment.id); reopenedAt.removeValue(forKey: assignment.id)
-            NativeCelebrations.shared.assignmentCompleted(assignment.name)
-        }
-        else {
-            completed.remove(assignment.id)
-            if assignment.isCanvasFinished { reopenedAt[assignment.id] = Date() }
-            else { reopenedAt.removeValue(forKey: assignment.id) }
+        guard let api = sessionStore.api, let user = sessionStore.session?.user,
+              !completionSavesInFlight.contains(id) else { cancelCompletion(id); return }
+        completionSavesInFlight.insert(id)
+        defer { completionSavesInFlight.remove(id) }
+        let previousCompleted = completed.contains(id)
+        let previousReopen = reopenedAt[id]
+        let previousDate = completedAt[id]
+        withAnimation(completionMotion) {
+            completing.remove(id)
+            if next {
+                completed.insert(id); reopenedAt.removeValue(forKey: id); completedAt[id] = Date()
+                NativeCelebrations.shared.assignmentCompleted(assignment.name)
+            }
+            else {
+                completed.remove(id)
+                completedAt.removeValue(forKey: id)
+                if assignment.isCanvasFinished { reopenedAt[id] = Date() }
+                else { reopenedAt.removeValue(forKey: id) }
+            }
         }
         do {
-            try await api.setCompletion(next, assignment: assignment, reopenedAt: reopenedAt[assignment.id], token: try await sessionStore.accessToken(), userID: user.id)
+            try await api.setCompletion(next, assignment: assignment, reopenedAt: reopenedAt[id], token: try await sessionStore.accessToken(), userID: user.id)
             persistContentCache()
-            undoItem = next ? assignment : nil
+            if !next && undoItem?.id == id { undoItem = nil }
         } catch {
-            if previousCompleted { completed.insert(assignment.id) } else { completed.remove(assignment.id) }
-            reopenedAt[assignment.id] = previousReopen
+            withAnimation(completionMotion) {
+                if previousCompleted { completed.insert(id) } else { completed.remove(id) }
+                reopenedAt[id] = previousReopen
+                completedAt[id] = previousDate
+            }
+            if undoItem?.id == id { undoItem = nil }
             errorMessage = error.localizedDescription
         }
+    }
+
+    private func cancelCompletion(_ id: Int) {
+        withAnimation(completionMotion) { _ = completing.remove(id) }
+        if undoItem?.id == id { undoItem = nil }
+    }
+
+    /// The Undo bar: before the save it just cancels; after, it marks the task not done.
+    func undo(_ assignment: AssignmentItem) async {
+        if undoItem?.id == assignment.id { undoItem = nil }
+        if completing.contains(assignment.id) { cancelCompletion(assignment.id); return }
+        if assignment.isFinished(in: self) { await toggle(assignment) }
     }
 
     func saveNickname(course: CourseSummary, name: String) async throws {
@@ -1403,6 +1461,7 @@ final class NativeContentStore: ObservableObject {
         bundle = cache.bundle
         completed = sanitizedCompletedIDs(Set(cache.completed), in: cache.bundle)
         reopenedAt = cache.reopenedAt ?? [:]
+        completedAt = cache.completedAt ?? [:]
         nicknames = cache.nicknames
         lastSyncedAt = cache.savedAt
         isShowingCachedData = true
@@ -1411,7 +1470,7 @@ final class NativeContentStore: ObservableObject {
     private func persistContentCache() {
         guard !isPreview, let userID = sessionStore.session?.user.id else { return }
         let savedAt = lastSyncedAt ?? Date()
-        let cache = NativeContentCache(savedAt: savedAt, bundle: bundle, completed: Array(sanitizedCompletedIDs(completed, in: bundle)), reopenedAt: reopenedAt, nicknames: nicknames)
+        let cache = NativeContentCache(savedAt: savedAt, bundle: bundle, completed: Array(sanitizedCompletedIDs(completed, in: bundle)), reopenedAt: reopenedAt, nicknames: nicknames, completedAt: completedAt)
         if let data = try? JSONEncoder().encode(cache) {
             NativeCourseworkCacheStore.save(data, userID: userID)
         }
