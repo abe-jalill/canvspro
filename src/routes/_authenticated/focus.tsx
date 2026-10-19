@@ -3,16 +3,9 @@ import { formatAssignmentDue, relativeDueDay } from "@/lib/assignment-due";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, queryOptions } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Check, ChevronDown, ExternalLink } from "lucide-react";
+import { Check, ExternalLink } from "lucide-react";
 import { getAllAssignmentsFn, getCoursesFn, type AssignmentItem } from "@/lib/canvas.functions";
 import { CANVAS_DATA_GC_MS, CANVAS_DATA_STALE_MS } from "@/lib/query-policy";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { ErrorState } from "@/components/glass-card";
 import { PageTabs } from "@/components/page-tabs";
 import { TODAY_TABS } from "@/lib/page-tab-sets";
@@ -26,6 +19,7 @@ import {
   normalizeFocusWindow,
   isDueInFocusWindow,
   isDueOnDay,
+  isInFocusWindow,
   type FocusWindow,
 } from "@/lib/focus-window";
 import {
@@ -72,16 +66,21 @@ export const Route = createFileRoute("/_authenticated/focus")({
   component: FocusPage,
 });
 
-const WINDOW_LABELS: Record<FocusWindow, string> = {
-  all: "Next 4 weeks",
-  "1": "Next 24 hours",
-  "2": "Next 2 days",
-  "3": "Next 3 days",
-  "7": "Next 7 days",
+/**
+ * Coming Up has one row of choices and exactly one is picked: Overdue, This
+ * week, a single day, or Next 4 weeks. Links can still ask for the old
+ * ranges: 24 hours opens Today, 2 or 3 days open This week.
+ */
+type RangeChoice = "overdue" | "7" | "all";
+const RANGE_LABELS: Record<RangeChoice, string> = {
   overdue: "Overdue",
+  "7": "This week",
+  all: "Next 4 weeks",
 };
 
-const WINDOW_CHOICES: FocusWindow[] = ["overdue", "1", "3", "7", "all"];
+function rangeChoiceFor(win: FocusWindow): RangeChoice {
+  return win === "overdue" ? "overdue" : win === "all" ? "all" : "7";
+}
 
 type ViewMode = "day" | "class";
 const VIEW_KEY = "canvas:focus-view";
@@ -157,9 +156,11 @@ function FocusPage() {
     ...(assignments.data ?? []),
     ...custom.list.map((item) => customToAssignmentItem(item, courseById.get(item.course_id))),
   ];
-  // A picked day overrides the range dropdown: it shows everything due that day.
+  const range = rangeChoiceFor(win);
+  // A day tile shows that day only; otherwise the picked range.
+  const pickedDay = selectedDay ?? (win === "1" ? startOfDay(now) : null);
   const dueInWindow = allAssignments.filter((a) =>
-    selectedDay == null ? isDueInFocusWindow(a, win, now) : isDueOnDay(a, selectedDay),
+    pickedDay == null ? isDueInFocusWindow(a, range, now) : isDueOnDay(a, pickedDay),
   );
   const completedInWindow = dueInWindow.filter(
     (a) => isAssignmentComplete(a, completed.has(a.id)) && isInDisplayWindow(a, now),
@@ -194,7 +195,16 @@ function FocusPage() {
     return { start, count };
   });
 
-  // Picking a day shows that day; picking it again goes back to the dropdown's range.
+  const rangeCounts = Object.fromEntries(
+    (["overdue", "7", "all"] as const).map((id) => [
+      id,
+      allAssignments.filter((a) => isInFocusWindow(a, id, now, completed.has(a.id))).length,
+    ]),
+  ) as Record<RangeChoice, number>;
+  const pickRange = (id: RangeChoice) => {
+    setSelectedDay(null);
+    void navigate({ to: "/focus", search: { window: id }, replace: true });
+  };
   const listItems = inWindow;
 
   const loading =
@@ -203,11 +213,11 @@ function FocusPage() {
   const summary =
     unfinished.length === 0
       ? null
-      : selectedDay != null
-        ? `${unfinished.length} ${unfinished.length === 1 ? "thing" : "things"} due ${dueDayPhrase(selectedDay, today)}, about ${formatMinutes(minutesNeeded)} of work`
-      : win === "overdue"
+      : pickedDay != null
+        ? `${unfinished.length} ${unfinished.length === 1 ? "thing" : "things"} due ${dueDayPhrase(pickedDay, today)}, about ${formatMinutes(minutesNeeded)} of work`
+      : range === "overdue"
         ? `${unfinished.length} overdue, about ${formatMinutes(minutesNeeded)} of work`
-        : `${unfinished.length} ${unfinished.length === 1 ? "thing" : "things"} due, about ${formatMinutes(minutesNeeded)} of work`;
+        : `${unfinished.length} ${unfinished.length === 1 ? "thing" : "things"} due ${range === "7" ? "this week" : "in the next 4 weeks"}, about ${formatMinutes(minutesNeeded)} of work`;
 
   const rowProps = (a: AssignmentItem) => ({
     assignment: a,
@@ -225,40 +235,7 @@ function FocusPage() {
       <header className="premium-reveal px-1">
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
           <h1 className="text-3xl font-medium tracking-tight md:text-4xl">Coming up</h1>
-          <div className="flex items-center gap-2">
           <CompletedLink />
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              aria-label={`Time range: ${selectedDay != null ? dayHeading(selectedDay, today) : WINDOW_LABELS[win]}`}
-              className="inline-flex items-center gap-2 rounded-lg border border-foreground/15 px-3 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:border-foreground/30 hover:text-foreground focus-visible:ring-1 focus-visible:ring-foreground/30 data-[state=open]:border-foreground/30 data-[state=open]:text-foreground"
-            >
-              {selectedDay != null ? dayHeading(selectedDay, today) : WINDOW_LABELS[win]}
-              <ChevronDown className="h-4 w-4" aria-hidden="true" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-[11rem]">
-              <DropdownMenuRadioGroup
-                value={selectedDay != null ? "" : win}
-                onValueChange={(value) => {
-                  // Choosing a range takes over from a picked day.
-                  setSelectedDay(null);
-                  void navigate({
-                    to: "/focus",
-                    search: { window: normalizeFocusWindow(value) },
-                    replace: true,
-                  });
-                }}
-              >
-                {(WINDOW_CHOICES.includes(win) ? WINDOW_CHOICES : [...WINDOW_CHOICES, win]).map(
-                  (id) => (
-                    <DropdownMenuRadioItem key={id} value={id}>
-                      {WINDOW_LABELS[id]}
-                    </DropdownMenuRadioItem>
-                  ),
-                )}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          </div>
         </div>
         {summary && <p className="mt-1.5 text-sm text-muted-foreground">{summary}</p>}
       </header>
@@ -277,43 +254,68 @@ function FocusPage() {
         <ErrorState message={(assignments.error as Error).message} />
       ) : (
         <>
-          <ol className="premium-reveal grid grid-cols-7 gap-1 px-1" aria-label="Pick a day">
+          <div
+            className="premium-reveal -mx-1 flex snap-x gap-1.5 overflow-x-auto px-2 pb-1 [scrollbar-width:none] max-md:[mask-image:linear-gradient(to_right,transparent,black_14px,black_calc(100%-14px),transparent)]"
+            role="group"
+            aria-label="Show"
+          >
+            {(rangeCounts.overdue > 0 || range === "overdue") && (
+              <RangeTile
+                label={RANGE_LABELS.overdue}
+                count={rangeCounts.overdue}
+                picked={pickedDay == null && range === "overdue"}
+                onPick={() => pickRange("overdue")}
+                warn
+              />
+            )}
+            <RangeTile
+              label={RANGE_LABELS["7"]}
+              count={rangeCounts["7"]}
+              picked={pickedDay == null && range === "7"}
+              onPick={() => pickRange("7")}
+            />
             {strip.map((day, i) => {
-              const picked = selectedDay === day.start;
+              const picked = pickedDay === day.start;
               return (
-                <li key={day.start}>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedDay(picked ? null : day.start)}
-                    aria-pressed={picked}
-                    aria-label={`${dayHeading(day.start, today)}: ${day.count} due`}
+                <button
+                  key={day.start}
+                  type="button"
+                  onClick={() => setSelectedDay(day.start)}
+                  aria-pressed={picked}
+                  aria-label={`${dayHeading(day.start, today)}: ${day.count} due`}
+                  className={cn(
+                    "flex min-w-[3.6rem] flex-1 snap-start flex-col items-center gap-0.5 rounded-lg border px-1 py-2.5 text-xs transition-colors duration-300 motion-reduce:transition-none",
+                    picked
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-foreground/15 text-muted-foreground hover:border-foreground/30 hover:text-foreground",
+                  )}
+                >
+                  <span>
+                    {i === 0
+                      ? "Today"
+                      : new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(day.start)}
+                  </span>
+                  <span className={cn("text-base font-normal tabular-nums", picked ? "text-background" : "text-foreground")}>
+                    {new Date(day.start).getDate()}
+                  </span>
+                  <span
                     className={cn(
-                      "flex w-full flex-col items-center gap-0.5 rounded-lg border px-1 py-2.5 text-xs transition-colors duration-300 motion-reduce:transition-none",
-                      picked
-                        ? "border-foreground/60 text-foreground"
-                        : "border-foreground/15 text-muted-foreground hover:border-foreground/30 hover:text-foreground",
+                      "mt-0.5 h-1 w-1 rounded-full",
+                      picked ? "bg-background/70" : "bg-foreground/50",
+                      day.count === 0 && "opacity-0",
                     )}
-                  >
-                    <span>
-                      {i === 0
-                        ? "Today"
-                        : new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(day.start)}
-                    </span>
-                    <span className="text-base font-normal tabular-nums text-foreground">
-                      {new Date(day.start).getDate()}
-                    </span>
-                    <span
-                      className={cn(
-                        "mt-0.5 h-1 w-1 rounded-full bg-foreground/50",
-                        day.count === 0 && "opacity-0",
-                      )}
-                      aria-hidden="true"
-                    />
-                  </button>
-                </li>
+                    aria-hidden="true"
+                  />
+                </button>
               );
             })}
-          </ol>
+            <RangeTile
+              label={RANGE_LABELS.all}
+              count={rangeCounts.all}
+              picked={pickedDay == null && range === "all"}
+              onPick={() => pickRange("all")}
+            />
+          </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3 px-1 text-sm text-muted-foreground">
             <div className="inline-flex gap-2" role="group" aria-label="Group by">
@@ -354,18 +356,20 @@ function FocusPage() {
             <div className="px-1 py-16 text-center">
               <Check className="mx-auto h-5 w-5 text-muted-foreground" aria-hidden="true" />
               <p className="mt-3 text-base">
-                {selectedDay != null
+                {pickedDay != null
                   ? "Nothing due this day."
-                  : win === "overdue"
+                  : range === "overdue"
                     ? "Nothing overdue."
                     : "You're all clear."}
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                {selectedDay != null
-                  ? "Pick another day, or tap this one again to see everything."
-                  : hiddenCompleteCount > 0
-                    ? `${hiddenCompleteCount} finished here. Nice work.`
-                    : "Pick a longer range above to look further ahead."}
+                {hiddenCompleteCount > 0
+                  ? `${hiddenCompleteCount} finished here. Nice work.`
+                  : pickedDay != null
+                    ? "Pick another day above."
+                    : range === "7"
+                      ? "Pick Next 4 weeks above to look further ahead."
+                      : "Nothing else is due."}
               </p>
             </div>
           ) : view === "day" ? (
@@ -401,6 +405,47 @@ function FocusPage() {
         </>
       )}
     </div>
+  );
+}
+
+/** Overdue, This week or Next 4 weeks, with how many are due. */
+function RangeTile({
+  label,
+  count,
+  picked,
+  onPick,
+  warn = false,
+}: {
+  label: string;
+  count: number;
+  picked: boolean;
+  onPick: () => void;
+  warn?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onPick}
+      aria-pressed={picked}
+      aria-label={`${label}: ${count} due`}
+      className={cn(
+        "flex min-w-[5.5rem] shrink-0 snap-start flex-col items-center justify-center gap-0.5 rounded-lg border px-3 py-2.5 text-xs transition-colors duration-300 motion-reduce:transition-none",
+        picked
+          ? "border-foreground bg-foreground text-background"
+          : "border-foreground/15 text-muted-foreground hover:border-foreground/30 hover:text-foreground",
+      )}
+    >
+      <span className="whitespace-nowrap">{label}</span>
+      <span
+        className={cn(
+          "text-base font-normal tabular-nums",
+          picked ? "text-background" : warn && count > 0 ? "text-rose-300" : "text-foreground",
+        )}
+      >
+        {count}
+      </span>
+      <span className="mt-0.5 h-1 w-1" aria-hidden="true" />
+    </button>
   );
 }
 

@@ -86,8 +86,12 @@ test("a picked day shows everything due that day, whatever the range says", asyn
 
   const { readFileSync } = await import("node:fs");
   const page = readFileSync(new URL("../src/routes/_authenticated/focus.tsx", import.meta.url), "utf8");
-  assert.match(page, /selectedDay == null \? isDueInFocusWindow\(a, win, now\) : isDueOnDay\(a, selectedDay\)/);
-  // The day strip shows for every range, Overdue included, and a range choice clears the day.
-  assert.doesNotMatch(page, /win !== "overdue" && \(\s*<ol/);
-  assert.match(page, /setSelectedDay\(null\);\s*void navigate/);
+  assert.match(page, /pickedDay == null \? isDueInFocusWindow\(a, range, now\) : isDueOnDay\(a, pickedDay\)/);
+  // One row of choices, one picked at a time: no separate range dropdown to fight the days.
+  assert.doesNotMatch(page, /DropdownMenu/);
+  assert.match(page, /const pickRange = \(id: RangeChoice\) => \{\s*setSelectedDay\(null\);\s*void navigate/);
+  for (const label of ["Overdue", "This week", "Next 4 weeks"]) assert.ok(page.includes(`"${label}"`), label);
+  // Old links still land on a visible choice: 24 hours opens Today, 2 or 3 days open This week.
+  assert.match(page, /const pickedDay = selectedDay \?\? \(win === "1" \? startOfDay\(now\) : null\)/);
+  assert.match(page, /return win === "overdue" \? "overdue" : win === "all" \? "all" : "7";/);
 });
