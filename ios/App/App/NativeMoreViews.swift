@@ -685,7 +685,6 @@ struct GetItDoneView: View {
             in: RoundedRectangle(cornerRadius: 22, style: .continuous)
         )
         .cpSurface(strong: true, radius: 22)
-        .cpAssignmentDueToday(first, radius: 22)
     }
 
     /// The plan without the suggestion shown above it.
@@ -745,7 +744,6 @@ struct GetItDoneView: View {
             .buttonStyle(.plain)
         }
         .padding(.vertical, 10)
-        .cpAssignmentDueToday(item)
     }
 
     private func planMeta(_ item: AssignmentItem) -> String {
@@ -1063,7 +1061,6 @@ struct FocusView: View {
             }
         }
         .opacity(done ? 0.6 : 1)
-        .cpAssignmentDueToday(item, completed: done)
         .nativeAssignmentSwipe(item, store: store)
     }
 
@@ -1416,6 +1413,8 @@ struct WorkloadView: View {
     let assignments: [AssignmentItem]
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
+    /// Today's work gets the yellow outline only on the Dashboard.
+    var outlineDueToday = false
     @State private var week = 0
     @State private var openDay: Date?
     private static let weekNames = ["This week", "Next week", "Week 3", "Week 4"]
@@ -1544,7 +1543,7 @@ struct WorkloadView: View {
                     NativeEstimateEditor(assignment: item, features: features)
                     }
                 }
-                .cpAssignmentDueToday(item, completed: item.isFinished(in: store))
+                .cpAssignmentDueToday(item, completed: !outlineDueToday || item.isFinished(in: store))
             }
         }
     }

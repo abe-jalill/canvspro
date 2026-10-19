@@ -1969,7 +1969,7 @@ private struct NativeDashboardView: View {
         case "announcements": announcementsWidget
         case "heatmap":
             CPGlassCard(title: "Workload") {
-                WorkloadView(assignments: activeAssignments, store: store, features: features)
+                WorkloadView(assignments: activeAssignments, store: store, features: features, outlineDueToday: true)
             }
         default: EmptyView()
         }
@@ -2901,7 +2901,6 @@ struct NativeAssignmentRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.vertical, 3)
-        .cpAssignmentDueToday(assignment, completed: isComplete)
     }
 }
 
@@ -3546,7 +3545,6 @@ struct CourseDetailView: View {
         }
         .padding(.vertical, 11)
         .background(highlightedID == assignment.id ? CPTheme.foreground(scheme).opacity(0.07) : .clear, in: RoundedRectangle(cornerRadius: 10))
-        .cpAssignmentDueToday(assignment, completed: assignment.isFinished(in: store), radius: 10)
         .id(assignment.id)
         .cpStateChange(isOpen)
     }
@@ -4055,7 +4053,6 @@ struct NativeStudyView: View {
         }
         .buttonStyle(CPPressStyle())
         .accessibilityAddTraits(isSelected ? .isSelected : [])
-        .cpAssignmentDueToday(item, completed: item.isFinished(in: store))
             NativeEstimateEditor(assignment: item, features: features)
         }
     }
@@ -4223,7 +4220,6 @@ struct NativeStudyView: View {
         }
         .foregroundStyle(CPTheme.muted(scheme))
         .buttonStyle(.plain)
-        .cpAssignmentDueToday(item, completed: completedIDs.contains(item.id))
             NativeEstimateEditor(assignment: item, features: features)
         }
     }
