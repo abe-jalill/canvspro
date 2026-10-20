@@ -1842,11 +1842,6 @@ private struct NativeDashboardView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(heroCardBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(CPTheme.primary(scheme: scheme).opacity(0.3), lineWidth: 0.5))
-                .overlay {
-                    if let item = nextUp, let due = item.dueDate, NativeParity.relativeDueDay(due) == "Today" {
-                        RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(CPTheme.warning, lineWidth: 1).allowsHitTesting(false)
-                    }
-                }
             }
             .buttonStyle(CPPressStyle())
             .accessibilityElement(children: .combine)
@@ -1939,7 +1934,7 @@ private struct NativeDashboardView: View {
         case "heatmap":
             CPGlassCard {
                 CPCardHeader(title: "Workload", collapse: collapse("heatmap"))
-                WorkloadView(assignments: activeAssignments, store: store, features: features, outlineDueToday: true)
+                WorkloadView(assignments: activeAssignments, store: store, features: features)
             }
         default: EmptyView()
         }
@@ -2406,7 +2401,6 @@ struct NativeDueRow: View {
         .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: CPLayout.innerRadius, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: CPLayout.innerRadius, style: .continuous).strokeBorder(CPTheme.insetBorder(scheme), lineWidth: 0.5))
         .opacity(isComplete ? 0.6 : 1)
-        .cpAssignmentDueToday(assignment, completed: isComplete)
         .nativeAssignmentSwipe(assignment, store: store)
         .transition(.cpCompletionExit)
     }

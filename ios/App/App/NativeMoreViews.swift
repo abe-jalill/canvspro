@@ -1453,8 +1453,6 @@ struct WorkloadView: View {
     let assignments: [AssignmentItem]
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
-    /// Today's work gets the yellow outline only on the Dashboard.
-    var outlineDueToday = false
     @State private var week = 0
     @State private var openDay: Date?
     private static let weekNames = ["This week", "Next week", "Week 3", "Week 4"]
@@ -1583,7 +1581,6 @@ struct WorkloadView: View {
                     NativeEstimateEditor(assignment: item, features: features)
                     }
                 }
-                .cpAssignmentDueToday(item, completed: !outlineDueToday || item.isFinished(in: store))
             }
         }
     }

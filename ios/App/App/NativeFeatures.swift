@@ -828,24 +828,22 @@ enum NativeParity {
         return points * (1 - done / 100)
     }
 
-    /// The website's weighted Next up: deadline urgency, points still to do, and
-    /// how much is left, among unfinished work due in the next seven days.
+    /// Next up, like the website: the unfinished work due soonest in the next
+    /// seven days. Two due at the same time: the one worth more points.
     static func nextUp(_ items: [AssignmentItem], progress: [Int: Int], now: Date = Date()) -> AssignmentItem? {
         let week: TimeInterval = 7 * 86_400
-        func score(_ item: AssignmentItem) -> Double? {
-            guard let due = item.dueDate, due >= now, due.timeIntervalSince(now) <= week else { return nil }
+        let candidates = items.filter { item in
+            guard let due = item.dueDate, due >= now, due.timeIntervalSince(now) <= week else { return false }
             // Work that hasn't opened in Canvas yet can't be next up.
-            if item.notYetOpen(now: now) { return nil }
-            let percent = Double(min(100, max(0, progress[item.id] ?? 0)))
-            let deadline = 60 * (1 - due.timeIntervalSince(now) / week)
-            let impact = 35 * min(1, log1p(remainingWork(item, progress: progress[item.id])) / log1p(100))
-            return deadline + impact + 5 * (1 - percent / 100)
+            return !item.notYetOpen(now: now)
         }
-        let scored = items.compactMap { item in score(item).map { (item: item, score: $0) } }
-        return scored.sorted { left, right in
-            if left.score != right.score { return left.score > right.score }
-            return (left.item.dueDate ?? .distantFuture) < (right.item.dueDate ?? .distantFuture)
-        }.first?.item
+        return candidates.min { left, right in
+            let leftDue = left.dueDate ?? .distantFuture, rightDue = right.dueDate ?? .distantFuture
+            if leftDue != rightDue { return leftDue < rightDue }
+            let leftPoints = left.pointsPossible ?? 0, rightPoints = right.pointsPossible ?? 0
+            if leftPoints != rightPoints { return leftPoints > rightPoints }
+            return left.name.localizedStandardCompare(right.name) == .orderedAscending
+        }
     }
 
     /// Work that hasn't opened in Canvas yet always sorts after open work, however

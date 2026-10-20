@@ -258,16 +258,16 @@ test("no extra words: no descriptions under titles, short empty states", () => {
   assert.equal(details.length, 0, details.join("\n"));
 });
 
-test("main's newest features are on iOS: progress, weighted Next up, remaining workload, quick Pomodoro", () => {
+test("main's newest features are on iOS: progress, soonest-due Next up, remaining workload, quick Pomodoro", () => {
   // Percent done per assignment, saved to the same column as the website.
   assert.match(swift.NativeFeatures, /progress_percent/);
   assert.match(swift.NativeFeatures, /func saveProgress\(_ percent: Int\?, for assignment: AssignmentItem\)/);
   assert.match(swift.NativeViews, /struct NativeProgressEditor: View/);
   assert.match(swift.NativeViews, /Slider\(value: \$draft, in: 0\.\.\.100, step: 5\)/);
   assert.ok((swift.NativeViews + swift.NativeMoreViews).match(/NativeProgressBar\(percent: percent\)/g).length >= 2);
-  // The website's Next up formula: 60 deadline, 35 work left (log scale), 5 unfinished.
-  assert.match(swift.NativeFeatures, /let deadline = 60 \* \(1 - due\.timeIntervalSince\(now\) \/ week\)/);
-  assert.match(swift.NativeFeatures, /35 \* min\(1, log1p\(remainingWork/);
+  // Next up, like the website: due soonest; at the same due time, more points first.
+  assert.match(swift.NativeFeatures, /if leftDue != rightDue \{ return leftDue < rightDue \}/);
+  assert.match(swift.NativeFeatures, /if leftPoints != rightPoints \{ return leftPoints > rightPoints \}/);
   assert.match(swift.NativeViews, /Almost there, /);
   // Workload bars follow points left after saved progress.
   assert.match(swift.NativeMoreViews, /NativeParity\.remainingWork\(\$1, progress: features\.progress\[\$1\.id\]\)/);

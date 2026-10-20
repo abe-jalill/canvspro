@@ -860,19 +860,6 @@ enum CPHaptics {
 
 // MARK: - Swipe actions
 
-extension View {
-    /// Highlight unfinished work due on this local calendar day, even after its deadline.
-    func cpAssignmentDueToday(_ item: AssignmentItem, completed: Bool = false, radius: CGFloat = CPLayout.innerRadius) -> some View {
-        overlay {
-            if !completed, let due = item.dueDate, NativeParity.relativeDueDay(due) == "Today" {
-                RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .strokeBorder(CPTheme.warning, lineWidth: 1)
-                    .allowsHitTesting(false)
-            }
-        }
-    }
-}
-
 struct CPSwipeAction {
     let title: String
     let symbol: String
