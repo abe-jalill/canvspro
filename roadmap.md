@@ -1,5 +1,9 @@
 # Roadmap
 
+## Waiting on an Apple Developer account
+
+- [ ] Files on the website, synced with the iPhone through the student's own iCloud (CloudKit). Plan in AGENTS.md, "Waiting on the owner".
+
 - [x] Weight dashboard Next Up and workload indicators by points, deadline, and saved progress
 - [x] Countdown alerts: next-class + tonight's deadline pushes, app-icon badge, settings controls
 - [x] Reformat the Notifications page into clear, numbered sections
