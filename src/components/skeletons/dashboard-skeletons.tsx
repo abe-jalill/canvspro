@@ -172,43 +172,28 @@ export function DigestWidgetSkeleton() {
   );
 }
 
-/** Heatmap Widget Skeleton matching WorkloadHeatmap */
+/** Skeleton matching WorkloadHeatmap: week switcher, then a bar per day. */
 export function WorkloadHeatmapSkeleton() {
-  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const heights = [24, 40, 12, 52, 30, 8, 18];
   return (
-    <div className="space-y-3">
-      {/* Month headers */}
-      <div className="flex justify-between px-10 text-[10px]">
-        <SkeletonBlock className="h-3 w-10" />
-        <SkeletonBlock className="h-3 w-10" />
-        <SkeletonBlock className="h-3 w-10" />
-        <SkeletonBlock className="h-3 w-10" />
+    <div className="space-y-3.5" aria-hidden="true">
+      <SkeletonBlock className="h-10 w-full rounded-2xl" />
+      <div className="flex justify-between">
+        <SkeletonBlock className="h-3 w-24" />
+        <SkeletonBlock className="h-3 w-20" />
       </div>
-      {/* Grid of days */}
-      <div className="space-y-1.5">
-        {days.map((day) => (
-          <div key={day} className="flex items-center gap-2">
-            <span className="w-8 text-[10px] text-muted-foreground">{day}</span>
-            <div className="flex flex-1 gap-1.5 overflow-hidden">
-              {Array.from({ length: 16 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="skeleton-shimmer h-3.5 w-3.5 shrink-0 rounded-sm opacity-60"
-                />
-              ))}
+      <div className="grid grid-cols-7 items-end gap-1.5">
+        {heights.map((height, i) => (
+          <div key={i} className="flex flex-col items-center gap-2 py-2">
+            <div className="flex h-[60px] items-end">
+              <div
+                className="skeleton-shimmer w-[18px] rounded-[5px] opacity-60"
+                style={{ height }}
+              />
             </div>
+            <SkeletonBlock className="h-[30px] w-[30px] rounded-full" />
           </div>
         ))}
-      </div>
-      {/* Legend */}
-      <div className="flex items-center justify-end gap-2 pt-2">
-        <SkeletonBlock className="h-2.5 w-10" />
-        <div className="flex gap-1">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="skeleton-shimmer h-3 w-3 rounded-xs opacity-70" />
-          ))}
-        </div>
-        <SkeletonBlock className="h-2.5 w-10" />
       </div>
     </div>
   );

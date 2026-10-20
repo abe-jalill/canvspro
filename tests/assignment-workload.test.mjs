@@ -39,3 +39,21 @@ test("two due at the same time: the one worth more points", () => {
 test("items outside the upcoming week are not selected", () => {
   assert.equal(selectNextUp([assignment(1, -1), assignment(2, 200)], now), null);
 });
+
+test("the workload week line names the total and the busiest day", async () => {
+  const { workloadWeekSummary } = await import("../src/lib/assignment-workload.ts");
+  const mon = new Date(2026, 9, 19);
+  const tue = new Date(2026, 9, 20);
+  assert.equal(workloadWeekSummary([{ date: mon, count: 0 }, { date: tue, count: 0 }]), "Nothing due");
+  assert.equal(workloadWeekSummary([{ date: mon, count: 1 }, { date: tue, count: 1 }]), "2 due");
+  assert.match(workloadWeekSummary([{ date: mon, count: 1 }, { date: tue, count: 3 }]), /^4 due · busiest /);
+});
+
+test("the website's workload shows one week at a time, like the iPhone app", async () => {
+  const { readFileSync } = await import("node:fs");
+  const view = readFileSync(new URL("../src/components/workload-heatmap.tsx", import.meta.url), "utf8");
+  assert.match(view, /const WEEK_NAMES = \["This week", "Next week", "Week 3", "Week 4"\]/);
+  assert.match(view, /const shown = weekRows\[Math\.min\(week, weekRows\.length - 1\)\]/);
+  assert.match(view, /height: count === 0 \? 4 : 10 \+ 50 \* share/);
+  assert.doesNotMatch(view, /Workload — next/);
+});

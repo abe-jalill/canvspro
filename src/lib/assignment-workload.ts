@@ -43,3 +43,13 @@ export function selectNextUp<T extends AssignmentItem>(assignments: T[], now: nu
       )[0] ?? null
   );
 }
+
+/** "4 due · busiest Tue" for one week of the workload view, like the iPhone app. */
+export function workloadWeekSummary(days: { date: Date; count: number }[]) {
+  const total = days.reduce((n, d) => n + d.count, 0);
+  if (total === 0) return "Nothing due";
+  const top = Math.max(...days.map((d) => d.count));
+  const busiest = days.find((d) => d.count === top);
+  if (top <= 1 || !busiest) return `${total} due`;
+  return `${total} due · busiest ${busiest.date.toLocaleDateString(undefined, { weekday: "short" })}`;
+}
