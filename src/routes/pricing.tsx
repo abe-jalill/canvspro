@@ -55,7 +55,7 @@ function PricingPage() {
               <span>/{PLANS[plan].per}</span>
             </p>
             <p className="hp-plan__note">
-              {plan === "yearly" ? "Two months free, billed once a year." : "Billed every month."}{" "}
+              {plan === "yearly" ? "Billed yearly." : "Billed monthly."}{" "}
               {TRIAL_DAYS}-day free trial. Cancel anytime.
             </p>
             <div className="hp-plan__spacer" />
