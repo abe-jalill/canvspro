@@ -1,7 +1,7 @@
 import { mergeAssignments } from "@/lib/assignment-sources";
 import { useCustomAssignments } from "@/lib/custom-assignments";
 import { coursesQueryOptions } from "@/lib/canvas.queries";
-import { AssignmentEstimateEditor, CachedAssignmentEstimate } from "@/components/assignment-estimate";
+import { CachedAssignmentEstimate } from "@/components/assignment-estimate";
 import { formatAssignmentDue } from "@/lib/assignment-due";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -74,7 +74,7 @@ type CustomField = "focus" | "shortBreak" | "longBreak" | "rounds";
 
 const TIME_MODES: { id: TimeMode; label: string }[] = [
   { id: "total", label: "Total time" },
-  { id: "per", label: "Per assignment" },
+  { id: "per", label: "Per task" },
   { id: "pomodoro", label: "Pomodoro" },
 ];
 
@@ -197,7 +197,7 @@ function StudyClock({
   );
 }
 
-/** The whole session as a ring: one arc per task, sized by its share of the time. */
+/** The whole session as a ring: one arc per task, sized by its share of the time, with the time inside. */
 function SessionRing({
   segments,
   value,
@@ -207,20 +207,20 @@ function SessionRing({
   value: string;
   label: string;
 }) {
-  const radius = 54;
+  const radius = 58;
   const circumference = 2 * Math.PI * radius;
   const total = segments.reduce((sum, minutes) => sum + minutes, 0);
   const gap = segments.length > 1 ? 4 : 0;
   let offset = 0;
   return (
-    <div className="flex flex-col items-center gap-3" role="img" aria-label={`${label}: ${value}`}>
-      <svg viewBox="0 0 128 128" className="h-52 w-52 -rotate-90" aria-hidden="true">
+    <div className="relative h-48 w-48 shrink-0" role="img" aria-label={`${label}: ${value}`}>
+      <svg viewBox="0 0 128 128" className="h-full w-full -rotate-90" aria-hidden="true">
         <circle
           cx="64"
           cy="64"
           r={radius}
           fill="none"
-          strokeWidth="5"
+          strokeWidth="4"
           className="stroke-foreground/10"
         />
         {total > 0 &&
@@ -233,7 +233,7 @@ function SessionRing({
                 cy="64"
                 r={radius}
                 fill="none"
-                strokeWidth="5"
+                strokeWidth="4"
                 strokeLinecap="round"
                 className="stroke-foreground transition-all duration-500"
                 style={{ opacity: 0.85 - (index % 3) * 0.22 }}
@@ -245,10 +245,11 @@ function SessionRing({
             return arc;
           })}
       </svg>
-      {/* Below the ring, not inside it: long plans ("27 min focus, 8 min break") don't fit inside. */}
-      <div className="flex flex-col items-center text-center">
-        <span className="text-sm font-medium tracking-tight tabular-nums">{value}</span>
-        <span className="mt-0.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+        <span className="text-[2rem] font-medium leading-none tracking-tight tabular-nums">
+          {value}
+        </span>
+        <span className="mt-2 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
           {label}
         </span>
       </div>
@@ -256,26 +257,26 @@ function SessionRing({
   );
 }
 
-/** Step number and title at the top of a section inside a card. */
-function StepHeading({
-  step,
-  title,
-  trailing,
-}: {
-  step: number;
-  title: string;
-  trailing?: string;
-}) {
+/** A section title inside a card, with a quiet value on the right. */
+function SectionTitle({ title, trailing }: { title: string; trailing?: string }) {
   return (
-    <div className="flex items-center gap-3">
-      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-foreground/25 text-[11px] tabular-nums text-muted-foreground">
-        {step}
-      </span>
+    <div className="flex items-baseline gap-3">
       <h2 className="flex-1 text-base font-normal tracking-tight">{title}</h2>
       {trailing && <span className="text-xs tabular-nums text-muted-foreground">{trailing}</span>}
     </div>
   );
 }
+
+/** "25 min" or "1h 30m": short enough to sit inside the ring. */
+function shortMinutes(total: number) {
+  const hours = Math.floor(total / 60);
+  const minutes = total % 60;
+  if (hours === 0) return `${minutes} min`;
+  return minutes === 0 ? `${hours}h` : `${hours}h ${minutes}m`;
+}
+
+/** How many assignments show before "Show more". */
+const SHORT_LIST = 6;
 
 function MinutesField({
   value,
@@ -317,7 +318,10 @@ function StudySessionPage() {
   const [minutesById, setMinutesById] = useState<Record<string, number>>({});
   const [manualName, setManualName] = useState("");
   const [search, setSearch] = useState("");
-  const [showCompleted, setShowCompleted] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+  const [addingTask, setAddingTask] = useState(false);
+  // Finished work isn't offered for a new session.
+  const showCompleted = false;
   const [duration, setDuration] = useState(25);
   const [timeMode, setTimeMode] = useState<TimeMode>("total");
   const [presetId, setPresetId] = useState<PomodoroChoice>("classic");
@@ -536,6 +540,16 @@ function StudySessionPage() {
         : durationValid
           ? formatMinutes(Math.min(480, Math.round(duration)))
           : "Choose a time";
+
+  // Inside the ring: short enough to fit ("25 min", "1h 30m", "25 / 5").
+  const ringValue =
+    timeMode === "pomodoro"
+      ? `${chosenPlan.focusMs / 60_000} / ${chosenPlan.shortBreakMs / 60_000}`
+      : timeMode === "per"
+        ? shortMinutes(perItemTotal)
+        : shortMinutes(Math.min(480, Math.max(1, Math.round(duration || 25))));
+  const ringLabel =
+    timeMode === "pomodoro" ? "Focus / break" : timeMode === "per" ? "Per task" : "Total time";
 
   function start() {
     if (!canStart) return;
@@ -829,43 +843,31 @@ function StudySessionPage() {
         </div>
       )}
 
-      <div className="grid items-stretch gap-5 lg:grid-cols-2">
-        {/* Left: what to study, then how long. */}
-        <GlassCard className="premium-reveal flex flex-col gap-6">
-          <section className="flex flex-1 flex-col gap-4">
-            <StepHeading
-              step={1}
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+        {/* Left: what to study. The list grows with the page instead of scrolling in a box. */}
+        <GlassCard className="premium-reveal">
+          <section className="flex flex-col gap-4">
+            <SectionTitle
               title="Pick assignments"
               trailing={selected.length > 0 ? `${selected.length} picked` : undefined}
             />
 
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-              <label className="relative min-w-[12rem] flex-1">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search"
-                  aria-label="Search assignments or classes"
-                  className="pl-9"
-                />
-              </label>
-              <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                <input
-                  type="checkbox"
-                  checked={showCompleted}
-                  onChange={(event) => setShowCompleted(event.target.checked)}
-                  className="h-4 w-4 accent-primary"
-                />
-                Include submitted
-              </label>
-            </div>
+            <label className="relative block">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search assignments or classes"
+                aria-label="Search assignments or classes"
+                className="pl-9"
+              />
+            </label>
 
             {assignments.isPending ? (
-              <div className="space-y-3">
-                <Skeleton className="h-12" />
-                <Skeleton className="h-12" />
-                <Skeleton className="h-12" />
+              <div className="space-y-2">
+                <Skeleton className="h-14" />
+                <Skeleton className="h-14" />
+                <Skeleton className="h-14" />
               </div>
             ) : assignments.error ? (
               <ErrorState
@@ -873,87 +875,170 @@ function StudySessionPage() {
                 onRetry={() => void assignments.refetch()}
               />
             ) : candidates.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">No matches.</p>
+              <p className="py-10 text-center text-sm text-muted-foreground">
+                {search.trim() ? "No matches." : "Nothing due soon."}
+              </p>
             ) : (
-              <ul className="max-h-[17.5rem] space-y-2 overflow-y-auto pr-1">
-                {candidates.map((assignment) => {
-                  const item = canvasItem(assignment);
-                  const isSelected = selectedIds.has(item.id);
-                  return (
-                    <li key={assignment.id}>
-                      <button
-                        type="button"
-                        onClick={() => toggleItem(item)}
-                        aria-pressed={isSelected}
-                        className={cn(
-                          "flex min-h-14 w-full items-center gap-3.5 rounded-lg border px-4 py-3 text-left transition-colors",
-                          isSelected
-                            ? "border-foreground/50"
-                            : "border-foreground/15 hover:border-foreground/30",
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            "flex h-5 w-5 shrink-0 items-center justify-center rounded-md border",
-                            isSelected
-                              ? "border-foreground/70 bg-foreground text-background"
-                              : "border-foreground/30",
-                          )}
-                        >
-                          {isSelected && <Check className="h-3 w-3" />}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[15px]">{assignment.name}</span>
-                          <span className="block truncate text-xs text-muted-foreground">
-                            {item.courseName || "Canvas"}
-                          </span>
-                        </span>
-                        {assignment.due_at && (
-                          <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                            {formatAssignmentDue(assignment.due_at, Date.now(), false)}
-                          </span>
-                        )}
-                      </button>
-                      <AssignmentEstimateEditor assignment={assignment} className="ml-4 mt-1" />
-                    </li>
-                  );
-                })}
-              </ul>
+              <>
+                <ul className="divide-y divide-foreground/10 rounded-xl border border-foreground/10">
+                  {(search.trim() || showAll ? candidates : candidates.slice(0, SHORT_LIST)).map(
+                    (assignment) => {
+                      const item = canvasItem(assignment);
+                      const isSelected = selectedIds.has(item.id);
+                      const minutes =
+                        metaMap.get(assignment.id)?.estimatedMinutes ??
+                        defaultEstimateMinutes(assignment);
+                      const detail = [
+                        item.courseName || "Canvas",
+                        assignment.due_at
+                          ? formatAssignmentDue(assignment.due_at, Date.now(), false)
+                          : null,
+                        formatMinutes(minutes),
+                      ]
+                        .filter(Boolean)
+                        .join(" · ");
+                      return (
+                        <li key={assignment.id}>
+                          <button
+                            type="button"
+                            onClick={() => toggleItem(item)}
+                            aria-pressed={isSelected}
+                            className={cn(
+                              "flex w-full items-center gap-3.5 px-4 py-3 text-left transition-colors first:rounded-t-xl last:rounded-b-xl",
+                              isSelected ? "bg-foreground/[0.06]" : "hover:bg-foreground/[0.03]",
+                            )}
+                          >
+                            <span
+                              className={cn(
+                                "flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors",
+                                isSelected
+                                  ? "border-foreground bg-foreground text-background"
+                                  : "border-foreground/30",
+                              )}
+                            >
+                              {isSelected && <Check className="h-3 w-3" strokeWidth={3} />}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-[15px]">{assignment.name}</span>
+                              <span className="mt-0.5 block truncate text-xs tabular-nums text-muted-foreground">
+                                {detail}
+                              </span>
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    },
+                  )}
+                </ul>
+                {!search.trim() && !showAll && candidates.length > SHORT_LIST && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAll(true)}
+                    className="self-start rounded-lg border border-foreground/15 px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+                  >
+                    Show {candidates.length - SHORT_LIST} more
+                  </button>
+                )}
+              </>
             )}
-            {hiddenCount > 0 && (
-              <p className="text-xs text-muted-foreground">Search to find {hiddenCount} more.</p>
+            {hiddenCount > 0 && !search.trim() && (
+              <p className="text-xs text-muted-foreground">
+                {hiddenCount} more due later. Search to find them.
+              </p>
             )}
 
-            <form
-              className="flex items-center gap-2"
-              onSubmit={(event) => {
-                event.preventDefault();
-                addManual();
-              }}
-            >
-              <Input
-                value={manualName}
-                onChange={(event) => setManualName(event.target.value)}
-                maxLength={160}
-                placeholder="Add your own task"
-                aria-label="Add your own task"
-              />
-              <button
-                type="submit"
-                disabled={!manualName.trim()}
-                className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg border border-foreground/15 px-4 text-sm text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground disabled:opacity-40"
+            {addingTask ? (
+              <form
+                className="flex items-center gap-2"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  addManual();
+                  setAddingTask(false);
+                }}
               >
-                <Plus className="h-3.5 w-3.5" /> Add
+                <Input
+                  autoFocus
+                  value={manualName}
+                  onChange={(event) => setManualName(event.target.value)}
+                  maxLength={160}
+                  placeholder="Your own task"
+                  aria-label="Add your own task"
+                />
+                <button
+                  type="submit"
+                  disabled={!manualName.trim()}
+                  className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg bg-foreground px-4 text-sm font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-40"
+                >
+                  Add
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAddingTask(false);
+                    setManualName("");
+                  }}
+                  className={roundIconButton}
+                  aria-label="Cancel"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </form>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setAddingTask(true)}
+                className="inline-flex items-center gap-1.5 self-start text-sm text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <Plus className="h-4 w-4" /> Add your own task
               </button>
-            </form>
+            )}
           </section>
+        </GlassCard>
 
-          <div className="h-px shrink-0 bg-foreground/10" aria-hidden="true" />
+        {/* Right: the session. It stays in view on wide screens while the list scrolls. */}
+        <GlassCard
+          className="premium-reveal lg:sticky lg:top-4"
+          title="Your session"
+          action={
+            <span className="text-xs tabular-nums text-muted-foreground">
+              {selected.length} {selected.length === 1 ? "task" : "tasks"}
+            </span>
+          }
+        >
+          {/* On wide screens Start sits under the ring, so it stays in view; phones keep it last. */}
+          <div className="flex flex-col">
+          <div className="flex flex-col items-center gap-3">
+            <SessionRing
+              segments={
+                timeMode === "per"
+                  ? plannedItems.map((item) => item.minutes ?? 25)
+                  : selected.map(() => 1)
+              }
+              value={ringValue}
+              label={ringLabel}
+            />
+            <p className="h-4 text-xs tabular-nums text-muted-foreground">
+              {selected.length === 0
+                ? "Pick what to study to begin."
+                : timeMode === "pomodoro"
+                  ? `Long break every ${chosenPlan.roundsBeforeLongBreak} blocks`
+                  : `Ends around ${new Date(
+                      now +
+                        (timeMode === "per"
+                          ? perItemTotal
+                          : Math.min(480, Math.max(1, Math.round(duration || 25)))) *
+                          60_000,
+                    ).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`}
+            </p>
+          </div>
 
-          <section className="shrink-0 space-y-4">
-            <StepHeading step={2} title="Choose time" trailing={plan} />
-
-            <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="How to time it">
+          <section className="mt-6 space-y-3 lg:order-2">
+            <SectionTitle title="Choose time" trailing={plan} />
+            <div
+              className="grid grid-cols-3 gap-1 rounded-xl border border-foreground/10 bg-foreground/[0.03] p-1"
+              role="radiogroup"
+              aria-label="How to time it"
+            >
               {TIME_MODES.map((mode) => (
                 <button
                   key={mode.id}
@@ -962,8 +1047,10 @@ function StudySessionPage() {
                   aria-checked={timeMode === mode.id}
                   onClick={() => changeTimeMode(mode.id)}
                   className={cn(
-                    choiceButton(timeMode === mode.id),
-                    "px-2 py-1.5 text-xs leading-tight sm:text-sm",
+                    "min-h-9 rounded-lg px-2 text-sm transition-colors",
+                    timeMode === mode.id
+                      ? "bg-foreground text-background"
+                      : "text-muted-foreground hover:text-foreground",
                   )}
                 >
                   {mode.label}
@@ -972,60 +1059,34 @@ function StudySessionPage() {
             </div>
 
             {timeMode === "total" && (
-              <div className="space-y-3">
-                <div className="grid grid-cols-5 gap-2">
-                  {PRESETS.map((minutes) => (
-                    <button
-                      key={minutes}
-                      type="button"
-                      onClick={() => setDuration(minutes)}
-                      aria-pressed={duration === minutes}
-                      className={cn(choiceButton(duration === minutes), "px-0 tabular-nums")}
-                    >
-                      {minutes}m
-                    </button>
-                  ))}
-                </div>
-                <label className="flex items-center justify-between gap-3 text-sm">
-                  <span className="text-muted-foreground">Custom</span>
+              <div className="flex flex-wrap items-center gap-2">
+                {PRESETS.map((minutes) => (
+                  <button
+                    key={minutes}
+                    type="button"
+                    onClick={() => setDuration(minutes)}
+                    aria-pressed={duration === minutes}
+                    className={cn(choiceButton(duration === minutes), "min-w-12 px-3 tabular-nums")}
+                  >
+                    {minutes}m
+                  </button>
+                ))}
+                <label className="ml-auto flex items-center gap-2 text-sm text-muted-foreground">
+                  Custom
                   <MinutesField value={duration} onChange={setDuration} label="Total minutes" />
                 </label>
               </div>
             )}
 
-            {timeMode === "per" &&
-              (selected.length === 0 ? (
-                <p className="py-4 text-center text-sm text-muted-foreground">
-                  Pick assignments first.
-                </p>
-              ) : (
-                <ul className="max-h-48 space-y-2 overflow-y-auto pr-1">
-                  {selected.map((item) => (
-                    <li
-                      key={item.id}
-                      className="flex min-h-12 flex-wrap items-center gap-3 rounded-lg border border-foreground/15 px-3 py-2"
-                    >
-                      <span className="min-w-0 flex-1 truncate text-sm">{item.name}</span>
-                      <MinutesField
-                        value={minutesFor(item)}
-                        onChange={(minutes) =>
-                          setMinutesById((current) => ({ ...current, [item.id]: minutes }))
-                        }
-                        label={`Minutes for ${item.name}`}
-                      />
-                      {item.source === "canvas" && <CachedAssignmentEstimate assignmentId={Number(item.id.replace("canvas:", ""))} />}
-                    </li>
-                  ))}
-                </ul>
-              ))}
+            {timeMode === "per" && (
+              <p className="text-xs text-muted-foreground">
+                Each task gets its own timer. Set the minutes in the list below.
+              </p>
+            )}
 
             {timeMode === "pomodoro" && (
               <div className="space-y-3">
-                <div
-                  className="grid gap-2 sm:grid-cols-3"
-                  role="radiogroup"
-                  aria-label="Pomodoro length"
-                >
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="radiogroup" aria-label="Pomodoro length">
                   {POMODORO_PRESETS.map((preset) => (
                     <button
                       key={preset.id}
@@ -1033,7 +1094,7 @@ function StudySessionPage() {
                       role="radio"
                       aria-checked={presetId === preset.id}
                       onClick={() => changePreset(preset.id)}
-                      className={choiceButton(presetId === preset.id)}
+                      className={cn(choiceButton(presetId === preset.id), "tabular-nums")}
                     >
                       {preset.plan.focusMs / 60_000} / {preset.plan.shortBreakMs / 60_000}
                     </button>
@@ -1084,37 +1145,21 @@ function StudySessionPage() {
                     ))}
                   </div>
                 )}
-                <p className="text-xs text-muted-foreground">
-                  Long break of {chosenPlan.longBreakMs / 60_000} min after every{" "}
-                  {chosenPlan.roundsBeforeLongBreak} blocks.
-                </p>
               </div>
             )}
           </section>
-        </GlassCard>
 
-        {/* Right: the session, in order, ready to start. */}
-        <GlassCard
-          className="premium-reveal flex flex-col"
-          title="Your session"
-          action={
-            <span className="text-xs tabular-nums text-muted-foreground">
-              {selected.length} {selected.length === 1 ? "task" : "tasks"}
-            </span>
-          }
-        >
+          <div className="my-6 h-px bg-foreground/10 lg:order-3" aria-hidden="true" />
+
           {selected.length === 0 ? (
-            <p className="flex flex-1 items-center justify-center py-16 text-sm text-muted-foreground">
+            <p className="rounded-xl border border-dashed border-foreground/15 px-4 py-6 text-center text-sm text-muted-foreground lg:order-4">
               Nothing picked yet.
             </p>
           ) : (
-            <ol className="max-h-[17.5rem] space-y-2 overflow-y-auto pr-1">
+            <ol className="divide-y divide-foreground/10 rounded-xl border border-foreground/10 lg:order-4">
               {plannedItems.map((item, index) => (
-                <li
-                  key={item.id}
-                  className="group flex min-h-12 flex-wrap items-center gap-3 rounded-lg border border-foreground/15 px-3 py-2"
-                >
-                  <span className="w-4 shrink-0 text-xs tabular-nums text-muted-foreground">
+                <li key={item.id} className="group flex min-h-12 items-center gap-3 px-3 py-2">
+                  <span className="w-4 shrink-0 text-center text-xs tabular-nums text-muted-foreground">
                     {index + 1}
                   </span>
                   <span className="min-w-0 flex-1">
@@ -1126,11 +1171,14 @@ function StudySessionPage() {
                     )}
                   </span>
                   {timeMode === "per" && (
-                    <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                      {item.minutes} min
-                    </span>
+                    <MinutesField
+                      value={minutesFor(item)}
+                      onChange={(minutes) =>
+                        setMinutesById((current) => ({ ...current, [item.id]: minutes }))
+                      }
+                      label={`Minutes for ${item.name}`}
+                    />
                   )}
-                  {item.source === "canvas" && <CachedAssignmentEstimate assignmentId={Number(item.id.replace("canvas:", ""))} />}
                   <span className="flex items-center opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100">
                     <button
                       type="button"
@@ -1164,38 +1212,15 @@ function StudySessionPage() {
             </ol>
           )}
 
-          <div className="flex flex-1 flex-col items-center justify-center gap-3 py-6">
-            <SessionRing
-              segments={
-                timeMode === "per"
-                  ? plannedItems.map((item) => item.minutes ?? 25)
-                  : selected.map(() => 1)
-              }
-              value={plan}
-              label={TIME_MODES.find((mode) => mode.id === timeMode)?.label ?? ""}
-            />
-            {selected.length > 0 && timeMode !== "pomodoro" && (
-              <p className="text-xs tabular-nums text-muted-foreground">
-                Ends around{" "}
-                {new Date(
-                  now +
-                    (timeMode === "per"
-                      ? perItemTotal
-                      : Math.min(480, Math.max(1, Math.round(duration || 25)))) *
-                      60_000,
-                ).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
-              </p>
-            )}
-          </div>
-
           <button
             type="button"
-            className={cn(pillButton, "mt-5 w-full")}
+            className={cn(pillButton, "mt-6 w-full lg:order-1 lg:mt-5")}
             disabled={!canStart}
             onClick={start}
           >
-            Start
+            {selected.length === 0 ? "Pick something to start" : "Start"}
           </button>
+          </div>
         </GlassCard>
       </div>
     </div>

@@ -234,7 +234,7 @@ function FocusPage() {
       <PageTabs tabs={TODAY_TABS} label="Today sections" />
       <header className="premium-reveal px-1">
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-          <h1 className="text-3xl font-medium tracking-tight md:text-4xl">Coming up</h1>
+          <h1 className="text-3xl font-medium tracking-tight md:text-4xl">To-Do</h1>
           <CompletedLink />
         </div>
         {summary && <p className="mt-1.5 text-sm text-muted-foreground">{summary}</p>}

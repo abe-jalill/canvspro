@@ -7,20 +7,24 @@ const page = readFileSync(
   "utf8",
 );
 
-test("study session setup is two equal cards: pick and time on the left, session on the right", () => {
-  assert.match(page, /grid items-stretch gap-5[^"]*lg:grid-cols-2/);
+test("study session setup: the full list on the left, the session panel on the right", () => {
+  assert.match(page, /grid items-start gap-5 lg:grid-cols-\[minmax\(0,1\.15fr\)_minmax\(0,1fr\)\]/);
   // The cards take their natural height. Locking them to the window squeezed
   // the fixed-size ring into the text and Start button on shorter screens.
   assert.doesNotMatch(page, /\d+dvh/);
   assert.doesNotMatch(page, /min-h-0/);
-  // Long lists scroll inside their card instead.
-  assert.ok(page.includes('<ul className="max-h-[17.5rem] space-y-2 overflow-y-auto pr-1">'));
-  assert.ok(page.includes('<ol className="max-h-[17.5rem] space-y-2 overflow-y-auto pr-1">'));
+  // No short scroll box hiding the list: six show, then "Show N more".
+  assert.doesNotMatch(page, /max-h-\[17\.5rem\]/);
+  assert.match(page, /const SHORT_LIST = 6;/);
+  assert.match(page, /Show \{candidates\.length - SHORT_LIST\} more/);
   assert.match(page, /title="Pick assignments"/);
   assert.match(page, /title="Choose time"/);
   assert.match(page, /title="Your session"/);
-  // The right card shows the whole session as a ring, one arc per task.
+  // The session panel stays in view and shows the whole session as a ring,
+  // one arc per task, with the time inside it.
+  assert.match(page, /className="premium-reveal lg:sticky lg:top-4"/);
   assert.match(page, /function SessionRing\(/);
+  assert.match(page, /<div className="absolute inset-0 flex flex-col items-center justify-center text-center">/);
   assert.match(page, /<SessionRing/);
 });
 
