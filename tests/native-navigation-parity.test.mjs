@@ -11,21 +11,26 @@ test("native tabs remain a compact projection of website navigation", () => {
   // Four tabs: Today, the student's two picks (Study Session and Grades to start), More.
   assert.match(tabs, /static func tabs\(_ raw: String\) -> \[NativeTab\] \{ \[\.today\] \+ middle\(raw\) \+ \[\.more\] \}/);
   assert.match(tabs, /static let defaultMiddle: \[NativeTab\] = \[\.study, \.grades\]/);
-  assert.match(tabs, /static let choices: \[NativeTab\] = \[\.study, \.grades, \.files, \.announcements, \.calendar\]/);
+  assert.match(tabs, /static let choices: \[NativeTab\] = \[\.study, \.grades, \.files, \.announcements, \.calendar, \.classes\]/);
   assert.equal((tabs.match(/\.tabItem\s*\{/g) ?? []).length, 1, "one ForEach builds every tab");
   assert.ok(!tabs.includes('Label("Profile"'), "Profile is not a bottom tab");
-  // Every page not in the tab bar is a tile in More, plus Completed and My classes.
+  // Every page not in the tab bar is a tile in More, plus Completed.
   assert.match(more, /NativeTabBar\.choices\.filter \{ !inTabBar\.contains\(\$0\) \} \+ \[\.completed\]/);
   assert.ok(more.includes(".navigationDestination(item: $destination)"));
-  for (const title of ["My classes", "Notifications", "Tab bar", "Settings", "Help & Support"]) {
+  for (const title of ["Notifications", "Tab bar", "Settings", "Help & Support"]) {
     assert.ok(more.includes(`NativeMenuRow(title: "${title}"`), `${title} is reachable through More`);
   }
   assert.ok(more.includes('settingsLink("Tab bar", "dock.rectangle")'), "Settings has the tab bar choice");
   assert.ok(!more.includes('NativeMenuRow(title: "Assignments"'), "Assignments lives in Today");
   assert.ok(!more.includes('NativeMenuRow(title: "Get It Done"'), "Get It Done belongs inside Today");
-  assert.ok(!more.includes('NativeMenuRow(title: "Class Schedule"'), "My classes belongs inside Calendar");
+  // Calendar and Class Schedule are separate pages, each opened on its own.
+  assert.ok(tabs.includes('case .classes: return "Class Schedule"'));
+  assert.ok(tabs.includes("NavigationStack { CalendarView(store: contentStore, features: featureStore) }"));
+  assert.ok(tabs.includes("NavigationStack { ClassScheduleView(features: featureStore, store: contentStore) }"));
+  assert.ok(more.includes("case .calendar: CalendarView(store: store, features: features)"));
+  assert.ok(more.includes("case .classes: ClassScheduleView(features: features, store: store)"));
   assert.ok(tabs.includes('options: ["Dashboard", "To-Do", "Get It Done"]'));
-  assert.ok(more.includes('options: ["Calendar", "My classes"]'));
+
   assert.ok(tabs.includes('todaySection = "To-Do"; selection = .today'));
   // The page was called Assignments before; a saved choice of it still opens To-Do.
   assert.ok(tabs.includes('let todayPage = page == "Assignments" ? "To-Do" : page'));
@@ -56,4 +61,25 @@ test("More's profile card shows the school and Freshman to Senior from the class
   assert.match(features, /case 0: return "Senior"\s*case 1: return "Junior"\s*case 2: return "Sophomore"\s*case 3: return "Freshman"\s*default: return "Class of \\\(year\)"/);
   assert.match(more, /if let schoolLine = features\.accountDetails\.schoolLine \{/);
   assert.match(more, /Text\("Add your school and year"\)/);
+});
+
+test("Calendar rows are a title and one line, with no squeezed time column", () => {
+  const more = source("ios/App/App/NativeMoreViews.swift");
+  const calendar = more.slice(more.indexOf("struct CalendarView: View"), more.indexOf("struct WorkloadView: View"));
+  assert.doesNotMatch(calendar, /\.frame\(width: 50/);
+  assert.doesNotMatch(calendar, /"Show completed"|WorkloadView\(|NativeCachedEstimateEditor/);
+  assert.match(calendar, /Text\(\[\("\\\(kind\) \\\(time\)"\), item\.context\]/);
+  assert.match(calendar, /CPChip\(text: "Today", selected: isOnToday\)/);
+  assert.match(calendar, /\.cpNavigationTitle\("Calendar"\)/);
+  // Class Schedule: each class once per day it meets; edit or delete it from there.
+  const schedule = more.slice(more.indexOf("struct ClassScheduleView: View"), more.indexOf("enum NativeScheduleActions"));
+  assert.doesNotMatch(schedule, /Section\("Edit or remove"\)/);
+  assert.match(schedule, /Button\("Delete class", role: \.destructive\)/);
+});
+
+test("the Next up card holds its time estimate inside it", () => {
+  const views = source("ios/App/App/NativeViews.swift");
+  const hero = views.slice(views.indexOf("private var heroStats: some View"), views.indexOf("private var heroCardBackground"));
+  // The estimate comes before the card's own padding and background close.
+  assert.match(hero, /if let item = nextUp \{ NativeEstimateEditor\(assignment: item, features: features\) \}\s*\}\s*\.padding\(14\)\s*\.frame\(maxWidth: \.infinity, alignment: \.leading\)\s*\.background\(heroCardBackground/);
 });

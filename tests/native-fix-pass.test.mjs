@@ -286,7 +286,7 @@ test("every environment value is read through a key path", () => {
 
 test("study session matches the website: pick, choose time, your session with a ring", () => {
   const views = swift.NativeViews;
-  for (const text of ['"Pick assignments"', '"Choose time"', '"Your session"', '"Total time"', '"Per assignment"', '"Pomodoro"', '"Nothing picked yet."']) {
+  for (const text of ['"Pick assignments"', '"Choose time"', '"Your session"', '"Total time"', '"Per task"', '"Pomodoro"', '"Nothing picked yet."']) {
     assert.ok(views.includes(text), text);
   }
   assert.match(views, /private struct NativeSessionRing: View/);

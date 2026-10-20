@@ -40,10 +40,8 @@ test("launch plays for 3-5 seconds, can be skipped, and never waits on remote lo
 
 test("section selection and assignment search do not animate whole page containers", () => {
   const more = readFileSync(new URL("../ios/App/App/NativeMoreViews.swift", import.meta.url), "utf8");
-  const picker = more.slice(more.indexOf("struct NativeSectionPicker"), more.indexOf("struct NativeCalendarHub"));
-  assert.doesNotMatch(picker, /withAnimation/);
-  // The picker draws the website's outlined page tabs.
-  assert.match(picker, /NativePageTabs\(selection: \$selection/);
+  // Calendar and Class Schedule are separate pages now, with no section picker between them.
+  assert.doesNotMatch(more, /struct NativeSectionPicker|struct NativeCalendarHub/);
   const design = readFileSync(new URL("../ios/App/App/NativeDesign.swift", import.meta.url), "utf8");
   const segmented = design.slice(design.indexOf("struct CPSegmented"), design.indexOf("// MARK: - Screen modifiers"));
   assert.doesNotMatch(segmented, /withAnimation/);

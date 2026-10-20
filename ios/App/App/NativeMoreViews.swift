@@ -73,9 +73,23 @@ struct NativeMoreView: View {
         return NativeTabBar.choices.filter { !inTabBar.contains($0) } + [.completed]
     }
 
-    private var columns: [GridItem] {
-        let count = typeSize.isAccessibilitySize ? 1 : 2
-        return Array(repeating: GridItem(.flexible(), spacing: 12, alignment: .top), count: count)
+    /// Tiles two to a row (one at accessibility text sizes); an odd one out
+    /// takes the whole row.
+    private var shortcutGrid: some View {
+        let perRow = typeSize.isAccessibilitySize ? 1 : 2
+        let rows = stride(from: 0, to: shortcuts.count, by: perRow).map { Array(shortcuts[$0..<min($0 + perRow, shortcuts.count)]) }
+        return VStack(spacing: 12) {
+            ForEach(rows, id: \.self) { row in
+                HStack(alignment: .top, spacing: 12) {
+                    ForEach(row, id: \.self) { page in
+                        Button { destination = page } label: { tile(page, wide: row.count == 1 && perRow > 1) }
+                            .buttonStyle(CPPressStyle())
+                    }
+                }
+                // Both tiles in a row take the taller one's height.
+                .fixedSize(horizontal: false, vertical: true)
+            }
+        }
     }
 
     var body: some View {
@@ -84,18 +98,7 @@ struct NativeMoreView: View {
                 VStack(alignment: .leading, spacing: 28) {
                     profileCard
 
-                    LazyVGrid(columns: columns, spacing: 12) {
-                        ForEach(shortcuts, id: \.self) { page in
-                            Button { destination = page } label: { tile(page) }
-                                .buttonStyle(CPPressStyle())
-                        }
-                    }
-
-                    NativeMenuGroup("Plan") {
-                        Button { destination = .classes } label: {
-                            NativeMenuRow(title: "My classes", detail: "Class times, rooms and countdowns", symbol: "clock")
-                        }.buttonStyle(CPPressStyle())
-                    }
+                    shortcutGrid
 
                     NativeMenuGroup("Quick settings") {
                         VStack(alignment: .leading, spacing: 10) {
@@ -153,8 +156,8 @@ struct NativeMoreView: View {
         case .grades: NativeGradesView(store: store, features: features)
         case .files: NativeFilesView(store: store, features: features)
         case .announcements: AnnouncementsView(store: store, features: features)
-        case .calendar: NativeCalendarHub(store: store, features: features)
-        case .classes: NativeCalendarHub(store: store, features: features, section: "My classes")
+        case .calendar: CalendarView(store: store, features: features)
+        case .classes: ClassScheduleView(features: features, store: store)
         case .completed: NativeCompletedView(store: store, features: features)
         default: EmptyView()
         }
@@ -186,15 +189,42 @@ struct NativeMoreView: View {
         .accessibilityHint("Opens your profile")
     }
 
-    /// A page's tile: its icon, name and one live detail.
-    private func tile(_ page: NativeTab) -> some View {
+    /// A page's tile: its icon, name and one live detail. A wide tile (the odd
+    /// one out) puts the icon beside the words.
+    @ViewBuilder private func tile(_ page: NativeTab, wide: Bool = false) -> some View {
+        if wide {
+            HStack(spacing: 14) {
+                tileIcon(page)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(page.title).cpFont(15, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
+                    Text(detail(for: page)).cpFont(12).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "arrow.up.right").cpIconFont(10, .semibold).foregroundStyle(CPTheme.faint(scheme))
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .cpSurface()
+            .contentShape(Rectangle())
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(page.title), \(detail(for: page))")
+        } else {
+            squareTile(page)
+        }
+    }
+
+    private func tileIcon(_ page: NativeTab) -> some View {
         let tint = CPTheme.primary(scheme: scheme)
-        return VStack(alignment: .leading, spacing: 14) {
+        return Image(systemName: page.symbol).cpIconFont(15, .medium)
+            .foregroundStyle(tint)
+            .frame(width: 36, height: 36)
+            .background(tint.opacity(scheme == .dark ? 0.16 : 0.12), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+    }
+
+    private func squareTile(_ page: NativeTab) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Image(systemName: page.symbol).cpIconFont(15, .medium)
-                    .foregroundStyle(tint)
-                    .frame(width: 36, height: 36)
-                    .background(tint.opacity(scheme == .dark ? 0.16 : 0.12), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+                tileIcon(page)
                 Spacer(minLength: 4)
                 Image(systemName: "arrow.up.right").cpIconFont(10, .semibold).foregroundStyle(CPTheme.faint(scheme))
             }
@@ -207,7 +237,7 @@ struct NativeMoreView: View {
             }
         }
         .padding(14)
-        .frame(maxWidth: .infinity, minHeight: 124, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: 124, maxHeight: .infinity, alignment: .topLeading)
         .cpSurface()
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
@@ -240,6 +270,9 @@ struct NativeMoreView: View {
         case .completed:
             let count = features.shownAssignments(in: store).filter { $0.isFinished(in: store) }.count
             return count == 0 ? "Nothing finished yet" : "\(count) finished"
+        case .classes:
+            let count = Set(features.schedule.map { $0.title.lowercased() }).count
+            return count == 0 ? "Add your class times" : count == 1 ? "1 class a week" : "\(count) classes a week"
         default:
             return ""
         }
@@ -689,43 +722,6 @@ private struct NativeDeleteAccountView: View {
         }
         .cpListScreen()
         .cpNavigationTitle("Delete account")
-    }
-}
-
-struct NativeSectionPicker: View {
-    @Environment(\.colorScheme) private var scheme
-    @Environment(\.cpPalette) private var paletteDependency
-    @Binding var selection: String
-    let options: [String]
-    let label: String
-    var body: some View {
-        NativePageTabs(selection: $selection, options: options, label: label)
-            .padding(.horizontal, CPLayout.gutter)
-            .padding(.top, 6).padding(.bottom, 10)
-            .background(CPTheme.background(scheme).opacity(0.96))
-    }
-}
-
-struct NativeCalendarHub: View {
-    @ObservedObject var store: NativeContentStore
-    @ObservedObject var features: NativeFeatureStore
-    @State private var section: String
-
-    init(store: NativeContentStore, features: NativeFeatureStore, section: String = "Calendar") {
-        self.store = store
-        self.features = features
-        _section = State(initialValue: section)
-    }
-    var body: some View {
-        Group {
-            if section == "Calendar" { CalendarView(store: store, features: features) }
-            else { ClassScheduleView(features: features, store: store) }
-        }
-        .safeAreaInset(edge: .top, spacing: 0) {
-            NativeSectionPicker(selection: $section, options: ["Calendar", "My classes"], label: "Calendar sections")
-        }
-        .cpNavigationTitle("Calendar")
-        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
@@ -1359,7 +1355,8 @@ struct CalendarView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
-    @State private var showCompleted = false
+    /// Finished work is on the Completed page, so the calendar shows what's left.
+    private let showCompleted = false
     @State private var editingPick: CalendarPick?
     @State private var pickedTime = Date()
     @State private var selectedDate: Date? = Calendar.current.startOfDay(for: Date())
@@ -1422,19 +1419,19 @@ struct CalendarView: View {
                 } else if let selected = selectedDate {
                     let dayItems = itemsFor(day: selected)
                     dayCard(title: dayTitle(selected), items: dayItems)
+                } else if upcomingDayGroups.isEmpty {
+                    CPGlassCard { NativeEmptyState(title: "Nothing coming up", symbol: "calendar") }
                 } else {
                     ForEach(upcomingDayGroups) { group in dayCard(title: dayTitle(group.day), items: group.items) }
-                }
-                CPGlassCard(title: "Workload") {
-                    WorkloadView(assignments: visibleAssignments, store: store, features: features)
                 }
             }
             .cpPagePadding()
             .cpStateChange(selectedDate)
-            .cpStateChange(showCompleted)
             .sensoryFeedback(.selection, trigger: selectedDate)
         }
         .background(CPBackdrop())
+        .cpNavigationTitle("Calendar")
+        .navigationBarTitleDisplayMode(.inline)
         .sheet(item: $editingPick) { pick in
             NavigationStack {
                 Form {
@@ -1479,15 +1476,15 @@ struct CalendarView: View {
             VStack(spacing: 0) {
                 if items.isEmpty {
                     HStack(spacing: 10) {
-                        Image(systemName: "sun.max").cpIconFont(12, .semibold).foregroundStyle(CPTheme.foreground(scheme))
-                        Text("Your schedule is clear for this day.").cpFont(12).foregroundStyle(CPTheme.muted(scheme))
+                        Image(systemName: "sun.max").cpIconFont(12, .semibold).foregroundStyle(CPTheme.muted(scheme))
+                        Text("Nothing on this day.").cpFont(13).foregroundStyle(CPTheme.muted(scheme))
                         Spacer()
                     }
                     .padding(.vertical, 14)
                 }
                 ForEach(items) { item in
                     agendaItemRow(item)
-                    if item.id != items.last?.id { CPRowDivider(leading: 62) }
+                    if item.id != items.last?.id { CPRowDivider(leading: 15) }
                 }
             }
             .padding(.horizontal, 14)
@@ -1496,29 +1493,28 @@ struct CalendarView: View {
         .padding(.top, 4)
     }
 
+    private var isOnToday: Bool {
+        currentWeekOffset == 0 && selectedDate.map { calendar.isDate($0, inSameDayAs: today) } == true
+    }
+
+    /// The month and week arrows, the seven days, then Today or All upcoming.
     private var calendarStrip: some View {
         let counts = Dictionary(grouping: agenda, by: { calendar.startOfDay(for: $0.date) }).mapValues { $0.count }
         return VStack(spacing: 12) {
-            HStack(spacing: 4) {
+            HStack(spacing: 6) {
                 if let firstDate = weekDates.first {
                     Text(firstDate.formatted(.dateTime.month(.wide).year()))
-                        .cpFont(15, .semibold)
+                        .cpFont(17, .semibold).tracking(-0.3)
                         .foregroundStyle(CPTheme.foreground(scheme))
+                        .lineLimit(1)
                 }
-                Spacer()
+                Spacer(minLength: 8)
                 Button { changeWeek(by: -1) } label: { CPIconButtonLabel(symbol: "chevron.left") }
                     .buttonStyle(.plain)
                     // Earlier weeks are outside the display window, so they'd always be empty.
                     .disabled(currentWeekOffset <= 0)
                     .opacity(currentWeekOffset <= 0 ? 0.35 : 1)
                     .accessibilityLabel("Previous week")
-                Button {
-                    withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
-                        currentWeekOffset = 0
-                        selectedDate = today
-                    }
-                } label: { CPLinkLabel(text: "Today") }
-                    .buttonStyle(.plain)
                 Button { changeWeek(by: 1) } label: { CPIconButtonLabel(symbol: "chevron.right") }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Next week")
@@ -1530,12 +1526,17 @@ struct CalendarView: View {
             }
             HStack(spacing: 8) {
                 Button {
+                    withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
+                        currentWeekOffset = 0
+                        selectedDate = today
+                    }
+                } label: { CPChip(text: "Today", selected: isOnToday) }
+                    .buttonStyle(.plain)
+                Button {
                     withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) { selectedDate = nil }
                 } label: { CPChip(text: "All upcoming", selected: selectedDate == nil) }
                     .buttonStyle(.plain)
-                Spacer()
-                Button { showCompleted.toggle() } label: { CPChip(text: "Show completed", selected: showCompleted) }
-                    .buttonStyle(.plain)
+                Spacer(minLength: 0)
             }
         }
         .padding(CPLayout.cardPadding)
@@ -1591,54 +1592,62 @@ struct CalendarView: View {
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 
+    /// The title, then one line: what it is, when, and the class. A thin bar
+    /// marks the kind (due work, a Canvas event, or time you planned).
     private func agendaItemRow(_ item: NativeCalendarEntry) -> some View {
-        let tone: CPTone = item.pickID != nil ? .accent : item.kind.contains("Assignment") ? .neutral : .warning
+        let isPlanned = item.pickID != nil
+        let isDue = !isPlanned && item.kind.contains("Assignment")
+        let kind = isPlanned ? "Planned" : isDue ? "Due" : "Event"
+        let bar = isPlanned ? CPTheme.primary(scheme: scheme) : isDue ? CPTheme.foreground(scheme).opacity(0.55) : CPTheme.warning
+        let time = item.date.formatted(date: .omitted, time: .shortened)
         return HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(item.date, format: .dateTime.hour().minute())
-                    .cpFont(11, .semibold).monospacedDigit()
-                    .foregroundStyle(CPTheme.foreground(scheme))
-                CPPill(text: item.pickID != nil ? "Planned" : item.kind.contains("Assignment") ? "Due" : "Event", tone: tone)
-            }
-            .frame(width: 50, alignment: .leading)
-
+            RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                .fill(bar)
+                .frame(width: 3)
+                .padding(.vertical, 2)
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 3) {
                 Text(item.title)
-                    .cpFont(13, .medium)
+                    .cpFont(15, .medium)
                     .foregroundStyle(CPTheme.foreground(scheme))
+                    .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
-                Text(item.context)
-                    .cpFont(11)
+                Text([("\(kind) \(time)"), item.context].filter { !$0.isEmpty }.joined(separator: " · "))
+                    .cpFont(12).monospacedDigit()
                     .foregroundStyle(CPTheme.muted(scheme))
-                if let id = item.assignmentID { NativeCachedEstimateEditor(assignmentID: id, store: store, features: features) }
-                HStack(spacing: 14) {
-                    if let pickID = item.pickID {
-                        Button("Change time") {
-                            if let pick = features.calendarPicks.first(where: { $0.id == pickID }) {
-                                pickedTime = item.date
-                                editingPick = pick
-                            }
-                        }
-                        .foregroundStyle(CPTheme.foreground(scheme))
-                        Button("Remove", role: .destructive) { removePick(pickID) }
-                            .foregroundStyle(CPTheme.danger)
-                    } else if let url = item.url, url.scheme == "https" {
-                        Link(destination: url) {
-                            HStack(spacing: 3) {
-                                Text("Open Canvas")
-                                Image(systemName: "arrow.up.right").cpIconFont(8, .bold)
-                            }
-                        }
-                        .foregroundStyle(CPTheme.foreground(scheme))
-                    }
-                }
-                .cpFont(11, .semibold)
-                .buttonStyle(.plain)
-                .frame(minHeight: 26)
+                    .lineLimit(1)
             }
-            Spacer(minLength: 0)
+            Spacer(minLength: 8)
+            if let pickID = item.pickID {
+                Menu {
+                    Button { changePick(pickID, date: item.date) } label: { Label("Change time", systemImage: "clock") }
+                    Button(role: .destructive) { removePick(pickID) } label: { Label("Remove", systemImage: "trash") }
+                } label: {
+                    Image(systemName: "ellipsis").cpIconFont(13, .medium)
+                        .foregroundStyle(CPTheme.muted(scheme))
+                        .frame(width: 36, height: 36)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityLabel("Options for \(item.title)")
+            } else if let url = item.url, url.scheme == "https" {
+                Link(destination: url) {
+                    Image(systemName: "arrow.up.right").cpIconFont(11, .semibold)
+                        .foregroundStyle(CPTheme.muted(scheme))
+                        .frame(width: 36, height: 36)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityLabel("Open \(item.title) in Canvas")
+            }
         }
-        .padding(.vertical, 11)
+        .padding(.vertical, 12)
+        .fixedSize(horizontal: false, vertical: true)
+        .accessibilityElement(children: .contain)
+    }
+
+    private func changePick(_ id: Int, date: Date) {
+        guard let pick = features.calendarPicks.first(where: { $0.id == id }) else { return }
+        pickedTime = date
+        editingPick = pick
     }
 
     private func removePick(_ id: Int) {
@@ -2678,32 +2687,76 @@ struct ClassScheduleView: View {
     }
     private var credits: Double { var seen = Set<String>(); return features.schedule.reduce(0) { total, entry in let key = entry.title.lowercased(); guard seen.insert(key).inserted else { return total }; return total + entry.credits } }
     private var conflicts: [String] { var result: [String] = []; for i in features.schedule.indices { for j in features.schedule.indices where j > i { let a = features.schedule[i], b = features.schedule[j]; if a.title != b.title && !Set(a.days).isDisjoint(with: b.days) && a.startMinutes < b.endMinutes && b.startMinutes < a.endMinutes { result.append("\(a.title) overlaps \(b.title)") } } }; return result }
+    private var classCount: Int { Set(features.schedule.map { $0.title.lowercased() }).count }
+
+    /// Each day's classes; tap one to edit it, swipe to delete it.
     var body: some View {
         List {
-            Section { LabeledContent("Classes", value: "\(Set(features.schedule.map { $0.title.lowercased() }).count)"); LabeledContent("Credits", value: credits.formatted()); if !conflicts.isEmpty { ForEach(conflicts, id: \.self) { Text($0).cpFont(12).foregroundStyle(.orange) } } }
-            ForEach(days.indices, id: \.self) { index in
-                let day = days[index]
-                let meetings = features.schedule.filter { $0.days.contains(day.0) }.sorted { $0.startMinutes < $1.startMinutes }
-                if !meetings.isEmpty { Section(day.1) { ForEach(meetings) { item in Button { editing = item } label: { VStack(alignment: .leading, spacing: 3) { Text(displayName(item)).cpFont(13, .semibold); Text("\(time(item.startMinutes))–\(time(item.endMinutes))").cpFont(12).monospacedDigit(); Text([item.code, item.location, item.instructor].filter { !$0.isEmpty }.joined(separator: " · ")).cpFont(11).foregroundStyle(.secondary) } }.buttonStyle(.plain) } } }
-            }
-            Section("Edit or remove") { ForEach(features.schedule) { item in Button { editing = item } label: { HStack { Text(displayName(item)); Spacer(); Text(item.days.map(NativeWeekday.short).joined(separator: ", ")).foregroundStyle(.secondary) } } }
-                .onDelete { indexes in
-                    let items = indexes.map { features.schedule[$0] }
-                    Task {
-                        if features.isPreview { features.schedule.removeAll { entry in items.contains { $0.id == entry.id } }; features.persistPreviewState(); return }
-                        guard let api = features.sessionStore.api else { return }
-                        do {
-                            let token = try await features.sessionStore.accessToken()
-                            for item in items { try await api.deleteScheduleEntry(id: item.id, token: token) }
-                        } catch {
-                            features.errorMessage = error.localizedDescription
-                        }
-                        await features.load()
+            if features.schedule.isEmpty {
+                Section {
+                    VStack(spacing: 12) {
+                        NativeEmptyState(title: "No classes yet", symbol: "calendar.badge.plus")
+                        Button { showAdd = true } label: { Label("Add a class", systemImage: "plus") }
+                            .buttonStyle(CPButtonStyle(kind: .primary))
                     }
-                } }
-            if features.schedule.isEmpty { NativeEmptyState(title: "No class schedule", symbol: "calendar.badge.plus") }
-        }.cpListScreen().cpNavigationTitle("Class Schedule").toolbar { Button { showAdd = true } label: { Image(systemName: "plus") } }.sheet(isPresented: $showAdd) { AddScheduleView(features: features) }.sheet(item: $editing) { AddScheduleView(features: features, editing: $0) }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                }
+            } else {
+                Section {
+                    LabeledContent("Classes", value: "\(classCount)")
+                    LabeledContent("Credits", value: credits.formatted())
+                    ForEach(conflicts, id: \.self) { conflict in
+                        Label(conflict, systemImage: "exclamationmark.triangle").cpFont(13).foregroundStyle(.orange)
+                    }
+                }
+                ForEach(days.indices, id: \.self) { index in
+                    let day = days[index]
+                    let meetings = features.schedule.filter { $0.days.contains(day.0) }.sorted { $0.startMinutes < $1.startMinutes }
+                    if !meetings.isEmpty {
+                        Section(day.1) {
+                            ForEach(meetings) { item in
+                                Button { editing = item } label: { meetingRow(item) }
+                                    .buttonStyle(.plain)
+                                    .swipeActions {
+                                        Button(role: .destructive) { delete(item) } label: { Label("Delete", systemImage: "trash") }
+                                    }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .cpListScreen()
+        .cpNavigationTitle("Class Schedule")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button { showAdd = true } label: { Image(systemName: "plus") }
+                    .accessibilityLabel("Add a class")
+            }
+        }
+        .sheet(isPresented: $showAdd) { AddScheduleView(features: features) }
+        .sheet(item: $editing) { AddScheduleView(features: features, editing: $0) }
     }
+
+    /// The class, then "9:00 – 9:50 AM · Room 204".
+    private func meetingRow(_ item: ClassScheduleEntry) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(displayName(item)).cpFont(15, .medium).foregroundStyle(.primary)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(["\(time(item.startMinutes)) – \(time(item.endMinutes))", item.location].filter { !$0.isEmpty }.joined(separator: " · "))
+                .cpFont(12).monospacedDigit().foregroundStyle(.secondary).lineLimit(1)
+        }
+        .padding(.vertical, 2)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+    }
+
+    private func delete(_ item: ClassScheduleEntry) {
+        Task { await NativeScheduleActions.delete(item, features: features) }
+    }
+
     private func time(_ minutes: Int) -> String { let hour = minutes / 60; let minute = minutes % 60; return String(format: "%d:%02d %@", hour % 12 == 0 ? 12 : hour % 12, minute, hour < 12 ? "AM" : "PM") }
 }
 
@@ -2723,6 +2776,15 @@ private struct AddScheduleView: View {
                 Section("Class") { TextField("Title", text: $title); TextField("Course code", text: $code); TextField("Credits", text: $credits).keyboardType(.decimalPad); TextField("Location", text: $location); TextField("Instructor", text: $instructor) }
                 Section("Meets") { LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 0)), count: 4), spacing: 8) { ForEach(days, id: \.self) { day in Button(NativeWeekday.short(day)) { if selectedDays.contains(day) { selectedDays.remove(day) } else { selectedDays.insert(day); dayStarts[day] = start; dayEnds[day] = end } }.buttonStyle(.borderedProminent).tint(selectedDays.contains(day) ? Color.accentColor : .gray).frame(maxWidth: .infinity).accessibilityLabel(NativeWeekday.full(day)).accessibilityAddTraits(selectedDays.contains(day) ? .isSelected : []) } }; Toggle("Different times by day", isOn: $perDay); if perDay { ForEach(days.filter { selectedDays.contains($0) }, id: \.self) { day in Text(NativeWeekday.full(day)).cpFont(12).foregroundStyle(.secondary); DatePicker("Starts", selection: Binding(get: { dayStarts[day] ?? start }, set: { dayStarts[day] = $0 }), displayedComponents: .hourAndMinute); DatePicker("Ends", selection: Binding(get: { dayEnds[day] ?? end }, set: { dayEnds[day] = $0 }), displayedComponents: .hourAndMinute) } } else { DatePicker("Starts", selection: $start, displayedComponents: .hourAndMinute); DatePicker("Ends", selection: $end, displayedComponents: .hourAndMinute) } }
                 if let error { Section { Text(error).foregroundStyle(.red) } }
+                if let editing {
+                    Section {
+                        Button("Delete class", role: .destructive) {
+                            Task {
+                                if let message = await NativeScheduleActions.delete(editing, features: features) { error = message } else { dismiss() }
+                            }
+                        }
+                    }
+                }
             }.cpListScreen().cpNavigationTitle(editing == nil ? "Add Class" : "Edit Class").toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }; ToolbarItem(placement: .confirmationAction) { Button("Save") { save() }.disabled(title.trimmingCharacters(in: .whitespaces).isEmpty || selectedDays.isEmpty) } }.onAppear { loadEditing() }
         }
     }
@@ -2758,6 +2820,27 @@ private struct AddScheduleView: View {
     }
     private func loadEditing() { guard !loaded, let editing else { return }; loaded = true; title = editing.title; code = editing.code; location = editing.location; instructor = editing.instructor; credits = editing.credits == 0 ? "" : editing.credits.formatted(); selectedDays = Set(editing.days); start = timeDate(editing.startMinutes); end = timeDate(editing.endMinutes); for day in editing.days { dayStarts[day] = start; dayEnds[day] = end } }
     private func timeDate(_ minutes: Int) -> Date { Calendar.current.date(bySettingHour: minutes / 60, minute: minutes % 60, second: 0, of: Date()) ?? Date() }
+}
+
+enum NativeScheduleActions {
+    /// Deletes one class from the schedule. Returns an error message, or nil.
+    @MainActor @discardableResult
+    static func delete(_ item: ClassScheduleEntry, features: NativeFeatureStore) async -> String? {
+        if features.isPreview {
+            features.schedule.removeAll { $0.id == item.id }
+            features.persistPreviewState()
+            return nil
+        }
+        guard let api = features.sessionStore.api else { return nil }
+        do {
+            try await api.deleteScheduleEntry(id: item.id, token: try await features.sessionStore.accessToken())
+            await features.load()
+            return nil
+        } catch {
+            features.errorMessage = error.localizedDescription
+            return error.localizedDescription
+        }
+    }
 }
 
 /// Schedule entries store days as single letters (R = Thursday, U = Sunday).

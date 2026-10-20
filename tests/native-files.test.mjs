@@ -44,7 +44,7 @@ test("Files is a tab, and every class page has its folder", () => {
   // Files can be a tab (Settings › Tab bar) and otherwise opens from More.
   assert.match(views, /case \.files:\s*NavigationStack \{ NativeFilesView\(store: contentStore, features: featureStore\) \}/);
   assert.match(read("ios/App/App/NativeMoreViews.swift"), /case \.files: NativeFilesView\(store: store, features: features\)/);
-  assert.match(views, /announcements = "Announcements", files = "Files"/);
+  assert.match(views, /announcements = "Posts", files = "Files"/);
   assert.match(views, /case \.files: NativeClassFilesSection\(courseID: course\.id, name: courseName\)/);
   // One folder per class, remembered by class ID so a renamed class keeps it.
   assert.match(files, /static func classFolders\(root: URL, classes: \[\(id: Int, name: String\)\]\) -> \[Int: URL\]/);

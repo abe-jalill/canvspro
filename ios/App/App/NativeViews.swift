@@ -1242,8 +1242,8 @@ private struct PasswordResetSheet: View {
     }
 }
 
-/// Every page that can be a tab or open from More. `classes` and `completed`
-/// only open from More.
+/// Every page that can be a tab or open from More. `completed` only opens
+/// from More (and To-Do).
 enum NativeTab: String, Hashable {
     case today, study, grades, files, announcements, calendar, classes, completed, more
 
@@ -1255,7 +1255,7 @@ enum NativeTab: String, Hashable {
         case .files: return "Files"
         case .announcements: return "Announcements"
         case .calendar: return "Calendar"
-        case .classes: return "My classes"
+        case .classes: return "Class Schedule"
         case .completed: return "Completed"
         case .more: return "More"
         }
@@ -1281,7 +1281,7 @@ enum NativeTab: String, Hashable {
 /// Everything not in the tab bar opens from More.
 enum NativeTabBar {
     static let key = "CanvasProTabBar"
-    static let choices: [NativeTab] = [.study, .grades, .files, .announcements, .calendar]
+    static let choices: [NativeTab] = [.study, .grades, .files, .announcements, .calendar, .classes]
     static let defaultMiddle: [NativeTab] = [.study, .grades]
 
     static func middle(_ raw: String) -> [NativeTab] {
@@ -1676,7 +1676,9 @@ struct NativeMainTabView: View {
         case .announcements:
             NavigationStack { AnnouncementsView(store: contentStore, features: featureStore) }
         case .calendar:
-            NavigationStack { NativeCalendarHub(store: contentStore, features: featureStore) }
+            NavigationStack { CalendarView(store: contentStore, features: featureStore) }
+        case .classes:
+            NavigationStack { ClassScheduleView(features: featureStore, store: contentStore) }
         default:
             NativeMoreView(store: contentStore, features: featureStore, sessionStore: sessionStore, destination: $moreDestination, studyRequest: $studyRequest, quickPomodoro: $quickPomodoro)
         }
@@ -1903,39 +1905,46 @@ private struct NativeDashboardView: View {
         }
     }
 
-    /// Next up above two smaller cards, without an extra enclosing frame.
+    /// Next up above two smaller cards, without an extra enclosing frame. The
+    /// time estimate sits inside the Next up card, under the details; it's its
+    /// own control, so it isn't part of the card's tap.
     private var heroStats: some View {
         VStack(spacing: 8) {
-            Button { openFocus("7") } label: {
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack {
-                        Text("NEXT UP").cpFont(11, .medium).tracking(2).foregroundStyle(CPTheme.muted(scheme))
-                        Spacer()
-                        Image(systemName: "arrow.up.right").cpIconFont(11, .medium).foregroundStyle(CPTheme.muted(scheme))
-                    }
-                    if let item = nextUp {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(item.name).cpFont(17, .medium).foregroundStyle(CPTheme.foreground(scheme))
-                                .lineLimit(2).multilineTextAlignment(.leading)
-                            Text(store.displayName(courseID: item.courseID, fallback: item.courseName))
-                                .cpFont(12).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
+            VStack(alignment: .leading, spacing: 10) {
+                Button { openFocus("7") } label: {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Text("NEXT UP").cpFont(11, .medium).tracking(2).foregroundStyle(CPTheme.muted(scheme))
+                            Spacer()
+                            Image(systemName: "arrow.up.right").cpIconFont(11, .medium).foregroundStyle(CPTheme.muted(scheme))
                         }
-                        Text(nextUpDetail(item)).cpFont(12).monospacedDigit()
-                            .foregroundStyle(CPTheme.foreground(scheme).opacity(0.85))
-                            .multilineTextAlignment(.leading)
-                    } else {
-                        Text("Nothing due in the next seven days.").cpFont(13).foregroundStyle(CPTheme.muted(scheme))
+                        if let item = nextUp {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(item.name).cpFont(17, .medium).foregroundStyle(CPTheme.foreground(scheme))
+                                    .lineLimit(2).multilineTextAlignment(.leading)
+                                Text(store.displayName(courseID: item.courseID, fallback: item.courseName))
+                                    .cpFont(12).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
+                            }
+                            Text(nextUpDetail(item)).cpFont(12).monospacedDigit()
+                                .foregroundStyle(CPTheme.foreground(scheme).opacity(0.85))
+                                .multilineTextAlignment(.leading)
+                                .fixedSize(horizontal: false, vertical: true)
+                        } else {
+                            Text("Nothing due in the next seven days.").cpFont(13).foregroundStyle(CPTheme.muted(scheme))
+                        }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
                 }
-                .padding(14)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(heroCardBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(CPTheme.primary(scheme: scheme).opacity(0.3), lineWidth: 0.5))
+                .buttonStyle(CPPressStyle())
+                .accessibilityElement(children: .combine)
+                .accessibilityHint("Opens To-Do")
+                if let item = nextUp { NativeEstimateEditor(assignment: item, features: features) }
             }
-            .buttonStyle(CPPressStyle())
-            .accessibilityElement(children: .combine)
-            .accessibilityHint("Opens To-Do")
-            if let item = nextUp { NativeEstimateEditor(assignment: item, features: features) }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(heroCardBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(CPTheme.primary(scheme: scheme).opacity(0.3), lineWidth: 0.5))
             HStack(spacing: 8) {
                 heroSmallStat(value: todayCount, label: "Next 24 hours", symbol: "clock", window: "1")
                 heroSmallStat(value: overdueCount, label: "To catch up", symbol: "arrow.uturn.backward", window: "overdue", soft: overdueCount > 0)
@@ -1964,7 +1973,7 @@ private struct NativeDashboardView: View {
                         .contentTransition(.numericText())
                         .animation(reduceMotion ? nil : .snappy, value: value)
                 }
-                Text(label).cpFont(12).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1).minimumScaleFactor(0.85)
+                Text(label).cpFont(12).foregroundStyle(CPTheme.muted(scheme)).lineLimit(2).fixedSize(horizontal: false, vertical: true)
             }
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -2286,7 +2295,7 @@ private struct NativeDashboardView: View {
         }.sorted { $0.date < $1.date }.prefix(4))
         return CPGlassCard {
             CPCardHeader(title: "Calendar", collapse: collapse("calendar")) {
-                NavigationLink { NativeCalendarHub(store: store, features: features) } label: { CPLinkLabel(text: "View all") }.buttonStyle(.plain)
+                NavigationLink { CalendarView(store: store, features: features) } label: { CPLinkLabel(text: "View all") }.buttonStyle(.plain)
             }
             if events.isEmpty {
                 NativeEmptyState(title: "No calendar events this week.", symbol: "calendar")
@@ -3547,7 +3556,8 @@ struct NativeAssignmentDescriptionLink: View {
 }
 
 enum CourseDetailSection: String, CaseIterable {
-    case upcoming = "Upcoming", graded = "Graded", announcements = "Announcements", files = "Files"
+    // Short labels so four fit side by side without shrinking.
+    case upcoming = "Upcoming", graded = "Graded", announcements = "Posts", files = "Files"
 }
 
 struct CourseDetailView: View {
@@ -4402,7 +4412,8 @@ struct NativeStudyView: View {
 
     private static let timeModes: [(id: String, label: String)] = [
         ("total", "Total time"),
-        ("per", "Per assignment"),
+        // Short so all three fit without shrinking on smaller iPhones.
+        ("per", "Per task"),
         ("pomodoro", "Pomodoro"),
     ]
     private var timeModeLabel: Binding<String> {
