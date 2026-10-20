@@ -33,3 +33,19 @@ Push notifications that arrive with the app closed are the feature users depend 
 - Each check writes a heartbeat (`push_last_check`: `checkedAt`, `reason`, `failStreak`). Keep `reason` accurate; `/api/public/push/health` and `.github/workflows/push-health.yml` (hourly; a failure emails the owner) rely on it.
 - Before pushing anything that touches `src/routes/api/public/push/`, `src/lib/push-*.ts`, `src/lib/webpush.server.ts`, `src/lib/outbound-policy.ts`, `src/lib/countdown-alerts.server.ts`, `public/sw.js`, or push migrations: run `npm test` (tests: `background-push`, `outbound-policy`, `push-health`, `class-countdown`) and keep them passing. Never weaken those tests to make a change pass.
 - After deploying a change to that code, confirm with the live check: `curl https://canvaspro.app/api/public/push/health` → `{"ok":true,...}` (or the cron log: `select content from net._http_response order by created desc limit 1;`).
+
+## Waiting on the owner: Apple Developer account
+
+The owner doesn't have a paid Apple Developer Program account yet. When they say they have one, build **Files that sync between the website and the iPhone through the student's own iCloud** (decided 2026-10-20; it costs the owner nothing because files count against each student's iCloud storage):
+
+- **iPhone (`ios-native`):** Files currently live in iCloud Drive (container `iCloud.app.canvaspro.mobile`, `ios/App/App/NativeFiles.swift`) or on the phone when iCloud is off. Move them into the same container's **CloudKit private database**: one record per file or folder, a `CKAsset` for the contents, a parent reference for subfolders, and class folders keyed by Canvas course ID. Keep the on-phone fallback. The owner accepted that files will then no longer show in Apple's Files app.
+- **Website (`main`):** add a Files page using **CloudKit JS**: Apple ID sign-in on the web, the same private database and container, the same class folders and subfolders as the iPhone. Students without an Apple ID get browser-only storage (OPFS/IndexedDB) on that computer.
+- **Owner setup to walk them through then:**
+  1. On the App ID `app.canvaspro.mobile`, turn on iCloud with CloudKit and the container `iCloud.app.canvaspro.mobile`.
+  2. In CloudKit Console, deploy the schema to Production and create a web API token whose allowed origin is `https://canvaspro.app`.
+  3. Add that token to the website's environment.
+- **Unlocked by the same account (already built on `ios-native`):**
+  - Sign in with Apple: App ID capability, Supabase Apple provider, and the `APPLE_TEAM_ID`, `APPLE_KEY_ID` and `APPLE_PRIVATE_KEY` server secrets;
+  - push notifications;
+  - iCloud Drive Files;
+  - signed TestFlight builds. The setup notes are in `codemagic.yaml`.
