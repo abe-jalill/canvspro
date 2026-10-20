@@ -166,8 +166,15 @@ struct NativeMoreView: View {
                 NativeAvatar(url: features.avatarURL, size: 52)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(fullName).cpFont(17, .semibold).tracking(-0.3).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
-                    Text(sessionStore.session?.user.email ?? "Photo, name, school, and major")
-                        .cpFont(12).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
+                    // School and year, e.g. "State University · Sophomore".
+                    if let schoolLine = features.accountDetails.schoolLine {
+                        Text(schoolLine).cpFont(13).foregroundStyle(CPTheme.foreground(scheme).opacity(0.85)).lineLimit(1)
+                    } else {
+                        Text("Add your school and year").cpFont(13).foregroundStyle(CPTheme.primary(scheme: scheme)).lineLimit(1)
+                    }
+                    if let email = sessionStore.session?.user.email {
+                        Text(email).cpFont(12).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
+                    }
                 }
                 Spacer(minLength: 8)
                 Image(systemName: "chevron.right").cpIconFont(9, .bold).foregroundStyle(CPTheme.faint(scheme))

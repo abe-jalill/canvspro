@@ -72,6 +72,31 @@ struct NativeAccountDetails: Equatable {
         classOf = metadata["class_of"] as? String ?? metadata["classOf"] as? String ?? ""
     }
 
+    /// Freshman to Senior from the graduation year, for a four-year degree. The
+    /// school year turns over in August, so the class of 2027 are juniors in
+    /// fall 2025. "Class of 2031" when it's further out or already past; nil
+    /// with no year.
+    func standing(now: Date = Date(), calendar: Calendar = .current) -> String? {
+        guard let year = Int(classOf.trimmingCharacters(in: .whitespacesAndNewlines)) else { return nil }
+        let parts = calendar.dateComponents([.year, .month], from: now)
+        guard let current = parts.year, let month = parts.month else { return nil }
+        // The spring this school year ends in.
+        let finalYear = month >= 8 ? current + 1 : current
+        switch year - finalYear {
+        case 0: return "Senior"
+        case 1: return "Junior"
+        case 2: return "Sophomore"
+        case 3: return "Freshman"
+        default: return "Class of \(year)"
+        }
+    }
+
+    /// "State University · Sophomore", or nil when neither is filled in.
+    var schoolLine: String? {
+        let parts = [school.trimmingCharacters(in: .whitespacesAndNewlines), standing() ?? ""].filter { !$0.isEmpty }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
     var metadata: [String: Any] { [
         "first_name": firstName.trimmingCharacters(in: .whitespacesAndNewlines),
         "last_name": lastName.trimmingCharacters(in: .whitespacesAndNewlines),

@@ -46,3 +46,12 @@ test("website settings sections and profile fields stay reachable in native Sett
   assert.ok(native.includes("PhotosPicker"), "native profile can change its avatar");
   assert.ok(native.includes("usernameAvailable"), "native profile checks username availability");
 });
+
+test("More's profile card shows the school and Freshman to Senior from the class year", () => {
+  const features = source("ios/App/App/NativeFeatures.swift");
+  const more = source("ios/App/App/NativeMoreViews.swift");
+  assert.match(features, /let finalYear = month >= 8 \? current \+ 1 : current/);
+  assert.match(features, /case 0: return "Senior"\s*case 1: return "Junior"\s*case 2: return "Sophomore"\s*case 3: return "Freshman"\s*default: return "Class of \\\(year\)"/);
+  assert.match(more, /if let schoolLine = features\.accountDetails\.schoolLine \{/);
+  assert.match(more, /Text\("Add your school and year"\)/);
+});
