@@ -15,8 +15,8 @@ export const REFUND_WINDOW_DAYS = 14;
 export const LAUNCH_GRACE_DAYS = 14;
 
 export const PLANS: Record<Plan, { price: string; cents: number; per: "month" | "year" }> = {
-  monthly: { price: "$6.00", cents: 600, per: "month" },
-  yearly: { price: "$4.00", cents: 4800, per: "month" },
+  monthly: { price: "$5.00", cents: 500, per: "month" },
+  yearly: { price: "$50.00", cents: 5000, per: "year" },
 };
 
 /** Which Paddle price a checkout uses: the trial ones start with 14 free days. */
