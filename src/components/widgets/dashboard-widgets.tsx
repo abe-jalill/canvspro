@@ -566,7 +566,7 @@ function FocusWidget() {
 
   return (
     <GlassCard
-      title="Focus"
+      title="To-Do"
       subtitle="Due within 48 hours"
       action={
         <Link
