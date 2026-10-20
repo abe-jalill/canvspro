@@ -4071,6 +4071,8 @@ struct NativeStudyView: View {
     @State private var selected: Set<Int>; @State private var selectedOrder: [Int]; @State private var manualTasks: [AssignmentItem]; @State private var completedIDs: Set<Int>; @State private var sessionFinished: Bool; @State private var sessionStarted: Bool
     @State private var duration: Int; @State private var remaining: Int; @State private var running: Bool; @State private var currentIndex: Int; @State private var showCompleted = false
     @State private var manualName = ""; @State private var search = ""
+    @State private var showAllCandidates = false; @State private var addingTask = false
+    @FocusState private var taskFieldFocused: Bool
     @AppStorage("CanvasProNativeStudyTimeMode") private var timeMode = "total"
     @State private var itemMinutes: [Int: Int]
     @State private var perItem: Bool
@@ -4280,79 +4282,99 @@ struct NativeStudyView: View {
         .background(CPBackdrop())
     }
 
-    /// Step heading inside a card: a numbered circle, the title, and a quiet value.
-    private func stepHeading(_ number: Int, _ title: String, trailing: String? = nil) -> some View {
+    /// A section title inside the card, with a quiet value on the right.
+    private func stepHeading(_ title: String, trailing: String? = nil) -> some View {
         HStack(spacing: 10) {
-            Text("\(number)").cpFont(11).monospacedDigit()
-                .foregroundStyle(CPTheme.muted(scheme))
-                .frame(width: 24, height: 24)
-                .overlay(Circle().strokeBorder(CPTheme.outline(scheme), lineWidth: 0.5))
-            Text(title).cpFont(16).tracking(-0.2).foregroundStyle(CPTheme.foreground(scheme))
+            Text(title).cpFont(16, .medium).tracking(-0.2).foregroundStyle(CPTheme.foreground(scheme))
             Spacer(minLength: 8)
             if let trailing {
-                Text(trailing).cpFont(11).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
+                Text(trailing).cpFont(12).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
             }
         }
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isHeader)
     }
 
+    /// How many assignments show before "Show more".
+    private static let shortListCount = 5
+
     /// Card one: what to study, then how long.
     private var pickCard: some View {
-        CPGlassCard {
-            stepHeading(1, "Pick assignments", trailing: selected.isEmpty ? nil : "\(selected.count) picked")
-            HStack(spacing: 8) {
+        let candidates = setupCandidates
+        let shown = showAllCandidates || !search.isEmpty ? candidates : Array(candidates.prefix(Self.shortListCount))
+        return CPGlassCard {
+            stepHeading("Pick assignments", trailing: selected.isEmpty ? nil : "\(selected.count) picked")
+            // Search only once the list is long enough to need it.
+            if candidates.count > Self.shortListCount || !search.isEmpty {
                 HStack(spacing: 8) {
                     Image(systemName: "magnifyingglass").cpIconFont(11).foregroundStyle(CPTheme.muted(scheme))
-                    TextField("Search", text: $search).cpFont(13)
+                    TextField("Search", text: $search).cpFont(14)
                         .accessibilityLabel("Search assignments or classes")
                 }
                 .padding(.horizontal, 12).frame(minHeight: 40)
                 .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(CPTheme.insetBorder(scheme), lineWidth: 0.5))
-                Button { showCompleted.toggle() } label: { CPChip(text: "Submitted", selected: showCompleted) }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Include submitted")
             }
-            if setupCandidates.isEmpty {
+            if candidates.isEmpty {
                 NativeEmptyState(title: search.isEmpty ? "Nothing due soon" : "No matches", symbol: "checkmark.circle")
             } else {
                 VStack(spacing: 0) {
-                    ForEach(setupCandidates) { item in
+                    ForEach(shown) { item in
                         candidateRow(item)
-                        if item.id != setupCandidates.last?.id { CPRowDivider(leading: 30) }
+                        if item.id != shown.last?.id { CPRowDivider(leading: 32) }
                     }
                 }
+                if shown.count < candidates.count {
+                    Button { withAnimation(.easeInOut(duration: 0.2)) { showAllCandidates = true } } label: {
+                        CPLinkLabel(text: "Show \(candidates.count - shown.count) more", symbol: "chevron.down")
+                    }
+                    .buttonStyle(.plain)
+                }
             }
+            addTaskRow
+
+            CPRowDivider()
+                .padding(.vertical, 6)
+
+            stepHeading("Choose time", trailing: planText)
+            CPSegmented(selection: timeModeLabel, options: Self.timeModes.map { $0.label }, label: "How to time it")
+            timeSection
+        }
+    }
+
+    /// "Add your own task": a quiet button until tapped, then the field.
+    @ViewBuilder private var addTaskRow: some View {
+        if addingTask {
             HStack(spacing: 8) {
-                TextField("Add your own task", text: $manualName).cpFont(13).submitLabel(.done).onSubmit { addManualTask() }
+                TextField("Add your own task", text: $manualName).cpFont(14).submitLabel(.done)
+                    .focused($taskFieldFocused)
+                    .onSubmit { addManualTask(); addingTask = false }
                     .accessibilityLabel("Add your own task")
-                Button { addManualTask() } label: { Image(systemName: "plus").cpIconFont(12, .semibold) }
+                Button { addManualTask(); addingTask = false } label: { Image(systemName: "plus").cpIconFont(12, .semibold) }
                     .frame(width: 32, height: 32)
                     .disabled(manualName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     .accessibilityLabel("Add task")
             }
             .padding(.leading, 12).padding(.trailing, 4).frame(minHeight: 40)
             .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(CPTheme.insetBorder(scheme), lineWidth: 0.5))
-
-            CPRowDivider()
-                .padding(.vertical, 6)
-
-            stepHeading(2, "Choose time", trailing: planText)
-            CPSegmented(selection: timeModeLabel, options: Self.timeModes.map { $0.label }, label: "How to time it")
-            timeSection
+            .onAppear { taskFieldFocused = true }
+        } else {
+            Button { addingTask = true } label: { CPLinkLabel(text: "Add your own", symbol: "plus") }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Add your own task")
         }
     }
 
+    /// One line for the name, one quiet line for class, due day and time needed.
     private func candidateRow(_ item: AssignmentItem) -> some View {
         let isSelected = selected.contains(item.id)
-        return VStack(alignment: .leading, spacing: 6) {
-        Button {
+        let course = item.courseID == 0 ? item.courseName : store.displayName(courseID: item.courseID, fallback: item.courseName)
+        let detail = [course, item.dueDate.map { NativeParity.dueDisplay($0, includeTime: false) }, "\(NativeParity.estimate(item, estimates: features.estimates)) min"]
+            .compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
+        return Button {
             if isSelected { selected.remove(item.id); selectedOrder.removeAll { $0 == item.id } }
             else { selected.insert(item.id); selectedOrder.append(item.id) }
         } label: {
-            HStack(spacing: 10) {
+            HStack(alignment: .top, spacing: 12) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
                         .strokeBorder(isSelected ? Color.clear : CPTheme.muted(scheme).opacity(0.55), lineWidth: 1)
@@ -4362,23 +4384,18 @@ struct NativeStudyView: View {
                     }
                 }
                 .frame(width: 20, height: 20)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(item.name).cpFont(16, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(3)
-                    Text(item.courseID == 0 ? item.courseName : store.displayName(courseID: item.courseID, fallback: item.courseName))
-                        .cpFont(12).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
+                .padding(.top, 1)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(item.name).cpFont(15, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(2)
+                    Text(detail).cpFont(12).monospacedDigit().foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
                 }
-                Spacer(minLength: 6)
-                if let due = item.dueDate {
-                    Text(NativeParity.dueDisplay(due, includeTime: false)).cpFont(12, .medium).monospacedDigit().foregroundStyle(CPTheme.faint(scheme))
-                }
+                Spacer(minLength: 0)
             }
-            .padding(.vertical, 9)
+            .padding(.vertical, 11)
             .contentShape(Rectangle())
         }
         .buttonStyle(CPPressStyle())
         .accessibilityAddTraits(isSelected ? .isSelected : [])
-            NativeEstimateEditor(assignment: item, features: features)
-        }
     }
 
     private static let timeModes: [(id: String, label: String)] = [

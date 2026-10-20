@@ -302,3 +302,13 @@ test("the iPhone dashboard has no GPA, and the website's saved layout keeps its 
   assert.match(swift.NativeFeatures, /dashboardWidgets: \[String\] \{ Self\.defaultDashboardOrder\.filter \{ \$0 != "gpa" \} \}/);
   assert.doesNotMatch(swift.NativeViews, /gpaWidget|NativeGPA|case "gpa"/);
 });
+
+test("picking what to study is short: one line of detail, five at a time, no extra controls", () => {
+  const views = swift.NativeViews;
+  const pick = views.slice(views.indexOf("/// A section title inside the card"), views.indexOf("private static let timeModes"));
+  assert.doesNotMatch(pick, /"Submitted"|NativeEstimateEditor|Text\("\\\(number\)"\)/);
+  assert.match(pick, /private static let shortListCount = 5/);
+  assert.match(pick, /if candidates\.count > Self\.shortListCount \|\| !search\.isEmpty \{/);
+  assert.match(pick, /CPLinkLabel\(text: "Show \\\(candidates\.count - shown\.count\) more"/);
+  assert.match(pick, /CPLinkLabel\(text: "Add your own", symbol: "plus"\)/);
+});
