@@ -16,35 +16,30 @@ export function remainingWork(assignment: Pick<AssignmentItem, "points_possible"
   return points * (1 - normalizedProgress(progress) / 100);
 }
 
-export function nextUpPriority(
-  assignment: Pick<AssignmentItem, "due_at" | "points_possible" | "unlock_at">,
-  progress: number | null | undefined,
+/** Due within the next week (not past due) and already open in Canvas. */
+export function isNextUpCandidate(
+  assignment: Pick<AssignmentItem, "due_at" | "unlock_at">,
   now: number,
 ) {
   const due = assignment.due_at ? Date.parse(assignment.due_at) : NaN;
-  if (!Number.isFinite(due) || due < now || due > now + WEEK_MS) return Number.NEGATIVE_INFINITY;
+  if (!Number.isFinite(due) || due < now || due > now + WEEK_MS) return false;
   // Work that hasn't opened in Canvas yet can't be next up.
-  if (notYetOpen(assignment, now)) return Number.NEGATIVE_INFINITY;
-
-  const deadlineScore = 60 * (1 - (due - now) / WEEK_MS);
-  const impactScore = 35 * Math.min(1, Math.log1p(remainingWork(assignment, progress)) / Math.log1p(100));
-  const unfinishedScore = 5 * (1 - normalizedProgress(progress) / 100);
-  return deadlineScore + impactScore + unfinishedScore;
+  return !notYetOpen(assignment, now);
 }
 
-export function selectWeightedNextUp<T extends AssignmentItem>(
-  assignments: T[],
-  progressById: ReadonlyMap<number, number | null | undefined>,
-  now: number,
-) {
-  return assignments
-    .map((assignment) => ({
-      assignment,
-      score: nextUpPriority(assignment, progressById.get(assignment.id), now),
-    }))
-    .filter((candidate) => Number.isFinite(candidate.score))
-    .sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
-      return Date.parse(a.assignment.due_at ?? "") - Date.parse(b.assignment.due_at ?? "");
-    })[0]?.assignment ?? null;
+/**
+ * The dashboard's Next up: the work due soonest. Two due at the same time go
+ * to the one worth more points. The iPhone app picks the same way.
+ */
+export function selectNextUp<T extends AssignmentItem>(assignments: T[], now: number): T | null {
+  return (
+    assignments
+      .filter((assignment) => isNextUpCandidate(assignment, now))
+      .sort(
+        (a, b) =>
+          Date.parse(a.due_at ?? "") - Date.parse(b.due_at ?? "") ||
+          (b.points_possible ?? 0) - (a.points_possible ?? 0) ||
+          a.name.localeCompare(b.name),
+      )[0] ?? null
+  );
 }

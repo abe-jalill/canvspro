@@ -5,7 +5,7 @@ import {
   buildTodayPlan,
   rankGetItDoneAssignments,
 } from "../src/lib/get-it-done.ts";
-import { nextUpPriority, selectWeightedNextUp } from "../src/lib/assignment-workload.ts";
+import { isNextUpCandidate, selectNextUp } from "../src/lib/assignment-workload.ts";
 
 const now = new Date(2026, 9, 16, 12).getTime(); // Friday noon
 const day = 86_400_000;
@@ -78,7 +78,7 @@ test("once it opens, it ranks normally again", () => {
 });
 
 test("closed work is never 'next up' on the dashboard", () => {
-  assert.equal(nextUpPriority(opensMonday, 0, now), Number.NEGATIVE_INFINITY);
-  assert.equal(selectWeightedNextUp([opensMonday, dueMonday], new Map(), now).id, 1);
-  assert.equal(selectWeightedNextUp([opensMonday], new Map(), now), null);
+  assert.equal(isNextUpCandidate(opensMonday, now), false);
+  assert.equal(selectNextUp([opensMonday, dueMonday], now).id, 1);
+  assert.equal(selectNextUp([opensMonday], now), null);
 });

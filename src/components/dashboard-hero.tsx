@@ -15,7 +15,7 @@ import { notYetOpen } from "@/lib/assignment-availability";
 import { useAssignmentMeta } from "@/hooks/use-assignment-meta";
 import { isAssignmentComplete } from "@/lib/assignment-window";
 import { DashboardHeroMotion } from "@/components/dashboard-hero-motion";
-import { selectWeightedNextUp } from "@/lib/assignment-workload";
+import { selectNextUp } from "@/lib/assignment-workload";
 import { displayCourseName } from "@/lib/course-display";
 
 import { assignmentsQueryOptions as dueDatesQO } from "@/lib/canvas.queries";
@@ -113,11 +113,10 @@ export function DashboardHero() {
   const progressById = new Map(
     (meta.data ?? []).map((item) => [item.assignmentId, item.progressPercent]),
   );
-  const nextUp = selectWeightedNextUp(
+  const nextUp = selectNextUp(
     allAssignments.filter(
       (assignment) => !isAssignmentComplete(assignment, completed.has(assignment.id)),
     ),
-    progressById,
     now.getTime(),
   );
   const nextProgress = nextUp ? (progressById.get(nextUp.id) ?? 0) : 0;

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { nextUpPriority, remainingWork, selectWeightedNextUp } from "../src/lib/assignment-workload.ts";
+import { remainingWork, selectNextUp } from "../src/lib/assignment-workload.ts";
 
 const now = Date.parse("2026-10-05T16:00:00Z");
 const assignment = (id, hours, points = 10) => ({
@@ -23,18 +23,19 @@ test("assignments without points receive a neutral workload weight", () => {
   assert.equal(remainingWork(assignment(1, 24, null), 20), 20);
 });
 
-test("balanced priority can surface substantial work over a tiny nearer quiz", () => {
+test("Next up is the work due soonest, even when something later is worth more", () => {
   const quiz = assignment(1, 3, 2);
   const essay = assignment(2, 24, 100);
-  assert.equal(selectWeightedNextUp([quiz, essay], new Map(), now)?.id, essay.id);
+  assert.equal(selectNextUp([essay, quiz], now)?.id, quiz.id);
 });
 
-test("progress reduces priority while close deadlines still add urgency", () => {
-  const major = assignment(1, 24, 100);
-  assert.ok(nextUpPriority(major, 80, now) < nextUpPriority(major, 0, now));
-  assert.ok(nextUpPriority(assignment(2, 2, 25), 0, now) > nextUpPriority(assignment(3, 120, 25), 0, now));
+test("two due at the same time: the one worth more points", () => {
+  const small = assignment(1, 24, 10);
+  const big = assignment(2, 24, 50);
+  const none = assignment(3, 24, null);
+  assert.equal(selectNextUp([small, none, big], now)?.id, big.id);
 });
 
 test("items outside the upcoming week are not selected", () => {
-  assert.equal(selectWeightedNextUp([assignment(1, -1), assignment(2, 200)], new Map(), now), null);
+  assert.equal(selectNextUp([assignment(1, -1), assignment(2, 200)], now), null);
 });
