@@ -16,9 +16,13 @@ import {
 import { billingQueryKey } from "@/hooks/use-billing";
 import {
   formatDay,
+  MONTHLY_FOR_A_YEAR,
   PLANS,
   REFUND_WINDOW_DAYS,
   TRIAL_DAYS,
+  YEARLY_FREE_MONTHS,
+  YEARLY_PER_MONTH,
+  YEARLY_SAVINGS,
   type BillingStatus,
   type Plan,
 } from "@/lib/billing";
@@ -29,10 +33,6 @@ const FEATURES = [
   "Study sessions, schedule and home screen widgets",
   "Connect your AI assistant to your classes",
 ];
-
-/** Yearly against twelve months, e.g. "17%". */
-const YEARLY_SAVING = `${Math.round((1 - PLANS.yearly.cents / (PLANS.monthly.cents * 12)) * 100)}%`;
-const YEARLY_PER_MONTH = `$${(PLANS.yearly.cents / 12 / 100).toFixed(2)}`;
 
 /** How this account's checkout starts: a trial, or its launch free days. */
 function checkoutOffer(status: BillingStatus | null, now = Date.now()) {
@@ -47,7 +47,9 @@ function checkoutOffer(status: BillingStatus | null, now = Date.now()) {
 
 export function SubscribePanel({ status }: { status: BillingStatus | null }) {
   const queryClient = useQueryClient();
-  const [plan, setPlan] = useState<Plan>("monthly");
+  // Yearly is picked to start: it's the better deal. The total below always
+  // follows whichever plan is picked.
+  const [plan, setPlan] = useState<Plan>("yearly");
   const [agreed, setAgreed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -191,7 +193,7 @@ export function SubscribePanel({ status }: { status: BillingStatus | null }) {
   return (
     <div className="space-y-6">
       <div role="radiogroup" aria-label="Plan" className="grid gap-3 pt-2 sm:grid-cols-2">
-        {(["monthly", "yearly"] as const).map((option) => {
+        {(["yearly", "monthly"] as const).map((option) => {
           const selected = plan === option;
           return (
             <button
@@ -205,11 +207,12 @@ export function SubscribePanel({ status }: { status: BillingStatus | null }) {
                 selected
                   ? "border-foreground bg-foreground/[0.04] ring-1 ring-foreground"
                   : "border-border hover:border-foreground/40",
+                option === "yearly" && !selected && "border-primary/40",
               )}
             >
               {option === "yearly" && (
-                <span className="absolute -top-2.5 right-4 rounded-full bg-foreground px-2.5 py-0.5 text-[11px] font-medium text-background">
-                  Save {YEARLY_SAVING}
+                <span className="absolute -top-2.5 right-4 rounded-full bg-primary px-2.5 py-0.5 text-[11px] font-semibold text-primary-foreground">
+                  {YEARLY_FREE_MONTHS} months free
                 </span>
               )}
               <span className="flex items-center justify-between text-sm text-muted-foreground">
@@ -228,11 +231,17 @@ export function SubscribePanel({ status }: { status: BillingStatus | null }) {
                 {PLANS[option].price}
                 <span className="text-sm text-muted-foreground"> / {PLANS[option].per}</span>
               </span>
-              <span className="mt-1 text-xs text-muted-foreground">
-                {option === "monthly"
-                  ? "Billed monthly"
-                  : `${YEARLY_PER_MONTH}/month, billed yearly`}
-              </span>
+              {option === "yearly" ? (
+                <span className="mt-1 text-xs">
+                  <s className="text-muted-foreground">{MONTHLY_FOR_A_YEAR}</s>{" "}
+                  <span className="font-medium text-primary">Save {YEARLY_SAVINGS} a year</span>
+                  <span className="text-muted-foreground"> · {YEARLY_PER_MONTH}/month</span>
+                </span>
+              ) : (
+                <span className="mt-1 text-xs text-muted-foreground">
+                  Billed monthly · {MONTHLY_FOR_A_YEAR} a year
+                </span>
+              )}
             </button>
           );
         })}

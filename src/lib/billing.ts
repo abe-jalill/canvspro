@@ -19,6 +19,18 @@ export const PLANS: Record<Plan, { price: string; cents: number; per: "month" | 
   yearly: { price: "$50.00", cents: 5000, per: "year" },
 };
 
+const dollars = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+/** Twelve monthly payments: "$60.00". */
+export const MONTHLY_FOR_A_YEAR = dollars(PLANS.monthly.cents * 12);
+/** What yearly saves over twelve monthly payments: "$10.00". */
+export const YEARLY_SAVINGS = dollars(PLANS.monthly.cents * 12 - PLANS.yearly.cents);
+/** Months yearly gives free compared with paying monthly: 2. */
+export const YEARLY_FREE_MONTHS = Math.round(
+  (PLANS.monthly.cents * 12 - PLANS.yearly.cents) / PLANS.monthly.cents,
+);
+/** Yearly spread over twelve months: "$4.17". */
+export const YEARLY_PER_MONTH = dollars(Math.round(PLANS.yearly.cents / 12));
+
 /** Which Paddle price a checkout uses: the trial ones start with 14 free days. */
 /** One Paddle price per plan; both carry the free trial. */
 export type PriceKey = Plan;

@@ -1,10 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Check } from "lucide-react";
-import { PLANS, TRIAL_DAYS } from "@/lib/billing";
+import {
+  MONTHLY_FOR_A_YEAR,
+  PLANS,
+  TRIAL_DAYS,
+  YEARLY_FREE_MONTHS,
+  YEARLY_PER_MONTH,
+  YEARLY_SAVINGS,
+} from "@/lib/billing";
 import { PublicPage, PublicPageHeader } from "@/components/public-page";
 
 const TITLE = "CoursePro Pricing";
-const DESCRIPTION = `Paid plans are coming soon: ${PLANS.monthly.price}/month or ${PLANS.yearly.price}/year, with a ${TRIAL_DAYS}-day free trial.`;
+const DESCRIPTION = `Paid plans are coming soon: ${PLANS.monthly.price}/month, or ${PLANS.yearly.price}/year with ${YEARLY_FREE_MONTHS} months free. ${TRIAL_DAYS}-day free trial.`;
 
 export const Route = createFileRoute("/pricing")({
   head: () => ({
@@ -42,28 +49,50 @@ function PricingPage() {
       </PublicPageHeader>
 
       <div className="hp-plans">
-        {(["monthly", "yearly"] as const).map((plan) => (
-          <section key={plan} className="hp-card hp-plan" aria-labelledby={`plan-${plan}`}>
-            <div className="flex items-center justify-between gap-3">
-              <h2 id={`plan-${plan}`} className="hp-eyebrow">
-                {plan === "monthly" ? "Monthly" : "Yearly"}
-              </h2>
-              <span className="hp-badge">Coming soon</span>
-            </div>
-            <p className="hp-plan__price">
-              {PLANS[plan].price}
-              <span>/{PLANS[plan].per}</span>
-            </p>
-            <p className="hp-plan__note">
-              {plan === "yearly" ? "Two months free, billed once a year." : "Billed every month."}{" "}
-              {TRIAL_DAYS}-day free trial. Cancel anytime.
-            </p>
-            <div className="hp-plan__spacer" />
-            <button type="button" className="hp-button" disabled aria-disabled="true">
-              Coming soon
-            </button>
-          </section>
-        ))}
+        {/* Yearly first and highlighted: it's the better deal. */}
+        <section className="hp-card hp-plan hp-plan--best" aria-labelledby="plan-yearly">
+          <div className="flex items-center justify-between gap-3">
+            <h2 id="plan-yearly" className="hp-eyebrow">
+              Yearly
+            </h2>
+            <span className="hp-badge hp-badge--accent">{YEARLY_FREE_MONTHS} months free</span>
+          </div>
+          <p className="hp-plan__price">
+            {PLANS.yearly.price}
+            <span>/year</span>
+          </p>
+          <p className="hp-plan__deal">
+            <s>{MONTHLY_FOR_A_YEAR}</s> Save {YEARLY_SAVINGS} a year
+          </p>
+          <p className="hp-plan__note">
+            That&rsquo;s {YEARLY_PER_MONTH} a month, billed once a year. {TRIAL_DAYS}-day free
+            trial. Cancel anytime.
+          </p>
+          <div className="hp-plan__spacer" />
+          <button type="button" className="hp-button" disabled aria-disabled="true">
+            Coming soon
+          </button>
+        </section>
+        <section className="hp-card hp-plan" aria-labelledby="plan-monthly">
+          <div className="flex items-center justify-between gap-3">
+            <h2 id="plan-monthly" className="hp-eyebrow">
+              Monthly
+            </h2>
+            <span className="hp-badge">Coming soon</span>
+          </div>
+          <p className="hp-plan__price">
+            {PLANS.monthly.price}
+            <span>/month</span>
+          </p>
+          <p className="hp-plan__deal hp-plan__deal--quiet">{MONTHLY_FOR_A_YEAR} over a year</p>
+          <p className="hp-plan__note">
+            Billed every month. {TRIAL_DAYS}-day free trial. Cancel anytime.
+          </p>
+          <div className="hp-plan__spacer" />
+          <button type="button" className="hp-button" disabled aria-disabled="true">
+            Coming soon
+          </button>
+        </section>
       </div>
 
       <section className="hp-section hp-card" aria-labelledby="included-title">
