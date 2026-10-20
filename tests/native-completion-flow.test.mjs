@@ -33,7 +33,7 @@ test("Undo is big, on every tab, and undoes before or after the save", () => {
 });
 
 test("Completed opens its own page with the back arrow, from Assignments", () => {
-  assert.match(more, /NavigationLink \{ NativeCompletedView\(store: store, features: features\) \} label: \{\s*Label\("Completed", systemImage: "checkmark\.circle"\)/);
+  assert.match(more, /NavigationLink \{ NativeCompletedView\(store: store, features: features\) \} label: \{\s*CPIconButtonLabel\(symbol: "checkmark\.circle"\)\s*\}\s*\.buttonStyle\(\.plain\)\s*\.accessibilityLabel\("Completed"\)/);
   assert.match(more, /\.toolbar\(\.hidden, for: \.tabBar\)/);
   assert.match(more, /\["Today", "Yesterday", "This week", "Earlier"\]/);
   // Ticked off here: the saved time; done in Canvas: when it was submitted.

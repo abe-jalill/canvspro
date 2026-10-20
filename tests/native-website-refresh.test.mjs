@@ -9,8 +9,9 @@ const parity = read("NativeFeatures");
 const design = read("NativeDesign");
 
 // Source guards for website main at 783443c; run Codemagic for Swift compilation.
-test("Today's Assignments page keeps the website Focus date strip and grouping hierarchy", () => {
-  for (const label of ["Assignments", "By day", "By class", "Show finished", "Nothing due this day."]) {
+test("Today's To-Do page keeps the website Focus date strip and grouping hierarchy", () => {
+  // Finished work lives on the Completed page, so there's no Show finished toggle here.
+  for (const label of ["To-Do", "By day", "By class", "Completed", "Nothing due this day."]) {
     assert.ok(more.includes(`"${label}"`), label);
   }
   assert.ok(more.includes("Calendar.current.date(byAdding: .day"));

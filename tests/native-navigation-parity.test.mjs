@@ -24,9 +24,11 @@ test("native tabs remain a compact projection of website navigation", () => {
   assert.ok(!more.includes('NativeMenuRow(title: "Assignments"'), "Assignments lives in Today");
   assert.ok(!more.includes('NativeMenuRow(title: "Get It Done"'), "Get It Done belongs inside Today");
   assert.ok(!more.includes('NativeMenuRow(title: "Class Schedule"'), "My classes belongs inside Calendar");
-  assert.ok(tabs.includes('options: ["Dashboard", "Assignments", "Get It Done"]'));
+  assert.ok(tabs.includes('options: ["Dashboard", "To-Do", "Get It Done"]'));
   assert.ok(more.includes('options: ["Calendar", "My classes"]'));
-  assert.ok(tabs.includes('todaySection = "Assignments"; selection = .today'));
+  assert.ok(tabs.includes('todaySection = "To-Do"; selection = .today'));
+  // The page was called Assignments before; a saved choice of it still opens To-Do.
+  assert.ok(tabs.includes('let todayPage = page == "Assignments" ? "To-Do" : page'));
   // Links and notifications open the page's tab, or More when it isn't one.
   assert.match(tabs, /if NativeTabBar\.tabs\(tabBarRaw\)\.contains\(page\) \{\s*selection = page\s*\} else \{\s*moreDestination = page\s*selection = \.more/);
   assert.ok(tabs.includes('else if path.contains("announcement") { open(.announcements) }'));

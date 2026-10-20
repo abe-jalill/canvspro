@@ -1344,7 +1344,9 @@ struct NativeMainTabView: View {
         let tabs = NativeTabBar.tabs(defaults.string(forKey: NativeTabBar.key) ?? "")
         _selection = State(initialValue: tabs.contains(lastTab) ? lastTab : .today)
         let page = defaults.string(forKey: "CanvasProLastTodayPage") ?? ""
-        _todaySection = State(initialValue: ["Dashboard", "Assignments", "Get It Done"].contains(page) ? page : "Dashboard")
+        // "Assignments" is what the To-Do page was called before.
+        let todayPage = page == "Assignments" ? "To-Do" : page
+        _todaySection = State(initialValue: ["Dashboard", "To-Do", "Get It Done"].contains(todayPage) ? todayPage : "Dashboard")
     }
 
     var body: some View {
@@ -1455,7 +1457,7 @@ struct NativeMainTabView: View {
     private func route(to path: String) {
         // Siri, Control Center or the Action button: open Study and start a Pomodoro.
         if path.contains("pomodoro") { quickPomodoro = true; open(.study); return }
-        if path.contains("focus") || path.contains("coming-up") || path.contains("assignment") { todaySection = "Assignments"; selection = .today }
+        if path.contains("focus") || path.contains("coming-up") || path.contains("assignment") { todaySection = "To-Do"; selection = .today }
         else if path.contains("get-it-done") { todaySection = "Get It Done"; selection = .today }
         else if path.contains("completed") { open(.completed) }
         else if path.contains("announcement") { open(.announcements) }
@@ -1692,7 +1694,7 @@ private struct NativeTodayView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if section == "Assignments" {
+                if section == "To-Do" {
                     FocusView(store: store, features: features, window: $focusWindow, section: $section)
                         .transition(.opacity)
                 } else if section == "Get It Done" {
@@ -1717,7 +1719,7 @@ private struct NativeTodayView: View {
 struct NativeTodayTabs: View {
     @Binding var selection: String
     var body: some View {
-        NativePageTabs(selection: $selection, options: ["Dashboard", "Assignments", "Get It Done"], label: "Today sections")
+        NativePageTabs(selection: $selection, options: ["Dashboard", "To-Do", "Get It Done"], label: "Today sections")
             .padding(.bottom, 4)
     }
 }
@@ -1932,7 +1934,7 @@ private struct NativeDashboardView: View {
             }
             .buttonStyle(CPPressStyle())
             .accessibilityElement(children: .combine)
-            .accessibilityHint("Opens Assignments")
+            .accessibilityHint("Opens To-Do")
             if let item = nextUp { NativeEstimateEditor(assignment: item, features: features) }
             HStack(spacing: 8) {
                 heroSmallStat(value: todayCount, label: "Next 24 hours", symbol: "clock", window: "1")
@@ -1972,7 +1974,7 @@ private struct NativeDashboardView: View {
         .buttonStyle(CPPressStyle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(label): \(value)")
-        .accessibilityHint("Opens Assignments")
+        .accessibilityHint("Opens To-Do")
     }
 
     private var dashboardHeader: some View {
@@ -2394,7 +2396,7 @@ private struct NativeDashboardView: View {
 
     private func openFocus(_ window: String) {
         focusWindow = window
-        todaySection = "Assignments"
+        todaySection = "To-Do"
     }
 
     @ViewBuilder private func courseDestination(for item: AssignmentItem, section: CourseDetailSection = .upcoming, highlight: Bool = false) -> some View {

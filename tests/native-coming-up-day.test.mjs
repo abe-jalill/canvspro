@@ -23,3 +23,14 @@ test("one row, one choice: no range chips competing with the days", () => {
   // Old links land on a visible choice: 24 hours opens Today.
   assert.match(focus, /selectedDay \?\? \(window == "1" \? Calendar\.current\.startOfDay\(for: Date\(\)\) : nil\)/);
 });
+
+test("To-Do rows are the name and one short line; the header is icons, not words", () => {
+  assert.match(focus, /Text\("To-Do"\)\.cpFont\(28/);
+  assert.match(focus, /return "\\\(unfinished\.count\) \\\(what\) · \\\(Self\.duration\(minutes\)\)"/);
+  assert.match(focus, /CPIconButtonLabel\(symbol: "magnifyingglass"\)/);
+  assert.match(focus, /if showSearch \|\| isSearching \{ searchField/);
+  assert.doesNotMatch(focus, /CPChip\(text: "Finished"/);
+  const rows = more.slice(more.indexOf("private func assignmentRow"), more.indexOf("struct NativeTitledGroup"));
+  assert.doesNotMatch(rows, /NativeEstimateEditor|countdown\.label/);
+  assert.match(rows, /\.lineLimit\(2\)/);
+});

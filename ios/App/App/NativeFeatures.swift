@@ -1201,7 +1201,7 @@ struct CanvasProShortcuts: AppShortcutsProvider {
                 "Open \(.applicationName) assignments",
                 "Open \(.applicationName) homework",
             ],
-            shortTitle: "Assignments",
+            shortTitle: "To-Do",
             systemImageName: "list.bullet"
         )
     }
