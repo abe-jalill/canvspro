@@ -440,8 +440,8 @@ struct NativeFilesView: View {
         "\(files.root?.path ?? "")-\(files.revision)-" + classes.map { "\($0.id):\(store.displayName(courseID: $0.id, fallback: $0.name))" }.joined(separator: ",")
     }
 
+    // Shown in a tab or pushed from More, so it brings no NavigationStack of its own.
     var body: some View {
-        NavigationStack {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: CPLayout.stack) {
                     if let root = files.root {
@@ -463,6 +463,7 @@ struct NativeFilesView: View {
             }
             .background(CPBackdrop())
             .cpNavigationTitle("Files")
+            .navigationBarTitleDisplayMode(.inline)
             .searchable(text: $query, prompt: "Search your files")
             .refreshable { await files.refresh() }
             .task { await files.prepare() }
@@ -471,7 +472,6 @@ struct NativeFilesView: View {
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { Task { @MainActor in await files.refresh() } }
             }
-        }
     }
 
     private var storageCard: some View {

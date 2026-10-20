@@ -43,43 +43,62 @@ struct NativeMenuGroup<Content: View>: View {
     }
 }
 
+/// More: your profile, a tile for every page that isn't in the tab bar, then
+/// quick settings, account and help. A page that isn't a tab (Calendar, Files,
+/// a notification's announcement...) opens here.
+@MainActor
 struct NativeMoreView: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.cpPalette) private var paletteDependency
+    @Environment(\.dynamicTypeSize) private var typeSize
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
     @ObservedObject var sessionStore: NativeSessionStore
-    @Binding var showAnnouncements: Bool
+    @Binding var destination: NativeTab?
+    @Binding var studyRequest: AssignmentItem?
+    @Binding var quickPomodoro: Bool
     @ObservedObject private var streaks = NativeStreakStore.shared
+    @ObservedObject private var files = NativeFileStore.shared
     @AppStorage("CanvasProColorScheme") private var colorScheme = "dark"
+    @AppStorage(NativeTabBar.key) private var tabBarRaw = ""
 
     private var fullName: String {
         let name = "\(features.accountDetails.firstName) \(features.accountDetails.lastName)".trimmingCharacters(in: .whitespacesAndNewlines)
         return name.isEmpty ? (features.profile.username ?? "Your profile") : name
     }
 
+    /// Every page not in the tab bar, then Completed.
+    private var shortcuts: [NativeTab] {
+        let inTabBar = NativeTabBar.middle(tabBarRaw)
+        return NativeTabBar.choices.filter { !inTabBar.contains($0) } + [.completed]
+    }
+
+    private var columns: [GridItem] {
+        let count = typeSize.isAccessibilitySize ? 1 : 2
+        return Array(repeating: GridItem(.flexible(), spacing: 12, alignment: .top), count: count)
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    NavigationLink { ProfileView(features: features, email: sessionStore.session?.user.email) } label: {
-                        HStack(spacing: 12) {
-                            NativeAvatar(url: features.avatarURL, size: 46)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(fullName).cpFont(15, .semibold).foregroundStyle(CPTheme.foreground(scheme))
-                                Text(sessionStore.session?.user.email ?? "Photo, name, school, and major").cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
-                            }
-                            Spacer(minLength: 8)
-                            Image(systemName: "chevron.right").cpIconFont(9, .bold).foregroundStyle(CPTheme.faint(scheme))
-                        }
-                        .padding(CPLayout.cardPadding)
-                        .cpSurface(strong: true)
-                    }
-                    .buttonStyle(CPPressStyle())
+                VStack(alignment: .leading, spacing: 28) {
+                    profileCard
 
-                    // The website's phone account menu: mode, streak, notifications.
+                    LazyVGrid(columns: columns, spacing: 12) {
+                        ForEach(shortcuts, id: \.self) { page in
+                            Button { destination = page } label: { tile(page) }
+                                .buttonStyle(CPPressStyle())
+                        }
+                    }
+
+                    NativeMenuGroup("Plan") {
+                        Button { destination = .classes } label: {
+                            NativeMenuRow(title: "My classes", detail: "Class times, rooms and countdowns", symbol: "clock")
+                        }.buttonStyle(CPPressStyle())
+                    }
+
                     NativeMenuGroup("Quick settings") {
-                        VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 10) {
                             HStack(spacing: 12) {
                                 CPIconBadge(symbol: "circle.lefthalf.filled")
                                 Text("Appearance").cpFont(13, .medium).foregroundStyle(CPTheme.foreground(scheme))
@@ -88,43 +107,140 @@ struct NativeMoreView: View {
                         }
                         .padding(.vertical, 14)
                         if streaks.streak != nil {
-                            CPRowDivider(leading: 40)
+                            CPRowDivider(leading: 44)
                             NativeStreakRow()
                         }
                     }
 
-                    NativeMenuGroup("Plan") {
-                        Button { showAnnouncements = true } label: {
-                            NativeMenuRow(title: "Announcements", symbol: "megaphone")
-                        }.buttonStyle(CPPressStyle())
-                        CPRowDivider(leading: 40)
-                        NavigationLink { NativeCalendarHub(store: store, features: features) } label: {
-                            NativeMenuRow(title: "Calendar", symbol: "calendar")
-                        }.buttonStyle(CPPressStyle())
-                    }
                     NativeMenuGroup("Account") {
                         NavigationLink { NotificationsView(sessionStore: sessionStore, features: features) } label: {
-                            NativeMenuRow(title: "Notifications", symbol: "bell")
+                            NativeMenuRow(title: "Notifications", detail: "Reminders, grades and posts", symbol: "bell")
                         }.buttonStyle(CPPressStyle())
-                        CPRowDivider(leading: 40)
+                        CPRowDivider(leading: 44)
+                        NavigationLink { NativeTabBarSettingsView() } label: {
+                            NativeMenuRow(title: "Tab bar", detail: NativeTabBar.middle(tabBarRaw).map(\.title).joined(separator: " · "), symbol: "dock.rectangle")
+                        }.buttonStyle(CPPressStyle())
+                        CPRowDivider(leading: 44)
                         NavigationLink { NativeSettingsView(contentStore: store, features: features, sessionStore: sessionStore) } label: {
-                            NativeMenuRow(title: "Settings", symbol: "gearshape")
+                            NativeMenuRow(title: "Settings", detail: "Canvas, classes, profile and more", symbol: "gearshape")
                         }.buttonStyle(CPPressStyle())
                     }
+
                     NativeMenuGroup("Help") {
                         NavigationLink { NativeSupportView() } label: {
                             NativeMenuRow(title: "Help & Support", detail: "Answers and contact", symbol: "questionmark.circle")
                         }.buttonStyle(CPPressStyle())
                     }
+
+                    Text(versionLine)
+                        .cpFont(11).foregroundStyle(CPTheme.faint(scheme))
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, -8)
                 }
                 .cpPagePadding()
             }
             .background(CPBackdrop())
             .cpNavigationTitle("More")
             .navigationBarTitleDisplayMode(.inline)
-            // Also opened from an announcement notification or link.
-            .navigationDestination(isPresented: $showAnnouncements) { AnnouncementsView(store: store, features: features) }
+            // Pages that aren't tabs, and links or notifications that open them.
+            .navigationDestination(item: $destination) { page in destinationView(page) }
         }
+    }
+
+    @ViewBuilder private func destinationView(_ page: NativeTab) -> some View {
+        switch page {
+        case .study: NativeStudyView(store: store, features: features, requestedAssignment: $studyRequest, quickPomodoro: $quickPomodoro)
+        case .grades: NativeGradesView(store: store, features: features)
+        case .files: NativeFilesView(store: store, features: features)
+        case .announcements: AnnouncementsView(store: store, features: features)
+        case .calendar: NativeCalendarHub(store: store, features: features)
+        case .classes: NativeCalendarHub(store: store, features: features, section: "My classes")
+        case .completed: NativeCompletedView(store: store, features: features)
+        default: EmptyView()
+        }
+    }
+
+    private var profileCard: some View {
+        NavigationLink { ProfileView(features: features, email: sessionStore.session?.user.email) } label: {
+            HStack(spacing: 14) {
+                NativeAvatar(url: features.avatarURL, size: 52)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(fullName).cpFont(17, .semibold).tracking(-0.3).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
+                    Text(sessionStore.session?.user.email ?? "Photo, name, school, and major")
+                        .cpFont(12).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right").cpIconFont(9, .bold).foregroundStyle(CPTheme.faint(scheme))
+            }
+            .padding(CPLayout.cardPadding)
+            .cpSurface(strong: true)
+        }
+        .buttonStyle(CPPressStyle())
+        .accessibilityHint("Opens your profile")
+    }
+
+    /// A page's tile: its icon, name and one live detail.
+    private func tile(_ page: NativeTab) -> some View {
+        let tint = CPTheme.primary(scheme: scheme)
+        return VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Image(systemName: page.symbol).cpIconFont(15, .medium)
+                    .foregroundStyle(tint)
+                    .frame(width: 36, height: 36)
+                    .background(tint.opacity(scheme == .dark ? 0.16 : 0.12), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+                Spacer(minLength: 4)
+                Image(systemName: "arrow.up.right").cpIconFont(10, .semibold).foregroundStyle(CPTheme.faint(scheme))
+            }
+            Spacer(minLength: 0)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(page.title).cpFont(15, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
+                Text(detail(for: page)).cpFont(12).foregroundStyle(CPTheme.muted(scheme))
+                    .lineLimit(2).multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, minHeight: 124, alignment: .topLeading)
+        .cpSurface()
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(page.title), \(detail(for: page))")
+    }
+
+    private func detail(for page: NativeTab) -> String {
+        switch page {
+        case .study:
+            return "Focus timer and Pomodoro"
+        case .grades:
+            let count = store.bundle.courses.filter { !features.hiddenCourseIDs.contains($0.id) }.count
+            return count == 1 ? "1 class" : "\(count) classes"
+        case .files:
+            guard files.root != nil else { return "Class folders and scans" }
+            return files.inICloud ? "Synced with iCloud Drive" : "Saved on this iPhone"
+        case .announcements:
+            let count = store.bundle.announcements.filter { !features.hiddenCourseIDs.contains($0.courseID) && $0.isWithin(weeks: 1) }.count
+            return count == 0 ? "Nothing new this week" : "\(count) this week"
+        case .calendar:
+            let now = Date()
+            let next = store.bundle.calendar
+                .compactMap { event -> (String, Date)? in
+                    guard let raw = event.startAt, let date = ISO8601DateFormatter.canvasDate(from: raw), date >= now else { return nil }
+                    return (event.title, date)
+                }
+                .min { $0.1 < $1.1 }
+            guard let next else { return "Nothing coming up" }
+            return "Next: \(next.0)"
+        case .completed:
+            let count = features.shownAssignments(in: store).filter { $0.isFinished(in: store) }.count
+            return count == 0 ? "Nothing finished yet" : "\(count) finished"
+        default:
+            return ""
+        }
+    }
+
+    private var versionLine: String {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+        return version.map { "CoursePro \($0)" } ?? "CoursePro"
     }
 
     /// Light, Dark or System, saved like Settings → Appearance (and shared with the website).
@@ -140,6 +256,70 @@ struct NativeMoreView: View {
                 }
             }
         )
+    }
+}
+
+/// Settings › Tab bar: Today is always first and More always last; the two
+/// in between are the student's pick.
+@MainActor
+struct NativeTabBarSettingsView: View {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
+    @AppStorage(NativeTabBar.key) private var raw = ""
+    private var middle: [NativeTab] { NativeTabBar.middle(raw) }
+
+    var body: some View {
+        Form {
+            Section {
+                preview
+                    .listRowInsets(EdgeInsets(top: 14, leading: 12, bottom: 14, trailing: 12))
+            } footer: {
+                Text("Today is always first and More is always last. Everything else opens from More.")
+            }
+            Section("Tabs in the middle") {
+                picker("Second tab", slot: 0)
+                picker("Third tab", slot: 1)
+            }
+            if middle != NativeTabBar.defaultMiddle {
+                Section {
+                    Button("Go back to Study Session and Grades") { raw = "" }
+                }
+            }
+        }
+        .cpListScreen()
+        .cpNavigationTitle("Tab bar")
+        .navigationBarTitleDisplayMode(.inline)
+        .sensoryFeedback(.selection, trigger: raw)
+    }
+
+    /// A small copy of the tab bar as it will look.
+    private var preview: some View {
+        HStack(spacing: 0) {
+            ForEach(NativeTabBar.tabs(raw), id: \.self) { tab in
+                VStack(spacing: 4) {
+                    Image(systemName: tab.symbol).cpIconFont(17)
+                    Text(tab.title).cpFont(11).lineLimit(1).minimumScaleFactor(0.7)
+                }
+                .foregroundStyle(tab == .today ? CPTheme.primary(scheme: scheme) : CPTheme.muted(scheme))
+                .frame(maxWidth: .infinity)
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: raw)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Tab bar: " + NativeTabBar.tabs(raw).map(\.title).joined(separator: ", "))
+    }
+
+    /// Picking the tab that's already in the other slot swaps the two.
+    private func picker(_ title: String, slot: Int) -> some View {
+        Picker(title, selection: Binding(get: { middle[slot] }, set: { tab in
+            var next = middle
+            if let other = next.firstIndex(of: tab), other != slot { next.swapAt(slot, other) } else { next[slot] = tab }
+            raw = NativeTabBar.raw(next)
+        })) {
+            ForEach(NativeTabBar.choices, id: \.self) { tab in
+                Label(tab.title, systemImage: tab.symbol).tag(tab)
+            }
+        }
     }
 }
 
@@ -317,6 +497,8 @@ struct NativeSettingsView: View {
                     settingsLink("Appearance", "paintpalette") { NativeAppearanceView(features: features) }
                     CPRowDivider(leading: 40)
                     settingsLink("Dashboard", "square.grid.2x2") { NativeDashboardSettingsView(features: features) }
+                    CPRowDivider(leading: 40)
+                    settingsLink("Tab bar", "dock.rectangle") { NativeTabBarSettingsView() }
                     CPRowDivider(leading: 40)
                     HStack(spacing: 12) {
                         CPIconBadge(symbol: "eye.slash")
@@ -520,7 +702,13 @@ struct NativeSectionPicker: View {
 struct NativeCalendarHub: View {
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
-    @State private var section = "Calendar"
+    @State private var section: String
+
+    init(store: NativeContentStore, features: NativeFeatureStore, section: String = "Calendar") {
+        self.store = store
+        self.features = features
+        _section = State(initialValue: section)
+    }
     var body: some View {
         Group {
             if section == "Calendar" { CalendarView(store: store, features: features) }

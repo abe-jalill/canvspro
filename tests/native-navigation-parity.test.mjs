@@ -8,24 +8,29 @@ test("native tabs remain a compact projection of website navigation", () => {
   const tabs = source("ios/App/App/NativeViews.swift");
   const more = source("ios/App/App/NativeMoreViews.swift");
 
-  for (const title of ["Today", "Study Session", "Grades", "Files", "More"]) {
-    assert.ok(tabs.includes(`Label("${title}"`), `${title} is a native tab`);
-  }
-  assert.equal((tabs.match(/\.tabItem\s*\{/g) ?? []).length, 5);
+  // Four tabs: Today, the student's two picks (Study Session and Grades to start), More.
+  assert.match(tabs, /static func tabs\(_ raw: String\) -> \[NativeTab\] \{ \[\.today\] \+ middle\(raw\) \+ \[\.more\] \}/);
+  assert.match(tabs, /static let defaultMiddle: \[NativeTab\] = \[\.study, \.grades\]/);
+  assert.match(tabs, /static let choices: \[NativeTab\] = \[\.study, \.grades, \.files, \.announcements, \.calendar\]/);
+  assert.equal((tabs.match(/\.tabItem\s*\{/g) ?? []).length, 1, "one ForEach builds every tab");
   assert.ok(!tabs.includes('Label("Profile"'), "Profile is not a bottom tab");
-  for (const title of ["Announcements", "Calendar", "Notifications", "Settings"]) {
+  // Every page not in the tab bar is a tile in More, plus Completed and My classes.
+  assert.match(more, /NativeTabBar\.choices\.filter \{ !inTabBar\.contains\(\$0\) \} \+ \[\.completed\]/);
+  assert.ok(more.includes(".navigationDestination(item: $destination)"));
+  for (const title of ["My classes", "Notifications", "Tab bar", "Settings", "Help & Support"]) {
     assert.ok(more.includes(`NativeMenuRow(title: "${title}"`), `${title} is reachable through More`);
   }
+  assert.ok(more.includes('settingsLink("Tab bar", "dock.rectangle")'), "Settings has the tab bar choice");
   assert.ok(!more.includes('NativeMenuRow(title: "Assignments"'), "Assignments lives in Today");
-  // Files took the fifth tab, so Announcements opens from More (and from links).
-  assert.ok(!/\.tabItem \{ Label\("Announcements"/.test(tabs), "Announcements is not a bottom tab");
-  assert.ok(more.includes(".navigationDestination(isPresented: $showAnnouncements)"));
   assert.ok(!more.includes('NativeMenuRow(title: "Get It Done"'), "Get It Done belongs inside Today");
   assert.ok(!more.includes('NativeMenuRow(title: "Class Schedule"'), "My classes belongs inside Calendar");
   assert.ok(tabs.includes('options: ["Dashboard", "Assignments", "Get It Done"]'));
   assert.ok(more.includes('options: ["Calendar", "My classes"]'));
   assert.ok(tabs.includes('todaySection = "Assignments"; selection = .today'));
-  assert.ok(tabs.includes('showAnnouncements = true; selection = .more'));
+  // Links and notifications open the page's tab, or More when it isn't one.
+  assert.match(tabs, /if NativeTabBar\.tabs\(tabBarRaw\)\.contains\(page\) \{\s*selection = page\s*\} else \{\s*moreDestination = page\s*selection = \.more/);
+  assert.ok(tabs.includes('else if path.contains("announcement") { open(.announcements) }'));
+  assert.ok(!/selection = \.(grades|study|files|announcements|calendar)\b/.test(tabs), "never jumps to a tab that may not exist");
 });
 
 test("website settings sections and profile fields stay reachable in native Settings", () => {

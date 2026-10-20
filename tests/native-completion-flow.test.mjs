@@ -27,7 +27,8 @@ test("Undo is big, on every tab, and undoes before or after the save", () => {
   assert.match(views, /Label\("Undo", systemImage: "arrow\.uturn\.backward"\)/);
   assert.match(views, /Button \{ Task \{ await store\.undo\(item\) \} \}/);
   assert.match(core, /func undo\(_ assignment: AssignmentItem\) async \{[\s\S]*?if completing\.contains\(assignment\.id\) \{ cancelCompletion\(assignment\.id\); return \}\s*if assignment\.isFinished\(in: self\) \{ await toggle\(assignment\) \}/);
-  assert.equal((views.match(/\.cpUndoBar\(store: contentStore\)/g) ?? []).length, 5);
+  // Every tab gets it, whichever tabs the student picked.
+  assert.match(views, /tabRoot\(tab\)\s*\.cpUndoBar\(store: contentStore\)/);
   assert.doesNotMatch(views, /\.cpUndoBar\(store: store\)/);
 });
 

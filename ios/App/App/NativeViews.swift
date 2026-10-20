@@ -1242,12 +1242,67 @@ private struct PasswordResetSheet: View {
     }
 }
 
-private enum NativeTab: String, Hashable { case today, study, grades, files, more }
+/// Every page that can be a tab or open from More. `classes` and `completed`
+/// only open from More.
+enum NativeTab: String, Hashable {
+    case today, study, grades, files, announcements, calendar, classes, completed, more
+
+    var title: String {
+        switch self {
+        case .today: return "Today"
+        case .study: return "Study Session"
+        case .grades: return "Grades"
+        case .files: return "Files"
+        case .announcements: return "Announcements"
+        case .calendar: return "Calendar"
+        case .classes: return "My classes"
+        case .completed: return "Completed"
+        case .more: return "More"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .today: return "house"
+        case .study: return "timer"
+        case .grades: return "graduationcap"
+        case .files: return "folder"
+        case .announcements: return "megaphone"
+        case .calendar: return "calendar"
+        case .classes: return "clock"
+        case .completed: return "checkmark.circle"
+        case .more: return "ellipsis.circle"
+        }
+    }
+}
+
+/// Four tabs: Today first, More last, and the two the student picks in
+/// Settings > Tab bar in between (Study Session and Grades to start).
+/// Everything not in the tab bar opens from More.
+enum NativeTabBar {
+    static let key = "CanvasProTabBar"
+    static let choices: [NativeTab] = [.study, .grades, .files, .announcements, .calendar]
+    static let defaultMiddle: [NativeTab] = [.study, .grades]
+
+    static func middle(_ raw: String) -> [NativeTab] {
+        var picked: [NativeTab] = []
+        for part in raw.split(separator: ",") {
+            if let tab = NativeTab(rawValue: String(part)), choices.contains(tab), !picked.contains(tab) { picked.append(tab) }
+        }
+        return picked.count == 2 ? picked : defaultMiddle
+    }
+
+    static func raw(_ middle: [NativeTab]) -> String { middle.map(\.rawValue).joined(separator: ",") }
+
+    static func tabs(_ raw: String) -> [NativeTab] { [.today] + middle(raw) + [.more] }
+}
 
 extension Notification.Name {
     static let nativeStudyAssignment = Notification.Name("CanvasProNativeStudyAssignment")
     static let nativeStartPomodoro = Notification.Name("CanvasProNativeStartPomodoro")
     static let nativeOpenStudy = Notification.Name("CanvasProNativeOpenStudy")
+    /// Opens a page (a NativeTab): its tab if it's in the tab bar, otherwise in More.
+    static let nativeOpenPage = Notification.Name("CanvasProNativeOpenPage")
 }
 
 /// The account given to Apple's App Review. Signing in is still required (it's a
@@ -1274,7 +1329,9 @@ struct NativeMainTabView: View {
     @State private var showOnboarding = false
     @State private var showConnect = false
     @State private var hadSavedData: Bool?
-    @State private var showAnnouncements = false
+    /// A page that isn't in the tab bar, opened inside More.
+    @State private var moreDestination: NativeTab?
+    @AppStorage(NativeTabBar.key) private var tabBarRaw = ""
     @ObservedObject private var router = NativeRouter.shared
     @ObservedObject private var streaks = NativeStreakStore.shared
 
@@ -1283,7 +1340,9 @@ struct NativeMainTabView: View {
         _contentStore = StateObject(wrappedValue: NativeContentStore(sessionStore: sessionStore, preview: preview))
         _featureStore = StateObject(wrappedValue: NativeFeatureStore(sessionStore: sessionStore, preview: preview))
         let defaults = UserDefaults.standard
-        _selection = State(initialValue: NativeTab(rawValue: defaults.string(forKey: "CanvasProLastTab") ?? "") ?? .today)
+        let lastTab = NativeTab(rawValue: defaults.string(forKey: "CanvasProLastTab") ?? "") ?? .today
+        let tabs = NativeTabBar.tabs(defaults.string(forKey: NativeTabBar.key) ?? "")
+        _selection = State(initialValue: tabs.contains(lastTab) ? lastTab : .today)
         let page = defaults.string(forKey: "CanvasProLastTodayPage") ?? ""
         _todaySection = State(initialValue: ["Dashboard", "Assignments", "Get It Done"].contains(page) ? page : "Dashboard")
     }
@@ -1320,13 +1379,20 @@ struct NativeMainTabView: View {
             }
             .onReceive(NotificationCenter.default.publisher(for: .nativeStartPomodoro)) { _ in
                 quickPomodoro = true
-                selection = .study
+                open(.study)
             }
-            .onReceive(NotificationCenter.default.publisher(for: .nativeOpenStudy)) { _ in selection = .study }
+            .onReceive(NotificationCenter.default.publisher(for: .nativeOpenStudy)) { _ in open(.study) }
+            .onReceive(NotificationCenter.default.publisher(for: .nativeOpenPage)) { note in
+                if let page = note.object as? NativeTab { open(page) }
+            }
             .onReceive(NotificationCenter.default.publisher(for: .nativeStudyAssignment)) { note in
                 guard let item = note.object as? AssignmentItem else { return }
                 studyRequest = item
-                selection = .study
+                open(.study)
+            }
+            // A tab taken out of the tab bar can't stay selected.
+            .onChange(of: tabBarRaw) { _, raw in
+                if !NativeTabBar.tabs(raw).contains(selection) { selection = .today }
             }
             .onChange(of: selection) { _, tab in UserDefaults.standard.set(tab.rawValue, forKey: "CanvasProLastTab") }
             .onChange(of: todaySection) { _, page in UserDefaults.standard.set(page, forKey: "CanvasProLastTodayPage") }
@@ -1375,17 +1441,31 @@ struct NativeMainTabView: View {
         showOnboarding = true
     }
 
+    /// Its tab when it's in the tab bar; otherwise More, opened to that page.
+    private func open(_ page: NativeTab) {
+        if NativeTabBar.tabs(tabBarRaw).contains(page) {
+            selection = page
+        } else {
+            moreDestination = page
+            selection = .more
+        }
+    }
+
     /// Shows the tab (and Today section) for a website-style path.
     private func route(to path: String) {
         // Siri, Control Center or the Action button: open Study and start a Pomodoro.
-        if path.contains("pomodoro") { quickPomodoro = true; selection = .study; return }
+        if path.contains("pomodoro") { quickPomodoro = true; open(.study); return }
         if path.contains("focus") || path.contains("coming-up") || path.contains("assignment") { todaySection = "Assignments"; selection = .today }
         else if path.contains("get-it-done") { todaySection = "Get It Done"; selection = .today }
-        else if path.contains("announcement") { showAnnouncements = true; selection = .more }
-        else if path.contains("files") { selection = .files }
-        else if path.contains("grade") { selection = .grades }
-        else if path.contains("study") { selection = .study }
-        else if path.contains("notification") || path.contains("settings") || path.contains("schedule") || path.contains("calendar") || path.contains("support") || path.contains("help") { selection = .more }
+        else if path.contains("completed") { open(.completed) }
+        else if path.contains("announcement") { open(.announcements) }
+        else if path.contains("files") { open(.files) }
+        else if path.contains("grade") { open(.grades) }
+        else if path.contains("study") { open(.study) }
+        // The website's /class-schedule is My classes; /schedule is its Calendar.
+        else if path.contains("class-schedule") { open(.classes) }
+        else if path.contains("schedule") || path.contains("calendar") { open(.calendar) }
+        else if path.contains("notification") || path.contains("settings") || path.contains("support") || path.contains("help") { selection = .more }
         else { todaySection = "Dashboard"; selection = .today }
     }
 
@@ -1567,30 +1647,37 @@ struct NativeMainTabView: View {
         if #available(iOS 26.0, *) { tabs.tabBarMinimizeBehavior(.onScrollDown) } else { tabs }
     }
 
-    // The standard iOS tab bar, in the website's sidebar order. Assignments
-    // live in Today; Announcements, Calendar and Settings live under More.
+    // Four tabs: Today, the student's two picks, and More. Assignments live in
+    // Today; everything else not in the tab bar opens from More.
     private var tabs: some View {
         TabView(selection: $selection) {
-            NativeTodayView(store: contentStore, features: featureStore, selection: $selection, section: $todaySection, focusWindow: $focusWindow)
-                .cpUndoBar(store: contentStore)
-                .tabItem { Label("Today", systemImage: "house") }.tag(NativeTab.today)
-            NativeStudyView(store: contentStore, features: featureStore, requestedAssignment: $studyRequest, quickPomodoro: $quickPomodoro)
-                .cpUndoBar(store: contentStore)
-                .tabItem { Label("Study Session", systemImage: "timer") }.tag(NativeTab.study)
-            NativeGradesView(store: contentStore, features: featureStore)
-                .cpUndoBar(store: contentStore)
-                .tabItem { Label("Grades", systemImage: "graduationcap") }.tag(NativeTab.grades)
-            // Files took Announcements' place: iPhone shows five tabs before it
-            // hides the rest. Announcements is first in More, on the dashboard
-            // and on every class page.
-            NativeFilesView(store: contentStore, features: featureStore)
-                .cpUndoBar(store: contentStore)
-                .tabItem { Label("Files", systemImage: "folder") }.tag(NativeTab.files)
-            NativeMoreView(store: contentStore, features: featureStore, sessionStore: sessionStore, showAnnouncements: $showAnnouncements)
-                .cpUndoBar(store: contentStore)
-                .tabItem { Label("More", systemImage: "ellipsis.circle") }.tag(NativeTab.more)
+            ForEach(NativeTabBar.tabs(tabBarRaw), id: \.self) { tab in
+                tabRoot(tab)
+                    .cpUndoBar(store: contentStore)
+                    .tabItem { Label(tab.title, systemImage: tab.symbol) }
+                    .tag(tab)
+            }
         }
         .sensoryFeedback(.selection, trigger: selection)
+    }
+
+    @ViewBuilder private func tabRoot(_ tab: NativeTab) -> some View {
+        switch tab {
+        case .today:
+            NativeTodayView(store: contentStore, features: featureStore, selection: $selection, section: $todaySection, focusWindow: $focusWindow)
+        case .study:
+            NavigationStack { NativeStudyView(store: contentStore, features: featureStore, requestedAssignment: $studyRequest, quickPomodoro: $quickPomodoro) }
+        case .grades:
+            NavigationStack { NativeGradesView(store: contentStore, features: featureStore) }
+        case .files:
+            NavigationStack { NativeFilesView(store: contentStore, features: featureStore) }
+        case .announcements:
+            NavigationStack { AnnouncementsView(store: contentStore, features: featureStore) }
+        case .calendar:
+            NavigationStack { NativeCalendarHub(store: contentStore, features: featureStore) }
+        default:
+            NativeMoreView(store: contentStore, features: featureStore, sessionStore: sessionStore, destination: $moreDestination, studyRequest: $studyRequest, quickPomodoro: $quickPomodoro)
+        }
     }
 }
 
@@ -2067,7 +2154,7 @@ private struct NativeDashboardView: View {
     private var classesWidget: some View {
         CPGlassCard {
             CPCardHeader(title: "Classes & Grades", collapse: collapse("classes")) {
-                Button { selection = .grades } label: { CPLinkLabel(text: "View all") }.buttonStyle(.plain)
+                Button { NotificationCenter.default.post(name: .nativeOpenPage, object: NativeTab.grades) } label: { CPLinkLabel(text: "View all") }.buttonStyle(.plain)
             }
             if visibleCourses.isEmpty {
                 NativeEmptyState(title: "No active courses.", symbol: "books.vertical")
@@ -3220,7 +3307,8 @@ struct AddAssignmentView: View {
     }
 }
 
-private struct NativeGradesView: View {
+/// Shown in a tab or pushed from More, so it brings no NavigationStack of its own.
+struct NativeGradesView: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.cpPalette) private var paletteDependency
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -3238,7 +3326,6 @@ private struct NativeGradesView: View {
     private var risingCount: Int { scored.filter { course in trend(for: course).map { $0 > 0 } ?? false }.count }
 
     var body: some View {
-        NavigationStack {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: CPLayout.stack) {
                     if store.needsCanvasConnection {
@@ -3278,7 +3365,6 @@ private struct NativeGradesView: View {
             .searchable(text: $search, prompt: "Find a course or graded assignment")
             .refreshable { await store.refresh() }
             .onAppear { loadAndRecordGrades() }.onChange(of: gradeSignature) { _, _ in loadAndRecordGrades() }
-        }
     }
 
     private var gradesHero: some View {
@@ -4028,12 +4114,11 @@ struct NativeStudyView: View {
         _blockEndsAt = State(initialValue: saved?.running == true ? (saved?.blockEndsAt ?? saved?.savedAt.addingTimeInterval(TimeInterval(saved?.remaining ?? 0))) : nil)
     }
 
+    // Shown in a tab or pushed from More, so it brings no NavigationStack of its own.
     var body: some View {
-        NavigationStack {
-            persistedStudyContent
-                .cpNavigationTitle("Study Session")
-                .navigationBarTitleDisplayMode(.inline)
-        }
+        persistedStudyContent
+            .cpNavigationTitle("Study Session")
+            .navigationBarTitleDisplayMode(.inline)
     }
 
     // Keep each view-builder expression small enough for Swift's type checker.
