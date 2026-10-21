@@ -261,6 +261,8 @@ struct NativeMoreView: View {
     }
 
     private func detail(for page: NativeTab) -> String {
+        // No counts until everything has loaded; the space stays so tiles don't jump.
+        if store.showsSkeleton && ![NativeTab.study, .files].contains(page) { return " " }
         switch page {
         case .todo:
             let count = features.shownAssignments(in: store).filter { NativeParity.isInFocusWindow($0, window: "7") && $0.isVisible(in: store) }.count
@@ -811,6 +813,7 @@ struct FocusView: View {
     }
     private func estimate(_ item: AssignmentItem) -> Int { NativeParity.estimate(item, estimates: features.estimates) }
     private func classTint(_ courseID: Int) -> Color { CPTheme.classColor(courseID, in: store.bundle.courses) }
+    private var showsCounts: Bool { !store.showsSkeleton && !store.needsCanvasConnection && store.loadFailure == nil }
     /// This week's work (the same seven days as the header line): done, and in all.
     private var weekTally: (done: Int, total: Int) {
         let week = allItems.filter { NativeParity.isInFocusWindow($0, window: "7") }
@@ -890,9 +893,17 @@ struct FocusView: View {
                     .accessibilityLabel("Add an assignment")
             }
             HStack(alignment: .center, spacing: 8) {
-                Text(headerLine)
-                    .cpFont(15).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
-                    .fixedSize(horizontal: false, vertical: true)
+                // Counts only once everything has loaded, never "All clear" before it.
+                if showsCounts {
+                    Text(headerLine)
+                        .cpFont(15).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .fill(CPTheme.foreground(scheme).opacity(0.06))
+                        .frame(width: 170, height: 14)
+                        .accessibilityHidden(true)
+                }
                 Spacer(minLength: 8)
                 Menu {
                     Picker("Group by", selection: $grouping) {
@@ -903,7 +914,7 @@ struct FocusView: View {
                     .accessibilityLabel("Group, \(grouping)")
             }
             let tally = weekTally
-            if tally.total > 0 && !store.showsSkeleton {
+            if tally.total > 0 && showsCounts {
                 NativeWeekSegments(done: tally.done, total: tally.total)
                     .padding(.top, 6)
                     .transition(.opacity)

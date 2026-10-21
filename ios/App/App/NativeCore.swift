@@ -397,6 +397,35 @@ extension CanvasBundle {
     }
 }
 
+extension CanvasBundle {
+    /// A fresh bundle with every part Canvas couldn't send this time (named in
+    /// `errors`) taken from the previous one, instead of an empty list that
+    /// would read as "nothing due". The same for a class that's still listed
+    /// but whose assignments all came back empty when it had three or more
+    /// before: the server drops a class whose own request failed without
+    /// saying so, and a real class never loses all its work at once.
+    func keepingWhatFailed(from previous: CanvasBundle) -> CanvasBundle {
+        let failed = errors ?? [:]
+        var keptAssignments = failed["assignments"] != nil ? previous.assignments : assignments
+        if failed["assignments"] == nil && failed["courses"] == nil {
+            // Canvas assignments only (planner items have negative ids).
+            let fresh = Set(assignments.filter { $0.id > 0 }.map(\.courseID))
+            let listed = Set(courses.map(\.id))
+            let before = Dictionary(grouping: previous.assignments.filter { $0.id > 0 }, by: \.courseID)
+            for (courseID, items) in before where items.count >= 3 && listed.contains(courseID) && !fresh.contains(courseID) {
+                keptAssignments += items
+            }
+        }
+        return CanvasBundle(
+            courses: failed["courses"] != nil ? previous.courses : courses,
+            assignments: keptAssignments,
+            announcements: failed["announcements"] != nil ? previous.announcements : announcements,
+            calendar: failed["calendar"] != nil ? previous.calendar : calendar,
+            errors: errors
+        )
+    }
+}
+
 extension CourseSummary {
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -1152,6 +1181,7 @@ final class NativeSessionStore: ObservableObject {
         if let previousUserID {
             NativeCourseworkCacheStore.clear(userID: previousUserID)
             UserDefaults.standard.removeObject(forKey: "CanvasProNativeContentCache.\(previousUserID)")
+            UserDefaults.standard.removeObject(forKey: NativeFeatureStore.savedStateKey(userID: previousUserID))
             UserDefaults.standard.removeObject(forKey: "CanvasProNativeDigest.\(previousUserID)")
             UserDefaults.standard.removeObject(forKey: "CanvasProNativeGradeHistory.\(previousUserID)")
             UserDefaults.standard.removeObject(forKey: "CanvasProNativeStudySession.\(previousUserID)")
@@ -1204,8 +1234,13 @@ final class NativeContentStore: ObservableObject {
     }
     /// A pull to refresh is running.
     @Published private(set) var isRefreshing = false
-    /// Loading placeholders: the first load, or a pull to refresh.
-    var showsSkeleton: Bool { isFirstLoad || (isRefreshing && !needsCanvasConnection && loadFailure == nil) }
+    /// True from launch until this launch's first sync of coursework and the
+    /// account's settings (hidden classes, own work, progress) has finished.
+    /// Screens show placeholders meanwhile, so nothing is counted from half the
+    /// data, such as saved coursework with last week's ticks.
+    @Published var isSyncingAtLaunch = true
+    /// Loading placeholders: the launch sync, the first load, or a pull to refresh.
+    var showsSkeleton: Bool { isFirstLoad || ((isSyncingAtLaunch || isRefreshing) && !needsCanvasConnection && loadFailure == nil) }
     private unowned let sessionStore: NativeSessionStore
     var persistenceScope: String { isPreview ? "preview" : (sessionStore.session?.user.id ?? "signed-out") }
     // Versioned: saves from the earlier, smaller sample set are ignored.
@@ -1218,6 +1253,7 @@ final class NativeContentStore: ObservableObject {
         if preview {
             bundle = NativePreviewData.bundle
             hasLoaded = true
+            isSyncingAtLaunch = false
             if let saved = UserDefaults.standard.array(forKey: previewCompletedKey) as? [NSNumber] { completed = Set(saved.map(\.intValue)) }
             else { completed = [] }
             if let data = UserDefaults.standard.data(forKey: previewNicknamesKey),
@@ -1285,14 +1321,17 @@ final class NativeContentStore: ObservableObject {
                 savedPreferenceWarning = savedPreferenceWarning ?? "Coursework refreshed. Class nicknames could not update."
             }
 
-            bundle = freshBundle
-            completed = sanitizedCompletedIDs(freshCompleted, in: freshBundle)
+            // A part Canvas couldn't send this time keeps what was there before.
+            let merged = freshBundle.keepingWhatFailed(from: bundle)
+            bundle = merged
+            completed = sanitizedCompletedIDs(freshCompleted, in: merged)
             reopenedAt = freshReopenedAt
             completedAt = freshCompletedAt
             lastSyncedAt = Date()
             isShowingCachedData = false
             needsCanvasConnection = false
-            syncMessage = savedPreferenceWarning
+            let partial = (freshBundle.errors?.isEmpty == false) ? "Some Canvas data couldn't update. Pull down to try again." : nil
+            syncMessage = savedPreferenceWarning ?? partial
             persistContentCache()
         } catch let error as NativeAppError where error.isCanvasNotConnected {
             // Not an error: this account simply hasn't connected Canvas yet.

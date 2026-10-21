@@ -1375,6 +1375,12 @@ struct NativeMainTabView: View {
                 hadSavedData = contentStore.lastSyncedAt != nil
                 await refreshAccountData()
             }
+            // On a very slow connection, stop waiting after a while and show what
+            // this phone has saved (with a note that it couldn't update yet).
+            .task {
+                try? await Task.sleep(for: .seconds(15))
+                contentStore.isSyncingAtLaunch = false
+            }
             .task(id: onboardingTrigger) { await presentOnboardingIfNeeded() }
             .fullScreenCover(isPresented: $showOnboarding) {
                 NativeOnboardingView { connect in
@@ -1490,6 +1496,8 @@ struct NativeMainTabView: View {
         async let content: Void = contentStore.load()
         async let features: Void = featureStore.load()
         _ = await (content, features)
+        // Coursework and the account's settings are both in: screens can show them.
+        contentStore.isSyncingAtLaunch = false
         // Opening the app counts today toward the streak.
         await NativeStreakStore.shared.refresh(sessionStore: sessionStore, preview: contentStore.isPreview)
         // Anything checked off on a widget while the app couldn't save it.
@@ -1543,7 +1551,8 @@ struct NativeMainTabView: View {
     /// shared App Group. Runs whenever the reminders are re-planned, which is every
     /// time coursework, completions, custom work or the schedule change.
     @MainActor private func publishWidgetSnapshot() {
-        guard !contentStore.isPreview, sessionStore.session != nil, contentStore.lastSyncedAt != nil else { return }
+        // Never from half-loaded data (before hidden classes and ticks are in).
+        guard !contentStore.isPreview, sessionStore.session != nil, contentStore.lastSyncedAt != nil, !contentStore.isSyncingAtLaunch else { return }
         NativeWidgetActions.contentStore = contentStore
         // Checked off on a widget but not saved yet: still done.
         let pending = CanvasProWidgetStore.pendingCompletions
@@ -1619,6 +1628,8 @@ struct NativeMainTabView: View {
             .onChange(of: featureStore.notificationPreferences) { _, _ in rescheduleLocalReminders() }
             .onChange(of: featureStore.schedule) { _, _ in rescheduleLocalReminders() }
             .onChange(of: featureStore.customAssignments) { _, _ in rescheduleLocalReminders() }
+            // Hiding or showing a class changes what's due, on widgets and in reminders.
+            .onChange(of: featureStore.hiddenCourseIDs) { _, _ in rescheduleLocalReminders() }
             .onChange(of: featureStore.accountDetails) { _, _ in rescheduleLocalReminders() }
             .onReceive(NotificationCenter.default.publisher(for: .nativeLocalRemindersChanged)) { _ in rescheduleLocalReminders() }
             // After the welcome closes, ask for notifications if this is the third open or later.
@@ -1784,27 +1795,26 @@ private struct NativeDashboardView: View {
             LazyVStack(alignment: .leading, spacing: 16) {
                 if store.needsCanvasConnection {
                     NativeConnectCanvasCard(store: store)
+                } else if store.loadFailure != nil {
+                    NativeLoadFailedCard(store: store)
+                } else if store.showsSkeleton {
+                    // Until everything has loaded: placeholders only, never counts
+                    // worked out from half the data.
+                    NativeDashboardSkeleton()
                 } else {
                     hero
                     NativeSyncStatusCard(store: store) { Task { await store.load() } }
-                    if store.loadFailure != nil {
-                        NativeLoadFailedCard(store: store)
-                    } else if store.showsSkeleton {
-                        CPSkeletonCard()
-                        CPSkeletonCard()
-                    } else {
-                        ForEach(Array(widgetIDs.enumerated()), id: \.element) { index, id in
-                            VStack(spacing: 0) {
-                                if collapsedWidgets.contains(id) {
-                                    collapsedWidget(id).transition(.opacity)
-                                } else {
-                                    dashboardWidget(id).transition(.opacity)
-                                }
+                    ForEach(Array(widgetIDs.enumerated()), id: \.element) { index, id in
+                        VStack(spacing: 0) {
+                            if collapsedWidgets.contains(id) {
+                                collapsedWidget(id).transition(.opacity)
+                            } else {
+                                dashboardWidget(id).transition(.opacity)
                             }
-                            .cpReveal(index)
                         }
-                        dashboardFooter
+                        .cpReveal(index)
                     }
+                    dashboardFooter
                 }
             }
             .cpPagePadding()
@@ -2712,6 +2722,43 @@ private struct NativeQuickPomodoro: View {
                 .accessibilityHint("Opens Study")
             }
         }
+    }
+}
+
+/// Today while everything loads: the shapes of the greeting, the week and Next
+/// up, gently pulsing, with no numbers or names in them.
+private struct NativeDashboardSkeleton: View {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var visible = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 10) {
+                RoundedRectangle(cornerRadius: 5, style: .continuous).frame(width: 130, height: 12)
+                RoundedRectangle(cornerRadius: 8, style: .continuous).frame(width: 230, height: 28)
+                RoundedRectangle(cornerRadius: 5, style: .continuous).frame(width: 190, height: 14)
+                HStack(spacing: 0) {
+                    ForEach(0..<7, id: \.self) { _ in
+                        Circle().frame(width: 26, height: 26).frame(maxWidth: .infinity)
+                    }
+                }
+                .padding(.top, 14)
+            }
+            .padding(.horizontal, 4)
+            .padding(.top, 8)
+            RoundedRectangle(cornerRadius: CPLayout.cardRadius, style: .continuous).frame(height: 168)
+            RoundedRectangle(cornerRadius: CPLayout.cardRadius, style: .continuous).frame(height: 120)
+        }
+        .foregroundStyle(CPTheme.foreground(scheme).opacity(visible ? 0.08 : 0.04))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Loading")
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) { visible = true }
+        }
+        .onDisappear { visible = false }
     }
 }
 

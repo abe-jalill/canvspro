@@ -410,6 +410,32 @@ final class NativeFeatureStore: ObservableObject {
     private let previewStateKey = "CanvasProPreviewFeatureState2"
     private var savesInFlight = 0
 
+    /// The account's settings, estimates and progress from the last load, so a
+    /// launch (or an offline one) hides the right classes and shows the
+    /// student's own work before the account answers.
+    private struct SavedState: Codable {
+        var preferences: [String: JSONValue]
+        var estimates: [Int: Int]
+        var progress: [Int: Int]
+    }
+    nonisolated static func savedStateKey(userID: String) -> String { "CanvasProNativeFeatureCache.\(userID)" }
+    private var savedStateKey: String? { sessionStore.session.map { Self.savedStateKey(userID: $0.user.id) } }
+
+    private func loadSavedState() {
+        guard let key = savedStateKey, let data = UserDefaults.standard.data(forKey: key),
+              let saved = try? JSONDecoder().decode(SavedState.self, from: data) else { return }
+        preferences = saved.preferences
+        estimates = saved.estimates
+        progress = saved.progress
+        decodePreferenceModels()
+    }
+
+    private func persistSavedState() {
+        guard !isPreview, let key = savedStateKey,
+              let data = try? JSONEncoder().encode(SavedState(preferences: preferences, estimates: estimates, progress: progress)) else { return }
+        UserDefaults.standard.set(data, forKey: key)
+    }
+
     init(sessionStore: NativeSessionStore, preview: Bool = false) {
         self.sessionStore = sessionStore
         isPreview = preview
@@ -430,6 +456,8 @@ final class NativeFeatureStore: ObservableObject {
                 estimates = [8010: 90, 8014: 120, 8012: 60]
                 progress = [8010: 75, 8014: 40]
             }
+        } else {
+            loadSavedState()
         }
     }
 
@@ -475,6 +503,7 @@ final class NativeFeatureStore: ObservableObject {
                 progress = saved
             }
             if let value = try? await alertRows { alerts = value }
+            persistSavedState()
             // A new account has no saved row yet; the defaults are its settings.
             do {
                 let row = try await notificationRow
@@ -498,6 +527,7 @@ final class NativeFeatureStore: ObservableObject {
         guard savesInFlight == 0, !isLoading, fresh != preferences else { return }
         preferences = fresh
         decodePreferenceModels()
+        persistSavedState()
         applyAppearancePreferences()
     }
 
@@ -515,6 +545,7 @@ final class NativeFeatureStore: ObservableObject {
         do {
             guard let api = sessionStore.api, let user = sessionStore.session?.user else { throw NativeAppError.signedOut }
             try await api.savePreference(key: key, value: json, token: try await sessionStore.accessToken(), userID: user.id)
+            persistSavedState()
         } catch {
             if preferences[key] == json {
                 if let previous { preferences[key] = previous } else { preferences.removeValue(forKey: key) }
@@ -581,6 +612,7 @@ final class NativeFeatureStore: ObservableObject {
         guard let api = sessionStore.api, let user = sessionStore.session?.user else { throw NativeAppError.signedOut }
         try await api.saveEstimate(assignmentID: assignment.id, courseID: assignment.courseID, minutes: minutes, token: try await sessionStore.accessToken(), userID: user.id)
         estimates[assignment.id] = minutes ?? 0
+        persistSavedState()
     }
 
     func saveProgress(_ percent: Int?, for assignment: AssignmentItem) async throws {
@@ -590,6 +622,7 @@ final class NativeFeatureStore: ObservableObject {
         progress[assignment.id] = percent
         do {
             try await api.saveProgress(assignmentID: assignment.id, courseID: assignment.courseID, percent: percent, token: try await sessionStore.accessToken(), userID: user.id)
+            persistSavedState()
         } catch {
             progress[assignment.id] = previous
             throw error

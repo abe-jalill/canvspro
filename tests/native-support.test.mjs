@@ -90,7 +90,7 @@ test("pull to refresh finishes, shows placeholders, and never reports 'cancelled
     assert.match(source, /if let running = currentLoad \{ await running\.value; return \}/);
     assert.match(source, /catch let error as URLError where error\.code == \.cancelled/);
   }
-  assert.match(core, /var showsSkeleton: Bool \{ isFirstLoad \|\| \(isRefreshing/);
+  assert.match(core, /var showsSkeleton: Bool \{ isFirstLoad \|\| \(\(isSyncingAtLaunch \|\| isRefreshing\) && !needsCanvasConnection && loadFailure == nil\) \}/);
   assert.doesNotMatch(views + more, /\.refreshable \{[^}]*store\.load\(\)/);
   assert.doesNotMatch(views + more, /else if store\.isFirstLoad \{/);
 });
