@@ -13,7 +13,9 @@ import {
   ArrowDown,
   Minus,
   ChevronDown,
+  ChevronRight,
   BarChart3,
+  Sparkles,
   TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -27,6 +29,7 @@ import {
 import { CourseGradeCardSkeleton } from "@/components/skeletons/dashboard-skeletons";
 import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
 import { AnimatedNumber } from "@/components/animated-number";
+import { newGrades } from "@/lib/new-grades";
 
 const LEGACY_GRADE_LAYOUT_ENABLED = false;
 
@@ -147,6 +150,7 @@ function GradesPage() {
       scoredCourses.length
     : null;
   const risingCount = scoredCourses.filter((course) => trends.get(course.id)?.dir === "up").length;
+  const newGradeCount = newGrades(assignments.data ?? [], Date.now()).length;
   const gradedAssignmentCount = Array.from(byCourse.values()).reduce(
     (count, items) =>
       count +
@@ -207,6 +211,39 @@ function GradesPage() {
         </div>
       </section>
 
+      <Link
+        to="/new-grades"
+        className="glass-panel-strong premium-reveal premium-press group flex items-center gap-3.5 rounded-2xl px-4 py-3.5 transition-colors hover:border-primary/25"
+        style={{ animationDelay: "45ms" }}
+        aria-label={
+          newGradeCount === 0
+            ? "New grades, none in the past 24 hours"
+            : `New grades, ${newGradeCount} in the past 24 hours`
+        }
+      >
+        <span
+          className={cn(
+            "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
+            newGradeCount > 0 ? "bg-primary/15 text-primary" : "bg-foreground/[0.05] text-muted-foreground",
+          )}
+        >
+          <Sparkles className="h-4 w-4" aria-hidden="true" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-medium">New grades</span>
+          <span className="block text-xs text-muted-foreground">Past 24 hours</span>
+        </span>
+        {newGradeCount > 0 && (
+          <span className="min-w-6 rounded-full bg-primary px-2 py-0.5 text-center text-xs font-semibold tabular-nums text-primary-foreground">
+            {newGradeCount}
+          </span>
+        )}
+        <ChevronRight
+          className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+          aria-hidden="true"
+        />
+      </Link>
+
       <div
         className="glass-panel-strong premium-reveal flex items-center gap-3 rounded-2xl px-4 py-3"
         style={{ animationDelay: "65ms" }}
@@ -220,7 +257,7 @@ function GradesPage() {
           className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           aria-label="Search grades"
         />
-        <span className="hidden text-xs text-muted-foreground sm:block">
+        <span className="hidden shrink-0 whitespace-nowrap text-xs text-muted-foreground sm:block">
           {filteredCourses.length} courses
         </span>
       </div>

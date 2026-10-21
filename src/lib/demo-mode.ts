@@ -97,6 +97,11 @@ function assignments() {
     [8018, 9101, "Midterm Exam", at(12, 9, 30), 100],
     [8019, 9102, "Chapter 6 Quiz", at(13, 11, 0), 20],
   ];
+  // The latest graded work came back a few hours ago, so New grades has one.
+  const newestGraded = rows
+    .filter((row) => row[5] != null)
+    .reduce((latest, row) => (row[3] > latest[3] ? row : latest))[0];
+  const gradedRecently = new Date(Date.now() - 3 * 60 * 60 * 1_000).toISOString();
   return rows.map(([id, courseId, name, due, points, score]) => {
     const course = COURSES.find((item) => item.id === courseId)!;
     return {
@@ -116,7 +121,7 @@ function assignments() {
               workflow_state: "graded",
               submitted_at: due,
               score,
-              graded_at: due,
+              graded_at: id === newestGraded ? gradedRecently : due,
               grade: String(score),
             },
     };

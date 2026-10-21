@@ -100,6 +100,8 @@ export interface AssignmentItem {
     submitted_at?: string | null;
     score?: number | null;
     graded_at?: string | null;
+    /** When the grade was released to the student; can be after graded_at. */
+    posted_at?: string | null;
     grade?: string | null;
     missing?: boolean;
     excused?: boolean;

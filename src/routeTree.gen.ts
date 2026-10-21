@@ -35,6 +35,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedFocusRouteImport } from './routes/_authenticated/focus'
 import { Route as AuthenticatedGetItDoneRouteImport } from './routes/_authenticated/get-it-done'
 import { Route as AuthenticatedGradesRouteImport } from './routes/_authenticated/grades'
+import { Route as AuthenticatedNewGradesRouteImport } from './routes/_authenticated/new-grades'
 import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
 import { Route as AuthenticatedScheduleRouteImport } from './routes/_authenticated/schedule'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
@@ -193,6 +194,11 @@ const AuthenticatedGetItDoneRoute = AuthenticatedGetItDoneRouteImport.update({
 const AuthenticatedGradesRoute = AuthenticatedGradesRouteImport.update({
   id: '/grades',
   path: '/grades',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedNewGradesRoute = AuthenticatedNewGradesRouteImport.update({
+  id: '/new-grades',
+  path: '/new-grades',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedNotificationsRoute =
@@ -367,6 +373,7 @@ export interface FileRoutesByFullPath {
   '/focus': typeof AuthenticatedFocusRoute
   '/get-it-done': typeof AuthenticatedGetItDoneRoute
   '/grades': typeof AuthenticatedGradesRoute
+  '/new-grades': typeof AuthenticatedNewGradesRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/schedule': typeof AuthenticatedScheduleRoute
   '/settings': typeof AuthenticatedSettingsRouteWithChildren
@@ -420,6 +427,7 @@ export interface FileRoutesByTo {
   '/focus': typeof AuthenticatedFocusRoute
   '/get-it-done': typeof AuthenticatedGetItDoneRoute
   '/grades': typeof AuthenticatedGradesRoute
+  '/new-grades': typeof AuthenticatedNewGradesRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/schedule': typeof AuthenticatedScheduleRoute
   '/study-session': typeof AuthenticatedStudySessionRoute
@@ -474,6 +482,7 @@ export interface FileRoutesById {
   '/_authenticated/focus': typeof AuthenticatedFocusRoute
   '/_authenticated/get-it-done': typeof AuthenticatedGetItDoneRoute
   '/_authenticated/grades': typeof AuthenticatedGradesRoute
+  '/_authenticated/new-grades': typeof AuthenticatedNewGradesRoute
   '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
   '/_authenticated/schedule': typeof AuthenticatedScheduleRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRouteWithChildren
@@ -529,6 +538,7 @@ export interface FileRouteTypes {
     | '/focus'
     | '/get-it-done'
     | '/grades'
+    | '/new-grades'
     | '/notifications'
     | '/schedule'
     | '/settings'
@@ -582,6 +592,7 @@ export interface FileRouteTypes {
     | '/focus'
     | '/get-it-done'
     | '/grades'
+    | '/new-grades'
     | '/notifications'
     | '/schedule'
     | '/study-session'
@@ -635,6 +646,7 @@ export interface FileRouteTypes {
     | '/_authenticated/focus'
     | '/_authenticated/get-it-done'
     | '/_authenticated/grades'
+    | '/_authenticated/new-grades'
     | '/_authenticated/notifications'
     | '/_authenticated/schedule'
     | '/_authenticated/settings'
@@ -878,6 +890,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedGradesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/new-grades': {
+      id: '/_authenticated/new-grades'
+      path: '/new-grades'
+      fullPath: '/new-grades'
+      preLoaderRoute: typeof AuthenticatedNewGradesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/notifications': {
       id: '/_authenticated/notifications'
       path: '/notifications'
@@ -1106,6 +1125,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedFocusRoute: typeof AuthenticatedFocusRoute
   AuthenticatedGetItDoneRoute: typeof AuthenticatedGetItDoneRoute
   AuthenticatedGradesRoute: typeof AuthenticatedGradesRoute
+  AuthenticatedNewGradesRoute: typeof AuthenticatedNewGradesRoute
   AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
   AuthenticatedScheduleRoute: typeof AuthenticatedScheduleRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRouteWithChildren
@@ -1123,6 +1143,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedFocusRoute: AuthenticatedFocusRoute,
   AuthenticatedGetItDoneRoute: AuthenticatedGetItDoneRoute,
   AuthenticatedGradesRoute: AuthenticatedGradesRoute,
+  AuthenticatedNewGradesRoute: AuthenticatedNewGradesRoute,
   AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
   AuthenticatedScheduleRoute: AuthenticatedScheduleRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRouteWithChildren,

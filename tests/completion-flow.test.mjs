@@ -60,7 +60,7 @@ test("Completed opens a page of its own with a back arrow", () => {
   const page = read("src/routes/_authenticated/completed.tsx");
   assert.match(page, /aria-label="Back"/);
   assert.match(page, /router\.history\.canGoBack\(\)/);
-  assert.match(read("src/routes/_authenticated/route.tsx"), /const BARE_PAGES = new Set\(\["\/completed"\]\)/);
+  assert.match(read("src/routes/_authenticated/route.tsx"), /const BARE_PAGES = new Set\(\["\/completed"[,\]]/);
   assert.match(read("src/routes/_authenticated/focus.tsx"), /<CompletedLink \/>/);
   assert.match(read("src/routes/_authenticated/assignments.tsx"), /<CompletedLink \/>/);
 });

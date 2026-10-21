@@ -35,7 +35,7 @@ import { StreakButton, StreakCelebrationLayer } from "@/components/streak";
 import { CompletionUndoBar } from "@/components/completion-undo-bar";
 
 /** Pages shown on their own, with their own back arrow instead of the sidebar. */
-const BARE_PAGES = new Set(["/completed"]);
+const BARE_PAGES = new Set(["/completed", "/new-grades"]);
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,

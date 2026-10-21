@@ -16,6 +16,7 @@ export const APP_SECTIONS = [
   "focus",
   "get-it-done",
   "grades",
+  "new-grades",
   "notifications",
   "schedule",
   "settings",
