@@ -1274,6 +1274,23 @@ enum CanvasProActivityFormat {
             ? String(format: "%d:%02d:%02d", value / 3_600, value % 3_600 / 60, value % 60)
             : String(format: "%d:%02d", value / 60, value % 60)
     }
+
+    /// The most the clock will read before the next update: the whole block
+    /// while it counts down, the time left while paused.
+    static func longest(_ state: CanvasProStudyActivity.ContentState) -> Int {
+        guard state.running else { return state.remaining }
+        return max(state.total, Int(state.blockEnd.timeIntervalSince(state.blockStart).rounded(.up)))
+    }
+
+    /// Room for that reading at this size, so "1:29:57" is never cut off and
+    /// "24:59" isn't padded out. A live timer takes all the width it's offered,
+    /// so it needs a set width rather than a limit.
+    static func clockWidth(_ state: CanvasProStudyActivity.ContentState, size: CGFloat) -> CGFloat {
+        let text = clock(longest(state))
+        let digits = CGFloat(text.filter(\.isNumber).count)
+        let colons = CGFloat(text.count) - digits
+        return ceil(digits * size * 0.64 + colons * size * 0.34) + 2
+    }
 }
 
 /// The study timer: counts down live while running, holds still when paused.
@@ -1298,6 +1315,15 @@ struct CanvasProStudyClock: View {
         .foregroundStyle(.white)
         .multilineTextAlignment(alignment)
         .lineLimit(1)
+        .frame(width: state.finished ? nil : CanvasProActivityFormat.clockWidth(state, size: size), alignment: frameAlignment)
+    }
+
+    private var frameAlignment: Alignment {
+        switch alignment {
+        case .leading: return .leading
+        case .center: return .center
+        case .trailing: return .trailing
+        }
     }
 }
 
@@ -1360,7 +1386,7 @@ struct CanvasProStudyLockView: View {
                     }
                 }
                 Spacer(minLength: 8)
-                CanvasProStudyClock(state: state, size: 30)
+                CanvasProStudyClock(state: state, size: 30).layoutPriority(1)
             }
             CanvasProStudyBar(state: state)
         }

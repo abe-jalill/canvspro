@@ -75,7 +75,7 @@ struct CanvasProStudyLiveActivity: Widget {
                 Image(systemName: context.state.finished ? "checkmark" : context.state.running ? "timer" : "pause.fill")
                     .font(.system(size: 13, weight: .bold)).foregroundStyle(.white)
             } compactTrailing: {
-                CanvasProStudyClock(state: context.state, size: 14, weight: .bold).frame(maxWidth: 52)
+                CanvasProStudyClock(state: context.state, size: 14, weight: .bold)
             } minimal: {
                 Image(systemName: context.state.running ? "timer" : "pause.fill")
                     .font(.system(size: 12, weight: .bold)).foregroundStyle(.white)

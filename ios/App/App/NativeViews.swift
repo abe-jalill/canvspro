@@ -4315,6 +4315,7 @@ struct NativeStudyView: View {
     @State private var duration: Int; @State private var remaining: Int; @State private var running: Bool; @State private var currentIndex: Int; @State private var showCompleted = false
     @State private var manualName = ""; @State private var search = ""
     @State private var showAllCandidates = false; @State private var addingTask = false
+    @State private var confirmingEnd = false
     @FocusState private var taskFieldFocused: Bool
     @AppStorage("CanvasProNativeStudyTimeMode") private var timeMode = "total"
     @State private var itemMinutes: [Int: Int]
@@ -4837,7 +4838,8 @@ struct NativeStudyView: View {
                     }
                     CPRing(progress: Double(blockMinutes * 60 - remaining) / Double(max(1, blockMinutes * 60)), color: phase == "focus" ? CPTheme.primary(scheme: scheme) : CPTheme.warning, lineWidth: 7) {
                         VStack(spacing: 6) {
-                            Text(String(format: "%02d:%02d", remaining / 60, remaining % 60))
+                            // "1:29:57" past an hour, like the lock screen.
+                            Text(CanvasProActivityFormat.clock(remaining))
                                 .cpFont(40, .light).tracking(-1.5).monospacedDigit()
                                 .lineLimit(1).minimumScaleFactor(0.4)
                                 .foregroundStyle(CPTheme.foreground(scheme))
@@ -4908,8 +4910,13 @@ struct NativeStudyView: View {
                                         .background(currentIndex == index ? CPTheme.foreground(scheme) : CPTheme.inset(scheme), in: Circle())
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(item.name).cpFont(15, .medium).strikethrough(done)
-                                            .foregroundStyle(done ? CPTheme.muted(scheme) : CPTheme.foreground(scheme)).lineLimit(2)
-                                        if !item.courseName.isEmpty { Text(item.courseName).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1) }
+                                            .foregroundStyle(done ? CPTheme.muted(scheme) : CPTheme.foreground(scheme))
+                                            .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+                                        if !item.courseName.isEmpty {
+                                            Text(item.courseID == 0 ? item.courseName : store.displayName(courseID: item.courseID, fallback: item.courseName))
+                                                .cpFont(11).foregroundStyle(CPTheme.muted(scheme))
+                                                .fixedSize(horizontal: false, vertical: true)
+                                        }
                                     }
                                     Spacer(minLength: 6)
                                     if done { Image(systemName: "checkmark").cpIconFont(10, .bold).foregroundStyle(CPTheme.foreground(scheme)) }
@@ -4925,9 +4932,16 @@ struct NativeStudyView: View {
                         }
                     }
                 }
-                Button("End session", role: .destructive) { running = false; blockEndsAt = nil; sessionFinished = true; celebrateSession(endedEarly: true) }
+                Button("End session", role: .destructive) { confirmingEnd = true }
                     .buttonStyle(CPButtonStyle(kind: .quiet, fullWidth: true))
                     .foregroundStyle(CPTheme.danger)
+                    // A stray tap shouldn't throw away the timer.
+                    .confirmationDialog("End this session?", isPresented: $confirmingEnd, titleVisibility: .visible) {
+                        Button("End session", role: .destructive) { running = false; blockEndsAt = nil; sessionFinished = true; celebrateSession(endedEarly: true) }
+                        Button("Keep going", role: .cancel) {}
+                    } message: {
+                        Text("The timer stops. Tasks you finished stay finished.")
+                    }
             }
             .cpPagePadding()
         }
@@ -5107,6 +5121,8 @@ struct NativeStudyView: View {
     private func navigateTask(_ direction: Int) { guard !items.isEmpty else { return }; focusTask((currentIndex + direction + items.count) % items.count) }
     /// Shows a task; in per-assignment mode its own timer starts fresh.
     private func focusTask(_ index: Int) {
+        // Tapping the task already on screen leaves its timer alone.
+        guard index != currentIndex else { return }
         currentIndex = index
         guard perItem else { return }
         remaining = blockMinutes * 60
