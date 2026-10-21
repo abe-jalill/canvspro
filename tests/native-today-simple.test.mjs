@@ -100,11 +100,13 @@ test("Today has a little more to it: a lit header, the week as pies, a lit Next 
   assert.match(hero, /\.cpHeaderLight\(\)\s+nextUpCard/);
   assert.match(design, /if wallpaper == "plain" \{\s+\/\/ Fades to clear/);
   assert.match(views, /Text\("\\\(greeting\), \\\(Text\(name\)\.foregroundStyle\(CPTheme\.primary\(scheme: scheme\)\)\)"\)/);
-  // Seven days from today as pies that fill as work gets done; nothing due is a dot.
+  // Seven days from today: how many are left, in a ring that fills as they get done;
+  // all done is a solid check, nothing due is a dot.
   assert.match(hero, /Text\(heroMessage\)[\s\S]*?weekStrip\s+\}/);
-  assert.match(views, /CPProgressPie\(progress: shown \? day\.progress : 0, size: 22\)/);
+  assert.match(views, /CPRing\(progress: shown \? day\.progress : 0, lineWidth: 2\.5\)/);
+  assert.match(views, /Text\("\\\(day\.total - day\.done\)"\)/);
+  assert.match(views, /\} else if day\.done >= day\.total \{/);
   assert.match(views, /return item\.showsDone\(in: store\) \|\| item\.isVisible\(in: store\)/);
-  assert.match(design, /struct CPPieShape: Shape/);
   // Next up is the lit card: glow and sheen, a brighter top edge, its saved progress as a bar.
   const card = between(views, "private var nextUpCard: some View", "private var nextUpLabel: some View");
   assert.match(card, /\.strokeBorder\(CPTheme\.litEdge\(scheme\), lineWidth: 0\.5\)/);

@@ -504,55 +504,6 @@ struct CPProgressBar: View {
     }
 }
 
-/// A wedge from 12 o'clock, sweeping clockwise.
-struct CPPieShape: Shape {
-    var progress: Double
-    var animatableData: Double {
-        get { progress }
-        set { progress = newValue }
-    }
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        let amount = min(1, max(0, progress))
-        guard amount > 0 else { return path }
-        let center = CGPoint(x: rect.midX, y: rect.midY)
-        path.move(to: center)
-        path.addArc(center: center, radius: min(rect.width, rect.height) / 2, startAngle: .degrees(-90), endAngle: .degrees(-90 + 360 * amount), clockwise: false)
-        path.closeSubpath()
-        return path
-    }
-}
-
-/// How much of a day's work is done: a soft disk that fills like a pie, then
-/// turns solid with a check. Fills only, no stroke.
-struct CPProgressPie: View {
-    @Environment(\.colorScheme) private var scheme
-    @Environment(\.cpPalette) private var paletteDependency
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @ScaledMetric(relativeTo: .footnote) private var scale: CGFloat = 1
-    let progress: Double
-    var size: CGFloat = 16
-
-    var body: some View {
-        let complete = progress >= 1
-        let side = size * scale
-        ZStack {
-            Circle().fill(CPTheme.foreground(scheme).opacity(0.08))
-            CPPieShape(progress: progress)
-                .fill(CPTheme.primary(scheme: scheme))
-                .padding(complete ? 0 : max(2, side * 0.11))
-            if complete {
-                Image(systemName: "checkmark").cpIconFont(size * 0.42, .bold)
-                    .foregroundStyle(CPTheme.onPrimary(scheme))
-                    .transition(reduceMotion ? AnyTransition.opacity : AnyTransition.scale(scale: 0.4).combined(with: .opacity))
-            }
-        }
-        .frame(width: side, height: side)
-        .animation(reduceMotion ? nil : .spring(duration: 0.45, bounce: 0.18), value: progress)
-        .accessibilityHidden(true)
-    }
-}
-
 /// The website's hero light on the card that leads a page (Today's Next up):
 /// a palette glow from the top corner and a glass sheen. Gradients only.
 struct CPCardLight: View {

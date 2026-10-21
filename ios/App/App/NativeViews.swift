@@ -2724,9 +2724,10 @@ private struct NativeDayProgress: Identifiable {
     var progress: Double { total == 0 ? 0 : Double(done) / Double(total) }
 }
 
-/// Seven small pies under the greeting, today first: each fills as that day's
-/// work gets done and turns solid with a check when it's all done. A day with
-/// nothing due is a dot. No numbers; the whole row opens To-Do.
+/// Seven small circles under the greeting, today first: each shows how many
+/// assignments are left that day, in a ring that fills as they get done, and
+/// turns solid with a check when it's all done. A day with nothing due is a
+/// dot; today's letter is in the palette color. The whole row opens To-Do.
 private struct NativeWeekStrip: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.cpPalette) private var paletteDependency
@@ -2751,7 +2752,7 @@ private struct NativeWeekStrip: View {
         .accessibilityLabel("Next seven days, \(done) of \(total) done")
         .accessibilityHint("Opens To-Do")
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-        // The pies fill in once, a moment after the page appears.
+        // The rings fill in once, a moment after the page appears.
         .task {
             guard !shown else { return }
             if !reduceMotion { try? await Task.sleep(for: .milliseconds(150)) }
@@ -2768,14 +2769,24 @@ private struct NativeWeekStrip: View {
             ZStack {
                 if day.total == 0 {
                     Circle().fill(CPTheme.foreground(scheme).opacity(0.14)).frame(width: 4, height: 4)
+                } else if day.done >= day.total {
+                    // All done: solid, with a check.
+                    Circle().fill(CPTheme.primary(scheme: scheme))
+                    Image(systemName: "checkmark").cpIconFont(11, .bold)
+                        .foregroundStyle(CPTheme.onPrimary(scheme))
+                        .transition(reduceMotion ? AnyTransition.opacity : AnyTransition.scale(scale: 0.4).combined(with: .opacity))
                 } else {
-                    CPProgressPie(progress: shown ? day.progress : 0, size: 22)
+                    // How many are left, in a ring that fills as they get done.
+                    CPRing(progress: shown ? day.progress : 0, lineWidth: 2.5) {
+                        Text("\(day.total - day.done)").cpFont(12, .semibold).monospacedDigit()
+                            .foregroundStyle(CPTheme.foreground(scheme))
+                            .contentTransition(.numericText())
+                    }
+                    .padding(1.25)
                 }
             }
             .frame(width: cell, height: cell)
-            .overlay {
-                if isToday { Circle().strokeBorder(CPTheme.primary(scheme: scheme).opacity(0.5), lineWidth: 1) }
-            }
+            .animation(reduceMotion ? nil : .spring(duration: 0.45, bounce: 0.18), value: shown ? day.progress : 0)
         }
     }
 }
