@@ -211,6 +211,9 @@ struct AssignmentSubmission: Codable, Hashable {
     let missing: Bool?
     let excused: Bool?
     let late: Bool?
+    /// When the grade was released to the student (a teacher can grade first
+    /// and post later). Missing on older saved data.
+    var postedAt: String? = nil
 
     enum CodingKeys: String, CodingKey {
         case workflowState = "workflow_state"
@@ -218,6 +221,7 @@ struct AssignmentSubmission: Codable, Hashable {
         case score
         case gradedAt = "graded_at"
         case grade, missing, excused, late
+        case postedAt = "posted_at"
     }
 }
 
@@ -551,10 +555,13 @@ enum NativePreviewData {
             Row(8018, 9101, "Midterm Exam", at(12, 9, 30), 100),
             Row(8019, 9102, "Chapter 6 Quiz", at(13, 11), 20),
         ]
+        // The latest graded work came back a few hours ago, so New grades has one.
+        let newestGraded = rows.filter { $0.score != nil }.max { $0.due < $1.due }?.id
+        let gradedRecently = ISO8601DateFormatter().string(from: Date().addingTimeInterval(-3 * 3600))
         let assignments = rows.map { row -> AssignmentItem in
             let course = courseFor(row.courseID)
             let submission = row.score.map { score in
-                AssignmentSubmission(workflowState: "graded", submittedAt: row.due, score: score, gradedAt: row.due, grade: String(Int(score)), missing: nil, excused: nil, late: nil)
+                AssignmentSubmission(workflowState: "graded", submittedAt: row.due, score: score, gradedAt: row.id == newestGraded ? gradedRecently : row.due, grade: String(Int(score)), missing: nil, excused: nil, late: nil)
             } ?? AssignmentSubmission(workflowState: "unsubmitted", submittedAt: nil, score: nil, gradedAt: nil, grade: nil, missing: nil, excused: nil, late: nil)
             return AssignmentItem(id: row.id, name: row.name, description: "<p>\(row.name) for \(course.name).</p>", dueAt: row.due, htmlURL: "", pointsPossible: row.points, courseID: course.id, courseName: course.name, courseCode: course.courseCode, submission: submission)
         }

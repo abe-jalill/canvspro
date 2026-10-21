@@ -48,7 +48,7 @@ test("text follows Dynamic Type everywhere", () => {
 
 test("completion circles and reorder arrows are labelled for VoiceOver", () => {
   assert.match(swift.NativeViews, /accessibilityLabel\(isComplete \? "Mark \\\(assignment\.name\) as not done" : "Mark \\\(assignment\.name\) as done"\)/);
-  assert.match(swift.NativeMoreViews, /accessibilityLabel\("Move \\\(item\.name\) earlier"\)/);
+  assert.match(swift.NativeViews, /accessibilityLabel\("Move \\\(item\.name\) earlier"\)/);
   assert.match(swift.NativeMoreViews, /accessibilityLabel\(NativeWeekday\.full\(day\)\)/);
 });
 
@@ -59,7 +59,7 @@ test("a new account is guided to connect Canvas instead of seeing an error code"
     assert.ok(swift.NativeCore.includes(`"${code}"`), code);
   }
   const screens = (swift.NativeViews + swift.NativeMoreViews).match(/NativeConnectCanvasCard\(store: store\)/g) ?? [];
-  assert.ok(screens.length >= 5, "Dashboard, Assignments, Grades, Study and Get It Done");
+  assert.ok(screens.length >= 4, "Dashboard, To-Do, Grades and Study");
   assert.match(swift.NativeMoreViews, /Text\("Connected"\)/);
   assert.match(swift.NativeMoreViews, /Text\(address\)\.cpFont\(12, design: \.monospaced\)/);
 });
@@ -132,7 +132,7 @@ test("the syllabus is only on the class page, and Today uses the website's tabs"
   assert.doesNotMatch(dashboard, /syllabus/i);
   const course = swift.NativeViews.slice(swift.NativeViews.indexOf("struct CourseDetailView"), swift.NativeViews.indexOf("private struct CountUpGrade"));
   assert.match(course, /Label\("Syllabus", systemImage: "doc.text"\)/);
-  for (const page of ["NativeDashboardView", "GetItDoneView", "FocusView"]) {
+  for (const page of ["NativeDashboardView", "FocusView"]) {
     const source = page === "NativeDashboardView" ? swift.NativeViews : swift.NativeMoreViews;
     const body = source.slice(source.indexOf(`struct ${page}`));
     assert.match(body, /NativeTodayTabs\(selection: \$(todaySection|section)\)/, page);
@@ -179,7 +179,7 @@ test("a new student is walked through connecting Canvas, once, and failures are 
   assert.match(swift.NativeCore, /loadFailure = errorMessage/);
   assert.match(swift.NativeMoreViews, /struct NativeLoadFailedCard: View/);
   const uses = (swift.NativeViews + swift.NativeMoreViews).match(/NativeLoadFailedCard\(store: store\)/g) ?? [];
-  assert.ok(uses.length >= 4, `${uses.length} screens show the retry card`);
+  assert.ok(uses.length >= 3, `${uses.length} screens show the retry card`);
 });
 
 test("rows swipe, haptics are gentle, and accessibility has every action", () => {

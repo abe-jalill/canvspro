@@ -871,28 +871,14 @@ enum NativeParity {
         }
     }
 
-    /// Work that hasn't opened in Canvas yet always sorts after open work, however
-    /// close its due date; closed work goes in the order it opens. Nil when both
-    /// are open (or open at the same time), so the score decides.
-    static func openFirst(_ left: AssignmentItem, _ right: AssignmentItem, now: Date = Date()) -> Bool? {
-        let leftClosed = left.notYetOpen(now: now)
-        let rightClosed = right.notYetOpen(now: now)
-        if leftClosed != rightClosed { return rightClosed }
-        guard leftClosed, let a = left.unlockDate, let b = right.unlockDate, a != b else { return nil }
-        return a < b
-    }
-
-    static func rankedAssignments(_ items: [AssignmentItem], estimates: [Int: Int], now: Date = Date()) -> [AssignmentItem] {
-        let dueSoon = Dictionary(grouping: items.filter {
-            guard let due = $0.dueDate else { return false }
-            return due >= now && due <= now.addingTimeInterval(3 * 86400)
-        }, by: \.courseID).mapValues(\.count)
-        return items.sorted { left, right in
-            if let open = openFirst(left, right, now: now) { return open }
-            let a = getItDoneScore(left, estimate: estimates[left.id], dueSoonCount: dueSoon[left.courseID] ?? 0, now: now)
-            let b = getItDoneScore(right, estimate: estimates[right.id], dueSoonCount: dueSoon[right.courseID] ?? 0, now: now)
-            return a == b ? AssignmentItem.dueSort(left, right) : a > b
-        }
+    /// Grades → New grades: grades that came in over the last 24 hours, newest first.
+    static func newGrades(_ items: [AssignmentItem], now: Date = Date()) -> [AssignmentItem] {
+        let since = now.addingTimeInterval(-86_400)
+        return items
+            .compactMap { item in item.gradeArrivedAt.map { (item, $0) } }
+            .filter { $0.1 >= since }
+            .sorted { $0.1 > $1.1 }
+            .map(\.0)
     }
 
     static func priorityLabel(_ item: AssignmentItem, now: Date = Date()) -> String {
@@ -905,47 +891,6 @@ enum NativeParity {
         if let supplied, !supplied.isEmpty { return supplied }
         guard let score, score.isFinite else { return "—" }
         return score >= 93 ? "A" : score >= 90 ? "A-" : score >= 87 ? "B+" : score >= 83 ? "B" : score >= 80 ? "B-" : score >= 77 ? "C+" : score >= 73 ? "C" : score >= 70 ? "C-" : score >= 67 ? "D+" : score >= 63 ? "D" : score >= 60 ? "D-" : "F"
-    }
-
-
-    static func getItDoneScore(_ item: AssignmentItem, estimate: Int?, dueSoonCount: Int, now: Date = Date()) -> Double {
-        let hours = item.dueDate.map { $0.timeIntervalSince(now) / 3600 }
-        var score: Double
-        if let hours {
-            if hours < 0 { score = 120 + min(abs(hours) / 24, 7) * 3 }
-            else if hours <= 12 { score = 105 }
-            else if hours <= 24 { score = 92 }
-            else if hours <= 72 { score = 70 - hours / 72 * 12 }
-            else if hours <= 168 { score = 38 - hours / 168 * 8 }
-            else { score = 10 }
-        } else { score = 8 }
-        let points = item.pointsPossible ?? 0
-        if points > 0 { score += min(points / 100, 1) * 16 }
-        if let estimate, estimate > 0 { score += min(Double(estimate) / 90, 1) * 8 }
-        else { score += min(Double(defaultEstimate(item)) / 90, 1) * 4 }
-        if dueSoonCount > 1 { score += Double(min(dueSoonCount, 4)) * 5 }
-        return score
-    }
-
-    static func recommendationReason(_ item: AssignmentItem, estimate: Int?, dueSoonCount: Int, now: Date = Date()) -> String {
-        var reasons: [String] = []
-        if let due = item.dueDate {
-            let hours = due.timeIntervalSince(now) / 3600
-            if hours < 0 { reasons.append("it is overdue") }
-            else if hours <= 12 { reasons.append("it is due soon") }
-            else if hours <= 24 { reasons.append("it is due within 24 hours") }
-            else if hours <= 72 { reasons.append("it is due within 3 days") }
-            else if hours <= 168 { reasons.append("it is due this week") }
-        }
-        if (item.pointsPossible ?? 0) >= 50 { reasons.append("it carries a lot of points") }
-        if (estimate ?? 0) >= 60 { reasons.append("it needs a longer work block") }
-        if dueSoonCount > 1 { reasons.append("\(dueSoonCount) assignments in this class are due soon") }
-        let dueDescription: String
-        if let due = item.dueDate {
-            let days = Int(ceil(abs(due.timeIntervalSince(now)) / 86400))
-            dueDescription = due < now ? (days <= 1 ? "overdue" : "\(days) days overdue") : due <= now.addingTimeInterval(86400) ? "due within 24 hours" : due <= now.addingTimeInterval(3 * 86400) ? "due within 3 days" : due <= now.addingTimeInterval(7 * 86400) ? "due this week" : "due later"
-        } else { dueDescription = "no due date" }
-        return reasons.isEmpty ? "Recommended because it is the strongest next task with \(dueDescription)." : "Recommended because \(reasons.prefix(2).joined(separator: " and "))."
     }
 }
 

@@ -8,8 +8,10 @@ test("native tabs remain a compact projection of website navigation", () => {
   const tabs = source("ios/App/App/NativeViews.swift");
   const more = source("ios/App/App/NativeMoreViews.swift");
 
-  // Four tabs: Today, the student's two picks (Study Session and Grades to start), More.
+  // Today, the student's two or three picks (Study Session and Grades to start), More.
   assert.match(tabs, /static func tabs\(_ raw: String\) -> \[NativeTab\] \{ \[\.today\] \+ middle\(raw\) \+ \[\.more\] \}/);
+  assert.match(tabs, /static let maxMiddle = 3/);
+  assert.match(tabs, /return \(2\.\.\.maxMiddle\)\.contains\(picked\.count\) \? picked : defaultMiddle/);
   assert.match(tabs, /static let defaultMiddle: \[NativeTab\] = \[\.study, \.grades\]/);
   assert.match(tabs, /static let choices: \[NativeTab\] = \[\.study, \.grades, \.files, \.announcements, \.calendar, \.classes\]/);
   assert.equal((tabs.match(/\.tabItem\s*\{/g) ?? []).length, 1, "one ForEach builds every tab");
@@ -29,7 +31,10 @@ test("native tabs remain a compact projection of website navigation", () => {
   assert.ok(tabs.includes("NavigationStack { ClassScheduleView(features: featureStore, store: contentStore) }"));
   assert.ok(more.includes("case .calendar: CalendarView(store: store, features: features)"));
   assert.ok(more.includes("case .classes: ClassScheduleView(features: features, store: store)"));
-  assert.ok(tabs.includes('options: ["Dashboard", "To-Do", "Get It Done"]'));
+  // Today is Dashboard and To-Do; Get It Done became the dashboard's Next up.
+  assert.ok(tabs.includes('options: ["Dashboard", "To-Do"]'));
+  assert.ok(!tabs.includes('"Get It Done"'));
+  assert.ok(tabs.includes('else if path.contains("get-it-done") { todaySection = "Dashboard"; selection = .today }'));
 
   assert.ok(tabs.includes('todaySection = "To-Do"; selection = .today'));
   // The page was called Assignments before; a saved choice of it still opens To-Do.
@@ -77,9 +82,11 @@ test("Calendar rows are a title and one line, with no squeezed time column", () 
   assert.match(schedule, /Button\("Delete class", role: \.destructive\)/);
 });
 
-test("the Next up card holds its time estimate inside it", () => {
+test("the Next up card holds Start and its time estimate inside it", () => {
   const views = source("ios/App/App/NativeViews.swift");
-  const hero = views.slice(views.indexOf("private var heroStats: some View"), views.indexOf("private var heroCardBackground"));
-  // The estimate comes before the card's own padding and background close.
-  assert.match(hero, /if let item = nextUp \{ NativeEstimateEditor\(assignment: item, features: features\) \}\s*\}\s*\.padding\(14\)\s*\.frame\(maxWidth: \.infinity, alignment: \.leading\)\s*\.background\(heroCardBackground/);
+  const card = views.slice(views.indexOf("private var nextUpCard: some View"), views.indexOf("private var catchUpRow: some View"));
+  // Start (what Get It Done did) and the estimate sit side by side, then the
+  // card's own padding and background close.
+  assert.match(card, /NotificationCenter\.default\.post\(name: \.nativeStudyAssignment, object: item\)/);
+  assert.match(card, /NativeEstimateEditor\(assignment: item, features: features\)\s*Spacer\(minLength: 0\)\s*\}\s*\}\s*\}\s*\.padding\(16\)\s*\.frame\(maxWidth: \.infinity, alignment: \.leading\)\s*\.background\(CPTheme\.accentCardGradient\(scheme\)/);
 });

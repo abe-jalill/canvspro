@@ -73,11 +73,11 @@ test("the Canvas address is never guessed from the email", () => {
 
 test("on the iPhone, work that hasn't opened never outranks open work", () => {
   const parity = read("ios/App/App/NativeFeatures.swift");
-  assert.match(parity, /static func openFirst\(_ left: AssignmentItem, _ right: AssignmentItem/);
-  assert.match(parity, /if let open = openFirst\(left, right, now: now\) \{ return open \}/);
-  // Next up skips work that hasn't opened yet.
+  const views = read("ios/App/App/NativeViews.swift");
+  // Next up, the one suggestion on Today, skips work that hasn't opened yet...
   assert.match(parity, /return !item\.notYetOpen\(now: now\)/);
-  assert.match(more, /if let open = NativeParity\.openFirst\(lhs, rhs\) \{ return open \}/);
+  // ...and so do the dashboard's counts.
+  assert.match(views, /\$0\.isVisible\(in: store\) && !\$0\.notYetOpen\(\)/);
 });
 
 test("pull to refresh finishes, shows placeholders, and never reports 'cancelled'", () => {

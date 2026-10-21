@@ -18,11 +18,16 @@ struct NativeMenuRow: View {
             CPIconBadge(symbol: symbol)
             VStack(alignment: .leading, spacing: 1) {
                 Text(title).cpFont(13, .medium).foregroundStyle(CPTheme.foreground(scheme))
-                if let detail { Text(detail).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1) }
+                    .fixedSize(horizontal: false, vertical: true)
+                if let detail {
+                    Text(detail).cpFont(11).foregroundStyle(CPTheme.muted(scheme))
+                        .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                }
             }
             Spacer(minLength: 8)
             Image(systemName: trailingSymbol).cpIconFont(9, .bold).foregroundStyle(CPTheme.faint(scheme))
         }
+        .padding(.vertical, 8)
         .frame(minHeight: 56)
         .contentShape(Rectangle())
     }
@@ -166,24 +171,30 @@ struct NativeMoreView: View {
     private var profileCard: some View {
         NavigationLink { ProfileView(features: features, email: sessionStore.session?.user.email) } label: {
             HStack(spacing: 14) {
-                NativeAvatar(url: features.avatarURL, size: 52)
+                NativeAvatar(url: features.avatarURL, size: 56)
+                // Long names, schools and addresses wrap instead of being cut off.
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(fullName).cpFont(17, .semibold).tracking(-0.3).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
+                    Text(fullName).cpFont(17, .semibold).tracking(-0.3).foregroundStyle(CPTheme.foreground(scheme))
+                        .lineLimit(2).fixedSize(horizontal: false, vertical: true)
                     // School and year, e.g. "State University · Sophomore".
                     if let schoolLine = features.accountDetails.schoolLine {
-                        Text(schoolLine).cpFont(13).foregroundStyle(CPTheme.foreground(scheme).opacity(0.85)).lineLimit(1)
+                        Text(schoolLine).cpFont(13).foregroundStyle(CPTheme.foreground(scheme).opacity(0.85))
+                            .lineLimit(2).fixedSize(horizontal: false, vertical: true)
                     } else {
-                        Text("Add your school and year").cpFont(13).foregroundStyle(CPTheme.primary(scheme: scheme)).lineLimit(1)
+                        Text("Add your school and year").cpFont(13).foregroundStyle(CPTheme.primary(scheme: scheme))
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                     if let email = sessionStore.session?.user.email {
-                        Text(email).cpFont(12).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
+                        Text(email).cpFont(12).foregroundStyle(CPTheme.muted(scheme))
+                            .lineLimit(2).fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 Spacer(minLength: 8)
                 Image(systemName: "chevron.right").cpIconFont(9, .bold).foregroundStyle(CPTheme.faint(scheme))
             }
             .padding(CPLayout.cardPadding)
-            .cpSurface(strong: true)
+            .background(CPTheme.accentCardGradient(scheme), in: RoundedRectangle(cornerRadius: CPLayout.cardRadius, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: CPLayout.cardRadius, style: .continuous).strokeBorder(CPTheme.primary(scheme: scheme).opacity(0.3), lineWidth: 0.5))
         }
         .buttonStyle(CPPressStyle())
         .accessibilityHint("Opens your profile")
@@ -196,8 +207,10 @@ struct NativeMoreView: View {
             HStack(spacing: 14) {
                 tileIcon(page)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(page.title).cpFont(15, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
-                    Text(detail(for: page)).cpFont(12).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
+                    Text(page.title).cpFont(15, .medium).foregroundStyle(CPTheme.foreground(scheme))
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(detail(for: page)).cpFont(12).foregroundStyle(CPTheme.muted(scheme))
+                        .lineLimit(2).fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 8)
                 Image(systemName: "arrow.up.right").cpIconFont(10, .semibold).foregroundStyle(CPTheme.faint(scheme))
@@ -230,7 +243,9 @@ struct NativeMoreView: View {
             }
             Spacer(minLength: 0)
             VStack(alignment: .leading, spacing: 3) {
-                Text(page.title).cpFont(15, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
+                Text(page.title).cpFont(15, .medium).foregroundStyle(CPTheme.foreground(scheme))
+                    .lineLimit(2).multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(detail(for: page)).cpFont(12).foregroundStyle(CPTheme.muted(scheme))
                     .lineLimit(2).multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
@@ -300,7 +315,7 @@ struct NativeMoreView: View {
 }
 
 /// Settings › Tab bar: Today is always first and More always last; the two
-/// in between are the student's pick.
+/// in between are the student's pick, and a third is optional.
 @MainActor
 struct NativeTabBarSettingsView: View {
     @Environment(\.colorScheme) private var scheme
@@ -319,6 +334,7 @@ struct NativeTabBarSettingsView: View {
             Section("Tabs in the middle") {
                 picker("Second tab", slot: 0)
                 picker("Third tab", slot: 1)
+                extraPicker
             }
             if middle != NativeTabBar.defaultMiddle {
                 Section {
@@ -334,11 +350,16 @@ struct NativeTabBarSettingsView: View {
 
     /// A small copy of the tab bar as it will look.
     private var preview: some View {
-        HStack(spacing: 0) {
-            ForEach(NativeTabBar.tabs(raw), id: \.self) { tab in
+        let tabs = NativeTabBar.tabs(raw)
+        return HStack(alignment: .top, spacing: 2) {
+            ForEach(tabs, id: \.self) { tab in
                 VStack(spacing: 4) {
                     Image(systemName: tab.symbol).cpIconFont(17)
-                    Text(tab.title).cpFont(11).lineLimit(1).minimumScaleFactor(0.7)
+                    // Wraps rather than shrinking when a name is long.
+                    Text(tab.tabLabel(compact: tabs.count > 4)).cpFont(11)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .foregroundStyle(tab == .today ? CPTheme.primary(scheme: scheme) : CPTheme.muted(scheme))
                 .frame(maxWidth: .infinity)
@@ -358,6 +379,20 @@ struct NativeTabBarSettingsView: View {
         })) {
             ForEach(NativeTabBar.choices, id: \.self) { tab in
                 Label(tab.title, systemImage: tab.symbol).tag(tab)
+            }
+        }
+    }
+
+    /// The optional fourth tab, which makes five: None, or a page not already picked.
+    private var extraPicker: some View {
+        Picker("Fourth tab", selection: Binding<NativeTab?>(get: { middle.count > 2 ? middle[2] : nil }, set: { tab in
+            var next = Array(middle.prefix(2))
+            if let tab { next.append(tab) }
+            raw = NativeTabBar.raw(next)
+        })) {
+            Text("None").tag(NativeTab?.none)
+            ForEach(NativeTabBar.choices.filter { !middle.prefix(2).contains($0) }, id: \.self) { tab in
+                Label(tab.title, systemImage: tab.symbol).tag(NativeTab?.some(tab))
             }
         }
     }
@@ -725,240 +760,6 @@ private struct NativeDeleteAccountView: View {
     }
 }
 
-struct GetItDoneView: View {
-    @Environment(\.colorScheme) private var scheme
-    @Environment(\.cpPalette) private var paletteDependency
-    @ObservedObject var store: NativeContentStore
-    @ObservedObject var features: NativeFeatureStore
-    @Binding var section: String
-    @State private var window = 7
-    @State private var skippedRaw = ""
-    @State private var orderRaw = ""
-    @State private var planDate = ""
-    @State private var planLoaded = false
-    @State private var choiceOffset = 0
-    @State private var editingEstimate: Int?
-    @State private var estimateMinutes = 30
-
-    private var planKey: String { "CanvasProNativePlan.\(store.persistenceScope)." }
-    private func savePlan() {
-        guard planLoaded else { return }
-        let defaults = UserDefaults.standard
-        defaults.set(window, forKey: planKey + "window")
-        defaults.set(skippedRaw, forKey: planKey + "skipped")
-        defaults.set(orderRaw, forKey: planKey + "order")
-        defaults.set(planDate, forKey: planKey + "date")
-    }
-    private func loadPlan() {
-        let defaults = UserDefaults.standard
-        let savedWindow = defaults.integer(forKey: planKey + "window")
-        window = savedWindow == 14 ? 14 : 7
-        skippedRaw = defaults.string(forKey: planKey + "skipped") ?? ""
-        orderRaw = defaults.string(forKey: planKey + "order") ?? ""
-        planDate = defaults.string(forKey: planKey + "date") ?? ""
-        let today = String(Int(Calendar.current.startOfDay(for: Date()).timeIntervalSince1970))
-        if planDate != today { skippedRaw = ""; orderRaw = ""; planDate = today }
-        planLoaded = true
-        savePlan()
-    }
-    private var skipped: Set<Int> { Set(skippedRaw.split(separator: ",").compactMap { Int($0) }) }
-    private var manualOrder: [Int] { orderRaw.split(separator: ",").compactMap { Int($0) } }
-    private var allAssignments: [AssignmentItem] { features.shownAssignments(in: store) }
-    private var visibleAssignments: [AssignmentItem] {
-        let end = NativeParity.endOfUpcomingDay(window)
-        return allAssignments.filter { item in
-            guard let due = item.dueDate else { return false }
-            return due >= Date() && due <= end
-        }
-    }
-    private var candidates: [AssignmentItem] {
-        NativeParity.rankedAssignments(visibleAssignments.filter { $0.isVisible(in: store) && !skipped.contains($0.id) }, estimates: features.estimates)
-    }
-    private var recommendation: AssignmentItem? { candidates.isEmpty ? nil : candidates[choiceOffset % candidates.count] }
-    private var plan: [AssignmentItem] {
-        let ordered = candidates.sorted { lhs, rhs in
-            let left = manualOrder.firstIndex(of: lhs.id)
-            let right = manualOrder.firstIndex(of: rhs.id)
-            if let left, let right { return left < right }
-            if left != nil { return true }
-            if right != nil { return false }
-            if let open = NativeParity.openFirst(lhs, rhs) { return open }
-            return score(lhs) > score(rhs)
-        }
-        var result: [AssignmentItem] = []
-        var total = 0
-        for item in ordered {
-            let minutes = features.estimates[item.id].flatMap { $0 > 0 ? $0 : nil } ?? NativeParity.defaultEstimate(item)
-            let dueSoon = item.dueDate.map { $0 <= Date().addingTimeInterval(3 * 86400) } ?? false
-            if !dueSoon && result.count >= 3 { continue }
-            if result.count >= 3 && total + minutes > 240 { continue }
-            result.append(item)
-            total += minutes
-            if result.count >= 6 { break }
-        }
-        return result
-    }
-    private func score(_ item: AssignmentItem) -> Double {
-        let count = candidatesDueSoonCount(for: item)
-        return NativeParity.getItDoneScore(item, estimate: features.estimates[item.id], dueSoonCount: count)
-    }
-    private func candidatesDueSoonCount(for item: AssignmentItem) -> Int {
-        visibleAssignments.filter { $0.courseID == item.courseID && $0.isVisible(in: store) && !skipped.contains($0.id) && ($0.dueDate ?? .distantFuture) <= Date().addingTimeInterval(3 * 86400) }.count
-    }
-    var body: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 16) {
-                NativeTodayTabs(selection: $section)
-                CPPageHeader(eyebrow: Date().formatted(.dateTime.weekday(.wide).month(.wide).day()), title: "Up next", detail: nil)
-                if store.needsCanvasConnection {
-                    NativeConnectCanvasCard(store: store)
-                } else if store.loadFailure != nil {
-                    NativeLoadFailedCard(store: store)
-                } else if store.showsSkeleton {
-                    CPSkeletonCard()
-                } else if let first = recommendation {
-                    recommendationCard(first)
-                } else {
-                    CPGlassCard { NativeEmptyState(title: "You're all clear.", symbol: "checkmark.circle") }
-                }
-                CPSegmented(selection: Binding(get: { window == 7 ? "One week" : "Two weeks" }, set: { value in window = value == "One week" ? 7 : 14; choiceOffset = 0; orderRaw = "" }), options: ["One week", "Two weeks"], label: "Planning window")
-                if !store.needsCanvasConnection && store.loadFailure == nil && !store.showsSkeleton { planCard }
-            }
-            .cpPagePadding()
-            .cpStateChange(recommendation?.id)
-        }
-        .background(CPBackdrop())
-        .onAppear { if !planLoaded { loadPlan() } }
-        .onChange(of: store.persistenceScope) { _, _ in planLoaded = false; loadPlan() }
-        .onChange(of: window) { _, _ in savePlan() }
-        .onChange(of: skippedRaw) { _, _ in savePlan() }
-        .onChange(of: orderRaw) { _, _ in savePlan() }
-        .onChange(of: planDate) { _, _ in savePlan() }
-        .alert("Estimated time", isPresented: Binding(get: { editingEstimate != nil }, set: { if !$0 { editingEstimate = nil } })) {
-            TextField("Minutes", value: $estimateMinutes, format: .number).keyboardType(.numberPad)
-            Button("Save") { if let id = editingEstimate, let item = allAssignments.first(where: { $0.id == id }) { Task { do { try await features.saveEstimate(min(480, max(5, estimateMinutes)), for: item) } catch { features.errorMessage = error.localizedDescription } } }; editingEstimate = nil }
-            Button("Cancel", role: .cancel) { editingEstimate = nil }
-        }
-    }
-
-    private func recommendationCard(_ first: AssignmentItem) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top, spacing: 8) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(store.displayName(courseID: first.courseID, fallback: first.courseName).uppercased())
-                        .cpFont(11, .semibold).tracking(1).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
-                    Text(first.name).cpFont(20, .regular).tracking(-0.5).foregroundStyle(CPTheme.foreground(scheme))
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer(minLength: 4)
-                Menu {
-                    if candidates.count > 1 { Button("Suggest something else") { choiceOffset = (choiceOffset + 1) % candidates.count } }
-                    Button("Skip for today") { skip(first.id) }
-                    Button("Change time estimate") { estimateMinutes = estimate(for: first); editingEstimate = first.id }
-                } label: { CPIconButtonLabel(symbol: "ellipsis") }
-                    .padding(-7)
-                    .accessibilityLabel("More options for this suggestion")
-            }
-            HStack(spacing: 6) {
-                if let due = first.dueDate {
-                    CPPill(text: NativeParity.dueDisplay(due), tone: due < Date() ? .danger : .neutral, symbol: "calendar")
-                }
-                CPPill(text: "About \(estimate(for: first)) min", symbol: "clock")
-            }
-            Text(NativeParity.recommendationReason(first, estimate: features.estimates[first.id], dueSoonCount: candidatesDueSoonCount(for: first)))
-                .cpFont(11).lineSpacing(2).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
-            HStack(spacing: 8) {
-                Button { NotificationCenter.default.post(name: .nativeStudyAssignment, object: first) } label: { Label("Start", systemImage: "play.fill") }
-                    .buttonStyle(CPButtonStyle(kind: .primary, fullWidth: true))
-                if let url = URL(string: first.htmlURL), url.scheme == "https" {
-                    Link(destination: url) { Text("Canvas") }.buttonStyle(CPButtonStyle(kind: .quiet))
-                }
-            }
-            NativeEstimateEditor(assignment: first, features: features)
-            NativeAssignmentDescriptionLink(assignment: first, store: store, features: features)
-                .cpFont(11, .semibold).foregroundStyle(CPTheme.foreground(scheme))
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            LinearGradient(colors: [CPTheme.primary(scheme: scheme).opacity(scheme == .dark ? 0.12 : 0.08), .clear], startPoint: .topLeading, endPoint: .bottomTrailing),
-            in: RoundedRectangle(cornerRadius: 22, style: .continuous)
-        )
-        .cpSurface(strong: true, radius: 22)
-    }
-
-    /// The plan without the suggestion shown above it.
-    private var rest: [AssignmentItem] { plan.filter { $0.id != recommendation?.id } }
-    private var plannedMinutes: Int { rest.reduce(0) { $0 + estimate(for: $1) } }
-    private var planCard: some View {
-        CPGlassCard {
-            CPCardHeader(title: "The rest of today", subtitle: rest.isEmpty ? "Nothing else planned" : "\(rest.count) left · about \(plannedMinutes) min") {
-                Button { skippedRaw = ""; orderRaw = ""; choiceOffset = 0 } label: { CPLinkLabel(text: "Reset", symbol: "arrow.counterclockwise") }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Reset plan")
-            }
-            if plan.isEmpty {
-                NativeEmptyState(title: "Nothing scheduled for today.", symbol: "checkmark.circle")
-            } else if rest.isEmpty {
-                Text("That's everything planned for today.").cpFont(11).foregroundStyle(CPTheme.muted(scheme))
-            } else {
-                VStack(spacing: 0) {
-                    ForEach(Array(rest.enumerated()), id: \.element.id) { index, item in
-                        planRow(item, index: index, count: rest.count)
-                        if index < rest.count - 1 { CPRowDivider(leading: 32) }
-                    }
-                }
-            }
-        }
-    }
-
-    private func planRow(_ item: AssignmentItem, index: Int, count: Int) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Text("\(index + 1)").cpFont(11, .bold).monospacedDigit()
-                .foregroundStyle(CPTheme.foreground(scheme))
-                .frame(width: 22, height: 22)
-                .background(CPTheme.foreground(scheme).opacity(0.07), in: Circle())
-            VStack(alignment: .leading, spacing: 4) {
-                Text(item.name).cpFont(12, .semibold).foregroundStyle(CPTheme.foreground(scheme)).fixedSize(horizontal: false, vertical: true)
-                Text(planMeta(item)).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(2)
-                HStack(spacing: 14) {
-                    Button("Start") { NotificationCenter.default.post(name: .nativeStudyAssignment, object: item) }
-                    NativeEstimateEditor(assignment: item, features: features)
-                    Button("Skip today") { skip(item.id) }
-                    NativeAssignmentDescriptionLink(assignment: item, store: store, features: features).labelStyle(.titleOnly)
-                }
-                .cpFont(11, .semibold)
-                .foregroundStyle(CPTheme.foreground(scheme))
-                .buttonStyle(.plain)
-                .frame(minHeight: 30)
-            }
-            Spacer(minLength: 2)
-            VStack(spacing: 0) {
-                Button { move(item.id, direction: -1) } label: { Image(systemName: "chevron.up").frame(width: 32, height: 30) }
-                    .disabled(index == 0).accessibilityLabel("Move \(item.name) earlier")
-                Button { move(item.id, direction: 1) } label: { Image(systemName: "chevron.down").frame(width: 32, height: 30) }
-                    .disabled(index == count - 1).accessibilityLabel("Move \(item.name) later")
-            }
-            .cpFont(11, .bold)
-            .foregroundStyle(CPTheme.muted(scheme))
-            .buttonStyle(.plain)
-        }
-        .padding(.vertical, 10)
-    }
-
-    private func planMeta(_ item: AssignmentItem) -> String {
-        var parts = [store.displayName(courseID: item.courseID, fallback: item.courseName)]
-        if item.submission?.missing == true { parts.append("Missing") }
-        else if let due = item.dueDate { parts.append(NativeParity.dueDisplay(due)) }
-        else { parts.append("No due date") }
-        return parts.joined(separator: " · ")
-    }
-    private func estimate(for item: AssignmentItem) -> Int { NativeParity.estimate(item, estimates: features.estimates) }
-    private func skip(_ id: Int) { skippedRaw = (skipped.union([id])).sorted().map { String($0) }.joined(separator: ","); orderRaw = manualOrder.filter { $0 != id }.map { String($0) }.joined(separator: ","); choiceOffset = 0 }
-    /// Reorders the rows the student sees ("The rest of today").
-    private func move(_ id: Int, direction: Int) { var ids = rest.map(\.id); guard let index = ids.firstIndex(of: id), ids.indices.contains(index + direction) else { return }; ids.swapAt(index, index + direction); orderRaw = ids.map { String($0) }.joined(separator: ",") }
-}
-
 /// Today's To-Do page: the website's Coming Up view (one row of choices,
 /// by day or by class), search, and adding your own work.
 struct FocusView: View {
@@ -1097,7 +898,8 @@ struct FocusView: View {
                     .lineLimit(1)
                     .accessibilityAddTraits(.isHeader)
                 Text(headerLine)
-                    .cpFont(13).monospacedDigit().foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
+                    .cpFont(13).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
+                    .lineLimit(2).fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 8)
             Button {

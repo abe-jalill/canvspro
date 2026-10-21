@@ -80,6 +80,16 @@ enum CPTheme {
             ? .hsl(palette.hue, strong ? 0.21 : 0.20, strong ? 0.116 : 0.112)
             : .hsl(palette.hue, 0.24, strong ? 0.945 : 0.95)
     }
+    /// The palette's soft gradient for the one card on a page that leads it
+    /// (Today's Next up, More's profile).
+    static func accentCardGradient(_ scheme: ColorScheme, palette: CPPalette = currentPalette) -> LinearGradient {
+        LinearGradient(
+            colors: scheme == .dark
+                ? [.hsl(palette.hue, palette.saturation, 0.21), .hsl(palette.hue, palette.saturation, 0.15), .hsl(palette.hue, palette.saturation, 0.11)]
+                : [.hsl(palette.hue, palette.saturation, 0.99), .hsl(palette.hue, palette.saturation, 0.93)],
+            startPoint: .topLeading, endPoint: .bottomTrailing
+        )
+    }
     static func border(_ scheme: ColorScheme, palette: CPPalette = currentPalette) -> Color {
         scheme == .dark ? .hsl(palette.hue, 0.18, 0.88, opacity: 0.11) : .hsl(palette.hue, 0.28, 0.18, opacity: 0.11)
     }
@@ -409,7 +419,6 @@ struct CPStatTile: View {
                 .cpFont(11)
                 .foregroundStyle(CPTheme.muted(scheme))
                 .lineLimit(2)
-                .minimumScaleFactor(0.85)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(14)

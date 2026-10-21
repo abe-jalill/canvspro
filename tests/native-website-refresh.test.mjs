@@ -17,7 +17,9 @@ test("Today's To-Do page keeps the website Focus date strip and grouping hierarc
   assert.ok(more.includes("Calendar.current.date(byAdding: .day"));
   assert.ok(views.includes("requestedAssignment: $studyRequest"));
   assert.ok(views.includes("if !sessionStarted || sessionFinished"));
-  assert.ok(views.includes('section == "Get It Done"'));
+  // Get It Done's one suggestion is the dashboard's Next up; its own page is gone.
+  assert.ok(!more.includes("struct GetItDoneView"));
+  assert.ok(!views.includes('section == "Get It Done"'));
   assert.ok(!more.includes(".sheet(item: $studyAssignment)"));
 });
 
@@ -35,10 +37,8 @@ test("priority surfaces share the same scorer and quiet labels", () => {
   // The Assignments page has no Priority card; the dashboard suggests one next step.
   assert.ok(!more.includes("priorityCard"));
   assert.ok(views.includes("NativeParity.nextUp(activeAssignments, progress: features.progress)"));
-  assert.ok(more.includes("NativeParity.rankedAssignments(visibleAssignments"));
   assert.ok(!views.includes("NativeParity.priority("));
   for (const label of ["Do first", "Soon", "This week", "Later"]) assert.ok(parity.includes(`"${label}"`));
-  assert.ok(parity.includes("return a == b ? AssignmentItem.dueSort(left, right) : a > b"));
 });
 
 test("native study session supports the new Pomodoro choices and persisted phase", () => {
