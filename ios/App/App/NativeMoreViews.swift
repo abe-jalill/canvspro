@@ -2851,7 +2851,7 @@ struct NativeCompletedView: View {
     }
 }
 
-/// "Today", "Yesterday", "This week", "Earlier", the same groups as the website.
+/// "Today", "Yesterday", "Past week", "Earlier", the same groups as the website.
 enum NativeCompletedGroups {
     struct Group<Item> {
         let title: String
@@ -2863,12 +2863,12 @@ enum NativeCompletedGroups {
         let today = calendar.startOfDay(for: now)
         if date >= today { return "Today" }
         if date >= today.addingTimeInterval(-86400) { return "Yesterday" }
-        if date >= today.addingTimeInterval(-6 * 86400) { return "This week" }
+        if date >= today.addingTimeInterval(-6 * 86400) { return "Past week" }
         return "Earlier"
     }
 
     static func groups<Item>(_ items: [Item], date: KeyPath<Item, Date?>, now: Date = Date()) -> [Group<Item>] {
-        ["Today", "Yesterday", "This week", "Earlier"].compactMap { title in
+        ["Today", "Yesterday", "Past week", "Earlier"].compactMap { title in
             let matching = items.filter { label(for: $0[keyPath: date], now: now) == title }
             return matching.isEmpty ? nil : Group(title: title, items: matching)
         }

@@ -3873,13 +3873,9 @@ struct CourseDetailView: View {
                 return "\(days) · \(time(entry.startMinutes))–\(time(entry.endMinutes))\(entry.location.isEmpty ? "" : " · \(entry.location)")"
             }.joined(separator: "\n")
         }
-        let names = [course.name, course.courseCode].map { normalize($0) }
-        guard let event = store.bundle.calendar.first(where: { event in
-            if event.contextCode == "course_\(course.id)" { return true }
-            let title = normalize(event.title)
-            return names.contains { value in !value.isEmpty && (title.contains(value) || value.contains(title)) }
-        }), let startAt = event.startAt, let date = ISO8601DateFormatter.canvasDate(from: startAt) else { return nil }
-        return date.formatted(.dateTime.weekday(.abbreviated).hour().minute()) + (event.locationName.map { " · \($0)" } ?? "")
+        // Only the times saved in My classes: a Canvas event (a study group, an
+        // exam) is never taken for the class's meeting time.
+        return nil
     }
     private var gradeColor: Color { CPTheme.gradeColor(course.currentScore) }
 
