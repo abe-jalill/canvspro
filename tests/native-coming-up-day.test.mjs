@@ -21,7 +21,9 @@ test("To-Do is its own tab, first of the picks, and a page in More when it isn't
 
 test("one list: catch up first, then each day; no ranges or days to pick", () => {
   assert.doesNotMatch(focus, /choiceRow|rangeTile|dayTile|selectedDay|pickedDay|"Next 4 weeks"|CPSegmented/);
-  assert.match(focus, /NativeParity\.isInFocusWindow\(item, window: "all"\) && item\.isVisible\(in: store\)/);
+  assert.match(focus, /\(!query\.isEmpty \|\| NativeParity\.isInFocusWindow\(item, window: "all"\)\) && item\.isVisible\(in: store\)/);
+  // Your own tasks with no due date are listed too (last), not lost.
+  assert.match(focus, /if item\.dueDate == nil \{\s+listed = item\.id < 0 && !item\.showsDone\(in: store\)/);
   assert.match(focus, /due < Date\(\) \? \.distantPast : calendar\.startOfDay\(for: due\)/);
   assert.match(focus, /date == \.distantPast \? "Catch up"/);
   // Grouping is a small menu beside the week's line.

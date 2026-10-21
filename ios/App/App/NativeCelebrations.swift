@@ -243,6 +243,9 @@ final class NativeStreakStore: ObservableObject {
     private var scope = ""
     private var inFlight = false
 
+    /// Sign-out: the next student never sees this one's streak, even briefly.
+    func reset() { streak = nil; celebration = nil; scope = "" }
+
     func refresh(sessionStore: NativeSessionStore, preview: Bool) async {
         let today = NativeDayKey.today()
         let nextScope = preview ? "preview" : (sessionStore.session?.user.id ?? "")
@@ -797,8 +800,10 @@ struct NativeCelebration: Identifiable, Equatable {
             symbol = "timer"
             options = [named("Future you says thanks, {name}.", "Future you says thanks.")]
             if minutes > 0 {
-                options.append(named("\(minutes) minutes of real focus, {name}. That's how it's done.", "\(minutes) minutes of real focus. That's how it's done."))
-                options.append(named("{name}, you just put in \(minutes) focused minutes. Take a breather.", "You just put in \(minutes) focused minutes. Take a breather."))
+                let span = minutes == 1 ? "1 minute" : "\(minutes) minutes"
+                let focused = minutes == 1 ? "1 focused minute" : "\(minutes) focused minutes"
+                options.append(named("\(span) of real focus, {name}. That's how it's done.", "\(span) of real focus. That's how it's done."))
+                options.append(named("{name}, you just put in \(focused). Take a breather.", "You just put in \(focused). Take a breather."))
             }
             if tasks > 0 {
                 let what = "\(tasks) \(tasks == 1 ? "task" : "tasks")"

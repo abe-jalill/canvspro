@@ -204,9 +204,11 @@ enum CanvasProWidgetStore {
         save(snapshot)
     }
 
-    /// After sign-out the widgets must stop showing the previous student's work.
+    /// After sign-out the widgets must stop showing the previous student's work,
+    /// and ticks made on a widget can't be saved under the next account.
     static func clear() {
         save(.signedOut)
+        defaults?.removeObject(forKey: pendingKey)
     }
 
     static var workloadRange: CanvasProWorkloadRange {
@@ -1299,10 +1301,13 @@ struct CanvasProStudyClock: View {
     var size: CGFloat = 30
     var weight: Font.Weight = .light
     var alignment: TextAlignment = .trailing
+    /// The block ran out with the app closed (the activity went stale).
+    var stale = false
+    private var done: Bool { state.finished || (stale && state.running) }
 
     var body: some View {
         Group {
-            if state.finished {
+            if done {
                 Image(systemName: "checkmark").font(.system(size: size * 0.62, weight: weight))
             } else if state.running && state.blockEnd > state.blockStart {
                 Text(timerInterval: state.blockStart...state.blockEnd, countsDown: true)
@@ -1315,7 +1320,7 @@ struct CanvasProStudyClock: View {
         .foregroundStyle(.white)
         .multilineTextAlignment(alignment)
         .lineLimit(1)
-        .frame(width: state.finished ? nil : CanvasProActivityFormat.clockWidth(state, size: size), alignment: frameAlignment)
+        .frame(width: done ? nil : CanvasProActivityFormat.clockWidth(state, size: size), alignment: frameAlignment)
     }
 
     private var frameAlignment: Alignment {
@@ -1363,9 +1368,12 @@ private struct CanvasProActivityCaption: View {
 
 struct CanvasProStudyLockView: View {
     let state: CanvasProStudyActivity.ContentState
+    var stale = false
 
-    static func caption(_ state: CanvasProStudyActivity.ContentState) -> String {
+    static func caption(_ state: CanvasProStudyActivity.ContentState, stale: Bool = false) -> String {
         if state.finished { return "SESSION DONE" }
+        // The block ended while the app was closed: never a clock stuck at 0:00.
+        if stale && state.running { return "TIME'S UP · OPEN COURSEPRO" }
         guard let step = state.step?.uppercased() else { return state.running ? state.phase.uppercased() : "PAUSED" }
         if !state.running { return "PAUSED · \(step)" }
         // "Focus block 2 of 4" already says Focus.
@@ -1377,16 +1385,19 @@ struct CanvasProStudyLockView: View {
             HStack(alignment: .center, spacing: 14) {
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 6) {
-                        Circle().fill(Color.white.opacity(state.running && !state.finished ? 1 : 0.35)).frame(width: 5, height: 5)
-                        CanvasProActivityCaption(text: Self.caption(state))
+                        Circle().fill(Color.white.opacity(state.running && !state.finished && !stale ? 1 : 0.35)).frame(width: 5, height: 5)
+                        CanvasProActivityCaption(text: Self.caption(state, stale: stale))
                     }
-                    Text(state.title).font(.system(size: 15, weight: .semibold)).foregroundStyle(.white).lineLimit(1)
+                    // Two lines at most: the lock screen caps a Live Activity's height.
+                    Text(state.title).font(.system(size: 15, weight: .semibold)).foregroundStyle(.white).lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
                     if !state.detail.isEmpty {
-                        Text(state.detail).font(.system(size: 12)).foregroundStyle(.white.opacity(0.6)).lineLimit(1)
+                        Text(state.detail).font(.system(size: 12)).foregroundStyle(.white.opacity(0.6)).lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 Spacer(minLength: 8)
-                CanvasProStudyClock(state: state, size: 30).layoutPriority(1)
+                CanvasProStudyClock(state: state, size: 30, stale: stale).layoutPriority(1)
             }
             CanvasProStudyBar(state: state)
         }
@@ -1412,16 +1423,22 @@ struct CanvasProTonightCountdown: View {
 
 struct CanvasProTonightLockView: View {
     let state: CanvasProTonightActivity.ContentState
+    /// Past midnight with the app closed: tonight's list is over.
+    var stale = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
                 CanvasProActivityCaption(text: "DUE TONIGHT")
                 Spacer(minLength: 8)
-                Text(state.remaining == 0 ? "All done" : "\(state.remaining) left · \(state.done) done")
-                    .font(.system(size: 11, weight: .medium)).foregroundStyle(.white.opacity(0.6))
+                if !stale {
+                    Text(state.remaining == 0 ? "All done" : "\(state.remaining) left · \(state.done) done")
+                        .font(.system(size: 11, weight: .medium)).foregroundStyle(.white.opacity(0.6))
+                }
             }
-            if state.items.isEmpty {
+            if stale {
+                Text("Tonight's deadlines have passed.").font(.system(size: 14, weight: .medium)).foregroundStyle(.white)
+            } else if state.items.isEmpty {
                 Text("Everything due tonight is done.").font(.system(size: 14, weight: .medium)).foregroundStyle(.white)
             } else {
                 VStack(alignment: .leading, spacing: 7) {
@@ -1532,10 +1549,11 @@ struct CanvasProIslandBadge: View {
 /// Bottom of the study island: the big countdown, centred, over the block bar.
 struct CanvasProStudyIslandBottom: View {
     let state: CanvasProStudyActivity.ContentState
+    var stale = false
 
     var body: some View {
         VStack(spacing: 6) {
-            CanvasProStudyClock(state: state, size: 30, weight: .bold, alignment: .center)
+            CanvasProStudyClock(state: state, size: 30, weight: .bold, alignment: .center, stale: stale)
                 .frame(maxWidth: .infinity)
             CanvasProStudyBar(state: state).padding(.horizontal, 6)
         }
@@ -1546,10 +1564,14 @@ struct CanvasProStudyIslandBottom: View {
 /// Bottom of the tonight island: what's left, centred, and the next deadline.
 struct CanvasProTonightIslandBottom: View {
     let state: CanvasProTonightActivity.ContentState
+    var stale = false
 
     var body: some View {
         VStack(spacing: 3) {
-            if state.items.isEmpty {
+            if stale {
+                Text("Tonight's deadlines have passed.")
+                    .font(.system(size: 13, weight: .bold)).foregroundStyle(.white)
+            } else if state.items.isEmpty {
                 Text("Everything due tonight is done.")
                     .font(.system(size: 13, weight: .bold)).foregroundStyle(.white)
             } else {

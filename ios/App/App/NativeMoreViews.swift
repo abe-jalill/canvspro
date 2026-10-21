@@ -21,7 +21,7 @@ struct NativeMenuRow: View {
                     .fixedSize(horizontal: false, vertical: true)
                 if let detail {
                     Text(detail).cpFont(11).foregroundStyle(CPTheme.muted(scheme))
-                        .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             Spacer(minLength: 8)
@@ -65,6 +65,7 @@ struct NativeMoreView: View {
     @ObservedObject private var streaks = NativeStreakStore.shared
     @ObservedObject private var files = NativeFileStore.shared
     @AppStorage("CanvasProColorScheme") private var colorScheme = "dark"
+    @AppStorage("CanvasProDismissedAnnouncements") private var dismissedAnnouncementsRaw = ""
     @AppStorage(NativeTabBar.key) private var tabBarRaw = ""
 
     private var fullName: String {
@@ -176,18 +177,18 @@ struct NativeMoreView: View {
                 // Long names, schools and addresses wrap instead of being cut off.
                 VStack(alignment: .leading, spacing: 3) {
                     Text(fullName).cpFont(17, .semibold).tracking(-0.3).foregroundStyle(CPTheme.foreground(scheme))
-                        .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                        .fixedSize(horizontal: false, vertical: true)
                     // School and year, e.g. "State University · Sophomore".
                     if let schoolLine = features.accountDetails.schoolLine {
                         Text(schoolLine).cpFont(13).foregroundStyle(CPTheme.foreground(scheme).opacity(0.85))
-                            .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                            .fixedSize(horizontal: false, vertical: true)
                     } else {
                         Text("Add your school and year").cpFont(13).foregroundStyle(CPTheme.primary(scheme: scheme))
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     if let email = sessionStore.session?.user.email {
                         Text(email).cpFont(12).foregroundStyle(CPTheme.muted(scheme))
-                            .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 Spacer(minLength: 8)
@@ -211,7 +212,7 @@ struct NativeMoreView: View {
                     Text(page.title).cpFont(15, .medium).foregroundStyle(CPTheme.foreground(scheme))
                         .fixedSize(horizontal: false, vertical: true)
                     Text(detail(for: page)).cpFont(12).foregroundStyle(CPTheme.muted(scheme))
-                        .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 8)
                 Image(systemName: "arrow.up.right").cpIconFont(10, .semibold).foregroundStyle(CPTheme.faint(scheme))
@@ -245,7 +246,7 @@ struct NativeMoreView: View {
             Spacer(minLength: 0)
             VStack(alignment: .leading, spacing: 3) {
                 Text(page.title).cpFont(15, .medium).foregroundStyle(CPTheme.foreground(scheme))
-                    .lineLimit(2).multilineTextAlignment(.leading)
+                    .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
                 Text(detail(for: page)).cpFont(12).foregroundStyle(CPTheme.muted(scheme))
                     .lineLimit(2).multilineTextAlignment(.leading)
@@ -265,7 +266,7 @@ struct NativeMoreView: View {
         if store.showsSkeleton && ![NativeTab.study, .files].contains(page) { return " " }
         switch page {
         case .todo:
-            let count = features.shownAssignments(in: store).filter { NativeParity.isInFocusWindow($0, window: "7") && $0.isVisible(in: store) }.count
+            let count = features.shownAssignments(in: store).filter { NativeParity.isDueThisWeek($0) && $0.isVisible(in: store) && !$0.notYetOpen() }.count
             return count == 0 ? "Nothing due this week" : "\(count) this week"
         case .study:
             return "Focus timer and Pomodoro"
@@ -276,11 +277,13 @@ struct NativeMoreView: View {
             guard files.root != nil else { return "Class folders and scans" }
             return files.inICloud ? "Synced with iCloud Drive" : "Saved on this iPhone"
         case .announcements:
-            let count = store.bundle.announcements.filter { !features.hiddenCourseIDs.contains($0.courseID) && $0.isWithin(weeks: 1) }.count
+            // Posts you've dismissed aren't new.
+            let dismissed = Set(dismissedAnnouncementsRaw.split(separator: ",").compactMap { Int($0) })
+            let count = store.bundle.announcements.filter { !features.hiddenCourseIDs.contains($0.courseID) && !dismissed.contains($0.id) && $0.isWithin(weeks: 1) }.count
             return count == 0 ? "Nothing new this week" : "\(count) this week"
         case .calendar:
             let now = Date()
-            let next = store.bundle.calendar
+            let next = features.shownEvents(in: store)
                 .compactMap { event -> (String, Date)? in
                     guard let raw = event.startAt, let date = ISO8601DateFormatter.canvasDate(from: raw), date >= now else { return nil }
                     return (event.title, date)
@@ -785,12 +788,18 @@ struct FocusView: View {
     private var allItems: [AssignmentItem] { features.shownAssignments(in: store) }
     private var visibleCourses: [CourseSummary] { store.bundle.courses.filter { !features.hiddenCourseIDs.contains($0.id) } }
     private var isSearching: Bool { !search.trimmingCharacters(in: .whitespaces).isEmpty }
-    /// Unfinished work due within four weeks, and anything recent to catch up on.
+    /// Unfinished work due within four weeks, anything recent to catch up on,
+    /// and your own tasks with no due date (last). A search looks further ahead.
     private var items: [AssignmentItem] {
         let query = search.trimmingCharacters(in: .whitespaces)
         return allItems.filter { item in
-            NativeParity.isInFocusWindow(item, window: "all") && item.isVisible(in: store) &&
-            (query.isEmpty || item.name.localizedCaseInsensitiveContains(query) || store.displayName(courseID: item.courseID, fallback: item.courseName).localizedCaseInsensitiveContains(query))
+            let listed: Bool
+            if item.dueDate == nil {
+                listed = item.id < 0 && !item.showsDone(in: store)
+            } else {
+                listed = (!query.isEmpty || NativeParity.isInFocusWindow(item, window: "all")) && item.isVisible(in: store)
+            }
+            return listed && (query.isEmpty || item.name.localizedCaseInsensitiveContains(query) || store.displayName(courseID: item.courseID, fallback: item.courseName).localizedCaseInsensitiveContains(query))
         }.sorted(by: AssignmentItem.dueSort)
     }
     private var dayGroups: [NativeTitledGroup] {
@@ -814,17 +823,20 @@ struct FocusView: View {
     private func estimate(_ item: AssignmentItem) -> Int { NativeParity.estimate(item, estimates: features.estimates) }
     private func classTint(_ courseID: Int) -> Color { CPTheme.classColor(courseID, in: store.bundle.courses) }
     private var showsCounts: Bool { !store.showsSkeleton && !store.needsCanvasConnection && store.loadFailure == nil }
+    /// This week, over Today's seven days. Work Canvas hasn't opened yet is
+    /// listed (with when it opens) but not counted, as on Today. A search
+    /// narrows the list, not these counts.
+    private var weekItems: [AssignmentItem] { allItems.filter { NativeParity.isDueThisWeek($0) && !$0.notYetOpen() } }
+    private var weekLeft: [AssignmentItem] { weekItems.filter { !$0.showsDone(in: store) && $0.isVisible(in: store) } }
     /// This week's work (the same seven days as the header line): done, and in all.
     private var weekTally: (done: Int, total: Int) {
-        let week = allItems.filter { NativeParity.isInFocusWindow($0, window: "7") }
-        let done = week.filter { $0.showsDone(in: store) }.count
-        let left = week.filter { !$0.showsDone(in: store) && $0.isVisible(in: store) }.count
-        return (done, done + left)
+        let done = weekItems.filter { $0.showsDone(in: store) }.count
+        return (done, done + weekLeft.count)
     }
     /// "4 this week · 2 hr 30 min".
     private var headerLine: String {
-        let week = items.filter { NativeParity.isInFocusWindow($0, window: "7") }
-        if week.isEmpty { return items.isEmpty ? "All clear" : "Nothing due this week" }
+        let week = weekLeft
+        if week.isEmpty { return items.isEmpty && !isSearching ? "All clear" : "Nothing due this week" }
         return "\(week.count) this week · \(Self.duration(week.reduce(0) { $0 + estimate($1) }))"
     }
     /// 45 → "45 min", 90 → "1 hr 30 min", 240 → "4 hr".
@@ -1031,13 +1043,13 @@ struct FocusView: View {
                     Text(item.name).cpFont(15, .medium)
                         .foregroundStyle(done ? CPTheme.muted(scheme) : CPTheme.foreground(scheme))
                         .strikethrough(done)
-                        .lineLimit(3)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
                     Text(rowMeta(item, showCourse: showCourse, done: done))
                         .cpFont(12).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
-                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
+                    if !done { NativeOpensLabel(assignment: item) }
                     if !done, let percent = features.progress[item.id], percent > 0 { NativeProgressBar(percent: percent) }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -1072,7 +1084,8 @@ struct NativeTitledGroup: Identifiable {
     /// The day (To-Do by day) or class (by class) the group is for.
     var day: Date? = nil
     var courseID: Int? = nil
-    var id: String { title }
+    /// Two classes can share a name, so a class group goes by its class.
+    var id: String { courseID.map { "course-\($0)" } ?? day.map { "day-\($0.timeIntervalSince1970)" } ?? title }
 }
 
 /// To-Do's week: one segment per assignment due in the next seven days; done
@@ -1156,7 +1169,7 @@ struct CalendarView: View {
             guard !pickedIDs.contains(item.id), let date = item.dueDate, date >= windowStart else { return nil }
             return NativeCalendarEntry(id: "assignment-\(item.id)", date: date, title: item.name, context: store.displayName(courseID: item.courseID, fallback: item.courseName), kind: "Assignment due", url: URL(string: item.htmlURL), pickID: nil)
         }
-        result += store.bundle.calendar.compactMap { event in
+        result += features.shownEvents(in: store).compactMap { event in
             guard let raw = event.startAt, let date = ISO8601DateFormatter.canvasDate(from: raw), date >= windowStart else { return nil }
             return NativeCalendarEntry(id: "event-\(event.id)", date: date, title: event.title, context: event.contextName ?? event.locationName ?? "Canvas event", kind: "Canvas event", url: event.htmlURL.flatMap { URL(string: $0) }, pickID: nil)
         }
@@ -1383,12 +1396,11 @@ struct CalendarView: View {
                 Text(item.title)
                     .cpFont(15, .medium)
                     .foregroundStyle(CPTheme.foreground(scheme))
-                    .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
                 Text([("\(kind) \(time)"), item.context].filter { !$0.isEmpty }.joined(separator: " · "))
                     .cpFont(12).monospacedDigit()
                     .foregroundStyle(CPTheme.muted(scheme))
-                    .lineLimit(1)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 8)
             if let pickID = item.pickID {
@@ -1572,8 +1584,8 @@ struct WorkloadView: View {
                     VStack(alignment: .leading, spacing: 8) {
                     HStack(alignment: .center, spacing: 10) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(item.name).cpFont(13, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(2)
-                            Text(store.displayName(courseID: item.courseID, fallback: item.courseName)).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
+                            Text(item.name).cpFont(13, .medium).foregroundStyle(CPTheme.foreground(scheme)).fixedSize(horizontal: false, vertical: true)
+                            Text(store.displayName(courseID: item.courseID, fallback: item.courseName)).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
                         }
                         Spacer(minLength: 8)
                         VStack(alignment: .trailing, spacing: 2) {
@@ -1726,7 +1738,8 @@ struct AnnouncementsView: View {
         let isOpen = expanded.contains(item.id)
         return VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(name(for: item.courseID).uppercased()).cpFont(11, .semibold).tracking(0.8).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
+                Text(name(for: item.courseID).uppercased()).cpFont(11, .semibold).tracking(0.8).foregroundStyle(CPTheme.foreground(scheme))
+                    .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 6)
                 Text(announcementDate(item)).cpFont(11).monospacedDigit().foregroundStyle(CPTheme.faint(scheme))
             }
@@ -1734,7 +1747,8 @@ struct AnnouncementsView: View {
             Text(message).cpFont(12).lineSpacing(2).foregroundStyle(CPTheme.muted(scheme)).lineLimit(isOpen ? nil : 3)
                 .fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 14) {
-                if message.count > 180 {
+                // Anything that may run past three lines: long, or in paragraphs.
+                if message.count > 140 || message.filter(\.isNewline).count >= 2 {
                     Button(isOpen ? "Show less" : "Read full update") { if isOpen { expanded.remove(item.id) } else { expanded.insert(item.id) } }
                 }
                 if let course = store.bundle.courses.first(where: { $0.id == item.courseID }) {
@@ -2535,7 +2549,7 @@ struct ClassScheduleView: View {
             Text(displayName(item)).cpFont(15, .medium).foregroundStyle(.primary)
                 .fixedSize(horizontal: false, vertical: true)
             Text(["\(time(item.startMinutes)) – \(time(item.endMinutes))", item.location].filter { !$0.isEmpty }.joined(separator: " · "))
-                .cpFont(12).monospacedDigit().foregroundStyle(.secondary).lineLimit(1)
+                .cpFont(12).monospacedDigit().foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }
         .padding(.vertical, 2)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -2824,7 +2838,7 @@ struct NativeCompletedView: View {
                 Text(entry.item.name).cpFont(15, .medium).foregroundStyle(CPTheme.foreground(scheme))
                     .fixedSize(horizontal: false, vertical: true)
                 Text("\(store.displayName(courseID: entry.item.courseID, fallback: entry.item.courseName)) · \(entry.inCanvas ? "Done in Canvas" : "Marked done")")
-                    .cpFont(12).foregroundStyle(CPTheme.muted(scheme)).lineLimit(2)
+                    .cpFont(12).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 8)
             if let date = entry.date {

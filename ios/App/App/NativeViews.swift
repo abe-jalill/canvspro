@@ -459,7 +459,7 @@ struct NativeTutorialView: View {
 
     private static let pages = [
         Page(title: "Welcome to CoursePro", detail: "Your classes, deadlines and grades from Canvas, in one calm place."),
-        Page(title: "See what's due", detail: "Today lists your work by due date. Swipe an assignment right when it's done."),
+        Page(title: "See what's due", detail: "To-Do lists your work day by day. Swipe an assignment right when it's done, or left to study it."),
         Page(title: "Study one thing at a time", detail: "Start a focus timer on any assignment. CoursePro lets you know when it's time for a break."),
         Page(title: "Every class at a glance", detail: "Grades and announcements from all your classes, side by side."),
         Page(title: "Stay ahead, everywhere", detail: "Reminders arrive before things are due, even with the app closed. Your account stays in sync with canvaspro.app."),
@@ -1746,7 +1746,8 @@ private struct NativeDashboardView: View {
     private var allAssignments: [AssignmentItem] { features.shownAssignments(in: store) }
     // Work Canvas hasn't opened yet stays off the dashboard (hero counts included).
     private var activeAssignments: [AssignmentItem] { allAssignments.filter { $0.isVisible(in: store) && !$0.notYetOpen() } }
-    private var weekItems: [AssignmentItem] { activeAssignments.filter { NativeParity.isInFocusWindow($0, window: "7") } }
+    /// The same seven days as the circles below the line.
+    private var weekItems: [AssignmentItem] { activeAssignments.filter { NativeParity.isDueThisWeek($0) } }
     private var todayCount: Int { activeAssignments.filter { NativeParity.isInFocusWindow($0, window: "1") }.count }
     private var overdueCount: Int { activeAssignments.filter { NativeParity.isInFocusWindow($0, window: "overdue") }.count }
     private var greeting: String { let hour = Calendar.current.component(.hour, from: Date()); return hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening" }
@@ -1762,7 +1763,7 @@ private struct NativeDashboardView: View {
         if store.isLoading && store.bundle.assignments.isEmpty { return "Loading your schedule." }
         if store.bundle.assignments.isEmpty && store.syncMessage != nil { return "Couldn't load. Pull down to retry." }
         let week = weekItems.count
-        if week == 0 { return "You're clear for the next seven days." }
+        if week == 0 { return overdueCount > 0 ? "Nothing else due in the next seven days." : "You're clear for the next seven days." }
         let soon = todayCount > 0 ? "\(todayCount) due in 24 hours" : "Nothing due today"
         return "\(soon) · \(week) this week"
     }
@@ -2161,8 +2162,8 @@ private struct NativeDashboardView: View {
         CPInsetRow {
             HStack(spacing: 8) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title).cpFont(12, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(2)
-                    Text(detail).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(2)
+                    Text(title).cpFont(12, .medium).foregroundStyle(CPTheme.foreground(scheme)).fixedSize(horizontal: false, vertical: true)
+                    Text(detail).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 6)
                 if let trailing {
@@ -2199,7 +2200,7 @@ private struct NativeDashboardView: View {
                                 HStack(spacing: 10) {
                                     Circle().fill(CPTheme.gradeColor(course.currentScore)).frame(width: 8, height: 8)
                                     Text(store.displayName(courseID: course.id, fallback: course.name))
-                                        .cpFont(13).foregroundStyle(CPTheme.foreground(scheme).opacity(0.9)).lineLimit(2)
+                                        .cpFont(13).foregroundStyle(CPTheme.foreground(scheme).opacity(0.9)).fixedSize(horizontal: false, vertical: true)
                                     Spacer(minLength: 8)
                                     Text(scoreText(course))
                                         .cpFont(12).monospacedDigit()
@@ -2266,7 +2267,7 @@ private struct NativeDashboardView: View {
                         .rotationEffect(.degrees(isOpen ? 180 : 0))
                     Circle().fill(CPTheme.gradeColor(course.currentScore)).frame(width: 8, height: 8)
                     Text(store.displayName(courseID: course.id, fallback: course.name))
-                        .cpFont(12).foregroundStyle(CPTheme.foreground(scheme).opacity(0.9)).lineLimit(2)
+                        .cpFont(12).foregroundStyle(CPTheme.foreground(scheme).opacity(0.9)).fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 6)
                     Text("\(items.count)").cpFont(12).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
                 }
@@ -2309,7 +2310,7 @@ private struct NativeDashboardView: View {
     private var calendarWidget: some View {
         let now = Date()
         let end = now.addingTimeInterval(7 * 86400)
-        let events = Array(store.bundle.calendar.compactMap { event -> NativeDatedEvent? in
+        let events = Array(features.shownEvents(in: store).compactMap { event -> NativeDatedEvent? in
             guard let raw = event.startAt, let date = ISO8601DateFormatter.canvasDate(from: raw), date >= now, date <= end else { return nil }
             return NativeDatedEvent(event: event, date: date)
         }.sorted { $0.date < $1.date }.prefix(4))
@@ -2325,8 +2326,8 @@ private struct NativeDashboardView: View {
                         CPInsetRow {
                             HStack(spacing: 12) {
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(entry.event.title).cpFont(13, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(2)
-                                    if let context = entry.event.contextName { Text(context).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).lineLimit(2) }
+                                    Text(entry.event.title).cpFont(13, .medium).foregroundStyle(CPTheme.foreground(scheme)).fixedSize(horizontal: false, vertical: true)
+                                    if let context = entry.event.contextName { Text(context).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true) }
                                 }
                                 Spacer(minLength: 8)
                                 Text(entry.date.formatted(.dateTime.weekday(.abbreviated).hour().minute()))
@@ -2375,7 +2376,7 @@ private struct NativeDashboardView: View {
                 HStack(spacing: 12) {
                     Image(systemName: "chevron.down").cpIconFont(11).foregroundStyle(CPTheme.muted(scheme))
                         .rotationEffect(.degrees(isOpen ? 180 : 0))
-                    Text(name.uppercased()).cpFont(11, .medium).tracking(1.5).foregroundStyle(CPTheme.foreground(scheme).opacity(0.8)).lineLimit(2)
+                    Text(name.uppercased()).cpFont(11, .medium).tracking(1.5).foregroundStyle(CPTheme.foreground(scheme).opacity(0.8)).fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 6)
                     Text("\(items.count)").cpFont(12).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
                 }
@@ -2392,7 +2393,7 @@ private struct NativeDashboardView: View {
                             HStack(alignment: .top, spacing: 8) {
                                 NavigationLink { AnnouncementDetailView(item: item) } label: {
                                     VStack(alignment: .leading, spacing: 4) {
-                                        Text(item.title).cpFont(13, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(2)
+                                        Text(item.title).cpFont(13, .medium).foregroundStyle(CPTheme.foreground(scheme)).fixedSize(horizontal: false, vertical: true)
                                         Text(item.message.strippingHTML).cpFont(11).lineSpacing(2).foregroundStyle(CPTheme.muted(scheme)).lineLimit(2)
                                     }
                                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -2491,9 +2492,9 @@ struct NativeDueRow: View {
                             .cpFont(16, .medium)
                             .foregroundStyle(isComplete ? CPTheme.muted(scheme) : CPTheme.foreground(scheme))
                             .strikethrough(isComplete)
-                            .lineLimit(3)
+                            .fixedSize(horizontal: false, vertical: true)
                         Text(showCourse ? store.displayName(courseID: assignment.courseID, fallback: assignment.courseName) : (countdown?.fullDate ?? "No due date"))
-                            .cpFont(12).foregroundStyle(CPTheme.muted(scheme)).lineLimit(2)
+                            .cpFont(12).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 6)
                     if let countdown {
@@ -2588,7 +2589,7 @@ private struct CPUndoBar: ViewModifier {
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 1) {
                 Text("Marked complete").cpFont(14, .semibold)
-                Text(item.name).cpFont(12).opacity(0.7).lineLimit(2)
+                Text(item.name).cpFont(12).opacity(0.7).fixedSize(horizontal: false, vertical: true)
             }
             .accessibilityElement(children: .combine)
             Spacer(minLength: 8)
@@ -2706,7 +2707,7 @@ private struct NativeQuickPomodoro: View {
             if let live = StoredNativeStudySession.live(scope: scope, now: context.date) {
                 Button { NotificationCenter.default.post(name: .nativeOpenStudy, object: nil) } label: {
                     HStack(spacing: 5) {
-                        Image(systemName: live.label == "Paused" ? "pause.fill" : "timer").cpIconFont(11, .semibold)
+                        Image(systemName: live.timesUp ? "checkmark" : live.label == "Paused" ? "pause.fill" : "timer").cpIconFont(11, .semibold)
                         Text(live.time).cpFont(13, .medium).monospacedDigit()
                     }
                     .foregroundStyle(CPTheme.primary(scheme: scheme))
@@ -2718,7 +2719,7 @@ private struct NativeQuickPomodoro: View {
                 }
                 .buttonStyle(.plain)
                 .transition(.opacity)
-                .accessibilityLabel("\(live.label), \(live.time) left")
+                .accessibilityLabel(live.timesUp ? "Study time's up" : "\(live.label), \(live.time) left")
                 .accessibilityHint("Opens Study")
             }
         }
@@ -3322,6 +3323,23 @@ struct NativePageHero<Tiles: View>: View {
     }
 }
 
+/// "Opens Tue, Oct 20 at 9:00 AM" on its own line while Canvas hasn't opened
+/// the work yet; nothing after. It wraps rather than being cut off.
+struct NativeOpensLabel: View {
+    @Environment(\.colorScheme) private var scheme
+    let assignment: AssignmentItem
+
+    var body: some View {
+        if let opens = assignment.opensLabel() {
+            HStack(alignment: .firstTextBaseline, spacing: 5) {
+                Image(systemName: "lock.fill").cpIconFont(9, .semibold).accessibilityHidden(true)
+                Text(opens).cpFont(12, .medium).fixedSize(horizontal: false, vertical: true)
+            }
+            .foregroundStyle(CPTheme.foreground(scheme).opacity(0.8))
+        }
+    }
+}
+
 /// A full assignment summary: done control, name, class, countdown and status.
 struct NativeAssignmentRow: View {
     @Environment(\.colorScheme) private var scheme
@@ -3345,10 +3363,8 @@ struct NativeAssignmentRow: View {
                     .cpFont(12)
                     .foregroundStyle(CPTheme.muted(scheme))
                     .fixedSize(horizontal: false, vertical: true)
+                NativeOpensLabel(assignment: assignment)
                 HStack(spacing: 6) {
-                    if let opens = assignment.opensLabel() {
-                        CPPill(text: opens, symbol: "lock")
-                    }
                     if let countdown {
                         CPPill(text: countdown.label, tone: countdown.urgency == "overdue" ? .danger : countdown.urgency == "today" ? .accent : .neutral, symbol: "clock")
                     }
@@ -3582,7 +3598,7 @@ struct NativeGradesView: View {
                     HStack(spacing: 10) {
                         Circle().fill(color).frame(width: 8, height: 8)
                         Text(store.displayName(courseID: course.id, fallback: course.name))
-                            .cpFont(13, .semibold).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(2)
+                            .cpFont(13, .semibold).foregroundStyle(CPTheme.foreground(scheme)).fixedSize(horizontal: false, vertical: true)
                         Spacer(minLength: 6)
                         Image(systemName: "chevron.right").cpIconFont(9, .bold).foregroundStyle(CPTheme.faint(scheme))
                     }
@@ -3638,7 +3654,7 @@ struct NativeGradesView: View {
                     ForEach(graded) { item in
                         NavigationLink { CourseDetailView(course: course, store: store, features: features, highlightAssignment: item) } label: {
                             HStack(spacing: 10) {
-                                Text(item.name).cpFont(12).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(2)
+                                Text(item.name).cpFont(12).foregroundStyle(CPTheme.foreground(scheme)).fixedSize(horizontal: false, vertical: true)
                                 Spacer(minLength: 6)
                                 NativeScoreBadge(assignment: item)
                             }
@@ -3915,7 +3931,7 @@ struct CourseDetailView: View {
             HStack(alignment: .center, spacing: 14) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(course.courseCode.isEmpty ? "CLASS OVERVIEW" : course.courseCode.uppercased())
-                        .cpFont(11, .semibold).tracking(0.6).foregroundStyle(CPTheme.muted(scheme)).lineLimit(2)
+                        .cpFont(11, .semibold).tracking(0.6).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
                     Text(courseName).cpFont(22, .regular).tracking(-0.6).foregroundStyle(CPTheme.foreground(scheme))
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityAddTraits(.isHeader)
@@ -4211,11 +4227,17 @@ private struct StoredNativeStudySession: Codable {
     let blockEndsAt: Date?
     var itemMinutes: [Int: Int]? = nil
     var perItem: Bool? = nil
+    /// Focus time in blocks and tasks that are over.
+    var focusedSeconds: Int? = nil
+    /// Per task: tasks whose own time has run out.
+    var timedOutIDs: [Int]? = nil
 }
 
 private struct NativeLivePomodoro {
     let label: String
     let time: String
+    /// The block ran out while Study wasn't open; opening it moves on.
+    var timesUp = false
 }
 
 extension StoredNativeStudySession {
@@ -4227,11 +4249,13 @@ extension StoredNativeStudySession {
         let seconds = saved.running
             ? max(0, Int(ceil((saved.blockEndsAt ?? now).timeIntervalSince(now))))
             : max(0, saved.remaining)
+        if saved.running && seconds == 0 { return NativeLivePomodoro(label: "Time's up", time: "Time's up", timesUp: true) }
         let label: String
         if !saved.running { label = "Paused" }
         else if saved.pomodoroPlan == nil { label = "Study timer" }
         else { label = saved.phase == "long-break" ? "Long break" : saved.phase == "short-break" ? "Short break" : "Focus" }
-        return NativeLivePomodoro(label: label, time: String(format: "%02d:%02d", seconds / 60, seconds % 60))
+        // "1:29:57" past an hour, like the Study ring and the lock screen.
+        return NativeLivePomodoro(label: label, time: CanvasProActivityFormat.clock(seconds))
     }
 }
 
@@ -4329,6 +4353,10 @@ struct NativeStudyView: View {
     @State private var phase: String
     @State private var round: Int
     @State private var blockEndsAt: Date?
+    /// Focus time in blocks and tasks that are over, so the summary claims
+    /// only time actually spent, not the time planned.
+    @State private var focusedSeconds: Int
+    @State private var timedOutIDs: Set<Int>
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     private var sessionKey: String { "CanvasProNativeStudySession.\(store.persistenceScope)" }
     private var availableItems: [AssignmentItem] { features.shownAssignments(in: store) + manualTasks }
@@ -4358,6 +4386,8 @@ struct NativeStudyView: View {
         _phase = State(initialValue: saved?.phase ?? "focus")
         _round = State(initialValue: saved?.round ?? 0)
         _blockEndsAt = State(initialValue: saved?.running == true ? (saved?.blockEndsAt ?? saved?.savedAt.addingTimeInterval(TimeInterval(saved?.remaining ?? 0))) : nil)
+        _focusedSeconds = State(initialValue: saved?.focusedSeconds ?? 0)
+        _timedOutIDs = State(initialValue: Set(saved?.timedOutIDs ?? []))
     }
 
     // Shown in a tab or pushed from More, so it brings no NavigationStack of its own.
@@ -4462,7 +4492,7 @@ struct NativeStudyView: View {
     }
 
     private func persistSession() {
-        let value = StoredNativeStudySession(selected: selectedOrder, duration: duration, remaining: remaining, running: running, currentIndex: currentIndex, savedAt: Date(), manualTasks: manualTasks, completedIDs: Array(completedIDs), finished: sessionFinished, started: sessionStarted, pomodoroPlan: activePlan, phase: phase, round: round, blockEndsAt: blockEndsAt, itemMinutes: itemMinutes, perItem: perItem)
+        let value = StoredNativeStudySession(selected: selectedOrder, duration: duration, remaining: remaining, running: running, currentIndex: currentIndex, savedAt: Date(), manualTasks: manualTasks, completedIDs: Array(completedIDs), finished: sessionFinished, started: sessionStarted, pomodoroPlan: activePlan, phase: phase, round: round, blockEndsAt: blockEndsAt, itemMinutes: itemMinutes, perItem: perItem, focusedSeconds: focusedSeconds, timedOutIDs: Array(timedOutIDs))
         if let data = try? JSONEncoder().encode(value) { UserDefaults.standard.set(data, forKey: sessionKey) }
         syncLiveActivity()
     }
@@ -4479,7 +4509,7 @@ struct NativeStudyView: View {
         let total = max(remaining, blockMinutes * 60)
         NativeLiveActivities.updateStudy(CanvasProStudyActivity.ContentState(
             title: sessionFinished ? "Session complete" : (currentItem?.name ?? (activePlan != nil ? "Focus session" : "Study session")),
-            detail: sessionFinished ? "\(focusedMinutes) min focused" : [course, position].filter { !$0.isEmpty }.joined(separator: " · "),
+            detail: sessionFinished ? focusedText : [course, position].filter { !$0.isEmpty }.joined(separator: " · "),
             phase: activePlan == nil ? "Studying" : phase == "long-break" ? "Long break" : phase == "short-break" ? "Short break" : "Focus",
             step: sessionFinished ? nil : activePlan.map { cycleText($0) },
             running: isRunning,
@@ -4630,8 +4660,8 @@ struct NativeStudyView: View {
                 .frame(width: 20, height: 20)
                 .padding(.top, 1)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(item.name).cpFont(15, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(2)
-                    Text(detail).cpFont(12).monospacedDigit().foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
+                    Text(item.name).cpFont(15, .medium).foregroundStyle(CPTheme.foreground(scheme)).fixedSize(horizontal: false, vertical: true)
+                    Text(detail).cpFont(12).monospacedDigit().foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 0)
             }
@@ -4685,7 +4715,7 @@ struct NativeStudyView: View {
                     ForEach(items) { item in
                         Stepper(value: minutesBinding(item), in: 5...480, step: 5) {
                             HStack(spacing: 8) {
-                                Text(item.name).cpFont(13).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
+                                Text(item.name).cpFont(13).foregroundStyle(CPTheme.foreground(scheme)).fixedSize(horizontal: false, vertical: true)
                                 Spacer(minLength: 6)
                                 Text("\(plannedMinutes(item)) min").cpFont(12).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
                             }
@@ -4787,10 +4817,10 @@ struct NativeStudyView: View {
                 .foregroundStyle(CPTheme.muted(scheme))
                 .frame(width: 22)
             VStack(alignment: .leading, spacing: 1) {
-                Text(item.name).cpFont(15, .medium).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(1)
+                Text(item.name).cpFont(15, .medium).foregroundStyle(CPTheme.foreground(scheme)).fixedSize(horizontal: false, vertical: true)
                 if !item.courseName.isEmpty {
                     Text(item.courseID == 0 ? item.courseName : store.displayName(courseID: item.courseID, fallback: item.courseName))
-                        .cpFont(12).foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
+                        .cpFont(12).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
                 }
             }
             Spacer(minLength: 4)
@@ -4937,7 +4967,7 @@ struct NativeStudyView: View {
                     .foregroundStyle(CPTheme.danger)
                     // A stray tap shouldn't throw away the timer.
                     .confirmationDialog("End this session?", isPresented: $confirmingEnd, titleVisibility: .visible) {
-                        Button("End session", role: .destructive) { running = false; blockEndsAt = nil; sessionFinished = true; celebrateSession(endedEarly: true) }
+                        Button("End session", role: .destructive) { focusedSeconds += currentFocusSeconds; running = false; blockEndsAt = nil; sessionFinished = true; celebrateSession(endedEarly: true) }
                         Button("Keep going", role: .cancel) {}
                     } message: {
                         Text("The timer stops. Tasks you finished stay finished.")
@@ -4984,7 +5014,7 @@ struct NativeStudyView: View {
                         .background(CPTheme.foreground(scheme).opacity(0.07), in: Circle())
                     VStack(spacing: 4) {
                         Text("Nice work").cpFont(22, .regular).foregroundStyle(CPTheme.foreground(scheme))
-                        Text("\(focusedMinutes) min focused. Take a 5 min break.").cpFont(12).foregroundStyle(CPTheme.muted(scheme)).multilineTextAlignment(.center)
+                        Text("\(focusedText). Take a 5 min break.").cpFont(12).foregroundStyle(CPTheme.muted(scheme)).multilineTextAlignment(.center)
                     }
                     CPAdaptiveStack(spacing: 8) {
                         CPStatTile(value: "\(completedIDs.count) of \(items.count)", label: "Tasks finished", tone: .accent)
@@ -5015,10 +5045,16 @@ struct NativeStudyView: View {
         if perItem, let item = currentItem { return plannedMinutes(item) }
         return duration
     }
+    /// Seconds of focus in the block under way.
+    private var currentFocusSeconds: Int { phase == "focus" ? max(0, blockMinutes * 60 - remaining) : 0 }
+    /// Minutes actually spent in focus: blocks and tasks that are over, plus
+    /// the one under way.
     private var focusedMinutes: Int {
-        if let plan = activePlan, round > 0 { return round * plan.focus }
-        return max(1, perItem ? perItemTotal : duration)
+        let seconds = focusedSeconds + (sessionFinished ? 0 : currentFocusSeconds)
+        return Int((Double(seconds) / 60).rounded())
     }
+    /// "45 min focused", or "Under a minute focused".
+    private var focusedText: String { focusedMinutes < 1 ? "Under a minute focused" : "\(focusedMinutes) min focused" }
     /// Where the student is in the current cycle of focus blocks.
     private func cycleText(_ plan: NativePomodoroPlan) -> String {
         if phase == "long-break" { return "\(plan.rounds) of \(plan.rounds) blocks done" }
@@ -5035,6 +5071,7 @@ struct NativeStudyView: View {
         activePlan = timeMode == "pomodoro" ? chosenPlan : nil
         phase = "focus"; round = 0
         completedIDs.removeAll(); currentIndex = 0
+        focusedSeconds = 0; timedOutIDs.removeAll()
         remaining = blockMinutes * 60
         blockEndsAt = Date().addingTimeInterval(TimeInterval(remaining))
         sessionStarted = true; sessionFinished = false; running = true
@@ -5050,6 +5087,7 @@ struct NativeStudyView: View {
         duration = 25
         activePlan = NativePomodoroPlan(focus: 25, shortBreak: 5, longBreak: 15, rounds: 4)
         phase = "focus"; round = 0; currentIndex = 0
+        focusedSeconds = 0; timedOutIDs.removeAll()
         remaining = 25 * 60
         blockEndsAt = Date().addingTimeInterval(TimeInterval(remaining))
         sessionStarted = true; sessionFinished = false; running = true
@@ -5067,7 +5105,10 @@ struct NativeStudyView: View {
         let now = Date()
         if now < end { remaining = max(1, Int(ceil(end.timeIntervalSince(now)))); return }
         guard let plan = activePlan else {
+            // The block ran its full length.
+            focusedSeconds += blockMinutes * 60
             // Per assignment: when one task's time is up, the next one starts.
+            if perItem, let current = currentItem { timedOutIDs.insert(current.id) }
             if perItem, let next = nextUnfinishedIndex(after: currentIndex) {
                 currentIndex = next
                 remaining = blockMinutes * 60
@@ -5085,6 +5126,7 @@ struct NativeStudyView: View {
         for _ in 0..<24 {
             if now < nextEnd { break }
             if nextPhase == "focus" {
+                focusedSeconds += plan.focus * 60
                 nextRound += 1
                 nextPhase = nextRound % plan.rounds == 0 ? "long-break" : "short-break"
             } else { nextPhase = "focus" }
@@ -5123,25 +5165,31 @@ struct NativeStudyView: View {
     private func focusTask(_ index: Int) {
         // Tapping the task already on screen leaves its timer alone.
         guard index != currentIndex else { return }
+        // A task's own timer starts fresh, so the time spent on the last one is kept.
+        if perItem { focusedSeconds += currentFocusSeconds }
         currentIndex = index
         guard perItem else { return }
         remaining = blockMinutes * 60
         if running { blockEndsAt = Date().addingTimeInterval(TimeInterval(remaining)) }
     }
+    /// The next task that's neither finished nor out of its own time: later
+    /// ones first, then earlier ones, so starting with the last task doesn't
+    /// end the session before the others get their time.
     private func nextUnfinishedIndex(after index: Int) -> Int? {
-        guard index + 1 < items.count else { return nil }
-        return (index + 1..<items.count).first { !completedIDs.contains(items[$0].id) }
+        guard items.count > 1 else { return nil }
+        return (1..<items.count).map { (index + $0) % items.count }.first { next in
+            !completedIDs.contains(items[next].id) && !timedOutIDs.contains(items[next].id)
+        }
     }
-    private func finishTask() { guard items.indices.contains(currentIndex) else { return }; completedIDs.insert(items[currentIndex].id); if completedIDs.count >= items.count { running = false; blockEndsAt = nil; sessionFinished = true; celebrateSession(endedEarly: false) } else { for step in 1...items.count { let next = (currentIndex + step) % items.count; if !completedIDs.contains(items[next].id) { focusTask(next); break } } } }
+    private func finishTask() { guard items.indices.contains(currentIndex) else { return }; completedIDs.insert(items[currentIndex].id); if completedIDs.count >= items.count { focusedSeconds += currentFocusSeconds; running = false; blockEndsAt = nil; sessionFinished = true; celebrateSession(endedEarly: false) } else { for step in 1...items.count { let next = (currentIndex + step) % items.count; if !completedIDs.contains(items[next].id) { focusTask(next); break } } } }
     /// Full-screen confetti for a finished session. Ending early only counts
     /// once some work is done, and claims only the time actually known.
     private func celebrateSession(endedEarly: Bool) {
         let focusedBlocks = activePlan != nil && round > 0
         if endedEarly && completedIDs.isEmpty && !focusedBlocks { return }
-        let minutes = endedEarly && activePlan == nil ? 0 : focusedMinutes
-        NativeCelebrations.shared.studyFinished(minutes: minutes, tasks: completedIDs.count)
+        NativeCelebrations.shared.studyFinished(minutes: focusedMinutes, tasks: completedIDs.count)
     }
-    private func resetSession(keepSelection: Bool) { running = false; blockEndsAt = nil; activePlan = nil; perItem = false; phase = "focus"; round = 0; sessionFinished = false; sessionStarted = false; completedIDs.removeAll(); remaining = duration * 60; currentIndex = 0; if !keepSelection { selected.removeAll(); selectedOrder.removeAll(); manualTasks.removeAll() } }
+    private func resetSession(keepSelection: Bool) { running = false; blockEndsAt = nil; activePlan = nil; perItem = false; phase = "focus"; round = 0; sessionFinished = false; sessionStarted = false; completedIDs.removeAll(); focusedSeconds = 0; timedOutIDs.removeAll(); remaining = duration * 60; currentIndex = 0; if !keepSelection { selected.removeAll(); selectedOrder.removeAll(); manualTasks.removeAll() } }
 }
 
 /// Optional study music: CoursePro plays nothing itself, it opens the music app

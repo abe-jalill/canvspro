@@ -5,6 +5,7 @@ import UIKit
 import Combine
 import AuthenticationServices
 import CryptoKit
+import UserNotifications
 
 enum NativeAppError: LocalizedError {
     case configuration(String)
@@ -455,6 +456,8 @@ extension AssignmentItem {
             courseName: (try? c.decodeIfPresent(String.self, forKey: .courseName)) ?? "",
             courseCode: (try? c.decodeIfPresent(String.self, forKey: .courseCode)) ?? "",
             submission: (try? c.decodeIfPresent(AssignmentSubmission.self, forKey: .submission)),
+            // Without this, work Canvas hasn't opened yet looked open everywhere.
+            unlockAt: (try? c.decodeIfPresent(String.self, forKey: .unlockAt)),
             estimatedMinutes: (try? c.decodeIfPresent(Int.self, forKey: .estimatedMinutes))
         )
     }
@@ -1173,8 +1176,14 @@ final class NativeSessionStore: ObservableObject {
         refreshingToken = nil
         let previousUserID = session?.user.id
         UIApplication.shared.unregisterForRemoteNotifications()
-        // The previous student's reminders must not keep arriving on this phone.
+        // The previous student's reminders must not keep arriving on this phone:
+        // due-date reminders, streak reminders, a study "time's up" alert, and
+        // banners already in Notification Center.
         NativeLocalReminders.replace(with: [])
+        NativeStreakReminders.schedule(nil, prefs: NotificationPreferences())
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["canvaspro.study.block"])
+        UNUserNotificationCenter.current().removeAllDeliveredNotifications()
+        NativeStreakStore.shared.reset()
         // Nor their work stay on the home screen or lock screen.
         CanvasProWidgetStore.clear()
         NativeLiveActivities.endAll()

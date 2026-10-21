@@ -239,7 +239,9 @@ test("the app is gentle: soft late-work wording, one next step, hidden grades, q
   assert.match(swift.NativeViews, /quickReopen \? 2200 : 3800/);
   assert.match(swift.NativeViews, /Updated just now/);
   // The study finish names the minutes and suggests a break.
-  assert.match(swift.NativeViews, /min focused\. Take a 5 min break\./);
+  assert.match(swift.NativeViews, /Text\("\\\(focusedText\)\. Take a 5 min break\."\)/);
+  // Only the time actually spent in focus, never the time planned.
+  assert.match(swift.NativeViews, /let seconds = focusedSeconds \+ \(sessionFinished \? 0 : currentFocusSeconds\)/);
 });
 
 test("no extra words: no descriptions under titles, short empty states", () => {

@@ -774,6 +774,12 @@ final class NativeFeatureStore: ObservableObject {
 
     /// Canvas and custom assignments for every class the student hasn't hidden.
     /// Every screen lists work through this, so hiding a class hides it everywhere.
+    /// Canvas events, without those of classes hidden in Settings.
+    func shownEvents(in store: NativeContentStore) -> [CalendarEventItem] {
+        let hidden = Set(hiddenCourseIDs.map { "course_\($0)" })
+        return store.bundle.calendar.filter { !hidden.contains($0.contextCode ?? "") }
+    }
+
     func shownAssignments(in store: NativeContentStore) -> [AssignmentItem] {
         let hidden = hiddenCourseIDs
         let courses = Dictionary(store.bundle.courses.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
@@ -845,6 +851,14 @@ enum NativeParity {
         return due >= startOfRecentWindow(from: now) && due <= endOfUpcomingDay(28, from: now)
     }
 
+    /// "This week" wherever it sits beside Today's seven circles (Today's line,
+    /// Next up, the To-Do header, More): from now to the end of the sixth day
+    /// ahead, the same seven days the circles and the Week widget show.
+    static func isDueThisWeek(_ item: AssignmentItem, now: Date = Date()) -> Bool {
+        guard let due = item.dueDate else { return false }
+        return due >= now && due <= endOfUpcomingDay(6, from: now)
+    }
+
     static func isInFocusWindow(_ item: AssignmentItem, window: String, now: Date = Date()) -> Bool {
         // Assignments only ever lists dated work due within four weeks (or overdue).
         if window == "all" { return item.dueDate.map { $0 <= endOfUpcomingDay(28, from: now) } ?? false }
@@ -886,12 +900,11 @@ enum NativeParity {
         return points * (1 - done / 100)
     }
 
-    /// Next up, like the website: the unfinished work due soonest in the next
-    /// seven days. Two due at the same time: the one worth more points.
+    /// Next up, like the website: the unfinished work due soonest in the seven
+    /// days Today's circles show. Two due at the same time: the one worth more points.
     static func nextUp(_ items: [AssignmentItem], progress: [Int: Int], now: Date = Date()) -> AssignmentItem? {
-        let week: TimeInterval = 7 * 86_400
         let candidates = items.filter { item in
-            guard let due = item.dueDate, due >= now, due.timeIntervalSince(now) <= week else { return false }
+            guard isDueThisWeek(item, now: now) else { return false }
             // Work that hasn't opened in Canvas yet can't be next up.
             return !item.notYetOpen(now: now)
         }

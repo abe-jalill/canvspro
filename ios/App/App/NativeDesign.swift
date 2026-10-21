@@ -609,8 +609,11 @@ private struct CPButtonBody: View {
         let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
         configuration.label
             .cpFont(15, .medium)
-            .lineLimit(1)
+            // A long label at a large text size wraps instead of being cut off.
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, 16)
+            .padding(.vertical, 6)
             .frame(maxWidth: fullWidth ? .infinity : nil, minHeight: 44)
             .foregroundStyle(kind == .primary ? CPTheme.background(scheme) : CPTheme.foreground(scheme))
             .background(kind == .primary ? CPTheme.foreground(scheme) : kind == .secondary ? CPTheme.inset(scheme) : Color.clear, in: shape)

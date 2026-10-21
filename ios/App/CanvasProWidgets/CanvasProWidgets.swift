@@ -51,7 +51,7 @@ struct CanvasProWhatsDueControl: ControlWidget {
 struct CanvasProStudyLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: CanvasProStudyActivity.self) { context in
-            CanvasProStudyLockView(state: context.state)
+            CanvasProStudyLockView(state: context.state, stale: context.isStale)
                 .activityBackgroundTint(Color.black.opacity(0.82))
                 .activitySystemActionForegroundColor(.white)
                 .widgetURL(URL(string: "canvaspro://study-session"))
@@ -61,23 +61,23 @@ struct CanvasProStudyLiveActivity: Widget {
                     CanvasProLogoMark(size: 34).padding(.leading, 4)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    CanvasProIslandBadge(symbol: context.state.finished ? "checkmark" : context.state.running ? "timer" : "pause.fill")
+                    CanvasProIslandBadge(symbol: context.state.finished || context.isStale ? "checkmark" : context.state.running ? "timer" : "pause.fill")
                         .padding(.trailing, 4)
                 }
                 DynamicIslandExpandedRegion(.center) {
-                    CanvasProIslandHeading(caption: CanvasProStudyLockView.caption(context.state), title: context.state.title, detail: context.state.detail)
+                    CanvasProIslandHeading(caption: CanvasProStudyLockView.caption(context.state, stale: context.isStale), title: context.state.title, detail: context.state.detail)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    CanvasProStudyIslandBottom(state: context.state).padding(.top, 4)
+                    CanvasProStudyIslandBottom(state: context.state, stale: context.isStale).padding(.top, 4)
                 }
             } compactLeading: {
                 // Bold like the expanded view; the compact pill is read at a glance.
-                Image(systemName: context.state.finished ? "checkmark" : context.state.running ? "timer" : "pause.fill")
+                Image(systemName: context.state.finished || context.isStale ? "checkmark" : context.state.running ? "timer" : "pause.fill")
                     .font(.system(size: 13, weight: .bold)).foregroundStyle(.white)
             } compactTrailing: {
-                CanvasProStudyClock(state: context.state, size: 14, weight: .bold)
+                CanvasProStudyClock(state: context.state, size: 14, weight: .bold, stale: context.isStale)
             } minimal: {
-                Image(systemName: context.state.running ? "timer" : "pause.fill")
+                Image(systemName: context.state.finished || context.isStale ? "checkmark" : context.state.running ? "timer" : "pause.fill")
                     .font(.system(size: 12, weight: .bold)).foregroundStyle(.white)
             }
             .widgetURL(URL(string: "canvaspro://study-session"))
@@ -89,7 +89,7 @@ struct CanvasProStudyLiveActivity: Widget {
 struct CanvasProTonightLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: CanvasProTonightActivity.self) { context in
-            CanvasProTonightLockView(state: context.state)
+            CanvasProTonightLockView(state: context.state, stale: context.isStale)
                 .activityBackgroundTint(Color.black.opacity(0.82))
                 .activitySystemActionForegroundColor(.white)
                 .widgetURL(URL(string: "canvaspro://assignments"))
@@ -99,23 +99,34 @@ struct CanvasProTonightLiveActivity: Widget {
                     CanvasProLogoMark(size: 34).padding(.leading, 4)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    CanvasProIslandBadge(count: context.state.remaining).padding(.trailing, 4)
+                    Group {
+                        if context.isStale { CanvasProIslandBadge(symbol: "checkmark") } else { CanvasProIslandBadge(count: context.state.remaining) }
+                    }
+                    .padding(.trailing, 4)
                 }
                 DynamicIslandExpandedRegion(.center) {
                     CanvasProIslandHeading(
                         caption: "DUE TONIGHT",
-                        title: context.state.remaining == 0 ? "All done" : "\(context.state.remaining) left · \(context.state.done) done"
+                        title: context.isStale ? "Tonight's over" : context.state.remaining == 0 ? "All done" : "\(context.state.remaining) left · \(context.state.done) done"
                     )
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    CanvasProTonightIslandBottom(state: context.state).padding(.top, 4)
+                    CanvasProTonightIslandBottom(state: context.state, stale: context.isStale).padding(.top, 4)
                 }
             } compactLeading: {
                 Image(systemName: "checklist").font(.system(size: 13, weight: .bold)).foregroundStyle(.white)
             } compactTrailing: {
-                Text("\(context.state.remaining)").font(.system(size: 14, weight: .bold)).monospacedDigit().foregroundStyle(.white)
+                if context.isStale {
+                    Image(systemName: "checkmark").font(.system(size: 13, weight: .bold)).foregroundStyle(.white)
+                } else {
+                    Text("\(context.state.remaining)").font(.system(size: 14, weight: .bold)).monospacedDigit().foregroundStyle(.white)
+                }
             } minimal: {
-                Text("\(context.state.remaining)").font(.system(size: 13, weight: .bold)).monospacedDigit().foregroundStyle(.white)
+                if context.isStale {
+                    Image(systemName: "checkmark").font(.system(size: 12, weight: .bold)).foregroundStyle(.white)
+                } else {
+                    Text("\(context.state.remaining)").font(.system(size: 13, weight: .bold)).monospacedDigit().foregroundStyle(.white)
+                }
             }
             .widgetURL(URL(string: "canvaspro://assignments"))
             .keylineTint(.white)
@@ -289,7 +300,8 @@ private struct CanvasProNextClassEntryView: View {
 
     var body: some View {
         CanvasProNextClassView(snapshot: entry.snapshot, date: entry.date, family: family)
-            .widgetURL(URL(string: "canvaspro://dashboard"))
+            // Opens My classes, not Today.
+            .widgetURL(URL(string: "canvaspro://class-schedule"))
             .modifier(CanvasProWidgetBackground(palette: entry.snapshot.palette))
     }
 }

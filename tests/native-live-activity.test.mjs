@@ -25,14 +25,14 @@ const width = (seconds, size) => {
 test("the clock gets a width made for its longest reading", () => {
   assert.match(shared, /static func clockWidth\(_ state: CanvasProStudyActivity\.ContentState, size: CGFloat\) -> CGFloat/);
   assert.match(shared, /return ceil\(digits \* size \* 0\.64 \+ colons \* size \* 0\.34\) \+ 2/);
-  assert.match(shared, /\.frame\(width: state\.finished \? nil : CanvasProActivityFormat\.clockWidth\(state, size: size\), alignment: frameAlignment\)/);
+  assert.match(shared, /\.frame\(width: done \? nil : CanvasProActivityFormat\.clockWidth\(state, size: size\), alignment: frameAlignment\)/);
   // While it runs, the longest reading is the whole block, not the 0 sent as "remaining".
   assert.match(shared, /guard state\.running else \{ return state\.remaining \}\s+return max\(state\.total,/);
 });
 
 test("the Dynamic Island pill no longer caps the clock at 52 points", () => {
   assert.doesNotMatch(widgets, /CanvasProStudyClock\([^)]*\)\.frame\(maxWidth: 52\)/);
-  assert.match(widgets, /compactTrailing: \{\s+CanvasProStudyClock\(state: context\.state, size: 14, weight: \.bold\)\s+\}/);
+  assert.match(widgets, /compactTrailing: \{\s+CanvasProStudyClock\(state: context\.state, size: 14, weight: \.bold, stale: context\.isStale\)\s+\}/);
   // An hour and a half needs more room than 25 minutes, and more than the old cap.
   assert.equal(clock(90 * 60 - 3), "1:29:57");
   assert.ok(width(90 * 60, 14) > 52);
@@ -40,10 +40,26 @@ test("the Dynamic Island pill no longer caps the clock at 52 points", () => {
 });
 
 test("the lock screen keeps the clock whole beside a long title", () => {
-  assert.match(shared, /CanvasProStudyClock\(state: state, size: 30\)\.layoutPriority\(1\)/);
+  assert.match(shared, /CanvasProStudyClock\(state: state, size: 30, stale: stale\)\.layoutPriority\(1\)/);
 });
 
 test("the app's own timer reads the same way past an hour", () => {
   assert.match(views, /Text\(CanvasProActivityFormat\.clock\(remaining\)\)\s+\.cpFont\(40, \.light\)/);
   assert.doesNotMatch(views, /String\(format: "%02d:%02d", remaining \/ 60, remaining % 60\)/);
+});
+
+test("a Live Activity left behind says so instead of showing 0:00 or last night's list", () => {
+  // The block ran out with the app closed: time's up, a check instead of the clock.
+  assert.match(shared, /if stale && state\.running \{ return "TIME'S UP · OPEN COURSEPRO" \}/);
+  assert.match(shared, /private var done: Bool \{ state\.finished \|\| \(stale && state\.running\) \}/);
+  assert.match(widgets, /CanvasProStudyLockView\(state: context\.state, stale: context\.isStale\)/);
+  // Past midnight, tonight's list is over.
+  assert.match(shared, /Text\("Tonight's deadlines have passed\."\)/);
+  assert.match(widgets, /CanvasProTonightLockView\(state: context\.state, stale: context\.isStale\)/);
+  assert.match(widgets, /title: context\.isStale \? "Tonight's over"/);
+});
+
+test("the Next Class widget opens My classes", () => {
+  const nextClass = widgets.slice(widgets.indexOf("struct CanvasProNextClassEntryView"));
+  assert.match(nextClass, /\.widgetURL\(URL\(string: "canvaspro:\/\/class-schedule"\)\)/);
 });
