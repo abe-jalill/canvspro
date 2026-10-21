@@ -1851,7 +1851,7 @@ private struct NativeDashboardView: View {
                             .cpFont(13, .medium)
                             .foregroundStyle(CPTheme.muted(scheme))
                         // Wraps to a second line for a long name instead of shrinking.
-                        Text("\(greeting)\(studentName.map { ", \($0)" } ?? "")")
+                        greetingText
                             .cpFont(28, .semibold).tracking(-0.6)
                             .foregroundStyle(CPTheme.foreground(scheme))
                             .fixedSize(horizontal: false, vertical: true)
@@ -1867,13 +1867,49 @@ private struct NativeDashboardView: View {
                     .cpFont(15).monospacedDigit()
                     .foregroundStyle(CPTheme.muted(scheme))
                     .fixedSize(horizontal: false, vertical: true)
+                weekStrip
             }
             .padding(.horizontal, 4)
             .padding(.top, 8)
+            .cpHeaderLight()
             nextUpCard
             if overdueCount > 0 { catchUpRow.transition(.opacity) }
         }
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: overdueCount > 0)
+    }
+
+    /// "Good evening, Abe" with the name in the palette color.
+    private var greetingText: Text {
+        guard let name = studentName else { return Text(greeting) }
+        return Text("\(greeting), \(Text(name).foregroundStyle(CPTheme.primary(scheme: scheme)))")
+    }
+
+    /// Each of the next seven days, starting today: what's due and how much of
+    /// it is done (ticked here or submitted in Canvas).
+    private var weekProgress: [NativeDayProgress] {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        guard let end = calendar.date(byAdding: .day, value: 7, to: today) else { return [] }
+        let counted = allAssignments.filter { item in
+            guard let due = item.dueDate, due >= today, due < end, !item.notYetOpen() else { return false }
+            return item.showsDone(in: store) || item.isVisible(in: store)
+        }
+        let byDay = Dictionary(grouping: counted) { calendar.startOfDay(for: $0.dueDate ?? today) }
+        return (0..<7).compactMap { offset -> NativeDayProgress? in
+            guard let day = calendar.date(byAdding: .day, value: offset, to: today) else { return nil }
+            let items = byDay[day] ?? []
+            return NativeDayProgress(date: day, total: items.count, done: items.filter { $0.showsDone(in: store) }.count)
+        }
+    }
+
+    /// The week at a glance under the greeting; hidden when nothing is due.
+    @ViewBuilder private var weekStrip: some View {
+        let days = weekProgress
+        if !store.showsSkeleton && days.contains(where: { $0.total > 0 }) {
+            NativeWeekStrip(days: days) { openToDo() }
+                .padding(.top, 10)
+                .transition(.opacity)
+        }
     }
 
     /// The one suggestion (what Get It Done was): how long until it's due, the
@@ -1884,22 +1920,43 @@ private struct NativeDashboardView: View {
             if let item = nextUp {
                 NavigationLink { courseDestination(for: item, highlight: true) } label: {
                     VStack(alignment: .leading, spacing: 8) {
-                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        HStack(alignment: .center, spacing: 8) {
                             nextUpLabel
                             Spacer(minLength: 8)
                             if let countdown = NativeParity.countdown(item, completed: false) {
                                 Text(countdown.label).cpFont(12, .medium).monospacedDigit()
                                     .foregroundStyle(CPTheme.urgency(countdown.urgency, scheme: scheme))
+                                    .padding(.horizontal, 9).padding(.vertical, 4)
+                                    .background(CPTheme.foreground(scheme).opacity(0.07), in: Capsule())
+                                    .overlay(Capsule().strokeBorder(CPTheme.primary(scheme: scheme).opacity(0.25), lineWidth: 0.5))
                             }
                         }
                         Text(item.name).cpFont(18, .semibold).tracking(-0.3)
                             .foregroundStyle(CPTheme.foreground(scheme))
                             .multilineTextAlignment(.leading)
                             .fixedSize(horizontal: false, vertical: true)
-                        Text(nextUpDetail(item)).cpFont(13).monospacedDigit()
-                            .foregroundStyle(CPTheme.muted(scheme))
-                            .multilineTextAlignment(.leading)
-                            .fixedSize(horizontal: false, vertical: true)
+                        // The class's color, the same as its To-Do checkboxes.
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Image(systemName: "circle.fill").cpIconFont(7)
+                                .foregroundStyle(CPTheme.classColor(item.courseID, in: store.bundle.courses))
+                                .accessibilityHidden(true)
+                            Text(nextUpDetail(item)).cpFont(13).monospacedDigit()
+                                .foregroundStyle(CPTheme.muted(scheme))
+                                .multilineTextAlignment(.leading)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        if let percent = features.progress[item.id], percent > 0 {
+                            HStack(spacing: 10) {
+                                CPProgressBar(value: Double(percent) / 100, color: CPTheme.primary(scheme: scheme), height: 4)
+                                Text("\(percent)%").cpFont(12, .medium).monospacedDigit()
+                                    .foregroundStyle(CPTheme.foreground(scheme))
+                                    .contentTransition(.numericText())
+                            }
+                            .padding(.top, 4)
+                            .animation(reduceMotion ? nil : .spring(duration: 0.5, bounce: 0), value: percent)
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel(percent >= 75 ? "Almost there, \(percent)% done" : "\(percent)% done")
+                        }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .contentShape(Rectangle())
@@ -1908,7 +1965,11 @@ private struct NativeDashboardView: View {
                 .accessibilityElement(children: .combine)
                 .accessibilityHint("Opens the assignment")
                 Button { NotificationCenter.default.post(name: .nativeStudyAssignment, object: item) } label: {
-                    Label("Start", systemImage: "play.fill")
+                    Label {
+                        Text("Start")
+                    } icon: {
+                        Image(systemName: "play.fill").foregroundStyle(CPTheme.primary(scheme: scheme))
+                    }
                 }
                 .buttonStyle(CPButtonStyle(kind: .secondary, fullWidth: true))
                 .accessibilityHint("Opens Study with this assignment")
@@ -1922,12 +1983,15 @@ private struct NativeDashboardView: View {
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
+        // The page's one lit card: a palette glow and sheen over its gradient,
+        // and a hairline that's brighter on top.
+        .background { CPCardLight() }
         .background(CPTheme.accentCardGradient(scheme), in: RoundedRectangle(cornerRadius: CPLayout.cardRadius, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: CPLayout.cardRadius, style: .continuous).strokeBorder(CPTheme.primary(scheme: scheme).opacity(0.3), lineWidth: 0.5))
+        .overlay(RoundedRectangle(cornerRadius: CPLayout.cardRadius, style: .continuous).strokeBorder(CPTheme.litEdge(scheme), lineWidth: 0.5))
     }
 
     private var nextUpLabel: some View {
-        Text("NEXT UP").cpFont(11, .semibold).tracking(1.6).foregroundStyle(CPTheme.muted(scheme))
+        Text("NEXT UP").cpFont(11, .semibold).tracking(1.6).foregroundStyle(CPTheme.primary(scheme: scheme))
     }
 
     /// Shown only when something is past due; opens To-Do, where it's listed first.
@@ -1978,14 +2042,11 @@ private struct NativeDashboardView: View {
         return "Updated \(date.formatted(.relative(presentation: .numeric, unitsStyle: .abbreviated)))"
     }
 
-    /// "Cell Biology · 20 pts · 45 min · 40% done".
+    /// "Cell Biology · 20 pts · 45 min". Saved progress is the bar under it.
     private func nextUpDetail(_ item: AssignmentItem) -> String {
         var parts = [store.displayName(courseID: item.courseID, fallback: item.courseName)]
         if let points = item.pointsPossible { parts.append("\(points.formatted()) pts") }
         parts.append(FocusView.duration(NativeParity.estimate(item, estimates: features.estimates)))
-        if let percent = features.progress[item.id], percent > 0 {
-            parts.append(percent >= 75 ? "Almost there, \(percent)% done" : "\(percent)% done")
-        }
         return parts.joined(separator: " · ")
     }
 
@@ -2012,7 +2073,7 @@ private struct NativeDashboardView: View {
     private func widgetTitle(_ id: String) -> String { id == "upcoming" ? "This week" : NativeDashboardWidgetInfo.title(id) }
 
     private func collapse(_ id: String) -> CPCollapse {
-        CPCollapse(title: widgetTitle(id), isCollapsed: collapsedWidgets.contains(id)) { toggleCollapsed(id) }
+        CPCollapse(title: widgetTitle(id), symbol: NativeDashboardWidgetInfo.symbol(id), isCollapsed: collapsedWidgets.contains(id)) { toggleCollapsed(id) }
     }
 
     private func toggleCollapsed(_ id: String) {
@@ -2654,6 +2715,71 @@ private struct NativeQuickPomodoro: View {
     }
 }
 
+/// One day of Today's week strip.
+private struct NativeDayProgress: Identifiable {
+    let date: Date
+    let total: Int
+    let done: Int
+    var id: Date { date }
+    var progress: Double { total == 0 ? 0 : Double(done) / Double(total) }
+}
+
+/// Seven small pies under the greeting, today first: each fills as that day's
+/// work gets done and turns solid with a check when it's all done. A day with
+/// nothing due is a dot. No numbers; the whole row opens To-Do.
+private struct NativeWeekStrip: View {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ScaledMetric(relativeTo: .footnote) private var cell: CGFloat = 30
+    @State private var shown = false
+    let days: [NativeDayProgress]
+    let open: () -> Void
+
+    var body: some View {
+        let done = days.reduce(0) { $0 + $1.done }
+        let total = days.reduce(0) { $0 + $1.total }
+        Button(action: open) {
+            HStack(spacing: 0) {
+                ForEach(days) { day in column(day).frame(maxWidth: .infinity) }
+            }
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(CPPressStyle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Next seven days, \(done) of \(total) done")
+        .accessibilityHint("Opens To-Do")
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+        // The pies fill in once, a moment after the page appears.
+        .task {
+            guard !shown else { return }
+            if !reduceMotion { try? await Task.sleep(for: .milliseconds(150)) }
+            shown = true
+        }
+    }
+
+    private func column(_ day: NativeDayProgress) -> some View {
+        let isToday = Calendar.current.isDateInToday(day.date)
+        return VStack(spacing: 6) {
+            Text(day.date.formatted(.dateTime.weekday(.narrow)))
+                .cpFont(11, isToday ? .semibold : .medium)
+                .foregroundStyle(isToday ? CPTheme.primary(scheme: scheme) : CPTheme.faint(scheme))
+            ZStack {
+                if day.total == 0 {
+                    Circle().fill(CPTheme.foreground(scheme).opacity(0.14)).frame(width: 4, height: 4)
+                } else {
+                    CPProgressPie(progress: shown ? day.progress : 0, size: 22)
+                }
+            }
+            .frame(width: cell, height: cell)
+            .overlay {
+                if isToday { Circle().strokeBorder(CPTheme.primary(scheme: scheme).opacity(0.5), lineWidth: 1) }
+            }
+        }
+    }
+}
+
 /// The same saved time estimate can be changed from any assignment surface.
 struct NativeEstimateEditor: View {
     @Environment(\.colorScheme) private var scheme
@@ -2762,6 +2888,8 @@ struct NativeCompletionButton: View {
     let assignment: AssignmentItem
     @ObservedObject var store: NativeContentStore
     var onCompleted: ((AssignmentItem) -> Void)? = nil
+    /// The class's color (To-Do), else the plain foreground checkbox.
+    var tint: Color? = nil
     private var isComplete: Bool { assignment.showsDone(in: store) }
 
     var body: some View {
@@ -2773,12 +2901,16 @@ struct NativeCompletionButton: View {
                 if !wasComplete && assignment.isFinished(in: store) { onCompleted?(assignment) }
             }
         } label: {
-            // The website's checkbox: a rounded square that fills when done.
+            // The website's checkbox: a rounded square that fills when done. With a
+            // class color it's a soft tile of that color that fills solid.
             ZStack {
+                if let tint, !isComplete {
+                    RoundedRectangle(cornerRadius: 6, style: .continuous).fill(tint.opacity(0.12))
+                }
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .strokeBorder(CPTheme.foreground(scheme).opacity(isComplete ? 0 : 0.3), lineWidth: 1)
+                    .strokeBorder((tint ?? CPTheme.foreground(scheme)).opacity(isComplete ? 0 : tint == nil ? 0.3 : 0.8), lineWidth: 1)
                 if isComplete {
-                    RoundedRectangle(cornerRadius: 6, style: .continuous).fill(CPTheme.foreground(scheme).opacity(0.8))
+                    RoundedRectangle(cornerRadius: 6, style: .continuous).fill(tint ?? CPTheme.foreground(scheme).opacity(0.8))
                     Image(systemName: "checkmark").cpIconFont(10, .bold).foregroundStyle(CPTheme.background(scheme))
                         .symbolEffect(.bounce, value: isComplete)
                         .transition(.scale.combined(with: .opacity))

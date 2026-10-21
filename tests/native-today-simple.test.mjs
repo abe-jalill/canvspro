@@ -92,3 +92,46 @@ test("More and the tab bar preview never shrink or cut off their words", () => {
   assert.match(page, /\.background\(CPTheme\.accentCardGradient\(scheme\)/);
   assert.match(views, /\.background\(CPTheme\.accentCardGradient\(scheme\)/);
 });
+
+test("Today has a little more to it: a lit header, the week as pies, a lit Next up", () => {
+  const design = read("NativeDesign");
+  const hero = between(views, "private var hero: some View", "private var nextUpCard: some View");
+  // One soft palette light behind the greeting (plain backdrop only), the name in the palette color.
+  assert.match(hero, /\.cpHeaderLight\(\)\s+nextUpCard/);
+  assert.match(design, /if wallpaper == "plain" \{\s+\/\/ Fades to clear/);
+  assert.match(views, /Text\("\\\(greeting\), \\\(Text\(name\)\.foregroundStyle\(CPTheme\.primary\(scheme: scheme\)\)\)"\)/);
+  // Seven days from today as pies that fill as work gets done; nothing due is a dot.
+  assert.match(hero, /Text\(heroMessage\)[\s\S]*?weekStrip\s+\}/);
+  assert.match(views, /CPProgressPie\(progress: shown \? day\.progress : 0, size: 22\)/);
+  assert.match(views, /return item\.showsDone\(in: store\) \|\| item\.isVisible\(in: store\)/);
+  assert.match(design, /struct CPPieShape: Shape/);
+  // Next up is the lit card: glow and sheen, a brighter top edge, its saved progress as a bar.
+  const card = between(views, "private var nextUpCard: some View", "private var nextUpLabel: some View");
+  assert.match(card, /\.strokeBorder\(CPTheme\.litEdge\(scheme\), lineWidth: 0\.5\)/);
+  assert.match(card, /CPProgressBar\(value: Double\(percent\) \/ 100/);
+  assert.match(card, /"Almost there, \\\(percent\)% done"/);
+  // Every widget header shows its glyph, folded or open.
+  assert.match(views, /symbol: NativeDashboardWidgetInfo\.symbol\(id\)/);
+  assert.match(design, /if let symbol = collapse\?\.symbol \{/);
+  // Cards are lit from above, never with a shadow; Increase Contrast keeps a solid edge.
+  const surface = between(design, "private struct CPSurfaceModifier", "struct CPGlassCard");
+  assert.match(surface, /contrast == \.increased\s+\? AnyShapeStyle\(CPTheme\.foreground\(scheme\)\.opacity\(0\.35\)\)/);
+  assert.doesNotMatch(surface, /\.shadow\(|Material/);
+});
+
+test("To-Do has a little more to it: the week fills in, today is lit, classes have colors", () => {
+  const design = read("NativeDesign");
+  const focus = between(more, "struct FocusView: View", "struct NativeTitledGroup");
+  assert.match(focus, /NativeWeekSegments\(done: tally\.done, total: tally\.total\)/);
+  assert.match(more, /if total > 12 \{\s+CPProgressBar/);
+  assert.match(focus, /\.cpHeaderLight\(\)/);
+  // Day headers: the day in semibold (Today in the palette color, Catch up in rose) and that day's time.
+  assert.match(focus, /isToday \? CPTheme\.primary\(scheme: scheme\) : isCatchUp \? CPTheme\.danger : CPTheme\.foreground\(scheme\)/);
+  assert.match(focus, /Text\(Self\.duration\(minutes\)\)/);
+  // Each class has a steady color on its checkboxes; no yellow, no rose.
+  assert.match(design, /private static let classHues: \[Double\] = \[205, 150, 268, 182, 232, 290, 125\]/);
+  assert.match(focus, /NativeCompletionButton\(assignment: item, store: store, tint: classTint\(item\.courseID\)\)/);
+  // Workload bars are in the palette.
+  const workload = between(more, "struct WorkloadView", "struct AnnouncementsView");
+  assert.match(workload, /let tint = CPTheme\.primary\(scheme: scheme\)/);
+});

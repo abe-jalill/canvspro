@@ -798,18 +798,26 @@ struct FocusView: View {
             return due < Date() ? .distantPast : calendar.startOfDay(for: due)
         }.sorted { $0.key < $1.key }.map { date, rows in
             let title = date == .distantPast ? "Catch up" : date == .distantFuture ? "No due date" : calendar.isDateInToday(date) ? "Today" : calendar.isDateInTomorrow(date) ? "Tomorrow" : date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
-            return NativeTitledGroup(title: title, items: rows)
+            return NativeTitledGroup(title: title, items: rows, day: date == .distantPast || date == .distantFuture ? nil : date)
         }
     }
     private var classGroups: [NativeTitledGroup] {
         let grouped = Dictionary(grouping: items, by: \.courseID)
         return visibleCourses.compactMap { course -> NativeTitledGroup? in
             guard let rows = grouped[course.id], !rows.isEmpty else { return nil }
-            return NativeTitledGroup(title: store.displayName(courseID: course.id, fallback: course.name), items: rows)
+            return NativeTitledGroup(title: store.displayName(courseID: course.id, fallback: course.name), items: rows, courseID: course.id)
         }
         .sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
     }
     private func estimate(_ item: AssignmentItem) -> Int { NativeParity.estimate(item, estimates: features.estimates) }
+    private func classTint(_ courseID: Int) -> Color { CPTheme.classColor(courseID, in: store.bundle.courses) }
+    /// This week's work (the same seven days as the header line): done, and in all.
+    private var weekTally: (done: Int, total: Int) {
+        let week = allItems.filter { NativeParity.isInFocusWindow($0, window: "7") }
+        let done = week.filter { $0.showsDone(in: store) }.count
+        let left = week.filter { !$0.showsDone(in: store) && $0.isVisible(in: store) }.count
+        return (done, done + left)
+    }
     /// "4 this week · 2 hr 30 min".
     private var headerLine: String {
         let week = items.filter { NativeParity.isInFocusWindow($0, window: "7") }
@@ -894,9 +902,16 @@ struct FocusView: View {
                 } label: { CPLinkLabel(text: grouping, symbol: "chevron.down") }
                     .accessibilityLabel("Group, \(grouping)")
             }
+            let tally = weekTally
+            if tally.total > 0 && !store.showsSkeleton {
+                NativeWeekSegments(done: tally.done, total: tally.total)
+                    .padding(.top, 6)
+                    .transition(.opacity)
+            }
         }
         .padding(.horizontal, 4)
         .padding(.top, 8)
+        .cpHeaderLight()
     }
 
     private var searchField: some View {
@@ -936,10 +951,13 @@ struct FocusView: View {
         }
     }
 
-    /// One card per day (or class), its rows split by hairlines.
+    /// One card per day (or class), its rows split by hairlines. Today's card
+    /// catches the palette light.
     private func section(_ group: NativeTitledGroup, showCourse: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            CPSectionLabel(group.title, count: group.items.count)
+        let isToday = group.day.map { Calendar.current.isDateInToday($0) } ?? false
+        let shape = RoundedRectangle(cornerRadius: 20, style: .continuous)
+        return VStack(alignment: .leading, spacing: 8) {
+            sectionLabel(group)
             VStack(spacing: 0) {
                 ForEach(group.items) { item in
                     row(item, showCourse: showCourse)
@@ -947,15 +965,50 @@ struct FocusView: View {
                 }
             }
             .padding(.horizontal, 14)
+            .background {
+                if isToday {
+                    shape.fill(LinearGradient(colors: [CPTheme.primary(scheme: scheme).opacity(scheme == .dark ? 0.10 : 0.07), .clear], startPoint: .top, endPoint: .bottom))
+                }
+            }
             .cpSurface(radius: 20)
+            .overlay {
+                if isToday { shape.strokeBorder(CPTheme.primary(scheme: scheme).opacity(0.3), lineWidth: 0.5) }
+            }
         }
+    }
+
+    /// "Sunday  Oct 25  2 ······ 1 hr", with Today in the palette color and Catch
+    /// up in rose. By class it starts with the class's color.
+    private func sectionLabel(_ group: NativeTitledGroup) -> some View {
+        let calendar = Calendar.current
+        let isToday = group.day.map { calendar.isDateInToday($0) } ?? false
+        let isCatchUp = group.day == nil && group.courseID == nil && group.title == "Catch up"
+        let name = group.day.map { calendar.isDateInToday($0) ? "Today" : calendar.isDateInTomorrow($0) ? "Tomorrow" : $0.formatted(.dateTime.weekday(.wide)) } ?? group.title
+        let minutes = group.items.reduce(0) { $0 + estimate($1) }
+        return HStack(alignment: .firstTextBaseline, spacing: 6) {
+            if let courseID = group.courseID {
+                Image(systemName: "circle.fill").cpIconFont(7).foregroundStyle(classTint(courseID)).accessibilityHidden(true)
+            }
+            Text(name).cpFont(15, .semibold).tracking(-0.2)
+                .foregroundStyle(isToday ? CPTheme.primary(scheme: scheme) : isCatchUp ? CPTheme.danger : CPTheme.foreground(scheme))
+                .fixedSize(horizontal: false, vertical: true)
+            if let day = group.day {
+                Text(day.formatted(.dateTime.month(.abbreviated).day())).cpFont(13).foregroundStyle(CPTheme.muted(scheme))
+            }
+            Text("\(group.items.count)").cpFont(13).monospacedDigit().foregroundStyle(CPTheme.faint(scheme))
+            Spacer(minLength: 8)
+            Text(Self.duration(minutes)).cpFont(12).monospacedDigit().foregroundStyle(CPTheme.faint(scheme))
+        }
+        .padding(.horizontal, 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
     }
 
     /// The name, and one quiet line: class, time and how long it takes.
     private func row(_ item: AssignmentItem, showCourse: Bool) -> some View {
         let done = item.showsDone(in: store)
         return HStack(alignment: .top, spacing: 12) {
-            NativeCompletionButton(assignment: item, store: store).padding(.top, 1)
+            NativeCompletionButton(assignment: item, store: store, tint: classTint(item.courseID)).padding(.top, 1)
             NavigationLink {
                 if let course = store.bundle.courses.first(where: { $0.id == item.courseID }) {
                     CourseDetailView(course: course, store: store, features: features, highlightAssignment: item)
@@ -1005,7 +1058,40 @@ struct FocusView: View {
 struct NativeTitledGroup: Identifiable {
     let title: String
     let items: [AssignmentItem]
+    /// The day (To-Do by day) or class (by class) the group is for.
+    var day: Date? = nil
+    var courseID: Int? = nil
     var id: String { title }
+}
+
+/// To-Do's week: one segment per assignment due in the next seven days; done
+/// ones fill from the left. Past 12 it's one bar, so segments never get thin.
+private struct NativeWeekSegments: View {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let done: Int
+    let total: Int
+
+    var body: some View {
+        Group {
+            if total > 12 {
+                CPProgressBar(value: Double(done) / Double(max(1, total)), color: CPTheme.primary(scheme: scheme), height: 6)
+            } else {
+                HStack(spacing: 4) {
+                    ForEach(0..<total, id: \.self) { index in
+                        Capsule()
+                            .fill(index < done ? CPTheme.primary(scheme: scheme) : CPTheme.foreground(scheme).opacity(0.08))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 6)
+                    }
+                }
+            }
+        }
+        .animation(reduceMotion ? nil : .spring(duration: 0.4, bounce: 0.1), value: done)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(done) of \(total) done this week")
+    }
 }
 
 struct NativeCalendarEntry: Identifiable {
@@ -1346,6 +1432,8 @@ struct WorkloadView: View {
     @ObservedObject var features: NativeFeatureStore
     @State private var week = 0
     @State private var openDay: Date?
+    /// The bars rise once when the card first shows (never with Reduce Motion).
+    @State private var grown = false
     private static let weekNames = ["This week", "Next week", "Week 3", "Week 4"]
     private var calendar: Calendar { Calendar.current }
     private var today: Date { calendar.startOfDay(for: Date()) }
@@ -1398,6 +1486,10 @@ struct WorkloadView: View {
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.22), value: week)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: openDay)
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+        .onAppear {
+            guard !grown else { return }
+            if reduceMotion { grown = true } else { withAnimation(.spring(duration: 0.6, bounce: 0).delay(0.15)) { grown = true } }
+        }
     }
 
     private func load(_ items: [AssignmentItem]) -> Double {
@@ -1409,6 +1501,16 @@ struct WorkloadView: View {
         let isOpen = openDay == day
         let isPast = day < today
         let barHeight: CGFloat = count == 0 ? 4 : 10 + 50 * CGFloat(load / maxLoad)
+        // Drawn in the palette: stronger for heavier days, solid when picked,
+        // half strength for days already past.
+        let intensity = load / maxLoad
+        let tint = CPTheme.primary(scheme: scheme)
+        let fade = isPast ? 0.5 : 1.0
+        let barFill: AnyShapeStyle = count == 0
+            ? AnyShapeStyle(CPTheme.foreground(scheme).opacity(0.08))
+            : AnyShapeStyle(LinearGradient(
+                colors: [tint.opacity((isOpen ? 1 : 0.55 + 0.45 * intensity) * fade), tint.opacity((isOpen ? 0.75 : 0.22 + 0.25 * intensity) * fade)],
+                startPoint: .top, endPoint: .bottom))
         return Button {
             guard count > 0 else { return }
             openDay = isOpen ? nil : day
@@ -1420,8 +1522,8 @@ struct WorkloadView: View {
                 ZStack(alignment: .bottom) {
                     Color.clear.frame(height: 60)
                     RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .fill(count == 0 ? CPTheme.foreground(scheme).opacity(0.08) : CPTheme.foreground(scheme).opacity(isOpen ? 0.85 : 0.18 + 0.4 * load / maxLoad))
-                        .frame(width: 18, height: barHeight)
+                        .fill(barFill)
+                        .frame(width: 18, height: grown ? barHeight : 4)
                 }
                 VStack(spacing: 2) {
                     Text(day.formatted(.dateTime.weekday(.narrow)))
@@ -1429,9 +1531,9 @@ struct WorkloadView: View {
                         .foregroundStyle(CPTheme.muted(scheme))
                     Text("\(calendar.component(.day, from: day))")
                         .cpFont(13, isToday ? .semibold : .regular).monospacedDigit()
-                        .foregroundStyle(isToday ? CPTheme.background(scheme) : CPTheme.foreground(scheme).opacity(isPast ? 0.45 : 0.9))
+                        .foregroundStyle(isToday ? CPTheme.onPrimary(scheme) : CPTheme.foreground(scheme).opacity(isPast ? 0.45 : 0.9))
                         .frame(width: 30, height: 30)
-                        .background(isToday ? CPTheme.foreground(scheme) : Color.clear, in: Circle())
+                        .background(isToday ? CPTheme.primary(scheme: scheme) : Color.clear, in: Circle())
                 }
             }
             .frame(maxWidth: .infinity)

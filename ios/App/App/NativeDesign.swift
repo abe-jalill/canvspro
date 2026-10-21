@@ -90,6 +90,22 @@ enum CPTheme {
             startPoint: .topLeading, endPoint: .bottomTrailing
         )
     }
+    /// A hairline that's brighter where the light meets its top edge, for the
+    /// card that leads a page.
+    static func litEdge(_ scheme: ColorScheme) -> LinearGradient {
+        LinearGradient(
+            colors: [Color.white.opacity(scheme == .dark ? 0.22 : 0.7), primary(scheme: scheme).opacity(0.28), primary(scheme: scheme).opacity(0.10)],
+            startPoint: .top, endPoint: .bottom
+        )
+    }
+    /// Cool, calm hues for classes: never yellow, never near the catch-up rose.
+    private static let classHues: [Double] = [205, 150, 268, 182, 232, 290, 125]
+    /// A steady color per class (by its place in Canvas's list), for small accents only.
+    static func classColor(_ courseID: Int, in courses: [CourseSummary]) -> Color {
+        let index = courses.firstIndex { $0.id == courseID } ?? abs(courseID)
+        let hue = classHues[index % classHues.count]
+        return adaptive(dark: .hsl(hue, 0.50, 0.68), light: .hsl(hue, 0.50, 0.40))
+    }
     static func border(_ scheme: ColorScheme, palette: CPPalette = currentPalette) -> Color {
         scheme == .dark ? .hsl(palette.hue, 0.18, 0.88, opacity: 0.11) : .hsl(palette.hue, 0.28, 0.18, opacity: 0.11)
     }
@@ -213,13 +229,20 @@ private struct CPSurfaceModifier: ViewModifier {
     let radius: CGFloat
 
     // No shadow: on the dark background it is invisible but still costs an
-    // offscreen render pass per card while scrolling. The hairline border and
-    // the glass fill separate cards, as on the website.
+    // offscreen render pass per card while scrolling. The glass fill and a
+    // hairline that's brighter on its top edge (with a faint sheen under it)
+    // make each card look lit from above, as on the website.
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        let edge: AnyShapeStyle = contrast == .increased
+            ? AnyShapeStyle(CPTheme.foreground(scheme).opacity(0.35))
+            : AnyShapeStyle(LinearGradient(colors: [CPTheme.foreground(scheme).opacity(scheme == .dark ? 0.16 : 0.10), CPTheme.border(scheme)], startPoint: .top, endPoint: .center))
         return content
-            .background(shape.fill(CPTheme.glass(scheme, strong: strong)))
-            .overlay(shape.strokeBorder(contrast == .increased ? CPTheme.foreground(scheme).opacity(0.35) : CPTheme.border(scheme), lineWidth: 0.5))
+            .background {
+                shape.fill(CPTheme.glass(scheme, strong: strong))
+                    .overlay(shape.fill(LinearGradient(colors: [Color.white.opacity(scheme == .dark ? 0.03 : 0.5), .clear], startPoint: .top, endPoint: .center)))
+            }
+            .overlay(shape.strokeBorder(edge, lineWidth: 0.5))
     }
 }
 
@@ -259,13 +282,21 @@ struct CPCardHeader<Trailing: View>: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
+            // A dashboard widget shows its glyph, folded or open.
+            if let symbol = collapse?.symbol {
+                Image(systemName: symbol).cpIconFont(13, .semibold)
+                    .foregroundStyle(CPTheme.primary(scheme: scheme))
+                    .frame(width: 28, height: 28)
+                    .background(CPTheme.primary(scheme: scheme).opacity(scheme == .dark ? 0.12 : 0.09), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                    .accessibilityHidden(true)
+            }
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).cpFont(17, .medium).tracking(-0.3).foregroundStyle(CPTheme.foreground(scheme)).fixedSize(horizontal: false, vertical: true)
                 if let subtitle {
                     Text(subtitle).cpFont(13).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(.isHeader)
             trailing
@@ -281,6 +312,8 @@ extension CPCardHeader where Trailing == EmptyView {
 /// Folds a dashboard widget down to just its name, and back.
 struct CPCollapse {
     let title: String
+    /// The widget's glyph in its header (before `toggle`, so the trailing closure still works).
+    var symbol: String? = nil
     let isCollapsed: Bool
     let toggle: () -> Void
 }
@@ -469,6 +502,96 @@ struct CPProgressBar: View {
         .frame(height: height)
         .accessibilityHidden(true)
     }
+}
+
+/// A wedge from 12 o'clock, sweeping clockwise.
+struct CPPieShape: Shape {
+    var progress: Double
+    var animatableData: Double {
+        get { progress }
+        set { progress = newValue }
+    }
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let amount = min(1, max(0, progress))
+        guard amount > 0 else { return path }
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        path.move(to: center)
+        path.addArc(center: center, radius: min(rect.width, rect.height) / 2, startAngle: .degrees(-90), endAngle: .degrees(-90 + 360 * amount), clockwise: false)
+        path.closeSubpath()
+        return path
+    }
+}
+
+/// How much of a day's work is done: a soft disk that fills like a pie, then
+/// turns solid with a check. Fills only, no stroke.
+struct CPProgressPie: View {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ScaledMetric(relativeTo: .footnote) private var scale: CGFloat = 1
+    let progress: Double
+    var size: CGFloat = 16
+
+    var body: some View {
+        let complete = progress >= 1
+        let side = size * scale
+        ZStack {
+            Circle().fill(CPTheme.foreground(scheme).opacity(0.08))
+            CPPieShape(progress: progress)
+                .fill(CPTheme.primary(scheme: scheme))
+                .padding(complete ? 0 : max(2, side * 0.11))
+            if complete {
+                Image(systemName: "checkmark").cpIconFont(size * 0.42, .bold)
+                    .foregroundStyle(CPTheme.onPrimary(scheme))
+                    .transition(reduceMotion ? AnyTransition.opacity : AnyTransition.scale(scale: 0.4).combined(with: .opacity))
+            }
+        }
+        .frame(width: side, height: side)
+        .animation(reduceMotion ? nil : .spring(duration: 0.45, bounce: 0.18), value: progress)
+        .accessibilityHidden(true)
+    }
+}
+
+/// The website's hero light on the card that leads a page (Today's Next up):
+/// a palette glow from the top corner and a glass sheen. Gradients only.
+struct CPCardLight: View {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
+    var radius: CGFloat = CPLayout.cardRadius
+    var body: some View {
+        ZStack {
+            EllipticalGradient(colors: [CPTheme.primary(scheme: scheme).opacity(scheme == .dark ? 0.24 : 0.16), .clear], center: UnitPoint(x: 0.15, y: 0), startRadiusFraction: 0, endRadiusFraction: 0.75)
+            LinearGradient(stops: [.init(color: Color.white.opacity(scheme == .dark ? 0.07 : 0.4), location: 0), .init(color: .clear, location: 0.38)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+/// One soft palette light behind the top of a tab (Today's greeting, the To-Do
+/// title). Only on the plain backdrop, so it never stacks on Glow or Wave.
+private struct CPHeaderLight: ViewModifier {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
+    @AppStorage("CanvasProWallpaper") private var wallpaper = "plain"
+    func body(content: Content) -> some View {
+        content.background(alignment: .topLeading) {
+            if wallpaper == "plain" {
+                // Fades to clear at its own edge, so it never ends in a line.
+                EllipticalGradient(colors: [CPTheme.primary(scheme: scheme).opacity(scheme == .dark ? 0.16 : 0.11), .clear], center: .center, startRadiusFraction: 0, endRadiusFraction: 0.5)
+                    .frame(width: 460, height: 300)
+                    .offset(x: -170, y: -120)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+        }
+    }
+}
+
+extension View {
+    func cpHeaderLight() -> some View { modifier(CPHeaderLight()) }
 }
 
 /// A circular progress ring with content in the middle.
