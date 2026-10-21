@@ -113,9 +113,9 @@ test("Canvas HTML entities are decoded", () => {
   assert.match(swift.NativeViews, /UInt32\(entity\.dropFirst\(2\), radix: 16\)/);
 });
 
-test("Today's section switcher stays on the three Today pages", () => {
+test("Today is the dashboard in its own navigation stack", () => {
   const today = swift.NativeViews.slice(swift.NativeViews.indexOf("private struct NativeTodayView"), swift.NativeViews.indexOf("private struct NativeDigestSnapshot"));
-  assert.match(today, /NavigationStack \{\s+Group \{/);
+  assert.match(today, /NavigationStack \{\s+NativeDashboardView\(store: store, features: features\)/);
   const dashboard = swift.NativeViews.slice(swift.NativeViews.indexOf("private struct NativeDashboardView"), swift.NativeViews.indexOf("private var hero: some View"));
   assert.doesNotMatch(dashboard, /NavigationStack \{\s+ZStack/);
 });
@@ -127,17 +127,11 @@ test("legal pages show the live policies, and links open the right tab", () => {
   assert.match(swift.NativeViews, /router\.takePendingPath\(\)/);
 });
 
-test("the syllabus is only on the class page, and Today uses the website's tabs", () => {
+test("the syllabus is only on the class page", () => {
   const dashboard = swift.NativeViews.slice(swift.NativeViews.indexOf("private struct NativeDashboardView"), swift.NativeViews.indexOf("struct NativeCourseGroup"));
   assert.doesNotMatch(dashboard, /syllabus/i);
   const course = swift.NativeViews.slice(swift.NativeViews.indexOf("struct CourseDetailView"), swift.NativeViews.indexOf("private struct CountUpGrade"));
   assert.match(course, /Label\("Syllabus", systemImage: "doc.text"\)/);
-  for (const page of ["NativeDashboardView", "FocusView"]) {
-    const source = page === "NativeDashboardView" ? swift.NativeViews : swift.NativeMoreViews;
-    const body = source.slice(source.indexOf(`struct ${page}`));
-    assert.match(body, /NativeTodayTabs\(selection: \$(todaySection|section)\)/, page);
-  }
-  assert.match(swift.NativeDesign, /struct NativePageTabs/);
 });
 
 test("cards use hairline borders, no per-card shadows, and cached parsing", () => {
@@ -225,10 +219,9 @@ test("assignments are calmer: no Priority, one undo bar, a swipe hint, remembere
   // The first swipeable row slides open once; never with Reduce Motion.
   assert.match(swift.NativeDesign, /CanvasProSwipeHinted/);
   assert.match(swift.NativeDesign, /guard leading != nil, !reduceMotion/);
-  // By day / By class and the last tab and Today page are remembered.
+  // By day / By class and the last tab are remembered.
   assert.match(swift.NativeMoreViews, /@AppStorage\("CanvasProAssignmentsGrouping"\)/);
   assert.match(swift.NativeViews, /CanvasProLastTab/);
-  assert.match(swift.NativeViews, /CanvasProLastTodayPage/);
 });
 
 test("the app is gentle: soft late-work wording, one next step, hidden grades, quick re-open", () => {

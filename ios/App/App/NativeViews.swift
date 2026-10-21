@@ -1245,11 +1245,12 @@ private struct PasswordResetSheet: View {
 /// Every page that can be a tab or open from More. `completed` only opens
 /// from More (and To-Do).
 enum NativeTab: String, Hashable {
-    case today, study, grades, files, announcements, calendar, classes, completed, more
+    case today, todo, study, grades, files, announcements, calendar, classes, completed, more
 
     var title: String {
         switch self {
         case .today: return "Today"
+        case .todo: return "To-Do"
         case .study: return "Study Session"
         case .grades: return "Grades"
         case .files: return "Files"
@@ -1264,6 +1265,7 @@ enum NativeTab: String, Hashable {
     var symbol: String {
         switch self {
         case .today: return "house"
+        case .todo: return "checklist"
         case .study: return "timer"
         case .grades: return "graduationcap"
         case .files: return "folder"
@@ -1289,12 +1291,13 @@ enum NativeTab: String, Hashable {
 }
 
 /// Today first, More last, and two or three the student picks in Settings >
-/// Tab bar in between (Study Session and Grades to start). Everything not in
-/// the tab bar opens from More.
+/// Tab bar in between (To-Do, Study Session and Grades to start). Everything
+/// not in the tab bar opens from More.
 enum NativeTabBar {
-    static let key = "CanvasProTabBar"
-    static let choices: [NativeTab] = [.study, .grades, .files, .announcements, .calendar, .classes]
-    static let defaultMiddle: [NativeTab] = [.study, .grades]
+    /// ".v2" since To-Do became a tab of its own, so everyone starts with it.
+    static let key = "CanvasProTabBar.v2"
+    static let choices: [NativeTab] = [.todo, .study, .grades, .files, .announcements, .calendar, .classes]
+    static let defaultMiddle: [NativeTab] = [.todo, .study, .grades]
     /// Five tabs at most: the most an iPhone tab bar shows without its own More.
     static let maxMiddle = 3
 
@@ -1313,7 +1316,6 @@ enum NativeTabBar {
 
 extension Notification.Name {
     static let nativeStudyAssignment = Notification.Name("CanvasProNativeStudyAssignment")
-    static let nativeStartPomodoro = Notification.Name("CanvasProNativeStartPomodoro")
     static let nativeOpenStudy = Notification.Name("CanvasProNativeOpenStudy")
     /// Opens a page (a NativeTab): its tab if it's in the tab bar, otherwise in More.
     static let nativeOpenPage = Notification.Name("CanvasProNativeOpenPage")
@@ -1336,8 +1338,6 @@ struct NativeMainTabView: View {
     @StateObject private var contentStore: NativeContentStore
     @StateObject private var featureStore: NativeFeatureStore
     @State private var selection: NativeTab = .today
-    @State private var todaySection = "Dashboard"
-    @State private var focusWindow = "7"
     @State private var studyRequest: AssignmentItem?
     @State private var quickPomodoro = false
     @State private var showOnboarding = false
@@ -1357,11 +1357,6 @@ struct NativeMainTabView: View {
         let lastTab = NativeTab(rawValue: defaults.string(forKey: "CanvasProLastTab") ?? "") ?? .today
         let tabs = NativeTabBar.tabs(defaults.string(forKey: NativeTabBar.key) ?? "")
         _selection = State(initialValue: tabs.contains(lastTab) ? lastTab : .today)
-        let page = defaults.string(forKey: "CanvasProLastTodayPage") ?? ""
-        // "Assignments" is what the To-Do page was called before. Get It Done is
-        // now the dashboard's Next up, so a saved choice of it opens the dashboard.
-        let todayPage = page == "Assignments" ? "To-Do" : page
-        _todaySection = State(initialValue: ["Dashboard", "To-Do"].contains(todayPage) ? todayPage : "Dashboard")
     }
 
     var body: some View {
@@ -1394,10 +1389,6 @@ struct NativeMainTabView: View {
                         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showConnect = false } } }
                 }
             }
-            .onReceive(NotificationCenter.default.publisher(for: .nativeStartPomodoro)) { _ in
-                quickPomodoro = true
-                open(.study)
-            }
             .onReceive(NotificationCenter.default.publisher(for: .nativeOpenStudy)) { _ in open(.study) }
             .onReceive(NotificationCenter.default.publisher(for: .nativeOpenPage)) { note in
                 if let page = note.object as? NativeTab { open(page) }
@@ -1412,7 +1403,6 @@ struct NativeMainTabView: View {
                 if !NativeTabBar.tabs(raw).contains(selection) { selection = .today }
             }
             .onChange(of: selection) { _, tab in UserDefaults.standard.set(tab.rawValue, forKey: "CanvasProLastTab") }
-            .onChange(of: todaySection) { _, page in UserDefaults.standard.set(page, forKey: "CanvasProLastTodayPage") }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active {
                     Task { await refreshAccountData() }
@@ -1468,12 +1458,13 @@ struct NativeMainTabView: View {
         }
     }
 
-    /// Shows the tab (and Today section) for a website-style path.
+    /// Shows the tab for a website-style path.
     private func route(to path: String) {
         // Siri, Control Center or the Action button: open Study and start a Pomodoro.
         if path.contains("pomodoro") { quickPomodoro = true; open(.study); return }
-        if path.contains("focus") || path.contains("coming-up") || path.contains("assignment") { todaySection = "To-Do"; selection = .today }
-        else if path.contains("get-it-done") { todaySection = "Dashboard"; selection = .today }
+        // Get It Done is the dashboard's Next up now.
+        if path.contains("get-it-done") { selection = .today }
+        else if path.contains("focus") || path.contains("coming-up") || path.contains("assignment") || path.contains("todo") { open(.todo) }
         else if path.contains("completed") { open(.completed) }
         else if path.contains("announcement") { open(.announcements) }
         else if path.contains("files") { open(.files) }
@@ -1483,7 +1474,7 @@ struct NativeMainTabView: View {
         else if path.contains("class-schedule") { open(.classes) }
         else if path.contains("schedule") || path.contains("calendar") { open(.calendar) }
         else if path.contains("notification") || path.contains("settings") || path.contains("support") || path.contains("help") { selection = .more }
-        else { todaySection = "Dashboard"; selection = .today }
+        else { selection = .today }
     }
 
     @MainActor private func registerDeviceToken(_ deviceToken: String) async {
@@ -1682,7 +1673,9 @@ struct NativeMainTabView: View {
     @ViewBuilder private func tabRoot(_ tab: NativeTab) -> some View {
         switch tab {
         case .today:
-            NativeTodayView(store: contentStore, features: featureStore, selection: $selection, section: $todaySection, focusWindow: $focusWindow)
+            NativeTodayView(store: contentStore, features: featureStore)
+        case .todo:
+            NavigationStack { FocusView(store: contentStore, features: featureStore) }
         case .study:
             NavigationStack { NativeStudyView(store: contentStore, features: featureStore, requestedAssignment: $studyRequest, quickPomodoro: $quickPomodoro) }
         case .grades:
@@ -1701,42 +1694,17 @@ struct NativeMainTabView: View {
     }
 }
 
+/// Today is the dashboard; To-Do is a tab of its own.
 private struct NativeTodayView: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
-    @Binding var selection: NativeTab
-    @Binding var section: String
-    @Binding var focusWindow: String
 
     var body: some View {
         NavigationStack {
-            Group {
-                if section == "To-Do" {
-                    FocusView(store: store, features: features, window: $focusWindow, section: $section)
-                        .transition(.opacity)
-                } else {
-                    NativeDashboardView(store: store, features: features, selection: $selection, todaySection: $section, focusWindow: $focusWindow)
-                        .transition(.opacity)
-                }
-            }
-            .animation(reduceMotion ? nil : .easeInOut(duration: 0.22), value: section)
-            // Like the website, the Today pages share centered tabs at the top of
-            // the page; pages opened from them don't show the tabs.
-            .cpNavigationTitle("Today")
-            .toolbar(.hidden, for: .navigationBar)
+            NativeDashboardView(store: store, features: features)
+                .cpNavigationTitle("Today")
+                .toolbar(.hidden, for: .navigationBar)
         }
-    }
-}
-
-/// The Today pages' tabs: Dashboard and To-Do (the website's Coming Up and
-/// Assignments pages together). Get It Done's one suggestion is the
-/// dashboard's Next up, with Start.
-struct NativeTodayTabs: View {
-    @Binding var selection: String
-    var body: some View {
-        NativePageTabs(selection: $selection, options: ["Dashboard", "To-Do"], label: "Today sections")
-            .padding(.bottom, 4)
     }
 }
 
@@ -1755,9 +1723,6 @@ private struct NativeDashboardView: View {
     @State private var showWidgetPicker = false
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
-    @Binding var selection: NativeTab
-    @Binding var todaySection: String
-    @Binding var focusWindow: String
     @AppStorage("CanvasProDismissedAnnouncements") private var dismissedAnnouncementsRaw = ""
     @State private var digest: NativeDigestSnapshot?
     @State private var showCustomize = false
@@ -1803,15 +1768,20 @@ private struct NativeDashboardView: View {
         }
         return Array(fresh.sorted { rank($0) < rank($1) }.prefix(4))
     }
-    private var stillUrgent: Int { activeAssignments.filter { ["today", "soon"].contains(urgency(for: $0) ?? "") }.count }
     /// The website's weighted Next up among unfinished work due this week.
     private var nextUp: AssignmentItem? { NativeParity.nextUp(activeAssignments, progress: features.progress) }
-    private var widgetIDs: [String] { features.dashboardOrder.filter { !features.dashboardHidden.contains($0) } }
+    /// The student's widgets in order. Since your last visit only shows when
+    /// a new announcement or grade has been posted since then.
+    private var widgetIDs: [String] {
+        features.dashboardOrder.filter { id in
+            !features.dashboardHidden.contains(id) && (id != "digest" || hasPostsSinceLastVisit)
+        }
+    }
+    private var hasPostsSinceLastVisit: Bool { !newAnnouncements.isEmpty || !newGrades.isEmpty }
 
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 16) {
-                NativeTodayTabs(selection: $todaySection)
                 if store.needsCanvasConnection {
                     NativeConnectCanvasCard(store: store)
                 } else {
@@ -1823,7 +1793,6 @@ private struct NativeDashboardView: View {
                         CPSkeletonCard()
                         CPSkeletonCard()
                     } else {
-                        dashboardHeader
                         ForEach(Array(widgetIDs.enumerated()), id: \.element) { index, id in
                             VStack(spacing: 0) {
                                 if collapsedWidgets.contains(id) {
@@ -1834,6 +1803,7 @@ private struct NativeDashboardView: View {
                             }
                             .cpReveal(index)
                         }
+                        dashboardFooter
                     }
                 }
             }
@@ -1869,93 +1839,100 @@ private struct NativeDashboardView: View {
 
     // MARK: Hero (the website's DashboardHero)
 
-    /// The greeting and one line on the week, then Next up. Past-due work gets
-    /// its own row, only when there is some. No card around it all, so the
-    /// widgets start right below.
+    /// The date and greeting with the streak beside them, one line on the week,
+    /// then Next up. Past-due work gets its own row, only when there is some.
     private var hero: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 20) {
             VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 8) {
-                    Text(Date().formatted(.dateTime.weekday(.wide).month(.wide).day()).uppercased())
-                        .cpFont(11, .medium).tracking(1.6)
-                        .foregroundStyle(CPTheme.muted(scheme))
-                        .fixedSize(horizontal: false, vertical: true)
-                    Spacer(minLength: 8)
-                    NativeStreakChip()
-                    NativeQuickPomodoro(scope: store.persistenceScope)
+                // The streak (and a running session's time) lines up with the greeting.
+                HStack(alignment: .lastTextBaseline, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(Date().formatted(.dateTime.weekday(.wide).month(.wide).day()))
+                            .cpFont(13, .medium)
+                            .foregroundStyle(CPTheme.muted(scheme))
+                        // Wraps to a second line for a long name instead of shrinking.
+                        Text("\(greeting)\(studentName.map { ", \($0)" } ?? "")")
+                            .cpFont(28, .semibold).tracking(-0.6)
+                            .foregroundStyle(CPTheme.foreground(scheme))
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityAddTraits(.isHeader)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    HStack(spacing: 6) {
+                        NativeQuickPomodoro(scope: store.persistenceScope)
+                        NativeStreakChip()
+                    }
                 }
-                .frame(minHeight: 44)
-                // Wraps to a second line for a long name instead of shrinking.
-                Text("\(greeting)\(studentName.map { ", \($0)." } ?? ".")")
-                    .cpFont(26, .regular).tracking(-0.7)
-                    .foregroundStyle(CPTheme.foreground(scheme))
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityAddTraits(.isHeader)
                 Text(heroMessage)
-                    .cpFont(14).monospacedDigit()
+                    .cpFont(15).monospacedDigit()
                     .foregroundStyle(CPTheme.muted(scheme))
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.horizontal, 4)
+            .padding(.top, 8)
             nextUpCard
             if overdueCount > 0 { catchUpRow.transition(.opacity) }
         }
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: overdueCount > 0)
     }
 
-    /// The one suggestion (what Get It Done was): the assignment, its class and
-    /// due time, then Start and the time estimate, both inside the card. Start
-    /// opens Study with it picked; the rest of the card opens To-Do.
+    /// The one suggestion (what Get It Done was): how long until it's due, the
+    /// assignment, and its class, points and time estimate, all inside the card.
+    /// Tapping it opens the assignment; Start opens Study with it picked.
     private var nextUpCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Button { openFocus("7") } label: {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("NEXT UP").cpFont(11, .medium).tracking(2).foregroundStyle(CPTheme.muted(scheme))
-                        Spacer()
-                        Image(systemName: "arrow.up.right").cpIconFont(11, .medium).foregroundStyle(CPTheme.muted(scheme))
-                    }
-                    if let item = nextUp {
-                        Text(item.name).cpFont(18, .medium).tracking(-0.3)
+        VStack(alignment: .leading, spacing: 16) {
+            if let item = nextUp {
+                NavigationLink { courseDestination(for: item, highlight: true) } label: {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            nextUpLabel
+                            Spacer(minLength: 8)
+                            if let countdown = NativeParity.countdown(item, completed: false) {
+                                Text(countdown.label).cpFont(12, .medium).monospacedDigit()
+                                    .foregroundStyle(CPTheme.urgency(countdown.urgency, scheme: scheme))
+                            }
+                        }
+                        Text(item.name).cpFont(18, .semibold).tracking(-0.3)
                             .foregroundStyle(CPTheme.foreground(scheme))
                             .multilineTextAlignment(.leading)
                             .fixedSize(horizontal: false, vertical: true)
-                        Text(nextUpDetail(item)).cpFont(12).monospacedDigit()
+                        Text(nextUpDetail(item)).cpFont(13).monospacedDigit()
                             .foregroundStyle(CPTheme.muted(scheme))
                             .multilineTextAlignment(.leading)
                             .fixedSize(horizontal: false, vertical: true)
-                    } else {
-                        Text("Nothing due in the next seven days.").cpFont(13).foregroundStyle(CPTheme.muted(scheme))
-                            .fixedSize(horizontal: false, vertical: true)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(CPPressStyle())
-            .accessibilityElement(children: .combine)
-            .accessibilityHint("Opens To-Do")
-            if let item = nextUp {
-                HStack(spacing: 10) {
-                    Button { NotificationCenter.default.post(name: .nativeStudyAssignment, object: item) } label: {
-                        Label("Start", systemImage: "play.fill")
-                    }
-                    .buttonStyle(CPButtonStyle(kind: .primary))
-                    .accessibilityHint("Opens Study with this assignment")
-                    NativeEstimateEditor(assignment: item, features: features)
-                    Spacer(minLength: 0)
+                .buttonStyle(CPPressStyle())
+                .accessibilityElement(children: .combine)
+                .accessibilityHint("Opens the assignment")
+                Button { NotificationCenter.default.post(name: .nativeStudyAssignment, object: item) } label: {
+                    Label("Start", systemImage: "play.fill")
+                }
+                .buttonStyle(CPButtonStyle(kind: .secondary, fullWidth: true))
+                .accessibilityHint("Opens Study with this assignment")
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    nextUpLabel
+                    Text("Nothing due in the next seven days.").cpFont(15).foregroundStyle(CPTheme.foreground(scheme))
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
         }
-        .padding(16)
+        .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(CPTheme.accentCardGradient(scheme), in: RoundedRectangle(cornerRadius: CPLayout.cardRadius, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: CPLayout.cardRadius, style: .continuous).strokeBorder(CPTheme.primary(scheme: scheme).opacity(0.3), lineWidth: 0.5))
     }
 
-    /// Shown only when something is past due; opens it in To-Do.
+    private var nextUpLabel: some View {
+        Text("NEXT UP").cpFont(11, .semibold).tracking(1.6).foregroundStyle(CPTheme.muted(scheme))
+    }
+
+    /// Shown only when something is past due; opens To-Do, where it's listed first.
     private var catchUpRow: some View {
-        Button { openFocus("overdue") } label: {
+        Button { openToDo() } label: {
             HStack(spacing: 12) {
                 Image(systemName: "arrow.uturn.backward").cpIconFont(13, .medium)
                     .foregroundStyle(CPTheme.danger)
@@ -1978,23 +1955,22 @@ private struct NativeDashboardView: View {
         .accessibilityHint("Opens To-Do")
     }
 
-    /// When it last updated, and Customize, quietly above the widgets.
-    private var dashboardHeader: some View {
-        HStack(alignment: .center, spacing: 12) {
-            if let synced = store.lastSyncedAt {
-                TimelineView(.periodic(from: .now, by: 60)) { _ in
-                    Text(updatedText(synced)).cpFont(12).foregroundStyle(CPTheme.faint(scheme))
-                }
-            }
-            Spacer(minLength: 8)
+    /// Customize, and when it last updated, quietly under the widgets.
+    private var dashboardFooter: some View {
+        VStack(spacing: 4) {
             Button { showCustomize = true } label: {
-                CPLinkLabel(text: "Customize", symbol: "slider.horizontal.3")
+                CPLinkLabel(text: "Customize dashboard", symbol: "slider.horizontal.3")
             }
             .buttonStyle(.plain)
             .accessibilityHint("Choose and order your widgets")
+            if let synced = store.lastSyncedAt {
+                TimelineView(.periodic(from: .now, by: 60)) { _ in
+                    Text(updatedText(synced)).cpFont(11).foregroundStyle(CPTheme.faint(scheme))
+                }
+            }
         }
-        .padding(.horizontal, 4)
-        .padding(.top, 2)
+        .frame(maxWidth: .infinity)
+        .padding(.top, 4)
     }
 
     private func updatedText(_ date: Date) -> String {
@@ -2002,11 +1978,11 @@ private struct NativeDashboardView: View {
         return "Updated \(date.formatted(.relative(presentation: .numeric, unitsStyle: .abbreviated)))"
     }
 
-    /// "Cell Biology · Due in 5h · 20 pts · 40% done".
+    /// "Cell Biology · 20 pts · 45 min · 40% done".
     private func nextUpDetail(_ item: AssignmentItem) -> String {
         var parts = [store.displayName(courseID: item.courseID, fallback: item.courseName)]
-        if let countdown = NativeParity.countdown(item, completed: false) { parts.append(countdown.label) }
         if let points = item.pointsPossible { parts.append("\(points.formatted()) pts") }
+        parts.append(FocusView.duration(NativeParity.estimate(item, estimates: features.estimates)))
         if let percent = features.progress[item.id], percent > 0 {
             parts.append(percent >= 75 ? "Almost there, \(percent)% done" : "\(percent)% done")
         }
@@ -2056,54 +2032,39 @@ private struct NativeDashboardView: View {
 
     // MARK: Since your last visit
 
-    @ViewBuilder private var digestWidget: some View {
+    /// Only in the list when a new announcement or grade was posted since the
+    /// last visit (see widgetIDs); each part shows only when it has something.
+    private var digestWidget: some View {
         let total = newAnnouncements.count + newGrades.count + newlyUrgent.count
-        if total == 0 {
-            CPGlassCard {
-                HStack(spacing: 12) {
-                    Image(systemName: "checkmark").cpIconFont(13, .medium)
-                        .foregroundStyle(CPTheme.foreground(scheme))
-                        .frame(width: 36, height: 36)
-                        .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(CPTheme.insetBorder(scheme), lineWidth: 0.5))
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(stillUrgent > 0 ? "\(stillUrgent) due soon." : "All caught up.")
-                            .cpFont(13, .medium).foregroundStyle(CPTheme.foreground(scheme))
-                    }
-                    Spacer(minLength: 4)
-                    if stillUrgent > 0 {
-                        Button { openFocus("7") } label: { CPLinkLabel(text: "View") }.buttonStyle(.plain)
-                    }
-                    CPCollapseButton(collapse: collapse("digest"))
-                }
+        return CPGlassCard(strong: true) {
+            CPCardHeader(title: "Since your last visit", subtitle: "\(total) update\(total == 1 ? "" : "s")", collapse: collapse("digest")) {
+                Button { markDigestSeen() } label: { CPLinkLabel(text: "Mark all seen") }.buttonStyle(.plain)
             }
-        } else {
-            CPGlassCard(strong: true) {
-                CPCardHeader(title: "Since your last visit", subtitle: "\(total) update\(total == 1 ? "" : "s")", collapse: collapse("digest")) {
-                    Button { markDigestSeen() } label: { CPLinkLabel(text: "Mark all seen") }.buttonStyle(.plain)
-                }
-                VStack(alignment: .leading, spacing: 18) {
-                    digestSection("New announcements", symbol: "bell", count: newAnnouncements.count, empty: "No new posts") {
+            VStack(alignment: .leading, spacing: 18) {
+                if !newAnnouncements.isEmpty {
+                    digestSection("New announcements", symbol: "bell", count: newAnnouncements.count) {
                         ForEach(newAnnouncements) { item in
                             NavigationLink { AnnouncementDetailView(item: item) } label: {
                                 digestItem(item.title, detail: store.displayName(courseID: item.courseID, fallback: item.courseName))
                             }.buttonStyle(CPPressStyle())
                         }
                     }
-                    digestSection("New grades", symbol: "chart.line.uptrend.xyaxis", count: newGrades.count, empty: "No new grades") {
+                }
+                if !newGrades.isEmpty {
+                    digestSection("New grades", symbol: "chart.line.uptrend.xyaxis", count: newGrades.count) {
                         ForEach(newGrades) { item in
                             NavigationLink { courseDestination(for: item, section: .graded) } label: {
                                 digestItem(item.name, detail: store.displayName(courseID: item.courseID, fallback: item.courseName), trailing: gradeChangeText(item), shield: true)
                             }.buttonStyle(CPPressStyle())
-                            NativeEstimateEditor(assignment: item, features: features)
                         }
                     }
-                    digestSection("Newly urgent", symbol: "clock", count: newlyUrgent.count, empty: "Nothing new due soon") {
+                }
+                if !newlyUrgent.isEmpty {
+                    digestSection("Newly urgent", symbol: "clock", count: newlyUrgent.count) {
                         ForEach(newlyUrgent) { item in
                             NavigationLink { courseDestination(for: item, highlight: true) } label: {
                                 digestItem(item.name, detail: store.displayName(courseID: item.courseID, fallback: item.courseName), trailing: urgency(for: item) == "today" ? "Due today" : "Due soon")
                             }.buttonStyle(CPPressStyle())
-                            NativeEstimateEditor(assignment: item, features: features)
                         }
                     }
                 }
@@ -2111,7 +2072,7 @@ private struct NativeDashboardView: View {
         }
     }
 
-    private func digestSection<Content: View>(_ title: String, symbol: String, count: Int, empty: String, @ViewBuilder content: () -> Content) -> some View {
+    private func digestSection<Content: View>(_ title: String, symbol: String, count: Int, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 Image(systemName: symbol).cpIconFont(12).foregroundStyle(CPTheme.muted(scheme))
@@ -2121,11 +2082,7 @@ private struct NativeDashboardView: View {
             }
             .padding(.horizontal, 4)
             .accessibilityElement(children: .combine)
-            if count == 0 {
-                Text(empty).cpFont(11).foregroundStyle(CPTheme.faint(scheme)).padding(.horizontal, 4)
-            } else {
-                VStack(spacing: 6) { content() }
-            }
+            VStack(spacing: 6) { content() }
         }
     }
 
@@ -2204,7 +2161,7 @@ private struct NativeDashboardView: View {
         let quiet = visibleCourses.count - groups.count
         return CPGlassCard {
             CPCardHeader(title: "This week", collapse: collapse("upcoming")) {
-                Button { openFocus("7") } label: { CPLinkLabel(text: "View all") }.buttonStyle(.plain)
+                Button { openToDo() } label: { CPLinkLabel(text: "View all") }.buttonStyle(.plain)
             }
             if visibleCourses.isEmpty {
                 NativeEmptyState(title: "No active courses.", symbol: "books.vertical")
@@ -2264,7 +2221,7 @@ private struct NativeDashboardView: View {
         let soon = activeAssignments.filter { NativeParity.isInFocusWindow($0, window: "2") }.sorted(by: AssignmentItem.dueSort)
         return CPGlassCard {
             CPCardHeader(title: "Next 48 hours", collapse: collapse("focus")) {
-                Button { openFocus("2") } label: { CPLinkLabel(text: "Open") }.buttonStyle(.plain)
+                Button { openToDo() } label: { CPLinkLabel(text: "Open") }.buttonStyle(.plain)
             }
             if soon.isEmpty {
                 NativeEmptyState(title: "Nothing due in the next 48 hours.", symbol: "sun.max")
@@ -2395,10 +2352,8 @@ private struct NativeDashboardView: View {
 
     // MARK: Helpers
 
-    private func openFocus(_ window: String) {
-        focusWindow = window
-        todaySection = "To-Do"
-    }
+    /// To-Do is its own tab, or a page in More when it isn't in the tab bar.
+    private func openToDo() { NotificationCenter.default.post(name: .nativeOpenPage, object: NativeTab.todo) }
 
     @ViewBuilder private func courseDestination(for item: AssignmentItem, section: CourseDetailSection = .upcoming, highlight: Bool = false) -> some View {
         if let course = store.bundle.courses.first(where: { $0.id == item.courseID }) {
@@ -2668,9 +2623,8 @@ struct NativeProgressEditor: View {
     }
 }
 
-/// The website's quick Pomodoro, as one small control beside the streak: a
-/// timer button that starts 25 minutes of focus without choosing an
-/// assignment, or the time left while a session runs. Study holds the session.
+/// While a study session runs (a quick Pomodoro or one started from Study),
+/// its time left sits beside the streak and opens Study. Nothing otherwise.
 private struct NativeQuickPomodoro: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.cpPalette) private var paletteDependency
@@ -2678,11 +2632,8 @@ private struct NativeQuickPomodoro: View {
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
-            let live = StoredNativeStudySession.live(scope: scope, now: context.date)
-            Button {
-                NotificationCenter.default.post(name: live == nil ? .nativeStartPomodoro : .nativeOpenStudy, object: nil)
-            } label: {
-                if let live {
+            if let live = StoredNativeStudySession.live(scope: scope, now: context.date) {
+                Button { NotificationCenter.default.post(name: .nativeOpenStudy, object: nil) } label: {
                     HStack(spacing: 5) {
                         Image(systemName: live.label == "Paused" ? "pause.fill" : "timer").cpIconFont(11, .semibold)
                         Text(live.time).cpFont(13, .medium).monospacedDigit()
@@ -2693,14 +2644,12 @@ private struct NativeQuickPomodoro: View {
                     .background(CPTheme.primary(scheme: scheme).opacity(scheme == .dark ? 0.16 : 0.10), in: Capsule())
                     .frame(minHeight: 44)
                     .contentShape(Rectangle())
-                    .transition(.opacity)
-                } else {
-                    CPIconButtonLabel(symbol: "timer")
                 }
+                .buttonStyle(.plain)
+                .transition(.opacity)
+                .accessibilityLabel("\(live.label), \(live.time) left")
+                .accessibilityHint("Opens Study")
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(live.map { "\($0.label), \($0.time) left" } ?? "Start a 25 minute Pomodoro")
-            .accessibilityHint("Opens Study")
         }
     }
 }

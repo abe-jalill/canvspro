@@ -157,6 +157,7 @@ struct NativeMoreView: View {
 
     @ViewBuilder private func destinationView(_ page: NativeTab) -> some View {
         switch page {
+        case .todo: FocusView(store: store, features: features, inMore: true)
         case .study: NativeStudyView(store: store, features: features, requestedAssignment: $studyRequest, quickPomodoro: $quickPomodoro)
         case .grades: NativeGradesView(store: store, features: features)
         case .files: NativeFilesView(store: store, features: features)
@@ -261,6 +262,9 @@ struct NativeMoreView: View {
 
     private func detail(for page: NativeTab) -> String {
         switch page {
+        case .todo:
+            let count = features.shownAssignments(in: store).filter { NativeParity.isInFocusWindow($0, window: "7") && $0.isVisible(in: store) }.count
+            return count == 0 ? "Nothing due this week" : "\(count) this week"
         case .study:
             return "Focus timer and Pomodoro"
         case .grades:
@@ -338,7 +342,7 @@ struct NativeTabBarSettingsView: View {
             }
             if middle != NativeTabBar.defaultMiddle {
                 Section {
-                    Button("Go back to Study Session and Grades") { raw = "" }
+                    Button("Go back to To-Do, Study Session and Grades") { raw = "" }
                 }
             }
         }
@@ -760,58 +764,36 @@ private struct NativeDeleteAccountView: View {
     }
 }
 
-/// Today's To-Do page: the website's Coming Up view (one row of choices,
-/// by day or by class), search, and adding your own work.
+/// To-Do, a tab of its own: everything left, catch-up work first, then the
+/// next four weeks day by day (or class by class). No ranges or days to pick;
+/// search, Completed and Add are the buttons at the top.
 struct FocusView: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.cpPalette) private var paletteDependency
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
-    @Binding var window: String
-    @Binding var section: String
-    @State private var showCompleted = false
+    /// Opened from More rather than as a tab: keeps the bar with its back button.
+    var inMore = false
     @AppStorage("CanvasProAssignmentsGrouping") private var grouping = "By day"
-    @State private var selectedDay: Date?
     @State private var search = ""
     @State private var showAdd = false
     @State private var showSearch = false
     @FocusState private var searchFocused: Bool
-    /// One row of choices, exactly one picked: Catch up, This week, a day, or
-    /// Next 4 weeks. Links can still ask for the old ranges: 24 hours opens
-    /// Today, 2 or 3 days open This week.
-    private var range: String { window == "overdue" ? "overdue" : window == "all" ? "all" : "7" }
-    private var pickedDay: Date? { selectedDay ?? (window == "1" ? Calendar.current.startOfDay(for: Date()) : nil) }
 
     private var allItems: [AssignmentItem] { features.shownAssignments(in: store) }
     private var visibleCourses: [CourseSummary] { store.bundle.courses.filter { !features.hiddenCourseIDs.contains($0.id) } }
     private var isSearching: Bool { !search.trimmingCharacters(in: .whitespaces).isEmpty }
-    /// A day shows that day only; otherwise the picked range.
-    private func inRange(_ item: AssignmentItem) -> Bool {
-        guard let pickedDay else { return NativeParity.isInFocusWindow(item, window: range) }
-        return item.dueDate.map { Calendar.current.isDate($0, inSameDayAs: pickedDay) } ?? false
-    }
-    private func rangeCount(_ value: String) -> Int {
-        allItems.reduce(0) { $0 + (NativeParity.isInFocusWindow($1, window: value) && $1.isVisible(in: store) ? 1 : 0) }
-    }
-    private var unfinished: [AssignmentItem] {
-        allItems.filter { inRange($0) && $0.isVisible(in: store) }.sorted(by: AssignmentItem.dueSort)
-    }
+    /// Unfinished work due within four weeks, and anything recent to catch up on.
     private var items: [AssignmentItem] {
-        if isSearching {
-            let query = search.trimmingCharacters(in: .whitespaces)
-            return allItems.filter { item in
-                // Search stays inside the same four weeks; undated work never shows here.
-                NativeParity.isInFocusWindow(item, window: "all") &&
-                item.isVisible(in: store, showCompleted: showCompleted) &&
-                (item.name.localizedCaseInsensitiveContains(query) || store.displayName(courseID: item.courseID, fallback: item.courseName).localizedCaseInsensitiveContains(query))
-            }.sorted(by: AssignmentItem.dueSort)
-        }
-        return allItems.filter { inRange($0) && $0.isVisible(in: store, showCompleted: showCompleted) }.sorted(by: AssignmentItem.dueSort)
+        let query = search.trimmingCharacters(in: .whitespaces)
+        return allItems.filter { item in
+            NativeParity.isInFocusWindow(item, window: "all") && item.isVisible(in: store) &&
+            (query.isEmpty || item.name.localizedCaseInsensitiveContains(query) || store.displayName(courseID: item.courseID, fallback: item.courseName).localizedCaseInsensitiveContains(query))
+        }.sorted(by: AssignmentItem.dueSort)
     }
-    private var listItems: [AssignmentItem] { items }
     private var dayGroups: [NativeTitledGroup] {
         let calendar = Calendar.current
-        return Dictionary(grouping: listItems) { item -> Date in
+        return Dictionary(grouping: items) { item -> Date in
             guard let due = item.dueDate else { return .distantFuture }
             return due < Date() ? .distantPast : calendar.startOfDay(for: due)
         }.sorted { $0.key < $1.key }.map { date, rows in
@@ -819,23 +801,20 @@ struct FocusView: View {
             return NativeTitledGroup(title: title, items: rows)
         }
     }
-    private var classGroups: [NativeCourseGroup] {
-        let grouped = Dictionary(grouping: listItems, by: \.courseID)
-        let known = visibleCourses.compactMap { course -> NativeCourseGroup? in
+    private var classGroups: [NativeTitledGroup] {
+        let grouped = Dictionary(grouping: items, by: \.courseID)
+        return visibleCourses.compactMap { course -> NativeTitledGroup? in
             guard let rows = grouped[course.id], !rows.isEmpty else { return nil }
-            return NativeCourseGroup(course: course, items: rows)
+            return NativeTitledGroup(title: store.displayName(courseID: course.id, fallback: course.name), items: rows)
         }
-        return known.sorted { store.displayName(courseID: $0.course.id, fallback: $0.course.name).localizedStandardCompare(store.displayName(courseID: $1.course.id, fallback: $1.course.name)) == .orderedAscending }
+        .sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
     }
     private func estimate(_ item: AssignmentItem) -> Int { NativeParity.estimate(item, estimates: features.estimates) }
-    /// "5 this week · 4 hr", "2 due today · 45 min".
+    /// "4 this week · 2 hr 30 min".
     private var headerLine: String {
-        guard !unfinished.isEmpty else { return "All clear" }
-        let what: String
-        if let pickedDay { what = "due \(dayPhrase(pickedDay))" }
-        else { what = range == "overdue" ? "to catch up" : range == "7" ? "this week" : "in 4 weeks" }
-        let minutes = unfinished.reduce(0) { $0 + estimate($1) }
-        return "\(unfinished.count) \(what) · \(Self.duration(minutes))"
+        let week = items.filter { NativeParity.isInFocusWindow($0, window: "7") }
+        if week.isEmpty { return items.isEmpty ? "All clear" : "Nothing due this week" }
+        return "\(week.count) this week · \(Self.duration(week.reduce(0) { $0 + estimate($1) }))"
     }
     /// 45 → "45 min", 90 → "1 hr 30 min", 240 → "4 hr".
     static func duration(_ minutes: Int) -> String {
@@ -843,24 +822,11 @@ struct FocusView: View {
         if hours == 0 { return "\(rest) min" }
         return rest == 0 ? "\(hours) hr" : "\(hours) hr \(rest) min"
     }
-    /// "today", "tomorrow" or "Friday", for the header line.
-    private func dayPhrase(_ day: Date) -> String {
-        let calendar = Calendar.current
-        if calendar.isDateInToday(day) { return "today" }
-        if calendar.isDateInTomorrow(day) { return "tomorrow" }
-        return day.formatted(.dateTime.weekday(.wide))
-    }
-    private func dayCount(_ day: Date) -> Int {
-        allItems.reduce(0) { total, item in
-            total + (item.isVisible(in: store) && item.dueDate.map { Calendar.current.isDate($0, inSameDayAs: day) } == true ? 1 : 0)
-        }
-    }
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 60)) { _ in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 16) {
-                    NativeTodayTabs(selection: $section)
+                LazyVStack(alignment: .leading, spacing: 20) {
                     header
                     if showSearch || isSearching { searchField.transition(.opacity) }
                     if store.needsCanvasConnection {
@@ -871,55 +837,66 @@ struct FocusView: View {
                         CPSkeletonCard()
                         CPSkeletonCard()
                     } else {
-                        if !isSearching { choiceRow }
-                        controls
                         list
                     }
                 }
                 .cpPagePadding()
-                .cpStateChange(pickedID).cpStateChange(grouping).cpStateChange(showCompleted)
-                .cpStateChange(listItems.map(\.id))
-                .sensoryFeedback(.selection, trigger: pickedID)
+                .cpStateChange(grouping)
+                .cpStateChange(items.map(\.id))
             }
             .scrollDismissesKeyboard(.immediately)
         }
         .background(CPBackdrop())
+        .cpNavigationTitle("To-Do")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(inMore ? .visible : .hidden, for: .navigationBar)
         .refreshable { async let a: Void = store.refresh(); async let b: Void = features.load(); _ = await (a, b) }
         .sheet(isPresented: $showAdd) { AddAssignmentView(courses: visibleCourses, store: store, features: features) }
     }
 
     // MARK: Header and search
 
-    /// The title and one short line, with search, Completed and Add as icons.
+    /// The title with search, Completed and Add, then one line on the week and
+    /// how the list is grouped.
     private var header: some View {
-        HStack(alignment: .center, spacing: 8) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("To-Do").cpFont(28, .regular).tracking(-1).foregroundStyle(CPTheme.foreground(scheme))
-                    .lineLimit(1)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .center, spacing: 4) {
+                Text("To-Do").cpFont(28, .semibold).tracking(-0.6).foregroundStyle(CPTheme.foreground(scheme))
                     .accessibilityAddTraits(.isHeader)
+                Spacer(minLength: 8)
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) { showSearch.toggle() }
+                    searchFocused = showSearch
+                    if !showSearch { search = "" }
+                } label: { CPIconButtonLabel(symbol: "magnifyingglass") }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(showSearch ? "Close search" : "Search")
+                NavigationLink { NativeCompletedView(store: store, features: features) } label: {
+                    CPIconButtonLabel(symbol: "checkmark.circle")
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Completed")
+                Button { showAdd = true } label: { CPIconButtonLabel(symbol: "plus") }
+                    .buttonStyle(.plain)
+                    .disabled(visibleCourses.isEmpty)
+                    .accessibilityLabel("Add an assignment")
+            }
+            HStack(alignment: .center, spacing: 8) {
                 Text(headerLine)
-                    .cpFont(13).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
-                    .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                    .cpFont(15).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 8)
+                Menu {
+                    Picker("Group by", selection: $grouping) {
+                        Text("By day").tag("By day")
+                        Text("By class").tag("By class")
+                    }
+                } label: { CPLinkLabel(text: grouping, symbol: "chevron.down") }
+                    .accessibilityLabel("Group, \(grouping)")
             }
-            Spacer(minLength: 8)
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) { showSearch.toggle() }
-                searchFocused = showSearch
-                if !showSearch { search = "" }
-            } label: { CPIconButtonLabel(symbol: "magnifyingglass") }
-                .buttonStyle(.plain)
-                .accessibilityLabel(showSearch ? "Close search" : "Search")
-            NavigationLink { NativeCompletedView(store: store, features: features) } label: {
-                CPIconButtonLabel(symbol: "checkmark.circle")
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Completed")
-            Button { showAdd = true } label: { CPIconButtonLabel(symbol: "plus") }
-                .buttonStyle(.plain)
-                .disabled(visibleCourses.isEmpty)
-                .accessibilityLabel("Add an assignment")
         }
         .padding(.horizontal, 4)
+        .padding(.top, 8)
     }
 
     private var searchField: some View {
@@ -945,168 +922,66 @@ struct FocusView: View {
         .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(CPTheme.insetBorder(scheme), lineWidth: 0.5))
     }
 
-    // MARK: Range, week and grouping
-
-    private var choiceRow: some View {
-        let today = Calendar.current.startOfDay(for: Date())
-        let days = (0..<7).compactMap { Calendar.current.date(byAdding: .day, value: $0, to: today) }
-        let catchUp = rangeCount("overdue")
-        return ScrollViewReader { proxy in
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 6) {
-                    if catchUp > 0 || range == "overdue" {
-                        rangeTile("overdue", title: "Catch up", count: catchUp)
-                    }
-                    rangeTile("7", title: "This week", count: rangeCount("7"))
-                    ForEach(Array(days.enumerated()), id: \.offset) { offset, day in
-                        dayTile(day, title: offset == 0 ? "Today" : day.formatted(.dateTime.weekday(.abbreviated)))
-                    }
-                    rangeTile("all", title: "Next 4 weeks", count: rangeCount("all"))
-                }
-                .padding(.horizontal, 1)
-            }
-            .scrollClipDisabled()
-            .onAppear { proxy.scrollTo(pickedID, anchor: .center) }
-            .onChange(of: pickedID) { _, id in withAnimation(.easeInOut(duration: 0.25)) { proxy.scrollTo(id, anchor: .center) } }
-        }
-        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-    }
-
-    private var pickedID: String {
-        if let pickedDay { return "day-\(Int(pickedDay.timeIntervalSince1970))" }
-        return "range-\(range)"
-    }
-
-    private func rangeTile(_ value: String, title: String, count: Int) -> some View {
-        let isSelected = pickedDay == nil && range == value
-        return Button { window = value; selectedDay = nil } label: {
-            VStack(spacing: 4) {
-                Text(title).cpFont(11).lineLimit(1)
-                    .foregroundStyle(isSelected ? CPTheme.background(scheme) : CPTheme.muted(scheme))
-                Text("\(count)").cpFont(15).monospacedDigit()
-                    .foregroundStyle(isSelected ? CPTheme.background(scheme) : CPTheme.foreground(scheme))
-                Circle().fill(Color.clear).frame(width: 4, height: 4)
-            }
-            .padding(.horizontal, 12)
-            .frame(minWidth: 84, minHeight: 60)
-            .background(isSelected ? CPTheme.foreground(scheme) : CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(isSelected ? Color.clear : CPTheme.insetBorder(scheme), lineWidth: 0.5))
-        }
-        .buttonStyle(CPPressStyle())
-        .id("range-\(value)")
-        .accessibilityLabel("\(title), \(count) due")
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
-    }
-
-    private func dayTile(_ day: Date, title: String) -> some View {
-        let count = dayCount(day)
-        let isSelected = pickedDay.map { Calendar.current.isDate($0, inSameDayAs: day) } ?? false
-        return Button { selectedDay = day } label: {
-            VStack(spacing: 4) {
-                Text(title).cpFont(11).lineLimit(1).minimumScaleFactor(0.7)
-                    .foregroundStyle(isSelected ? CPTheme.background(scheme) : CPTheme.muted(scheme))
-                Text(day.formatted(.dateTime.day())).cpFont(15).monospacedDigit()
-                    .foregroundStyle(isSelected ? CPTheme.background(scheme) : CPTheme.foreground(scheme))
-                Circle().fill(isSelected ? CPTheme.background(scheme) : CPTheme.foreground(scheme).opacity(0.6))
-                    .frame(width: 4, height: 4).opacity(count > 0 ? 1 : 0)
-            }
-            .frame(width: 48, height: 60)
-            .background(isSelected ? CPTheme.foreground(scheme) : CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(isSelected ? Color.clear : CPTheme.insetBorder(scheme), lineWidth: 0.5))
-        }
-        .buttonStyle(CPPressStyle())
-        .id("day-\(Int(day.timeIntervalSince1970))")
-        .accessibilityLabel("\(day.formatted(date: .complete, time: .omitted)), \(count) due")
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
-    }
-
-    private var controls: some View {
-        HStack(spacing: 10) {
-            CPSegmented(selection: $grouping, options: ["By day", "By class"], label: "Group by")
-                .frame(maxWidth: 210)
-            Spacer(minLength: 4)
-        }
-    }
-
     // MARK: List
 
     @ViewBuilder private var list: some View {
-        if listItems.isEmpty {
+        if items.isEmpty {
             CPGlassCard {
-                NativeEmptyState(
-                    title: isSearching ? "No matches" : pickedDay != nil ? "Nothing due this day." : range == "overdue" ? "Nothing to catch up on." : "You're all clear.",
-                    symbol: isSearching ? "magnifyingglass" : "checkmark.circle",
-                    detail: nil
-                )
+                NativeEmptyState(title: isSearching ? "No matches" : "You're all clear.", symbol: isSearching ? "magnifyingglass" : "checkmark.circle")
             }
-        } else if grouping == "By class" {
-            ForEach(classGroups) { group in classCard(group) }
         } else {
-            ForEach(dayGroups) { group in
-                VStack(alignment: .leading, spacing: 8) {
-                    CPSectionLabel(group.title, count: group.items.count)
-                    VStack(spacing: 8) {
-                        ForEach(group.items) { item in assignmentRow(item, showCourse: true) }
-                    }
-                }
+            ForEach(grouping == "By class" ? classGroups : dayGroups) { group in
+                section(group, showCourse: grouping != "By class")
             }
         }
     }
 
-    /// One card per class, like the website's class cards.
-    private func classCard(_ group: NativeCourseGroup) -> some View {
-        let course = group.course
-        let color = CPTheme.gradeColor(course.currentScore)
-        return CPGlassCard {
-            HStack(spacing: 10) {
-                Circle().fill(color).frame(width: 8, height: 8)
-                Text(store.displayName(courseID: course.id, fallback: course.name))
-                    .cpFont(16, .regular).tracking(-0.3).foregroundStyle(CPTheme.foreground(scheme)).lineLimit(2)
-                Spacer(minLength: 8)
-                if let score = course.currentScore {
-                    Text("\(score.formatted(.number.precision(.fractionLength(1))))%")
-                        .cpFont(12).monospacedDigit().foregroundStyle(color)
-                        .cpGradeShield()
+    /// One card per day (or class), its rows split by hairlines.
+    private func section(_ group: NativeTitledGroup, showCourse: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            CPSectionLabel(group.title, count: group.items.count)
+            VStack(spacing: 0) {
+                ForEach(group.items) { item in
+                    row(item, showCourse: showCourse)
+                    if item.id != group.items.last?.id { CPRowDivider(leading: 32) }
                 }
-                Text("\(group.items.count)").cpFont(12).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
             }
-            .accessibilityElement(children: .combine)
-            .accessibilityAddTraits(.isHeader)
-            VStack(spacing: 8) {
-                ForEach(group.items) { item in assignmentRow(item, showCourse: false) }
-            }
+            .padding(.horizontal, 14)
+            .cpSurface(radius: 20)
         }
     }
 
     /// The name, and one quiet line: class, time and how long it takes.
-    private func assignmentRow(_ item: AssignmentItem, showCourse: Bool) -> some View {
+    private func row(_ item: AssignmentItem, showCourse: Bool) -> some View {
         let done = item.showsDone(in: store)
-        return CPInsetRow {
-            HStack(alignment: .top, spacing: 12) {
-                NativeCompletionButton(assignment: item, store: store).padding(.top, 1)
-                NavigationLink {
-                    if let course = store.bundle.courses.first(where: { $0.id == item.courseID }) {
-                        CourseDetailView(course: course, store: store, features: features, highlightAssignment: item)
-                    } else {
-                        AssignmentDetailView(assignment: item, store: store, features: features)
-                    }
-                } label: {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(item.name).cpFont(15, .medium)
-                            .foregroundStyle(done ? CPTheme.muted(scheme) : CPTheme.foreground(scheme))
-                            .strikethrough(done)
-                            .lineLimit(2)
-                            .multilineTextAlignment(.leading)
-                        Text(rowMeta(item, showCourse: showCourse, done: done))
-                            .cpFont(12).monospacedDigit().foregroundStyle(CPTheme.muted(scheme)).lineLimit(1)
-                        if !done, let percent = features.progress[item.id], percent > 0 { NativeProgressBar(percent: percent) }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
+        return HStack(alignment: .top, spacing: 12) {
+            NativeCompletionButton(assignment: item, store: store).padding(.top, 1)
+            NavigationLink {
+                if let course = store.bundle.courses.first(where: { $0.id == item.courseID }) {
+                    CourseDetailView(course: course, store: store, features: features, highlightAssignment: item)
+                } else {
+                    AssignmentDetailView(assignment: item, store: store, features: features)
                 }
-                .buttonStyle(CPPressStyle())
+            } label: {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(item.name).cpFont(15, .medium)
+                        .foregroundStyle(done ? CPTheme.muted(scheme) : CPTheme.foreground(scheme))
+                        .strikethrough(done)
+                        .lineLimit(3)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(rowMeta(item, showCourse: showCourse, done: done))
+                        .cpFont(12).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if !done, let percent = features.progress[item.id], percent > 0 { NativeProgressBar(percent: percent) }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
             }
+            .buttonStyle(CPPressStyle())
         }
+        .padding(.vertical, 13)
         .opacity(done ? 0.6 : 1)
         .nativeAssignmentSwipe(item, store: store)
         .transition(.cpCompletionExit)
@@ -1125,7 +1000,6 @@ struct FocusView: View {
         parts.append(done ? (item.isCanvasFinished ? "Done in Canvas" : "Done") : Self.duration(estimate(item)))
         return parts.joined(separator: " · ")
     }
-
 }
 
 struct NativeTitledGroup: Identifiable {

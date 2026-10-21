@@ -14,8 +14,6 @@ test("each widget header carries the collapse chevron", () => {
   for (const id of ["digest", "classes", "upcoming", "focus", "calendar", "announcements", "heatmap"]) {
     assert.match(views, new RegExp(`collapse: collapse\\("${id}"\\)`), id);
   }
-  // The caught-up version of "Since your last visit" has no header but still folds.
-  assert.match(views, /CPCollapseButton\(collapse: collapse\("digest"\)\)/);
 });
 
 test("a folded widget shows only its card title, and the choice stays on this iPhone", () => {

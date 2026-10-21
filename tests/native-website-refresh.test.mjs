@@ -9,12 +9,11 @@ const parity = read("NativeFeatures");
 const design = read("NativeDesign");
 
 // Source guards for website main at 783443c; run Codemagic for Swift compilation.
-test("Today's To-Do page keeps the website Focus date strip and grouping hierarchy", () => {
+test("To-Do keeps the website's grouping and opens Completed and Study", () => {
   // Finished work lives on the Completed page, so there's no Show finished toggle here.
-  for (const label of ["To-Do", "By day", "By class", "Completed", "Nothing due this day."]) {
+  for (const label of ["To-Do", "By day", "By class", "Completed", "Catch up"]) {
     assert.ok(more.includes(`"${label}"`), label);
   }
-  assert.ok(more.includes("Calendar.current.date(byAdding: .day"));
   assert.ok(views.includes("requestedAssignment: $studyRequest"));
   assert.ok(views.includes("if !sessionStarted || sessionFinished"));
   // Get It Done's one suggestion is the dashboard's Next up; its own page is gone.
@@ -23,11 +22,11 @@ test("Today's To-Do page keeps the website Focus date strip and grouping hierarc
   assert.ok(!more.includes(".sheet(item: $studyAssignment)"));
 });
 
-test("Assignments uses local-day ranges up to four weeks and search finds any assignment", () => {
+test("To-Do lists four weeks of local days and search looks through all of it", () => {
   const page = more.slice(more.indexOf("struct FocusView"), more.indexOf("struct NativeTitledGroup"));
-  for (const value of ['window == "overdue" ? "overdue" : window == "all" ? "all" : "7"', '"Next 4 weeks"', '"Search assignments or classes"']) assert.ok(page.includes(value), value);
-  // Searching ignores the range so any assignment can be found.
-  assert.match(page, /if isSearching \{\s+let query/);
+  for (const value of ['window: "all"', '"Search assignments or classes"']) assert.ok(page.includes(value), value);
+  // Search matches the name or the class.
+  assert.match(page, /item\.name\.localizedCaseInsensitiveContains\(query\) \|\| store\.displayName/);
   assert.ok(views.includes('if dueAt == nil && (pointsPossible ?? 0) <= 0 { return showCompleted }'));
   assert.ok(parity.includes('value: -3'));
   assert.ok(parity.includes('endOfUpcomingDay(28, from: now)'));
@@ -68,7 +67,6 @@ test("dashboard suppresses empty classes without concealing urgent work", () => 
   // Only classes with something due get a row; the rest become one quiet line.
   assert.ok(views.includes("return items.isEmpty ? nil : NativeCourseGroup(course: course, items: items)"));
   assert.ok(views.includes('class has" : "classes have") nothing due.'));
-  assert.ok(views.includes(') due soon." : "All caught up."'));
   assert.ok(views.includes("WorkloadView(assignments: activeAssignments, store: store, features: features)"));
   assert.ok(design.includes("adaptive(dark: .hsl(hue, 0.42, 0.58), light: .hsl(hue, 0.50, 0.38))"));
   assert.ok(more.includes("store.displayName(courseID: course.id, fallback: course.name)"));

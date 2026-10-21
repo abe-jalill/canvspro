@@ -606,43 +606,6 @@ struct CPPageHeader: View {
     }
 }
 
-/// The website's PageTabs: centered, outlined tabs for pages that share one
-/// sidebar entry. The selected tab gets a stronger outline and full-strength text.
-struct NativePageTabs: View {
-    @Environment(\.colorScheme) private var scheme
-    @Environment(\.cpPalette) private var paletteDependency
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Binding var selection: String
-    let options: [String]
-    let label: String
-
-    var body: some View {
-        HStack(spacing: 8) {
-            ForEach(options, id: \.self) { option in
-                let isSelected = selection == option
-                Button { selection = option } label: {
-                    Text(option)
-                        .cpFont(13)
-                        .lineLimit(1)
-                        .foregroundStyle(isSelected ? CPTheme.foreground(scheme) : CPTheme.muted(scheme))
-                        .padding(.horizontal, 14)
-                        .frame(height: 32)
-                        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(CPTheme.outline(scheme, selected: isSelected), lineWidth: 0.5))
-                        .padding(.vertical, 6).contentShape(Rectangle()).padding(.vertical, -6)
-                }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(isSelected ? .isSelected : [])
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.3), value: selection)
-        .sensoryFeedback(.selection, trigger: selection)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(label)
-        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
-    }
-}
-
 /// Range and filter choices, outlined like the website's tabs.
 struct CPChip: View {
     @Environment(\.colorScheme) private var scheme

@@ -9,30 +9,45 @@ const features = read("NativeFeatures");
 const core = read("NativeCore");
 const between = (source, start, end) => source.slice(source.indexOf(start), source.indexOf(end));
 
-test("Today is short: a greeting, one line, Next up, and catch-up only when needed", () => {
+test("Today is short: date and greeting, one line, Next up, and catch-up only when needed", () => {
   const hero = between(views, "private var hero: some View", "private var nextUpCard: some View");
   // No big card around the greeting and no stat tiles under Next up.
   assert.doesNotMatch(views, /heroSmallStat|heroBackground|heroStats/);
   assert.match(hero, /nextUpCard\s+if overdueCount > 0 \{ catchUpRow\.transition\(\.opacity\) \}/);
   // The greeting wraps for a long name instead of shrinking.
-  assert.doesNotMatch(hero, /minimumScaleFactor/);
-  // The quick Pomodoro is one small control beside the streak, not its own bar.
-  assert.match(hero, /NativeStreakChip\(\)\s+NativeQuickPomodoro\(scope: store\.persistenceScope\)/);
+  assert.doesNotMatch(hero, /minimumScaleFactor|uppercased/);
+  // The streak sits beside the greeting; a running session's time joins it.
+  assert.match(hero, /NativeQuickPomodoro\(scope: store\.persistenceScope\)\s+NativeStreakChip\(\)/);
+  const quick = between(views, "private struct NativeQuickPomodoro", "/// The same saved time estimate");
+  assert.match(quick, /if let live = StoredNativeStudySession\.live\(scope: scope, now: context\.date\)/);
+  assert.doesNotMatch(quick, /CPIconButtonLabel/);
   const body = between(views, "private struct NativeDashboardView", "private var shouldAskForWidgets");
   assert.doesNotMatch(body.slice(body.indexOf("var body: some View")), /NativeQuickPomodoro/);
-  // The dashboard header is just when it updated and Customize.
-  assert.doesNotMatch(views, /"Your dashboard"/);
-  assert.match(views, /CPLinkLabel\(text: "Customize", symbol: "slider\.horizontal\.3"\)/);
+  // Customize and the updated time sit quietly under the widgets.
+  assert.doesNotMatch(views, /"Your dashboard"|dashboardHeader/);
+  assert.match(body, /\.cpReveal\(index\)\s+\}\s+dashboardFooter/);
+  assert.match(views, /CPLinkLabel\(text: "Customize dashboard", symbol: "slider\.horizontal\.3"\)/);
   // One line on the week; past-due work has its own row.
   assert.match(views, /return "\\\(soon\) · \\\(week\) this week"/);
 });
 
-test("Get It Done and To-Do are one: Next up's Start replaces the Get It Done page", () => {
+test("Since your last visit only shows when something new was posted", () => {
+  assert.match(views, /!features\.dashboardHidden\.contains\(id\) && \(id != "digest" \|\| hasPostsSinceLastVisit\)/);
+  assert.match(views, /private var hasPostsSinceLastVisit: Bool \{ !newAnnouncements\.isEmpty \|\| !newGrades\.isEmpty \}/);
+  // No "All caught up" card, and no empty parts inside it.
+  assert.doesNotMatch(views, /"All caught up\."|No new posts|Nothing new due soon/);
+  assert.match(views, /if !newAnnouncements\.isEmpty \{\s+digestSection\("New announcements"/);
+});
+
+test("Get It Done is the dashboard's Next up: tap it for the assignment, Start to study it", () => {
   assert.doesNotMatch(more, /struct GetItDoneView/);
   assert.doesNotMatch(features, /rankedAssignments|getItDoneScore|recommendationReason/);
-  assert.match(views, /NativePageTabs\(selection: \$selection, options: \["Dashboard", "To-Do"\]/);
-  // An old saved choice of Get It Done opens the dashboard.
-  assert.match(views, /\["Dashboard", "To-Do"\]\.contains\(todayPage\) \? todayPage : "Dashboard"/);
+  const card = between(views, "private var nextUpCard: some View", "private var catchUpRow: some View");
+  assert.match(card, /NavigationLink \{ courseDestination\(for: item, highlight: true\) \}/);
+  assert.match(card, /\.buttonStyle\(CPButtonStyle\(kind: \.secondary, fullWidth: true\)\)/);
+  // How long until it's due is at the top; the estimate is in the details line.
+  assert.match(card, /Text\(countdown\.label\)/);
+  assert.match(views, /parts\.append\(FocusView\.duration\(NativeParity\.estimate\(item, estimates: features\.estimates\)\)\)/);
 });
 
 test("Grades has New grades: what came in over the last 24 hours", () => {

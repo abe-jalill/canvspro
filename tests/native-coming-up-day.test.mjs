@@ -2,35 +2,43 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-// Coming Up on iPhone: one row of choices (Catch up, This week, each day, Next
-// 4 weeks) with exactly one picked, like the website.
+// To-Do on iPhone: a tab of its own with one list. Catch-up work first, then
+// each day of the next four weeks (or each class). Nothing to pick.
 const more = readFileSync(new URL("../ios/App/App/NativeMoreViews.swift", import.meta.url), "utf8");
-const focus = more.slice(more.indexOf("struct FocusView: View"), more.indexOf("// MARK: List", more.indexOf("struct FocusView: View")));
+const views = readFileSync(new URL("../ios/App/App/NativeViews.swift", import.meta.url), "utf8");
+const focus = more.slice(more.indexOf("struct FocusView: View"), more.indexOf("struct NativeTitledGroup"));
 
-test("a day shows that day only; otherwise the picked range", () => {
-  assert.match(focus, /guard let pickedDay else \{ return NativeParity\.isInFocusWindow\(item, window: range\) \}/);
-  assert.match(focus, /Calendar\.current\.isDate\(\$0, inSameDayAs: pickedDay\)/);
-  assert.match(focus, /allItems\.filter \{ inRange\(\$0\) && \$0\.isVisible\(in: store, showCompleted: showCompleted\) \}/);
+test("To-Do is its own tab, first of the picks, and a page in More when it isn't one", () => {
+  assert.match(views, /case \.todo: return "To-Do"/);
+  assert.match(views, /static let defaultMiddle: \[NativeTab\] = \[\.todo, \.study, \.grades\]/);
+  assert.match(views, /case \.todo:\s+NavigationStack \{ FocusView\(store: contentStore, features: featureStore\) \}/);
+  assert.match(more, /case \.todo: FocusView\(store: store, features: features, inMore: true\)/);
+  // Opened from More it keeps the bar, so its back button is there.
+  assert.match(focus, /\.toolbar\(inMore \? \.visible : \.hidden, for: \.navigationBar\)/);
+  // Today is only the dashboard now: no section tabs.
+  assert.doesNotMatch(views + more, /NativeTodayTabs|todaySection|CanvasProLastTodayPage/);
 });
 
-test("one row, one choice: no range chips competing with the days", () => {
-  assert.doesNotMatch(focus, /rangeChips|weekStrip/);
-  assert.match(focus, /if !isSearching \{ choiceRow \}/);
-  for (const title of ["Catch up", "This week", "Next 4 weeks"]) assert.ok(focus.includes(`title: "${title}"`), title);
-  // Picking a range clears the day; a range only looks picked when no day is.
-  assert.match(focus, /Button \{ window = value; selectedDay = nil \}/);
-  assert.match(focus, /let isSelected = pickedDay == nil && range == value/);
-  // Old links land on a visible choice: 24 hours opens Today.
-  assert.match(focus, /selectedDay \?\? \(window == "1" \? Calendar\.current\.startOfDay\(for: Date\(\)\) : nil\)/);
+test("one list: catch up first, then each day; no ranges or days to pick", () => {
+  assert.doesNotMatch(focus, /choiceRow|rangeTile|dayTile|selectedDay|pickedDay|"Next 4 weeks"|CPSegmented/);
+  assert.match(focus, /NativeParity\.isInFocusWindow\(item, window: "all"\) && item\.isVisible\(in: store\)/);
+  assert.match(focus, /due < Date\(\) \? \.distantPast : calendar\.startOfDay\(for: due\)/);
+  assert.match(focus, /date == \.distantPast \? "Catch up"/);
+  // Grouping is a small menu beside the week's line.
+  assert.match(focus, /Picker\("Group by", selection: \$grouping\)/);
+  assert.match(focus, /CPLinkLabel\(text: grouping, symbol: "chevron\.down"\)/);
 });
 
-test("To-Do rows are the name and one short line; the header is icons, not words", () => {
-  assert.match(focus, /Text\("To-Do"\)\.cpFont\(28/);
-  assert.match(focus, /return "\\\(unfinished\.count\) \\\(what\) · \\\(Self\.duration\(minutes\)\)"/);
-  assert.match(focus, /CPIconButtonLabel\(symbol: "magnifyingglass"\)/);
+test("To-Do rows sit in one card per day, the name and one short line", () => {
+  assert.match(focus, /Text\("To-Do"\)\.cpFont\(28, \.semibold\)/);
+  assert.match(focus, /return "\\\(week\.count\) this week · \\\(Self\.duration\(/);
+  for (const symbol of ["magnifyingglass", "checkmark.circle", "plus"]) {
+    assert.ok(focus.includes(`CPIconButtonLabel(symbol: "${symbol}")`), symbol);
+  }
   assert.match(focus, /if showSearch \|\| isSearching \{ searchField/);
-  assert.doesNotMatch(focus, /CPChip\(text: "Finished"/);
-  const rows = more.slice(more.indexOf("private func assignmentRow"), more.indexOf("struct NativeTitledGroup"));
-  assert.doesNotMatch(rows, /NativeEstimateEditor|countdown\.label/);
-  assert.match(rows, /\.lineLimit\(2\)/);
+  const rows = focus.slice(focus.indexOf("private func section("));
+  assert.match(rows, /if item\.id != group\.items\.last\?\.id \{ CPRowDivider\(leading: 32\) \}/);
+  assert.match(rows, /\.cpSurface\(radius: 20\)/);
+  assert.doesNotMatch(rows, /NativeEstimateEditor|countdown\.label|CPInsetRow|lineLimit\(1\)/);
+  assert.match(rows, /\.nativeAssignmentSwipe\(item, store: store\)/);
 });
