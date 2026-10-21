@@ -61,6 +61,15 @@ import {
 import { assignmentsQueryOptions as assignmentsQO } from "@/lib/canvas.queries";
 import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
 import { FocusNoiseControls } from "@/components/focus-noise";
+import { classColor } from "@/lib/class-color";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const PRESETS = [15, 25, 45, 60, 90];
 const TIME_MODE_KEY = "canvas:study-time-mode";
@@ -163,34 +172,54 @@ function nextUnfinished(session: StudySessionSnapshot, from: number) {
   return from;
 }
 
+/** "4:52 PM". */
+function clockTime(at: number) {
+  return new Date(at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+
+/**
+ * The block's time on a ring that empties as it runs. The arc is drawn only
+ * while time is left, so a fresh block never shows a stray dot, and a reading
+ * past an hour ("1:29:57") gets a smaller size so it always fits inside.
+ */
 function StudyClock({
   remaining,
   total,
   label,
+  tone,
 }: {
   remaining: number;
   total: number;
   label: string;
+  tone: "focus" | "break" | "paused";
 }) {
-  const radius = 54;
+  const radius = 58;
   const circumference = 2 * Math.PI * radius;
-  const elapsed = total <= 0 ? 0 : Math.min(1, Math.max(0, (total - remaining) / total));
+  const left = total <= 0 ? 0 : Math.min(1, Math.max(0, remaining / total));
+  const time = formatTime(remaining);
 
   return (
-    <div className="study-clock" aria-label={`${formatTime(remaining)} remaining`}>
+    <div
+      className="study-clock"
+      data-tone={tone}
+      data-long={time.split(":").length > 2 ? "" : undefined}
+      role="timer"
+      aria-label={`${time} left`}
+    >
       <svg viewBox="0 0 128 128" aria-hidden="true">
         <circle className="study-clock__track" cx="64" cy="64" r={radius} />
-        <circle
-          className="study-clock__progress"
-          cx="64"
-          cy="64"
-          r={radius}
-          strokeDasharray={circumference}
-          strokeDashoffset={circumference * (1 - elapsed)}
-        />
+        {left > 0 && (
+          <circle
+            className="study-clock__progress"
+            cx="64"
+            cy="64"
+            r={radius}
+            strokeDasharray={`${circumference * left} ${circumference}`}
+          />
+        )}
       </svg>
-      <div className="study-clock__time">
-        <span>{formatTime(remaining)}</span>
+      <div className="study-clock__time" aria-hidden="true">
+        <span>{time}</span>
         <small>{label}</small>
       </div>
     </div>
@@ -329,6 +358,7 @@ function StudySessionPage() {
   const [custom, setCustom] = useState<Record<CustomField, string>>(CUSTOM_DEFAULTS);
   const [now, setNow] = useState(() => Date.now());
   const [summary, setSummary] = useState<StudySessionSnapshot | null>(null);
+  const [confirmEnd, setConfirmEnd] = useState(false);
   const selectedFromLink = useRef<string | null>(null);
 
   useEffect(() => {
@@ -423,6 +453,14 @@ function StudySessionPage() {
   function minutesFor(item: StudySessionItem) {
     return minutesById[item.id] ?? suggestedMinutes(item);
   }
+
+  // Before a session starts, "Ends around" keeps up with the clock.
+  useEffect(() => {
+    if (!ready || session) return;
+    setNow(Date.now());
+    const interval = window.setInterval(() => setNow(Date.now()), 30_000);
+    return () => window.clearInterval(interval);
+  }, [ready, session]);
 
   useEffect(() => {
     if (!session || session.status !== "running") return;
@@ -567,6 +605,8 @@ function StudySessionPage() {
           ),
     );
     setNow(Date.now());
+    // On a phone Start sits at the bottom of the list; the timer is at the top.
+    window.scrollTo({ top: 0 });
     void studySuccessFeedback();
   }
 
@@ -578,9 +618,12 @@ function StudySessionPage() {
     const remaining = remainingForSession(session, now);
     const current = session.items[Math.min(session.currentIndex, session.items.length - 1)];
     const completed = new Set(session.completedItemIds);
+    const several = session.items.length > 1;
 
     const update = (patch: Partial<StudySessionSnapshot>) => setSession({ ...session, ...patch });
     const goTo = (index: number) => {
+      // Tapping the task already on screen leaves its timer alone.
+      if (index === session.currentIndex) return;
       setSession(focusItem(session, index, Date.now()));
       setNow(Date.now());
     };
@@ -612,201 +655,319 @@ function StudySessionPage() {
     const plan = session.pomodoro;
     const phase = phaseOf(session);
     const onBreak = isBreak(session);
+    const paused = session.status === "paused";
     const rounds = plan?.roundsBeforeLongBreak ?? 0;
     // Focus blocks finished in the current cycle (a long break closes a full cycle).
     const cycleDone = plan ? (phase === "long-break" ? rounds : (session.round ?? 0) % rounds) : 0;
-    const clockLabel =
-      session.status === "paused"
-        ? "Paused"
-        : !plan
-          ? "Focus time"
-          : phase === "focus"
-            ? "Focus"
-            : phase === "long-break"
-              ? "Long break"
-              : "Short break";
+    const phaseLabel = paused
+      ? "Paused"
+      : phase === "long-break"
+        ? "Long break"
+        : phase === "short-break"
+          ? "Short break"
+          : "Focus";
+    const tone = paused ? "paused" : onBreak ? "break" : "focus";
     const endBreak = () => {
       setSession(skipBreak(session, Date.now()));
       setNow(Date.now());
       void studySelectionFeedback();
     };
+    const courseIds = (courses.data ?? []).map((course) => course.id);
+    const colorOf = (item: StudySessionItem) => {
+      const courseId = assignmentById.get(item.id)?.course_id;
+      return courseId != null ? classColor(courseId, courseIds) : undefined;
+    };
+    const currentColor = colorOf(current);
+    const currentAssignmentId =
+      current.source === "canvas" ? Number(current.id.replace("canvas:", "")) : null;
 
     return (
-      <div className="mx-auto max-w-xl pb-24 md:pb-8">
-        <section className="premium-reveal flex flex-col items-center pt-2 text-center">
-          <StudyClock remaining={remaining} total={session.durationMs} label={clockLabel} />
-
-          {plan && (
-            <div
-              className="mb-7 -mt-4 flex items-center gap-3 text-xs text-muted-foreground"
-              role="img"
-              aria-label={`${cycleDone} of ${rounds} focus rounds done`}
-            >
-              <span className="flex gap-1.5" aria-hidden="true">
-                {Array.from({ length: rounds }).map((_, index) => (
-                  <span
-                    key={index}
-                    className={cn(
-                      "h-1.5 w-5 rounded-sm border border-foreground/30",
-                      index < cycleDone && "border-foreground/60 bg-foreground/60",
-                      index === cycleDone && !onBreak && "border-foreground/60",
-                    )}
-                  />
-                ))}
+      <div className="mx-auto w-full max-w-5xl pb-24 md:pb-8">
+        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
+          {/* The timer and what's being worked on, in one lit card like Today's Next up. */}
+          <section className="study-focus-card premium-reveal rounded-[1.75rem] px-5 pb-8 pt-5 sm:px-8">
+            <div className="relative flex min-h-6 items-center justify-between gap-3">
+              <span
+                className={cn(
+                  "inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em]",
+                  tone === "focus"
+                    ? "text-primary"
+                    : tone === "break"
+                      ? "text-status-warning"
+                      : "text-muted-foreground",
+                )}
+              >
+                <span
+                  className={cn("h-1.5 w-1.5 rounded-full bg-current", !paused && "study-live-dot")}
+                  aria-hidden="true"
+                />
+                {phaseLabel}
               </span>
-              <span>
-                {onBreak
-                  ? `${cycleDone} of ${rounds} rounds done`
-                  : `Round ${cycleDone + 1} of ${rounds}`}
-              </span>
-            </div>
-          )}
-
-          <div className="study-now">
-            {onBreak ? (
-              <>
-                <span>{phase === "long-break" ? "Long break" : "Break time"}</span>
-                <strong className="font-normal">Step away for a moment.</strong>
-                <small>Up next: {current.name}</small>
-              </>
-            ) : (
-              <>
-                <span>Now studying</span>
-                <strong className="font-normal">{current.name}</strong>
-                {current.courseName && <small>{current.courseName}</small>}
-              </>
-            )}
-          </div>
-
-          <div className="mt-8 flex items-center gap-3">
-            <button
-              type="button"
-              className={roundIconButton}
-              onClick={() =>
-                goTo((session.currentIndex - 1 + session.items.length) % session.items.length)
-              }
-              aria-label="Previous assignment"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-            <button type="button" className={pillButton} onClick={pauseOrResume}>
-              {session.status === "running" ? (
-                <CirclePause className="h-4 w-4" />
-              ) : (
-                <CirclePlay className="h-4 w-4" />
+              {!paused && (
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  Ends {clockTime(now + remaining)}
+                </span>
               )}
-              {session.status === "running" ? "Pause" : "Resume"}
-            </button>
-            <button
-              type="button"
-              className={roundIconButton}
-              onClick={() => goTo(nextUnfinished(session, session.currentIndex))}
-              aria-label="Next assignment"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
-          </div>
+            </div>
 
-          {onBreak ? (
-            <button type="button" onClick={endBreak} className={cn(textButton, "mt-5")}>
-              Skip break
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={finishItem}
-              className={cn(textButton, "mt-5 inline-flex items-center gap-1.5")}
-            >
-              <Check className="h-4 w-4" /> Finish this task
-            </button>
-          )}
+            <StudyClock
+              remaining={remaining}
+              total={session.durationMs}
+              label={`of ${formatMinutes(Math.max(1, Math.round(session.durationMs / 60_000)))}`}
+              tone={tone}
+            />
 
-          {current?.source === "canvas" && <CachedAssignmentEstimate assignmentId={Number(current.id.replace("canvas:", ""))} className="mt-4" />}
-          <FocusNoiseControls className="mt-8" />
-        </section>
-
-        <section className="mt-12 px-1">
-          <header className="flex items-baseline justify-between gap-3">
-            <h2 className="text-sm text-muted-foreground">Up next</h2>
-            <span className="text-xs text-muted-foreground">
-              {completed.size} of {session.items.length} finished
-            </span>
-          </header>
-          <ol className="mt-2 space-y-2">
-            {session.items.map((item, index) => {
-              const done = completed.has(item.id);
-              const isCurrent = index === session.currentIndex;
-              return (
-                <li
-                  key={item.id}
-                  className={cn(
-                    "rounded-lg border px-4",
-                    isCurrent && !done ? "border-foreground/50" : "border-foreground/15",
-                  )}
-                >
-                  <button
-                    type="button"
-                    onClick={() => goTo(index)}
-                    className="flex min-h-14 w-full items-center gap-3.5 py-3 text-left"
-                  >
+            {plan && (
+              <div
+                className="relative -mt-2 mb-6 flex items-center justify-center gap-3 text-xs tabular-nums text-muted-foreground"
+                role="img"
+                aria-label={`${cycleDone} of ${rounds} focus rounds done`}
+              >
+                <span className="flex gap-1.5" aria-hidden="true">
+                  {Array.from({ length: rounds }).map((_, index) => (
                     <span
+                      key={index}
                       className={cn(
-                        "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[11px] tabular-nums",
-                        done
-                          ? "border-foreground/40 bg-foreground/10"
-                          : isCurrent
-                            ? "border-foreground/60"
-                            : "border-foreground/25 text-muted-foreground",
+                        "h-1 w-5 rounded-full bg-foreground/15",
+                        index < cycleDone && "bg-primary",
+                        index === cycleDone && !onBreak && "bg-primary/45",
                       )}
+                    />
+                  ))}
+                </span>
+                <span>
+                  {onBreak
+                    ? `${cycleDone} of ${rounds} rounds done`
+                    : `Round ${cycleDone + 1} of ${rounds}`}
+                </span>
+              </div>
+            )}
+
+            <div className="relative mx-auto max-w-md text-center">
+              {onBreak ? (
+                <>
+                  <p className="text-xl font-semibold leading-snug tracking-[-0.01em]">
+                    Step away for a moment.
+                  </p>
+                  <p className="mt-1.5 text-sm text-muted-foreground">Up next: {current.name}</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-balance text-xl font-semibold leading-snug tracking-[-0.01em]">
+                    {current.name}
+                  </p>
+                  {current.courseName && (
+                    <p className="mt-1.5 flex items-baseline justify-center gap-2 text-sm text-muted-foreground">
+                      {currentColor && (
+                        <span
+                          className="inline-block h-2 w-2 shrink-0 translate-y-[-1px] rounded-full"
+                          style={{ backgroundColor: currentColor }}
+                          aria-hidden="true"
+                        />
+                      )}
+                      <span>{current.courseName}</span>
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+
+            <div className="relative mt-7 flex items-center justify-center gap-3">
+              {several && (
+                <button
+                  type="button"
+                  className={roundIconButton}
+                  onClick={() =>
+                    goTo((session.currentIndex - 1 + session.items.length) % session.items.length)
+                  }
+                  aria-label="Previous task"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+              )}
+              <button
+                type="button"
+                className={cn(pillButton, "min-w-[9.5rem] rounded-full")}
+                onClick={pauseOrResume}
+              >
+                {session.status === "running" ? (
+                  <CirclePause className="h-4 w-4" />
+                ) : (
+                  <CirclePlay className="h-4 w-4" />
+                )}
+                {session.status === "running" ? "Pause" : "Resume"}
+              </button>
+              {several && (
+                <button
+                  type="button"
+                  className={roundIconButton}
+                  onClick={() => goTo(nextUnfinished(session, session.currentIndex))}
+                  aria-label="Next task"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+              )}
+            </div>
+
+            <div className="relative mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-3">
+              {onBreak ? (
+                <button type="button" onClick={endBreak} className={textButton}>
+                  Skip break
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={finishItem}
+                  className={cn(textButton, "inline-flex min-h-9 items-center gap-1.5")}
+                >
+                  <Check className="h-4 w-4" /> Finish this task
+                </button>
+              )}
+              {currentAssignmentId != null && !onBreak && (
+                <CachedAssignmentEstimate assignmentId={currentAssignmentId} />
+              )}
+            </div>
+
+            <FocusNoiseControls className="relative mt-6" />
+          </section>
+
+          <GlassCard
+            className="premium-reveal lg:sticky lg:top-4"
+            title="This session"
+            action={
+              <span className="text-xs tabular-nums text-muted-foreground">
+                {completed.size} of {session.items.length} done
+              </span>
+            }
+          >
+            <div
+              className="-mt-2 mb-4 h-1 overflow-hidden rounded-full bg-foreground/10"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={session.items.length}
+              aria-valuenow={completed.size}
+              aria-label={`${completed.size} of ${session.items.length} tasks done`}
+            >
+              <span
+                className="block h-full rounded-full bg-primary transition-[width] duration-500"
+                style={{ width: `${(completed.size / session.items.length) * 100}%` }}
+              />
+            </div>
+            <ol className="-mx-2 space-y-1">
+              {session.items.map((item, index) => {
+                const done = completed.has(item.id);
+                const isCurrent = index === session.currentIndex;
+                const color = colorOf(item);
+                const detail = [
+                  item.courseName,
+                  session.perItem ? formatMinutes(itemMinutes(item)) : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ");
+                return (
+                  <li
+                    key={item.id}
+                    className={cn(
+                      "rounded-xl transition-colors",
+                      isCurrent ? "bg-primary/[0.08]" : "hover:bg-foreground/[0.04]",
+                    )}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => goTo(index)}
+                      aria-current={isCurrent ? "step" : undefined}
+                      className="flex w-full items-start gap-3 px-2 py-2.5 text-left"
                     >
-                      {done ? <Check className="h-3 w-3" /> : index + 1}
-                    </span>
-                    <span className="min-w-0 flex-1">
                       <span
                         className={cn(
-                          "block truncate text-[15px]",
-                          done && "line-through opacity-55",
-                          !isCurrent && !done && "text-foreground/80",
+                          "mt-px flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[11px] font-medium tabular-nums",
+                          done
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : isCurrent
+                              ? "border-primary text-primary"
+                              : "border-foreground/20 text-muted-foreground",
                         )}
                       >
-                        {item.name}
+                        {done ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : index + 1}
                       </span>
-                      {item.courseName && (
-                        <span className="block truncate text-xs text-muted-foreground">
-                          {item.courseName}
+                      <span className="min-w-0 flex-1">
+                        <span
+                          className={cn(
+                            "block text-[15px] leading-snug",
+                            done && "text-muted-foreground line-through decoration-foreground/30",
+                          )}
+                        >
+                          {item.name}
+                        </span>
+                        {detail && (
+                          <span className="mt-1 flex items-baseline gap-2 text-xs tabular-nums text-muted-foreground">
+                            {color && (
+                              <span
+                                className="inline-block h-1.5 w-1.5 shrink-0 translate-y-[-1px] rounded-full"
+                                style={{ backgroundColor: color }}
+                                aria-hidden="true"
+                              />
+                            )}
+                            <span>{detail}</span>
+                          </span>
+                        )}
+                      </span>
+                      {isCurrent && !done && (
+                        <span className="mt-1 shrink-0 text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">
+                          Now
                         </span>
                       )}
-                    </span>
-                    {session.perItem && (
-                      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                        {itemMinutes(item)} min
-                      </span>
+                    </button>
+                    {isCurrent && item.source === "canvas" && (
+                      <div className="-mt-1 pb-3 pl-11">
+                        <AssignmentDescriptionLink
+                          assignmentId={Number(item.id.replace("canvas:", ""))}
+                          showProgress={false}
+                        />
+                      </div>
                     )}
-                  </button>
-                  {item.source === "canvas" && (
-                    <AssignmentDescriptionLink
-                      assignmentId={Number(item.id.replace("canvas:", ""))}
-                      className="mb-3 ml-[2.125rem]"
-                    />
-                  )}
-                  {item.source === "canvas" && <CachedAssignmentEstimate assignmentId={Number(item.id.replace("canvas:", ""))} className="mb-3 ml-[2.125rem]" />}
-                </li>
-              );
-            })}
-          </ol>
-          <button
-            type="button"
-            className={cn(textButton, "mt-6")}
-            onClick={() => {
-              if (window.confirm("End this study session? Your timer progress will be cleared.")) {
-                setSummary(session);
-                setSession(null);
-              }
-            }}
-          >
-            End session
-          </button>
-        </section>
+                  </li>
+                );
+              })}
+            </ol>
+            <div className="mt-5 flex justify-end border-t border-foreground/10 pt-4">
+              <button type="button" className={textButton} onClick={() => setConfirmEnd(true)}>
+                End session
+              </button>
+            </div>
+          </GlassCard>
+        </div>
+
+        <AlertDialog open={confirmEnd} onOpenChange={setConfirmEnd}>
+          <AlertDialogContent className="w-[calc(100%-2rem)] rounded-2xl sm:rounded-2xl">
+            <AlertDialogHeader>
+              <AlertDialogTitle>End this session?</AlertDialogTitle>
+              <AlertDialogDescription>
+                The timer stops. Tasks you finished stay finished.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmEnd(false)}
+                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-border px-4 text-sm font-medium transition hover:bg-foreground/5"
+              >
+                Keep going
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmEnd(false);
+                  setSummary(session);
+                  setSession(null);
+                }}
+                className="inline-flex min-h-11 items-center justify-center rounded-xl bg-foreground px-4 text-sm font-medium text-background transition hover:opacity-90"
+              >
+                End session
+              </button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     );
   }

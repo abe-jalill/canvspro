@@ -1,4 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { AudioLines } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { useStudySession } from "@/hooks/use-study-session";
 import {
@@ -99,9 +100,13 @@ export function FocusNoiseControls({ className }: { className?: string }) {
       <div
         role="radiogroup"
         aria-label="Background noise"
-        className="flex items-center gap-1 rounded-lg border border-foreground/15 p-1 text-xs"
+        className="flex items-center gap-1 rounded-full border border-foreground/15 bg-foreground/[0.03] p-1 text-xs"
       >
-        <span className="px-2 text-muted-foreground">Noise</span>
+        <span className="flex items-center gap-1.5 pl-2.5 pr-2 text-muted-foreground">
+          <AudioLines className="h-3.5 w-3.5" aria-hidden="true" />
+          Noise
+        </span>
+        <span className="h-4 w-px bg-foreground/15" aria-hidden="true" />
         {NOISE_OPTIONS.map((option) => {
           const selected = prefs.kind === option.id;
           return (
@@ -115,7 +120,7 @@ export function FocusNoiseControls({ className }: { className?: string }) {
                 writeNoisePrefs({ ...prefs, kind: option.id });
               }}
               className={cn(
-                "min-h-8 rounded-md px-3 transition-colors",
+                "min-h-8 rounded-full px-3 transition-colors",
                 selected
                   ? "bg-foreground/10 text-foreground"
                   : "text-muted-foreground hover:text-foreground",
