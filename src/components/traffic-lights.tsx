@@ -18,8 +18,10 @@ export function TrafficLights({
 }) {
   // Soft until the controls are hovered or focused, so three bright dots
   // don't sit at the top of every screen.
+  // Each dot is 16px to look at but has a taller, wider hit area (the gaps
+  // between dots included), so a thumb finds it on a phone.
   const dot =
-    "group/dot flex h-4 w-4 items-center justify-center rounded-full opacity-50 transition-[transform,opacity] duration-300 group-hover/lights:opacity-100 focus-visible:opacity-100 active:scale-90 [&_svg]:opacity-0 [&_svg]:transition-opacity hover:[&_svg]:opacity-100";
+    "group/dot relative flex h-4 w-4 items-center justify-center rounded-full opacity-50 transition-[transform,opacity] duration-300 after:absolute after:-inset-x-[3px] after:-inset-y-3 after:content-[''] group-hover/lights:opacity-100 focus-visible:opacity-100 active:scale-90 [&_svg]:opacity-0 [&_svg]:transition-opacity hover:[&_svg]:opacity-100";
   const icon = "h-2.5 w-2.5 text-black/60";
   return (
     <div

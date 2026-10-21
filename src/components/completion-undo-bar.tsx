@@ -91,7 +91,7 @@ function UndoBar({ entry, visible }: { entry: CompletionUndo; visible: boolean }
         </span>
         <p className="min-w-0 flex-1 text-sm leading-tight">
           <span className="block font-medium">Marked complete</span>
-          <span className="block truncate text-xs opacity-70">{entry.name}</span>
+          <span className="block break-words text-xs opacity-70">{entry.name}</span>
         </p>
         <button
           type="button"

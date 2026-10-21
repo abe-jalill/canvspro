@@ -264,7 +264,7 @@ function AnnouncementsPage() {
                     params={{ courseId: String(item.course_id) }}
                     className="inline-flex max-w-full items-center gap-1 text-[11px] font-medium uppercase tracking-[0.14em] text-primary hover:opacity-80"
                   >
-                    <span className="truncate">{label}</span>
+                    <span className="break-words">{label}</span>
                     <ArrowUpRight className="h-3 w-3 shrink-0" />
                   </Link>
                   <h2 className="mt-2 text-balance text-lg font-semibold tracking-[-0.02em] sm:text-xl">

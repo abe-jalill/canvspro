@@ -67,26 +67,24 @@ export function DashboardPomodoro() {
   };
 
   return (
-    <div className="flex h-12 w-auto shrink-0 items-center gap-2 rounded-full border border-primary/25 bg-primary/10 p-1.5 pl-4">
-      <span className="min-w-20">
-        <span className="block text-[11px] text-muted-foreground">
+    <div className="flex h-10 w-auto shrink-0 items-center gap-1 rounded-full border border-primary/25 bg-primary/10 py-1 pl-3.5 pr-1">
+      <span className="flex items-baseline gap-2 pr-1">
+        <span className="text-xs text-muted-foreground">
           {session.status === "paused" ? "Paused" : phaseLabel}
         </span>
-        <span className="block text-sm font-medium tabular-nums">
-          {formatStudyClock(remaining)}
-        </span>
+        <span className="text-sm font-medium tabular-nums">{formatStudyClock(remaining)}</span>
       </span>
       <Button
         type="button"
         size="icon"
         variant="ghost"
         onClick={pauseOrResume}
-        className="h-9 w-9 rounded-full"
+        className="h-8 w-8 rounded-full"
         aria-label={`${session.status === "running" ? "Pause" : "Resume"} ${session.pomodoro ? "Pomodoro" : "study timer"}`}
       >
         {session.status === "running" ? <CirclePause /> : <CirclePlay />}
       </Button>
-      <Button asChild size="icon" variant="ghost" className="h-9 w-9 rounded-full">
+      <Button asChild size="icon" variant="ghost" className="h-8 w-8 rounded-full">
         <Link
           to="/study-session"
           search={{ assignment: undefined }}

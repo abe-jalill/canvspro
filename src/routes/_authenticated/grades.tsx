@@ -144,9 +144,14 @@ function GradesPage() {
     if (!q) return true;
     const displayName = displayCourseName(c.name, c.course_code).toLowerCase();
     if (displayName.includes(q) || c.name.toLowerCase().includes(q)) return true;
-    // Match if any of this course's assignments matches search
+    // Or one of its graded assignments (what this page lists), so a class
+    // never matches through work that has no grade yet.
     const items = byCourse.get(c.id) ?? [];
-    return items.some((a) => a.name.toLowerCase().includes(q));
+    return items.some(
+      (a) =>
+        (a.submission?.score != null || Boolean(a.submission?.grade)) &&
+        a.name.toLowerCase().includes(q),
+    );
   });
   const scoredCourses = (courses.data ?? []).filter((course) => course.current_score != null);
   const average = scoredCourses.length
@@ -181,19 +186,20 @@ function GradesPage() {
               Compare courses, spot movement, and open the details only when you need them.
             </p>
           </div>
-          <div className="flex items-end gap-3">
-            <div>
-              <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
-                Current average
-              </p>
-              <p
-                className="mt-1 text-6xl font-medium tabular-nums tracking-[-0.075em]"
+          <div>
+            <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+              Current average
+            </p>
+            {/* The % sits right after the number, not after the label above it. */}
+            <p className="mt-1 flex items-baseline gap-1">
+              <span
+                className="text-6xl font-medium tabular-nums tracking-[-0.075em]"
                 style={{ color: getGradeColor(average) }}
               >
                 {average == null ? "—" : <AnimatedNumber value={average} decimals={1} />}
-              </p>
-            </div>
-            {average != null && <span className="mb-2 text-lg text-muted-foreground">%</span>}
+              </span>
+              {average != null && <span className="text-lg text-muted-foreground">%</span>}
+            </p>
           </div>
         </div>
         <div className="relative mt-7 grid grid-cols-3 border-t border-foreground/10 pt-5">
@@ -322,9 +328,9 @@ function GradesPage() {
                     <div className="flex min-w-0 items-center gap-3">
                       <span
                         className="h-2.5 w-2.5 shrink-0 rounded-full"
-                        style={{ backgroundColor: color, boxShadow: `0 0 10px ${color}66` }}
+                        style={{ backgroundColor: color, boxShadow: `0 0 10px color-mix(in srgb, ${color} 40%, transparent)` }}
                       />
-                      <span className="line-clamp-2 text-sm font-medium leading-snug">{label}</span>
+                      <span className="break-words text-sm font-medium leading-snug">{label}</span>
                     </div>
                     <ChevronDown
                       className={cn(
@@ -377,9 +383,10 @@ function GradesPage() {
                     )}
                   </div>
 
-                  <div className="mt-auto pt-8">
+                  <div className="mt-auto pt-6">
+                    {/* The bar is the grade itself, out of 100%. */}
                     <div className="mb-2 flex items-center justify-between text-[10px] text-muted-foreground">
-                      <span>Progress</span>
+                      <span>Out of 100%</span>
                       <span>{items.length} graded</span>
                     </div>
                     <div className="h-1.5 overflow-hidden rounded-full bg-foreground/10">
@@ -419,7 +426,7 @@ function GradesPage() {
                             className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 border-t border-foreground/[0.07] py-3 first:border-0"
                           >
                             <div className="min-w-0">
-                              <p className="truncate text-sm">{item.name}</p>
+                              <p className="break-words text-sm">{item.name}</p>
                               <AssignmentDescriptionLink assignmentId={item.id} className="mt-1" />
                               <AssignmentEstimateEditor assignment={item} className="mt-2" />
                             </div>
@@ -468,7 +475,7 @@ function GradesPage() {
                       className="h-2.5 w-2.5 rounded-full shrink-0 transition-transform group-hover:scale-110"
                       style={{
                         backgroundColor: color,
-                        boxShadow: `0 0 8px ${color}66`,
+                        boxShadow: `0 0 8px color-mix(in srgb, ${color} 40%, transparent)`,
                       }}
                     />
                     <span className="font-normal text-foreground">
@@ -537,7 +544,7 @@ function GradesPage() {
                     <ul className="divide-y divide-foreground/10">
                       {items.map((a) => (
                         <li key={a.id} className="flex items-center justify-between gap-3 py-2.5">
-                          <div className="min-w-0"><p className="truncate text-sm">{a.name}</p><AssignmentEstimateEditor assignment={a} className="mt-2" /></div>
+                          <div className="min-w-0"><p className="break-words text-sm">{a.name}</p><AssignmentEstimateEditor assignment={a} className="mt-2" /></div>
                           <div className="whitespace-nowrap text-sm tabular-nums">
                             <span className="font-semibold">{a.submission?.score ?? "—"}</span>
                             <span className="text-muted-foreground">

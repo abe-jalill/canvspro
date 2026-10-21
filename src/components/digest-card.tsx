@@ -145,8 +145,8 @@ export function DigestCard({ announcements, assignments, courses }: Props) {
               preload="intent"
               className="glass-inset glass-hover block p-2.5"
             >
-              <p className="truncate text-xs font-medium">{a.title}</p>
-              <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
+              <p className="break-words text-xs font-medium">{a.title}</p>
+              <p className="mt-0.5 break-words text-[10px] text-muted-foreground">
                 {courseName(a.course_id, a.course_name, a.course_code)}
               </p>
             </Link>
@@ -160,9 +160,9 @@ export function DigestCard({ announcements, assignments, courses }: Props) {
         >
           {gradeChanges.map(({ a, prev, next }) => (
             <div key={a.id} className="glass-inset glass-hover block p-2.5">
-              <p className="truncate text-xs font-medium">{a.name}</p>
+              <p className="break-words text-xs font-medium">{a.name}</p>
               <div className="mt-0.5 flex items-baseline justify-between gap-2">
-                <p className="truncate text-[10px] text-muted-foreground">
+                <p className="break-words text-[10px] text-muted-foreground">
                   {courseName(a.course_id, a.course_name, a.course_code)}
                 </p>
                 <p className="whitespace-nowrap text-[11px] font-semibold tabular-nums">
@@ -200,9 +200,9 @@ export function DigestCard({ announcements, assignments, courses }: Props) {
               preload="intent"
               className="block"
             >
-              <p className="truncate text-xs font-medium">{a.name}</p>
+              <p className="break-words text-xs font-medium">{a.name}</p>
               <div className="mt-0.5 flex items-baseline justify-between gap-2">
-                <p className="truncate text-[10px] text-muted-foreground">
+                <p className="break-words text-[10px] text-muted-foreground">
                   {courseName(a.course_id, a.course_name, a.course_code)}
                 </p>
                 <p className="whitespace-nowrap text-[11px] font-semibold">

@@ -270,7 +270,13 @@ function SessionRing({
           })}
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-        <span className="text-[2rem] font-medium leading-none tracking-tight tabular-nums">
+        {/* "1 hr 30 min", as under Choose time, a size down so it fits the ring. */}
+        <span
+          className={cn(
+            "font-medium leading-none tracking-tight tabular-nums",
+            value.length > 7 ? "text-2xl" : "text-[2rem]",
+          )}
+        >
           {value}
         </span>
         <span className="mt-2 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
@@ -291,13 +297,6 @@ function SectionTitle({ title, trailing }: { title: string; trailing?: string })
   );
 }
 
-/** "25 min" or "1h 30m": short enough to sit inside the ring. */
-function shortMinutes(total: number) {
-  const hours = Math.floor(total / 60);
-  const minutes = total % 60;
-  if (hours === 0) return `${minutes} min`;
-  return minutes === 0 ? `${hours}h` : `${hours}h ${minutes}m`;
-}
 
 /** How many assignments show before "Show more". */
 const SHORT_LIST = 6;
@@ -576,15 +575,18 @@ function StudySessionPage() {
           ? formatMinutes(Math.min(480, Math.round(duration)))
           : "Choose a time";
 
-  // Inside the ring: short enough to fit ("25 min", "1h 30m", "25 / 5").
+  // Inside the ring, the same words as Choose time ("25 min", "1 hr 30 min",
+  // "25 / 5"), and nothing while the custom time isn't a real one.
   const ringValue =
     timeMode === "pomodoro"
       ? `${chosenPlan.focusMs / 60_000} / ${chosenPlan.shortBreakMs / 60_000}`
       : timeMode === "per"
-        ? shortMinutes(perItemTotal)
-        : shortMinutes(Math.min(480, Math.max(1, Math.round(duration || 25))));
+        ? formatMinutes(perItemTotal)
+        : durationValid
+          ? formatMinutes(Math.min(480, Math.round(duration)))
+          : "—";
   const ringLabel =
-    timeMode === "pomodoro" ? "Focus / break" : timeMode === "per" ? "Per task" : "Total time";
+    timeMode === "pomodoro" ? "Focus / break" : timeMode === "per" ? "In all" : "Total time";
 
   function start() {
     if (!canStart) return;
@@ -1077,8 +1079,8 @@ function StudySessionPage() {
                               {isSelected && <Check className="h-3 w-3" strokeWidth={3} />}
                             </span>
                             <span className="min-w-0 flex-1">
-                              <span className="block truncate text-[15px]">{assignment.name}</span>
-                              <span className="mt-0.5 block truncate text-xs tabular-nums text-muted-foreground">
+                              <span className="block text-[15px] leading-snug">{assignment.name}</span>
+                              <span className="mt-0.5 block text-xs tabular-nums text-muted-foreground">
                                 {detail}
                               </span>
                             </span>
@@ -1176,8 +1178,8 @@ function StudySessionPage() {
               label={ringLabel}
             />
             <p className="h-4 text-xs tabular-nums text-muted-foreground">
-              {selected.length === 0
-                ? "Pick what to study to begin."
+              {selected.length === 0 || (timeMode === "total" && !durationValid)
+                ? ""
                 : timeMode === "pomodoro"
                   ? `Long break every ${chosenPlan.roundsBeforeLongBreak} blocks`
                   : `Ends around ${new Date(
@@ -1321,9 +1323,9 @@ function StudySessionPage() {
                     {index + 1}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm">{item.name}</span>
+                    <span className="block text-sm leading-snug">{item.name}</span>
                     {item.courseName && (
-                      <span className="block truncate text-xs text-muted-foreground">
+                      <span className="block text-xs text-muted-foreground">
                         {item.courseName}
                       </span>
                     )}
@@ -1376,7 +1378,7 @@ function StudySessionPage() {
             disabled={!canStart}
             onClick={start}
           >
-            {selected.length === 0 ? "Pick something to start" : "Start"}
+            Start
           </button>
           </div>
         </GlassCard>

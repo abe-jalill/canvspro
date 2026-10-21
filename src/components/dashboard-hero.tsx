@@ -133,21 +133,21 @@ export function DashboardHero() {
   return (
     <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(22rem,27rem)] lg:items-start lg:gap-6">
       <div className="dashboard-today__header relative min-w-0 px-1 pt-1">
-        <div className="relative flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-muted-foreground">{date}</p>
-            {/* Wraps for a long name instead of shrinking. */}
-            <h1 className="mt-1 text-balance text-[clamp(1.9rem,3.6vw,2.9rem)] font-semibold leading-[1.08] tracking-[-0.03em] text-foreground">
-              {greeting}
-              {displayName && (
-                <>
-                  , <span className="text-primary">{displayName}</span>
-                </>
-              )}
-            </h1>
-          </div>
+        {/* A running timer sits beside the date (below it on a phone), so the
+            greeting always has the full width. */}
+        <div className="relative flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <p className="text-sm font-medium text-muted-foreground">{date}</p>
           <DashboardPomodoro />
         </div>
+        {/* Wraps for a long name instead of shrinking. */}
+        <h1 className="relative mt-2 text-balance text-[clamp(1.9rem,3.6vw,2.9rem)] font-semibold leading-[1.08] tracking-[-0.03em] text-foreground">
+          {greeting}
+          {displayName && (
+            <>
+              , <span className="text-primary">{displayName}</span>
+            </>
+          )}
+        </h1>
         <p className="relative mt-2 text-base tabular-nums text-muted-foreground">{message}</p>
         {!failed && days.some((day) => day.total > 0) && <WeekCircles days={days} />}
       </div>

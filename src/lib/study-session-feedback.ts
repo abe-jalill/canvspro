@@ -1,14 +1,26 @@
+/**
+ * A short buzz where the phone can. Browsers refuse (and log an error) until
+ * the page has had a tap, so it waits for one.
+ */
+export function buzz(pattern: number | number[]) {
+  if (typeof navigator === "undefined" || !("vibrate" in navigator)) return;
+  const activation = (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } })
+    .userActivation;
+  if (activation && !activation.hasBeenActive) return;
+  navigator.vibrate(pattern);
+}
+
 export async function studySelectionFeedback() {
-  if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate(8);
+  buzz(8);
 }
 
 export async function studySuccessFeedback() {
-  if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate([12, 30, 12]);
+  buzz([12, 30, 12]);
 }
 
 /** A soft chime and a gentle buzz when a pomodoro moves between focus and break. */
 export async function studyPhaseFeedback() {
-  if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate([20, 40, 20]);
+  buzz([20, 40, 20]);
   try {
     const Context =
       window.AudioContext ??

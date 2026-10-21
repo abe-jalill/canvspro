@@ -56,7 +56,7 @@ export function SyllabusModal({ title, html, onClose }: SyllabusModalProps) {
             <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
               Syllabus
             </p>
-            <h2 className="mt-0.5 truncate text-lg font-semibold tracking-tight">{title}</h2>
+            <h2 className="mt-0.5 break-words text-lg font-semibold tracking-tight">{title}</h2>
           </div>
           <button
             onClick={onClose}

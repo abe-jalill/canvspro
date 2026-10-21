@@ -244,7 +244,7 @@ export function NotificationCenter({
                     return (
                       <section key={course}>
                         <header className="flex items-center justify-between gap-2 px-1 pb-1.5">
-                          <h3 className="min-w-0 truncate text-sm font-semibold tracking-tight">
+                          <h3 className="min-w-0 break-words text-sm font-semibold tracking-tight">
                             {course}
                           </h3>
                           <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">

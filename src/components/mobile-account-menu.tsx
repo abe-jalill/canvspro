@@ -77,9 +77,9 @@ export function MobileAccountMenu() {
               )}
             </span>
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold">{name || "Your account"}</p>
+              <p className="break-words text-sm font-semibold">{name || "Your account"}</p>
               {profile?.username && (
-                <p className="truncate text-xs text-muted-foreground">@{profile.username}</p>
+                <p className="break-words text-xs text-muted-foreground">@{profile.username}</p>
               )}
             </div>
           </div>

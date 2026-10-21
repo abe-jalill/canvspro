@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { ArrowLeft, Check, Search } from "lucide-react";
+import { toast } from "sonner";
 import { assignmentsQueryOptions, coursesQueryOptions } from "@/lib/canvas.queries";
 import { useLocalSet, COMPLETED_ASSIGNMENTS_KEY } from "@/lib/local-state";
 import { isAssignmentComplete } from "@/lib/assignment-window";
@@ -30,7 +31,7 @@ export const Route = createFileRoute("/_authenticated/completed")({
   component: CompletedPage,
 });
 
-const GROUPS = ["Today", "Yesterday", "This week", "Earlier"] as const;
+const GROUPS = ["Today", "Yesterday", "Past week", "Earlier"] as const;
 
 /** A page of its own (no sidebar), opened from Coming Up and Assignments. */
 function CompletedPage() {
@@ -151,7 +152,14 @@ function CompletedPage() {
                   >
                     <CompleteToggle
                       done
-                      onToggle={() => completed.toggle(a.id)}
+                      onToggle={() => {
+                        // It leaves this list for To-Do; say so, with a way back.
+                        completed.toggle(a.id);
+                        toast("Back on your To-Do", {
+                          description: a.name,
+                          action: { label: "Undo", onClick: () => completed.toggle(a.id) },
+                        });
+                      }}
                       label={a.name}
                       disabled={!completed.ready}
                       className="mt-0.5 h-5 w-5"

@@ -11,6 +11,14 @@ import {
 import { Camera, Check, LoaderCircle, Trash2, UserRound, X } from "lucide-react";
 import { GlassCard } from "@/components/glass-card";
 import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   useCanvasKey,
   useCanvasDomain,
   useSaveCanvasKey,
@@ -59,6 +67,7 @@ export function CanvasConnectionSettings() {
   const [domainValue, setDomainValue] = useState("");
   const [domainTouched, setDomainTouched] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  const [confirmClear, setConfirmClear] = useState(false);
 
   // Pre-fill the saved Canvas URL, unless the user already started typing.
   // Never guessed from the email: a school's email domain often isn't its
@@ -78,8 +87,8 @@ export function CanvasConnectionSettings() {
       if (isLoading) return;
       // Key already saved: allow correcting just the Canvas URL.
       try {
+        // The toast says it's saved; this line is only for problems.
         await saveDomain.mutateAsync(domainValue);
-        setStatus("Canvas URL saved and verified with your saved key.");
       } catch (err) {
         setStatus(err instanceof Error ? err.message : "Could not save.");
       }
@@ -93,7 +102,6 @@ export function CanvasConnectionSettings() {
     try {
       await save.mutateAsync({ key: value, domain: domainValue });
       setValue("");
-      setStatus("Canvas connection saved and verified.");
       // First-time setup is done — take them straight to their classes.
       if (firstConnection) void navigate({ to: "/dashboard" });
     } catch (err) {
@@ -102,13 +110,13 @@ export function CanvasConnectionSettings() {
   }
 
   async function onClear() {
+    setConfirmClear(false);
     setStatus(null);
     setValue("");
-    setDomainValue("");
+    // The school's URL stays in its field, ready for a new key.
     setDomainTouched(true);
     try {
       await save.mutateAsync({ key: null, domain: "" });
-      setStatus("Canvas API key cleared.");
     } catch (err) {
       setStatus(err instanceof Error ? err.message : "Could not clear the key.");
     }
@@ -173,7 +181,7 @@ export function CanvasConnectionSettings() {
                 isLoading
                   ? "Loading…"
                   : savedKey
-                    ? "A key is saved — paste a new one to replace it"
+                    ? "Paste a new key to replace it"
                     : "Paste your Canvas key"
               }
               autoComplete="off"
@@ -206,7 +214,7 @@ export function CanvasConnectionSettings() {
           {savedKey && (
             <button
               type="button"
-              onClick={onClear}
+              onClick={() => setConfirmClear(true)}
               disabled={save.isPending}
               className="glass-hover glass-inset min-h-12 w-full rounded-xl px-4 text-sm font-medium disabled:opacity-50 sm:w-auto"
             >
@@ -224,6 +232,32 @@ export function CanvasConnectionSettings() {
           delete it any time in Canvas under Settings → Approved Integrations.
         </p>
       </form>
+      <AlertDialog open={confirmClear} onOpenChange={setConfirmClear}>
+        <AlertDialogContent className="w-[calc(100%-2rem)] rounded-2xl sm:rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear your Canvas key?</AlertDialogTitle>
+            <AlertDialogDescription>
+              CoursePro stops syncing your classes until you paste a key again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirmClear(false)}
+              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-border px-4 text-sm font-medium transition hover:bg-foreground/5"
+            >
+              Keep it
+            </button>
+            <button
+              type="button"
+              onClick={() => void onClear()}
+              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-destructive px-4 text-sm font-medium text-destructive-foreground transition hover:opacity-90"
+            >
+              Clear key
+            </button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </GlassCard>
   );
 }
@@ -250,7 +284,7 @@ export function AiConnectionSection() {
         can then answer questions about your real classes, deadlines, and grades.
       </p>
       <div className="glass-inset flex flex-col gap-2 rounded-xl p-3 sm:flex-row sm:items-center">
-        <code className="min-w-0 flex-1 truncate text-foreground">{url}</code>
+        <code className="min-w-0 flex-1 break-all text-foreground">{url}</code>
         <button
           type="button"
           onClick={copy}

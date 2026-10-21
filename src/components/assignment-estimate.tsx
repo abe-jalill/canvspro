@@ -99,7 +99,7 @@ export function AssignmentEstimateEditor({
         >
           <div>
             <p className="text-sm font-medium">Estimated time</p>
-            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{assignment.name}</p>
+            <p className="mt-1 break-words text-xs text-muted-foreground">{assignment.name}</p>
           </div>
           <label htmlFor={inputId} className="block space-y-1.5 text-xs text-muted-foreground">
             Minutes

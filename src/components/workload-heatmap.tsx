@@ -201,8 +201,8 @@ export function WorkloadHeatmap({ assignments, weeks = 4, outlineDueToday = fals
                 )}
               >
                 <div className="min-w-0">
-                  <p className="truncate text-[13px] font-medium">{a.name}</p>
-                  <p className="truncate text-[11px] text-muted-foreground">
+                  <p className="break-words text-[13px] font-medium">{a.name}</p>
+                  <p className="break-words text-[11px] text-muted-foreground">
                     {displayCourseName(a.course_name, a.course_code)}
                   </p>
                   <AssignmentDescriptionLink assignmentId={a.id} className="mt-0.5" />

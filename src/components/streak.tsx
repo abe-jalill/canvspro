@@ -6,6 +6,7 @@ import { useStreak } from "@/hooks/use-streak";
 import { useUserProfile } from "@/lib/user-profile";
 import { useScopedKey } from "@/lib/user-scope";
 import { cn } from "@/lib/utils";
+import { buzz } from "@/lib/study-session-feedback";
 import {
   nextMilestone,
   nextMonthStart,
@@ -277,11 +278,11 @@ function StreakCelebration({
     document.body.style.overflow = "hidden";
     // Phones that can buzz do, as the flame lands (not iPhone Safari).
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    const buzz = reduce ? 0 : window.setTimeout(() => navigator.vibrate?.([24, 70, 36]), 420);
+    const timer = reduce ? 0 : window.setTimeout(() => buzz([24, 70, 36]), 420);
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = previousOverflow;
-      window.clearTimeout(buzz);
+      window.clearTimeout(timer);
     };
   }, [onClose]);
 

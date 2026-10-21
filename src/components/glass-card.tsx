@@ -51,7 +51,7 @@ export function GlassCard({
           )}
           <div className="min-w-0">
             {title && (
-              <h2 className="truncate text-base font-normal tracking-tight text-foreground sm:text-lg">
+              <h2 className="break-words text-base font-normal tracking-tight text-foreground sm:text-lg">
                 {title}
               </h2>
             )}

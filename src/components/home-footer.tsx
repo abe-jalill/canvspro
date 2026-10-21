@@ -27,7 +27,7 @@ export function HomeFooter() {
       </div>
       <div className="hp-footer__fine">
         <p>© {new Date().getFullYear()} CoursePro. All rights reserved.</p>
-        <p>
+        <p className="text-balance">
           CoursePro is an independent tool and is not affiliated with, endorsed by, sponsored by, or
           connected in any way to Canvas LMS or Instructure, Inc.
         </p>

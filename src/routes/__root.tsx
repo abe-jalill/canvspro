@@ -19,7 +19,7 @@ import { getActiveIdentity, syncAuthIdentity } from "@/lib/auth-user";
 import { browserStorage, captureSignupSource } from "@/lib/signup-source";
 import { SiteFooter } from "@/components/site-footer";
 import { Toaster } from "@/components/ui/sonner";
-import { ThemeProvider } from "@/lib/theme";
+import { ThemeProvider, useTheme } from "@/lib/theme";
 import { APP_SECTIONS, SURFACE_BOOT, surfaceFor } from "@/lib/app-surface";
 
 const themeBootScript = `try{${SURFACE_BOOT}}catch(e){}try{var t=localStorage.getItem("canvas:theme"),p=localStorage.getItem("canvas:palette");document.documentElement.classList.add(t==="dark"||t!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.palette=["forest","blue","violet","rose"].includes(p)?p:"forest";document.documentElement.dataset.wallpaper=["wave","glow"].includes(localStorage.getItem("canvas:wallpaper"))?localStorage.getItem("canvas:wallpaper"):"plain";document.documentElement.dataset.themeMode=t==="light"||t==="dark"?t:"system"}catch(e){document.documentElement.classList.add("light");document.documentElement.dataset.palette="forest";document.documentElement.dataset.wallpaper="plain"}`;
@@ -30,6 +30,12 @@ function NotFoundComponent() {
       <div className="glass-panel-strong max-w-md p-10 text-center">
         <h1 className="text-6xl font-semibold tracking-tight">404</h1>
         <p className="mt-3 text-sm text-muted-foreground">This page doesn't exist.</p>
+        <a
+          href="/"
+          className="mt-6 inline-flex min-h-11 items-center justify-center rounded-xl bg-foreground px-5 text-sm font-medium text-background transition-opacity hover:opacity-90"
+        >
+          Go home
+        </a>
       </div>
     </div>
   );
@@ -229,8 +235,14 @@ function RootComponent() {
           </div>
           {showFooter && <SiteFooter />}
         </div>
-        <Toaster position="top-center" richColors closeButton />
+        <ThemedToaster />
       </ThemeProvider>
     </QueryClientProvider>
   );
+}
+
+/** Toasts follow light or dark mode; without a theme they were always light. */
+function ThemedToaster() {
+  const { theme } = useTheme();
+  return <Toaster position="top-center" richColors closeButton theme={theme} />;
 }

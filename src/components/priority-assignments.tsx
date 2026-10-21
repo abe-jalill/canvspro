@@ -111,14 +111,14 @@ export function PriorityAssignmentsWidget() {
                 <div className="min-w-0 flex-1">
                   <p
                     className={cn(
-                      "truncate text-sm font-medium",
+                      "break-words text-sm font-medium",
                       (completed.has(p.assignment.id) || completing.has(String(p.assignment.id))) &&
                         "line-through opacity-60",
                     )}
                   >
                     {p.assignment.name}
                   </p>
-                  <p className="truncate text-xs text-muted-foreground">
+                  <p className="break-words text-xs text-muted-foreground">
                     {displayCourseName(p.assignment.course_name, p.assignment.course_code)}
                   </p>
                   <AssignmentDescriptionLink assignmentId={p.assignment.id} className="mt-1" />

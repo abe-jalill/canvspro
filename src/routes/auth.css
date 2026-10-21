@@ -15,11 +15,14 @@
   --glass: 228 7% 8%;
   --glass-strong: 228 7% 8%;
   --glass-border: 0 0% 100% / 0.09;
+  /* Native checkboxes and fields follow the page, not the device's mode. */
+  color-scheme: dark;
 
   display: flex;
   flex-direction: column;
 }
 :root[data-theme-mode="light"] .hp-auth {
+  color-scheme: light;
   --background: 60 14% 98%;
   --foreground: 225 8% 7%;
   --muted-foreground: 223 5% 38%;

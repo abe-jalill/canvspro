@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import {
   Calculator,
   TrendingUp,
@@ -163,9 +164,15 @@ export function GpaCalculator({ className }: GpaCalculatorProps) {
         </div>
       )}
 
+      {/* Credits come from My classes; without them there's no GPA, so say where. */}
       <div className="mt-4 text-xs text-muted-foreground">
-        {result.entries.length} class
-        {result.entries.length !== 1 ? "es" : ""} loaded.
+        {result.totalCredits > 0 ? (
+          `${result.entries.length} ${result.entries.length === 1 ? "class" : "classes"} loaded.`
+        ) : (
+          <Link to="/class-schedule" className="underline underline-offset-2 hover:text-foreground">
+            Add each class&rsquo;s credits in My classes to see your GPA.
+          </Link>
+        )}
       </div>
     </GlassCard>
   );

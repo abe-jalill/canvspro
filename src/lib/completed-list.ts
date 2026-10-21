@@ -41,7 +41,7 @@ export function completedEntries(
     );
 }
 
-/** "Today", "Yesterday", "This week", "Earlier". */
+/** "Today", "Yesterday", "Past week", "Earlier": looking back, never the week ahead. */
 export function completedGroupLabel(doneAt: number | null, now = Date.now()) {
   if (doneAt == null) return "Earlier";
   const today = new Date(now);
@@ -49,6 +49,6 @@ export function completedGroupLabel(doneAt: number | null, now = Date.now()) {
   const start = today.getTime();
   if (doneAt >= start) return "Today";
   if (doneAt >= start - DAY_MS) return "Yesterday";
-  if (doneAt >= start - 6 * DAY_MS) return "This week";
+  if (doneAt >= start - 6 * DAY_MS) return "Past week";
   return "Earlier";
 }

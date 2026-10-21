@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { type AssignmentItem, type AnnouncementItem } from "@/lib/canvas.functions";
 import { announcementsQueryOptions, assignmentsQueryOptions } from "@/lib/canvas.queries";
 import { displayCourseName } from "@/lib/course-display";
+import { formatAssignmentDue } from "@/lib/assignment-due";
 import { notify, updateNotification } from "@/lib/notifications";
 import { DUE_WINDOWS, readPrefs } from "@/lib/notification-prefs";
 import { useUserPreferences } from "@/hooks/use-user-preferences";
@@ -56,7 +57,7 @@ function runDueChecks(assignments: AssignmentItem[], completed: Set<string>, pop
           course_code: a.course_code,
           to: "/assignments",
           ts: due,
-          body: `was due ${new Date(a.due_at).toLocaleString()}`,
+          body: `was due ${formatAssignmentDue(a.due_at, now)}`,
         }, { popUp });
       }
       continue;
@@ -74,13 +75,13 @@ function runDueChecks(assignments: AssignmentItem[], completed: Set<string>, pop
       notify({
         id: `due:${a.id}:${w.key}`,
         kind: "due",
-        title: `Due ${w.label.replace(" before", "")} or less: ${a.name}`,
+        title: `Due within ${w.label.replace(" before", "")}: ${a.name}`,
         course: displayCourseName(a.course_name, a.course_code),
         course_id: a.course_id,
         course_name: a.course_name,
         course_code: a.course_code,
         to: "/assignments",
-        body: `due ${new Date(a.due_at).toLocaleString()}`,
+        body: `due ${formatAssignmentDue(a.due_at, now)}`,
       }, { popUp });
     }
   }

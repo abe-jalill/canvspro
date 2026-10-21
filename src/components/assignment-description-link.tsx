@@ -6,8 +6,9 @@ import { notYetOpen, opensLabel } from "@/lib/assignment-availability";
 import { cn } from "@/lib/utils";
 import { AssignmentProgressBar } from "@/components/assignment-progress";
 
+// Its own line, so it never runs into a time chip or another link beside it.
 const linkClass =
-  "inline-flex text-[11px] font-medium text-muted-foreground underline decoration-foreground/20 underline-offset-2 transition-colors hover:text-foreground";
+  "flex w-fit text-[11px] font-medium text-muted-foreground underline decoration-foreground/20 underline-offset-2 transition-colors hover:text-foreground";
 
 /**
  * Opens the assignment's description on its class page: the class page scrolls

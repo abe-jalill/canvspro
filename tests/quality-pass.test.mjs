@@ -133,3 +133,32 @@ test("one name for the To-Do widget, and the badge recounts as deadlines pass", 
   assert.match(badge, /window\.setInterval\(\(\) => setNow\(Date\.now\(\)\), 60_000\)/);
   assert.match(badge, /if \(isAssignmentComplete\(a, done\.has\(String\(a\.id\)\)\)\) return false;/);
 });
+
+test("click-through fixes stay fixed", () => {
+  const hero = read("src/components/dashboard-hero.tsx");
+  // A running timer sits on the date row, never squeezing the greeting.
+  assert.match(hero, /<p className="text-sm font-medium text-muted-foreground">\{date\}<\/p>\s+<DashboardPomodoro \/>/);
+  const assignments = read("src/routes/_authenticated/assignments.tsx");
+  assert.match(assignments, /<EmptyState message=\{q \? "No matches\." : "Nothing to do yet\."\} \/>/);
+  assert.match(assignments, /\{!q && \(\s+<PriorityAssignmentsCard/);
+  assert.match(assignments, /flex min-w-0 flex-1 basis-full items-center gap-3 sm:basis-0/);
+  // "Due within 1 day: Lab report" in the bell and in push alike.
+  assert.match(read("src/hooks/use-notification-engine.ts"), /title: `Due within \$\{w\.label\.replace\(" before", ""\)\}: \$\{a\.name\}`/);
+  assert.match(read("src/lib/push-dispatch.server.ts"), /title: `Due within \$\{w\.label\.replace\(" before", ""\)\}: \$\{a\.name\}`/);
+  // A Canvas event is never taken for a class's meeting time.
+  const course = read("src/routes/_authenticated/courses.$courseId.tsx");
+  assert.doesNotMatch(course, /calendarQueryState/);
+  assert.match(course, /pastDue \? `Past due · \$\{formattedDate\}` : formattedDate/);
+  // Toasts follow the theme; buzzing waits for a tap; grades are readable on light.
+  assert.match(read("src/routes/__root.tsx"), /<Toaster position="top-center" richColors closeButton theme=\{theme\} \/>/);
+  assert.match(read("src/lib/study-session-feedback.ts"), /if \(activation && !activation\.hasBeenActive\) return;/);
+  assert.match(read("src/lib/grade-color.ts"), /var\(--grade-lightness, 58%\)/);
+  // The phone header names the page or class.
+  assert.match(read("src/components/app-sidebar.tsx"), /navItems\.find\(\(i\) => isItemActive\(pathname, i\.to\)\)\?\.title \?\?/);
+  // Clearing the Canvas key asks first.
+  assert.match(read("src/components/settings-sections.tsx"), /<AlertDialogTitle>Clear your Canvas key\?<\/AlertDialogTitle>/);
+  assert.match(read("src/components/gpa-calculator.tsx"), /Add each class&rsquo;s credits in My classes to see your GPA\./);
+  assert.match(read("src/lib/completed-list.ts"), /return "Past week";/);
+  assert.match(read("src/routes/auth.css"), /color-scheme: dark;/);
+  assert.match(read("src/components/legal-consent.tsx"), /I agree to the\{" "\}\s+<a/);
+});

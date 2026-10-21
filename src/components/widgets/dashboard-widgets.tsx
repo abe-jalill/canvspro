@@ -37,7 +37,7 @@ import {
   Megaphone,
   X,
 } from "lucide-react";
-import { getCountdown, urgencyTextClass, urgencyAccentClass } from "@/lib/countdown";
+import { getCountdown, urgencyTextClass } from "@/lib/countdown";
 import { AddToCalendarButton } from "@/components/add-to-calendar-button";
 import { SyllabusModal } from "@/components/syllabus-modal";
 import { DigestCard } from "@/components/digest-card";
@@ -147,10 +147,10 @@ function CoursesWidget() {
                       className="h-2 w-2 shrink-0 rounded-full transition-transform group-hover:scale-110"
                       style={{
                         backgroundColor: color,
-                        boxShadow: `0 0 6px ${color}66`,
+                        boxShadow: `0 0 6px color-mix(in srgb, ${color} 40%, transparent)`,
                       }}
                     />
-                    <p className="truncate text-sm font-normal text-foreground/90 group-hover:text-foreground">
+                    <p className="break-words text-sm font-normal text-foreground/90 group-hover:text-foreground">
                       {courseName}
                     </p>
                   </Link>
@@ -301,12 +301,12 @@ function UpcomingWidget() {
                         className="h-2 w-2 shrink-0 rounded-full"
                         style={{
                           backgroundColor: color,
-                          boxShadow: `0 0 6px ${color}66`,
+                          boxShadow: `0 0 6px color-mix(in srgb, ${color} 40%, transparent)`,
                         }}
                       />
                     );
                   })()}
-                  <h3 className="min-w-0 flex-1 truncate text-xs font-normal text-foreground/90">
+                  <h3 className="min-w-0 flex-1 break-words text-xs font-normal text-foreground/90">
                     {displayCourseName(g.name, g.code)}
                   </h3>
                   <span className="shrink-0 text-xs font-normal tabular-nums text-muted-foreground">
@@ -413,7 +413,7 @@ function AnnouncementsWidget() {
                       isOpen && "rotate-180",
                     )}
                   />
-                  <h3 className="min-w-0 flex-1 truncate text-xs font-semibold uppercase tracking-[0.14em] text-foreground/80">
+                  <h3 className="min-w-0 flex-1 break-words text-xs font-semibold uppercase tracking-[0.14em] text-foreground/80">
                     {displayCourseName(g.name, g.code)}
                   </h3>
                   <span className="shrink-0 text-sm font-semibold tabular-nums text-muted-foreground">
@@ -439,7 +439,10 @@ function AnnouncementsWidget() {
                           <div className="flex items-start justify-between gap-2">
                             <p className="min-w-0 flex-1 text-sm font-semibold">{a.title}</p>
                             <span className="hidden whitespace-nowrap text-xs text-muted-foreground sm:inline">
-                              {new Date(a.posted_at).toLocaleDateString()}
+                              {new Date(a.posted_at).toLocaleDateString(undefined, {
+                                month: "short",
+                                day: "numeric",
+                              })}
                             </span>
                           </div>
                           <p className="mt-1 line-clamp-2 break-words text-xs text-muted-foreground">
@@ -556,7 +559,6 @@ function WidgetAssignmentRow({
       assignmentId={a.id}
       className={cn(
         "glass-inset glass-hover p-3",
-        cd && urgencyAccentClass(cd.urgency),
         dueTodayClass(a.due_at, done),
         done && "opacity-60",
       )}
@@ -706,9 +708,9 @@ function CalendarWidget() {
               className="glass-inset glass-hover flex items-center justify-between gap-3 p-3"
             >
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium">{e.title}</p>
+                <p className="break-words text-sm font-medium">{e.title}</p>
                 {e.context_name && (
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">{e.context_name}</p>
+                  <p className="mt-0.5 break-words text-xs text-muted-foreground">{e.context_name}</p>
                 )}
               </div>
               <span className="shrink-0 whitespace-nowrap text-xs tabular-nums text-muted-foreground">

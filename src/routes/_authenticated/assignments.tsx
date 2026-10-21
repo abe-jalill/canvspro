@@ -22,7 +22,7 @@ import { CompletionRow } from "@/components/completion-row";
 import { CompletedLink } from "@/components/completed-link";
 import { useCompletingIds } from "@/lib/completion-motion";
 import { CompleteToggle } from "@/components/complete-toggle";
-import { getCountdown, urgencyTextClass, urgencyAccentClass } from "@/lib/countdown";
+import { getCountdown, urgencyTextClass } from "@/lib/countdown";
 import { AddToCalendarButton as SharedCalBtn } from "@/components/add-to-calendar-button";
 const AddToCalendarButton = ({ assignment }: { assignment: AssignmentItem }) => (
   <SharedCalBtn
@@ -200,13 +200,13 @@ function PriorityAssignmentsCard({
               <div className="min-w-0 flex-1">
                 <p
                   className={cn(
-                    "truncate text-sm font-medium",
+                    "break-words text-sm font-medium",
                     shownDone(p.assignment.id) && "line-through",
                   )}
                 >
                   {p.assignment.name}
                 </p>
-                <p className="truncate text-xs text-muted-foreground">
+                <p className="break-words text-xs text-muted-foreground">
                   {displayCourseName(p.assignment.course_name, p.assignment.course_code)}
                 </p>
                 <AssignmentEstimateEditor assignment={p.assignment} className="mt-2" />
@@ -357,8 +357,19 @@ function AssignmentsPage() {
     Boolean(q),
   );
   const shownItems = agendaSections.flatMap((section) => section.items);
-  const overdueCount = agendaSections.find((section) => section.key === "overdue")?.items.length ?? 0;
-  const weekCount = agendaSections.find((section) => section.key === "week1")?.items.length ?? 0;
+  // The header's counts are for all your work; a search only narrows the list.
+  const { sections: allSections } = q
+    ? buildAgendaView(
+        groups
+          .flatMap((group) => group.items.map((assignment) => ({ assignment, course: group.label })))
+          .sort((a, b) => compareByDueDate(a.assignment, b.assignment)),
+        now,
+        horizon,
+        false,
+      )
+    : { sections: agendaSections };
+  const overdueCount = allSections.find((section) => section.key === "overdue")?.items.length ?? 0;
+  const weekCount = allSections.find((section) => section.key === "week1")?.items.length ?? 0;
   const toggle = (id: number) =>
     setExpanded((previous) => {
       const next = new Set(previous);
@@ -419,7 +430,8 @@ function AssignmentsPage() {
         className="glass-panel-strong premium-reveal relative flex flex-wrap items-center gap-3 rounded-2xl px-4 py-3"
         style={{ animationDelay: "65ms" }}
       >
-        <div className="flex min-w-0 flex-1 items-center gap-3">
+        {/* A row of its own on a phone, so the placeholder isn't cut to "Find". */}
+        <div className="flex min-w-0 flex-1 basis-full items-center gap-3 sm:basis-0">
           <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
           <input
             type="search"
@@ -476,13 +488,16 @@ function AssignmentsPage() {
         </section>
       )}
 
-      <PriorityAssignmentsCard
-        queue={priorityQueue}
-        loading={isLoading}
-        error={isError ? (error as Error) : null}
-        isDone={(id) => completed.has(id)}
-        onToggleDone={(id) => completed.toggle(id)}
-      />
+      {/* While searching, the results are the list. */}
+      {!q && (
+        <PriorityAssignmentsCard
+          queue={priorityQueue}
+          loading={isLoading}
+          error={isError ? (error as Error) : null}
+          isDone={(id) => completed.has(id)}
+          onToggleDone={(id) => completed.toggle(id)}
+        />
+      )}
 
       {courseOptions.length > 0 && (
         <details className="glass-panel group rounded-2xl border border-foreground/10 p-4">
@@ -492,7 +507,7 @@ function AssignmentsPage() {
             </span>
             <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
           </summary>
-          <AddAssignmentForm courseOptions={courseOptions} onAdd={custom.add} />
+          <AddAssignmentForm courseOptions={courseOptions} onAdd={custom.add} startOpen />
         </details>
       )}
 
@@ -510,7 +525,7 @@ function AssignmentsPage() {
       )}
       {!isLoading && !isError && visibleGroups.length === 0 && (
         <GlassCard>
-          <EmptyState message="No classes found." />
+          <EmptyState message={q ? "No matches." : "Nothing to do yet."} />
         </GlassCard>
       )}
 
@@ -569,6 +584,10 @@ function AssignmentsPage() {
                           <p className={cn("text-[15px] leading-snug", done && "line-through")}>
                             {a.name}
                           </p>
+                          {/* On a phone the due date sits here, so the name gets the row's width. */}
+                          <p className="mt-1 text-xs tabular-nums text-muted-foreground sm:hidden">
+                            {dueText}
+                          </p>
                           <p className="mt-1 text-xs text-muted-foreground">
                             {course}
                             <span className="mx-1.5 opacity-40">·</span>
@@ -591,14 +610,15 @@ function AssignmentsPage() {
                               <AssignmentProgressEditor assignmentId={a.id} courseId={a.course_id ?? 0} />
                             </div>
                           )}
+                          {/* Always shown: hidden until hover, it left an empty band under every row. */}
                           {!mine && (
-                            <div className="mt-1.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100">
+                            <div className="mt-1.5">
                               <AssignmentDescriptionLink assignmentId={a.id} showProgress={false} />
                             </div>
                           )}
                         </div>
                         <div className="flex items-start gap-2">
-                          <p className="whitespace-nowrap pt-0.5 text-right text-xs tabular-nums text-muted-foreground">
+                          <p className="hidden whitespace-nowrap pt-0.5 text-right text-xs tabular-nums text-muted-foreground sm:block">
                             {dueText}
                           </p>
                           <span className="flex items-center gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100">
@@ -668,7 +688,7 @@ function AssignmentsPage() {
                     className="glass-hover grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 p-4 text-left sm:p-6"
                   >
                     <div className="min-w-0">
-                      <h2 className="truncate text-base font-semibold tracking-tight sm:text-lg">
+                      <h2 className="break-words text-base font-semibold tracking-tight sm:text-lg">
                         {g.label}
                       </h2>
                       <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
@@ -713,7 +733,6 @@ function AssignmentsPage() {
                               key={a.id}
                               className={cn(
                                 "glass-inset flex items-start justify-between gap-4 p-3 transition-opacity",
-                                cd ? urgencyAccentClass(cd.urgency) : "",
                                 done && "opacity-60",
                               )}
                             >
@@ -729,7 +748,7 @@ function AssignmentsPage() {
                                 <div className="min-w-0">
                                   <p
                                     className={cn(
-                                      "truncate text-sm font-medium",
+                                      "break-words text-sm font-medium",
                                       done && "line-through",
                                     )}
                                   >
@@ -806,10 +825,13 @@ function AddAssignmentForm({
   courseLabel,
   courseOptions,
   onAdd,
+  startOpen = false,
 }: {
   courseId?: number;
   courseLabel?: string;
   courseOptions?: { id: number; label: string }[];
+  /** Already inside its own expander: the form, not another button to open it. */
+  startOpen?: boolean;
   onAdd: (input: {
     course_id: number;
     name: string;
@@ -819,7 +841,7 @@ function AddAssignmentForm({
     estimated_minutes?: number | null;
   }) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(startOpen);
   const [name, setName] = useState("");
   const [due, setDue] = useState("");
   const [points, setPoints] = useState("");
@@ -853,7 +875,7 @@ function AddAssignmentForm({
       estimated_minutes: minutes === "" ? null : Number(minutes),
     });
     reset();
-    setOpen(false);
+    if (!startOpen) setOpen(false);
   }
 
   const inputClass =
@@ -939,11 +961,11 @@ function AddAssignmentForm({
           type="button"
           onClick={() => {
             reset();
-            setOpen(false);
+            if (!startOpen) setOpen(false);
           }}
           className="min-h-11 rounded-xl px-4 py-2 text-sm text-muted-foreground hover:text-foreground"
         >
-          Cancel
+          {startOpen ? "Clear" : "Cancel"}
         </button>
       </div>
     </form>

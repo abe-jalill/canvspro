@@ -30,7 +30,7 @@ test("finished work is grouped by when it was done", () => {
   const now = new Date(2026, 9, 19, 15).getTime();
   assert.equal(completedGroupLabel(new Date(2026, 9, 19, 8).getTime(), now), "Today");
   assert.equal(completedGroupLabel(new Date(2026, 9, 18, 23).getTime(), now), "Yesterday");
-  assert.equal(completedGroupLabel(new Date(2026, 9, 14, 9).getTime(), now), "This week");
+  assert.equal(completedGroupLabel(new Date(2026, 9, 14, 9).getTime(), now), "Past week");
   assert.equal(completedGroupLabel(new Date(2026, 9, 2).getTime(), now), "Earlier");
   assert.equal(completedGroupLabel(null, now), "Earlier");
 });

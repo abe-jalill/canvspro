@@ -268,7 +268,8 @@ export async function buildAlertsForUser(
       if (tighter) continue;
       alerts.push({
         id: `due:${a.id}:${w.key}`,
-        title: `Due in ${w.label} or less: ${a.name}`,
+        // "Due within 1 day: Lab report" (the label reads "1 day before").
+        title: `Due within ${w.label.replace(" before", "")}: ${a.name}`,
         body: `${courseName(course)} · due ${dueLabel(new Date(a.due_at), new Date(now), tzOffsetMinutes)}`,
         to: "/assignments",
       });

@@ -88,17 +88,3 @@ export function urgencyTextClass(u: Urgency): string {
   }
 }
 
-export function urgencyAccentClass(u: Urgency): string {
-  // Left-border accent on cards. Uses white for urgent, fades for later.
-  switch (u) {
-    case "overdue":
-    case "today":
-      return "border-l-2 border-l-white shadow-[0_0_0_1px_rgb(255_255_255/0.15),0_0_24px_-6px_rgb(255_255_255/0.35)]";
-    case "soon":
-      return "border-l-2 border-l-white/40";
-    case "later":
-      return "border-l border-l-white/10";
-    default:
-      return "";
-  }
-}

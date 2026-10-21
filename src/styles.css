@@ -162,9 +162,12 @@
 /* Class colors (src/lib/class-color.ts): lighter on dark, deeper on light. */
 :root {
   --class-lightness: 68%;
+  /* Grade colors (getGradeColor): readable on dark and on light cards. */
+  --grade-lightness: 58%;
 }
 .light {
   --class-lightness: 40%;
+  --grade-lightness: 34%;
 }
 
 /* Light mode — same layout, white/light-gray surfaces, dark navy text. */

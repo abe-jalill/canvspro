@@ -312,7 +312,7 @@ export default function ClassScheduleEditor({
           role="status"
           className="glass-inset rounded-2xl px-4 py-3 text-xs text-muted-foreground"
         >
-          <p className="font-medium uppercase tracking-[0.14em]">
+          <p className="font-medium">
             {conflicts.length === 1 ? "1 time conflict" : `${conflicts.length} time conflicts`}
           </p>
           <ul className="mt-1.5 space-y-0.5">
@@ -328,7 +328,7 @@ export default function ClassScheduleEditor({
         {rows.map((r, i) => (
           <div key={r.key} className="glass-panel space-y-3 p-4 sm:p-5">
             <div className="flex items-center justify-between gap-3">
-              <p className="min-w-0 truncate text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              <p className="min-w-0 break-words text-sm font-medium text-foreground">
                 {r.fromCanvas ? r.title : `Class ${i + 1}`}
                 {conflictKeys.has(r.key) ? " · overlaps" : ""}
               </p>
@@ -336,7 +336,7 @@ export default function ClassScheduleEditor({
                 <button
                   type="button"
                   onClick={() => setRows((prev) => prev.filter((x) => x.key !== r.key))}
-                  className="glass-inset press shrink-0 rounded-full px-3 py-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground"
+                  className="glass-inset press shrink-0 rounded-full px-3 py-1.5 text-xs font-medium text-muted-foreground"
                 >
                   Remove
                 </button>
@@ -378,9 +378,7 @@ export default function ClassScheduleEditor({
             </div>
 
             <div>
-              <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                Meeting days
-              </p>
+              <p className="text-xs font-medium text-muted-foreground">Meeting days</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {DAY_ORDER.map((d) => {
                   const on = r.days.includes(d);
@@ -390,10 +388,10 @@ export default function ClassScheduleEditor({
                       type="button"
                       onClick={() => toggleDay(r.key, d)}
                       aria-pressed={on}
-                      className={`press min-h-11 rounded-full px-4 text-xs font-medium uppercase tracking-wider ${
+                      className={`press min-h-11 rounded-full px-4 text-xs font-medium transition-colors ${
                         on
-                          ? "glass-panel-strong text-foreground"
-                          : "glass-inset text-muted-foreground"
+                          ? "bg-primary text-primary-foreground"
+                          : "glass-inset text-muted-foreground hover:text-foreground"
                       }`}
                     >
                       {DAY_LABELS[d].slice(0, 3)}
@@ -408,10 +406,10 @@ export default function ClassScheduleEditor({
                 type="button"
                 onClick={() => togglePerDay(r.key)}
                 aria-pressed={r.perDay}
-                className={`press min-h-11 rounded-full px-4 text-[11px] font-medium uppercase tracking-[0.14em] ${
+                className={`press min-h-11 rounded-full border px-4 text-xs font-medium transition-colors ${
                   r.perDay
-                    ? "glass-panel-strong text-foreground"
-                    : "glass-inset text-muted-foreground"
+                    ? "border-primary/40 bg-primary/10 text-foreground"
+                    : "glass-inset border-transparent text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {r.perDay ? "Using different times each day" : "Different times each day"}
@@ -420,10 +418,10 @@ export default function ClassScheduleEditor({
                 type="button"
                 onClick={() => update(r.key, { details: !r.details })}
                 aria-pressed={r.details}
-                className={`press min-h-11 rounded-full px-4 text-[11px] font-medium uppercase tracking-[0.14em] ${
+                className={`press min-h-11 rounded-full border px-4 text-xs font-medium transition-colors ${
                   r.details
-                    ? "glass-panel-strong text-foreground"
-                    : "glass-inset text-muted-foreground"
+                    ? "border-primary/40 bg-primary/10 text-foreground"
+                    : "glass-inset border-transparent text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {r.details ? "Hide optional details" : "Add optional details"}
@@ -489,7 +487,7 @@ export default function ClassScheduleEditor({
                         key={d}
                         className="glass-inset flex flex-wrap items-center gap-2 rounded-xl p-3"
                       >
-                        <span className="w-20 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                        <span className="w-20 text-xs font-medium text-muted-foreground">
                           {DAY_LABELS[d]}
                         </span>
                         <input
@@ -521,14 +519,14 @@ export default function ClassScheduleEditor({
         <button
           type="button"
           onClick={() => setRows((prev) => [...prev, emptyDraft()])}
-          className="glass-inset press min-h-11 rounded-full px-5 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground"
+          className="glass-inset press min-h-11 rounded-full px-5 text-xs font-medium text-muted-foreground"
         >
           Add another class
         </button>
         <button
           type="submit"
           disabled={save.isPending}
-          className="glass-panel-strong press min-h-11 min-w-36 rounded-full px-6 text-xs font-medium uppercase tracking-[0.14em] disabled:opacity-60"
+          className="press min-h-11 min-w-36 rounded-full bg-foreground px-6 text-sm font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-60"
         >
           {save.isPending ? "Saving…" : "Save schedule"}
         </button>
@@ -536,7 +534,7 @@ export default function ClassScheduleEditor({
           <button
             type="button"
             onClick={onCancel}
-            className="min-h-11 px-2 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground"
+            className="min-h-11 px-2 text-xs font-medium text-muted-foreground"
           >
             Cancel
           </button>
@@ -555,9 +553,7 @@ export default function ClassScheduleEditor({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-        {label}
-      </span>
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
       <span className="mt-1 block">{children}</span>
     </label>
   );

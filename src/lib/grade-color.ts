@@ -10,7 +10,8 @@ export function getGradeColor(score: number | null | undefined): string {
   const clamped = Math.min(Math.max(score, 63), 93);
   const ratio = (clamped - 63) / (93 - 63); // 0 at 63%, 1 at 93%
   const hue = Math.round(ratio * 142);
-  return `hsl(${hue}, 42%, 58%)`;
+  // Darker on light cards, so "93.4% · A" stays readable there.
+  return `hsl(${hue} 42% var(--grade-lightness, 58%))`;
 }
 
 /**

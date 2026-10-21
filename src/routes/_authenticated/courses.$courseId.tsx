@@ -32,7 +32,6 @@ import {
   coursesQueryOptions as coursesQO,
   assignmentsQueryOptions as assignmentsQO,
   announcementsQueryOptions as announcementsQO,
-  calendarQueryOptions as eventsQO,
 } from "@/lib/canvas.queries";
 import { SkeletonBlock, AssignmentRowSkeleton } from "@/components/skeletons/dashboard-skeletons";
 
@@ -168,7 +167,6 @@ function CourseDetailPage() {
   const coursesQueryState = useQuery(coursesQO);
   const assignmentsQueryState = useQuery(assignmentsQO);
   const announcementsQueryState = useQuery(announcementsQO);
-  const calendarQueryState = useQuery(eventsQO);
   const classSchedule = useClassSchedule();
   const { has: isCompleted } = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
   const announcementWindow = useAnnouncementWindow();
@@ -192,10 +190,10 @@ function CourseDetailPage() {
     ? displayCourseNameForCourse(course.id, course.name, course.course_code)
     : "Class Overview";
 
-  // Check matching dates and times from user class schedule or calendar events
+  // The class's meeting times, from the times you saved in My classes. A
+  // Canvas calendar event (a study group, an exam) is never taken for them.
   const matchingSchedule = useMemo(() => {
     if (!course) return null;
-    const cName = course.name.toLowerCase();
     const cCode = course.course_code.toLowerCase();
 
     // 1. First check user's saved timetable schedule entries.
@@ -239,25 +237,8 @@ function CourseDetailPage() {
       return { text, hasEntry: true };
     }
 
-    // 2. Check calendar events for this course
-    const calEvent = calendarQueryState.data?.find((e) => {
-      if (e.context_code === `course_${course.id}`) return true;
-      const title = e.title.toLowerCase();
-      return title.includes(cCode) || title.includes(cName);
-    });
-
-    if (calEvent && calEvent.start_at) {
-      const d = new Date(calEvent.start_at);
-      const dayName = d.toLocaleDateString(undefined, { weekday: "short" });
-      const timeStr = d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-      return {
-        text: `${dayName} at ${timeStr}${calEvent.location_name ? ` • ${calEvent.location_name}` : ""}`,
-        hasEntry: true,
-      };
-    }
-
     return null;
-  }, [course, courseName, classSchedule.data, calendarQueryState.data]);
+  }, [course, courseName, classSchedule.data]);
 
   // Filter assignments for this course
   const courseAssignments = useMemo(() => {
@@ -450,21 +431,6 @@ function CourseDetailPage() {
           All Grades
         </Link>
 
-        {/* Schedule / Meeting time chip */}
-        {matchingSchedule ? (
-          <span className="glass-inset inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs text-muted-foreground">
-            <Calendar className="h-3.5 w-3.5" />
-            {matchingSchedule.text}
-          </span>
-        ) : (
-          <Link
-            to="/class-schedule"
-            className="glass-inset inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <CalendarPlus className="h-3.5 w-3.5" />
-            Enter class time/days
-          </Link>
-        )}
       </div>
 
       {/* Hero Class Card: Title, Code, and Animated Grade Counter */}
@@ -484,16 +450,16 @@ function CourseDetailPage() {
               </span>
             </div>
 
-            <h1 className="truncate text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+            <h1 className="text-balance text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
               {courseName}
             </h1>
 
             {/* Dates & Times directly under the class name */}
-            <div className="mt-3 flex items-center gap-1.5 text-sm text-muted-foreground">
+            <div className="mt-3 flex items-start gap-1.5 text-sm text-muted-foreground">
               {matchingSchedule ? (
                 <>
-                  <Clock className="h-4 w-4 shrink-0" />
-                  <span className="truncate">{matchingSchedule.text}</span>
+                  <Clock className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>{matchingSchedule.text}</span>
                 </>
               ) : (
                 <Link to="/class-schedule" className="story-link inline-flex items-center gap-1.5">
@@ -645,6 +611,8 @@ function CourseDetailPage() {
                 )}
                 {shown.map((a) => {
                   const formattedDate = formatAssignmentDue(a.due_at);
+                  // Still to do but its due time has passed: say so, as To-Do's Catch up does.
+                  const pastDue = a.due_at != null && Date.parse(a.due_at) < Date.now();
 
                   return (
                     <GlassCard
@@ -654,19 +622,26 @@ function CourseDetailPage() {
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-foreground">{a.name}</p>
+                          <p className="break-words text-sm font-medium text-foreground">{a.name}</p>
                           <OpensLabel unlockAt={a.unlock_at} />
-                          <AssignmentEstimateEditor assignment={a} className="mt-2" />
-                          <DescriptionToggle
-                            open={openDescriptions.has(a.id)}
-                            onToggle={() => toggleDescription(a.id)}
-                            className="mt-1"
-                          />
+                          {/* The time and the description link side by side, with room between. */}
+                          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                            <AssignmentEstimateEditor assignment={a} />
+                            <DescriptionToggle
+                              open={openDescriptions.has(a.id)}
+                              onToggle={() => toggleDescription(a.id)}
+                            />
+                          </div>
 
                           <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                            <span className="inline-flex items-center gap-1">
+                            <span
+                              className={cn(
+                                "inline-flex items-center gap-1",
+                                pastDue && "font-medium text-rose-400",
+                              )}
+                            >
                               <Calendar className="h-3.5 w-3.5" />
-                              {formattedDate}
+                              {pastDue ? `Past due · ${formattedDate}` : formattedDate}
                             </span>
                             {a.points_possible != null && (
                               <span className="glass-inset rounded-full px-2 py-0.5">
@@ -728,7 +703,7 @@ function CourseDetailPage() {
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
                           <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                          <p className="truncate text-sm font-medium text-foreground">{a.name}</p>
+                          <p className="break-words text-sm font-medium text-foreground">{a.name}</p>
                         </div>
                         <DescriptionToggle
                           open={openDescriptions.has(a.id)}

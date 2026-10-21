@@ -31,6 +31,7 @@ import { TrafficLights } from "@/components/traffic-lights";
 import type { CourseSummary } from "@/lib/canvas.functions";
 import { displayCourseNameForCourse } from "@/lib/course-display";
 import { getGradeColor } from "@/lib/grade-color";
+import { classColor } from "@/lib/class-color";
 import { useSidebarMode } from "@/lib/sidebar-state";
 import { useIsAdmin } from "@/hooks/use-is-admin";
 import { SlidingSidebarNav } from "@/components/sliding-sidebar-nav";
@@ -67,6 +68,22 @@ function isActive(pathname: string, to: string) {
 // Pages reached through in-page tabs keep their parent sidebar entry lit.
 const NESTED_PATHS: Record<string, string[]> = {
   "/schedule": ["/class-schedule"],
+};
+
+/** "Introduction to Psychology" → "IP", "Calculus I" → "CI". */
+function classInitials(name: string) {
+  const words = name
+    .split(/[\s:–-]+/)
+    .filter((word) => word && !/^(to|of|and|the|for|in|a|an|&)$/i.test(word));
+  return (words.length > 1 ? words[0][0] + words[1][0] : (words[0] ?? "?").slice(0, 2)).toUpperCase();
+}
+
+/** Pages outside the sidebar, named in the phone header. */
+const PAGE_TITLES: Record<string, string> = {
+  "/new-grades": "New grades",
+  "/completed": "Completed",
+  "/study-session": "Study Session",
+  "/notifications": "Notifications",
 };
 
 function isItemActive(pathname: string, to: string) {
@@ -247,7 +264,10 @@ export function AppSidebar() {
                     course.name,
                     course.course_code,
                   );
-                  const color = getGradeColor(course.current_score);
+                  const color = classColor(
+                    course.id,
+                    (courses.data ?? []).map((c) => c.id),
+                  );
                   const coursePath = `/courses/${course.id}`;
                   return (
                     <Link
@@ -266,10 +286,18 @@ export function AppSidebar() {
                         pathname !== coursePath && "hover:bg-foreground/[0.04]",
                       )}
                     >
+                      {/* The class's initials in its own color, so five classes
+                          aren't five identical dots. */}
                       <span
-                        className="h-2.5 w-2.5 rounded-full"
-                        style={{ backgroundColor: color, boxShadow: `0 0 6px ${color}66` }}
-                      />
+                        className="grid h-7 w-7 place-items-center rounded-lg text-[10px] font-semibold"
+                        style={{
+                          color,
+                          backgroundColor: `color-mix(in srgb, ${color} 16%, transparent)`,
+                        }}
+                        aria-hidden="true"
+                      >
+                        {classInitials(courseName)}
+                      </span>
                     </Link>
                   );
                 })}
@@ -368,20 +396,21 @@ export function AppSidebar() {
                           aria-current={active ? "page" : undefined}
                           data-sidebar-active={active}
                           className={cn(
-                            "sidebar-nav-link group relative z-10 flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
+                            "sidebar-nav-link group relative z-10 flex items-start justify-between gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
                             active
                               ? "text-foreground"
                               : "text-muted-foreground/80 hover:bg-foreground/[0.04] hover:text-foreground",
                           )}
                         >
-                          <span className="flex min-w-0 items-center gap-2">
+                          {/* A long class name wraps instead of being cut off. */}
+                          <span className="flex min-w-0 items-start gap-2">
                             <span
-                              className="h-1.5 w-1.5 shrink-0 rounded-full opacity-80"
+                              className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full opacity-80"
                               style={{ backgroundColor: color }}
                             />
-                            <span className="truncate">{courseName}</span>
+                            <span className="leading-5">{courseName}</span>
                           </span>
-                          <span className="shrink-0 text-[11px] font-normal tabular-nums text-muted-foreground">
+                          <span className="shrink-0 text-[11px] font-normal leading-5 tabular-nums text-muted-foreground">
                             {score != null ? `${Math.round(score)}%` : "—"}
                           </span>
                         </Link>
@@ -421,7 +450,15 @@ export function MobileNav() {
     return () => document.removeEventListener("keydown", onKey);
   }, [open]);
 
-  const current = navItems.find((i) => isActive(pathname, i.to))?.title ?? "CoursePro";
+  // The page's own name: its sidebar entry, a class's name, or a page opened
+  // from another one. "CoursePro" only when there's nothing better.
+  const courseId = /^\/courses\/(\d+)/.exec(pathname)?.[1];
+  const course = courseId ? courses.data?.find((c) => String(c.id) === courseId) : undefined;
+  const current =
+    navItems.find((i) => isItemActive(pathname, i.to))?.title ??
+    (course ? displayCourseNameForCourse(course.id, course.name, course.course_code) : null) ??
+    PAGE_TITLES[pathname] ??
+    "CoursePro";
 
   return (
     <div className="mobile-navigation sticky top-0 z-40 md:hidden">
@@ -508,20 +545,20 @@ export function MobileNav() {
                   onFocus={() => prefetchRouteQueries(queryClient, coursePath)}
                   onClick={() => setOpen(false)}
                   className={cn(
-                    "press flex min-h-10 items-center justify-between rounded-xl px-3 text-sm transition-all",
+                    "press flex min-h-10 items-start justify-between gap-2 rounded-xl px-3 py-2.5 text-sm transition-all",
                     active
                       ? "bg-foreground/[0.08] text-foreground font-medium"
                       : "text-muted-foreground",
                   )}
                 >
-                  <span className="flex min-w-0 items-center gap-2">
+                  <span className="flex min-w-0 items-start gap-2">
                     <span
-                      className="h-2 w-2 shrink-0 rounded-full"
-                      style={{ backgroundColor: color, boxShadow: `0 0 6px ${color}66` }}
+                      className="mt-1.5 h-2 w-2 shrink-0 rounded-full"
+                      style={{ backgroundColor: color, boxShadow: `0 0 6px color-mix(in srgb, ${color} 40%, transparent)` }}
                     />
-                    <span className="truncate">{courseName}</span>
+                    <span className="leading-5">{courseName}</span>
                   </span>
-                  <span className="shrink-0 text-xs font-normal tabular-nums" style={{ color }}>
+                  <span className="shrink-0 text-xs font-normal leading-5 tabular-nums" style={{ color }}>
                     {score != null ? `${Math.round(score)}%` : "—"}
                   </span>
                 </Link>

@@ -33,7 +33,7 @@ const INCLUDED = [
   "Every class, assignment, grade and announcement in one dashboard",
   "Due-date, grade and announcement alerts, even with the app closed",
   "Class schedule with countdowns and reminders",
-  "Focus, study sessions and Today's Plan",
+  "To-Do, study sessions and a Pomodoro timer",
   "Daily streaks, with a streak freeze every month",
   "Grade history for every class",
   "Connect Claude, ChatGPT or another AI assistant to your Canvas",

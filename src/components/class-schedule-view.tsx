@@ -247,11 +247,11 @@ function WeeklyGrid({ byDay }: { byDay: Record<ClassDay, ClassSession[]> }) {
                     style={{ top: `${top}px`, height: `${h}px` }}
                     title={`${s.title} · ${s.location}`}
                   >
-                    <p className="truncate font-semibold tracking-tight">
+                    <p className="break-words font-semibold tracking-tight">
                       {s.displayName}
                     </p>
-                    <p className="truncate text-muted-foreground">{s.timeLabel}</p>
-                    <p className="truncate text-muted-foreground/80">
+                    <p className="break-words text-muted-foreground">{s.timeLabel}</p>
+                    <p className="break-words text-muted-foreground/80">
                       {s.location}
                     </p>
                   </div>

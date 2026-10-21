@@ -155,7 +155,7 @@ function Dashboard() {
                       {hidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </span>
                     <span className="min-w-0">
-                      <span className="block truncate text-sm font-medium">{meta.label}</span>
+                      <span className="block break-words text-sm font-medium">{meta.label}</span>
                       <span className="block text-xs text-muted-foreground">
                         {hidden ? "Hidden" : "Shown on dashboard"}
                       </span>

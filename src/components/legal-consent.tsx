@@ -18,29 +18,28 @@ export function LegalConsent({
         onChange={(event) => onChange(event.target.checked)}
         className="mt-0.5 h-5 w-5 shrink-0 accent-foreground"
       />
-      <div>
-        <label htmlFor={id} className="cursor-pointer">
-          I agree to the Terms of Use and Privacy Policy.
-        </label>
-        <p className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
-          <a
-            href="/terms"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-foreground underline underline-offset-4"
-          >
-            Terms of Use
-          </a>
-          <a
-            href="/privacy"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-foreground underline underline-offset-4"
-          >
-            Privacy Policy
-          </a>
-        </p>
-      </div>
+      {/* One sentence with the two policies as links, not the names twice. */}
+      <label htmlFor={id} className="cursor-pointer">
+        I agree to the{" "}
+        <a
+          href="/terms"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-foreground underline underline-offset-4"
+        >
+          Terms of Use
+        </a>{" "}
+        and{" "}
+        <a
+          href="/privacy"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-foreground underline underline-offset-4"
+        >
+          Privacy Policy
+        </a>
+        .
+      </label>
     </div>
   );
 }

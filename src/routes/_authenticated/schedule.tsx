@@ -224,9 +224,9 @@ function SchedulePage() {
                       className="glass-inset glass-hover flex items-start justify-between gap-3 p-3"
                     >
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">{it.title}</p>
+                        <p className="break-words text-sm font-medium">{it.title}</p>
                         {it.context && (
-                          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                          <p className="mt-0.5 break-words text-xs text-muted-foreground">
                             {it.context}
                           </p>
                         )}
