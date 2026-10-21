@@ -17,14 +17,14 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "See every Canvas assignment, grade and deadline in one clean dashboard, sorted by what's due first. Try it free for 14 days.",
+          "See every Canvas assignment, grade and deadline in one clean dashboard, sorted by what's due first. Free to use right now.",
       },
       { property: "og:type", content: "website" },
       { property: "og:title", content: "CoursePro — A Better Canvas Dashboard for Students" },
       {
         property: "og:description",
         content:
-          "See every Canvas assignment, grade and deadline in one clean dashboard, sorted by what's due first. Try it free for 14 days.",
+          "See every Canvas assignment, grade and deadline in one clean dashboard, sorted by what's due first. Free to use right now.",
       },
       { property: "og:url", content: "https://canvaspro.app/" },
       {
@@ -78,25 +78,25 @@ export const Route = createFileRoute("/")({
  * old copies of an unchanged URL, so recapturing the screens means re-measuring
  * `focus` and changing this together.
  */
-const SHOTS_VERSION = "forest-2026-10-19";
+const SHOTS_VERSION = "todo-2026-10-21";
 
 /** Real screens of the app. Screenshots live in /public/home, in light and dark. */
 const SCREENS = [
   {
     id: "dashboard",
-    label: "Dashboard",
+    label: "Today",
     title: "A clearer picture of your day.",
-    caption: "Your grades, the next thing to do, and everything due in the next 24 hours.",
-    alt: "The CoursePro dashboard with a greeting, the next assignment up, and class grades.",
-    focus: { x: 68.9, y: 24.3, w: 24.8, h: 23.7, label: "The one thing to do next" },
+    caption: "Your week at a glance, and the one thing to do next with a button to start it.",
+    alt: "The CoursePro Today page with a greeting, seven days as circles, and the next assignment up.",
+    focus: { x: 62.2, y: 10.8, w: 34.7, h: 24.8, label: "The one thing to do next" },
   },
   {
-    id: "coming-up",
-    label: "Coming up",
+    id: "todo",
+    label: "To-Do",
     title: "Your week, with room to breathe.",
-    caption: "The week ahead, one day at a time, with how long each assignment should take.",
-    alt: "The Coming Up page with a seven-day strip and assignments grouped by day.",
-    focus: { x: 24.4, y: 30.8, w: 69.4, h: 8.9, label: "Seven days at a glance" },
+    caption: "Everything due, one day at a time, with how long each assignment should take.",
+    alt: "The To-Do page with the week's progress and assignments grouped by day.",
+    focus: { x: 28.8, y: 17.3, w: 60.6, h: 7.5, label: "Your week, done and to go" },
   },
   {
     id: "study",
@@ -104,7 +104,7 @@ const SCREENS = [
     title: "A little focus goes a long way.",
     caption: "Pick assignments, choose a total time, time per assignment, or Pomodoro, and start.",
     alt: "The Study Session page: pick assignments on the left, your session and its time on the right.",
-    focus: { x: 62.2, y: 29.1, w: 31.6, h: 14.5, label: "Your session, in order" },
+    focus: { x: 71.2, y: 27.9, w: 16.6, h: 30, label: "Your session at a glance" },
   },
   {
     id: "assignments",
@@ -112,7 +112,7 @@ const SCREENS = [
     title: "The right work. In the right order.",
     caption: "Every class in one list, ordered so the most pressing work is on top.",
     alt: "The Assignments page with a weekly count and a ranked list of work.",
-    focus: { x: 24.1, y: 66, w: 70, h: 6.5, label: "What to do right now, in plain words" },
+    focus: { x: 23.5, y: 64.4, w: 71.3, h: 7.7, label: "What to do right now, in plain words" },
   },
 ] as const;
 
@@ -809,7 +809,7 @@ function LandingPage() {
             </h1>
             <p className="hp-lede hp-rise">
               CoursePro puts your assignments, grades and announcements on one calm page, with the
-              next thing to do right at the top. Free for 14 days.
+              next thing to do right at the top. Free to use right now.
             </p>
             <div className="hp-actions hp-rise">
               <Link to={cta} preload="intent" className="hp-button">

@@ -8,7 +8,7 @@ const css = read("src/routes/home.css");
 
 test("the homepage shows four real screens, each in light and dark", () => {
   const ids = [...page.matchAll(/id: "([a-z-]+)",\s+label:/g)].map((match) => match[1]);
-  assert.deepEqual(ids, ["dashboard", "coming-up", "study", "assignments"]);
+  assert.deepEqual(ids, ["dashboard", "todo", "study", "assignments"]);
   for (const id of ids) {
     for (const theme of ["light", "dark"]) {
       assert.ok(
