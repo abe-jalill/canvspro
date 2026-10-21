@@ -137,3 +137,13 @@ test("To-Do has a little more to it: the week fills in, today is lit, classes ha
   const workload = between(more, "struct WorkloadView", "struct AnnouncementsView");
   assert.match(workload, /let tint = CPTheme\.primary\(scheme: scheme\)/);
 });
+
+test("a swipe shows its action only in the gap, and the confetti uses the app's type", () => {
+  const design = read("NativeDesign");
+  const swipe = between(design, "private struct CPSwipeModifier", "private var drag: some Gesture");
+  assert.match(swipe, /let width = max\(0, abs\(offset\) - 6\)/);
+  assert.match(swipe, /\.frame\(width: width\)\s+\.clipped\(\)/);
+  const celebrations = read("NativeCelebrations");
+  assert.match(celebrations, /Text\(celebration\.title\)\s+\.cpFont\(44, \.semibold\)/);
+  assert.match(celebrations, /Text\(celebration\.note\)\s+\.cpFont\(17, \.medium\)/);
+});

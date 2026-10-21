@@ -953,19 +953,25 @@ private struct CPSwipeModifier: ViewModifier {
         else if offset < -1, let trailing { tile(trailing, alignment: .trailing) }
     }
 
+    /// The action fills only the gap the row slides away from (as in Mail), so
+    /// it never sits under the row's own text. Its name shows once there's room.
     private func tile(_ action: CPSwipeAction, alignment: Alignment) -> some View {
         let progress = min(1, abs(offset) / threshold)
+        let width = max(0, abs(offset) - 6)
         return RoundedRectangle(cornerRadius: CPLayout.innerRadius, style: .continuous)
             .fill(CPTheme.foreground(scheme).opacity(crossed ? 0.16 : 0.08))
-            .overlay(alignment: alignment) {
+            .overlay {
                 HStack(spacing: 6) {
                     Image(systemName: action.symbol).cpIconFont(13, .semibold)
-                    Text(action.title).cpFont(12, .medium)
+                    if width >= 84 { Text(action.title).cpFont(12, .medium).fixedSize() }
                 }
                 .foregroundStyle(CPTheme.foreground(scheme).opacity(0.5 + 0.5 * progress))
                 .scaleEffect(crossed ? 1.06 : 1)
-                .padding(.horizontal, 16)
+                .opacity(width >= 28 ? 1 : 0)
             }
+            .frame(width: width)
+            .clipped()
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignment)
             .accessibilityHidden(true)
     }
 
