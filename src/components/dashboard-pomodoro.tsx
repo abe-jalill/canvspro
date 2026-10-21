@@ -1,22 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowUpRight, CirclePause, CirclePlay, TimerReset } from "lucide-react";
+import { ArrowUpRight, CirclePause, CirclePlay } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useStudySession } from "@/hooks/use-study-session";
-import {
-  POMODORO_PRESETS,
-  advanceSession,
-  createStudySession,
-  isBreak,
-  phaseOf,
-  remainingForSession,
-} from "@/lib/study-session";
-
-const INDEPENDENT_FOCUS_ITEM = {
-  id: "manual:independent-focus",
-  name: "Independent focus",
-  source: "manual" as const,
-};
+import { advanceSession, isBreak, phaseOf, remainingForSession } from "@/lib/study-session";
 
 function formatTime(milliseconds: number) {
   const seconds = Math.max(0, Math.ceil(milliseconds / 1000));
@@ -44,32 +31,9 @@ export function DashboardPomodoro() {
     if (result.changed) setSession(result.session);
   }, [now, session, setSession]);
 
-  if (!ready) {
-    return <div className="h-12 w-full animate-pulse rounded-lg bg-muted/40 sm:ml-auto sm:w-64" />;
-  }
-
-  if (!session) {
-    return (
-      <Button
-        type="button"
-        variant="outline"
-        onClick={() => {
-          const plan = POMODORO_PRESETS[0].plan;
-          setSession(createStudySession([INDEPENDENT_FOCUS_ITEM], 25, Date.now(), plan));
-          setNow(Date.now());
-        }}
-        className="h-12 w-full justify-start rounded-lg border-foreground/15 bg-background/35 px-3 shadow-none backdrop-blur-md hover:border-foreground/30 sm:ml-auto sm:w-auto"
-      >
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-foreground/20">
-          <TimerReset className="h-4 w-4" aria-hidden="true" />
-        </span>
-        <span className="text-left leading-tight">
-          <span className="block text-sm font-medium">Start Pomodoro</span>
-          <span className="block text-[11px] text-muted-foreground">25 min · no assignment</span>
-        </span>
-      </Button>
-    );
-  }
+  // Only while a study session runs (a quick Pomodoro or one started from Study
+  // Session): its time left beside the greeting. Nothing otherwise.
+  if (!ready || !session) return null;
 
   const remaining = remainingForSession(session, now);
   const phase = phaseOf(session);
@@ -91,7 +55,7 @@ export function DashboardPomodoro() {
   };
 
   return (
-    <div className="flex h-12 w-full items-center gap-2 rounded-lg border border-foreground/15 bg-background/35 p-1.5 pl-3 backdrop-blur-md sm:ml-auto sm:w-auto">
+    <div className="flex h-12 w-auto shrink-0 items-center gap-2 rounded-full border border-primary/25 bg-primary/10 p-1.5 pl-4">
       <span className="min-w-20">
         <span className="block text-[11px] text-muted-foreground">
           {session.status === "paused" ? "Paused" : phaseLabel}

@@ -159,6 +159,14 @@
   --sidebar-ring: 0 0% 100% / 0.3;
 }
 
+/* Class colors (src/lib/class-color.ts): lighter on dark, deeper on light. */
+:root {
+  --class-lightness: 68%;
+}
+.light {
+  --class-lightness: 40%;
+}
+
 /* Light mode — same layout, white/light-gray surfaces, dark navy text. */
 .light {
   color-scheme: light;
@@ -692,6 +700,22 @@
     transform: none;
     will-change: auto;
   }
+}
+
+/* Today's header: one soft palette light behind the date and greeting, like the
+   iPhone app. It fades to clear at its own edge, so it never ends in a line. */
+.dashboard-today__header::before {
+  content: "";
+  position: absolute;
+  left: -140px;
+  top: -130px;
+  width: 520px;
+  height: 340px;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, hsl(var(--primary) / 0.16), transparent 70%);
+}
+.light .dashboard-today__header::before {
+  background: radial-gradient(ellipse at center, hsl(var(--primary) / 0.11), transparent 70%);
 }
 
 /* Dashboard hero: a shared soft light source across the greeting and three cards. */

@@ -14,6 +14,7 @@ import {
 import { GlassCard, Skeleton, ErrorState, EmptyState } from "@/components/glass-card";
 import { cn } from "@/lib/utils";
 import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
+import { AssignmentProgressBar } from "@/components/assignment-progress";
 import { htmlToText } from "@/lib/html-text";
 import type { WidgetId } from "@/lib/dashboard-layout";
 import { displayCourseName } from "@/lib/course-display";
@@ -23,7 +24,19 @@ import {
   DISMISSED_ANNOUNCEMENTS_KEY,
   COMPLETED_ASSIGNMENTS_KEY,
 } from "@/lib/local-state";
-import { Check, CheckCircle2, X, FileText, ChevronDown } from "lucide-react";
+import {
+  CalendarDays,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  Clock3,
+  FileText,
+  GraduationCap,
+  Grid3x3,
+  ListChecks,
+  Megaphone,
+  X,
+} from "lucide-react";
 import { getCountdown, urgencyTextClass, urgencyAccentClass } from "@/lib/countdown";
 import { AddToCalendarButton } from "@/components/add-to-calendar-button";
 import { SyllabusModal } from "@/components/syllabus-modal";
@@ -95,6 +108,7 @@ function CoursesWidget() {
     <>
       <GlassCard
         title="Classes & Grades"
+        icon={<GraduationCap />}
         subtitle="Active enrollments"
         action={
           <Link
@@ -235,6 +249,7 @@ function UpcomingWidget() {
   return (
     <GlassCard
       title="Upcoming Assignments"
+      icon={<ListChecks />}
       subtitle="Due within the next 7 days"
       action={
         <Link
@@ -300,59 +315,17 @@ function UpcomingWidget() {
                 </button>
                 {isOpen && g.items.length > 0 && (
                   <ul className="mt-2 space-y-2">
-                    {g.items.map((a) => {
-                      const done = completed.has(a.id) || completing.has(String(a.id));
-                      const cd = getCountdown(a.due_at, { completed: done });
-                      return (
-                        <CompletionRow
- assignmentId={a.id}
-                          key={a.id}
-                          className={cn(
-                            "glass-inset glass-hover flex items-center justify-between gap-2 p-3",
-                            cd && urgencyAccentClass(cd.urgency),
-                            dueTodayClass(a.due_at, done),
-                            done && "opacity-60",
-                          )}
-                        >
-                          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:gap-3">
-                            <CompleteButton
-                              done={done}
-                              completing={completing.has(String(a.id))}
-                              onClick={() => completed.toggle(a.id)}
-                              label={a.name}
-                            />
-                            <p
-                              className={cn(
-                                "min-w-0 flex-1 truncate text-sm font-medium",
-                                done && "text-muted-foreground line-through",
-                              )}
-                            >
-                              {a.name}
-                            </p>
-                            <AssignmentDescriptionLink assignmentId={a.id} />
-                            <div className="basis-full pl-7"><AssignmentEstimateEditor assignment={a} /></div>
-                          </div>
-                          <div className="flex shrink-0 items-center gap-2">
-                            <div className="text-right">
-                              <p
-                                className={cn(
-                                  "whitespace-nowrap text-xs tabular-nums sm:text-sm",
-                                  cd ? urgencyTextClass(cd.urgency) : "text-muted-foreground",
-                                )}
-                              >
-                                {cd ? cd.label : "—"}
-                              </p>
-                              {cd && (
-                                <p className="mt-0.5 hidden whitespace-nowrap text-[10px] tabular-nums text-muted-foreground/80 sm:block">
-                                  {cd.fullDate}
-                                </p>
-                              )}
-                            </div>
-                            <IcsButton assignment={a} />
-                          </div>
-                        </CompletionRow>
-                      );
-                    })}
+                    {g.items.map((a) => (
+                      <WidgetAssignmentRow
+                        key={a.id}
+                        assignment={a}
+                        done={completed.has(a.id) || completing.has(String(a.id))}
+                        completing={completing.has(String(a.id))}
+                        onToggle={() => completed.toggle(a.id)}
+                        showCourse={false}
+                        showCalendar
+                      />
+                    ))}
                   </ul>
                 )}
               </div>
@@ -403,6 +376,7 @@ function AnnouncementsWidget() {
   return (
     <GlassCard
       title="Announcements"
+      icon={<Megaphone />}
       subtitle="Latest from your courses"
       action={
         <Link
@@ -552,9 +526,94 @@ function IcsButton({ assignment }: { assignment: AssignmentItem }) {
   );
 }
 
+/**
+ * One assignment in a dashboard widget: the tick, the name (wrapping, never
+ * cut off) with its class under it and when it's due on the right, then its
+ * time estimate and description link side by side on one line.
+ */
+function WidgetAssignmentRow({
+  assignment: a,
+  done,
+  completing,
+  onToggle,
+  showCourse = true,
+  showCalendar = false,
+}: {
+  assignment: AssignmentItem;
+  done: boolean;
+  completing: boolean;
+  onToggle: () => void;
+  showCourse?: boolean;
+  showCalendar?: boolean;
+}) {
+  const cd = getCountdown(a.due_at, { completed: done });
+  // "Today" over "Today · 11:59 PM" says it twice: show just the time then.
+  const when = cd?.fullDate.startsWith(cd.label)
+    ? cd.fullDate.slice(cd.label.length).replace(/^\s*·\s*/, "")
+    : cd?.fullDate;
+  return (
+    <CompletionRow
+      assignmentId={a.id}
+      className={cn(
+        "glass-inset glass-hover p-3",
+        cd && urgencyAccentClass(cd.urgency),
+        dueTodayClass(a.due_at, done),
+        done && "opacity-60",
+      )}
+    >
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5">
+          <CompleteButton done={done} completing={completing} onClick={onToggle} label={a.name} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p
+                className={cn(
+                  "text-sm font-medium leading-snug",
+                  done && "text-muted-foreground line-through",
+                )}
+              >
+                {a.name}
+              </p>
+              {showCourse && (
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {displayCourseName(a.course_name, a.course_code)}
+                </p>
+              )}
+            </div>
+            <div className="shrink-0 text-right">
+              <p
+                className={cn(
+                  "whitespace-nowrap text-sm tabular-nums",
+                  cd ? urgencyTextClass(cd.urgency) : "text-muted-foreground",
+                )}
+              >
+                {cd ? cd.label : "—"}
+              </p>
+              {when && (
+                <p className="mt-0.5 whitespace-nowrap text-[11px] tabular-nums text-muted-foreground/80">
+                  {when}
+                </p>
+              )}
+            </div>
+          </div>
+          <AssignmentProgressBar assignmentId={a.id} className="mt-2" />
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            <AssignmentEstimateEditor assignment={a} />
+            <AssignmentDescriptionLink assignmentId={a.id} showProgress={false} />
+            {showCalendar && <IcsButton assignment={a} />}
+          </div>
+        </div>
+      </div>
+    </CompletionRow>
+  );
+}
+
 function FocusWidget() {
   const { data, isLoading, isError, error } = useQuery(assignmentsQO);
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
+  const completing = useCompletingIds();
   const custom = useCustomAssignments();
   const courses = useQuery(coursesQO);
 
@@ -567,6 +626,7 @@ function FocusWidget() {
   return (
     <GlassCard
       title="To-Do"
+      icon={<Clock3 />}
       subtitle="Due within 48 hours"
       action={
         <Link
@@ -590,36 +650,15 @@ function FocusWidget() {
       {data && soon.length === 0 && <EmptyState message="Nothing due in the next 48 hours." />}
       {soon.length > 0 && (
         <ul className="space-y-2">
-          {soon.map((a) => {
-            const cd = getCountdown(a.due_at, { completed: false });
-            return (
-              <li
-                key={a.id}
-                className={cn(
-                  "glass-inset glass-hover flex items-center justify-between gap-3 p-3",
-                  cd && urgencyAccentClass(cd.urgency),
-                  dueTodayClass(a.due_at),
-                )}
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{a.name}</p>
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                    {displayCourseName(a.course_name, a.course_code)}
-                  </p>
-                  <AssignmentDescriptionLink assignmentId={a.id} className="mt-1" />
-                  <AssignmentEstimateEditor assignment={a} className="mt-2" />
-                </div>
-                <span
-                  className={cn(
-                    "shrink-0 whitespace-nowrap text-sm tabular-nums",
-                    cd ? urgencyTextClass(cd.urgency) : "text-muted-foreground",
-                  )}
-                >
-                  {cd ? cd.label : "—"}
-                </span>
-              </li>
-            );
-          })}
+          {soon.map((a) => (
+            <WidgetAssignmentRow
+              key={a.id}
+              assignment={a}
+              done={completed.has(a.id) || completing.has(String(a.id))}
+              completing={completing.has(String(a.id))}
+              onToggle={() => completed.toggle(a.id)}
+            />
+          ))}
         </ul>
       )}
     </GlassCard>
@@ -644,6 +683,7 @@ function CalendarWidget() {
   return (
     <GlassCard
       title="Calendar"
+      icon={<CalendarDays />}
       subtitle="Next 7 days"
       action={
         <Link
@@ -698,7 +738,7 @@ function HeatmapWidget() {
       isAssignmentVisible(assignment, completed.has(assignment.id), false, now),
   );
   return (
-    <GlassCard title="Workload" subtitle="Remaining effort by week">
+    <GlassCard title="Workload" subtitle="Remaining effort by week" icon={<Grid3x3 />}>
       {isLoading && <WorkloadHeatmapSkeleton />}
       {isError && <ErrorState message={(error as Error).message} />}
       {visible && <WorkloadHeatmap assignments={visible} outlineDueToday />}

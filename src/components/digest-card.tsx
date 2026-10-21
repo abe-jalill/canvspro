@@ -1,15 +1,13 @@
 import { AssignmentEstimateEditor } from "@/components/assignment-estimate";
 import { useEffect, useMemo } from "react";
 import { Link } from "@tanstack/react-router";
-import { Bell, TrendingUp, Clock, Check } from "lucide-react";
+import { Bell, Clock, Sparkles, TrendingUp } from "lucide-react";
 import type { AnnouncementItem, AssignmentItem, CourseSummary } from "@/lib/canvas.functions";
 import { GlassCard } from "@/components/glass-card";
 import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
 import { displayCourseName } from "@/lib/course-display";
 import { getCountdown } from "@/lib/countdown";
 import { dueTodayClass, relativeDueDay } from "@/lib/assignment-due";
-import { isAssignmentVisible } from "@/lib/assignment-window";
-import { COMPLETED_ASSIGNMENTS_KEY, useLocalSet } from "@/lib/local-state";
 import {
   useLocalNumber,
   useLocalNumberMap,
@@ -91,18 +89,6 @@ export function DigestCard({ announcements, assignments, courses }: Props) {
 
   const total = newAnnouncements.length + gradeChanges.length + newlyUrgent.length;
 
-  // Deadlines that are still urgent but were already seen. Nothing is "new",
-  // but the empty state must not claim there are no urgent deadlines.
-  const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
-  const stillUrgent = useMemo(() => {
-    const now = Date.now();
-    return assignments.filter((a) => {
-      if (!isAssignmentVisible(a, completed.has(a.id), false, now)) return false;
-      const cd = getCountdown(a.due_at);
-      return cd != null && (cd.urgency === "today" || cd.urgency === "soon");
-    }).length;
-  }, [assignments, completed]);
-
   // On mount (or when the data landed) treat this as first render of this
   // snapshot — but do NOT immediately mark seen; user should see the digest.
   // Marking seen happens on user action.
@@ -128,44 +114,14 @@ export function DigestCard({ announcements, assignments, courses }: Props) {
     return displayCourseName(c?.name ?? fallbackName, c?.course_code ?? fallbackCode);
   };
 
-  if (total === 0) {
-    return (
-      <GlassCard>
-        <div className="flex items-center justify-between rounded-2xl px-1 py-1">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="glass-inset flex h-9 w-9 shrink-0 items-center justify-center rounded-xl">
-              <Check className="h-4 w-4" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold">
-                {stillUrgent > 0 ? "Nothing new since your last visit." : "All caught up."}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {stillUrgent > 0
-                  ? `No new announcements or grades. ${stillUrgent} assignment${
-                      stillUrgent === 1 ? " is" : "s are"
-                    } still due soon.`
-                  : "No new announcements, grades, or urgent deadlines since your last visit."}
-              </p>
-            </div>
-          </div>
-          {stillUrgent > 0 && (
-            <Link
-              to="/get-it-done"
-              preload="intent"
-              className="shrink-0 text-xs font-medium text-muted-foreground hover:text-foreground"
-            >
-              Plan it
-            </Link>
-          )}
-        </div>
-      </GlassCard>
-    );
-  }
+  // Only when a new announcement or grade has been posted since the last visit
+  // (as on the iPhone); otherwise the card isn't there at all.
+  if (newAnnouncements.length + gradeChanges.length === 0) return null;
 
   return (
     <GlassCard
       title="Since your last visit"
+      icon={<Sparkles />}
       subtitle={`${total} update${total === 1 ? "" : "s"}`}
       action={
         <button
@@ -176,12 +132,11 @@ export function DigestCard({ announcements, assignments, courses }: Props) {
         </button>
       }
     >
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:auto-cols-fr md:grid-flow-col">
         <Section
           icon={<Bell className="h-4 w-4" />}
           label="New announcements"
           count={newAnnouncements.length}
-          emptyText="No new posts"
         >
           {newAnnouncements.map((a) => (
             <Link
@@ -202,7 +157,6 @@ export function DigestCard({ announcements, assignments, courses }: Props) {
           icon={<TrendingUp className="h-4 w-4" />}
           label="New grades"
           count={gradeChanges.length}
-          emptyText="No new grades"
         >
           {gradeChanges.map(({ a, prev, next }) => (
             <div key={a.id} className="glass-inset glass-hover block p-2.5">
@@ -237,7 +191,6 @@ export function DigestCard({ announcements, assignments, courses }: Props) {
           icon={<Clock className="h-4 w-4" />}
           label="Newly urgent"
           count={newlyUrgent.length}
-          emptyText="Nothing new due soon"
         >
           {newlyUrgent.map(({ a, urgency }) => (
             <div key={a.id} className={`glass-inset glass-hover block p-2.5 ${dueTodayClass(a.due_at)}`}>
@@ -269,19 +222,19 @@ export function DigestCard({ announcements, assignments, courses }: Props) {
   );
 }
 
+/** One part of the digest; a part with nothing in it isn't shown. */
 function Section({
   icon,
   label,
   count,
-  emptyText,
   children,
 }: {
   icon: React.ReactNode;
   label: string;
   count: number;
-  emptyText: string;
   children: React.ReactNode;
 }) {
+  if (count === 0) return null;
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2 px-1">
@@ -291,11 +244,7 @@ function Section({
         </h3>
         <span className="ml-auto text-[10px] tabular-nums text-muted-foreground">{count}</span>
       </div>
-      {count === 0 ? (
-        <p className="px-1 py-2 text-[11px] text-muted-foreground/80">{emptyText}</p>
-      ) : (
-        <div className="space-y-1.5">{children}</div>
-      )}
+      <div className="space-y-1.5">{children}</div>
     </div>
   );
 }

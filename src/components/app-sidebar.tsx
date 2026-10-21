@@ -10,6 +10,7 @@ import {
   GraduationCap,
   LayoutDashboard,
   ListChecks,
+  ListTodo,
   LogOut,
   Megaphone,
   Moon,
@@ -36,6 +37,7 @@ import { SlidingSidebarNav } from "@/components/sliding-sidebar-nav";
 
 const items = [
   { title: "Today", to: "/dashboard" as const, icon: LayoutDashboard },
+  { title: "To-Do", to: "/focus" as const, icon: ListTodo },
   { title: "Study Session", to: "/study-session" as const, icon: TimerReset },
   { title: "Calendar", to: "/schedule" as const, icon: CalendarDays },
   { title: "Grades", to: "/grades" as const, icon: GraduationCap },
@@ -64,7 +66,6 @@ function isActive(pathname: string, to: string) {
 
 // Pages reached through in-page tabs keep their parent sidebar entry lit.
 const NESTED_PATHS: Record<string, string[]> = {
-  "/dashboard": ["/focus", "/get-it-done"],
   "/schedule": ["/class-schedule"],
 };
 

@@ -1,10 +1,11 @@
 import { queryOptions, type QueryClient } from "@tanstack/react-query";
 import {
   getCoursesFn,
-  getAllAssignmentsFn,
+  getAssignmentsKeepingDropped,
   getCalendarEventsFn,
   getAnnouncementsFn,
   getDueDatesFn,
+  type AssignmentItem,
 } from "./canvas.functions";
 import { CANVAS_DATA_GC_MS, CANVAS_DATA_STALE_MS } from "./query-policy";
 
@@ -27,7 +28,9 @@ export const coursesQueryOptions = queryOptions({
 
 export const assignmentsQueryOptions = queryOptions({
   queryKey: ["canvas", "assignments"] as const,
-  queryFn: () => getAllAssignmentsFn(),
+  // A class the server dropped without saying so keeps what it had.
+  queryFn: ({ client, queryKey }) =>
+    getAssignmentsKeepingDropped(client.getQueryData<AssignmentItem[]>(queryKey)),
   staleTime: CANVAS_DATA_STALE_MS,
   gcTime: CANVAS_DATA_GC_MS,
   refetchOnMount: true,
@@ -51,7 +54,8 @@ export const announcementsQueryOptions = queryOptions({
 
 export const dueDatesQueryOptions = queryOptions({
   queryKey: ["canvas", "assignments"] as const,
-  queryFn: () => getAllAssignmentsFn(),
+  queryFn: ({ client, queryKey }) =>
+    getAssignmentsKeepingDropped(client.getQueryData<AssignmentItem[]>(queryKey)),
   staleTime: CANVAS_DATA_STALE_MS,
   gcTime: CANVAS_DATA_GC_MS,
   refetchOnMount: true,
@@ -70,7 +74,6 @@ export function prefetchRouteQueries(client: QueryClient, to: string) {
       break;
     case "/assignments":
     case "/focus":
-    case "/get-it-done":
     case "/study-session":
       void client.prefetchQuery(assignmentsQueryOptions);
       void client.prefetchQuery(coursesQueryOptions);

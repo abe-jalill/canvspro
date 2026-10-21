@@ -1,13 +1,10 @@
 export interface PageTab {
-  to: "/dashboard" | "/focus" | "/get-it-done" | "/schedule" | "/class-schedule";
+  to: "/schedule" | "/class-schedule";
   label: string;
 }
 
-export const TODAY_TABS: PageTab[] = [
-  { to: "/dashboard", label: "Dashboard" },
-  { to: "/focus", label: "To-Do" },
-  { to: "/get-it-done", label: "Get It Done" },
-];
+// Today is the dashboard on its own; To-Do has its own sidebar entry, and Get
+// It Done is the dashboard's Next up.
 
 export const CALENDAR_TABS: PageTab[] = [
   { to: "/schedule", label: "Calendar" },

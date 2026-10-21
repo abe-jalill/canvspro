@@ -15,14 +15,7 @@ import { fetchUserProfile } from "@/lib/user-profile";
 import { useUserScope } from "@/lib/user-scope";
 import { userKey } from "@/lib/auth-user";
 
-const PRIMARY_ROUTES = [
-  "/dashboard",
-  "/get-it-done",
-  "/assignments",
-  "/focus",
-  "/schedule",
-  "/grades",
-] as const;
+const PRIMARY_ROUTES = ["/dashboard", "/assignments", "/focus", "/schedule", "/grades"] as const;
 
 const SECONDARY_ROUTES = [
   "/study-session",

@@ -149,11 +149,17 @@ export function WorkloadHeatmap({ assignments, weeks = 4, outlineDueToday = fals
                 {count > 0 ? count : ""}
               </span>
               <span className="flex h-[60px] items-end">
+                {/* In the palette, as on the iPhone: stronger for heavier days, solid when
+                    picked, half strength for days already past. */}
                 <span
-                  className="w-[18px] rounded-[5px] bg-foreground transition-[height,opacity] duration-300 motion-reduce:transition-none"
+                  className={cn(
+                    "w-[18px] rounded-[5px] transition-[height,opacity] duration-300 motion-reduce:transition-none",
+                    count === 0 ? "bg-foreground" : "bg-gradient-to-b from-primary to-primary/45",
+                  )}
                   style={{
                     height: count === 0 ? 4 : 10 + 50 * share,
-                    opacity: count === 0 ? 0.08 : isOpen ? 0.85 : 0.18 + 0.4 * share,
+                    opacity:
+                      count === 0 ? 0.08 : (isOpen ? 1 : 0.55 + 0.45 * share) * (isPast ? 0.5 : 1),
                   }}
                   aria-hidden="true"
                 />
@@ -166,7 +172,7 @@ export function WorkloadHeatmap({ assignments, weeks = 4, outlineDueToday = fals
                   className={cn(
                     "flex h-[30px] w-[30px] items-center justify-center rounded-full text-[13px] tabular-nums",
                     isToday
-                      ? "bg-foreground font-semibold text-background"
+                      ? "bg-primary font-semibold text-primary-foreground"
                       : isPast
                         ? "text-foreground/45"
                         : "text-foreground/90",

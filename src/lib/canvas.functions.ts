@@ -2,6 +2,7 @@
 // The Canvas key is stored per-user in `user_settings`; the Edge Function
 // reads it server-side, so the browser never needs to hold it.
 import { supabase } from "@/integrations/supabase/client";
+import { keepDroppedClasses } from "./keep-dropped-classes";
 import { clearCanvasKeyInvalidFlag } from "@/lib/canvas-key-health";
 import { getUserScope } from "@/lib/user-scope";
 import { createRequestCache } from "@/lib/request-cache";
@@ -204,6 +205,23 @@ export async function getAllCoursesIncludingHidden(): Promise<CourseSummary[]> {
   return Array.isArray(raw) ? raw : [];
 }
 export const getAllAssignmentsFn = () => section("assignments");
+
+/**
+ * The assignments, with a class whose work the server silently dropped this
+ * time kept from `previous` (see keepDroppedClasses).
+ */
+export async function getAssignmentsKeepingDropped(
+  previous: AssignmentItem[] | undefined,
+): Promise<AssignmentItem[]> {
+  const fresh = await section("assignments");
+  const bundle = await fetchCanvasBundle();
+  if (bundle.errors?.courses) return fresh;
+  return keepDroppedClasses(
+    fresh,
+    previous,
+    bundle.courses.map((course) => course.id),
+  );
+}
 
 /** Free-tier due timestamps: ids and due dates only, no assignment details. */
 export interface DueDateItem {

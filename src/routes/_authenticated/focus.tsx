@@ -1,35 +1,23 @@
-import { AssignmentEstimateEditor } from "@/components/assignment-estimate";
-import { formatAssignmentDue, relativeDueDay } from "@/lib/assignment-due";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useQuery, queryOptions } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
-import { Check, ExternalLink } from "lucide-react";
-import { getAllAssignmentsFn, getCoursesFn, type AssignmentItem } from "@/lib/canvas.functions";
-import { CANVAS_DATA_GC_MS, CANVAS_DATA_STALE_MS } from "@/lib/query-policy";
+import { formatAssignmentDue } from "@/lib/assignment-due";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
+import { Check, ChevronDown, Search, X } from "lucide-react";
+import type { AssignmentItem } from "@/lib/canvas.functions";
 import { ErrorState } from "@/components/glass-card";
-import { PageTabs } from "@/components/page-tabs";
-import { TODAY_TABS } from "@/lib/page-tab-sets";
 import { cn } from "@/lib/utils";
-import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
+import { AssignmentProgressBar } from "@/components/assignment-progress";
 import { displayCourseName } from "@/lib/course-display";
 import { useLocalSet, COMPLETED_ASSIGNMENTS_KEY } from "@/lib/local-state";
 import { defaultEstimateMinutes } from "@/lib/get-it-done";
-import { useAssignmentMetaMap } from "@/hooks/use-assignment-meta";
-import {
-  normalizeFocusWindow,
-  isDueInFocusWindow,
-  isDueOnDay,
-  isInFocusWindow,
-  type FocusWindow,
-} from "@/lib/focus-window";
-import {
-  isAssignmentComplete,
-  isAssignmentVisible,
-  isInDisplayWindow,
-} from "@/lib/assignment-window";
+import { useAssignmentMetaMap, useAssignmentMeta } from "@/hooks/use-assignment-meta";
+import { isDueInFocusWindow, normalizeFocusWindow, type FocusWindow } from "@/lib/focus-window";
+import { isAssignmentComplete, isAssignmentVisible } from "@/lib/assignment-window";
 import { customToAssignmentItem, useCustomAssignments } from "@/lib/custom-assignments";
 import { useCompletionExit } from "@/lib/completion-motion";
 import { CompletedLink } from "@/components/completed-link";
+import { classColor } from "@/lib/class-color";
+import { formatMinutes } from "@/lib/format-minutes";
 
 import {
   coursesQueryOptions as coursesQO,
@@ -40,12 +28,12 @@ import { SkeletonBlock } from "@/components/skeletons/dashboard-skeletons";
 export const Route = createFileRoute("/_authenticated/focus")({
   head: () => ({
     meta: [
-      { title: "Focus — CoursePro" },
+      { title: "To-Do — CoursePro" },
       {
         name: "description",
         content: "Everything due soon, laid out day by day or class by class.",
       },
-      { property: "og:title", content: "Focus — CoursePro" },
+      { property: "og:title", content: "To-Do — CoursePro" },
       {
         property: "og:description",
         content: "Everything due soon, laid out day by day or class by class.",
@@ -54,9 +42,9 @@ export const Route = createFileRoute("/_authenticated/focus")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  validateSearch: (search: Record<string, unknown>): { window: FocusWindow } => ({
-    window: normalizeFocusWindow(search.window),
-  }),
+  // Old links can still say ?window=…; To-Do is one list now, so it's not needed.
+  validateSearch: (search: Record<string, unknown>): { window?: FocusWindow } =>
+    search.window === undefined ? {} : { window: normalizeFocusWindow(search.window) },
   loader: ({ context }) => {
     if (context?.queryClient) {
       void context.queryClient.ensureQueryData(assignmentsQO);
@@ -66,22 +54,6 @@ export const Route = createFileRoute("/_authenticated/focus")({
   component: FocusPage,
 });
 
-/**
- * Coming Up has one row of choices and exactly one is picked: Overdue, This
- * week, a single day, or Next 4 weeks. Links can still ask for the old
- * ranges: 24 hours opens Today, 2 or 3 days open This week.
- */
-type RangeChoice = "overdue" | "7" | "all";
-const RANGE_LABELS: Record<RangeChoice, string> = {
-  overdue: "Overdue",
-  "7": "This week",
-  all: "Next 4 weeks",
-};
-
-function rangeChoiceFor(win: FocusWindow): RangeChoice {
-  return win === "overdue" ? "overdue" : win === "all" ? "all" : "7";
-}
-
 type ViewMode = "day" | "class";
 const VIEW_KEY = "canvas:focus-view";
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -90,26 +62,6 @@ function startOfDay(t: number) {
   const d = new Date(t);
   d.setHours(0, 0, 0, 0);
   return d.getTime();
-}
-
-function dayHeading(dayStart: number, today: number) {
-  const diff = Math.round((dayStart - today) / DAY_MS);
-  if (diff === 0) return "Today";
-  if (diff === 1) return "Tomorrow";
-  return new Intl.DateTimeFormat(undefined, { weekday: "long" }).format(dayStart);
-}
-
-/** "today", "tomorrow" or "on Wednesday", for the summary line. */
-function dueDayPhrase(dayStart: number, today: number) {
-  const heading = dayHeading(dayStart, today);
-  return heading === "Today" || heading === "Tomorrow" ? heading.toLowerCase() : `on ${heading}`;
-}
-
-function formatMinutes(minutes: number) {
-  if (minutes < 60) return `${minutes} min`;
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return m ? `${h}h ${m}m` : `${h}h`;
 }
 
 function useViewMode(): [ViewMode, (mode: ViewMode) => void] {
@@ -133,361 +85,346 @@ function useViewMode(): [ViewMode, (mode: ViewMode) => void] {
   return [mode, update];
 }
 
+interface Group {
+  key: string;
+  /** "Today", "Tomorrow", "Sunday", "Catch up", or the class's name. */
+  title: string;
+  /** "Oct 25" for a day. */
+  date: string | null;
+  isToday: boolean;
+  isCatchUp: boolean;
+  courseId: number | null;
+  items: AssignmentItem[];
+}
+
+/**
+ * To-Do, like the iPhone app: one list. Anything to catch up on first, then
+ * each day of the next four weeks (or each class), one card per day. No ranges
+ * or days to pick; search and Completed are at the top.
+ */
 function FocusPage() {
-  const navigate = useNavigate();
-  const { window: win } = Route.useSearch();
   const assignments = useQuery(assignmentsQO);
   const courses = useQuery(coursesQO);
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
   const custom = useCustomAssignments();
+  const meta = useAssignmentMeta();
   const metaMap = useAssignmentMetaMap();
-  const [showCompleted, setShowCompleted] = useState(false);
   const [view, setView] = useViewMode();
-  const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const [searching, setSearching] = useState(false);
+  const [query, setQuery] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 30_000);
     return () => window.clearInterval(timer);
   }, []);
+  useEffect(() => {
+    if (searching) searchRef.current?.focus();
+  }, [searching]);
 
   const courseById = new Map((courses.data ?? []).map((course) => [course.id, course]));
+  const courseIds = (courses.data ?? []).map((course) => course.id);
   const allAssignments = [
     ...(assignments.data ?? []),
     ...custom.list.map((item) => customToAssignmentItem(item, courseById.get(item.course_id))),
   ];
-  const range = rangeChoiceFor(win);
-  // A day tile shows that day only; otherwise the picked range.
-  const pickedDay = selectedDay ?? (win === "1" ? startOfDay(now) : null);
-  const dueInWindow = allAssignments.filter((a) =>
-    pickedDay == null ? isDueInFocusWindow(a, range, now) : isDueOnDay(a, pickedDay),
-  );
-  const completedInWindow = dueInWindow.filter(
-    (a) => isAssignmentComplete(a, completed.has(a.id)) && isInDisplayWindow(a, now),
-  );
-  const unfinished = dueInWindow
-    .filter((a) => isAssignmentVisible(a, completed.has(a.id), false, now))
-    .sort(byDue);
-  const hiddenCompleteCount = completedInWindow.length;
-  const inWindow = (showCompleted ? [...unfinished, ...completedInWindow] : unfinished).sort(byDue);
-
   const courseName = (a: AssignmentItem) => {
     const c = courseById.get(a.course_id);
     return displayCourseName(c?.name ?? a.course_name, c?.course_code ?? a.course_code);
   };
   const estimateFor = (a: AssignmentItem) =>
     metaMap.get(a.id)?.estimatedMinutes ?? defaultEstimateMinutes(a);
+  const isDone = (a: AssignmentItem) => isAssignmentComplete(a, completed.has(a.id));
+  const isShown = (a: AssignmentItem) => isAssignmentVisible(a, completed.has(a.id), false, now);
 
-  // Marking done folds the row away and shows the undo bar (see completion-motion).
-  const toggleComplete = (assignment: AssignmentItem) => completed.toggle(assignment.id);
+  const text = query.trim().toLowerCase();
+  // Unfinished work due within four weeks, and anything recent to catch up on.
+  const items = allAssignments
+    .filter(
+      (a) =>
+        isDueInFocusWindow(a, "all", now) &&
+        isShown(a) &&
+        (!text ||
+          a.name.toLowerCase().includes(text) ||
+          courseName(a).toLowerCase().includes(text)),
+    )
+    .sort(byDue);
 
-  const minutesNeeded = unfinished.reduce((s, a) => s + estimateFor(a), 0);
+  // The week: done and in all, over the same seven days as the line above it.
+  const week = allAssignments.filter((a) => isDueInFocusWindow(a, "7", now));
+  const weekDone = week.filter(isDone).length;
+  const weekLeft = week.filter((a) => !isDone(a) && isShown(a));
+  const weekTotal = weekDone + weekLeft.length;
+  const headerLine =
+    weekLeft.length > 0
+      ? `${weekLeft.length} this week · ${formatMinutes(weekLeft.reduce((s, a) => s + estimateFor(a), 0))}`
+      : items.length > 0
+        ? "Nothing due this week"
+        : "All clear";
 
-  // Seven days starting today, for the quick day picker.
-  const today = startOfDay(now);
-  const strip = Array.from({ length: 7 }, (_, i) => {
-    const start = today + i * DAY_MS;
-    const count = allAssignments.filter((a) => {
-      if (!a.due_at || !isAssignmentVisible(a, completed.has(a.id), false, now)) return false;
-      const t = Date.parse(a.due_at);
-      return t >= start && t < start + DAY_MS;
-    }).length;
-    return { start, count };
-  });
-
-  const rangeCounts = Object.fromEntries(
-    (["overdue", "7", "all"] as const).map((id) => [
-      id,
-      allAssignments.filter((a) => isInFocusWindow(a, id, now, completed.has(a.id))).length,
-    ]),
-  ) as Record<RangeChoice, number>;
-  const pickRange = (id: RangeChoice) => {
-    setSelectedDay(null);
-    void navigate({ to: "/focus", search: { window: id }, replace: true });
-  };
-  const listItems = inWindow;
-
+  // Counts only once everything has loaded, never "All clear" before it.
   const loading =
-    assignments.isLoading || courses.isLoading || completed.isLoading || custom.isLoading;
-
-  const summary =
-    unfinished.length === 0
-      ? null
-      : pickedDay != null
-        ? `${unfinished.length} ${unfinished.length === 1 ? "thing" : "things"} due ${dueDayPhrase(pickedDay, today)}, about ${formatMinutes(minutesNeeded)} of work`
-      : range === "overdue"
-        ? `${unfinished.length} overdue, about ${formatMinutes(minutesNeeded)} of work`
-        : `${unfinished.length} ${unfinished.length === 1 ? "thing" : "things"} due ${range === "7" ? "this week" : "in the next 4 weeks"}, about ${formatMinutes(minutesNeeded)} of work`;
-
-  const rowProps = (a: AssignmentItem) => ({
-    assignment: a,
-    course: courseName(a),
-    estimate: estimateFor(a),
-    done: isAssignmentComplete(a, completed.has(a.id)),
-    canvasDone: isAssignmentComplete(a, false),
-    ready: completed.ready,
-    onToggle: () => toggleComplete(a),
-  });
+    assignments.isLoading ||
+    courses.isLoading ||
+    completed.isLoading ||
+    custom.isLoading ||
+    meta.isLoading;
+  // A failed refresh keeps showing what loaded before; only nothing at all is an error.
+  const failed = assignments.isError && !assignments.data;
+  const today = startOfDay(now);
+  const groups = view === "class" ? groupByClass(items, courseName) : groupByDay(items, today, now);
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-6 pb-10">
-      <PageTabs tabs={TODAY_TABS} label="Today sections" />
-      <header className="premium-reveal px-1">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-          <h1 className="text-3xl font-medium tracking-tight md:text-4xl">To-Do</h1>
-          <CompletedLink />
+    <div className="mx-auto w-full max-w-3xl space-y-6 pb-10">
+      <header className="dashboard-today__header relative px-1 pt-1">
+        <div className="relative flex items-center justify-between gap-3">
+          <h1 className="text-3xl font-semibold tracking-[-0.02em] md:text-4xl">To-Do</h1>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                if (searching) setQuery("");
+                setSearching(!searching);
+              }}
+              aria-label={searching ? "Close search" : "Search"}
+              aria-pressed={searching}
+              className="press grid h-9 w-9 place-items-center rounded-lg border border-foreground/15 text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+            >
+              {searching ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
+            </button>
+            <CompletedLink />
+          </div>
         </div>
-        {summary && <p className="mt-1.5 text-sm text-muted-foreground">{summary}</p>}
+        <div className="relative mt-2 flex items-center justify-between gap-3">
+          {loading || failed ? (
+            <span className="skeleton-shimmer block h-4 w-44" aria-hidden="true" />
+          ) : (
+            <p className="text-base tabular-nums text-muted-foreground">{headerLine}</p>
+          )}
+          <label className="relative inline-flex shrink-0 items-center">
+            <span className="sr-only">Group</span>
+            <select
+              value={view}
+              onChange={(event) => setView(event.target.value as ViewMode)}
+              className="cursor-pointer appearance-none rounded-lg bg-foreground/[0.05] py-1.5 pl-3 pr-7 text-xs text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <option value="day">By day</option>
+              <option value="class">By class</option>
+            </select>
+            <ChevronDown
+              className="pointer-events-none absolute right-2 h-3 w-3 text-muted-foreground"
+              aria-hidden="true"
+            />
+          </label>
+        </div>
+        {!loading && !failed && weekTotal > 0 && <WeekSegments done={weekDone} total={weekTotal} />}
       </header>
 
+      {searching && (
+        <label className="flex items-center gap-3 rounded-xl border border-foreground/15 px-3 py-2.5">
+          <Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <input
+            ref={searchRef}
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search assignments or classes"
+            aria-label="Search assignments or classes"
+            className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+          />
+        </label>
+      )}
+
       {loading ? (
-        <div className="space-y-5 px-1" role="status" aria-label="Loading your work">
-          <SkeletonBlock className="h-14 w-full" />
-          {Array.from({ length: 4 }).map((_, i) => (
+        <div className="space-y-6 px-1" role="status" aria-label="Loading your work">
+          {Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="space-y-2">
-              <SkeletonBlock className="h-4 w-1/2" />
-              <SkeletonBlock className="h-3 w-1/3" />
+              <SkeletonBlock className="h-4 w-40" />
+              <SkeletonBlock className="h-28 w-full" />
             </div>
           ))}
         </div>
-      ) : assignments.isError ? (
+      ) : failed ? (
         <ErrorState message={(assignments.error as Error).message} />
+      ) : items.length === 0 ? (
+        <div className="px-1 py-16 text-center">
+          <Check className="mx-auto h-5 w-5 text-muted-foreground" aria-hidden="true" />
+          <p className="mt-3 text-base">{text ? "No matches" : "You're all clear."}</p>
+        </div>
       ) : (
-        <>
-          <div
-            className="premium-reveal -mx-1 flex snap-x gap-1.5 overflow-x-auto px-2 pb-1 [scrollbar-width:none] max-md:[mask-image:linear-gradient(to_right,transparent,black_14px,black_calc(100%-14px),transparent)]"
-            role="group"
-            aria-label="Show"
-          >
-            {(rangeCounts.overdue > 0 || range === "overdue") && (
-              <RangeTile
-                label={RANGE_LABELS.overdue}
-                count={rangeCounts.overdue}
-                picked={pickedDay == null && range === "overdue"}
-                onPick={() => pickRange("overdue")}
-                warn
+        <div className="space-y-7">
+          {groups.map((group) => (
+            <section key={group.key}>
+              <SectionLabel
+                group={group}
+                minutes={group.items.reduce((s, a) => s + estimateFor(a), 0)}
+                color={group.courseId != null ? classColor(group.courseId, courseIds) : undefined}
               />
-            )}
-            <RangeTile
-              label={RANGE_LABELS["7"]}
-              count={rangeCounts["7"]}
-              picked={pickedDay == null && range === "7"}
-              onPick={() => pickRange("7")}
-            />
-            {strip.map((day, i) => {
-              const picked = pickedDay === day.start;
-              return (
-                <button
-                  key={day.start}
-                  type="button"
-                  onClick={() => setSelectedDay(day.start)}
-                  aria-pressed={picked}
-                  aria-label={`${dayHeading(day.start, today)}: ${day.count} due`}
-                  className={cn(
-                    "flex min-w-[3.6rem] flex-1 snap-start flex-col items-center gap-0.5 rounded-lg border px-1 py-2.5 text-xs transition-colors duration-300 motion-reduce:transition-none",
-                    picked
-                      ? "border-foreground bg-foreground text-background"
-                      : "border-foreground/15 text-muted-foreground hover:border-foreground/30 hover:text-foreground",
-                  )}
-                >
-                  <span>
-                    {i === 0
-                      ? "Today"
-                      : new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(day.start)}
-                  </span>
-                  <span className={cn("text-base font-normal tabular-nums", picked ? "text-background" : "text-foreground")}>
-                    {new Date(day.start).getDate()}
-                  </span>
-                  <span
-                    className={cn(
-                      "mt-0.5 h-1 w-1 rounded-full",
-                      picked ? "bg-background/70" : "bg-foreground/50",
-                      day.count === 0 && "opacity-0",
-                    )}
-                    aria-hidden="true"
+              {/* One card per day; today's catches the palette light. */}
+              <ul
+                className={cn(
+                  "mt-2 divide-y divide-foreground/[0.07] rounded-2xl border px-4",
+                  group.isToday
+                    ? "border-primary/30 bg-gradient-to-b from-primary/10 to-transparent"
+                    : "glass-panel border-foreground/10",
+                )}
+              >
+                {group.items.map((a) => (
+                  <FocusRow
+                    key={a.id}
+                    assignment={a}
+                    course={courseName(a)}
+                    estimate={estimateFor(a)}
+                    done={isDone(a)}
+                    canvasDone={isAssignmentComplete(a, false)}
+                    ready={completed.ready}
+                    onToggle={() => completed.toggle(a.id)}
+                    color={classColor(a.course_id, courseIds)}
+                    showCourse={view === "day"}
                   />
-                </button>
-              );
-            })}
-            <RangeTile
-              label={RANGE_LABELS.all}
-              count={rangeCounts.all}
-              picked={pickedDay == null && range === "all"}
-              onPick={() => pickRange("all")}
-            />
-          </div>
-
-          <div className="flex flex-wrap items-center justify-between gap-3 px-1 text-sm text-muted-foreground">
-            <div className="inline-flex gap-2" role="group" aria-label="Group by">
-              {(
-                [
-                  ["day", "By day"],
-                  ["class", "By class"],
-                ] as const
-              ).map(([id, label]) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setView(id)}
-                  aria-pressed={view === id}
-                  className={cn(
-                    "rounded-lg border px-3 py-1 transition-colors",
-                    view === id
-                      ? "border-foreground/60 text-foreground"
-                      : "border-foreground/15 hover:border-foreground/30 hover:text-foreground",
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            <label className="flex cursor-pointer items-center gap-2 text-xs">
-              <input
-                type="checkbox"
-                checked={showCompleted}
-                onChange={(event) => setShowCompleted(event.target.checked)}
-                className="h-4 w-4 accent-primary"
-              />
-              Show finished{hiddenCompleteCount > 0 ? ` (${hiddenCompleteCount})` : ""}
-            </label>
-          </div>
-
-          {listItems.length === 0 ? (
-            <div className="px-1 py-16 text-center">
-              <Check className="mx-auto h-5 w-5 text-muted-foreground" aria-hidden="true" />
-              <p className="mt-3 text-base">
-                {pickedDay != null
-                  ? "Nothing due this day."
-                  : range === "overdue"
-                    ? "Nothing overdue."
-                    : "You're all clear."}
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {hiddenCompleteCount > 0
-                  ? `${hiddenCompleteCount} finished here. Nice work.`
-                  : pickedDay != null
-                    ? "Pick another day above."
-                    : range === "7"
-                      ? "Pick Next 4 weeks above to look further ahead."
-                      : "Nothing else is due."}
-              </p>
-            </div>
-          ) : view === "day" ? (
-            <div className="space-y-8 px-1">
-              {groupByDay(listItems, today).map((group) => (
-                <section key={group.key}>
-                  <h2 className="text-sm text-muted-foreground">
-                    {group.label}
-                    {group.date && <span className="ml-2 opacity-70">{group.date}</span>}
-                  </h2>
-                  <ul className="mt-2 space-y-2">
-                    {group.items.map((a) => (
-                      <FocusRow key={a.id} {...rowProps(a)} showCourse />
-                    ))}
-                  </ul>
-                </section>
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-8 px-1">
-              {groupByClass(listItems).map((group) => (
-                <section key={group.courseId}>
-                  <h2 className="text-sm text-muted-foreground">{courseName(group.items[0])}</h2>
-                  <ul className="mt-2 space-y-2">
-                    {group.items.map((a) => (
-                      <FocusRow key={a.id} {...rowProps(a)} showDate />
-                    ))}
-                  </ul>
-                </section>
-              ))}
-            </div>
-          )}
-        </>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
       )}
     </div>
   );
 }
 
-/** Overdue, This week or Next 4 weeks, with how many are due. */
-function RangeTile({
-  label,
-  count,
-  picked,
-  onPick,
-  warn = false,
+/** One segment per assignment due this week; done ones fill from the left. Past 12 it's one bar. */
+function WeekSegments({ done, total }: { done: number; total: number }) {
+  return (
+    <div
+      className="relative mt-3 flex gap-1"
+      role="progressbar"
+      aria-valuemin={0}
+      aria-valuemax={total}
+      aria-valuenow={done}
+      aria-label={`${done} of ${total} done this week`}
+    >
+      {total > 12 ? (
+        <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-foreground/10">
+          <span
+            className="block h-full rounded-full bg-primary transition-[width] duration-500 motion-reduce:transition-none"
+            style={{ width: `${(done / total) * 100}%` }}
+          />
+        </span>
+      ) : (
+        Array.from({ length: total }).map((_, index) => (
+          <span
+            key={index}
+            className={cn(
+              "h-1.5 flex-1 rounded-full transition-colors duration-500 motion-reduce:transition-none",
+              index < done ? "bg-primary" : "bg-foreground/10",
+            )}
+          />
+        ))
+      )}
+    </div>
+  );
+}
+
+/** "Sunday  Oct 25  2 ····· 1 hr": Today in the palette color, Catch up in rose. */
+function SectionLabel({
+  group,
+  minutes,
+  color,
 }: {
-  label: string;
-  count: number;
-  picked: boolean;
-  onPick: () => void;
-  warn?: boolean;
+  group: Group;
+  minutes: number;
+  color?: string;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onPick}
-      aria-pressed={picked}
-      aria-label={`${label}: ${count} due`}
-      className={cn(
-        "flex min-w-[5.5rem] shrink-0 snap-start flex-col items-center justify-center gap-0.5 rounded-lg border px-3 py-2.5 text-xs transition-colors duration-300 motion-reduce:transition-none",
-        picked
-          ? "border-foreground bg-foreground text-background"
-          : "border-foreground/15 text-muted-foreground hover:border-foreground/30 hover:text-foreground",
+    <h2 className="flex items-baseline gap-2 px-1">
+      {color && (
+        <span
+          className="inline-block h-2 w-2 shrink-0 -translate-y-px rounded-full"
+          style={{ backgroundColor: color }}
+          aria-hidden="true"
+        />
       )}
-    >
-      <span className="whitespace-nowrap">{label}</span>
       <span
         className={cn(
-          "text-base font-normal tabular-nums",
-          picked ? "text-background" : warn && count > 0 ? "text-rose-300" : "text-foreground",
+          "text-[15px] font-semibold tracking-[-0.01em]",
+          group.isToday ? "text-primary" : group.isCatchUp ? "text-rose-400" : "text-foreground",
         )}
       >
-        {count}
+        {group.title}
       </span>
-      <span className="mt-0.5 h-1 w-1" aria-hidden="true" />
-    </button>
+      {group.date && <span className="text-sm text-muted-foreground">{group.date}</span>}
+      <span className="text-sm tabular-nums text-muted-foreground/70">{group.items.length}</span>
+      <span className="ml-auto whitespace-nowrap text-xs tabular-nums text-muted-foreground/70">
+        {formatMinutes(minutes)}
+      </span>
+    </h2>
   );
 }
 
 function byDue(a: AssignmentItem, b: AssignmentItem) {
-  return (a.due_at ? Date.parse(a.due_at) : Infinity) - (b.due_at ? Date.parse(b.due_at) : Infinity);
+  return (
+    (a.due_at ? Date.parse(a.due_at) : Infinity) - (b.due_at ? Date.parse(b.due_at) : Infinity)
+  );
 }
 
-function groupByDay(items: AssignmentItem[], today: number) {
-  const groups = new Map<string, { key: string; label: string; date: string | null; items: AssignmentItem[] }>();
+function groupByDay(items: AssignmentItem[], today: number, now: number): Group[] {
+  const groups = new Map<string, Group>();
   for (const a of items) {
-    let key = "none";
-    let label = "No due date";
-    let date: string | null = null;
-    if (a.due_at) {
-      const start = startOfDay(Date.parse(a.due_at));
-      if (Date.parse(a.due_at) < Date.now()) {
-        key = "overdue";
-        label = "Overdue";
-      } else {
-        key = String(start);
-        label = dayHeading(start, today);
-        date = relativeDueDay(a.due_at) ? null : new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(start);
-      }
+    const due = a.due_at ? Date.parse(a.due_at) : NaN;
+    const base = {
+      isToday: false,
+      isCatchUp: false,
+      courseId: null,
+      items: [] as AssignmentItem[],
+    };
+    let group: Group;
+    if (!Number.isFinite(due)) {
+      group = { ...base, key: "none", title: "No due date", date: null };
+    } else if (due < now) {
+      group = { ...base, key: "catch-up", title: "Catch up", date: null, isCatchUp: true };
+    } else {
+      const start = startOfDay(due);
+      const diff = Math.round((start - today) / DAY_MS);
+      group = {
+        ...base,
+        key: String(start),
+        title:
+          diff === 0
+            ? "Today"
+            : diff === 1
+              ? "Tomorrow"
+              : new Intl.DateTimeFormat(undefined, { weekday: "long" }).format(start),
+        date: new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(start),
+        isToday: diff === 0,
+      };
     }
-    const g = groups.get(key) ?? { key, label, date, items: [] };
-    g.items.push(a);
-    groups.set(key, g);
+    const existing = groups.get(group.key) ?? group;
+    existing.items.push(a);
+    groups.set(group.key, existing);
   }
   return [...groups.values()];
 }
 
-function groupByClass(items: AssignmentItem[]) {
-  const groups = new Map<number, { courseId: number; items: AssignmentItem[] }>();
+function groupByClass(items: AssignmentItem[], courseName: (a: AssignmentItem) => string): Group[] {
+  const groups = new Map<number, Group>();
   for (const a of items) {
-    const g = groups.get(a.course_id) ?? { courseId: a.course_id, items: [] };
+    const g = groups.get(a.course_id) ?? {
+      key: `class-${a.course_id}`,
+      title: courseName(a),
+      date: null,
+      isToday: false,
+      isCatchUp: false,
+      courseId: a.course_id,
+      items: [],
+    };
     g.items.push(a);
     groups.set(a.course_id, g);
   }
-  // Class with the soonest deadline first.
-  return [...groups.values()].sort((x, y) => byDue(x.items[0], y.items[0]));
+  return [...groups.values()].sort((x, y) => x.title.localeCompare(y.title));
 }
 
+/** The name, and one quiet line: class, time and how long it takes. */
 function FocusRow({
   assignment: a,
   course,
@@ -496,8 +433,8 @@ function FocusRow({
   canvasDone,
   ready,
   onToggle,
-  showCourse = false,
-  showDate = false,
+  color,
+  showCourse,
 }: {
   assignment: AssignmentItem;
   course: string;
@@ -506,31 +443,40 @@ function FocusRow({
   canvasDone: boolean;
   ready: boolean;
   onToggle: () => void;
-  showCourse?: boolean;
-  showDate?: boolean;
+  color: string;
+  showCourse: boolean;
 }) {
   const due = a.due_at ? Date.parse(a.due_at) : null;
-  const time =
-    due != null
-      ? new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(due)
-      : null;
-  const date =
-    due != null && showDate
-      ? formatAssignmentDue(a.due_at, Date.now(), false)
-      : null;
   const exit = useCompletionExit<HTMLLIElement>(a.id);
   // Playing its completion exit: shown done until it folds away.
   const done = savedDone || exit.completing;
   const missing = !done && a.submission?.missing;
+  // By day the section names the day, so a row shows the time (or the date, for
+  // work to catch up on). By class it shows the date.
+  const when =
+    due == null
+      ? "No due date"
+      : showCourse && due >= Date.now()
+        ? new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(due)
+        : formatAssignmentDue(a.due_at);
+  const line = [
+    showCourse ? course : null,
+    when,
+    done ? (canvasDone ? "Done in Canvas" : "Done") : formatMinutes(estimate),
+    missing ? "Missing" : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <li
       ref={exit.ref}
       className={cn(
-        "group grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3.5 rounded-lg border border-foreground/15 px-4 py-3.5",
+        "group grid grid-cols-[auto_minmax(0,1fr)] items-start gap-3.5 py-3.5",
         done && "opacity-55",
       )}
     >
+      {/* The class's color: a soft tile that fills solid when done. */}
       <button
         type="button"
         onClick={onToggle}
@@ -538,45 +484,40 @@ function FocusRow({
         aria-label={`Mark ${a.name} ${done ? "incomplete" : "complete"}`}
         aria-pressed={done}
         data-completing={exit.completing || undefined}
-        className={cn(
-          "group/check mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-foreground/30 transition-colors hover:border-foreground/60 disabled:cursor-default",
-          exit.completing && "border-foreground/70 bg-foreground text-background",
-        )}
+        className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-[6px] border transition-colors disabled:cursor-default"
+        style={{
+          borderColor: done ? color : `color-mix(in srgb, ${color} 80%, transparent)`,
+          backgroundColor: done ? color : `color-mix(in srgb, ${color} 12%, transparent)`,
+        }}
       >
         <Check
           className={cn(
-            "h-3 w-3 transition-opacity group-hover/check:opacity-100",
+            "h-3 w-3 text-background transition-opacity",
             done ? "opacity-100" : "opacity-0",
           )}
+          strokeWidth={3}
           aria-hidden="true"
         />
       </button>
-      <div className="min-w-0">
-        <p className={cn("text-[15px] leading-snug", done && "line-through")}>{a.name}</p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          {showCourse && <span>{course} · </span>}
-
-          {done && <span> · {canvasDone ? "Done in Canvas" : "Marked done"}</span>}
-          {missing && <span> · Missing</span>}
-        </p>
-        <AssignmentEstimateEditor assignment={a} className="mt-2" />
-        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100">
-          <AssignmentDescriptionLink assignmentId={a.id} />
-          {a.html_url && (
-            <a
-              href={a.html_url}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground"
-            >
-              Open in Canvas <ExternalLink className="h-3 w-3" />
-            </a>
+      {/* The whole row opens the assignment on its class page, as on the iPhone. */}
+      <Link
+        to="/courses/$courseId"
+        params={{ courseId: String(a.course_id) }}
+        search={{ assignment: String(a.id) }}
+        preload="intent"
+        className="min-w-0 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <p
+          className={cn(
+            "text-[15px] font-medium leading-snug transition-colors group-hover:text-foreground/80",
+            done && "line-through",
           )}
-        </div>
-      </div>
-      <p className="whitespace-nowrap pt-0.5 text-right text-xs tabular-nums text-muted-foreground">
-        {date ? `${date}${time ? ` · ${time}` : ""}` : relativeDueDay(a.due_at) ? formatAssignmentDue(a.due_at) : (time ?? "No due date")}
-      </p>
+        >
+          {a.name}
+        </p>
+        <p className="mt-1 text-xs tabular-nums text-muted-foreground">{line}</p>
+        <AssignmentProgressBar assignmentId={a.id} className="mt-2" />
+      </Link>
     </li>
   );
 }

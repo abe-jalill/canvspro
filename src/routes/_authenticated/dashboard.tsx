@@ -6,10 +6,7 @@ import { useDashboardLayout, type WidgetId, type WidgetSize } from "@/lib/dashbo
 import { WIDGETS } from "@/components/widgets/dashboard-widgets";
 import { MasonryCell, MasonryGrid } from "@/components/widgets/masonry-grid";
 import { DashboardHero } from "@/components/dashboard-hero";
-import { DashboardPomodoro } from "@/components/dashboard-pomodoro";
 import { DashboardWidgetPicker } from "@/components/dashboard-widget-picker";
-import { PageTabs } from "@/components/page-tabs";
-import { TODAY_TABS } from "@/lib/page-tab-sets";
 
 import {
   coursesQueryOptions,
@@ -78,43 +75,41 @@ function Dashboard() {
       {layout.needsPicks && (
         <DashboardWidgetPicker open order={layout.order} initial={visible} onSave={layout.savePicks} />
       )}
-      {/* Tabs centered like on Coming Up and Get It Done; Pomodoro on the right. */}
-      {/* Side by side only when both fit; narrower, Pomodoro goes under the tabs. */}
-      <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:items-start">
-        <div className="lg:col-start-2">
-          <PageTabs tabs={TODAY_TABS} label="Today sections" />
-        </div>
-        <div className="flex lg:col-start-3">
-          <DashboardPomodoro />
-        </div>
-      </div>
       <DashboardHero />
 
-      <header
-        className="premium-reveal flex flex-wrap items-center justify-between gap-3 px-1"
-        style={{ animationDelay: "65ms" }}
-      >
-        <div className="min-w-0">
-          <h2 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
-            Your dashboard
-          </h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Choose which widgets appear, their order, and how much room they use.
-          </p>
-        </div>
+      {/* Masonry: a short card never leaves a hole; later cards move up into it. */}
+      <MasonryGrid className="grid-cols-1 md:grid-cols-2 lg:grid-cols-12">
+        {visible.map((id, index) => {
+          const meta = WIDGETS[id];
+          return (
+            <MasonryCell
+              key={id}
+              data-widget-card
+              // A widget with nothing to show (Since your last visit, with no news) leaves no gap.
+              className={cn(colSpanClass(sizeOf(id)), "premium-card [&:has(>div:empty)]:hidden")}
+              style={{ animationDelay: `${Math.min(index, 5) * 55 + 90}ms` }}
+            >
+              {meta.render()}
+            </MasonryCell>
+          );
+        })}
+      </MasonryGrid>
+
+      {/* Customize sits quietly under the widgets, as on the iPhone. */}
+      <div className="flex justify-center pt-2">
         <button
           onClick={() => setCustomizing((value) => !value)}
           type="button"
           aria-expanded={customizing}
           className={cn(
-            "glass-hover inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-4 text-sm font-medium",
-            customizing ? "bg-foreground text-background" : "glass-inset text-foreground",
+            "glass-hover inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-4 text-sm",
+            customizing ? "bg-foreground text-background" : "glass-inset text-muted-foreground",
           )}
         >
           {customizing ? <X className="h-4 w-4" /> : <SlidersHorizontal className="h-4 w-4" />}
-          {customizing ? "Done" : "Customize widgets"}
+          {customizing ? "Done" : "Customize dashboard"}
         </button>
-      </header>
+      </div>
 
       {customizing && (
         <section className="glass-panel-strong premium-reveal overflow-hidden rounded-2xl border border-primary/20">
@@ -217,22 +212,6 @@ function Dashboard() {
         </section>
       )}
 
-      {/* Masonry: a short card never leaves a hole; later cards move up into it. */}
-      <MasonryGrid className="grid-cols-1 md:grid-cols-2 lg:grid-cols-12">
-        {visible.map((id, index) => {
-          const meta = WIDGETS[id];
-          return (
-            <MasonryCell
-              key={id}
-              data-widget-card
-              className={cn(colSpanClass(sizeOf(id)), "premium-card")}
-              style={{ animationDelay: `${Math.min(index, 5) * 55 + 90}ms` }}
-            >
-              {meta.render()}
-            </MasonryCell>
-          );
-        })}
-      </MasonryGrid>
     </div>
   );
 }

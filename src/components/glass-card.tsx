@@ -11,6 +11,8 @@ interface GlassCardProps {
   subtitle?: string;
   action?: ReactNode;
   strong?: boolean;
+  /** A dashboard widget's glyph, in a palette tile before its title (as on the iPhone). */
+  icon?: ReactNode;
 }
 
 export function GlassCard({
@@ -21,6 +23,7 @@ export function GlassCard({
   subtitle,
   action,
   strong,
+  icon,
 }: GlassCardProps) {
   return (
     <section
@@ -32,7 +35,20 @@ export function GlassCard({
       )}
     >
       {(title || action) && (
-        <header className="mb-5 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+        <header
+          className={cn(
+            "mb-5 grid items-start gap-3",
+            icon ? "grid-cols-[auto_minmax(0,1fr)_auto]" : "grid-cols-[minmax(0,1fr)_auto]",
+          )}
+        >
+          {icon && (
+            <span
+              className="grid h-8 w-8 place-items-center rounded-[10px] bg-primary/[0.12] text-primary [&_svg]:h-4 [&_svg]:w-4"
+              aria-hidden="true"
+            >
+              {icon}
+            </span>
+          )}
           <div className="min-w-0">
             {title && (
               <h2 className="truncate text-base font-normal tracking-tight text-foreground sm:text-lg">
