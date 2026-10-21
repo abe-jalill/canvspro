@@ -86,7 +86,11 @@ function GradesPage() {
     });
 
   const loading = courses.isLoading || assignments.isLoading || snapshots.isLoading;
-  const error = courses.error || assignments.error || snapshots.error;
+  // A failed refresh keeps showing what loaded before; only nothing at all is an error.
+  const error =
+    (courses.data ? null : courses.error) ||
+    (assignments.data ? null : assignments.error) ||
+    (snapshots.data ? null : snapshots.error);
 
   // Latest snapshot per course, if any.
   const latestByCourse = useMemo(() => {
@@ -258,7 +262,7 @@ function GradesPage() {
           aria-label="Search grades"
         />
         <span className="hidden shrink-0 whitespace-nowrap text-xs text-muted-foreground sm:block">
-          {filteredCourses.length} courses
+          {filteredCourses.length} {filteredCourses.length === 1 ? "course" : "courses"}
         </span>
       </div>
 

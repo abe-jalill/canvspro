@@ -11,9 +11,18 @@ import { displayCourseName } from "@/lib/course-display";
 import { useLocalSet, COMPLETED_ASSIGNMENTS_KEY } from "@/lib/local-state";
 import { defaultEstimateMinutes } from "@/lib/get-it-done";
 import { useAssignmentMetaMap, useAssignmentMeta } from "@/hooks/use-assignment-meta";
-import { isDueInFocusWindow, normalizeFocusWindow, type FocusWindow } from "@/lib/focus-window";
+import {
+  isDueInFocusWindow,
+  isDueThisWeek,
+  normalizeFocusWindow,
+  type FocusWindow,
+} from "@/lib/focus-window";
 import { isAssignmentComplete, isAssignmentVisible } from "@/lib/assignment-window";
-import { customToAssignmentItem, useCustomAssignments } from "@/lib/custom-assignments";
+import {
+  customToAssignmentItem,
+  isCustomAssignmentId,
+  useCustomAssignments,
+} from "@/lib/custom-assignments";
 import { useCompletionExit } from "@/lib/completion-motion";
 import { CompletedLink } from "@/components/completed-link";
 import { classColor } from "@/lib/class-color";
@@ -24,6 +33,8 @@ import {
   assignmentsQueryOptions as assignmentsQO,
 } from "@/lib/canvas.queries";
 import { SkeletonBlock } from "@/components/skeletons/dashboard-skeletons";
+import { OpensLabel } from "@/components/assignment-description-link";
+import { notYetOpen } from "@/lib/assignment-availability";
 
 export const Route = createFileRoute("/_authenticated/focus")({
   head: () => ({
@@ -139,20 +150,25 @@ function FocusPage() {
   const isShown = (a: AssignmentItem) => isAssignmentVisible(a, completed.has(a.id), false, now);
 
   const text = query.trim().toLowerCase();
-  // Unfinished work due within four weeks, and anything recent to catch up on.
+  // Unfinished work due within four weeks, anything recent to catch up on, and
+  // your own tasks with no due date (last). A search looks further ahead.
+  const listed = (a: AssignmentItem) =>
+    a.due_at
+      ? (text || isDueInFocusWindow(a, "all", now)) && isShown(a)
+      : isCustomAssignmentId(a.id) && !isDone(a);
   const items = allAssignments
     .filter(
       (a) =>
-        isDueInFocusWindow(a, "all", now) &&
-        isShown(a) &&
+        listed(a) &&
         (!text ||
           a.name.toLowerCase().includes(text) ||
           courseName(a).toLowerCase().includes(text)),
     )
     .sort(byDue);
 
-  // The week: done and in all, over the same seven days as the line above it.
-  const week = allAssignments.filter((a) => isDueInFocusWindow(a, "7", now));
+  // The week: done and in all, over Today's seven days. Work Canvas hasn't
+  // opened yet is listed (with when it opens) but not counted, as on Today.
+  const week = allAssignments.filter((a) => isDueThisWeek(a, now) && !notYetOpen(a, now));
   const weekDone = week.filter(isDone).length;
   const weekLeft = week.filter((a) => !isDone(a) && isShown(a));
   const weekTotal = weekDone + weekLeft.length;
@@ -197,8 +213,11 @@ function FocusPage() {
           </div>
         </div>
         <div className="relative mt-2 flex items-center justify-between gap-3">
-          {loading || failed ? (
+          {loading ? (
             <span className="skeleton-shimmer block h-4 w-44" aria-hidden="true" />
+          ) : failed ? (
+            // The error shows below; no count without data.
+            <span className="block h-6" aria-hidden="true" />
           ) : (
             <p className="text-base tabular-nums text-muted-foreground">{headerLine}</p>
           )}
@@ -499,11 +518,16 @@ function FocusRow({
           aria-hidden="true"
         />
       </button>
-      {/* The whole row opens the assignment on its class page, as on the iPhone. */}
+      {/* The whole row opens the assignment on its class page, as on the iPhone.
+          Your own tasks aren't on a class page; Assignments has them. */}
       <Link
-        to="/courses/$courseId"
-        params={{ courseId: String(a.course_id) }}
-        search={{ assignment: String(a.id) }}
+        {...(isCustomAssignmentId(a.id)
+          ? { to: "/assignments", search: { assignment: String(a.id) } }
+          : {
+              to: "/courses/$courseId",
+              params: { courseId: String(a.course_id) },
+              search: { assignment: String(a.id) },
+            })}
         preload="intent"
         className="min-w-0 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
@@ -516,6 +540,7 @@ function FocusRow({
           {a.name}
         </p>
         <p className="mt-1 text-xs tabular-nums text-muted-foreground">{line}</p>
+        <OpensLabel unlockAt={a.unlock_at} className="mt-1" />
         <AssignmentProgressBar assignmentId={a.id} className="mt-2" />
       </Link>
     </li>

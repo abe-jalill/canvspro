@@ -99,10 +99,23 @@ export function useSyncedSet(baseKey: string) {
     [setMemo],
   );
 
+  /**
+   * Takes several ids out in one write. Calling `remove` in a loop sent one
+   * write per id, each built from the same saved set, so only the last stuck.
+   */
+  const removeMany = useCallback((list: (string | number)[]) => {
+    if (!ready || baseKey === COMPLETED_ASSIGNMENTS_KEY || list.length === 0) return;
+    const current = qc.getQueryData<PrefMap>(userKey(userPreferencesQueryKey, userId));
+    const ids = readSet(current?.[baseKey]);
+    for (const id of list) ids.delete(String(id));
+    set(Array.from(ids));
+  }, [ready, qc, userId, baseKey, set]);
+
   return {
     has, add: (id: string | number) => change(id, "add"),
     remove: (id: string | number) => change(id, "remove"),
     toggle: (id: string | number) => change(id, "toggle"),
+    removeMany,
     size: setMemo.size, isLoading, ready,
   };
 }

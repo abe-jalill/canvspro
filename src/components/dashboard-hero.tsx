@@ -8,8 +8,12 @@ import type { AssignmentItem } from "@/lib/canvas.functions";
 import { COMPLETED_ASSIGNMENTS_KEY, useLocalSet } from "@/lib/local-state";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-import { isInFocusWindow } from "@/lib/focus-window";
-import { customToAssignmentItem, useCustomAssignments } from "@/lib/custom-assignments";
+import { isDueThisWeek, isInFocusWindow } from "@/lib/focus-window";
+import {
+  customToAssignmentItem,
+  isCustomAssignmentId,
+  useCustomAssignments,
+} from "@/lib/custom-assignments";
 import { notYetOpen } from "@/lib/assignment-availability";
 import { useAssignmentMeta } from "@/hooks/use-assignment-meta";
 import { isAssignmentComplete, isAssignmentVisible } from "@/lib/assignment-window";
@@ -38,7 +42,9 @@ function summarize(
   for (const assignment of assignments) {
     const completed = isCompleted(assignment.id);
     if (isInFocusWindow(assignment, "overdue", now, completed)) overdue += 1;
-    if (isInFocusWindow(assignment, "7", now, completed)) week += 1;
+    // The same seven days as the circles below.
+    if (isAssignmentVisible(assignment, completed, false, now) && isDueThisWeek(assignment, now))
+      week += 1;
     if (isInFocusWindow(assignment, "1", now, completed)) today += 1;
   }
   return { week, today, overdue };
@@ -95,9 +101,10 @@ export function DashboardHero() {
   });
 
   // Work Canvas hasn't opened yet stays off the dashboard.
+  const courseById = new Map((courses.data ?? []).map((course) => [course.id, course]));
   const allAssignments = [
     ...(assignments.data ?? []).filter((a) => !notYetOpen(a, now)),
-    ...custom.list.map((item) => customToAssignmentItem(item, undefined)),
+    ...custom.list.map((item) => customToAssignmentItem(item, courseById.get(item.course_id))),
   ];
   const isDone = (a: AssignmentItem) => isAssignmentComplete(a, completed.has(a.id));
   const { today, week, overdue } = summarize(allAssignments, completed.has, now);
@@ -118,7 +125,9 @@ export function DashboardHero() {
   const message = failed
     ? "Couldn't load your assignments. Refresh Canvas to try again."
     : week === 0
-      ? "You're clear for the next seven days."
+      ? overdue > 0
+        ? "Nothing else due in the next seven days."
+        : "You're clear for the next seven days."
       : `${today > 0 ? `${today} due in 24 hours` : "Nothing due today"} · ${week} this week`;
 
   return (
@@ -311,10 +320,15 @@ function NextUpCard({
         dueTodayClass(assignment.due_at, false, now),
       )}
     >
+      {/* Your own tasks aren't on a class page; Assignments has them. */}
       <Link
-        to="/courses/$courseId"
-        params={{ courseId: String(assignment.course_id) }}
-        search={{ assignment: String(assignment.id) }}
+        {...(isCustomAssignmentId(assignment.id)
+          ? { to: "/assignments", search: { assignment: String(assignment.id) } }
+          : {
+              to: "/courses/$courseId",
+              params: { courseId: String(assignment.course_id) },
+              search: { assignment: String(assignment.id) },
+            })}
         preload="intent"
         className="relative block"
       >

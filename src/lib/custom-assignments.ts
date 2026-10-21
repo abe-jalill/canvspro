@@ -39,7 +39,14 @@ export function useCustomAssignments() {
     [],
   );
 
-  const list = useMemo(() => readList(value), [value]);
+  const all = useMemo(() => readList(value), [value]);
+  // A class hidden in Settings hides your own tasks for it too. Saving always
+  // writes the whole list, hidden ones included.
+  const { value: hidden } = useUserPreferenceKey<number[]>("hidden_course_ids", []);
+  const list = useMemo(() => {
+    const hiddenIds = new Set(Array.isArray(hidden) ? hidden : []);
+    return hiddenIds.size ? all.filter((item) => !hiddenIds.has(item.course_id)) : all;
+  }, [all, hidden]);
 
   const byCourse = useMemo(() => {
     const map = new Map<number, CustomAssignment[]>();
@@ -65,24 +72,24 @@ export function useCustomAssignments() {
         id: -Date.now(),
         created_at: new Date().toISOString(),
       };
-      set([...list, item]);
+      set([...all, item]);
       return item;
     },
-    [list, set],
+    [all, set],
   );
 
   const update = useCallback(
     (id: number, patch: Partial<Omit<CustomAssignment, "id">>) => {
-      set(list.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+      set(all.map((item) => (item.id === id ? { ...item, ...patch } : item)));
     },
-    [list, set],
+    [all, set],
   );
 
   const remove = useCallback(
     (id: number) => {
-      set(list.filter((item) => item.id !== id));
+      set(all.filter((item) => item.id !== id));
     },
-    [list, set],
+    [all, set],
   );
 
   const notesById = useMemo(() => {

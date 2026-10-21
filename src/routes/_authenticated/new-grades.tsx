@@ -67,7 +67,7 @@ function NewGradesPage() {
             <SkeletonBlock key={i} className="h-16 w-full" />
           ))}
         </div>
-      ) : assignments.isError ? (
+      ) : assignments.isError && !assignments.data ? (
         <ErrorState message={(assignments.error as Error).message} />
       ) : entries.length === 0 ? (
         <div className="px-1 py-24 text-center">

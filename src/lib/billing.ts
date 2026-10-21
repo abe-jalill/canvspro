@@ -100,6 +100,11 @@ export function daysLeft(iso: string | null | undefined, now = Date.now()): numb
   return Math.max(0, Math.ceil((value - now) / DAY_MS));
 }
 
+/** "1 day", "10 days". */
+export function dayCount(days: number): string {
+  return `${days} ${days === 1 ? "day" : "days"}`;
+}
+
 export interface BillingCopy {
   state: BillingState;
   headline: string;
@@ -126,7 +131,7 @@ export function describeBilling(
       const day = formatDay(s.trial_ends_at, timeZone);
       return {
         state,
-        headline: `Free trial · ${daysLeft(s.trial_ends_at, now)} days left`,
+        headline: `Free trial · ${dayCount(daysLeft(s.trial_ends_at, now))} left`,
         detail: s.cancel_at
           ? `Your trial ends ${day} and you won't be charged.`
           : `You'll be charged ${charge} plus tax on ${day} unless you cancel before then.`,
@@ -150,12 +155,14 @@ export function describeBilling(
         headline: "Your last payment didn't go through",
         detail: "Update your payment method to keep CoursePro.",
       };
-    case "grace":
+    case "grace": {
+      const days = daysLeft(s.grace_ends_at, now);
       return {
         state,
-        headline: `${daysLeft(s.grace_ends_at, now)} free days left`,
+        headline: `${days} free ${days === 1 ? "day" : "days"} left`,
         detail: `CoursePro is now a paid app. Your free access ends ${formatDay(s.grace_ends_at, timeZone)}. Subscribe to keep your dashboard, reminders and widgets.`,
       };
+    }
     case "free":
       return { state, headline: "CoursePro", detail: "" };
     default:

@@ -126,7 +126,9 @@ function SchedulePage() {
   });
 
   const loading = events.isLoading || assignments.isLoading;
-  const error = events.error || assignments.error;
+  // A failed refresh keeps showing what loaded before; only nothing at all is an error.
+  const error =
+    (events.data ? null : events.error) || (assignments.data ? null : assignments.error);
 
   return (
     <div className="space-y-6">

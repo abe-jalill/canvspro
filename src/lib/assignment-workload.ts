@@ -1,8 +1,8 @@
 import type { AssignmentItem } from "./canvas.functions.ts";
 import { notYetOpen } from "./assignment-availability.ts";
+import { endOfUpcomingDay } from "./assignment-window.ts";
 
 const DEFAULT_POINTS = 25;
-const WEEK_MS = 7 * 24 * 60 * 60 * 1_000;
 
 export function normalizedProgress(progress: number | null | undefined) {
   if (!Number.isFinite(progress)) return 0;
@@ -16,13 +16,16 @@ export function remainingWork(assignment: Pick<AssignmentItem, "points_possible"
   return points * (1 - normalizedProgress(progress) / 100);
 }
 
-/** Due within the next week (not past due) and already open in Canvas. */
+/**
+ * Due in the seven days Today's circles show (not past due) and already open
+ * in Canvas.
+ */
 export function isNextUpCandidate(
   assignment: Pick<AssignmentItem, "due_at" | "unlock_at">,
   now: number,
 ) {
   const due = assignment.due_at ? Date.parse(assignment.due_at) : NaN;
-  if (!Number.isFinite(due) || due < now || due > now + WEEK_MS) return false;
+  if (!Number.isFinite(due) || due < now || due > endOfUpcomingDay(now, 6)) return false;
   // Work that hasn't opened in Canvas yet can't be next up.
   return !notYetOpen(assignment, now);
 }

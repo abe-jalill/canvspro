@@ -1,5 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
-import { getAllCoursesIncludingHidden } from "@/lib/canvas.functions";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { getAllCoursesIncludingHidden, resetCanvasBundle } from "@/lib/canvas.functions";
 import { useUserPreferenceKey } from "@/hooks/use-user-preferences";
 import { useNicknames } from "@/lib/nicknames";
 import { displayCourseNameForCourse } from "@/lib/course-display";
@@ -9,7 +9,8 @@ import { displayCourseNameForCourse } from "@/lib/course-display";
  * course-id exclusion list, which applied to every user of the app.
  */
 export function HiddenCoursesSection() {
-  const { value: hidden, set } = useUserPreferenceKey<number[]>("hidden_course_ids", []);
+  const { value: hidden, setAsync } = useUserPreferenceKey<number[]>("hidden_course_ids", []);
+  const queryClient = useQueryClient();
   useNicknames();
   const { data: courses, isLoading } = useQuery({
     queryKey: ["courses-including-hidden"],
@@ -21,7 +22,16 @@ export function HiddenCoursesSection() {
 
   function toggle(id: number) {
     const next = hiddenSet.has(id) ? hidden.filter((x) => x !== id) : [...hidden, id];
-    set(next);
+    // Canvas data is filtered on the server, so fetch it again once the choice
+    // is saved; otherwise the class stayed on every page until the cache expired.
+    void setAsync(next)
+      .then(() => {
+        resetCanvasBundle();
+        return queryClient.invalidateQueries({ queryKey: ["canvas"] });
+      })
+      .catch(() => {
+        /* the preference hook reports a failed save */
+      });
   }
 
   if (isLoading) {

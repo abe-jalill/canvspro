@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { billingQueryKey, useBilling } from "@/hooks/use-billing";
 import {
+  dayCount,
   daysLeft,
   describeBilling,
   formatDay,
@@ -71,7 +72,7 @@ function planSummary(status: BillingStatus) {
   const badge = {
     failed: "Payment failed",
     ending: "Canceled",
-    trial: `Free trial · ${daysLeft(status.trial_ends_at)} days left`,
+    trial: `Free trial · ${dayCount(daysLeft(status.trial_ends_at))} left`,
     active: "Active",
   }[tone];
   return {

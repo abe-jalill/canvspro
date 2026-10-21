@@ -121,7 +121,7 @@ function CoursesWidget() {
         }
       >
         {isLoading && <ClassesWidgetSkeleton count={4} />}
-        {isError && <ErrorState message={(error as Error).message} />}
+        {isError && !data && <ErrorState message={(error as Error).message} />}
         {data && data.length === 0 && <EmptyState message="No active courses." />}
         {data && data.length > 0 && (
           <ul className="space-y-2">
@@ -262,7 +262,7 @@ function UpcomingWidget() {
       }
     >
       {isLoading && <UpcomingWidgetSkeleton groupCount={3} />}
-      {isError && <ErrorState message={(error as Error).message} />}
+      {isError && !data && <ErrorState message={(error as Error).message} />}
       {data && groups.length === 0 && <EmptyState message="No active courses." />}
       {data && groups.length > 0 && activeGroups.length === 0 && (
         <EmptyState
@@ -389,7 +389,7 @@ function AnnouncementsWidget() {
       }
     >
       {isLoading && <AnnouncementsWidgetSkeleton count={3} />}
-      {isError && <ErrorState message={(error as Error).message} />}
+      {isError && !data && <ErrorState message={(error as Error).message} />}
       {data && groups.length === 0 && <EmptyState message="No new announcements." />}
       {groups.length > 0 && (
         <div className="divide-y divide-foreground/10">
@@ -646,7 +646,7 @@ function FocusWidget() {
           ))}
         </div>
       )}
-      {isError && <ErrorState message={(error as Error).message} />}
+      {isError && !data && <ErrorState message={(error as Error).message} />}
       {data && soon.length === 0 && <EmptyState message="Nothing due in the next 48 hours." />}
       {soon.length > 0 && (
         <ul className="space-y-2">
@@ -696,7 +696,7 @@ function CalendarWidget() {
       }
     >
       {isLoading && <CalendarWidgetSkeleton count={4} />}
-      {isError && <ErrorState message={(error as Error).message} />}
+      {isError && !data && <ErrorState message={(error as Error).message} />}
       {data && upcoming.length === 0 && <EmptyState message="No calendar events this week." />}
       {upcoming.length > 0 && (
         <ul className="space-y-2">
@@ -740,7 +740,7 @@ function HeatmapWidget() {
   return (
     <GlassCard title="Workload" subtitle="Remaining effort by week" icon={<Grid3x3 />}>
       {isLoading && <WorkloadHeatmapSkeleton />}
-      {isError && <ErrorState message={(error as Error).message} />}
+      {isError && !data && <ErrorState message={(error as Error).message} />}
       {visible && <WorkloadHeatmap assignments={visible} outlineDueToday />}
     </GlassCard>
   );
@@ -778,7 +778,7 @@ export const WIDGETS: Record<WidgetId, WidgetMeta> = {
     defaultSize: "md",
     render: () => <UpcomingWidget />,
   },
-  focus: { label: "Focus", pro: true, defaultSize: "md", render: () => <FocusWidget /> },
+  focus: { label: "To-Do", pro: true, defaultSize: "md", render: () => <FocusWidget /> },
   calendar: { label: "Calendar", pro: true, defaultSize: "md", render: () => <CalendarWidget /> },
   announcements: {
     pro: true,

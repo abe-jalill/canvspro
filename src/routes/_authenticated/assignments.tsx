@@ -221,7 +221,9 @@ function PriorityAssignmentsCard({
 }
 
 function AssignmentsPage() {
-  const { data, isLoading, isError, error } = useQuery(assignmentsQO);
+  const { data, isLoading, isError: queryFailed, error } = useQuery(assignmentsQO);
+  // A failed refresh keeps showing what loaded before; only nothing at all is an error.
+  const isError = queryFailed && !data;
   const courses = useQuery(coursesQO);
   const [search, setSearch] = useState("");
   const [undatedOpen, setUndatedOpen] = useState(false);
@@ -381,7 +383,7 @@ function AssignmentsPage() {
               Assignments
             </h1>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-              Have an assignment outside of Canvas?&nbsp;Add it under "Add something Canvas doesn't have&nbsp;
+              Have an assignment outside of Canvas? Add it below.
             </p>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:min-w-[18rem]">

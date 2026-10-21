@@ -140,8 +140,9 @@ test("To-Do: one list with the week as segments, day headers and class colors", 
     /group\.isToday \? "text-primary" : group\.isCatchUp \? "text-rose-400" : "text-foreground"/,
   );
   assert.match(page, /color=\{classColor\(a\.course_id, courseIds\)\}/);
-  // Counts only once everything has loaded.
-  assert.match(page, /\{loading \|\| failed \? \(/);
+  // Counts only once everything has loaded; after a failure, no count and no
+  // endless shimmer.
+  assert.match(page, /\{loading \? \(\s+<span className="skeleton-shimmer[^"]*"[^>]*\/>\s+\) : failed \? \(/);
   // A failed refresh keeps showing what loaded before.
   assert.match(page, /const failed = assignments\.isError && !assignments\.data;/);
   assert.match(

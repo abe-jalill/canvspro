@@ -18,7 +18,7 @@ const WIDGET_DETAILS: Record<WidgetId, { title: string; detail: string }> = {
   },
   classes: { title: "Classes & Grades", detail: "Each class and its current grade." },
   upcoming: { title: "Upcoming", detail: "Everything due this week, by class." },
-  focus: { title: "Next 48 hours", detail: "What's due in the next two days." },
+  focus: { title: "To-Do", detail: "What's due in the next two days." },
   calendar: { title: "Calendar", detail: "Canvas events in the week ahead." },
   announcements: { title: "Announcements", detail: "Recent posts from your classes." },
   gpa: { title: "GPA", detail: "An estimate from current scores and the credits you enter." },
@@ -119,7 +119,7 @@ export function DashboardWidgetPicker({
               ? "Pick at least one."
               : count <= 5
                 ? `${count} selected`
-                : `${count} selected. That's a lot, and you can always change it with Customize widgets.`}
+                : `${count} selected. That's a lot, and you can always change it with Customize dashboard.`}
           </p>
           <button
             type="button"

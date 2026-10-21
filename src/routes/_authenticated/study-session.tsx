@@ -46,6 +46,7 @@ import {
   buildPomodoroPlan,
   createStudySession,
   focusItem,
+  formatStudyClock,
   isBreak,
   itemMinutes,
   nextItemSession,
@@ -114,17 +115,19 @@ const choiceButton = (selected: boolean) =>
 export const Route = createFileRoute("/_authenticated/study-session")({
   validateSearch: (search: Record<string, unknown>): { assignment?: number; picks?: string } => {
     const assignment = Number(search.assignment);
+    // Canvas ids are positive; your own tasks have negative ids.
+    const validId = (id: number) => Number.isInteger(id) && id !== 0;
     // `picks` preselects several assignments at once, e.g. ?picks=12,34,56.
     const picks =
       typeof search.picks === "string" || typeof search.picks === "number"
         ? String(search.picks)
             .split(",")
             .map(Number)
-            .filter((id) => Number.isFinite(id) && id > 0)
+            .filter(validId)
             .join(",")
         : "";
     return {
-      assignment: Number.isFinite(assignment) && assignment > 0 ? assignment : undefined,
+      assignment: validId(assignment) ? assignment : undefined,
       ...(picks ? { picks } : {}),
     };
   },
@@ -147,15 +150,7 @@ function canvasItem(assignment: AssignmentItem): StudySessionItem {
   };
 }
 
-function formatTime(milliseconds: number) {
-  const seconds = Math.max(0, Math.ceil(milliseconds / 1000));
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const remainder = seconds % 60;
-  return hours > 0
-    ? `${hours}:${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`
-    : `${minutes}:${String(remainder).padStart(2, "0")}`;
-}
+const formatTime = formatStudyClock;
 
 function formatMinutes(total: number) {
   const hours = Math.floor(total / 60);
@@ -368,8 +363,10 @@ function StudySessionPage() {
     ];
     const key = ids.join(",");
     if (!ids.length || selectedFromLink.current === key || !assignments.data) return;
+    // Your own tasks are looked up too, once they've loaded.
+    if (ids.some((id) => id < 0) && manualAssignments.isLoading) return;
     const found = ids
-      .map((id) => assignments.data?.find((item) => item.id === id))
+      .map((id) => allAssignments.find((item) => item.id === id))
       .filter((item): item is AssignmentItem => Boolean(item))
       .map(canvasItem);
     if (!found.length) return;
@@ -378,7 +375,7 @@ function StudySessionPage() {
       ...items,
     ]);
     selectedFromLink.current = key;
-  }, [assignments.data, requestedAssignment, requestedPicks]);
+  }, [assignments.data, allAssignments, manualAssignments.isLoading, requestedAssignment, requestedPicks]);
 
   // The last time choice is remembered. Before this page had modes, Pomodoro
   // was a switch; someone who left it on keeps Pomodoro.
@@ -1030,7 +1027,7 @@ function StudySessionPage() {
                 <Skeleton className="h-14" />
                 <Skeleton className="h-14" />
               </div>
-            ) : assignments.error ? (
+            ) : assignments.error && !assignments.data ? (
               <ErrorState
                 message={assignments.error.message}
                 onRetry={() => void assignments.refetch()}

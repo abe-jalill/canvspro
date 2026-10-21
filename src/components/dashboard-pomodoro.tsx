@@ -1,15 +1,17 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowUpRight, CirclePause, CirclePlay } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useStudySession } from "@/hooks/use-study-session";
-import { advanceSession, isBreak, phaseOf, remainingForSession } from "@/lib/study-session";
-
-function formatTime(milliseconds: number) {
-  const seconds = Math.max(0, Math.ceil(milliseconds / 1000));
-  const minutes = Math.floor(seconds / 60);
-  return `${String(minutes).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
-}
+import {
+  advanceSession,
+  formatStudyClock,
+  isBreak,
+  nextItemSession,
+  phaseOf,
+  remainingForSession,
+} from "@/lib/study-session";
 
 export function DashboardPomodoro() {
   const { session, setSession, ready } = useStudySession();
@@ -23,12 +25,22 @@ export function DashboardPomodoro() {
     return () => window.clearInterval(interval);
   }, [session]);
 
+  // Time's up while Today is open: the same next step as on Study Session, so
+  // the pill never sits at 0:00.
   useEffect(() => {
-    if (!session?.pomodoro || session.status !== "running" || remainingForSession(session, now) > 0) {
+    if (!session || session.status !== "running" || remainingForSession(session, now) > 0) return;
+    if (session.pomodoro) {
+      const result = advanceSession(session, now);
+      if (result.changed) setSession(result.session);
       return;
     }
-    const result = advanceSession(session, now);
-    if (result.changed) setSession(result.session);
+    const next = session.perItem ? nextItemSession(session, now) : null;
+    if (next) {
+      setSession(next);
+      return;
+    }
+    setSession(null);
+    toast.success("Study session complete");
   }, [now, session, setSession]);
 
   // Only while a study session runs (a quick Pomodoro or one started from Study
@@ -60,7 +72,9 @@ export function DashboardPomodoro() {
         <span className="block text-[11px] text-muted-foreground">
           {session.status === "paused" ? "Paused" : phaseLabel}
         </span>
-        <span className="block text-sm font-medium tabular-nums">{formatTime(remaining)}</span>
+        <span className="block text-sm font-medium tabular-nums">
+          {formatStudyClock(remaining)}
+        </span>
       </span>
       <Button
         type="button"
@@ -68,12 +82,16 @@ export function DashboardPomodoro() {
         variant="ghost"
         onClick={pauseOrResume}
         className="h-9 w-9 rounded-full"
-        aria-label={session.status === "running" ? "Pause Pomodoro" : "Resume Pomodoro"}
+        aria-label={`${session.status === "running" ? "Pause" : "Resume"} ${session.pomodoro ? "Pomodoro" : "study timer"}`}
       >
         {session.status === "running" ? <CirclePause /> : <CirclePlay />}
       </Button>
       <Button asChild size="icon" variant="ghost" className="h-9 w-9 rounded-full">
-        <Link to="/study-session" search={{ assignment: undefined }} aria-label="Open Pomodoro timer">
+        <Link
+          to="/study-session"
+          search={{ assignment: undefined }}
+          aria-label={session.pomodoro ? "Open Pomodoro timer" : "Open study timer"}
+        >
           <ArrowUpRight />
         </Link>
       </Button>

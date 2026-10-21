@@ -217,3 +217,16 @@ test("per-assignment sessions give each item its own time and move on when it ru
   assert.equal(plain.perItem, undefined);
   assert.equal(focusItem(plain, 1, t0 + MIN).endsAt, plain.endsAt);
 });
+
+test("per-assignment: starting with the last item still gives the earlier ones their time", async () => {
+  const { focusItem, nextItemSession } = await import("../src/lib/study-session.ts");
+  const planned = ["a", "b", "c"].map((id) => ({ id: `manual:${id}`, name: id, source: "manual", minutes: 10 }));
+  const started = focusItem(createStudySession(planned, 25, t0, undefined, true), 2, t0);
+  const first = nextItemSession(started, t0 + 10 * MIN);
+  assert.equal(first.currentIndex, 0);
+  const second = nextItemSession(first, t0 + 20 * MIN);
+  assert.equal(second.currentIndex, 1);
+  assert.equal(isStudySessionSnapshot(second), true);
+  // Every item has had its time: the session is over, never a loop.
+  assert.equal(nextItemSession(second, t0 + 30 * MIN), null);
+});

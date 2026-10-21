@@ -43,7 +43,9 @@ function formatPosted(value: string) {
 }
 
 function AnnouncementsPage() {
-  const { data, isLoading, isError, error } = useQuery(announcementsQO);
+  const { data, isLoading, isError: queryFailed, error } = useQuery(announcementsQO);
+  // A failed refresh keeps showing what loaded before; only nothing at all is an error.
+  const isError = queryFailed && !data;
   const dismissed = useLocalSet(DISMISSED_ANNOUNCEMENTS_KEY);
   const highlight = useCourseHighlight();
   const search = useSearch({ strict: false }) as { course?: string; expand?: string };
@@ -60,6 +62,20 @@ function AnnouncementsPage() {
             withinAnnouncementWindow(item.posted_at, announcementWindow.weeks),
         )
         .sort((a, b) => new Date(b.posted_at).getTime() - new Date(a.posted_at).getTime()),
+    [data, dismissed, announcementWindow.weeks],
+  );
+
+  // Only what Restore would bring back here: hidden posts still in Canvas's
+  // list and inside the window, not every id ever hidden.
+  const restorable = useMemo(
+    () =>
+      (data ?? [])
+        .filter(
+          (item) =>
+            dismissed.has(item.id) &&
+            withinAnnouncementWindow(item.posted_at, announcementWindow.weeks),
+        )
+        .map((item) => item.id),
     [data, dismissed, announcementWindow.weeks],
   );
 
@@ -170,13 +186,13 @@ function AnnouncementsPage() {
             {course.label} <span className="ml-1 opacity-60">{course.count}</span>
           </button>
         ))}
-        {dismissed.size > 0 && (
+        {restorable.length > 0 && (
           <button
             type="button"
-            onClick={() => (data ?? []).forEach((item) => dismissed.remove(item.id))}
+            onClick={() => dismissed.removeMany(restorable)}
             className="press ml-auto inline-flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-xs text-muted-foreground hover:text-foreground"
           >
-            <RotateCcw className="h-3.5 w-3.5" /> Restore {dismissed.size}
+            <RotateCcw className="h-3.5 w-3.5" /> Restore {restorable.length}
           </button>
         )}
       </div>

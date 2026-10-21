@@ -110,6 +110,17 @@ export interface StudySessionSnapshot {
   round?: number;
   /** Each item has its own timer (`items[i].minutes`) instead of one for the session. */
   perItem?: boolean;
+  /** Per-item sessions: items whose own time has already run out. */
+  timedOutItemIds?: string[];
+}
+
+/** "24:59", or "1:29:57" past an hour, as on the iPhone. */
+export function formatStudyClock(milliseconds: number) {
+  const seconds = Math.max(0, Math.ceil(milliseconds / 1000));
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const rest = String(seconds % 60).padStart(2, "0");
+  return hours > 0 ? `${hours}:${String(minutes).padStart(2, "0")}:${rest}` : `${minutes}:${rest}`;
 }
 
 export function remainingForSession(session: StudySessionSnapshot, now = Date.now()) {
@@ -236,7 +247,10 @@ export function isStudySessionSnapshot(value: unknown): value is StudySessionSna
       candidate.phase === "long-break") &&
     (candidate.round === undefined ||
       (Number.isInteger(candidate.round) && candidate.round >= 0)) &&
-    (candidate.perItem === undefined || typeof candidate.perItem === "boolean")
+    (candidate.perItem === undefined || typeof candidate.perItem === "boolean") &&
+    (candidate.timedOutItemIds === undefined ||
+      (Array.isArray(candidate.timedOutItemIds) &&
+        candidate.timedOutItemIds.every((id) => typeof id === "string")))
   );
 }
 
@@ -275,15 +289,23 @@ export function focusItem(
 
 /**
  * When an item's time runs out in a per-assignment session, moves on to the
- * next unfinished item in order. Returns null when nothing is left.
+ * next item that's neither finished nor already out of time: later ones
+ * first, then any earlier one (so starting with the last item doesn't end the
+ * session before the others get their time). Returns null when nothing is left.
  */
 export function nextItemSession(
   session: StudySessionSnapshot,
   now = Date.now(),
 ): StudySessionSnapshot | null {
-  const done = new Set(session.completedItemIds);
-  for (let index = session.currentIndex + 1; index < session.items.length; index += 1) {
-    if (!done.has(session.items[index].id)) return focusItem(session, index, now);
+  const timedOutItemIds = [
+    ...new Set([...(session.timedOutItemIds ?? []), session.items[session.currentIndex].id]),
+  ];
+  const skip = new Set([...session.completedItemIds, ...timedOutItemIds]);
+  for (let step = 1; step < session.items.length; step += 1) {
+    const index = (session.currentIndex + step) % session.items.length;
+    if (!skip.has(session.items[index].id)) {
+      return { ...focusItem(session, index, now), timedOutItemIds };
+    }
   }
   return null;
 }

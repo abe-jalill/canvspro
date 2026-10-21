@@ -1,20 +1,29 @@
 import { useCallback, useEffect, useState } from "react";
 import { useScopedKey } from "@/lib/user-scope";
 
+/**
+ * The saved JSON under `key`, read during the first render. Reading it in an
+ * effect instead left the first render with the default, so a caller's own
+ * effect on mount saw "nothing saved" and wrote over what was there.
+ */
+function readStored<T>(key: string, fallback: T): T {
+  if (typeof window === "undefined") return fallback;
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 // Persisted Map<string, number> — useful for tracking last-seen numeric grades.
 export function useLocalNumberMap(baseKey: string) {
   const key = useScopedKey(baseKey);
-  const [map, setMap] = useState<Record<string, number>>({});
+  const [map, setMap] = useState<Record<string, number>>(() => readStored(key, {}));
 
-
+  // Another account signing in on this device has its own copy.
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const raw = window.localStorage.getItem(key);
-      if (raw) setMap(JSON.parse(raw) as Record<string, number>);
-    } catch {
-      // ignore
-    }
+    setMap(readStored(key, {}));
   }, [key]);
 
   const get = useCallback(
@@ -57,17 +66,10 @@ export function useLocalNumberMap(baseKey: string) {
 // Persisted Map<string, string> — used to snapshot prior countdown urgency, etc.
 export function useLocalStringMap(baseKey: string) {
   const key = useScopedKey(baseKey);
-  const [map, setMap] = useState<Record<string, string>>({});
-
+  const [map, setMap] = useState<Record<string, string>>(() => readStored(key, {}));
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const raw = window.localStorage.getItem(key);
-      if (raw) setMap(JSON.parse(raw) as Record<string, string>);
-    } catch {
-      // ignore
-    }
+    setMap(readStored(key, {}));
   }, [key]);
 
   const get = useCallback(
@@ -95,17 +97,10 @@ export function useLocalStringMap(baseKey: string) {
 // Persisted single number (e.g., last-visit epoch ms).
 export function useLocalNumber(baseKey: string, fallback = 0) {
   const key = useScopedKey(baseKey);
-  const [value, setValue] = useState<number>(fallback);
-
+  const [value, setValue] = useState<number>(() => Number(readStored(key, fallback)) || fallback);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const raw = window.localStorage.getItem(key);
-      if (raw) setValue(Number(raw) || fallback);
-    } catch {
-      // ignore
-    }
+    setValue(Number(readStored(key, fallback)) || fallback);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
