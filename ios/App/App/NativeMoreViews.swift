@@ -1416,6 +1416,10 @@ struct CalendarView: View {
     @State private var editingEvent: NativeEventEditing?
     @State private var selectedDate: Date? = Calendar.current.startOfDay(for: Date())
     @State private var currentWeekOffset = 0
+    /// Which way the weeks last moved (1 forward, -1 back), for the slide.
+    @State private var weekDirection = 1
+    /// How far the week strip is being dragged, so it follows the finger a little.
+    @GestureState private var weekDrag: CGFloat = 0
 
     private static let upcomingDays = 30
     /// Earlier weeks show your classes and events (finished due dates are on Completed).
@@ -1642,13 +1646,25 @@ struct CalendarView: View {
                     .buttonStyle(.plain)
                     .accessibilityLabel("Next week")
             }
-            HStack(spacing: 4) {
-                ForEach(weekDates, id: \.self) { date in
-                    let busy = !entries(on: date, src, classes: false).isEmpty
-                    let hasClass = entries(on: date, src).contains { $0.kind == .classMeeting }
-                    dateButton(date, busy: busy, hasClass: hasClass)
+            // Swipe the week sideways for the next or previous one; it slides in
+            // from the side you swiped toward, as the arrows do.
+            ZStack {
+                HStack(spacing: 4) {
+                    ForEach(weekDates, id: \.self) { date in
+                        let busy = !entries(on: date, src, classes: false).isEmpty
+                        let hasClass = entries(on: date, src).contains { $0.kind == .classMeeting }
+                        dateButton(date, busy: busy, hasClass: hasClass)
+                    }
                 }
+                .id(currentWeekOffset)
+                .transition(weekTransition)
+                .offset(x: reduceMotion ? 0 : weekDrag * 0.35)
             }
+            .clipped()
+            .contentShape(Rectangle())
+            .simultaneousGesture(weekSwipe)
+            .accessibilityAction(named: "Next week") { changeWeek(by: 1) }
+            .accessibilityAction(named: "Previous week") { changeWeek(by: -1) }
             HStack(spacing: 8) {
                 Button {
                     withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
@@ -1669,11 +1685,44 @@ struct CalendarView: View {
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
     }
 
+    /// Left for next week, right for last week; mostly-sideways swipes only, so
+    /// scrolling the page up and down is never taken for one.
+    private var weekSwipe: some Gesture {
+        DragGesture(minimumDistance: 20)
+            .updating($weekDrag) { value, drag, _ in
+                if abs(value.translation.width) > abs(value.translation.height) { drag = value.translation.width }
+            }
+            .onEnded { value in
+                let dx = value.translation.width, dy = value.translation.height
+                guard abs(dx) > 50, abs(dx) > abs(dy) * 1.5 else { return }
+                changeWeek(by: dx < 0 ? 1 : -1)
+            }
+    }
+
+    /// The new week comes in from the side you moved toward.
+    private var weekTransition: AnyTransition {
+        if reduceMotion { return .opacity }
+        let forward = weekDirection > 0
+        return .asymmetric(
+            insertion: .move(edge: forward ? .trailing : .leading).combined(with: .opacity),
+            removal: .move(edge: forward ? .leading : .trailing).combined(with: .opacity)
+        )
+    }
+
     private func changeWeek(by offset: Int) {
-        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
-            currentWeekOffset = max(-Self.weeksBack, currentWeekOffset + offset)
-            if selectedDate != nil {
-                selectedDate = currentWeekOffset == 0 ? today : weekDates.first
+        let next = max(-Self.weeksBack, currentWeekOffset + offset)
+        guard next != currentWeekOffset else { return }
+        // The outgoing week leaves with the transition it last drew with, so the
+        // direction is set one update before the week changes.
+        weekDirection = offset
+        // Worked out now, not read back from state mid-update.
+        let firstDay = calendar.date(byAdding: .day, value: (next - currentWeekOffset) * 7, to: weekDates.first ?? today)
+        DispatchQueue.main.async {
+            withAnimation(reduceMotion ? nil : .spring(duration: 0.32, bounce: 0.08)) {
+                currentWeekOffset = next
+                if selectedDate != nil {
+                    selectedDate = next == 0 ? today : firstDay
+                }
             }
         }
     }

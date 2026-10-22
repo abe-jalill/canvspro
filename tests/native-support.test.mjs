@@ -80,7 +80,7 @@ test("on the iPhone, work that hasn't opened never outranks open work", () => {
   assert.match(views, /\$0\.isVisible\(in: store\) && !\$0\.notYetOpen\(\)/);
 });
 
-test("pull to refresh finishes, shows placeholders, and never reports 'cancelled'", () => {
+test("pull to refresh finishes, keeps the list on screen, and never reports 'cancelled'", () => {
   const core = read("ios/App/App/NativeCore.swift");
   const features = read("ios/App/App/NativeFeatures.swift");
   const views = read("ios/App/App/NativeViews.swift");
@@ -90,7 +90,8 @@ test("pull to refresh finishes, shows placeholders, and never reports 'cancelled
     assert.match(source, /if let running = currentLoad \{ await running\.value; return \}/);
     assert.match(source, /catch let error as URLError where error\.code == \.cancelled/);
   }
-  assert.match(core, /var showsSkeleton: Bool \{ isFirstLoad \|\| \(\(isSyncingAtLaunch \|\| isRefreshing\) && !needsCanvasConnection && loadFailure == nil\) \}/);
+  // Pull to refresh keeps the list on screen (the spinner shows); placeholders are for launch and first load.
+  assert.match(core, /var showsSkeleton: Bool \{ isFirstLoad \|\| \(isSyncingAtLaunch && !needsCanvasConnection && loadFailure == nil\) \}/);
   assert.doesNotMatch(views + more, /\.refreshable \{[^}]*store\.load\(\)/);
   assert.doesNotMatch(views + more, /else if store\.isFirstLoad \{/);
 });

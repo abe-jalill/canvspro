@@ -1268,8 +1268,10 @@ final class NativeContentStore: ObservableObject {
     /// Screens show placeholders meanwhile, so nothing is counted from half the
     /// data, such as saved coursework with last week's ticks.
     @Published var isSyncingAtLaunch = true
-    /// Loading placeholders: the launch sync, the first load, or a pull to refresh.
-    var showsSkeleton: Bool { isFirstLoad || ((isSyncingAtLaunch || isRefreshing) && !needsCanvasConnection && loadFailure == nil) }
+    /// Loading placeholders: the launch sync or the first load. A pull to refresh
+    /// keeps what's on screen (the refresh spinner says it's updating) rather than
+    /// swapping the list for placeholders under the student's finger.
+    var showsSkeleton: Bool { isFirstLoad || (isSyncingAtLaunch && !needsCanvasConnection && loadFailure == nil) }
     private unowned let sessionStore: NativeSessionStore
     var persistenceScope: String { isPreview ? "preview" : (sessionStore.session?.user.id ?? "signed-out") }
     // Versioned: saves from the earlier, smaller sample set are ignored.

@@ -3000,34 +3000,34 @@ private struct NativeDashboardSkeleton: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.cpPalette) private var paletteDependency
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var visible = false
 
+    /// Pulses from the clock (see CPSkeletonCard): never a repeat-forever
+    /// animation that could leave it drawn over Today once it has loaded.
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            VStack(alignment: .leading, spacing: 10) {
-                RoundedRectangle(cornerRadius: 5, style: .continuous).frame(width: 130, height: 12)
-                RoundedRectangle(cornerRadius: 8, style: .continuous).frame(width: 230, height: 28)
-                RoundedRectangle(cornerRadius: 5, style: .continuous).frame(width: 190, height: 14)
-                HStack(spacing: 0) {
-                    ForEach(0..<7, id: \.self) { _ in
-                        Circle().frame(width: 26, height: 26).frame(maxWidth: .infinity)
+        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion)) { context in
+            let phase = (sin(context.date.timeIntervalSinceReferenceDate * .pi / 0.9) + 1) / 2
+            VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 10) {
+                    RoundedRectangle(cornerRadius: 5, style: .continuous).frame(width: 130, height: 12)
+                    RoundedRectangle(cornerRadius: 8, style: .continuous).frame(width: 230, height: 28)
+                    RoundedRectangle(cornerRadius: 5, style: .continuous).frame(width: 190, height: 14)
+                    HStack(spacing: 0) {
+                        ForEach(0..<7, id: \.self) { _ in
+                            Circle().frame(width: 26, height: 26).frame(maxWidth: .infinity)
+                        }
                     }
+                    .padding(.top, 14)
                 }
-                .padding(.top, 14)
+                .padding(.horizontal, 4)
+                .padding(.top, 8)
+                RoundedRectangle(cornerRadius: CPLayout.cardRadius, style: .continuous).frame(height: 168)
+                RoundedRectangle(cornerRadius: CPLayout.cardRadius, style: .continuous).frame(height: 120)
             }
-            .padding(.horizontal, 4)
-            .padding(.top, 8)
-            RoundedRectangle(cornerRadius: CPLayout.cardRadius, style: .continuous).frame(height: 168)
-            RoundedRectangle(cornerRadius: CPLayout.cardRadius, style: .continuous).frame(height: 120)
+            .foregroundStyle(CPTheme.foreground(scheme).opacity(reduceMotion ? 0.06 : 0.04 + 0.04 * phase))
         }
-        .foregroundStyle(CPTheme.foreground(scheme).opacity(visible ? 0.08 : 0.04))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Loading")
-        .onAppear {
-            guard !reduceMotion else { return }
-            withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) { visible = true }
-        }
-        .onDisappear { visible = false }
+        .transition(.identity)
     }
 }
 

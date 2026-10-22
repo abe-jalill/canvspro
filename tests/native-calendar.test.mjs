@@ -50,3 +50,14 @@ test("planned work gets a sensible time, and a new task can go on the calendar",
   assert.match(views, /Toggle\("Also put it on my calendar", isOn: \$onCalendar\)/);
   assert.match(views, /if let pick, !features\.calendarPicks\.contains\(where: \{ \$0\.assignmentID == pick\.assignmentID \}\) \{\s+try await features\.savePreference\("calendar-picks", features\.calendarPicks \+ \[pick\]\)/);
 });
+
+test("swipe the week strip to change weeks; it slides in from that side", () => {
+  assert.match(calendar, /\.simultaneousGesture\(weekSwipe\)/);
+  assert.match(calendar, /guard abs\(dx\) > 50, abs\(dx\) > abs\(dy\) \* 1\.5 else \{ return \}\s+changeWeek\(by: dx < 0 \? 1 : -1\)/);
+  assert.match(calendar, /insertion: \.move\(edge: forward \? \.trailing : \.leading\)/);
+  assert.match(calendar, /\.accessibilityAction\(named: "Next week"\) \{ changeWeek\(by: 1\) \}/);
+  // Placeholders never linger over loaded content.
+  const design = readFileSync(new URL("../ios/App/App/NativeDesign.swift", import.meta.url), "utf8");
+  assert.doesNotMatch(design, /repeatForever/);
+  assert.match(design, /TimelineView\(\.animation\(minimumInterval: 1\.0 \/ 30, paused: reduceMotion\)\)/);
+});

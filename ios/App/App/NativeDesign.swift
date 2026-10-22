@@ -651,23 +651,26 @@ struct CPSkeletonCard: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.cpPalette) private var paletteDependency
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var visible = false
 
+    /// The pulse is worked out from the clock, not a repeating animation: a view
+    /// running a repeat-forever animation can fail to leave the screen and stay
+    /// drawn over the content that replaced it.
     var body: some View {
-        CPGlassCard {
-            VStack(alignment: .leading, spacing: 12) {
-                RoundedRectangle(cornerRadius: 6).frame(width: 120, height: 12)
-                RoundedRectangle(cornerRadius: 10).frame(height: 44)
-                RoundedRectangle(cornerRadius: 10).frame(height: 44)
+        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion)) { context in
+            let phase = (sin(context.date.timeIntervalSinceReferenceDate * .pi / 0.9) + 1) / 2
+            CPGlassCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    RoundedRectangle(cornerRadius: 6).frame(width: 120, height: 12)
+                    RoundedRectangle(cornerRadius: 10).frame(height: 44)
+                    RoundedRectangle(cornerRadius: 10).frame(height: 44)
+                }
+                .foregroundStyle(CPTheme.foreground(scheme).opacity(reduceMotion ? 0.06 : 0.04 + 0.04 * phase))
             }
-            .foregroundStyle(CPTheme.foreground(scheme).opacity(visible ? 0.08 : 0.04))
         }
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel("Loading")
-        .onAppear {
-            guard !reduceMotion else { return }
-            withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) { visible = true }
-        }
-        .onDisappear { visible = false }
+        // Gone the moment the content is ready, never fading over it.
+        .transition(.identity)
     }
 }
 
