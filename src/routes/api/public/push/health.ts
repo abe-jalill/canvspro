@@ -99,7 +99,13 @@ export const Route = createFileRoute("/api/public/push/health")({
       GET: async () => {
         const headers = { "cache-control": "no-store" };
         try {
-          const problems = await check();
+          // A server that has just started can fail its first database
+          // request; one more try keeps that hiccup from reading as an outage.
+          const problems = await check().catch(async (first) => {
+            console.error("[push-health] retrying", first instanceof Error ? first.message : first);
+            await new Promise((resolve) => setTimeout(resolve, 500));
+            return check();
+          });
           return Response.json({ ok: problems.length === 0, problems }, { headers });
         } catch (err) {
           console.error("[push-health]", err instanceof Error ? err.message : err);

@@ -598,10 +598,35 @@ async function iphoneUserIds(admin: Admin, onlyUserId?: string): Promise<Set<str
   }
 }
 
+/**
+ * The secret the cron sends, or null when it can't be read. A server that has
+ * just started can fail its first database request, so a failed read is tried
+ * once more: reading it as "no secret" turned that hiccup into a skipped run.
+ */
+async function readCronSecret(admin: Admin): Promise<string | null> {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const { data, error } = await admin
+        .from("push_cron_config")
+        .select("secret")
+        .limit(1)
+        .maybeSingle();
+      if (!error) return ((data?.secret ?? "") as string) || "";
+      console.error("[push-dispatch] cron secret lookup failed", error.message);
+    } catch (err) {
+      console.error(
+        "[push-dispatch] cron secret lookup failed",
+        err instanceof Error ? err.message : err,
+      );
+    }
+    if (attempt === 0) await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  return null;
+}
+
 /** The cron secret, for the apns function's check. Empty if it can't be read. */
 async function iphoneCronSecret(admin: Admin): Promise<string> {
-  const { data } = await admin.from("push_cron_config").select("secret").limit(1).maybeSingle();
-  return ((data?.secret ?? "") as string) || "";
+  return (await readCronSecret(admin)) ?? "";
 }
 
 async function run(onlyUserId?: string): Promise<Response> {
@@ -932,12 +957,12 @@ export const Route = createFileRoute("/api/public/push/dispatch")({
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const provided = request.headers.get("x-cron-secret") ?? "";
-        const { data } = await supabaseAdmin
-          .from("push_cron_config")
-          .select("secret")
-          .limit(1)
-          .maybeSingle();
-        const expected = (data?.secret ?? "") as string;
+        const expected = await readCronSecret(supabaseAdmin);
+        // Couldn't read it even on the second try: say so in the cron log
+        // rather than answering 401 as if the secret were wrong.
+        if (expected === null) {
+          return Response.json({ error: "secret lookup failed" }, { status: 503 });
+        }
         if (!expected || !constantTimeEqual(provided, expected)) {
           return new Response("Unauthorized", { status: 401 });
         }
