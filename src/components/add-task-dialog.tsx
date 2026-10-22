@@ -9,7 +9,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { AddAssignmentForm, type NewCustomAssignment } from "@/components/add-assignment-form";
-import { NO_CLASS_ID } from "@/lib/custom-assignments";
+import {
+  customToAssignmentItem,
+  NO_CLASS_ID,
+  type CustomAssignment,
+} from "@/lib/custom-assignments";
+import { useCalendarPicks } from "@/lib/calendar-picks";
 import { endOfAheadWindow } from "@/lib/assignment-window";
 
 type Step = "choose" | "class" | "personal";
@@ -24,17 +29,31 @@ export function AddTaskButton({
   onAdd,
 }: {
   courseOptions: { id: number; label: string }[];
-  onAdd: (input: NewCustomAssignment) => void;
+  onAdd: (input: NewCustomAssignment) => CustomAssignment;
 }) {
+  const picks = useCalendarPicks();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<Step>("choose");
 
-  const add = (input: NewCustomAssignment) => {
-    onAdd(input);
+  const add = (input: NewCustomAssignment, calendarAt?: string) => {
+    const item = onAdd(input);
+    const label = courseOptions.find((c) => c.id === item.course_id)?.label;
+    // Optionally on the calendar too, at the time chosen.
+    if (calendarAt)
+      picks.add(
+        customToAssignmentItem(item, label ? { name: label, course_code: "" } : undefined),
+        calendarAt,
+      );
     setOpen(false);
     // To-Do lists the next four weeks; anything further out appears closer to the day.
     const shownNow = !input.due_at || Date.parse(input.due_at) <= endOfAheadWindow(Date.now());
-    toast.success(shownNow ? "Added to To-Do" : "Added. It shows here closer to the due date.");
+    toast.success(
+      calendarAt
+        ? "Added to To-Do and your calendar"
+        : shownNow
+          ? "Added to To-Do"
+          : "Added. It shows here closer to the due date.",
+    );
   };
 
   return (
@@ -96,6 +115,7 @@ export function AddTaskButton({
             onAdd={add}
             onCancel={() => setStep("choose")}
             startOpen
+            calendarOption
             className="mt-0"
           />
         ) : (
@@ -104,6 +124,7 @@ export function AddTaskButton({
             onAdd={add}
             onCancel={() => setStep("choose")}
             startOpen
+            calendarOption
             className="mt-0"
           />
         )}

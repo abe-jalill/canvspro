@@ -20,10 +20,11 @@ export function AddToCalendarButton({
       remove(assignment.id);
       toast("Removed from your Calendar");
     } else {
-      add(assignment);
-      toast.success("Added to your Calendar at 12:00 PM", {
-        description: "You can change the time on the Calendar page.",
-      });
+      const at = new Date(add(assignment));
+      toast.success(
+        `Added to your Calendar for ${at.toLocaleDateString(undefined, { weekday: "short" })} at ${at.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`,
+        { description: "You can change the time on the Calendar page." },
+      );
     }
   };
   const Icon = added ? CalendarCheck : CalendarPlus;

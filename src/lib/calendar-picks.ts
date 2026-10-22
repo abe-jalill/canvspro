@@ -2,6 +2,8 @@ import { useCallback, useMemo } from "react";
 import { useUserPreferenceKey } from "@/hooks/use-user-preferences";
 import type { AssignmentItem } from "@/lib/canvas.functions";
 import { displayCourseName } from "@/lib/course-display";
+import { suggestedPlanTime } from "@/lib/calendar-events";
+import { defaultEstimateMinutes } from "@/lib/get-it-done";
 
 export const CALENDAR_PICKS_KEY = "calendar-picks";
 
@@ -9,16 +11,9 @@ export interface CalendarPick {
   assignmentId: number;
   title: string;
   context: string;
-  /** ISO time the entry shows on the Calendar page (defaults to 12:00 PM on the due day). */
+  /** ISO time the entry shows on the Calendar page (a suggested time, see suggestedPlanTime). */
   at: string;
   dueAt: string | null;
-}
-
-/** 12:00 PM local time on the assignment's due day (today if no due date). */
-export function defaultNoon(dueAt: string | null): string {
-  const d = dueAt ? new Date(dueAt) : new Date();
-  d.setHours(12, 0, 0, 0);
-  return d.toISOString();
 }
 
 function readList(v: unknown): CalendarPick[] {
@@ -36,18 +31,21 @@ export function useCalendarPicks() {
   const ids = useMemo(() => new Set(list.map((p) => p.assignmentId)), [list]);
 
   const add = useCallback(
-    (a: AssignmentItem) => {
-      if (ids.has(a.id)) return;
+    /** Puts work on the calendar at `at`, or at a sensible time before it's due. Returns the time. */
+    (a: AssignmentItem, at?: string): string => {
+      const when = at ?? suggestedPlanTime(a.due_at, defaultEstimateMinutes(a));
+      if (ids.has(a.id)) return when;
       set([
         ...list,
         {
           assignmentId: a.id,
           title: a.name,
           context: displayCourseName(a.course_name, a.course_code),
-          at: defaultNoon(a.due_at),
+          at: when,
           dueAt: a.due_at,
         },
       ]);
+      return when;
     },
     [ids, list, set],
   );

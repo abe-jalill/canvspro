@@ -23,6 +23,8 @@ export interface ClassSession {
   timeLabel: string;
   dateRange: string;
   term: string;
+  /** The Canvas class it's for, when known (classes found in a syllabus). */
+  canvasCourseId?: number | null;
 }
 
 export const DAY_LABELS: Record<ClassDay, string> = {

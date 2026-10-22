@@ -8,6 +8,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { NO_CLASS_ID } from "@/lib/custom-assignments";
+import { suggestedPlanTime } from "@/lib/calendar-events";
 import { cn } from "@/lib/utils";
 
 export interface NewCustomAssignment {
@@ -17,6 +18,13 @@ export interface NewCustomAssignment {
   points_possible: number | null;
   notes: string;
   estimated_minutes?: number | null;
+}
+
+/** An ISO time as a datetime-local value, in local time. */
+function toLocalInput(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 /**
@@ -31,6 +39,7 @@ export function AddAssignmentForm({
   onAdd,
   onCancel,
   startOpen = false,
+  calendarOption = false,
   className,
 }: {
   courseId?: number;
@@ -40,7 +49,10 @@ export function AddAssignmentForm({
   startOpen?: boolean;
   /** Shown as Back: the form sits in a step it can go back from. */
   onCancel?: () => void;
-  onAdd: (input: NewCustomAssignment) => void;
+  /** Offers "Also put it on my calendar", with a time (To-Do's Add). */
+  calendarOption?: boolean;
+  /** `calendarAt` is set when it should also go on the calendar then. */
+  onAdd: (input: NewCustomAssignment, calendarAt?: string) => void;
   className?: string;
 }) {
   const personal = courseId === NO_CLASS_ID;
@@ -51,12 +63,24 @@ export function AddAssignmentForm({
   const [notes, setNotes] = useState("");
   const [minutes, setMinutes] = useState("");
   const [selected, setSelected] = useState<string>(courseId != null ? String(courseId) : "");
+  const [onCalendar, setOnCalendar] = useState(false);
+  /** Empty until the student picks a time; until then it follows the due date. */
+  const [planAt, setPlanAt] = useState("");
 
   const targetId = courseId ?? (selected ? Number(selected) : NaN);
   const validMinutes =
     minutes === "" ||
     (Number.isInteger(Number(minutes)) && Number(minutes) > 0 && Number(minutes) <= 480);
-  const canSave = name.trim().length > 0 && Number.isFinite(targetId) && validMinutes;
+  const dueIso = due ? new Date(due).toISOString() : null;
+  const suggested = toLocalInput(
+    suggestedPlanTime(dueIso, validMinutes && minutes !== "" ? Number(minutes) : 60),
+  );
+  const planValue = planAt || suggested;
+  const canSave =
+    name.trim().length > 0 &&
+    Number.isFinite(targetId) &&
+    validMinutes &&
+    (!onCalendar || Number.isFinite(Date.parse(planValue)));
 
   function reset() {
     setName("");
@@ -64,6 +88,8 @@ export function AddAssignmentForm({
     setPoints("");
     setNotes("");
     setMinutes("");
+    setOnCalendar(false);
+    setPlanAt("");
     if (courseId == null) setSelected("");
   }
 
@@ -71,14 +97,17 @@ export function AddAssignmentForm({
     e.preventDefault();
     if (!canSave) return;
     const pts = parseFloat(points);
-    onAdd({
-      course_id: targetId,
-      name: name.trim(),
-      due_at: due ? new Date(due).toISOString() : null,
-      points_possible: personal || Number.isNaN(pts) ? null : pts,
-      notes: personal ? "" : notes.trim(),
-      estimated_minutes: minutes === "" ? null : Number(minutes),
-    });
+    onAdd(
+      {
+        course_id: targetId,
+        name: name.trim(),
+        due_at: dueIso,
+        points_possible: personal || Number.isNaN(pts) ? null : pts,
+        notes: personal ? "" : notes.trim(),
+        estimated_minutes: minutes === "" ? null : Number(minutes),
+      },
+      onCalendar ? new Date(planValue).toISOString() : undefined,
+    );
     reset();
     if (!startOpen) setOpen(false);
   }
@@ -191,6 +220,31 @@ export function AddAssignmentForm({
             className={inputClass}
           />
         </>
+      )}
+      {calendarOption && (
+        <div className="space-y-2 rounded-lg border border-glass-border p-3">
+          <label className="flex cursor-pointer items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={onCalendar}
+              onChange={(e) => setOnCalendar(e.target.checked)}
+              className="h-4 w-4 accent-[var(--primary)]"
+            />
+            Also put it on my calendar
+          </label>
+          {onCalendar && (
+            <label className="block space-y-1">
+              <span className="text-xs text-muted-foreground">When you'll work on it</span>
+              <input
+                type="datetime-local"
+                value={planValue}
+                onChange={(e) => setPlanAt(e.target.value)}
+                aria-label="When you'll work on it"
+                className={inputClass}
+              />
+            </label>
+          )}
+        </div>
       )}
       <div className="flex flex-wrap gap-2">
         <button

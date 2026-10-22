@@ -25,6 +25,25 @@ function at(days: number, hour: number, minute = 0) {
   return date.toISOString();
 }
 
+/** Short syllabi with meeting times, as Canvas would send them. */
+const DEMO_SYLLABI: Record<number, string> = {
+  9101: "<p><strong>Lecture:</strong> MWF 9:00–9:50 AM, Science Hall 101</p><p>Lab: Th 1:00-3:50 PM, Room B12</p><p>Office hours: Tue 2-3 pm</p>",
+  9102: "<p>Class meetings: Tuesdays and Thursdays, 11:00 AM to 12:15 PM in Room 204</p>",
+  9103: "<p>Meeting times: MWF 11:00-11:50 AM, Chem 140</p>",
+  9104: "<p>We meet Tu/Th 2:00 - 3:15 pm, Humanities 310.</p>",
+  9105: "<p>Lecture MWF 1:00-1:50 PM, Math 112</p>",
+};
+
+/** My classes, as the syllabus scan would have filled them in. */
+const DEMO_SCHEDULE: [number, string, string[], number, number, string][] = [
+  [9101, "Cell Biology", ["M", "W", "F"], 540, 590, "Science Hall 101"],
+  [9101, "Cell Biology Lab", ["R"], 780, 950, "Room B12"],
+  [9102, "Introduction to Psychology", ["T", "R"], 660, 735, "Room 204"],
+  [9103, "General Chemistry", ["M", "W", "F"], 660, 710, "Chem 140"],
+  [9104, "College Writing", ["T", "R"], 840, 915, "Humanities 310"],
+  [9105, "Calculus I", ["M", "W", "F"], 780, 830, "Math 112"],
+];
+
 const COURSES = [
   {
     id: 9101,
@@ -61,7 +80,11 @@ const COURSES = [
     current_score: 90.3,
     current_grade: "A-",
   },
-].map((course) => ({ ...course, final_score: course.current_score, syllabus_body: null }));
+].map((course) => ({
+  ...course,
+  final_score: course.current_score,
+  syllabus_body: DEMO_SYLLABI[course.id] ?? null,
+}));
 
 type DemoAssignment = [
   id: number,
@@ -283,6 +306,26 @@ function tableRows(table: string): unknown[] {
           progress_percent: null,
         },
       ];
+    case "class_schedule_entries":
+      return DEMO_SCHEDULE.map(([courseId, title, days, start, end, location], index) => ({
+        id: `demo-class-${index}`,
+        user_id: DEMO_USER_ID,
+        code: "",
+        section: "",
+        title,
+        crn: "",
+        credits: 3,
+        instructor: "",
+        location,
+        campus: "",
+        schedule_type: title.endsWith(" Lab") ? "Lab" : "Lecture",
+        days,
+        start_minutes: start,
+        end_minutes: end,
+        term: "",
+        date_range: "",
+        canvas_course_id: courseId,
+      }));
     case "class_nicknames":
       return COURSES.map((course) => ({
         user_id: DEMO_USER_ID,

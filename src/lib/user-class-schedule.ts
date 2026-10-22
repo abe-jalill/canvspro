@@ -30,7 +30,7 @@ export async function fetchClassSchedule(): Promise<ClassSession[]> {
   const { data, error } = await supabase
     .from("class_schedule_entries")
     .select(
-      "id, code, section, title, crn, credits, instructor, location, campus, schedule_type, days, start_minutes, end_minutes, term, date_range",
+      "id, code, section, title, crn, credits, instructor, location, campus, schedule_type, days, start_minutes, end_minutes, term, date_range, canvas_course_id",
     )
     .eq("user_id", user.id)
     .order("start_minutes", { ascending: true });
@@ -53,7 +53,38 @@ export async function fetchClassSchedule(): Promise<ClassSession[]> {
     timeLabel: timeRangeLabel(Number(r.start_minutes), Number(r.end_minutes)),
     dateRange: r.date_range ?? "",
     term: r.term ?? "",
+    canvasCourseId: r.canvas_course_id ?? null,
   }));
+}
+
+/** Adds classes without touching the ones already saved (classes found in syllabi). */
+export async function addClassScheduleEntries(
+  rows: (Omit<ScheduleEntryInput, "id"> & { canvasCourseId: number })[],
+): Promise<void> {
+  const { data: userData } = await supabase.auth.getUser();
+  const user = userData.user;
+  if (!user || rows.length === 0) return;
+  const { error } = await supabase.from("class_schedule_entries").insert(
+    rows.map((r) => ({
+      user_id: user.id,
+      code: r.code,
+      section: r.section,
+      title: r.title,
+      crn: r.crn,
+      credits: r.credits,
+      instructor: r.instructor,
+      location: r.location,
+      campus: r.campus,
+      schedule_type: r.scheduleType,
+      days: r.days,
+      start_minutes: r.startMinutes,
+      end_minutes: r.endMinutes,
+      term: r.term,
+      date_range: r.dateRange,
+      canvas_course_id: r.canvasCourseId,
+    })),
+  );
+  if (error) throw new Error(error.message);
 }
 
 export function useClassSchedule() {
