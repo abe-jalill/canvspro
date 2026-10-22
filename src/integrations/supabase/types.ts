@@ -250,6 +250,7 @@ export type Database = {
           id: string
           last_success_at: string | null
           platform: string
+          session_id: string | null
           token: string
           updated_at: string
           user_id: string
@@ -261,6 +262,7 @@ export type Database = {
           id?: string
           last_success_at?: string | null
           platform?: string
+          session_id?: string | null
           token: string
           updated_at?: string
           user_id: string
@@ -272,6 +274,7 @@ export type Database = {
           id?: string
           last_success_at?: string | null
           platform?: string
+          session_id?: string | null
           token?: string
           updated_at?: string
           user_id?: string
@@ -380,6 +383,7 @@ export type Database = {
           id: string
           last_success_at: string | null
           p256dh: string
+          session_id: string | null
           user_agent: string | null
           user_id: string
         }
@@ -391,6 +395,7 @@ export type Database = {
           id?: string
           last_success_at?: string | null
           p256dh: string
+          session_id?: string | null
           user_agent?: string | null
           user_id: string
         }
@@ -402,6 +407,7 @@ export type Database = {
           id?: string
           last_success_at?: string | null
           p256dh?: string
+          session_id?: string | null
           user_agent?: string | null
           user_id?: string
         }
@@ -644,6 +650,10 @@ export type Database = {
     }
     Functions: {
       current_session_id: { Args: never; Returns: string }
+      forget_session_push: {
+        Args: { ids: string[]; keep: string; uid: string }
+        Returns: undefined
+      }
       has_canvas_key: { Args: never; Returns: boolean }
       has_canvaspro_access: { Args: { user_uuid: string }; Returns: boolean }
       list_my_sessions: {
@@ -653,11 +663,11 @@ export type Database = {
           id: string
           is_current: boolean
           last_active_at: string
-          user_agent: string | null
+          user_agent: string
         }[]
       }
       my_billing_status: { Args: never; Returns: Json }
-      my_session_active: { Args: never; Returns: boolean | null }
+      my_session_active: { Args: never; Returns: boolean }
       patch_notification_preferences: {
         Args: { changes: Json; device_timezone_offset: number }
         Returns: Json
