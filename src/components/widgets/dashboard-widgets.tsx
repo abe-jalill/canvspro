@@ -1,3 +1,6 @@
+import { useClassAssignments } from "@/hooks/use-class-assignments";
+import { TaskDestination } from "@/components/task-destination";
+import { isDueOnDay } from "@/lib/todo-week";
 import { CompletionRow } from "@/components/completion-row";
 import { useCompletingIds } from "@/lib/completion-motion";
 import { AssignmentEstimateEditor } from "@/components/assignment-estimate";
@@ -47,7 +50,7 @@ import { GpaCalculator } from "@/components/gpa-calculator";
 import { getCalendarEventsFn } from "@/lib/canvas.functions";
 import { courseLetter, getGradeColor } from "@/lib/grade-color";
 import { isInFocusWindow } from "@/lib/focus-window";
-import { isAssignmentVisible } from "@/lib/assignment-window";
+import { isAssignmentVisible, isAssignmentComplete } from "@/lib/assignment-window";
 import { useAnnouncementWindow, withinAnnouncementWindow } from "@/lib/announcement-window";
 import {
   customToAssignmentItem,
@@ -619,7 +622,9 @@ function WidgetAssignmentRow({
           <AssignmentProgressBar assignmentId={a.id} className="mt-2" />
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
             <AssignmentEstimateEditor assignment={a} />
-            <AssignmentDescriptionLink assignmentId={a.id} showProgress={false} />
+            {a.course_id === NO_CLASS_ID ? (
+              <TaskDestination assignment={a} className="text-xs text-muted-foreground underline">View task</TaskDestination>
+            ) : <AssignmentDescriptionLink assignmentId={a.id} showProgress={false} />}
             {showCalendar && <IcsButton assignment={a} />}
           </div>
         </div>
@@ -632,11 +637,11 @@ function FocusWidget() {
   const { data, isLoading, isError, error } = useQuery(assignmentsQO);
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
   const completing = useCompletingIds();
-  const custom = useCustomAssignments();
+  const custom = useCustomAssignments(true);
   const courses = useQuery(coursesQO);
 
   const soon = mergeAssignments(data ?? [], custom.list, courses.data ?? [])
-    .filter((a) => !notYetOpen(a) && isInFocusWindow(a, "2", Date.now(), completed.has(a.id)))
+    .filter((a) => !notYetOpen(a) && isDueOnDay(a, Date.now()) && !isAssignmentComplete(a, completed.has(a.id)))
     .sort(
       (a, b) => new Date(a.due_at as string).getTime() - new Date(b.due_at as string).getTime(),
     );
@@ -645,7 +650,7 @@ function FocusWidget() {
     <GlassCard
       title="To-Do"
       icon={<Clock3 />}
-      subtitle="Due within 48 hours"
+      subtitle="Due today"
       action={
         <Link
           to="/focus"
@@ -666,7 +671,7 @@ function FocusWidget() {
         </div>
       )}
       {isError && !data && <ErrorState message={(error as Error).message} />}
-      {data && soon.length === 0 && <EmptyState message="Nothing due in the next 48 hours." />}
+      {data && soon.length === 0 && <EmptyState message="Nothing due today." />}
       {soon.length > 0 && (
         <ul className="space-y-2">
           {soon.map((a) => (
@@ -747,7 +752,7 @@ function CalendarWidget() {
 }
 
 function HeatmapWidget() {
-  const { data, isLoading, isError, error } = useQuery(assignmentsQO);
+  const { data, isLoading, isError, error } = useClassAssignments();
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
   // Same visibility rule as the Calendar page, so both heatmaps agree.
   const now = Date.now();

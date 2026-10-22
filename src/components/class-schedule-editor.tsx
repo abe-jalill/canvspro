@@ -1,3 +1,4 @@
+import { TimePicker } from "@/components/ui/time-picker";
 // Minimal entry form for a user's recurring class meeting times. Canvas's API
 // does not expose section meeting times reliably, so they're entered here and
 // stored per-account. Only days and times are required — class names come from
@@ -358,20 +359,14 @@ export default function ClassScheduleEditor({
               {!r.perDay ? (
                 <>
                   <Field label="Start time">
-                    <input
-                      type="time"
-                      value={r.start}
-                      onChange={(e) => update(r.key, { start: e.target.value })}
-                      className="field"
-                    />
+                    <TimePicker value={r.start}
+                      onChange={(value) => update(r.key, { start: value })}
+                      label="Start time" />
                   </Field>
                   <Field label="End time">
-                    <input
-                      type="time"
-                      value={r.end}
-                      onChange={(e) => update(r.key, { end: e.target.value })}
-                      className="field"
-                    />
+                    <TimePicker value={r.end}
+                      onChange={(value) => update(r.key, { end: value })}
+                      label="End time" />
                   </Field>
                 </>
               ) : null}
@@ -490,21 +485,15 @@ export default function ClassScheduleEditor({
                         <span className="w-20 text-xs font-medium text-muted-foreground">
                           {DAY_LABELS[d]}
                         </span>
-                        <input
-                          type="time"
-                          value={t.start}
-                          onChange={(e) => setDayTime(r.key, d, { start: e.target.value })}
-                          aria-label={`${DAY_LABELS[d]} start time`}
-                          className="field w-auto flex-1 min-w-[7rem]"
-                        />
+                        <TimePicker value={t.start}
+                          onChange={(value) => setDayTime(r.key, d, { start: value })}
+                          label={`${DAY_LABELS[d]} start time`}
+                          className="flex-1 min-w-[11rem]" />
                         <span className="text-xs text-muted-foreground">to</span>
-                        <input
-                          type="time"
-                          value={t.end}
-                          onChange={(e) => setDayTime(r.key, d, { end: e.target.value })}
-                          aria-label={`${DAY_LABELS[d]} end time`}
-                          className="field w-auto flex-1 min-w-[7rem]"
-                        />
+                        <TimePicker value={t.end}
+                          onChange={(value) => setDayTime(r.key, d, { end: value })}
+                          label={`${DAY_LABELS[d]} end time`}
+                          className="flex-1 min-w-[11rem]" />
                       </div>
                     );
                   })}

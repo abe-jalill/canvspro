@@ -1,3 +1,5 @@
+import { TimePicker } from "@/components/ui/time-picker";
+import { useClassAssignments } from "@/hooks/use-class-assignments";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -107,7 +109,7 @@ const KIND_LABEL: Record<CalendarEntry["kind"], string> = {
  */
 function SchedulePage() {
   const events = useQuery(eventsQO);
-  const assignments = useQuery(assignmentsQO);
+  const assignments = useClassAssignments();
   const courses = useQuery(coursesQO);
   const schedule = useClassSchedule();
   const picks = useCalendarPicks();
@@ -539,18 +541,17 @@ function DaySection({
                 )}
                 {entry.kind === "planned" && entry.assignmentId != null && (
                   <>
-                    <input
-                      type="time"
-                      aria-label={`Time for ${entry.title}`}
+                    <TimePicker
+                      label={`Time for ${entry.title}`}
                       value={`${String(new Date(entry.start).getHours()).padStart(2, "0")}:${String(new Date(entry.start).getMinutes()).padStart(2, "0")}`}
-                      onChange={(e) => {
-                        const [h, m] = e.target.value.split(":").map(Number);
+                      onChange={(value) => {
+                        const [h, m] = value.split(":").map(Number);
                         if (!Number.isFinite(h) || !Number.isFinite(m)) return;
                         const d = new Date(entry.start);
                         d.setHours(h, m, 0, 0);
                         picks.setTime(entry.assignmentId!, d.toISOString());
                       }}
-                      className="w-[6.5rem] rounded-lg border border-foreground/10 bg-transparent px-2 py-1 text-xs tabular-nums"
+                      className="w-48"
                     />
                     <button
                       type="button"

@@ -1,3 +1,5 @@
+import { LocalDatePicker } from "@/components/ui/local-date-picker";
+import { TimePicker } from "@/components/ui/time-picker";
 import { useEffect, useState } from "react";
 import { Trash2 } from "lucide-react";
 import {
@@ -143,12 +145,7 @@ export function CalendarEventDialog({
           <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
             <label className="space-y-1">
               <span className="text-xs text-muted-foreground">Date</span>
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className={inputClass}
-              />
+              <LocalDatePicker value={date} onChange={setDate} label="Event date" />
             </label>
             <label className="flex min-h-10 items-center gap-2 text-sm">
               <Switch checked={allDay} onCheckedChange={setAllDay} aria-label="All day" />
@@ -156,24 +153,14 @@ export function CalendarEventDialog({
             </label>
           </div>
           {!allDay && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               <label className="space-y-1">
                 <span className="text-xs text-muted-foreground">Starts</span>
-                <input
-                  type="time"
-                  value={start}
-                  onChange={(e) => changeStart(e.target.value)}
-                  className={inputClass}
-                />
+                <TimePicker value={start} onChange={changeStart} label="Event starts" />
               </label>
               <label className="space-y-1">
                 <span className="text-xs text-muted-foreground">Ends</span>
-                <input
-                  type="time"
-                  value={end}
-                  onChange={(e) => setEnd(e.target.value)}
-                  className={cn(inputClass, !timesOk && "ring-1 ring-destructive")}
-                />
+                <TimePicker value={end} onChange={setEnd} label="Event ends" className={cn(!timesOk && "ring-1 ring-destructive")} />
               </label>
               {!timesOk && (
                 <p className="col-span-2 text-xs text-destructive">
@@ -213,13 +200,7 @@ export function CalendarEventDialog({
             {repeat.length > 0 ? (
               <label className="block space-y-1">
                 <span className="text-xs text-muted-foreground">Until (optional)</span>
-                <input
-                  type="date"
-                  value={until}
-                  min={date}
-                  onChange={(e) => setUntil(e.target.value)}
-                  className={cn(inputClass, !untilOk && "ring-1 ring-destructive")}
-                />
+                <LocalDatePicker value={until} min={date} onChange={setUntil} label="Repeat until" clearable />
               </label>
             ) : (
               <p className="text-xs text-muted-foreground">Leave these off for a one-time event.</p>

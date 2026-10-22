@@ -2,10 +2,11 @@
 
 import * as React from "react";
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
-import { DayButton, DayPicker, getDefaultClassNames } from "react-day-picker";
+import { DayButton, DayPicker, getDefaultClassNames, type DropdownProps } from "react-day-picker";
 
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 function Calendar({
   className,
@@ -105,6 +106,7 @@ function Calendar({
         ...classNames,
       }}
       components={{
+        Dropdown: CalendarDropdown,
         Root: ({ className, rootRef, ...props }) => {
           return <div data-slot="calendar" ref={rootRef} className={cn(className)} {...props} />;
         },
@@ -133,6 +135,24 @@ function Calendar({
       }}
       {...props}
     />
+  );
+}
+
+/** Month and year menus use the same accessible surface as the rest of the site. */
+function CalendarDropdown({ options, value, onChange, disabled, "aria-label": label }: DropdownProps) {
+  return (
+    <Select value={String(value)} disabled={disabled} onValueChange={(next) =>
+      onChange?.({ target: { value: next }, currentTarget: { value: next } } as React.ChangeEvent<HTMLSelectElement>)
+    }>
+      <SelectTrigger aria-label={label} className="min-h-8 w-auto gap-1 border-0 px-2 py-1 text-sm">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {options?.map((option) => (
+          <SelectItem key={option.value} value={String(option.value)} disabled={option.disabled}>{option.label}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 

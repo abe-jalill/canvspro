@@ -134,7 +134,8 @@ test("the dashboard below: news only when posted, Customize underneath, widget i
 test("To-Do: one list with the week as segments, day headers and class colors", () => {
   const page = read("src/routes/_authenticated/focus.tsx");
   assert.match(page, /<WeekSegments done=\{weekDone\} total=\{weekTotal\} \/>/);
-  assert.match(page, /title: "Catch up"/);
+  assert.match(page, /tasksForDay\(allAssignments, selectedDay, isDone\)/);
+  assert.doesNotMatch(page, /key: "catch-up"/);
   assert.match(
     page,
     /group\.isToday \? "text-primary" : group\.isCatchUp \? "text-rose-400" : "text-foreground"/,

@@ -1,8 +1,9 @@
+import { TaskDestination } from "@/components/task-destination";
 import { formatAssignmentDue } from "@/lib/assignment-due";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { Check, ChevronDown, Search, X } from "lucide-react";
+import { Check, Search, X } from "lucide-react";
 import type { AssignmentItem } from "@/lib/canvas.functions";
 import { ErrorState } from "@/components/glass-card";
 import { cn } from "@/lib/utils";
@@ -12,12 +13,10 @@ import { useLocalSet, COMPLETED_ASSIGNMENTS_KEY } from "@/lib/local-state";
 import { defaultEstimateMinutes } from "@/lib/get-it-done";
 import { useAssignmentMetaMap, useAssignmentMeta } from "@/hooks/use-assignment-meta";
 import {
-  isDueInFocusWindow,
-  isDueThisWeek,
   normalizeFocusWindow,
   type FocusWindow,
 } from "@/lib/focus-window";
-import { isAssignmentComplete, isAssignmentVisible } from "@/lib/assignment-window";
+import { isAssignmentComplete } from "@/lib/assignment-window";
 import {
   customToAssignmentItem,
   isCustomAssignmentId,
@@ -36,8 +35,11 @@ import {
 import { SkeletonBlock } from "@/components/skeletons/dashboard-skeletons";
 import { useUserPreferenceKey } from "@/hooks/use-user-preferences";
 import { OpensLabel } from "@/components/assignment-description-link";
-import { notYetOpen } from "@/lib/assignment-availability";
 import { AddTaskButton } from "@/components/add-task-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TodoWeekPicker } from "@/components/todo-week-picker";
+import { startOfLocalDay, tasksForDay, todoWeekDays } from "@/lib/todo-week";
+import { weekProgress } from "@/lib/week-progress";
 
 export const Route = createFileRoute("/_authenticated/focus")({
   head: () => ({
@@ -45,12 +47,12 @@ export const Route = createFileRoute("/_authenticated/focus")({
       { title: "To-Do — CoursePro" },
       {
         name: "description",
-        content: "Everything due soon, laid out day by day or class by class.",
+        content: "Tasks due on your selected day, with today selected to start.",
       },
       { property: "og:title", content: "To-Do — CoursePro" },
       {
         property: "og:description",
-        content: "Everything due soon, laid out day by day or class by class.",
+        content: "Tasks due on your selected day, with today selected to start.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -113,19 +115,21 @@ interface Group {
 }
 
 /**
- * To-Do, like the iPhone app: one list. Anything to catch up on first, then
- * each day of the next four weeks (or each class), one card per day. No ranges
- * or days to pick; search and Completed are at the top.
+ * To-Do opens on today. A Sunday–Saturday picker browses four calendar weeks.
+ * Picking a day and searching both narrow the same daily list.
  */
 function FocusPage() {
   const assignments = useQuery(assignmentsQO);
   const courses = useQuery(coursesQO);
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
-  const custom = useCustomAssignments();
+  const custom = useCustomAssignments(true);
   const meta = useAssignmentMeta();
   const metaMap = useAssignmentMetaMap();
   const [view, setView] = useViewMode();
   const [now, setNow] = useState(() => Date.now());
+  const [selectedDate, setSelectedDate] = useState<number | null>(null);
+  const [weekOffset, setWeekOffset] = useState(0);
+  const selectedDay = selectedDate ?? startOfLocalDay(now);
   const [searching, setSearching] = useState(false);
   const [query, setQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
@@ -155,37 +159,30 @@ function FocusPage() {
   const estimateFor = (a: AssignmentItem) =>
     metaMap.get(a.id)?.estimatedMinutes ?? defaultEstimateMinutes(a);
   const isDone = (a: AssignmentItem) => isAssignmentComplete(a, completed.has(a.id));
-  const isShown = (a: AssignmentItem) => isAssignmentVisible(a, completed.has(a.id), false, now);
 
   const text = query.trim().toLowerCase();
-  // Unfinished work due within four weeks, anything recent to catch up on, and
-  // your own tasks with no due date (last). A search looks further ahead.
-  const listed = (a: AssignmentItem) =>
-    a.due_at
-      ? (text || isDueInFocusWindow(a, "all", now)) && isShown(a)
-      : isCustomAssignmentId(a.id) && !isDone(a);
-  const items = allAssignments
+  // Search stays within the selected calendar day, including earlier deadlines today.
+  const items = tasksForDay(allAssignments, selectedDay, isDone)
     .filter(
       (a) =>
-        listed(a) &&
         (!text ||
           a.name.toLowerCase().includes(text) ||
           courseName(a).toLowerCase().includes(text)),
     )
     .sort(byDue);
 
-  // The week: done and in all, over Today's seven days. Work Canvas hasn't
-  // opened yet is listed (with when it opens) but not counted, as on Today.
-  const week = allAssignments.filter((a) => isDueThisWeek(a, now) && !notYetOpen(a, now));
+  const weekDates = todoWeekDays(now, weekOffset);
+  const days = weekProgress(allAssignments, isDone, () => true, weekDates[0]);
+  const week = allAssignments.filter((a) =>
+    a.due_at && weekDates.includes(startOfLocalDay(Date.parse(a.due_at))));
   const weekDone = week.filter(isDone).length;
-  const weekLeft = week.filter((a) => !isDone(a) && isShown(a));
+  const weekLeft = week.filter((a) => !isDone(a));
   const weekTotal = weekDone + weekLeft.length;
-  const headerLine =
-    weekLeft.length > 0
-      ? `${weekLeft.length} this week · ${formatMinutes(weekLeft.reduce((s, a) => s + estimateFor(a), 0))}`
-      : items.length > 0
-        ? "Nothing due this week"
-        : "All clear";
+  const dayLabel = selectedDay === startOfLocalDay(now) ? "today" :
+    new Date(selectedDay).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const headerLine = items.length > 0
+    ? `${items.length} due ${dayLabel} · ${formatMinutes(items.reduce((s, a) => s + estimateFor(a), 0))}`
+    : `Nothing due ${dayLabel}`;
 
   // Counts only once everything has loaded, never "All clear" before it.
   const loading =
@@ -230,24 +227,28 @@ function FocusPage() {
           ) : (
             <p className="text-base tabular-nums text-muted-foreground">{headerLine}</p>
           )}
-          <label className="relative inline-flex shrink-0 items-center">
-            <span className="sr-only">Group</span>
-            <select
-              value={view}
-              onChange={(event) => setView(event.target.value as ViewMode)}
-              className="cursor-pointer appearance-none rounded-lg bg-foreground/[0.05] py-1.5 pl-3 pr-7 text-xs text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <option value="day">By day</option>
-              <option value="class">By class</option>
-            </select>
-            <ChevronDown
-              className="pointer-events-none absolute right-2 h-3 w-3 text-muted-foreground"
-              aria-hidden="true"
-            />
-          </label>
+          <Select value={view} onValueChange={(value) => setView(value as ViewMode)}>
+            <SelectTrigger aria-label="Group" className="w-auto min-h-9 py-1.5 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="end">
+              <SelectItem value="day">By day</SelectItem>
+              <SelectItem value="class">By class</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         {!loading && !failed && weekTotal > 0 && <WeekSegments done={weekDone} total={weekTotal} />}
       </header>
+
+      <TodoWeekPicker days={days} now={now} selectedDay={selectedDay}
+        weekOffset={weekOffset} onSelectDay={setSelectedDate}
+        onChangeWeek={(offset) => {
+          setWeekOffset(offset);
+          const dates = todoWeekDays(now, offset);
+          setSelectedDate(dates.includes(startOfLocalDay(now)) ? startOfLocalDay(now) : dates[0]);
+        }}
+        onToday={() => { setWeekOffset(0); setSelectedDate(null); }}
+      />
 
       {searching && (
         <label className="flex items-center gap-3 rounded-xl border border-foreground/15 px-3 py-2.5">
@@ -278,7 +279,7 @@ function FocusPage() {
       ) : items.length === 0 ? (
         <div className="px-1 py-16 text-center">
           <Check className="mx-auto h-5 w-5 text-muted-foreground" aria-hidden="true" />
-          <p className="mt-3 text-base">{text ? "No matches" : "You're all clear."}</p>
+          <p className="mt-3 text-base">{text ? "No matches for this day" : `Nothing due ${dayLabel}.`}</p>
         </div>
       ) : (
         <div className="space-y-7">
@@ -409,8 +410,6 @@ function groupByDay(items: AssignmentItem[], today: number, now: number): Group[
     let group: Group;
     if (!Number.isFinite(due)) {
       group = { ...base, key: "none", title: "No due date", date: null };
-    } else if (due < now) {
-      group = { ...base, key: "catch-up", title: "Catch up", date: null, isCatchUp: true };
     } else {
       const start = startOfDay(due);
       const diff = Math.round((start - today) / DAY_MS);
@@ -534,16 +533,8 @@ function FocusRow({
         />
       </button>
       {/* The whole row opens the assignment on its class page, as on the iPhone.
-          Your own tasks aren't on a class page; Assignments has them. */}
-      <Link
-        {...(isCustomAssignmentId(a.id)
-          ? { to: "/assignments", search: { assignment: String(a.id) } }
-          : {
-              to: "/courses/$courseId",
-              params: { courseId: String(a.course_id) },
-              search: { assignment: String(a.id) },
-            })}
-        preload="intent"
+          Personal tasks open details here; class assignments open their assignment page. */}
+      <TaskDestination assignment={a}
         className="min-w-0 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <p
@@ -557,7 +548,7 @@ function FocusRow({
         <p className="mt-1 text-xs tabular-nums text-muted-foreground">{line}</p>
         <OpensLabel unlockAt={a.unlock_at} className="mt-1" />
         <AssignmentProgressBar assignmentId={a.id} className="mt-2" />
-      </Link>
+      </TaskDestination>
     </li>
   );
 }

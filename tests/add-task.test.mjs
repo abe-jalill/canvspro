@@ -26,7 +26,9 @@ test("a task that isn't for a class asks only what it needs", () => {
   assert.match(form, /const personal = courseId === NO_CLASS_ID;/);
   assert.match(form, /points_possible: personal \|\| Number\.isNaN\(pts\) \? null : pts,/);
   assert.match(form, /\{!personal && \(/);
-  assert.match(form, /\{personal \? "Due \(optional\)" : "Due"\}/);
+  assert.match(form, /useState\(defaultTaskDue\)/);
+  assert.match(form, /<DueDatePicker value=\{due\} onChange=\{setDue\} \/>/);
+  assert.match(form, /await onAdd\(/);
 });
 
 test("a task with no class reads Personal, in gray, after the classes", () => {

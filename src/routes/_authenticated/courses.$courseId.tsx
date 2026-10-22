@@ -1,3 +1,4 @@
+import { useClassAssignments } from "@/hooks/use-class-assignments";
 import { AssignmentEstimateEditor } from "@/components/assignment-estimate";
 import { formatAssignmentDue } from "@/lib/assignment-due";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -165,7 +166,7 @@ function CourseDetailPage() {
   const numericCourseId = Number(courseIdStr);
 
   const coursesQueryState = useQuery(coursesQO);
-  const assignmentsQueryState = useQuery(assignmentsQO);
+  const assignmentsQueryState = useClassAssignments();
   const announcementsQueryState = useQuery(announcementsQO);
   const classSchedule = useClassSchedule();
   const { has: isCompleted } = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);

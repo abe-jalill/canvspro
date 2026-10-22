@@ -15,7 +15,6 @@ import {
   type CustomAssignment,
 } from "@/lib/custom-assignments";
 import { useCalendarPicks } from "@/lib/calendar-picks";
-import { endOfAheadWindow } from "@/lib/assignment-window";
 
 type Step = "choose" | "class" | "personal";
 
@@ -29,31 +28,21 @@ export function AddTaskButton({
   onAdd,
 }: {
   courseOptions: { id: number; label: string }[];
-  onAdd: (input: NewCustomAssignment) => CustomAssignment;
+  onAdd: (input: NewCustomAssignment) => CustomAssignment | Promise<CustomAssignment>;
 }) {
   const picks = useCalendarPicks();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<Step>("choose");
 
-  const add = (input: NewCustomAssignment, calendarAt?: string) => {
-    const item = onAdd(input);
+  const add = async (input: NewCustomAssignment, calendarAt?: string) => {
+    const item = await onAdd(input);
     const label = courseOptions.find((c) => c.id === item.course_id)?.label;
-    // Optionally on the calendar too, at the time chosen.
-    if (calendarAt)
-      picks.add(
-        customToAssignmentItem(item, label ? { name: label, course_code: "" } : undefined),
-        calendarAt,
-      );
+    if (calendarAt && input.course_id !== NO_CLASS_ID)
+      picks.add(customToAssignmentItem(item, label ? { name: label, course_code: "" } : undefined), calendarAt);
     setOpen(false);
-    // To-Do lists the next four weeks; anything further out appears closer to the day.
-    const shownNow = !input.due_at || Date.parse(input.due_at) <= endOfAheadWindow(Date.now());
-    toast.success(
-      calendarAt
-        ? "Added to To-Do and your calendar"
-        : shownNow
-          ? "Added to To-Do"
-          : "Added. It shows here closer to the due date.",
-    );
+    toast.success(calendarAt && input.course_id !== NO_CLASS_ID ? "Added to To-Do and your calendar" : input.course_id === NO_CLASS_ID ? "Task added" : "Assignment added", {
+      description: input.due_at ? 'Due ' + new Date(input.due_at).toLocaleString() + '. Choose that day in To-Do to see it.' : undefined,
+    });
   };
 
   return (
