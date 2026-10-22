@@ -483,6 +483,8 @@ final class NativeFeatureStore: ObservableObject {
             preferencesLoaded = true
             decodePreferenceModels()
             applyAppearancePreferences()
+            await moveLocalDismissedAnnouncements()
+            await moveLocalTodoGrouping()
             async let profileRow = api.accountProfile(token: token, userID: user.id)
             async let detailsRow = api.accountDetails(token: token)
             async let scheduleRows = api.classSchedule(token: token, userID: user.id)
@@ -772,14 +774,96 @@ final class NativeFeatureStore: ObservableObject {
         })
     }
 
-    /// Canvas and custom assignments for every class the student hasn't hidden.
-    /// Every screen lists work through this, so hiding a class hides it everywhere.
     /// Canvas events, without those of classes hidden in Settings.
     func shownEvents(in store: NativeContentStore) -> [CalendarEventItem] {
         let hidden = Set(hiddenCourseIDs.map { "course_\($0)" })
         return store.bundle.calendar.filter { !hidden.contains($0.contextCode ?? "") }
     }
 
+    // MARK: Synced across devices
+    //
+    // Saved to the account under the website's keys and in its format, so the
+    // phone and every browser agree on what's been seen, dismissed and chosen.
+
+    private func decoded<T: Decodable>(_ key: String, as type: T.Type) -> T? {
+        guard let value = preferences[key], let data = try? JSONEncoder().encode(value) else { return nil }
+        return try? JSONDecoder().decode(T.self, from: data)
+    }
+
+    /// Since your last visit (`digest-seen`).
+    var digestSeen: NativeDigestSeen? {
+        guard let seen = decoded("digest-seen", as: NativeDigestSeen.self),
+              ISO8601DateFormatter.canvasDate(from: seen.lastVisit) != nil else { return nil }
+        return seen
+    }
+    func saveDigestSeen(_ seen: NativeDigestSeen) async {
+        guard digestSeen != seen else { return }
+        try? await savePreference("digest-seen", seen)
+    }
+
+    /// Announcements dismissed on any device (`dismissed-announcements`, ids as text).
+    var dismissedAnnouncementIDs: Set<Int> {
+        guard case .some(.array(let values)) = preferences["dismissed-announcements"] else { return [] }
+        return Set(values.compactMap { value -> Int? in
+            switch value {
+            case .string(let id): return Int(id)
+            case .number(let id): return id.isFinite ? Int(id) : nil
+            default: return nil
+            }
+        })
+    }
+    func setDismissedAnnouncements(_ ids: Set<Int>) async {
+        guard ids != dismissedAnnouncementIDs else { return }
+        try? await savePreference("dismissed-announcements", ids.sorted().map(String.init))
+    }
+
+    /// Before syncing, dismissed announcements were kept on this phone: added to
+    /// the account's list once, then forgotten here.
+    func moveLocalDismissedAnnouncements() async {
+        let key = "CanvasProDismissedAnnouncements"
+        let local = Set((UserDefaults.standard.string(forKey: key) ?? "").split(separator: ",").compactMap { Int($0) })
+        guard preferencesLoaded, !local.isEmpty else { return }
+        await setDismissedAnnouncements(dismissedAnnouncementIDs.union(local))
+        UserDefaults.standard.removeObject(forKey: key)
+    }
+
+    /// To-Do by day or by class (`todo-grouping`: "day" or "class").
+    var todoGrouping: String {
+        if case .some(.string(let value)) = preferences["todo-grouping"], value == "class" { return "class" }
+        return "day"
+    }
+    func setTodoGrouping(_ value: String) async {
+        guard value != todoGrouping || preferences["todo-grouping"] == nil else { return }
+        try? await savePreference("todo-grouping", value)
+    }
+
+    /// Before syncing, To-Do's grouping was kept on this phone: saved to the account once.
+    func moveLocalTodoGrouping() async {
+        let key = "CanvasProAssignmentsGrouping"
+        guard preferencesLoaded, let local = UserDefaults.standard.string(forKey: key) else { return }
+        if preferences["todo-grouping"] == nil { await setTodoGrouping(local == "By class" ? "class" : "day") }
+        UserDefaults.standard.removeObject(forKey: key)
+    }
+
+    /// The study time choice (`study-setup`).
+    var studySetup: NativeStudySetup? {
+        guard let setup = decoded("study-setup", as: NativeStudySetup.self),
+              ["total", "per", "pomodoro"].contains(setup.mode) else { return nil }
+        return setup
+    }
+    func saveStudySetup(_ setup: NativeStudySetup) async {
+        guard studySetup != setup else { return }
+        try? await savePreference("study-setup", setup)
+    }
+
+    /// The day the streak was last celebrated (`streak-celebrated`), so it's once a day in all.
+    var streakCelebratedDay: String? {
+        if case .some(.string(let day)) = preferences["streak-celebrated"] { return day }
+        return nil
+    }
+
+    /// Canvas and custom assignments for every class the student hasn't hidden.
+    /// Every screen lists work through this, so hiding a class hides it everywhere.
     func shownAssignments(in store: NativeContentStore) -> [AssignmentItem] {
         let hidden = hiddenCourseIDs
         let courses = Dictionary(store.bundle.courses.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
@@ -1392,4 +1476,25 @@ enum NativeLocalReminders {
         if due.timeIntervalSince(fire) < 6 * 86_400 { return due.formatted(.dateTime.weekday(.wide)) }
         return "on \(due.formatted(.dateTime.month(.abbreviated).day()))"
     }
+}
+
+/// Since your last visit, as the website saves it: when, the scores seen then,
+/// and each deadline's urgency then. Ids are text, as in JSON.
+struct NativeDigestSeen: Codable, Equatable {
+    var lastVisit: String
+    var grades: [String: Double]
+    var urgency: [String: String]
+}
+
+/// The study time choice, as the website saves it.
+struct NativeStudySetup: Codable, Equatable {
+    struct Custom: Codable, Equatable {
+        var focus: Double
+        var shortBreak: Double
+        var longBreak: Double
+        var rounds: Double
+    }
+    var mode: String
+    var preset: String
+    var custom: Custom
 }

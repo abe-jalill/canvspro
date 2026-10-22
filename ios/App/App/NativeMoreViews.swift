@@ -65,7 +65,6 @@ struct NativeMoreView: View {
     @ObservedObject private var streaks = NativeStreakStore.shared
     @ObservedObject private var files = NativeFileStore.shared
     @AppStorage("CanvasProColorScheme") private var colorScheme = "dark"
-    @AppStorage("CanvasProDismissedAnnouncements") private var dismissedAnnouncementsRaw = ""
     @AppStorage(NativeTabBar.key) private var tabBarRaw = ""
 
     private var fullName: String {
@@ -277,8 +276,8 @@ struct NativeMoreView: View {
             guard files.root != nil else { return "Class folders and scans" }
             return files.inICloud ? "Synced with iCloud Drive" : "Saved on this iPhone"
         case .announcements:
-            // Posts you've dismissed aren't new.
-            let dismissed = Set(dismissedAnnouncementsRaw.split(separator: ",").compactMap { Int($0) })
+            // Posts you've dismissed (on any device) aren't new.
+            let dismissed = features.dismissedAnnouncementIDs
             let count = store.bundle.announcements.filter { !features.hiddenCourseIDs.contains($0.courseID) && !dismissed.contains($0.id) && $0.isWithin(weeks: 1) }.count
             return count == 0 ? "Nothing new this week" : "\(count) this week"
         case .calendar:
@@ -779,7 +778,13 @@ struct FocusView: View {
     @ObservedObject var features: NativeFeatureStore
     /// Opened from More rather than as a tab: keeps the bar with its back button.
     var inMore = false
-    @AppStorage("CanvasProAssignmentsGrouping") private var grouping = "By day"
+    /// By day or by class, saved to the account: the website's To-Do follows it too.
+    private var grouping: String { features.todoGrouping == "class" ? "By class" : "By day" }
+    private var groupingChoice: Binding<String> {
+        Binding(get: { grouping }, set: { value in
+            Task { await features.setTodoGrouping(value == "By class" ? "class" : "day") }
+        })
+    }
     @State private var search = ""
     @State private var showAdd = false
     @State private var showSearch = false
@@ -918,7 +923,7 @@ struct FocusView: View {
                 }
                 Spacer(minLength: 8)
                 Menu {
-                    Picker("Group by", selection: $grouping) {
+                    Picker("Group by", selection: groupingChoice) {
                         Text("By day").tag("By day")
                         Text("By class").tag("By class")
                     }
@@ -1628,12 +1633,18 @@ struct AnnouncementsView: View {
     @Environment(\.cpPalette) private var paletteDependency
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
-    @AppStorage("CanvasProDismissedAnnouncements") private var dismissedRaw = ""
     @AppStorage("CanvasProAnnouncementsGrouping") private var grouping = "By time"
     @State private var search = ""
     @State private var courseFilter: Int?
     @State private var expanded = Set<Int>()
-    private var dismissed: Set<Int> { Set(dismissedRaw.split(separator: ",").compactMap { Int($0) }) }
+    /// Dismissed on any device: the account's list, shared with the website.
+    private var dismissed: Set<Int> { features.dismissedAnnouncementIDs }
+    /// What Restore brings back: dismissed posts still listed and in the window.
+    private var restorable: Set<Int> {
+        Set(store.bundle.announcements.filter { item in
+            dismissed.contains(item.id) && !features.hiddenCourseIDs.contains(item.courseID) && item.isWithin(weeks: features.announcementWeeks)
+        }.map(\.id))
+    }
     private var items: [AnnouncementItem] {
         store.bundle.announcements.filter { item in
             !features.hiddenCourseIDs.contains(item.courseID) && !dismissed.contains(item.id) && item.isWithin(weeks: features.announcementWeeks) && (search.isEmpty || item.title.localizedCaseInsensitiveContains(search) || item.courseName.localizedCaseInsensitiveContains(search))
@@ -1680,8 +1691,11 @@ struct AnnouncementsView: View {
                         ForEach(courses, id: \.self) { id in
                             Button { courseFilter = id } label: { CPChip(text: "\(name(for: id)) · \(items.filter { $0.courseID == id }.count)", selected: courseFilter == id) }.buttonStyle(.plain)
                         }
-                        if !dismissed.isEmpty {
-                            Button { dismissedRaw = "" } label: { CPLinkLabel(text: "Restore \(dismissed.count)", symbol: "arrow.uturn.backward") }.buttonStyle(.plain)
+                        if !restorable.isEmpty {
+                            Button {
+                                let back = restorable
+                                Task { await features.setDismissedAnnouncements(dismissed.subtracting(back)) }
+                            } label: { CPLinkLabel(text: "Restore \(restorable.count)", symbol: "arrow.uturn.backward") }.buttonStyle(.plain)
                         }
                     }
                     .padding(.horizontal, 1)
@@ -1728,7 +1742,8 @@ struct AnnouncementsView: View {
     }
 
     private func deleteAnnouncement(_ item: AnnouncementItem) {
-        dismissedRaw = dismissed.union([item.id]).sorted().map { String($0) }.joined(separator: ",")
+        let next = dismissed.union([item.id])
+        Task { await features.setDismissedAnnouncements(next) }
         expanded.remove(item.id)
         CPHaptics.tap()
     }

@@ -1499,7 +1499,7 @@ struct NativeMainTabView: View {
         // Coursework and the account's settings are both in: screens can show them.
         contentStore.isSyncingAtLaunch = false
         // Opening the app counts today toward the streak.
-        await NativeStreakStore.shared.refresh(sessionStore: sessionStore, preview: contentStore.isPreview)
+        await NativeStreakStore.shared.refresh(sessionStore: sessionStore, preview: contentStore.isPreview, features: featureStore)
         // Anything checked off on a widget while the app couldn't save it.
         NativeWidgetActions.contentStore = contentStore
         await NativeWidgetActions.saveCompletions()
@@ -1725,6 +1725,27 @@ private struct NativeDigestSnapshot: Codable {
     var urgency: [Int: String]
 }
 
+extension NativeDigestSnapshot {
+    /// From the account's record (the website's format).
+    init?(_ seen: NativeDigestSeen) {
+        guard let date = ISO8601DateFormatter.canvasDate(from: seen.lastVisit) else { return nil }
+        self.init(
+            lastVisit: date,
+            grades: Dictionary(seen.grades.compactMap { key, value in Int(key).map { ($0, value) } }, uniquingKeysWith: { first, _ in first }),
+            urgency: Dictionary(seen.urgency.compactMap { key, value in Int(key).map { ($0, value) } }, uniquingKeysWith: { first, _ in first })
+        )
+    }
+
+    /// For the account, in the website's format.
+    var seen: NativeDigestSeen {
+        NativeDigestSeen(
+            lastVisit: ISO8601DateFormatter().string(from: lastVisit),
+            grades: Dictionary(grades.map { (String($0.key), $0.value) }, uniquingKeysWith: { first, _ in first }),
+            urgency: Dictionary(urgency.map { (String($0.key), $0.value) }, uniquingKeysWith: { first, _ in first })
+        )
+    }
+}
+
 /// The website's dashboard, one widget per card in the student's saved order.
 private struct NativeDashboardView: View {
     @Environment(\.colorScheme) private var scheme
@@ -1734,14 +1755,14 @@ private struct NativeDashboardView: View {
     @State private var showWidgetPicker = false
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
-    @AppStorage("CanvasProDismissedAnnouncements") private var dismissedAnnouncementsRaw = ""
     @State private var digest: NativeDigestSnapshot?
     @State private var showCustomize = false
     @State private var expandedUpcoming = Set<Int>()
     @State private var expandedAnnouncements = Set<Int>()
     @State private var collapsedWidgets = NativeCollapsedWidgets.load()
     private var digestKey: String { "CanvasProNativeDigest.\(store.persistenceScope)" }
-    private var dismissedAnnouncements: Set<Int> { Set(dismissedAnnouncementsRaw.split(separator: ",").compactMap { Int($0) }) }
+    /// Dismissed on any device: the account's list, shared with the website.
+    private var dismissedAnnouncements: Set<Int> { features.dismissedAnnouncementIDs }
     private var visibleCourses: [CourseSummary] { store.bundle.courses.filter { !features.hiddenCourseIDs.contains($0.id) } }
     private var allAssignments: [AssignmentItem] { features.shownAssignments(in: store) }
     // Work Canvas hasn't opened yet stays off the dashboard (hero counts included).
@@ -1767,8 +1788,11 @@ private struct NativeDashboardView: View {
         let soon = todayCount > 0 ? "\(todayCount) due in 24 hours" : "Nothing due today"
         return "\(soon) · \(week) this week"
     }
-    private var gradeMap: [Int: Double] { Dictionary(allAssignments.compactMap { item in item.submission?.score.map { (item.id, $0) } }, uniquingKeysWith: { first, _ in first }) }
-    private var urgencyMap: [Int: String] { Dictionary(activeAssignments.compactMap { item in urgency(for: item).map { (item.id, $0) } }, uniquingKeysWith: { first, _ in first }) }
+    /// Open Canvas work: the same set the website builds its record from, so
+    /// the two save the same thing and don't keep replacing each other's.
+    private var digestAssignments: [AssignmentItem] { store.bundle.assignments.filter { !$0.notYetOpen() } }
+    private var gradeMap: [Int: Double] { Dictionary(digestAssignments.compactMap { item in item.submission?.score.map { (item.id, $0) } }, uniquingKeysWith: { first, _ in first }) }
+    private var urgencyMap: [Int: String] { Dictionary(digestAssignments.compactMap { item in urgency(for: item).map { (item.id, $0) } }, uniquingKeysWith: { first, _ in first }) }
     private var newAnnouncements: [AnnouncementItem] { guard let digest else { return [] }; return Array(store.bundle.announcements.filter { item in !features.hiddenCourseIDs.contains(item.courseID) && item.isWithin(weeks: features.announcementWeeks) && (ISO8601DateFormatter.canvasDate(from: item.postedAt) ?? .distantPast) > digest.lastVisit }.prefix(4)) }
     private var newGrades: [AssignmentItem] { guard let digest else { return [] }; return Array(allAssignments.filter { item in guard let score = item.submission?.score else { return false }; return digest.grades[item.id] != score }.prefix(4)) }
     private var newlyUrgent: [AssignmentItem] {
@@ -1825,6 +1849,15 @@ private struct NativeDashboardView: View {
         .refreshable { async let a: Void = store.refresh(); async let b: Void = features.load(); _ = await (a, b) }
         .onAppear { loadDigest() }
         .onChange(of: store.lastSyncedAt) { _, _ in if digest == nil { loadDigest() } }
+        .onChange(of: features.preferencesLoaded) { _, _ in if digest == nil { loadDigest() } }
+        // On screen a few seconds counts as seen: saved to the account, so the
+        // website and other devices don't show the same posts and grades again.
+        // This visit keeps showing what was new when it began.
+        .task(id: store.lastSyncedAt) {
+            try? await Task.sleep(for: .seconds(5))
+            guard !Task.isCancelled, digest != nil, digestNeedsSave else { return }
+            await features.saveDigestSeen(currentDigest.seen)
+        }
         .sheet(isPresented: $showCustomize) {
             NavigationStack {
                 DashboardCustomizationView(features: features)
@@ -2419,7 +2452,8 @@ private struct NativeDashboardView: View {
     }
 
     private func dismissAnnouncement(_ id: Int) {
-        dismissedAnnouncementsRaw = dismissedAnnouncements.union([id]).sorted().map { String($0) }.joined(separator: ",")
+        let next = dismissedAnnouncements.union([id])
+        Task { await features.setDismissedAnnouncements(next) }
     }
 
     // MARK: Helpers
@@ -2436,12 +2470,42 @@ private struct NativeDashboardView: View {
         }
     }
 
-    private func urgency(for item: AssignmentItem) -> String? { guard let due = item.dueDate else { return nil }; let hours = due.timeIntervalSinceNow / 3600; if hours < 0 { return "overdue" }; if hours <= 24 { return "today" }; if hours <= 72 { return "soon" }; return "later" }
-    private func loadDigest() {
-        if let data = UserDefaults.standard.data(forKey: digestKey), let saved = try? JSONDecoder().decode(NativeDigestSnapshot.self, from: data) { digest = saved }
-        else if !store.bundle.courses.isEmpty { markDigestSeen() }
+    /// The website's rule, so both save the same urgency: past due, due today
+    /// (by the calendar), within three days, or later.
+    private func urgency(for item: AssignmentItem) -> String? {
+        guard let due = item.dueDate else { return nil }
+        if due < Date() { return "overdue" }
+        let calendar = Calendar.current
+        let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: Date()), to: calendar.startOfDay(for: due)).day ?? 0
+        if days <= 0 { return "today" }
+        return days <= 3 ? "soon" : "later"
     }
-    private func markDigestSeen() { let snapshot = NativeDigestSnapshot(lastVisit: Date(), grades: gradeMap, urgency: urgencyMap); digest = snapshot; if let data = try? JSONEncoder().encode(snapshot) { UserDefaults.standard.set(data, forKey: digestKey) } }
+    private var currentDigest: NativeDigestSnapshot { NativeDigestSnapshot(lastVisit: Date(), grades: gradeMap, urgency: urgencyMap) }
+    /// Saving only when something's changed: a new grade or deadline, or a post since the last save.
+    private var digestNeedsSave: Bool {
+        guard let stored = features.digestSeen.flatMap(NativeDigestSnapshot.init) else { return true }
+        let now = currentDigest
+        if stored.grades != now.grades || stored.urgency != now.urgency { return true }
+        return store.bundle.announcements.contains { (ISO8601DateFormatter.canvasDate(from: $0.postedAt) ?? .distantPast) > stored.lastVisit }
+    }
+    /// What counts as new on this visit: the account's record as it was when
+    /// Today opened. Before syncing, it was kept on this phone: carried over once.
+    private func loadDigest() {
+        guard digest == nil, features.preferencesLoaded else { return }
+        if let seen = features.digestSeen, let saved = NativeDigestSnapshot(seen) { digest = saved; return }
+        if let data = UserDefaults.standard.data(forKey: digestKey), let saved = try? JSONDecoder().decode(NativeDigestSnapshot.self, from: data) {
+            digest = saved
+            Task { await features.saveDigestSeen(saved.seen) }
+            UserDefaults.standard.removeObject(forKey: digestKey)
+        } else if !store.bundle.courses.isEmpty {
+            markDigestSeen()
+        }
+    }
+    private func markDigestSeen() {
+        let snapshot = currentDigest
+        digest = snapshot
+        Task { await features.saveDigestSeen(snapshot.seen) }
+    }
 }
 
 struct NativeCourseGroup: Identifiable {
@@ -4336,6 +4400,7 @@ struct NativeStudyView: View {
     @State private var manualName = ""; @State private var search = ""
     @State private var showAllCandidates = false; @State private var addingTask = false
     @State private var confirmingEnd = false
+    @State private var setupApplied = false
     @FocusState private var taskFieldFocused: Bool
     @AppStorage("CanvasProNativeStudyTimeMode") private var timeMode = "total"
     @State private var itemMinutes: [Int: Int]
@@ -4433,6 +4498,14 @@ struct NativeStudyView: View {
 
     private var persistedStudyContent: some View {
         selectionStudyContent
+            // The time choice is the account's (the website's Study uses it too).
+            .onAppear { applyStudySetup() }
+            .onChange(of: features.preferencesLoaded) { _, _ in applyStudySetup() }
+            .task(id: studySetupSignature) {
+                try? await Task.sleep(for: .seconds(1))
+                guard !Task.isCancelled, setupApplied else { return }
+                await features.saveStudySetup(currentStudySetup)
+            }
             .onChange(of: duration) { _, _ in persistSession() }
             .onChange(of: remaining) { _, _ in persistSession() }
             .onChange(of: running) { _, isRunning in
@@ -4446,6 +4519,29 @@ struct NativeStudyView: View {
             .onChange(of: blockEndsAt) { _, _ in persistSession(); updateBlockAlert() }
             .onChange(of: itemMinutes) { _, _ in persistSession() }
             .onChange(of: perItem) { _, _ in persistSession() }
+    }
+
+    private var currentStudySetup: NativeStudySetup {
+        NativeStudySetup(
+            mode: timeMode,
+            preset: pomodoroPreset,
+            custom: .init(focus: Double(customFocus), shortBreak: Double(customShortBreak), longBreak: Double(customLongBreak), rounds: Double(customRounds))
+        )
+    }
+    private var studySetupSignature: String { "\(timeMode)|\(pomodoroPreset)|\(customFocus)|\(customShortBreak)|\(customLongBreak)|\(customRounds)" }
+    /// Takes the account's choice once it has loaded; until then nothing is
+    /// saved, so this phone's defaults never overwrite a choice made elsewhere.
+    private func applyStudySetup() {
+        guard features.preferencesLoaded, !setupApplied else { return }
+        if let setup = features.studySetup {
+            timeMode = setup.mode
+            pomodoroPreset = ["classic", "deep", "custom"].contains(setup.preset) ? setup.preset : "classic"
+            customFocus = min(120, max(1, Int(setup.custom.focus.rounded())))
+            customShortBreak = min(30, max(1, Int(setup.custom.shortBreak.rounded())))
+            customLongBreak = min(60, max(1, Int(setup.custom.longBreak.rounded())))
+            customRounds = min(8, max(2, Int(setup.custom.rounds.rounded())))
+        }
+        setupApplied = true
     }
 
     private func consumeRequestedAssignment() {

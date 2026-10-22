@@ -246,7 +246,7 @@ final class NativeStreakStore: ObservableObject {
     /// Sign-out: the next student never sees this one's streak, even briefly.
     func reset() { streak = nil; celebration = nil; scope = "" }
 
-    func refresh(sessionStore: NativeSessionStore, preview: Bool) async {
+    func refresh(sessionStore: NativeSessionStore, preview: Bool, features: NativeFeatureStore? = nil) async {
         let today = NativeDayKey.today()
         let nextScope = preview ? "preview" : (sessionStore.session?.user.id ?? "")
         if nextScope != scope { streak = nil; celebration = nil; scope = nextScope }
@@ -266,9 +266,13 @@ final class NativeStreakStore: ObservableObject {
         guard let fresh else { return }
         streak = fresh
         let key = "CoursePro.streakCelebrated.\(scope)"
-        if fresh.extended && UserDefaults.standard.string(forKey: key) != fresh.today {
+        // Once a day in all: the account records the day, so the website (or
+        // another phone) that celebrated it first means no second celebration here.
+        let celebratedElsewhere = features?.streakCelebratedDay == fresh.today
+        if fresh.extended && !celebratedElsewhere && UserDefaults.standard.string(forKey: key) != fresh.today {
             UserDefaults.standard.set(fresh.today, forKey: key)
             celebration = fresh
+            if let features, !preview { try? await features.savePreference("streak-celebrated", fresh.today) }
         }
     }
 }

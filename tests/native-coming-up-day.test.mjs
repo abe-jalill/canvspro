@@ -27,7 +27,7 @@ test("one list: catch up first, then each day; no ranges or days to pick", () =>
   assert.match(focus, /due < Date\(\) \? \.distantPast : calendar\.startOfDay\(for: due\)/);
   assert.match(focus, /date == \.distantPast \? "Catch up"/);
   // Grouping is a small menu beside the week's line.
-  assert.match(focus, /Picker\("Group by", selection: \$grouping\)/);
+  assert.match(focus, /Picker\("Group by", selection: groupingChoice\)/);
   assert.match(focus, /CPLinkLabel\(text: grouping, symbol: "chevron\.down"\)/);
 });
 
