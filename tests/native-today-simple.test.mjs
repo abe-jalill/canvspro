@@ -78,7 +78,7 @@ test("the tab bar holds two or three picks, and five tabs use short names", () =
   // The optional pick only offers pages not already in the bar.
   assert.match(more, /NativeTabBar\.choices\.filter \{ !middle\.prefix\(2\)\.contains\(\$0\) \}/);
   assert.match(views, /\.tabItem \{ Label\(tab\.tabLabel\(compact: list\.count > 4\), systemImage: tab\.symbol\) \}/);
-  for (const short of ['case .study: return "Study"', 'case .announcements: return "Posts"', 'case .classes: return "Schedule"']) {
+  for (const short of ['case .study: return "Study"', 'case .announcements: return "Posts"', 'case .classes: return "Classes"']) {
     assert.ok(views.includes(short), short);
   }
 });

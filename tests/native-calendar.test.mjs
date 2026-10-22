@@ -23,7 +23,7 @@ test("events are the website's list, in its format", () => {
 });
 
 test("a day shows classes, events, planned work, due dates and Canvas events in order", () => {
-  assert.match(calendar, /let letters = \["M": 2, "T": 3, "W": 4, "R": 5, "F": 6\]/);
+  assert.match(calendar, /let letters = \["U": 1, "M": 2, "T": 3, "W": 4, "R": 5, "F": 6, "S": 7\]/);
   assert.match(calendar, /for event in src\.events where NativeParity\.occurs\(event, on: day\)/);
   assert.match(calendar, /if a\.allDay != b\.allDay \{ return a\.allDay \}/);
   // Canvas's midnight-to-midnight events read "All day", not 12:00 AM.
@@ -48,5 +48,5 @@ test("planned work gets a sensible time, and a new task can go on the calendar",
   assert.match(features, /if hour < 8, let before = calendar\.date\(byAdding: \.day, value: -1, to: at\)/);
   assert.match(views, /at: NativeParity\.plannedTime\(for: assignment\.dueAt, estimate: NativeParity\.estimate\(assignment, estimates: features\.estimates\)\)/);
   assert.match(views, /Toggle\("Also put it on my calendar", isOn: \$onCalendar\)/);
-  assert.match(views, /if let pick \{ try await features\.savePreference\("calendar-picks", features\.calendarPicks \+ \[pick\]\) \}/);
+  assert.match(views, /if let pick, !features\.calendarPicks\.contains\(where: \{ \$0\.assignmentID == pick\.assignmentID \}\) \{\s+try await features\.savePreference\("calendar-picks", features\.calendarPicks \+ \[pick\]\)/);
 });

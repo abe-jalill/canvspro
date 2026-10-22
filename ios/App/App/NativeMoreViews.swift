@@ -567,6 +567,7 @@ struct NativeSettingsView: View {
     @ObservedObject var sessionStore: NativeSessionStore
     @State private var legalPage: NativeLegalPage?
     @State private var showTutorial = false
+    @State private var confirmingSignOut = false
     @AppStorage("CanvasProHideGrades") private var hideGrades = false
 
     var body: some View {
@@ -607,7 +608,7 @@ struct NativeSettingsView: View {
                     CPRowDivider(leading: 40)
                     settingsLink("Signed-in devices", "laptopcomputer.and.iphone") { NativeDevicesView(sessionStore: sessionStore) }
                     CPRowDivider(leading: 40)
-                    settingsLink("Account", "person.crop.circle.badge.xmark") { NativeDeleteAccountView(sessionStore: sessionStore) }
+                    settingsLink("Delete account", "person.crop.circle.badge.xmark") { NativeDeleteAccountView(sessionStore: sessionStore) }
                 }
                 NativeMenuGroup("Help & legal") {
                     Button { showTutorial = true } label: {
@@ -622,9 +623,12 @@ struct NativeSettingsView: View {
                     CPRowDivider(leading: 40)
                     legalRow(.terms, "doc.text")
                 }
-                Button("Sign out") { Task { await sessionStore.signOut() } }
+                Button("Sign out") { confirmingSignOut = true }
                     .buttonStyle(CPButtonStyle(kind: .quiet, fullWidth: true))
                     .foregroundStyle(CPTheme.danger)
+                    .confirmationDialog("Sign out of CoursePro on this iPhone?", isPresented: $confirmingSignOut, titleVisibility: .visible) {
+                        Button("Sign out", role: .destructive) { Task { await sessionStore.signOut() } }
+                    } message: { Text("Your work stays in your account. Notifications stop on this iPhone until you sign in again.") }
             }
             .cpPagePadding()
         }
@@ -818,6 +822,7 @@ struct NativeDevicesView: View {
     @State private var ending: Set<String> = []
     @State private var working = false
     @State private var confirmEverywhere = false
+    @State private var confirmingSignOut = false
 
     var body: some View {
         Form {
@@ -842,6 +847,9 @@ struct NativeDevicesView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task { await load() }
         .refreshable { await load() }
+        .confirmationDialog("Sign out of CoursePro on this iPhone?", isPresented: $confirmingSignOut, titleVisibility: .visible) {
+            Button("Sign out", role: .destructive) { Task { await sessionStore.signOut() } }
+        }
         .confirmationDialog("Sign out everywhere?", isPresented: $confirmEverywhere, titleVisibility: .visible) {
             Button("Sign out everywhere", role: .destructive) { Task { await signOutEverywhere() } }
         } message: {
@@ -895,7 +903,7 @@ struct NativeDevicesView: View {
     }
 
     private func end(_ device: NativeSignedInDevice) async {
-        if device.isCurrent { await sessionStore.signOut(); return }
+        if device.isCurrent { confirmingSignOut = true; return }
         guard let api = sessionStore.api else { return }
         ending.insert(device.id)
         defer { ending.remove(device.id) }
@@ -1175,7 +1183,7 @@ struct FocusView: View {
             if isSearching {
                 Button { search = ""; searchFocused = false } label: {
                     Image(systemName: "xmark.circle.fill").cpIconFont(14).foregroundStyle(CPTheme.muted(scheme))
-                        .frame(width: 32, height: 32).contentShape(Rectangle())
+                        .frame(width: 44, height: 44).contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Clear search")
@@ -1192,7 +1200,12 @@ struct FocusView: View {
     @ViewBuilder private var list: some View {
         if items.isEmpty {
             CPGlassCard {
-                NativeEmptyState(title: isSearching ? "No matches" : "You're all clear.", symbol: isSearching ? "magnifyingglass" : "checkmark.circle")
+                NativeEmptyState(
+                    title: isSearching ? "No matches" : "You're all clear.",
+                    symbol: isSearching ? "magnifyingglass" : "checkmark.circle",
+                    actionTitle: isSearching ? "Clear search" : "Add a task",
+                    action: { if isSearching { search = "" } else { showAdd = true } }
+                )
             }
         } else {
             ForEach(grouping == "By class" ? classGroups : dayGroups) { group in
@@ -1405,6 +1418,8 @@ struct CalendarView: View {
     @State private var currentWeekOffset = 0
 
     private static let upcomingDays = 30
+    /// Earlier weeks show your classes and events (finished due dates are on Completed).
+    private static let weeksBack = 12
     private var calendar: Calendar { Calendar.current }
     private var today: Date { calendar.startOfDay(for: Date()) }
 
@@ -1450,7 +1465,7 @@ struct CalendarView: View {
         var result: [NativeCalendarEntry] = []
         let weekday = calendar.component(.weekday, from: day)
         if includeClasses {
-            let letters = ["M": 2, "T": 3, "W": 4, "R": 5, "F": 6]
+            let letters = ["U": 1, "M": 2, "T": 3, "W": 4, "R": 5, "F": 6, "S": 7]
             for entry in src.classes where entry.days.contains(where: { letters[$0] == weekday }) {
                 let courseID = classCourseID(entry)
                 // A lab or discussion found in a syllabus keeps its own name.
@@ -1500,12 +1515,19 @@ struct CalendarView: View {
         return ScrollView {
             LazyVStack(alignment: .leading, spacing: CPLayout.stack) {
                 calendarStrip(src)
-                if let selected = selectedDate {
+                // Due dates come from Canvas: say so, rather than show an empty week.
+                if store.needsCanvasConnection {
+                    NativeConnectCanvasCard(store: store)
+                } else if store.loadFailure != nil && store.bundle.assignments.isEmpty {
+                    NativeLoadFailedCard(store: store)
+                } else if store.showsSkeleton {
+                    CPSkeletonCard()
+                } else if let selected = selectedDate {
                     dayCard(title: dayTitle(selected), items: entries(on: selected, src), day: selected)
                 } else {
                     let groups = upcomingGroups(src)
                     if groups.isEmpty {
-                        CPGlassCard { NativeEmptyState(title: "Nothing coming up besides class", symbol: "calendar") }
+                        CPGlassCard { NativeEmptyState(title: "Nothing coming up besides class", symbol: "calendar", actionTitle: "Add event", action: { editingEvent = .new(today) }) }
                     } else {
                         ForEach(groups) { group in dayCard(title: dayTitle(group.day), items: group.items, day: nil) }
                     }
@@ -1613,8 +1635,8 @@ struct CalendarView: View {
                 Spacer(minLength: 8)
                 Button { changeWeek(by: -1) } label: { CPIconButtonLabel(symbol: "chevron.left") }
                     .buttonStyle(.plain)
-                    .disabled(currentWeekOffset <= 0)
-                    .opacity(currentWeekOffset <= 0 ? 0.35 : 1)
+                    .disabled(currentWeekOffset <= -Self.weeksBack)
+                    .opacity(currentWeekOffset <= -Self.weeksBack ? 0.35 : 1)
                     .accessibilityLabel("Previous week")
                 Button { changeWeek(by: 1) } label: { CPIconButtonLabel(symbol: "chevron.right") }
                     .buttonStyle(.plain)
@@ -1649,7 +1671,7 @@ struct CalendarView: View {
 
     private func changeWeek(by offset: Int) {
         withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
-            currentWeekOffset = max(0, currentWeekOffset + offset)
+            currentWeekOffset = max(-Self.weeksBack, currentWeekOffset + offset)
             if selectedDate != nil {
                 selectedDate = currentWeekOffset == 0 ? today : weekDates.first
             }
@@ -1775,7 +1797,7 @@ struct CalendarView: View {
     private func actionIcon(_ symbol: String) -> some View {
         Image(systemName: symbol).cpIconFont(12, .medium)
             .foregroundStyle(CPTheme.muted(scheme))
-            .frame(width: 36, height: 36)
+            .frame(width: 44, height: 44)
             .contentShape(Rectangle())
     }
 
@@ -1825,6 +1847,7 @@ struct NativeEventEditor: View {
     @State private var saving = false
     @State private var error: String?
     @State private var loaded = false
+    @State private var confirmingDelete = false
 
     private var existing: NativeCalendarEvent? {
         if case .edit(let event) = editing { return event }
@@ -1875,7 +1898,10 @@ struct NativeEventEditor: View {
                 }
                 if let existing {
                     Section {
-                        Button(existing.repeatDays.isEmpty ? "Delete event" : "Delete every time", role: .destructive) { Task { await delete(existing) } }
+                        Button(existing.repeatDays.isEmpty ? "Delete event" : "Delete every time", role: .destructive) { confirmingDelete = true }
+                            .confirmationDialog(existing.repeatDays.isEmpty ? "Delete \(existing.title)?" : "Delete \(existing.title) every time?", isPresented: $confirmingDelete, titleVisibility: .visible) {
+                                Button("Delete", role: .destructive) { Task { await delete(existing) } }
+                            }
                     }
                 }
                 if let error { Section { Text(error).foregroundStyle(CPTheme.danger) } }
@@ -2211,7 +2237,7 @@ struct AnnouncementsView: View {
             LazyVStack(alignment: .leading, spacing: CPLayout.stack) {
                 NativePageHero(symbol: "megaphone", eyebrow: windowTitle, title: "Announcements") {
                     CPStatTile(value: "\(items.count)", label: "Recent posts")
-                    CPStatTile(value: "\(courseCount)", label: "Active courses")
+                    CPStatTile(value: "\(courseCount)", label: "Active classes")
                 }
                 CPSegmented(selection: $grouping, options: ["By time", "By class"], label: "Group announcements")
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -2230,7 +2256,15 @@ struct AnnouncementsView: View {
                     .padding(.horizontal, 1)
                 }
                 .scrollClipDisabled()
-                if feed.isEmpty {
+                // Never "No announcements" while they're still loading or couldn't load.
+                if store.needsCanvasConnection {
+                    NativeConnectCanvasCard(store: store)
+                } else if store.loadFailure != nil && store.bundle.announcements.isEmpty {
+                    NativeLoadFailedCard(store: store)
+                } else if store.showsSkeleton {
+                    CPSkeletonCard()
+                    CPSkeletonCard()
+                } else if feed.isEmpty {
                     CPGlassCard { NativeEmptyState(title: "No announcements in this view.", symbol: "megaphone") }
                 } else if grouping == "By class" {
                     ForEach(classGroups) { group in
@@ -2302,12 +2336,12 @@ struct AnnouncementsView: View {
             .cpFont(11, .semibold)
             .foregroundStyle(CPTheme.foreground(scheme))
             .buttonStyle(.plain)
-            .frame(minHeight: 28)
+            .frame(minHeight: 44)
         }
         .padding(CPLayout.cardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .cpSurface()
-        .cpSwipe(trailing: CPSwipeAction(title: "Delete", symbol: "trash") { deleteAnnouncement(item) })
+        .cpSwipe(trailing: CPSwipeAction(title: "Dismiss", symbol: "eye.slash") { deleteAnnouncement(item) })
     }
     private func announcementDate(_ item: AnnouncementItem) -> String { ISO8601DateFormatter.canvasDate(from: item.postedAt)?.formatted(.dateTime.month(.abbreviated).day().hour().minute()) ?? "Recent" }
 }
@@ -2420,7 +2454,13 @@ private struct NotificationsView: View {
         .onChange(of: scenePhase) { _, phase in if phase == .active { Task { await refreshPermission() } } }
         // Leaving within the save delay still saves.
         .onDisappear {
-            if let last = saved, last != features.notificationPreferences { Task { try? await features.saveNotifications() } }
+            // Leaving straight after a change still saves it, and says so if that fails.
+            if let last = saved, last != features.notificationPreferences {
+                Task {
+                    do { try await features.saveNotifications() }
+                    catch { features.errorMessage = "Your notification changes weren't saved. Check your connection and change them again." }
+                }
+            }
         }
     }
 
@@ -2476,7 +2516,11 @@ private struct NotificationsView: View {
             }
             let granted = (try? await center.requestAuthorization(options: [.alert, .badge, .sound])) ?? false
             await refreshPermission()
-            guard granted else { return }
+            guard granted else {
+                // Say why the switch went back off.
+                status = "Notifications are off for CoursePro. Turn them on in iOS Settings to get reminders on this iPhone."
+                return
+            }
         }
         deviceOn = on
         NativeLocalReminders.deviceEnabled = on
@@ -2507,7 +2551,9 @@ private struct NotificationsView: View {
             saved = current
             status = nil
         } catch {
+            // At the bottom of a long form this could go unseen, so it's an alert too.
             status = "Couldn't save. Check your connection and try again."
+            features.errorMessage = "Your notification changes weren't saved. Check your connection and try again."
         }
     }
 }
@@ -2773,8 +2819,15 @@ private struct HiddenCoursesView: View {
     @State private var status: String?
     var body: some View {
         List {
-            ForEach(store.bundle.courses) { course in
-                Toggle(store.displayName(courseID: course.id, fallback: course.name), isOn: Binding(get: { hidden.contains(course.id) }, set: { value in if value { hidden.insert(course.id) } else { hidden.remove(course.id) }; Task { do { try await features.savePreference("hidden_course_ids", Array(hidden).sorted()); status = nil } catch { status = error.localizedDescription; hidden = features.hiddenCourseIDs } } }))
+            Section {
+                ForEach(store.bundle.courses) { course in
+                    // On means shown: turning a class off hides it, and its work, everywhere.
+                    Toggle(store.displayName(courseID: course.id, fallback: course.name), isOn: Binding(get: { !hidden.contains(course.id) }, set: { shown in if shown { hidden.remove(course.id) } else { hidden.insert(course.id) }; Task { do { try await features.savePreference("hidden_course_ids", Array(hidden).sorted()); status = nil } catch { status = error.localizedDescription; hidden = features.hiddenCourseIDs } } }))
+                }
+            } header: {
+                Text("Shown in CoursePro")
+            } footer: {
+                Text("Turn a class off to hide it and its work everywhere, on the website too. Turn it back on any time.")
             }
             if let status { Text(status).foregroundStyle(.red) }
         }.cpListScreen().onAppear { hidden = features.hiddenCourseIDs }
@@ -3020,6 +3073,8 @@ struct ClassScheduleView: View {
     var store: NativeContentStore? = nil
     @State private var showAdd = false
     @State private var editing: ClassScheduleEntry?
+    /// Asked first: deleting a class removes it from every day it meets.
+    @State private var confirmingDelete: ClassScheduleEntry?
     private let days = [("M", "Monday"), ("T", "Tuesday"), ("W", "Wednesday"), ("R", "Thursday"), ("F", "Friday"), ("S", "Saturday"), ("U", "Sunday")]
     private func displayName(_ entry: ClassScheduleEntry) -> String {
         guard let store else { return entry.title }
@@ -3066,7 +3121,7 @@ struct ClassScheduleView: View {
                                 Button { editing = item } label: { meetingRow(item) }
                                     .buttonStyle(.plain)
                                     .swipeActions {
-                                        Button(role: .destructive) { delete(item) } label: { Label("Delete", systemImage: "trash") }
+                                        Button(role: .destructive) { confirmingDelete = item } label: { Label("Delete", systemImage: "trash") }
                                     }
                             }
                         }
@@ -3075,7 +3130,7 @@ struct ClassScheduleView: View {
             }
         }
         .cpListScreen()
-        .cpNavigationTitle("Class Schedule")
+        .cpNavigationTitle("My Classes")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -3085,6 +3140,16 @@ struct ClassScheduleView: View {
         }
         .sheet(isPresented: $showAdd) { AddScheduleView(features: features) }
         .sheet(item: $editing) { AddScheduleView(features: features, editing: $0) }
+        .confirmationDialog(
+            "Delete \(confirmingDelete.map(displayName) ?? "this class") from every day?",
+            isPresented: deleteQuestion,
+            titleVisibility: .visible,
+            presenting: confirmingDelete
+        ) { item in
+            Button("Delete class", role: .destructive) { delete(item) }
+        } message: { _ in
+            Text("It comes off your schedule and calendar on every day it meets.")
+        }
     }
 
     /// The class, then "9:00 – 9:50 AM · Room 204".
@@ -3104,6 +3169,10 @@ struct ClassScheduleView: View {
         Task { await NativeScheduleActions.delete(item, features: features) }
     }
 
+    private var deleteQuestion: Binding<Bool> {
+        Binding(get: { confirmingDelete != nil }, set: { if !$0 { confirmingDelete = nil } })
+    }
+
     private func time(_ minutes: Int) -> String { let hour = minutes / 60; let minute = minutes % 60; return String(format: "%d:%02d %@", hour % 12 == 0 ? 12 : hour % 12, minute, hour < 12 ? "AM" : "PM") }
 }
 
@@ -3113,6 +3182,7 @@ private struct AddScheduleView: View {
     var editing: ClassScheduleEntry? = nil
     @State private var title = ""; @State private var code = ""; @State private var location = ""; @State private var instructor = ""; @State private var credits = ""; @State private var selectedDays = Set<String>(); @State private var start = Date(); @State private var end = Date().addingTimeInterval(3600); @State private var error: String?
     @State private var perDay = false
+    @State private var confirmingDelete = false
     @State private var dayStarts: [String: Date] = [:]
     @State private var dayEnds: [String: Date] = [:]
     @State private var loaded = false
@@ -3125,11 +3195,14 @@ private struct AddScheduleView: View {
                 if let error { Section { Text(error).foregroundStyle(.red) } }
                 if let editing {
                     Section {
-                        Button("Delete class", role: .destructive) {
-                            Task {
-                                if let message = await NativeScheduleActions.delete(editing, features: features) { error = message } else { dismiss() }
+                        Button("Delete class", role: .destructive) { confirmingDelete = true }
+                            .confirmationDialog("Delete this class from every day?", isPresented: $confirmingDelete, titleVisibility: .visible) {
+                                Button("Delete class", role: .destructive) {
+                                    Task {
+                                        if let message = await NativeScheduleActions.delete(editing, features: features) { error = message } else { dismiss() }
+                                    }
+                                }
                             }
-                        }
                     }
                 }
             }.cpListScreen().cpNavigationTitle(editing == nil ? "Add Class" : "Edit Class").toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }; ToolbarItem(placement: .confirmationAction) { Button("Save") { save() }.disabled(title.trimmingCharacters(in: .whitespaces).isEmpty || selectedDays.isEmpty) } }.onAppear { loadEditing() }
@@ -3179,11 +3252,15 @@ enum NativeScheduleActions {
             return nil
         }
         guard let api = features.sessionStore.api else { return nil }
+        // Gone from the list at once; put back if the server says no.
+        let before = features.schedule
+        features.schedule.removeAll { $0.id == item.id }
         do {
             try await api.deleteScheduleEntry(id: item.id, token: try await features.sessionStore.accessToken())
             await features.load()
             return nil
         } catch {
+            features.schedule = before
             features.errorMessage = error.localizedDescription
             return error.localizedDescription
         }

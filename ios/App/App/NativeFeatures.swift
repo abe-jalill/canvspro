@@ -868,7 +868,9 @@ final class NativeFeatureStore: ObservableObject {
     }
     func setDismissedAnnouncements(_ ids: Set<Int>) async {
         guard ids != dismissedAnnouncementIDs else { return }
-        try? await savePreference("dismissed-announcements", ids.sorted().map(String.init))
+        // A failed save puts the announcement back, so say why rather than let it reappear silently.
+        do { try await savePreference("dismissed-announcements", ids.sorted().map(String.init)) }
+        catch { errorMessage = "Couldn't hide that announcement. \(error.localizedDescription)" }
     }
 
     /// Before syncing, dismissed announcements were kept on this phone: added to

@@ -20,7 +20,7 @@ test("the devices screen uses the website's account functions", () => {
   assert.match(more, /rpc\("revoke_my_other_sessions", token: token\)/);
   assert.match(more, /case createdAt = "created_at"; case lastActiveAt = "last_active_at"/);
   // This iPhone signs out itself; everywhere ends the others first.
-  assert.match(more, /if device\.isCurrent \{ await sessionStore\.signOut\(\); return \}/);
+  assert.match(more, /if device\.isCurrent \{ confirmingSignOut = true; return \}/);
   assert.match(more, /if await endOthers\(\) \{ await sessionStore\.signOut\(\) \}/);
   assert.match(more, /\.confirmationDialog\("Sign out everywhere\?"/);
 });

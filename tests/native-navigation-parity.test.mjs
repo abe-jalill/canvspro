@@ -28,7 +28,7 @@ test("native tabs remain a compact projection of website navigation", () => {
   assert.ok(!more.includes('NativeMenuRow(title: "Assignments"'), "Assignments lives in Today");
   assert.ok(!more.includes('NativeMenuRow(title: "Get It Done"'), "Get It Done belongs inside Today");
   // Calendar and Class Schedule are separate pages, each opened on its own.
-  assert.ok(tabs.includes('case .classes: return "Class Schedule"'));
+  assert.ok(tabs.includes('case .classes: return "My Classes"'));
   assert.ok(tabs.includes("NavigationStack { CalendarView(store: contentStore, features: featureStore) }"));
   assert.ok(tabs.includes("NavigationStack { ClassScheduleView(features: featureStore, store: contentStore) }"));
   assert.ok(more.includes("case .calendar: CalendarView(store: store, features: features)"));

@@ -24,7 +24,7 @@ test("Since your last visit is the account's record, the website's too", () => {
 test("dismissed announcements are the account's list, shared with the website", () => {
   assert.doesNotMatch(views + more, /@AppStorage\("CanvasProDismissedAnnouncements"\)/);
   assert.match(features, /guard case \.some\(\.array\(let values\)\) = preferences\["dismissed-announcements"\]/);
-  assert.match(features, /try\? await savePreference\("dismissed-announcements", ids\.sorted\(\)\.map\(String\.init\)\)/);
+  assert.match(features, /do \{ try await savePreference\("dismissed-announcements", ids\.sorted\(\)\.map\(String\.init\)\) \}\s+catch \{ errorMessage = "Couldn't hide that announcement\./);
   assert.match(features, /await moveLocalDismissedAnnouncements\(\)/);
   // Restore brings back only what it would show, like the website.
   assert.match(more, /Restore \\\(restorable\.count\)/);

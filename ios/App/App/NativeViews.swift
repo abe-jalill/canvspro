@@ -1450,7 +1450,7 @@ enum NativeTab: String, Hashable {
         case .files: return "Files"
         case .announcements: return "Announcements"
         case .calendar: return "Calendar"
-        case .classes: return "Class Schedule"
+        case .classes: return "My Classes"
         case .completed: return "Completed"
         case .more: return "More"
         }
@@ -1478,7 +1478,7 @@ enum NativeTab: String, Hashable {
         switch self {
         case .study: return "Study"
         case .announcements: return "Posts"
-        case .classes: return "Schedule"
+        case .classes: return "Classes"
         default: return title
         }
     }
@@ -1947,6 +1947,8 @@ private struct NativeDashboardView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.nativeLaunchIsVisible) private var launchIsVisible
     @State private var showWidgetPicker = false
+    /// "Not now" on the picker: asked again next time the app opens.
+    @State private var widgetPickerSkipped = false
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
     @State private var digest: NativeDigestSnapshot?
@@ -2065,13 +2067,16 @@ private struct NativeDashboardView: View {
             if !Task.isCancelled && shouldAskForWidgets { showWidgetPicker = true }
         }
         .sheet(isPresented: $showWidgetPicker) {
-            NativeDashboardPicker(features: features) { showWidgetPicker = false }
-                .interactiveDismissDisabled()
+            NativeDashboardPicker(features: features, onDone: { showWidgetPicker = false }, onSkip: {
+                widgetPickerSkipped = true
+                showWidgetPicker = false
+            })
+            .interactiveDismissDisabled()
         }
     }
 
     private var shouldAskForWidgets: Bool {
-        features.preferencesLoaded && !features.dashboardPicked && !store.isPreview &&
+        features.preferencesLoaded && !features.dashboardPicked && !store.isPreview && !widgetPickerSkipped &&
             !store.needsCanvasConnection && !launchIsVisible && !store.showsSkeleton
     }
 
@@ -2416,7 +2421,7 @@ private struct NativeDashboardView: View {
                 Button { NotificationCenter.default.post(name: .nativeOpenPage, object: NativeTab.grades) } label: { CPLinkLabel(text: "View all") }.buttonStyle(.plain)
             }
             if visibleCourses.isEmpty {
-                NativeEmptyState(title: "No active courses.", symbol: "books.vertical")
+                NativeEmptyState(title: "No active classes.", symbol: "books.vertical")
             } else {
                 VStack(spacing: 8) {
                     ForEach(visibleCourses) { course in
@@ -2466,7 +2471,7 @@ private struct NativeDashboardView: View {
                 Button { openToDo() } label: { CPLinkLabel(text: "View all") }.buttonStyle(.plain)
             }
             if visibleCourses.isEmpty && groups.isEmpty {
-                NativeEmptyState(title: "No active courses.", symbol: "books.vertical")
+                NativeEmptyState(title: "No active classes.", symbol: "books.vertical")
             } else if groups.isEmpty {
                 NativeEmptyState(title: "You're all clear", symbol: "checkmark.circle")
             } else {
@@ -2837,7 +2842,9 @@ private struct CPUndoBar: ViewModifier {
             .task(id: store.undoItem?.id) {
                 guard let id = store.undoItem?.id else { return }
                 UIAccessibility.post(notification: .announcement, argument: "Marked complete. Undo is at the bottom of the screen.")
-                try? await Task.sleep(for: .seconds(Self.seconds))
+                // VoiceOver and Switch Control users get time to reach it: 30 seconds, not 7.
+                let assisted = UIAccessibility.isVoiceOverRunning || UIAccessibility.isSwitchControlRunning
+                try? await Task.sleep(for: .seconds(assisted ? 30 : Self.seconds))
                 if store.undoItem?.id == id { store.undoItem = nil }
             }
     }
@@ -3342,6 +3349,8 @@ struct NativeDashboardPicker: View {
     @Environment(\.cpPalette) private var paletteDependency
     @ObservedObject var features: NativeFeatureStore
     let onDone: () -> Void
+    /// Offered when saving fails (offline, say), so the picker never traps anyone.
+    var onSkip: (() -> Void)? = nil
     @State private var picks: Set<String>
     @State private var syncs: Bool
     @State private var saving = false
@@ -3380,7 +3389,16 @@ struct NativeDashboardPicker: View {
                     }
                     .padding(16)
                     .cpSurface(radius: CPLayout.innerRadius)
-                    if let status { Text(status).cpFont(12).foregroundStyle(CPTheme.danger) }
+                    if let status {
+                        Text(status).cpFont(12).foregroundStyle(CPTheme.danger)
+                        if let onSkip {
+                            Button("Not now, ask me later", action: onSkip)
+                                .cpFont(13, .medium)
+                                .buttonStyle(.plain)
+                                .foregroundStyle(CPTheme.muted(scheme))
+                                .frame(minHeight: 44)
+                        }
+                    }
                 }
                 .padding(20)
                 .frame(maxWidth: 560)
@@ -3523,9 +3541,9 @@ struct DashboardCustomizationView: View {
                                 Text(features.dashboardHidden.contains(id) ? "Hidden" : "Shown on dashboard").cpFont(11).foregroundStyle(.secondary)
                             }
                         }
-                        Button { move(index, -1) } label: { Image(systemName: "chevron.up").frame(width: 32, height: 44) }
+                        Button { move(index, -1) } label: { Image(systemName: "chevron.up").frame(width: 44, height: 44) }
                             .disabled(index == 0).accessibilityLabel("Move \(title(for: id)) earlier")
-                        Button { move(index, 1) } label: { Image(systemName: "chevron.down").frame(width: 32, height: 44) }
+                        Button { move(index, 1) } label: { Image(systemName: "chevron.down").frame(width: 44, height: 44) }
                             .disabled(index == order.count - 1).accessibilityLabel("Move \(title(for: id)) later")
                     }
                     .buttonStyle(.borderless)
@@ -3650,29 +3668,65 @@ struct AssignmentDetailView: View {
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
     @State private var status: String?
+    @State private var confirmingDelete = false
     var body: some View {
         Form {
             Section { NativeAssignmentRow(assignment: assignment, store: store, features: features) }
             if let description = assignment.description, !description.isEmpty { Section("Description") { Text(description.strippingHTML).cpFont(12).lineSpacing(3).textSelection(.enabled) } }
             Section("Planning") {
                 if !assignment.isFinished(in: store) { NativeProgressEditor(assignment: assignment, features: features) }
-                Button("Add to CoursePro Calendar") { addToCalendar() }
+                if features.calendarPicks.contains(where: { $0.assignmentID == assignment.id }) {
+                    Button("Remove from calendar", role: .destructive) { removeFromCalendar() }
+                } else {
+                    Button("Add to calendar") { addToCalendar() }
+                }
             }
             if let score = assignment.submission?.score { Section("Grade") { LabeledContent("Score", value: "\(score.formatted())\(assignment.pointsPossible.map { " / \($0.formatted())" } ?? "")") } }
             if let url = URL(string: assignment.htmlURL), !assignment.htmlURL.isEmpty { Section { Link("Open in Canvas", destination: url) } }
-            if assignment.id < 0, features.customAssignments.contains(where: { $0.id == assignment.id }) { Section { Button(isPersonalTask ? "Delete task" : "Delete custom assignment", role: .destructive) { Task { do { try await features.savePreference("custom-assignments", features.customAssignments.filter { $0.id != assignment.id }); dismiss() } catch { status = error.localizedDescription } } } } }
+            if assignment.id < 0, features.customAssignments.contains(where: { $0.id == assignment.id }) {
+                Section {
+                    Button(isPersonalTask ? "Delete task" : "Delete assignment", role: .destructive) { confirmingDelete = true }
+                        .confirmationDialog("Delete \(assignment.name)?", isPresented: $confirmingDelete, titleVisibility: .visible) {
+                            Button("Delete", role: .destructive) { deleteCustom() }
+                        } message: { Text("It comes off To-Do and your calendar. This can't be undone.") }
+                }
+            }
             if let status { Section { Text(status).foregroundStyle(.secondary) } }
         }
         .cpListScreen()
         .cpNavigationTitle(isPersonalTask ? "Task" : "Assignment")
         .navigationBarTitleDisplayMode(.inline)
     }
+    private func deleteCustom() {
+        Task {
+            do {
+                try await features.savePreference("custom-assignments", features.customAssignments.filter { $0.id != assignment.id })
+                // Its spot on the calendar goes with it.
+                if features.calendarPicks.contains(where: { $0.assignmentID == assignment.id }) {
+                    try await features.savePreference("calendar-picks", features.calendarPicks.filter { $0.assignmentID != assignment.id })
+                }
+                dismiss()
+            } catch { status = error.localizedDescription }
+        }
+    }
     /// Your own task that isn't for a class.
     private var isPersonalTask: Bool { assignment.id < 0 && assignment.courseID == CustomAssignment.noClassID }
+    private func removeFromCalendar() {
+        Task {
+            do { try await features.savePreference("calendar-picks", features.calendarPicks.filter { $0.assignmentID != assignment.id }); status = "Removed from your calendar." }
+            catch { status = error.localizedDescription }
+        }
+    }
     private func addToCalendar() {
         guard !features.calendarPicks.contains(where: { $0.assignmentID == assignment.id }) else { status = "Already on your calendar."; return }
         let pick = CalendarPick(assignmentID: assignment.id, title: assignment.name, context: store.displayName(courseID: assignment.courseID, fallback: assignment.courseName), at: NativeParity.plannedTime(for: assignment.dueAt, estimate: NativeParity.estimate(assignment, estimates: features.estimates)), dueAt: assignment.dueAt)
-        Task { do { try await features.savePreference("calendar-picks", features.calendarPicks + [pick]); status = "Added to calendar." } catch { status = error.localizedDescription } }
+        Task {
+            do {
+                try await features.savePreference("calendar-picks", features.calendarPicks + [pick])
+                let when = ISO8601DateFormatter.canvasDate(from: pick.at).map { $0.formatted(.dateTime.weekday(.abbreviated).hour().minute()) } ?? ""
+                status = when.isEmpty ? "Added to your calendar." : "Added to your calendar for \(when). Change the time on the Calendar."
+            } catch { status = error.localizedDescription }
+        }
     }
 }
 
@@ -3744,6 +3798,8 @@ private struct NativeNewTaskForm: View {
     let onDone: () -> Void
     @State private var name = ""; @State private var courseID: Int?; @State private var dueDate = NativeParity.endOfUpcomingDay(0); @State private var hasDueDate = true; @State private var points = 0.0; @State private var notes = ""; @State private var error: String?
     @State private var estimatedMinutes = 30
+    /// Made once, so saving again after an error updates the same task.
+    @State private var newID = -Int(Date().timeIntervalSince1970 * 1000)
     @State private var onCalendar = false
     @State private var planAt = Date()
     /// Until the student picks a time, it follows the due date and estimate.
@@ -3784,14 +3840,14 @@ private struct NativeNewTaskForm: View {
         .cpListScreen()
         .cpNavigationTitle(forClass ? "New Assignment" : "New Task")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Save") { save() }.disabled(!canSave) } }
+        .toolbar { ToolbarItem(placement: .confirmationAction) { Button(saving ? "Saving…" : "Save") { save() }.disabled(!canSave) } }
     }
     private func save() {
         guard canSave else { return }
         let classID: Int
         if forClass { guard let courseID else { return }; classID = courseID } else { classID = CustomAssignment.noClassID }
         saving = true
-        let item = CustomAssignment(id: -Int(Date().timeIntervalSince1970 * 1000), courseID: classID, name: name.trimmingCharacters(in: .whitespaces), dueAt: hasDueDate ? ISO8601DateFormatter().string(from: dueDate) : nil, pointsPossible: forClass && points > 0 ? points : nil, notes: forClass ? notes : "", createdAt: ISO8601DateFormatter().string(from: Date()), estimatedMinutes: estimatedMinutes)
+        let item = CustomAssignment(id: newID, courseID: classID, name: name.trimmingCharacters(in: .whitespaces), dueAt: hasDueDate ? ISO8601DateFormatter().string(from: dueDate) : nil, pointsPossible: forClass && points > 0 ? points : nil, notes: forClass ? notes : "", createdAt: ISO8601DateFormatter().string(from: Date()), estimatedMinutes: estimatedMinutes)
         let pick: CalendarPick? = onCalendar ? CalendarPick(
             assignmentID: item.id,
             title: item.name,
@@ -3802,9 +3858,14 @@ private struct NativeNewTaskForm: View {
         Task {
             defer { saving = false }
             do {
-                try await features.savePreference("custom-assignments", features.customAssignments + [item])
+                // A retry after a partial failure never adds the task twice.
+                if !features.customAssignments.contains(where: { $0.id == item.id }) {
+                    try await features.savePreference("custom-assignments", features.customAssignments + [item])
+                }
                 // Optionally on the calendar too, at the time chosen.
-                if let pick { try await features.savePreference("calendar-picks", features.calendarPicks + [pick]) }
+                if let pick, !features.calendarPicks.contains(where: { $0.assignmentID == pick.assignmentID }) {
+                    try await features.savePreference("calendar-picks", features.calendarPicks + [pick])
+                }
                 CPHaptics.success()
                 onDone()
             } catch { self.error = error.localizedDescription }
@@ -3848,7 +3909,7 @@ struct NativeGradesView: View {
                         CPSectionLabel("Your classes", count: courses.count).padding(.top, 8)
                         ForEach(courses) { course in gradeCard(course) }
                         if courses.isEmpty && !store.isLoading {
-                            CPGlassCard { NativeEmptyState(title: search.isEmpty ? "No active courses." : "No matching assignments found.", symbol: "chart.bar") }
+                            CPGlassCard { NativeEmptyState(title: search.isEmpty ? "No active classes." : "No matching assignments found.", symbol: "chart.bar") }
                         }
                         NavigationLink { GradeCalculatorView() } label: {
                             HStack(spacing: 12) {
@@ -3869,7 +3930,7 @@ struct NativeGradesView: View {
             .background(CPBackdrop())
             .cpStateChange(store.showsSkeleton)
             .cpNavigationTitle("Grades").navigationBarTitleDisplayMode(.inline)
-            .searchable(text: $search, prompt: "Find a course or graded assignment")
+            .searchable(text: $search, prompt: "Find a class or graded assignment")
             .refreshable { await store.refresh() }
             .onAppear { loadAndRecordGrades() }.onChange(of: gradeSignature) { _, _ in loadAndRecordGrades() }
     }
@@ -5003,7 +5064,7 @@ struct NativeStudyView: View {
                     .onSubmit { addManualTask(); addingTask = false }
                     .accessibilityLabel("Add your own task")
                 Button { addManualTask(); addingTask = false } label: { Image(systemName: "plus").cpIconFont(12, .semibold) }
-                    .frame(width: 32, height: 32)
+                    .frame(width: 44, height: 44)
                     .disabled(manualName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     .accessibilityLabel("Add task")
             }
@@ -5206,11 +5267,11 @@ struct NativeStudyView: View {
             if timeMode == "per" {
                 Text("\(plannedMinutes(item)) min").cpFont(11).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
             }
-            Button { moveSelection(item.id, -1) } label: { Image(systemName: "chevron.up").cpIconFont(11, .semibold).frame(width: 30, height: 40) }
+            Button { moveSelection(item.id, -1) } label: { Image(systemName: "chevron.up").cpIconFont(11, .semibold).frame(width: 44, height: 44) }
                 .disabled(index == 0).accessibilityLabel("Move \(item.name) earlier")
-            Button { moveSelection(item.id, 1) } label: { Image(systemName: "chevron.down").cpIconFont(11, .semibold).frame(width: 30, height: 40) }
+            Button { moveSelection(item.id, 1) } label: { Image(systemName: "chevron.down").cpIconFont(11, .semibold).frame(width: 44, height: 44) }
                 .disabled(index == items.count - 1).accessibilityLabel("Move \(item.name) later")
-            Button { selected.remove(item.id); selectedOrder.removeAll { $0 == item.id } } label: { Image(systemName: "xmark").cpIconFont(11, .semibold).frame(width: 30, height: 40) }
+            Button { selected.remove(item.id); selectedOrder.removeAll { $0 == item.id } } label: { Image(systemName: "xmark").cpIconFont(11, .semibold).frame(width: 44, height: 44) }
                 .accessibilityLabel("Remove \(item.name)")
         }
         .foregroundStyle(CPTheme.muted(scheme))
@@ -5776,6 +5837,9 @@ struct NativeEmptyState: View {
     @Environment(\.cpPalette) private var paletteDependency
     @State private var appeared = false
     let title: String; let symbol: String; var detail: String? = nil
+    /// A next step ("Add a task", "Clear search"), so an empty screen is never a dead end.
+    var actionTitle: String? = nil
+    var action: (() -> Void)? = nil
     var body: some View {
         VStack(spacing: 8) {
             Image(systemName: symbol).cpIconFont(14, .semibold)
@@ -5785,9 +5849,16 @@ struct NativeEmptyState: View {
                 .accessibilityHidden(true)
             Text(title).cpFont(13, .semibold).foregroundStyle(CPTheme.foreground(scheme)).multilineTextAlignment(.center)
             if let detail { Text(detail).cpFont(11).lineSpacing(2).foregroundStyle(CPTheme.muted(scheme)).multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true) }
+            if let actionTitle, let action {
+                Button(actionTitle, action: action)
+                    .cpFont(13, .semibold)
+                    .buttonStyle(.plain)
+                    .foregroundStyle(CPTheme.primary(scheme: scheme))
+                    .frame(minHeight: 44)
+            }
         }
             .padding(.vertical, 14).padding(.horizontal, 12).frame(maxWidth: .infinity)
-            .accessibilityElement(children: .combine)
+            .accessibilityElement(children: action == nil ? .combine : .contain)
             .opacity(appeared ? 1 : 0)
             .offset(y: appeared || reduceMotion ? 0 : 5)
             .onAppear { withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) { appeared = true } }

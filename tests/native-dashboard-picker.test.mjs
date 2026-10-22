@@ -9,8 +9,10 @@ const features = read("ios/App/App/NativeFeatures.swift");
 const more = read("ios/App/App/NativeMoreViews.swift");
 
 test("every account picks its widgets once, after Canvas is connected and the intro closes", () => {
-  assert.match(views, /features\.preferencesLoaded && !features\.dashboardPicked && !store\.isPreview &&\s*!store\.needsCanvasConnection && !launchIsVisible && !store\.showsSkeleton/);
-  assert.match(views, /NativeDashboardPicker\(features: features\) \{ showWidgetPicker = false \}\s*\.interactiveDismissDisabled\(\)/);
+  assert.match(views, /features\.preferencesLoaded && !features\.dashboardPicked && !store\.isPreview && !widgetPickerSkipped &&\s*!store\.needsCanvasConnection && !launchIsVisible && !store\.showsSkeleton/);
+  assert.match(views, /NativeDashboardPicker\(features: features, onDone: \{ showWidgetPicker = false \}, onSkip: \{[\s\S]*?\}\)\s*\.interactiveDismissDisabled\(\)/);
+  // If saving fails (offline), "Not now" lets the student past it; it asks again next launch.
+  assert.match(views, /Button\("Not now, ask me later", action: onSkip\)/);
   assert.match(views, /What do you want on your dashboard\?/);
   assert.match(views, /We recommend 4 or 5\./);
   assert.match(features, /if picked \{ layout\["picked_at"\] = \.string\(/);

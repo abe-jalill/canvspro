@@ -354,7 +354,9 @@ struct CPLinkLabel: View {
         .cpFont(12)
         .foregroundStyle(CPTheme.muted(scheme))
         .padding(.horizontal, 10)
-        .frame(height: 28)
+        .padding(.vertical, 5)
+        // Grows with Text Size instead of spilling out of the pill.
+        .frame(minHeight: 28)
         .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         // A 44-point target without changing the label's size.
         .padding(.vertical, 8).contentShape(Rectangle()).padding(.vertical, -8)
@@ -696,7 +698,8 @@ struct CPChip: View {
             .cpFont(12)
             .lineLimit(1)
             .padding(.horizontal, 12)
-            .frame(height: 30)
+            .padding(.vertical, 6)
+            .frame(minHeight: 30)
             .foregroundStyle(selected ? CPTheme.foreground(scheme) : CPTheme.muted(scheme))
             .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(CPTheme.outline(scheme, selected: selected), lineWidth: 0.5))
             .frame(minHeight: 44)
