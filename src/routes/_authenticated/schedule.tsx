@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CalendarPlus, ChevronLeft, ChevronRight, Pencil, Sun, X } from "lucide-react";
 import { GlassCard, ErrorState } from "@/components/glass-card";
 import { displayCourseName, displayCourseNameForCourse } from "@/lib/course-display";
@@ -122,6 +122,9 @@ function SchedulePage() {
   }, []);
   const today = startOfDay(now);
   const [weekOffset, setWeekOffset] = useState(0);
+  /** Which way the weeks last moved, so the new week slides in from that side. */
+  const [weekDirection, setWeekDirection] = useState<1 | -1>(1);
+  const swipeStart = useRef<{ x: number; y: number } | null>(null);
   const [selected, setSelected] = useState<Date | null>(today);
   const [editing, setEditing] = useState<{ open: boolean; event: CalendarEvent | null }>({
     open: false,
@@ -210,6 +213,8 @@ function SchedulePage() {
 
   function changeWeek(by: number) {
     const next = Math.max(-WEEKS_BACK, weekOffset + by);
+    if (next === weekOffset) return;
+    setWeekDirection(by > 0 ? 1 : -1);
     setWeekOffset(next);
     if (selected) setSelected(next === 0 && by < 0 ? today : weekStart(today, next));
   }
@@ -271,7 +276,30 @@ function SchedulePage() {
             </button>
           </div>
         </div>
-        <div className="mt-3 grid grid-cols-7 gap-1">
+        {/* Swipe (or drag) the week sideways for the next or previous one. */}
+        <div
+          key={weekOffset}
+          className={cn(
+            "mt-3 grid touch-pan-y select-none grid-cols-7 gap-1 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300",
+            weekDirection > 0
+              ? "motion-safe:slide-in-from-right-8"
+              : "motion-safe:slide-in-from-left-8",
+          )}
+          onPointerDown={(e) => {
+            swipeStart.current = { x: e.clientX, y: e.clientY };
+          }}
+          onPointerUp={(e) => {
+            const start = swipeStart.current;
+            swipeStart.current = null;
+            if (!start) return;
+            const dx = e.clientX - start.x;
+            const dy = e.clientY - start.y;
+            if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) changeWeek(dx < 0 ? 1 : -1);
+          }}
+          onPointerCancel={() => {
+            swipeStart.current = null;
+          }}
+        >
           {week.map((day) => {
             const isToday = day.getTime() === today.getTime();
             const isSelected = selected?.getTime() === day.getTime();

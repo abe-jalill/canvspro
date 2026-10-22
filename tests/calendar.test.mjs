@@ -126,3 +126,10 @@ test("Calendar adds events; To-Do's task can also go on the calendar", () => {
   // "Add to calendar" picks a sensible time instead of always noon.
   assert.match(read("src/lib/calendar-picks.ts"), /const when = at \?\? suggestedPlanTime\(a\.due_at, defaultEstimateMinutes\(a\)\);/);
 });
+
+test("swipe the week to change it; the new week slides in from that side", () => {
+  const page = read("src/routes/_authenticated/schedule.tsx");
+  assert.match(page, /if \(Math\.abs\(dx\) > 50 && Math\.abs\(dx\) > Math\.abs\(dy\) \* 1\.5\) changeWeek\(dx < 0 \? 1 : -1\);/);
+  assert.match(page, /weekDirection > 0\s+\? "motion-safe:slide-in-from-right-8"\s+: "motion-safe:slide-in-from-left-8"/);
+  assert.match(page, /touch-pan-y/);
+});
