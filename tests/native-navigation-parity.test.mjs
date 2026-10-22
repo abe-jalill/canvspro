@@ -66,12 +66,13 @@ test("More's profile card shows the school and Freshman to Senior from the class
   assert.match(more, /Text\("Add your school and year"\)/);
 });
 
-test("Calendar rows are a title and one line, with no squeezed time column", () => {
+test("Calendar rows: a time column that grows with Text Size, then the title and one line", () => {
   const more = source("ios/App/App/NativeMoreViews.swift");
   const calendar = more.slice(more.indexOf("struct CalendarView: View"), more.indexOf("struct WorkloadView: View"));
   assert.doesNotMatch(calendar, /\.frame\(width: 50/);
+  assert.match(calendar, /@ScaledMetric\(relativeTo: \.footnote\) private var timeWidth: CGFloat = 66/);
+  assert.match(calendar, /\.frame\(width: timeWidth, alignment: \.trailing\)/);
   assert.doesNotMatch(calendar, /"Show completed"|WorkloadView\(|NativeCachedEstimateEditor/);
-  assert.match(calendar, /Text\(\[\("\\\(kind\) \\\(time\)"\), item\.context\]/);
   assert.match(calendar, /CPChip\(text: "Today", selected: isOnToday\)/);
   assert.match(calendar, /\.cpNavigationTitle\("Calendar"\)/);
   // Class Schedule: each class once per day it meets; edit or delete it from there.

@@ -1330,15 +1330,31 @@ private struct NativeWeekSegments: View {
     }
 }
 
+/// One thing on the Calendar: a class meeting, your own event, work you put
+/// on the calendar, a due date, or a Canvas event.
 struct NativeCalendarEntry: Identifiable {
+    enum Kind: Int { case classMeeting, event, canvas, planned, due }
     let id: String
-    let date: Date
+    let kind: Kind
+    let start: Date
+    var end: Date? = nil
+    var allDay = false
     let title: String
-    let context: String
-    let kind: String
-    let url: URL?
-    let pickID: Int?
-    var assignmentID: Int? { pickID ?? (id.hasPrefix("assignment-") ? Int(id.dropFirst("assignment-".count)) : nil) }
+    var context = ""
+    var courseID: Int? = nil
+    var url: URL? = nil
+    var pickID: Int? = nil
+    var eventID: String? = nil
+
+    var label: String {
+        switch kind {
+        case .classMeeting: return "Class"
+        case .event: return "Event"
+        case .canvas: return "Canvas event"
+        case .planned: return "Planned"
+        case .due: return "Due"
+        }
+    }
 }
 
 private struct CalendarDayGroup: Identifiable {
@@ -1347,19 +1363,33 @@ private struct CalendarDayGroup: Identifiable {
     let items: [NativeCalendarEntry]
 }
 
+/// What the calendar is built from, read once per redraw.
+private struct NativeCalendarSources {
+    let classes: [ClassScheduleEntry]
+    let events: [NativeCalendarEvent]
+    let picks: [CalendarPick]
+    let due: [AssignmentItem]
+    let canvas: [CalendarEventItem]
+}
+
+/// The Calendar, as on the website: a week to pick a day from, then that day
+/// in time order — classes, your events, work you planned, and what's due.
+/// Upcoming lists the next month without the everyday classes.
 struct CalendarView: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.cpPalette) private var paletteDependency
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
-    /// Finished work is on the Completed page, so the calendar shows what's left.
-    private let showCompleted = false
+    /// The time column grows with Text Size, so times never squeeze.
+    @ScaledMetric(relativeTo: .footnote) private var timeWidth: CGFloat = 66
     @State private var editingPick: CalendarPick?
     @State private var pickedTime = Date()
+    @State private var editingEvent: NativeEventEditing?
     @State private var selectedDate: Date? = Calendar.current.startOfDay(for: Date())
     @State private var currentWeekOffset = 0
 
+    private static let upcomingDays = 30
     private var calendar: Calendar { Calendar.current }
     private var today: Date { calendar.startOfDay(for: Date()) }
 
@@ -1369,58 +1399,101 @@ struct CalendarView: View {
         return (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: monday) }
     }
 
-    private var allAssignments: [AssignmentItem] { features.shownAssignments(in: store) }
-    private var visibleAssignments: [AssignmentItem] {
-        allAssignments.filter { $0.isVisible(in: store, showCompleted: showCompleted) }
-    }
-    /// Everything from the start of the shared display window (3 days ago).
-    private var agenda: [NativeCalendarEntry] {
-        let windowStart = NativeParity.startOfRecentWindow()
-        let pickedIDs = Set(features.calendarPicks.map(\.assignmentID))
-        var result = visibleAssignments.compactMap { item -> NativeCalendarEntry? in
-            guard !pickedIDs.contains(item.id), let date = item.dueDate, date >= windowStart else { return nil }
-            return NativeCalendarEntry(id: "assignment-\(item.id)", date: date, title: item.name, context: store.displayName(courseID: item.courseID, fallback: item.courseName), kind: "Assignment due", url: URL(string: item.htmlURL), pickID: nil)
+    private var sources: NativeCalendarSources {
+        let all = features.shownAssignments(in: store)
+        let picked = Set(features.calendarPicks.map(\.assignmentID))
+        let customIDs = Set(features.customAssignments.map(\.id))
+        let now = Date()
+        let picks = features.calendarPicks.filter { pick in
+            // A deleted task, finished work, or a hidden class leaves the calendar too.
+            if pick.assignmentID < 0 && !customIDs.contains(pick.assignmentID) { return false }
+            guard let item = all.first(where: { $0.id == pick.assignmentID }) else { return pick.assignmentID > 0 && !store.bundle.assignments.contains { $0.id == pick.assignmentID } }
+            return item.isVisible(in: store, showCompleted: false)
         }
-        result += features.shownEvents(in: store).compactMap { event in
-            guard let raw = event.startAt, let date = ISO8601DateFormatter.canvasDate(from: raw), date >= windowStart else { return nil }
-            return NativeCalendarEntry(id: "event-\(event.id)", date: date, title: event.title, context: event.contextName ?? event.locationName ?? "Canvas event", kind: "Canvas event", url: event.htmlURL.flatMap { URL(string: $0) }, pickID: nil)
+        let due = all.filter { item in
+            guard item.id > 0, !picked.contains(item.id), let date = item.dueDate, date >= now else { return false }
+            return item.isVisible(in: store, showCompleted: false)
         }
-        result += features.calendarPicks.compactMap { pick in
-            if let assignment = allAssignments.first(where: { $0.id == pick.assignmentID }), !assignment.isVisible(in: store, showCompleted: showCompleted) { return nil }
-            let pickCourseID = store.bundle.assignments.first(where: { $0.id == pick.assignmentID })?.courseID ?? features.customAssignments.first(where: { $0.id == pick.assignmentID })?.courseID
-            if let pickCourseID, features.hiddenCourseIDs.contains(pickCourseID) { return nil }
-            guard let date = ISO8601DateFormatter.canvasDate(from: pick.at), date >= windowStart else { return nil }
-            return NativeCalendarEntry(id: "pick-\(pick.id)", date: date, title: pick.title, context: pick.context, kind: "Planned work", url: nil, pickID: pick.id)
+        let classes = features.schedule.filter { entry in
+            entry.canvasCourseID.map { !features.hiddenCourseIDs.contains($0) } ?? true
         }
-        return result.sorted { $0.date < $1.date }
+        return NativeCalendarSources(classes: classes, events: features.calendarEvents, picks: picks, due: due, canvas: features.shownEvents(in: store))
     }
 
-    private func itemsFor(day: Date) -> [NativeCalendarEntry] {
-        agenda.filter { calendar.isDate($0.date, inSameDayAs: day) }
+    private func at(_ day: Date, minutes: Int) -> Date {
+        calendar.date(bySettingHour: minutes / 60, minute: minutes % 60, second: 0, of: day) ?? day
     }
 
-    /// "All upcoming" lists today onward.
-    private var upcomingDayGroups: [CalendarDayGroup] {
-        let uniqueDays = Array(Set(agenda.map { calendar.startOfDay(for: $0.date) })).filter { $0 >= today }.sorted()
-        return uniqueDays.compactMap { day in
-            let items = itemsFor(day: day)
+    private func classCourseID(_ entry: ClassScheduleEntry) -> Int? {
+        if let id = entry.canvasCourseID { return id }
+        let title = entry.title.lowercased()
+        return store.bundle.courses.first { store.displayName(courseID: $0.id, fallback: $0.name).lowercased() == title }?.id
+    }
+
+    /// Everything on one day: all-day first, then by time.
+    private func entries(on day: Date, _ src: NativeCalendarSources, classes includeClasses: Bool = true) -> [NativeCalendarEntry] {
+        var result: [NativeCalendarEntry] = []
+        let weekday = calendar.component(.weekday, from: day)
+        if includeClasses {
+            let letters = ["M": 2, "T": 3, "W": 4, "R": 5, "F": 6]
+            for entry in src.classes where entry.days.contains(where: { letters[$0] == weekday }) {
+                let courseID = classCourseID(entry)
+                // A lab or discussion found in a syllabus keeps its own name.
+                let title = courseID != nil && entry.canvasCourseID != nil && entry.scheduleType == "Lecture" ? store.displayName(courseID: courseID!, fallback: entry.title) : entry.title
+                result.append(NativeCalendarEntry(id: "class-\(entry.id)-\(day.timeIntervalSince1970)", kind: .classMeeting, start: at(day, minutes: entry.startMinutes), end: at(day, minutes: entry.endMinutes), title: title, context: entry.location, courseID: courseID))
+            }
+        }
+        for event in src.events where NativeParity.occurs(event, on: day) {
+            let start = event.start.map { at(day, minutes: $0) } ?? day
+            let end = event.start != nil ? event.end.map { at(day, minutes: $0) } : nil
+            result.append(NativeCalendarEntry(id: "event-\(event.id)-\(day.timeIntervalSince1970)", kind: .event, start: start, end: end, allDay: event.start == nil, title: event.title, context: event.location, eventID: event.id))
+        }
+        for pick in src.picks {
+            guard let date = ISO8601DateFormatter.canvasDate(from: pick.at), calendar.isDate(date, inSameDayAs: day) else { continue }
+            result.append(NativeCalendarEntry(id: "pick-\(pick.id)", kind: .planned, start: date, title: pick.title, context: pick.context, pickID: pick.id))
+        }
+        for item in src.due {
+            guard let date = item.dueDate, calendar.isDate(date, inSameDayAs: day) else { continue }
+            result.append(NativeCalendarEntry(id: "due-\(item.id)", kind: .due, start: date, title: item.name, context: store.displayName(courseID: item.courseID, fallback: item.courseName), courseID: item.courseID, url: URL(string: item.htmlURL)))
+        }
+        for event in src.canvas {
+            guard let raw = event.startAt, let start = ISO8601DateFormatter.canvasDate(from: raw), calendar.isDate(start, inSameDayAs: day) else { continue }
+            let end = event.endAt.flatMap { ISO8601DateFormatter.canvasDate(from: $0) }
+            // Canvas marks all-day events as midnight to midnight (or no length at all).
+            let isMidnight = { (date: Date) in calendar.component(.hour, from: date) == 0 && calendar.component(.minute, from: date) == 0 }
+            let allDay = isMidnight(start) && (end.map { $0 == start || isMidnight($0) } ?? true)
+            result.append(NativeCalendarEntry(id: "canvas-\(event.id)", kind: .canvas, start: start, end: allDay ? nil : end.flatMap { $0 > start ? $0 : nil }, allDay: allDay, title: event.title, context: event.contextName ?? event.locationName ?? "", url: event.htmlURL.flatMap { URL(string: $0) }))
+        }
+        return result.sorted { a, b in
+            if a.allDay != b.allDay { return a.allDay }
+            if a.start != b.start { return a.start < b.start }
+            if a.kind != b.kind { return a.kind.rawValue < b.kind.rawValue }
+            return a.title.localizedStandardCompare(b.title) == .orderedAscending
+        }
+    }
+
+    private func upcomingGroups(_ src: NativeCalendarSources) -> [CalendarDayGroup] {
+        (0..<Self.upcomingDays).compactMap { offset in
+            guard let day = calendar.date(byAdding: .day, value: offset, to: today) else { return nil }
+            let items = entries(on: day, src, classes: false)
             return items.isEmpty ? nil : CalendarDayGroup(day: day, items: items)
         }
     }
 
     var body: some View {
-        ScrollView {
+        let src = sources
+        return ScrollView {
             LazyVStack(alignment: .leading, spacing: CPLayout.stack) {
-                calendarStrip
-                if agenda.isEmpty {
-                    CPGlassCard { NativeEmptyState(title: "Nothing scheduled", symbol: "calendar") }
-                } else if let selected = selectedDate {
-                    let dayItems = itemsFor(day: selected)
-                    dayCard(title: dayTitle(selected), items: dayItems)
-                } else if upcomingDayGroups.isEmpty {
-                    CPGlassCard { NativeEmptyState(title: "Nothing coming up", symbol: "calendar") }
+                calendarStrip(src)
+                if let selected = selectedDate {
+                    dayCard(title: dayTitle(selected), items: entries(on: selected, src), day: selected)
                 } else {
-                    ForEach(upcomingDayGroups) { group in dayCard(title: dayTitle(group.day), items: group.items) }
+                    let groups = upcomingGroups(src)
+                    if groups.isEmpty {
+                        CPGlassCard { NativeEmptyState(title: "Nothing coming up besides class", symbol: "calendar") }
+                    } else {
+                        ForEach(groups) { group in dayCard(title: dayTitle(group.day), items: group.items, day: nil) }
+                    }
                 }
             }
             .cpPagePadding()
@@ -1430,6 +1503,15 @@ struct CalendarView: View {
         .background(CPBackdrop())
         .cpNavigationTitle("Calendar")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { editingEvent = .new(selectedDate ?? today) } label: { Image(systemName: "plus") }
+                    .accessibilityLabel("Add event")
+            }
+        }
+        .sheet(item: $editingEvent) { editing in
+            NativeEventEditor(editing: editing, features: features)
+        }
         .sheet(item: $editingPick) { pick in
             NavigationStack {
                 Form {
@@ -1465,10 +1547,11 @@ struct CalendarView: View {
     }
 
     private func dayTitle(_ day: Date) -> String {
-        calendar.isDateInToday(day) ? "Today" : calendar.isDateInTomorrow(day) ? "Tomorrow" : day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
+        let date = day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
+        return calendar.isDateInToday(day) ? "Today · \(date)" : calendar.isDateInTomorrow(day) ? "Tomorrow · \(date)" : date
     }
 
-    private func dayCard(title: String, items: [NativeCalendarEntry]) -> some View {
+    private func dayCard(title: String, items: [NativeCalendarEntry], day: Date?) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             CPSectionLabel(title, count: items.count)
             VStack(spacing: 0) {
@@ -1477,12 +1560,18 @@ struct CalendarView: View {
                         Image(systemName: "sun.max").cpIconFont(12, .semibold).foregroundStyle(CPTheme.muted(scheme))
                         Text("Nothing on this day.").cpFont(13).foregroundStyle(CPTheme.muted(scheme))
                         Spacer()
+                        if let day {
+                            Button("Add event") { editingEvent = .new(day) }
+                                .cpFont(13, .medium)
+                                .buttonStyle(.plain)
+                                .foregroundStyle(CPTheme.primary(scheme: scheme))
+                        }
                     }
                     .padding(.vertical, 14)
                 }
                 ForEach(items) { item in
                     agendaItemRow(item)
-                    if item.id != items.last?.id { CPRowDivider(leading: 15) }
+                    if item.id != items.last?.id { CPRowDivider(leading: timeWidth + 27) }
                 }
             }
             .padding(.horizontal, 14)
@@ -1495,10 +1584,10 @@ struct CalendarView: View {
         currentWeekOffset == 0 && selectedDate.map { calendar.isDate($0, inSameDayAs: today) } == true
     }
 
-    /// The month and week arrows, the seven days, then Today or All upcoming.
-    private var calendarStrip: some View {
-        let counts = Dictionary(grouping: agenda, by: { calendar.startOfDay(for: $0.date) }).mapValues { $0.count }
-        return VStack(spacing: 12) {
+    /// The week and its arrows, the seven days, then Today or Upcoming. A small
+    /// gray dot marks a class day; the colored one, anything else.
+    private func calendarStrip(_ src: NativeCalendarSources) -> some View {
+        VStack(spacing: 12) {
             HStack(spacing: 6) {
                 if let firstDate = weekDates.first {
                     Text(firstDate.formatted(.dateTime.month(.wide).year()))
@@ -1509,7 +1598,6 @@ struct CalendarView: View {
                 Spacer(minLength: 8)
                 Button { changeWeek(by: -1) } label: { CPIconButtonLabel(symbol: "chevron.left") }
                     .buttonStyle(.plain)
-                    // Earlier weeks are outside the display window, so they'd always be empty.
                     .disabled(currentWeekOffset <= 0)
                     .opacity(currentWeekOffset <= 0 ? 0.35 : 1)
                     .accessibilityLabel("Previous week")
@@ -1519,7 +1607,9 @@ struct CalendarView: View {
             }
             HStack(spacing: 4) {
                 ForEach(weekDates, id: \.self) { date in
-                    dateButton(date, count: counts[calendar.startOfDay(for: date)] ?? 0)
+                    let busy = !entries(on: date, src, classes: false).isEmpty
+                    let hasClass = entries(on: date, src).contains { $0.kind == .classMeeting }
+                    dateButton(date, busy: busy, hasClass: hasClass)
                 }
             }
             HStack(spacing: 8) {
@@ -1532,7 +1622,7 @@ struct CalendarView: View {
                     .buttonStyle(.plain)
                 Button {
                     withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) { selectedDate = nil }
-                } label: { CPChip(text: "All upcoming", selected: selectedDate == nil) }
+                } label: { CPChip(text: "Upcoming", selected: selectedDate == nil) }
                     .buttonStyle(.plain)
                 Spacer(minLength: 0)
             }
@@ -1544,32 +1634,29 @@ struct CalendarView: View {
 
     private func changeWeek(by offset: Int) {
         withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
-            currentWeekOffset += offset
-            if let selectedDate {
-                self.selectedDate = calendar.date(byAdding: .day, value: offset * 7, to: selectedDate)
+            currentWeekOffset = max(0, currentWeekOffset + offset)
+            if selectedDate != nil {
+                selectedDate = currentWeekOffset == 0 ? today : weekDates.first
             }
         }
     }
 
     @ViewBuilder
-    private func dateButton(_ date: Date, count: Int) -> some View {
+    private func dateButton(_ date: Date, busy: Bool, hasClass: Bool) -> some View {
         let isSelected = selectedDate.map { calendar.isDate($0, inSameDayAs: date) } ?? false
         let isToday = calendar.isDate(date, inSameDayAs: today)
-
         Button {
-            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.18)) {
-                selectedDate = date
-            }
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.18)) { selectedDate = date }
         } label: {
             VStack(spacing: 5) {
                 Text(date.formatted(.dateTime.weekday(.narrow)))
                     .cpFont(11, .semibold)
-                    .foregroundStyle(isToday ? CPTheme.foreground(scheme) : CPTheme.muted(scheme))
+                    .foregroundStyle(isToday ? CPTheme.primary(scheme: scheme) : CPTheme.muted(scheme))
                 ZStack {
                     if isSelected {
                         Circle().fill(CPTheme.foreground(scheme))
                     } else if isToday {
-                        Circle().strokeBorder(CPTheme.foreground(scheme).opacity(0.6), lineWidth: 1)
+                        Circle().strokeBorder(CPTheme.primary(scheme: scheme).opacity(0.7), lineWidth: 1)
                     }
                     Text("\(calendar.component(.day, from: date))")
                         .cpFont(14, .semibold)
@@ -1577,30 +1664,52 @@ struct CalendarView: View {
                         .foregroundStyle(isSelected ? CPTheme.background(scheme) : CPTheme.foreground(scheme))
                 }
                 .frame(width: 32, height: 32)
-                Circle()
-                    .fill(CPTheme.foreground(scheme))
-                    .frame(width: 4, height: 4)
-                    .opacity(count > 0 ? 1 : 0)
+                HStack(spacing: 2) {
+                    Circle().fill(CPTheme.muted(scheme)).frame(width: 3, height: 3).opacity(hasClass ? 0.7 : 0)
+                    Circle().fill(CPTheme.primary(scheme: scheme)).frame(width: 5, height: 5).opacity(busy ? 1 : 0)
+                }
             }
+            .opacity(date < today ? 0.45 : 1)
             .frame(maxWidth: .infinity, minHeight: 64)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(date.formatted(.dateTime.weekday(.wide).month().day())), \(count) items")
+        .accessibilityLabel("\(date.formatted(.dateTime.weekday(.wide).month().day()))\(hasClass ? ", class" : "")\(busy ? ", has plans" : "")")
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 
-    /// The title, then one line: what it is, when, and the class. A thin bar
-    /// marks the kind (due work, a Canvas event, or time you planned).
+    private func barColor(_ item: NativeCalendarEntry) -> Color {
+        switch item.kind {
+        case .event, .planned: return CPTheme.primary(scheme: scheme)
+        case .canvas: return CPTheme.warning
+        case .classMeeting, .due:
+            return item.courseID.map { CPTheme.classColor($0, in: store.bundle.courses) } ?? CPTheme.muted(scheme)
+        }
+    }
+
+    /// A time column ("9:30 AM" over "10:45 AM", or "All day"), the class or
+    /// kind's color, then the title and one line: what it is, the class or place.
     private func agendaItemRow(_ item: NativeCalendarEntry) -> some View {
-        let isPlanned = item.pickID != nil
-        let isDue = !isPlanned && item.kind.contains("Assignment")
-        let kind = isPlanned ? "Planned" : isDue ? "Due" : "Event"
-        let bar = isPlanned ? CPTheme.primary(scheme: scheme) : isDue ? CPTheme.foreground(scheme).opacity(0.55) : CPTheme.warning
-        let time = item.date.formatted(date: .omitted, time: .shortened)
+        let event = item.eventID.flatMap { id in features.calendarEvents.first { $0.id == id } }
+        let line = [item.label, item.context, event.flatMap { $0.repeatDays.isEmpty ? nil : NativeParity.repeatLabel($0.repeatDays) }]
+            .compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
+        let over = !item.allDay && (item.end ?? item.start) < Date()
         return HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(item.allDay ? "All day" : item.start.formatted(date: .omitted, time: .shortened))
+                    .cpFont(13, .semibold).monospacedDigit()
+                    .foregroundStyle(CPTheme.foreground(scheme))
+                if let end = item.end {
+                    Text(end.formatted(date: .omitted, time: .shortened))
+                        .cpFont(11).monospacedDigit()
+                        .foregroundStyle(CPTheme.muted(scheme))
+                }
+            }
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .frame(width: timeWidth, alignment: .trailing)
             RoundedRectangle(cornerRadius: 1.5, style: .continuous)
-                .fill(bar)
+                .fill(barColor(item))
                 .frame(width: 3)
                 .padding(.vertical, 2)
                 .accessibilityHidden(true)
@@ -1609,36 +1718,50 @@ struct CalendarView: View {
                     .cpFont(15, .medium)
                     .foregroundStyle(CPTheme.foreground(scheme))
                     .fixedSize(horizontal: false, vertical: true)
-                Text([("\(kind) \(time)"), item.context].filter { !$0.isEmpty }.joined(separator: " · "))
-                    .cpFont(12).monospacedDigit()
+                Text(line)
+                    .cpFont(12)
                     .foregroundStyle(CPTheme.muted(scheme))
                     .fixedSize(horizontal: false, vertical: true)
+                if let notes = event?.notes, !notes.isEmpty {
+                    Text(notes).cpFont(12).foregroundStyle(CPTheme.foreground(scheme).opacity(0.7)).fixedSize(horizontal: false, vertical: true)
+                }
             }
             Spacer(minLength: 8)
-            if let pickID = item.pickID {
-                Menu {
-                    Button { changePick(pickID, date: item.date) } label: { Label("Change time", systemImage: "clock") }
-                    Button(role: .destructive) { removePick(pickID) } label: { Label("Remove", systemImage: "trash") }
-                } label: {
-                    Image(systemName: "ellipsis").cpIconFont(13, .medium)
-                        .foregroundStyle(CPTheme.muted(scheme))
-                        .frame(width: 36, height: 36)
-                        .contentShape(Rectangle())
-                }
-                .accessibilityLabel("Options for \(item.title)")
-            } else if let url = item.url, url.scheme == "https" {
-                Link(destination: url) {
-                    Image(systemName: "arrow.up.right").cpIconFont(11, .semibold)
-                        .foregroundStyle(CPTheme.muted(scheme))
-                        .frame(width: 36, height: 36)
-                        .contentShape(Rectangle())
-                }
-                .accessibilityLabel("Open \(item.title) in Canvas")
-            }
+            rowAction(item, event: event)
         }
         .padding(.vertical, 12)
+        .opacity(over ? 0.55 : 1)
         .fixedSize(horizontal: false, vertical: true)
         .accessibilityElement(children: .contain)
+    }
+
+    @ViewBuilder
+    private func rowAction(_ item: NativeCalendarEntry, event: NativeCalendarEvent?) -> some View {
+        if let event {
+            Button { editingEvent = .edit(event) } label: { actionIcon("pencil") }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Edit \(item.title)")
+        } else if item.kind == .classMeeting {
+            NavigationLink { ClassScheduleView(features: features, store: store) } label: { actionIcon("pencil") }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Edit \(item.title) in My classes")
+        } else if let pickID = item.pickID {
+            Menu {
+                Button { changePick(pickID, date: item.start) } label: { Label("Change time", systemImage: "clock") }
+                Button(role: .destructive) { removePick(pickID) } label: { Label("Remove from calendar", systemImage: "trash") }
+            } label: { actionIcon("ellipsis") }
+                .accessibilityLabel("Options for \(item.title)")
+        } else if let url = item.url, url.scheme == "https" {
+            Link(destination: url) { actionIcon("arrow.up.right") }
+                .accessibilityLabel("Open \(item.title) in Canvas")
+        }
+    }
+
+    private func actionIcon(_ symbol: String) -> some View {
+        Image(systemName: symbol).cpIconFont(12, .medium)
+            .foregroundStyle(CPTheme.muted(scheme))
+            .frame(width: 36, height: 36)
+            .contentShape(Rectangle())
     }
 
     private func changePick(_ id: Int, date: Date) {
@@ -1652,6 +1775,190 @@ struct CalendarView: View {
             do { try await features.savePreference("calendar-picks", features.calendarPicks.filter { $0.id != id }) }
             catch { features.errorMessage = error.localizedDescription }
         }
+    }
+}
+
+/// Adding an event (on a day) or changing one.
+enum NativeEventEditing: Identifiable {
+    case new(Date)
+    case edit(NativeCalendarEvent)
+    var id: String {
+        switch self {
+        case .new(let day): return "new-\(day.timeIntervalSince1970)"
+        case .edit(let event): return event.id
+        }
+    }
+}
+
+/// Add or change an event: a name, a day, a time (or all day), weekly repeats,
+/// where, and notes. The same fields as the website's.
+struct NativeEventEditor: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var scheme
+    let editing: NativeEventEditing
+    @ObservedObject var features: NativeFeatureStore
+    @State private var title = ""
+    @State private var day = Date()
+    @State private var allDay = false
+    @State private var start = Date()
+    @State private var end = Date()
+    @State private var repeatDays: Set<Int> = []
+    @State private var hasUntil = false
+    @State private var until = Date()
+    @State private var location = ""
+    @State private var notes = ""
+    @State private var saving = false
+    @State private var error: String?
+    @State private var loaded = false
+
+    private var existing: NativeCalendarEvent? {
+        if case .edit(let event) = editing { return event }
+        return nil
+    }
+    private var calendar: Calendar { Calendar.current }
+    private func minutes(_ date: Date) -> Int { calendar.component(.hour, from: date) * 60 + calendar.component(.minute, from: date) }
+    private var timesOK: Bool { allDay || minutes(end) > minutes(start) }
+    private var canSave: Bool { !saving && !title.trimmingCharacters(in: .whitespaces).isEmpty && timesOK && (!hasUntil || repeatDays.isEmpty || calendar.startOfDay(for: until) >= calendar.startOfDay(for: day)) }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("What's happening?", text: $title)
+                    DatePicker("Date", selection: $day, displayedComponents: .date)
+                    Toggle("All day", isOn: $allDay)
+                    if !allDay {
+                        DatePicker("Starts", selection: $start, displayedComponents: .hourAndMinute)
+                            .onChange(of: start) { old, new in
+                                // Moving the start moves the end with it, keeping the same length.
+                                let length = max(15, minutes(end) - minutes(old))
+                                end = new.addingTimeInterval(TimeInterval(length * 60))
+                            }
+                        DatePicker("Ends", selection: $end, displayedComponents: .hourAndMinute)
+                        if !timesOK { Text("It needs to end after it starts.").cpFont(12).foregroundStyle(CPTheme.danger) }
+                    }
+                } footer: {
+                    Text("Only you see this. It goes on your calendar, not To-Do.")
+                }
+                Section {
+                    HStack(spacing: 6) {
+                        ForEach(0..<7, id: \.self) { weekday in dayToggle(weekday) }
+                    }
+                    .frame(maxWidth: .infinity)
+                    if !repeatDays.isEmpty {
+                        Toggle("Ends on a date", isOn: $hasUntil)
+                        if hasUntil { DatePicker("Until", selection: $until, in: day..., displayedComponents: .date) }
+                    }
+                } header: {
+                    Text("Repeats every week on")
+                } footer: {
+                    Text(repeatDays.isEmpty ? "Leave these off for a one-time event." : NativeParity.repeatLabel(repeatDays.sorted()))
+                }
+                Section {
+                    TextField("Location (optional)", text: $location)
+                    TextField("Notes (optional)", text: $notes, axis: .vertical)
+                }
+                if let existing {
+                    Section {
+                        Button(existing.repeatDays.isEmpty ? "Delete event" : "Delete every time", role: .destructive) { Task { await delete(existing) } }
+                    }
+                }
+                if let error { Section { Text(error).foregroundStyle(CPTheme.danger) } }
+            }
+            .cpListScreen()
+            .cpNavigationTitle(existing == nil ? "New Event" : "Edit Event")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button(existing == nil ? "Add" : "Save") { Task { await save() } }.disabled(!canSave) }
+            }
+            .onAppear(perform: load)
+        }
+        .interactiveDismissDisabled(saving)
+    }
+
+    private func dayToggle(_ weekday: Int) -> some View {
+        let on = repeatDays.contains(weekday)
+        let letter = ["S", "M", "T", "W", "T", "F", "S"][weekday]
+        let name = calendar.weekdaySymbols[weekday]
+        return Button {
+            if on { repeatDays.remove(weekday) } else { repeatDays.insert(weekday) }
+        } label: {
+            Text(letter).cpFont(13, .semibold)
+                .foregroundStyle(on ? CPTheme.background(scheme) : CPTheme.muted(scheme))
+                .frame(width: 34, height: 34)
+                .background(Circle().fill(on ? CPTheme.primary(scheme: scheme) : Color.clear))
+                .overlay(Circle().strokeBorder(on ? Color.clear : CPTheme.foreground(scheme).opacity(0.15), lineWidth: 1))
+        }
+        .buttonStyle(.borderless)
+        .accessibilityLabel(name)
+        .accessibilityAddTraits(on ? [.isSelected] : [])
+    }
+
+    private func clock(_ minutes: Int, on base: Date) -> Date {
+        calendar.date(bySettingHour: minutes / 60, minute: minutes % 60, second: 0, of: base) ?? base
+    }
+
+    private func load() {
+        guard !loaded else { return }
+        loaded = true
+        if let event = existing {
+            title = event.title
+            day = NativeParity.day(fromKey: event.date) ?? Date()
+            allDay = event.start == nil
+            start = clock(event.start ?? 9 * 60, on: day)
+            end = clock(event.end ?? (event.start ?? 9 * 60) + 60, on: day)
+            repeatDays = Set(event.repeatDays)
+            hasUntil = event.until != nil
+            until = event.until.flatMap(NativeParity.day(fromKey:)) ?? day
+            location = event.location
+            notes = event.notes
+        } else if case .new(let picked) = editing {
+            // Today: the next whole hour. Another day: 10 AM. Always daytime.
+            let now = Date()
+            let isToday = calendar.isDateInToday(picked)
+            var startMinutes = isToday ? (calendar.component(.hour, from: now) + 1) * 60 : 10 * 60
+            var startDay = calendar.startOfDay(for: picked < calendar.startOfDay(for: now) ? now : picked)
+            if startMinutes < 8 * 60 { startMinutes = 9 * 60 }
+            if startMinutes > 21 * 60, let next = calendar.date(byAdding: .day, value: 1, to: startDay) { startDay = next; startMinutes = 9 * 60 }
+            day = startDay
+            start = clock(startMinutes, on: startDay)
+            end = clock(min(startMinutes + 60, 23 * 60 + 59), on: startDay)
+            until = startDay
+        }
+    }
+
+    private func save() async {
+        guard canSave else { return }
+        saving = true
+        defer { saving = false }
+        let event = NativeCalendarEvent(
+            id: existing?.id ?? "ev-\(String(Int(Date().timeIntervalSince1970 * 1000), radix: 36))-\(String(Int.random(in: 0..<60_466_176), radix: 36))",
+            title: title.trimmingCharacters(in: .whitespaces),
+            date: NativeParity.dayKey(day),
+            start: allDay ? nil : minutes(start),
+            end: allDay ? nil : minutes(end),
+            repeatDays: repeatDays.sorted(),
+            until: !repeatDays.isEmpty && hasUntil ? NativeParity.dayKey(until) : nil,
+            location: location.trimmingCharacters(in: .whitespaces),
+            notes: notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
+        var list = features.calendarEvents
+        if let index = list.firstIndex(where: { $0.id == event.id }) { list[index] = event } else { list.append(event) }
+        do {
+            try await features.saveCalendarEvents(list)
+            CPHaptics.success()
+            dismiss()
+        } catch { self.error = error.localizedDescription }
+    }
+
+    private func delete(_ event: NativeCalendarEvent) async {
+        saving = true
+        defer { saving = false }
+        do {
+            try await features.saveCalendarEvents(features.calendarEvents.filter { $0.id != event.id })
+            dismiss()
+        } catch { self.error = error.localizedDescription }
     }
 }
 

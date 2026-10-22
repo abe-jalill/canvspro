@@ -3480,7 +3480,7 @@ struct AssignmentDetailView: View {
     private var isPersonalTask: Bool { assignment.id < 0 && assignment.courseID == CustomAssignment.noClassID }
     private func addToCalendar() {
         guard !features.calendarPicks.contains(where: { $0.assignmentID == assignment.id }) else { status = "Already on your calendar."; return }
-        let pick = CalendarPick(assignmentID: assignment.id, title: assignment.name, context: store.displayName(courseID: assignment.courseID, fallback: assignment.courseName), at: NativeParity.plannedTime(for: assignment.dueAt), dueAt: assignment.dueAt)
+        let pick = CalendarPick(assignmentID: assignment.id, title: assignment.name, context: store.displayName(courseID: assignment.courseID, fallback: assignment.courseName), at: NativeParity.plannedTime(for: assignment.dueAt, estimate: NativeParity.estimate(assignment, estimates: features.estimates)), dueAt: assignment.dueAt)
         Task { do { try await features.savePreference("calendar-picks", features.calendarPicks + [pick]); status = "Added to calendar." } catch { status = error.localizedDescription } }
     }
 }
@@ -3553,7 +3553,18 @@ private struct NativeNewTaskForm: View {
     let onDone: () -> Void
     @State private var name = ""; @State private var courseID: Int?; @State private var dueDate = NativeParity.endOfUpcomingDay(0); @State private var hasDueDate = true; @State private var points = 0.0; @State private var notes = ""; @State private var error: String?
     @State private var estimatedMinutes = 30
+    @State private var onCalendar = false
+    @State private var planAt = Date()
+    /// Until the student picks a time, it follows the due date and estimate.
+    @State private var planEdited = false
     private var canSave: Bool { !saving && !name.trimmingCharacters(in: .whitespaces).isEmpty && (!forClass || courseID != nil) }
+    private var suggestedPlan: Date {
+        let due = hasDueDate ? ISO8601DateFormatter().string(from: dueDate) : nil
+        return ISO8601DateFormatter.canvasDate(from: NativeParity.plannedTime(for: due, estimate: estimatedMinutes)) ?? Date()
+    }
+    private var planBinding: Binding<Date> {
+        Binding(get: { planEdited ? planAt : suggestedPlan }, set: { planAt = $0; planEdited = true })
+    }
     var body: some View {
         Form {
             Section {
@@ -3571,6 +3582,12 @@ private struct NativeNewTaskForm: View {
             } footer: {
                 Text(forClass ? "Only you see this." : "Only you see this. It isn't filed under a class.")
             }
+            Section {
+                Toggle("Also put it on my calendar", isOn: $onCalendar)
+                if onCalendar { DatePicker("When you'll work on it", selection: planBinding) }
+            } footer: {
+                if onCalendar { Text("It shows on your calendar at this time, as well as on To-Do.") }
+            }
             if let error { Section { Text(error).foregroundStyle(CPTheme.danger) } }
         }
         .cpListScreen()
@@ -3584,9 +3601,22 @@ private struct NativeNewTaskForm: View {
         if forClass { guard let courseID else { return }; classID = courseID } else { classID = CustomAssignment.noClassID }
         saving = true
         let item = CustomAssignment(id: -Int(Date().timeIntervalSince1970 * 1000), courseID: classID, name: name.trimmingCharacters(in: .whitespaces), dueAt: hasDueDate ? ISO8601DateFormatter().string(from: dueDate) : nil, pointsPossible: forClass && points > 0 ? points : nil, notes: forClass ? notes : "", createdAt: ISO8601DateFormatter().string(from: Date()), estimatedMinutes: estimatedMinutes)
+        let pick: CalendarPick? = onCalendar ? CalendarPick(
+            assignmentID: item.id,
+            title: item.name,
+            context: forClass ? store.displayName(courseID: classID, fallback: "") : CustomAssignment.noClassLabel,
+            at: ISO8601DateFormatter().string(from: planEdited ? planAt : suggestedPlan),
+            dueAt: item.dueAt
+        ) : nil
         Task {
             defer { saving = false }
-            do { try await features.savePreference("custom-assignments", features.customAssignments + [item]); CPHaptics.success(); onDone() } catch { self.error = error.localizedDescription }
+            do {
+                try await features.savePreference("custom-assignments", features.customAssignments + [item])
+                // Optionally on the calendar too, at the time chosen.
+                if let pick { try await features.savePreference("calendar-picks", features.calendarPicks + [pick]) }
+                CPHaptics.success()
+                onDone()
+            } catch { self.error = error.localizedDescription }
         }
     }
 }

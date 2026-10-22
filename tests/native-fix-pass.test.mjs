@@ -101,7 +101,8 @@ test("hidden classes are hidden on every screen", () => {
 test("estimates, plans and the dashboard layout match the website", () => {
   assert.match(swift.NativeFeatures, /if let saved = estimates\[item\.id\], saved > 0 \{ return saved \}/);
   assert.doesNotMatch(swift.NativeMoreViews, /features\.estimates\[item\.id\] \?\? NativeParity\.defaultEstimate/);
-  assert.match(swift.NativeFeatures, /bySettingHour: 12, minute: 0, second: 0/);
+  // Planned work lands late afternoon on the due day, as on the website (suggestedPlanTime).
+  assert.match(swift.NativeFeatures, /var at = calendar\.date\(bySettingHour: 16, minute: 0, second: 0, of: due \?\? now\) \?\? now/);
   assert.match(swift.NativeFeatures, /"announcements", "gpa", "heatmap"\]/);
   assert.match(swift.NativeFeatures, /queue\.popFirst\(\)/);
   assert.doesNotMatch(swift.NativeCore, /"CanvasProColorScheme", "CanvasProPalette"/);

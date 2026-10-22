@@ -151,6 +151,60 @@ struct CustomAssignment: Codable, Identifiable, Hashable {
     }
 }
 
+/// One of your own events on the Calendar (`calendar-events`, in the website's
+/// format): a meeting, an appointment, practice. It never goes on To-Do.
+struct NativeCalendarEvent: Codable, Identifiable, Hashable {
+    var id: String
+    var title: String
+    /// Local day of the first (or only) time, "2026-10-22".
+    var date: String
+    /// Minutes from midnight; nil for an all-day event.
+    var start: Int?
+    var end: Int?
+    /// Weekdays it repeats on, 0 = Sunday … 6 = Saturday. Empty: just once.
+    var repeatDays: [Int]
+    /// Last day it repeats, or nil for no end.
+    var until: String?
+    var location: String
+    var notes: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, date, start, end, until, location, notes
+        case repeatDays = "repeat"
+    }
+
+    init(id: String, title: String, date: String, start: Int?, end: Int?, repeatDays: [Int], until: String?, location: String, notes: String) {
+        self.id = id; self.title = title; self.date = date; self.start = start; self.end = end
+        self.repeatDays = repeatDays; self.until = until; self.location = location; self.notes = notes
+    }
+
+    /// Lenient like the website's reader: a bad time is dropped, not the event.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        title = try c.decode(String.self, forKey: .title)
+        date = try c.decode(String.self, forKey: .date)
+        let minutes = { (key: CodingKeys) -> Int? in
+            guard let value = (try? c.decodeIfPresent(Int.self, forKey: key)) ?? nil, (0..<1440).contains(value) else { return nil }
+            return value
+        }
+        start = minutes(.start)
+        let endValue = minutes(.end)
+        end = start.flatMap { s in endValue.flatMap { $0 > s ? $0 : nil } }
+        let rawRepeat: [Int] = ((try? c.decodeIfPresent([Int].self, forKey: .repeatDays)) ?? nil) ?? []
+        repeatDays = Array(Set(rawRepeat.filter { (0...6).contains($0) })).sorted()
+        until = (try? c.decodeIfPresent(String.self, forKey: .until)) ?? nil
+        location = ((try? c.decodeIfPresent(String.self, forKey: .location)) ?? nil) ?? ""
+        notes = ((try? c.decodeIfPresent(String.self, forKey: .notes)) ?? nil) ?? ""
+    }
+}
+
+/// Decodes what it can of a list, skipping entries it can't read.
+struct NativeLossy<T: Decodable>: Decodable {
+    let value: T?
+    init(from decoder: Decoder) throws { value = try? T(from: decoder) }
+}
+
 struct CalendarPick: Codable, Identifiable, Hashable {
     var assignmentID: Int
     var title: String
@@ -827,6 +881,16 @@ final class NativeFeatureStore: ObservableObject {
         UserDefaults.standard.removeObject(forKey: key)
     }
 
+    /// Your events on the Calendar (`calendar-events`), the website's too.
+    var calendarEvents: [NativeCalendarEvent] {
+        (decoded("calendar-events", as: [NativeLossy<NativeCalendarEvent>].self) ?? [])
+            .compactMap(\.value)
+            .filter { NativeParity.day(fromKey: $0.date) != nil }
+    }
+    func saveCalendarEvents(_ events: [NativeCalendarEvent]) async throws {
+        try await savePreference("calendar-events", events)
+    }
+
     /// To-Do by day or by class (`todo-grouping`: "day" or "class").
     var todoGrouping: String {
         if case .some(.string(let value)) = preferences["todo-grouping"], value == "class" { return "class" }
@@ -972,10 +1036,66 @@ enum NativeParity {
 
     /// Planned work goes on the calendar at noon on the due day (today when there
     /// is no due date), the same as on the website.
-    static func plannedTime(for dueAt: String?, now: Date = Date()) -> String {
-        let day = dueAt.flatMap { ISO8601DateFormatter.canvasDate(from: $0) } ?? now
-        let noon = Calendar.current.date(bySettingHour: 12, minute: 0, second: 0, of: day) ?? day
-        return ISO8601DateFormatter().string(from: noon)
+    /// A sensible time to put work on the calendar: late afternoon on the day
+    /// it's due, early enough to finish before it's due, never at night or in
+    /// the past. The same rule as the website (suggestedPlanTime).
+    static func plannedTime(for dueAt: String?, estimate: Int = 60, now: Date = Date()) -> String {
+        let calendar = Calendar.current
+        let halfHour: TimeInterval = 30 * 60
+        let work = TimeInterval(estimate * 60)
+        let due = dueAt.flatMap { ISO8601DateFormatter.canvasDate(from: $0) }
+        var at = calendar.date(bySettingHour: 16, minute: 0, second: 0, of: due ?? now) ?? now
+        if let due, at.addingTimeInterval(work) > due {
+            at = Date(timeIntervalSince1970: ((due.timeIntervalSince1970 - work - halfHour) / halfHour).rounded(.down) * halfHour)
+        }
+        // Waking hours: before 8 AM moves to 6 PM the evening before.
+        let hour = calendar.component(.hour, from: at)
+        if hour < 8, let before = calendar.date(byAdding: .day, value: -1, to: at), let evening = calendar.date(bySettingHour: 18, minute: 0, second: 0, of: before) {
+            at = evening
+        } else if hour >= 22, let nine = calendar.date(bySettingHour: 21, minute: 0, second: 0, of: at) {
+            at = nine
+        }
+        if at < now {
+            at = Date(timeIntervalSince1970: (now.timeIntervalSince1970 / halfHour).rounded(.up) * halfHour)
+            // Too late tonight and nothing due before tomorrow afternoon: tomorrow at 4.
+            if calendar.component(.hour, from: at) >= 22, due.map({ $0 > at.addingTimeInterval(18 * 3600) }) ?? true,
+               let next = calendar.date(byAdding: .day, value: 1, to: at), let four = calendar.date(bySettingHour: 16, minute: 0, second: 0, of: next) {
+                at = four
+            }
+        }
+        return ISO8601DateFormatter().string(from: at)
+    }
+
+    /// "2026-10-22" for a local day.
+    static func dayKey(_ date: Date) -> String {
+        let parts = Calendar.current.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
+    }
+
+    /// "2026-10-22" → that local day's midnight; nil if it isn't a real day.
+    static func day(fromKey key: String) -> Date? {
+        let parts = key.split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 3, key.count == 10 else { return nil }
+        guard let date = Calendar.current.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2])),
+              Calendar.current.component(.month, from: date) == parts[1] else { return nil }
+        return date
+    }
+
+    /// Whether your event happens on this local day.
+    static func occurs(_ event: NativeCalendarEvent, on day: Date) -> Bool {
+        let key = dayKey(day)
+        if event.repeatDays.isEmpty { return key == event.date }
+        if key < event.date { return false }
+        if let until = event.until, key > until { return false }
+        return event.repeatDays.contains(Calendar.current.component(.weekday, from: day) - 1)
+    }
+
+    /// "Every Tue, Thu", "Weekdays", "Every day".
+    static func repeatLabel(_ days: [Int]) -> String {
+        if days.count == 7 { return "Every day" }
+        if Set(days) == [1, 2, 3, 4, 5] { return "Weekdays" }
+        let names = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+        return "Every " + days.sorted().compactMap { names.indices.contains($0) ? names[$0] : nil }.joined(separator: ", ")
     }
 
     static func defaultEstimate(_ item: AssignmentItem) -> Int {

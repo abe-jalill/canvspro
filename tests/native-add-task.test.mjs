@@ -26,7 +26,7 @@ test("a task that isn't for a class keeps to the essentials and has class id 0",
   assert.match(views, /if forClass \{ TextField\("Points"/);
   assert.match(views, /if forClass \{ TextField\("Notes"/);
   // The same "custom-assignments" list the website reads.
-  assert.match(views, /features\.savePreference\("custom-assignments", features\.customAssignments \+ \[item\]\); CPHaptics\.success\(\); onDone\(\)/);
+  assert.match(views, /try await features\.savePreference\("custom-assignments", features\.customAssignments \+ \[item\]\)/);
 });
 
 test("Personal: its name, a gray dot, and after the classes", () => {
