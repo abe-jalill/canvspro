@@ -1,0 +1,113 @@
+/* The tutorial's little scenes. Each loops gently; with Reduce Motion they
+   stand still in their finished state (the base styles are the end state). */
+
+.tut-anim {
+  animation-duration: 5s;
+  animation-iteration-count: infinite;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  animation-fill-mode: both;
+}
+
+@keyframes tut-float {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-8px) scale(1.03); }
+}
+.tut-float { animation-name: tut-float; animation-duration: 4s; animation-timing-function: ease-in-out; }
+
+@keyframes tut-orbit {
+  0% { transform: rotate(0deg) translateX(var(--orbit, 92px)) rotate(0deg); }
+  100% { transform: rotate(360deg) translateX(var(--orbit, 92px)) rotate(-360deg); }
+}
+.tut-orbit { animation-name: tut-orbit; animation-duration: 14s; animation-timing-function: linear; }
+
+/* A row rises in, holds, and fades before the loop starts again. */
+@keyframes tut-rise {
+  0% { opacity: 0; transform: translateY(12px); }
+  12%, 88% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-4px); }
+}
+.tut-rise { animation-name: tut-rise; }
+
+/* A checkbox fills, and its row's name is struck through. */
+@keyframes tut-check {
+  0%, 30% { background: transparent; border-color: currentColor; }
+  38%, 92% { background: var(--tut-accent); border-color: var(--tut-accent); }
+  100% { background: transparent; border-color: currentColor; }
+}
+.tut-check { animation-name: tut-check; }
+@keyframes tut-tick {
+  0%, 32% { opacity: 0; transform: scale(0.4); }
+  40%, 92% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.4); }
+}
+.tut-tick { animation-name: tut-tick; }
+@keyframes tut-strike {
+  0%, 36% { transform: scaleX(0); }
+  46%, 92% { transform: scaleX(1); }
+  100% { transform: scaleX(0); }
+}
+.tut-strike { animation-name: tut-strike; transform-origin: left center; }
+@keyframes tut-dim {
+  0%, 38% { opacity: 1; }
+  46%, 92% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+.tut-dim { animation-name: tut-dim; }
+
+/* A sheet slides up; then the choice is picked. */
+@keyframes tut-sheet {
+  0%, 8% { transform: translateY(105%); }
+  22%, 86% { transform: translateY(0); }
+  100% { transform: translateY(105%); }
+}
+.tut-sheet { animation-name: tut-sheet; animation-duration: 6s; }
+@keyframes tut-pick {
+  0%, 38% { box-shadow: 0 0 0 0 transparent; }
+  46%, 86% { box-shadow: 0 0 0 2px var(--tut-accent); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+.tut-pick { animation-name: tut-pick; animation-duration: 6s; }
+@keyframes tut-tap {
+  0%, 30% { opacity: 0; transform: translate(14px, 14px) scale(1); }
+  38% { opacity: 1; transform: translate(0, 0) scale(1); }
+  44% { opacity: 1; transform: translate(0, 0) scale(0.8); }
+  52%, 80% { opacity: 1; transform: translate(0, 0) scale(1); }
+  90%, 100% { opacity: 0; transform: translate(0, 0) scale(1); }
+}
+.tut-tap { animation-name: tut-tap; animation-duration: 6s; }
+
+/* The focus ring counts down. */
+@keyframes tut-ring {
+  0% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: var(--ring, 302); }
+}
+.tut-ring { animation-name: tut-ring; animation-duration: 8s; animation-timing-function: linear; }
+
+/* Grade bars grow to their value. */
+@keyframes tut-grow {
+  0% { transform: scaleX(0); }
+  30%, 90% { transform: scaleX(1); }
+  100% { transform: scaleX(0); }
+}
+.tut-grow { animation-name: tut-grow; transform-origin: left center; }
+
+/* A notification drops in from the top. */
+@keyframes tut-drop {
+  0%, 10% { opacity: 0; transform: translateY(-120%); }
+  22%, 82% { opacity: 1; transform: translateY(0); }
+  94%, 100% { opacity: 0; transform: translateY(-120%); }
+}
+.tut-drop { animation-name: tut-drop; animation-duration: 6s; }
+
+@keyframes tut-pulse {
+  0%, 100% { opacity: 0.35; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.25); }
+}
+.tut-pulse { animation-name: tut-pulse; animation-duration: 2s; animation-timing-function: ease-in-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tut-anim { animation: none !important; }
+  .tut-tick { opacity: 1; }
+  .tut-check { background: var(--tut-accent); border-color: var(--tut-accent); }
+  .tut-strike { transform: scaleX(1); }
+}

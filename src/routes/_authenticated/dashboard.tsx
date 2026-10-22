@@ -6,6 +6,7 @@ import { useDashboardLayout, type WidgetId, type WidgetSize } from "@/lib/dashbo
 import { WIDGETS } from "@/components/widgets/dashboard-widgets";
 import { MasonryCell, MasonryGrid } from "@/components/widgets/masonry-grid";
 import { DashboardHero } from "@/components/dashboard-hero";
+import { TourInvite } from "@/components/tutorial/tour-invite";
 import { DashboardWidgetPicker } from "@/components/dashboard-widget-picker";
 
 import {
@@ -76,6 +77,7 @@ function Dashboard() {
         <DashboardWidgetPicker open order={layout.order} initial={visible} onSave={layout.savePicks} />
       )}
       <DashboardHero />
+      {!layout.needsPicks && <TourInvite />}
 
       {/* Masonry: a short card never leaves a hole; later cards move up into it. */}
       <MasonryGrid className="grid-cols-1 md:grid-cols-2 lg:grid-cols-12">

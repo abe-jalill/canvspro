@@ -53,6 +53,7 @@ import { Route as AuthenticatedSettingsClassesRouteImport } from './routes/_auth
 import { Route as AuthenticatedSettingsDevicesRouteImport } from './routes/_authenticated/settings.devices'
 import { Route as AuthenticatedSettingsNotificationsRouteImport } from './routes/_authenticated/settings.notifications'
 import { Route as AuthenticatedSettingsProfileRouteImport } from './routes/_authenticated/settings.profile'
+import { Route as AuthenticatedSettingsTutorialRouteImport } from './routes/_authenticated/settings.tutorial'
 import { Route as ApiMobileDeleteAccountRouteImport } from './routes/api/mobile/delete-account'
 import { Route as ApiMobileSignInRouteImport } from './routes/api/mobile/sign-in'
 import { Route as ApiPublicBillingRemindersRouteImport } from './routes/api/public/billing/reminders'
@@ -301,6 +302,12 @@ const AuthenticatedSettingsProfileRoute =
     path: '/profile',
     getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
+const AuthenticatedSettingsTutorialRoute =
+  AuthenticatedSettingsTutorialRouteImport.update({
+    id: '/tutorial',
+    path: '/tutorial',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
 const ApiMobileDeleteAccountRoute = ApiMobileDeleteAccountRouteImport.update({
   id: '/api/mobile/delete-account',
   path: '/api/mobile/delete-account',
@@ -397,6 +404,7 @@ export interface FileRoutesByFullPath {
   '/settings/devices': typeof AuthenticatedSettingsDevicesRoute
   '/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
   '/settings/profile': typeof AuthenticatedSettingsProfileRoute
+  '/settings/tutorial': typeof AuthenticatedSettingsTutorialRoute
   '/api/mobile/delete-account': typeof ApiMobileDeleteAccountRoute
   '/api/mobile/sign-in': typeof ApiMobileSignInRoute
   '/settings/': typeof AuthenticatedSettingsIndexRoute
@@ -451,6 +459,7 @@ export interface FileRoutesByTo {
   '/settings/devices': typeof AuthenticatedSettingsDevicesRoute
   '/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
   '/settings/profile': typeof AuthenticatedSettingsProfileRoute
+  '/settings/tutorial': typeof AuthenticatedSettingsTutorialRoute
   '/api/mobile/delete-account': typeof ApiMobileDeleteAccountRoute
   '/api/mobile/sign-in': typeof ApiMobileSignInRoute
   '/settings': typeof AuthenticatedSettingsIndexRoute
@@ -508,6 +517,7 @@ export interface FileRoutesById {
   '/_authenticated/settings/devices': typeof AuthenticatedSettingsDevicesRoute
   '/_authenticated/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
   '/_authenticated/settings/profile': typeof AuthenticatedSettingsProfileRoute
+  '/_authenticated/settings/tutorial': typeof AuthenticatedSettingsTutorialRoute
   '/api/mobile/delete-account': typeof ApiMobileDeleteAccountRoute
   '/api/mobile/sign-in': typeof ApiMobileSignInRoute
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
@@ -565,6 +575,7 @@ export interface FileRouteTypes {
     | '/settings/devices'
     | '/settings/notifications'
     | '/settings/profile'
+    | '/settings/tutorial'
     | '/api/mobile/delete-account'
     | '/api/mobile/sign-in'
     | '/settings/'
@@ -619,6 +630,7 @@ export interface FileRouteTypes {
     | '/settings/devices'
     | '/settings/notifications'
     | '/settings/profile'
+    | '/settings/tutorial'
     | '/api/mobile/delete-account'
     | '/api/mobile/sign-in'
     | '/settings'
@@ -675,6 +687,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings/devices'
     | '/_authenticated/settings/notifications'
     | '/_authenticated/settings/profile'
+    | '/_authenticated/settings/tutorial'
     | '/api/mobile/delete-account'
     | '/api/mobile/sign-in'
     | '/_authenticated/settings/'
@@ -1029,6 +1042,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsProfileRouteImport
       parentRoute: typeof AuthenticatedSettingsRoute
     }
+    '/_authenticated/settings/tutorial': {
+      id: '/_authenticated/settings/tutorial'
+      path: '/tutorial'
+      fullPath: '/settings/tutorial'
+      preLoaderRoute: typeof AuthenticatedSettingsTutorialRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
     '/api/mobile/delete-account': {
       id: '/api/mobile/delete-account'
       path: '/api/mobile/delete-account'
@@ -1113,6 +1133,7 @@ interface AuthenticatedSettingsRouteChildren {
   AuthenticatedSettingsDevicesRoute: typeof AuthenticatedSettingsDevicesRoute
   AuthenticatedSettingsNotificationsRoute: typeof AuthenticatedSettingsNotificationsRoute
   AuthenticatedSettingsProfileRoute: typeof AuthenticatedSettingsProfileRoute
+  AuthenticatedSettingsTutorialRoute: typeof AuthenticatedSettingsTutorialRoute
   AuthenticatedSettingsIndexRoute: typeof AuthenticatedSettingsIndexRoute
 }
 
@@ -1129,6 +1150,7 @@ const AuthenticatedSettingsRouteChildren: AuthenticatedSettingsRouteChildren = {
   AuthenticatedSettingsNotificationsRoute:
     AuthenticatedSettingsNotificationsRoute,
   AuthenticatedSettingsProfileRoute: AuthenticatedSettingsProfileRoute,
+  AuthenticatedSettingsTutorialRoute: AuthenticatedSettingsTutorialRoute,
   AuthenticatedSettingsIndexRoute: AuthenticatedSettingsIndexRoute,
 }
 

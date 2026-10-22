@@ -3,6 +3,7 @@ import {
   Bell,
   Bot,
   ChevronRight,
+  CirclePlay,
   CreditCard,
   GraduationCap,
   Link2,
@@ -35,6 +36,12 @@ export const Route = createFileRoute("/_authenticated/settings/")({
 });
 
 const sections = [
+  {
+    title: "Tutorial",
+    description: "A one-minute animated tour of CoursePro.",
+    to: "/settings/tutorial" as const,
+    icon: CirclePlay,
+  },
   {
     title: "Appearance",
     description: "Colors and light or dark mode.",
