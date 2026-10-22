@@ -92,7 +92,7 @@ test("one bad Canvas record never blanks the app, and duplicates never crash it"
 });
 
 test("hidden classes are hidden on every screen", () => {
-  assert.match(swift.NativeFeatures, /func shownAssignments\(in store: NativeContentStore\) -> \[AssignmentItem\]/);
+  assert.match(swift.NativeFeatures, /func shownAssignments\(in store: NativeContentStore, includePersonalTasks: Bool = false\) -> \[AssignmentItem\]/);
   const uses = allSwift.match(/features\.shownAssignments\(in: store\)/g) ?? [];
   assert.ok(uses.length >= 5, `${uses.length} screens`);
   assert.doesNotMatch(allSwift, /store\.bundle\.assignments \+ features\.customAssignments/);
@@ -230,7 +230,7 @@ test("the app is gentle: soft late-work wording, one next step, hidden grades, q
   assert.match(swift.NativeFeatures, /label: "Past due"/);
   assert.match(swift.NativeDesign, /case "overdue": return warning/);
   assert.match(swift.NativeViews, /"NEXT UP"/);
-  assert.match(swift.NativeViews, /NativeParity\.nextUp\(activeAssignments, progress: features\.progress\)/);
+  assert.match(swift.NativeViews, /NativeParity\.nextUp\(heroActive, progress: features\.progress\)/);
   // Grades can stay blurred until tapped, and hide again when the app is left.
   assert.match(swift.NativeDesign, /private struct CPGradeShield: ViewModifier/);
   assert.match(swift.NativeMoreViews, /Hide grades until tapped/);

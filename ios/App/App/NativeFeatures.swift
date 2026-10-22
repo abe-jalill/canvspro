@@ -955,10 +955,10 @@ final class NativeFeatureStore: ObservableObject {
 
     /// Canvas and custom assignments for every class the student hasn't hidden.
     /// Every screen lists work through this, so hiding a class hides it everywhere.
-    func shownAssignments(in store: NativeContentStore) -> [AssignmentItem] {
+    func shownAssignments(in store: NativeContentStore, includePersonalTasks: Bool = false) -> [AssignmentItem] {
         let hidden = hiddenCourseIDs
         let courses = Dictionary(store.bundle.courses.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        let custom = customAssignments.map { AssignmentItem.custom($0, course: courses[$0.courseID]) }
+        let custom = customAssignments.filter { includePersonalTasks || $0.courseID != CustomAssignment.noClassID }.map { AssignmentItem.custom($0, course: courses[$0.courseID]) }
         return (store.bundle.assignments + custom).filter { !hidden.contains($0.courseID) }
     }
 }
@@ -976,6 +976,22 @@ extension AssignmentItem {
     static func custom(_ item: CustomAssignment, course: CourseSummary?) -> AssignmentItem {
         let fallback = item.courseID == CustomAssignment.noClassID ? CustomAssignment.noClassLabel : ""
         return AssignmentItem(id: item.id, name: item.name, description: item.notes, dueAt: item.dueAt, htmlURL: "", pointsPossible: item.pointsPossible, courseID: item.courseID, courseName: course?.name ?? fallback, courseCode: course?.courseCode ?? "", submission: nil, estimatedMinutes: item.estimatedMinutes)
+    }
+}
+
+/// Sunday–Saturday in local time, independent of the device's first-weekday setting.
+enum NativeTodoWeek {
+    static func days(now: Date = Date(), offset: Int = 0) -> [Date] {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: now)
+        let shift = 1 - calendar.component(.weekday, from: today) + min(3, max(0, offset)) * 7
+        guard let sunday = calendar.date(byAdding: .day, value: shift, to: today) else { return [] }
+        return (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: sunday) }
+    }
+
+    static func isDue(_ item: AssignmentItem, on day: Date) -> Bool {
+        guard let due = item.dueDate else { return false }
+        return Calendar.current.isDate(due, inSameDayAs: day)
     }
 }
 

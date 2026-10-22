@@ -88,5 +88,5 @@ test("the Next up card holds Start and its time estimate inside it", () => {
   // and background close; the estimate is in the details line above it.
   assert.match(card, /NotificationCenter\.default\.post\(name: \.nativeStudyAssignment, object: item\)/);
   assert.match(card, /Text\(nextUpDetail\(item\)\)/);
-  assert.match(card, /\.accessibilityHint\("Opens Study with this assignment"\)\s*\} else \{[\s\S]*\}\s*\}\s*\.padding\(18\)\s*\.frame\(maxWidth: \.infinity, alignment: \.leading\)[\s\S]*?\.background \{ CPCardLight\(\) \}\s*\.background\(CPTheme\.accentCardGradient\(scheme\)/);
+  assert.match(card, /\.accessibilityHint\("Opens Study with this assignment"\)\s*\}\s*\} else \{[\s\S]*\}\s*\}\s*\.padding\(18\)\s*\.frame\(maxWidth: \.infinity, alignment: \.leading\)[\s\S]*?\.background \{ CPCardLight\(\) \}\s*\.background\(CPTheme\.accentCardGradient\(scheme\)/);
 });

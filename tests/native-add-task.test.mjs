@@ -36,6 +36,7 @@ test("Personal: its name, a gray dot, and after the classes", () => {
   assert.match(design, /if courseID == CustomAssignment\.noClassID \{ return adaptive\(dark: \.hsl\(220, 0\.08, 0\.68\), light: \.hsl\(220, 0\.08, 0\.40\)\) \}/);
   // To-Do by class, and Today's This week.
   assert.match(more, /return classes \+ \[NativeTitledGroup\(title: CustomAssignment\.noClassLabel, items: personal, courseID: CustomAssignment\.noClassID\)\]/);
-  assert.match(views, /let groups = classGroups \+ \(personal\.isEmpty \? \[\] : \[NativeCourseGroup\(course: CustomAssignment\.noClassCourse, items: personal\)\]\)/);
+  assert.doesNotMatch(views, /let groups = classGroups \+ \(personal\.isEmpty/);
+  assert.match(features, /includePersonalTasks: Bool = false/);
   assert.match(views, /\.cpNavigationTitle\(isPersonalTask \? "Task" : "Assignment"\)/);
 });
