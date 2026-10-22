@@ -1338,12 +1338,31 @@ private struct NativeTodoWeekPicker: View {
     let onSelect: (Date) -> Void
     let onChangeWeek: (Int) -> Void
     let onToday: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Which way the weeks last moved (1 forward, -1 back), for the slide.
+    @State private var direction = 1
+    /// How far the week is being dragged, so it follows the finger a little.
+    @GestureState private var drag: CGFloat = 0
 
-    private func move(_ direction: Int) {
-        let next = weekOffset + direction
+    private func move(_ step: Int) {
+        let next = weekOffset + step
         guard (0..<4).contains(next) else { return }
-        onChangeWeek(next)
+        // The outgoing week leaves with the transition it last drew with, so the
+        // direction is set one update before the week changes.
+        direction = step
+        DispatchQueue.main.async {
+            withAnimation(reduceMotion ? nil : .spring(duration: 0.32, bounce: 0.08)) { onChangeWeek(next) }
+        }
         CPHaptics.select()
+    }
+
+    /// The new week comes in from the side you moved toward.
+    private var slide: AnyTransition {
+        if reduceMotion { return .opacity }
+        return .asymmetric(
+            insertion: .move(edge: direction > 0 ? .trailing : .leading).combined(with: .opacity),
+            removal: .move(edge: direction > 0 ? .leading : .trailing).combined(with: .opacity)
+        )
     }
 
     var body: some View {
@@ -1365,16 +1384,32 @@ private struct NativeTodoWeekPicker: View {
                 Button { move(1) } label: { CPIconButtonLabel(symbol: "chevron.right") }
                     .buttonStyle(.plain).disabled(weekOffset == 3).accessibilityLabel("Next week")
             }
-            HStack(spacing: 4) {
-                ForEach(days, id: \.self) { day in
-                    dayButton(day)
+            ZStack {
+                HStack(spacing: 4) {
+                    ForEach(days, id: \.self) { day in
+                        dayButton(day)
+                    }
                 }
+                .id(weekOffset)
+                .transition(slide)
+                .offset(x: reduceMotion ? 0 : drag * 0.35)
             }
+            .clipped()
             .contentShape(Rectangle())
-            .simultaneousGesture(DragGesture(minimumDistance: 30).onEnded { value in
-                let x = value.translation.width, y = value.translation.height
-                if abs(x) > 48 && abs(x) > abs(y) * 1.5 { move(x < 0 ? 1 : -1) }
-            })
+            .simultaneousGesture(DragGesture(minimumDistance: 30)
+                .updating($drag) { value, state, _ in
+                    let x = value.translation.width
+                    // Only sideways drags move it; scrolling up and down never does.
+                    guard abs(x) > abs(value.translation.height) else { return }
+                    let atEdge = (x > 0 && weekOffset == 0) || (x < 0 && weekOffset == 3)
+                    state = atEdge ? x * 0.3 : x
+                }
+                .onEnded { value in
+                    let x = value.translation.width, y = value.translation.height
+                    if abs(x) > 48 && abs(x) > abs(y) * 1.5 { move(x < 0 ? 1 : -1) }
+                })
+            .accessibilityAction(named: "Next week") { move(1) }
+            .accessibilityAction(named: "Previous week") { move(-1) }
         }
         .foregroundStyle(CPTheme.foreground(scheme))
         .padding(.horizontal, 4)

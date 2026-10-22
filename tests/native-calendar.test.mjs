@@ -61,3 +61,10 @@ test("swipe the week strip to change weeks; it slides in from that side", () => 
   assert.doesNotMatch(design, /repeatForever/);
   assert.match(design, /TimelineView\(\.animation\(minimumInterval: 1\.0 \/ 30, paused: reduceMotion\)\)/);
 });
+
+test("To-Do's weeks follow the finger and slide in from the side you swiped", () => {
+  const picker = more.slice(more.indexOf("private struct NativeTodoWeekPicker"), more.indexOf("struct NativeTitledGroup"));
+  assert.match(picker, /\.id\(weekOffset\)\s+\.transition\(slide\)\s+\.offset\(x: reduceMotion \? 0 : drag \* 0\.35\)/);
+  assert.match(picker, /insertion: \.move\(edge: direction > 0 \? \.trailing : \.leading\)/);
+  assert.match(picker, /\.accessibilityAction\(named: "Next week"\) \{ move\(1\) \}/);
+});
