@@ -141,6 +141,13 @@
       "when": 1792108046464,
       "tag": "0019_0018_native_push_tokens",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1792679206245,
+      "tag": "0020_signed_in_devices",
+      "breakpoints": true
     }
   ]
 }
