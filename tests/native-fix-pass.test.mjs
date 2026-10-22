@@ -220,8 +220,8 @@ test("assignments are calmer: no Priority, one undo bar, a swipe hint, remembere
   // The first swipeable row slides open once; never with Reduce Motion.
   assert.match(swift.NativeDesign, /CanvasProSwipeHinted/);
   assert.match(swift.NativeDesign, /guard leading != nil, !reduceMotion/);
-  // By day / By class (saved to the account, like the website's) and the last tab are remembered.
-  assert.match(swift.NativeMoreViews, /features\.todoGrouping == "class" \? "By class" : "By day"/);
+  // By day / By class / By impact (saved to the account, like the website's) and the last tab are remembered.
+  assert.match(swift.NativeMoreViews, /features\.todoGrouping == "class" \? "By class" : features\.todoGrouping == "impact" \? "By impact" : "By day"/);
   assert.match(swift.NativeViews, /CanvasProLastTab/);
 });
 

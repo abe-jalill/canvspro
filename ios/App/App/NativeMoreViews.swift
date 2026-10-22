@@ -1007,10 +1007,12 @@ struct FocusView: View {
     /// Opened from More rather than as a tab: keeps the bar with its back button.
     var inMore = false
     /// By day or by class, saved to the account: the website's To-Do follows it too.
-    private var grouping: String { features.todoGrouping == "class" ? "By class" : "By day" }
+    private var grouping: String {
+        features.todoGrouping == "class" ? "By class" : features.todoGrouping == "impact" ? "By impact" : "By day"
+    }
     private var groupingChoice: Binding<String> {
         Binding(get: { grouping }, set: { value in
-            Task { await features.setTodoGrouping(value == "By class" ? "class" : "day") }
+            Task { await features.setTodoGrouping(value == "By class" ? "class" : value == "By impact" ? "impact" : "day") }
         })
     }
     @State private var search = ""
@@ -1020,7 +1022,14 @@ struct FocusView: View {
 
     @State private var selectedDate: Date?
     @State private var weekOffset = 0
+    /// Rows with their steps showing.
+    @State private var openSteps: Set<Int> = []
+    @State private var quickText = ""
+    @State private var quickSaving = false
+    @State private var quickAdded: String?
+    @FocusState private var quickFocused: Bool
     private var selectedDay: Date { selectedDate ?? Calendar.current.startOfDay(for: Date()) }
+    private var isTodaySelected: Bool { Calendar.current.isDateInToday(selectedDay) }
     private var weekDays: [Date] { NativeTodoWeek.days(offset: weekOffset) }
     private var allItems: [AssignmentItem] { features.shownAssignments(in: store, includePersonalTasks: true) }
     private var visibleCourses: [CourseSummary] { store.bundle.courses.filter { !features.hiddenCourseIDs.contains($0.id) } }
@@ -1056,6 +1065,21 @@ struct FocusView: View {
         guard let personal = grouped[CustomAssignment.noClassID], !personal.isEmpty else { return classes }
         return classes + [NativeTitledGroup(title: CustomAssignment.noClassLabel, items: personal, courseID: CustomAssignment.noClassID)]
     }
+    /// By impact: the work worth the biggest share of its class's points first.
+    private var impactGroups: [NativeTitledGroup] {
+        guard !items.isEmpty else { return [] }
+        let sorted = items.sorted { a, b in
+            let left = share(a) ?? 0, right = share(b) ?? 0
+            return left != right ? left > right : AssignmentItem.dueSort(a, b)
+        }
+        return [NativeTitledGroup(title: "Most impact first", items: sorted)]
+    }
+    private func share(_ item: AssignmentItem) -> Double? { NativeTodoInsights.pointsShare(item, among: allItems) }
+    /// Everything due today, done or not: "2 left today" and today's bar. A head start counts.
+    private var todayDone: NativeTodoInsights.TodayProgress {
+        let due = allItems.filter { item in item.dueDate.map { Calendar.current.isDateInToday($0) } ?? false }
+        return NativeTodoInsights.todayProgress(due.map { (done: $0.showsDone(in: store), progress: features.progress[$0.id], minutes: estimate($0)) })
+    }
     private func estimate(_ item: AssignmentItem) -> Int { NativeParity.estimate(item, estimates: features.estimates) }
     private func classTint(_ courseID: Int) -> Color { CPTheme.classColor(courseID, in: store.bundle.courses) }
     private var showsCounts: Bool { !store.showsSkeleton && !store.needsCanvasConnection && store.loadFailure == nil }
@@ -1071,6 +1095,11 @@ struct FocusView: View {
     }
     /// "4 this week · 2 hr 30 min".
     private var headerLine: String {
+        let today = todayDone
+        if isTodaySelected && today.total > 0 {
+            let label = NativeTodoInsights.leftTodayLabel(left: today.left, total: today.total)
+            return today.left > 0 ? "\(label) · \(Self.duration(today.minutesLeft))" : label
+        }
         let day = Calendar.current.isDateInToday(selectedDay) ? "today" : selectedDay.formatted(.dateTime.month(.abbreviated).day())
         if items.isEmpty { return "Nothing due \(day)" }
         return "\(items.count) due \(day) · \(Self.duration(items.reduce(0) { $0 + estimate($1) }))"
@@ -1105,11 +1134,15 @@ struct FocusView: View {
                         CPSkeletonCard()
                         CPSkeletonCard()
                     } else {
+                        quickAddField
+                        if features.showsWeeklyRhythm { NativeWeeklyRhythm(completedAt: Array(store.completedAt.values)).transition(.opacity) }
                         list
+                        rhythmToggle
                     }
                 }
                 .cpPagePadding()
                 .cpStateChange(grouping).cpStateChange(selectedDay).cpStateChange(weekOffset)
+                .cpStateChange(openSteps).cpStateChange(features.showsWeeklyRhythm)
                 .cpStateChange(items.map(\.id))
             }
             .scrollDismissesKeyboard(.immediately)
@@ -1165,9 +1198,21 @@ struct FocusView: View {
                     Picker("Group by", selection: groupingChoice) {
                         Text("By day").tag("By day")
                         Text("By class").tag("By class")
+                        Text("By impact").tag("By impact")
                     }
                 } label: { CPLinkLabel(text: grouping, symbol: "chevron.down") }
                     .accessibilityLabel("Group, \(grouping)")
+            }
+            // Today's bar: finished work fills it, and so does a head start.
+            let today = todayDone
+            if showsCounts && isTodaySelected && today.total > 0 {
+                CPProgressBar(value: today.fraction, color: CPTheme.primary(scheme: scheme), height: 6)
+                    .frame(height: 6)
+                    .padding(.top, 6)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Today")
+                    .accessibilityValue("\(Int((today.fraction * 100).rounded())) percent done")
+                    .transition(.opacity)
             }
             let tally = weekTally
             if tally.total > 0 && showsCounts {
@@ -1207,7 +1252,17 @@ struct FocusView: View {
     // MARK: List
 
     @ViewBuilder private var list: some View {
-        if items.isEmpty {
+        let today = todayDone
+        if items.isEmpty && !isSearching && isTodaySelected && today.total > 0 {
+            // Everything due today finished: say so warmly.
+            CPGlassCard {
+                NativeEmptyState(
+                    title: "Done for today. Nice work.",
+                    symbol: "checkmark",
+                    detail: "You finished \(today.total) \(today.total == 1 ? "thing" : "things") due today. Rest, or get ahead."
+                )
+            }
+        } else if items.isEmpty {
             CPGlassCard {
                 NativeEmptyState(
                     title: isSearching ? "No matches for this day" : "Nothing due this day.",
@@ -1218,7 +1273,7 @@ struct FocusView: View {
 
             }
         } else {
-            ForEach(grouping == "By class" ? classGroups : dayGroups) { group in
+            ForEach(grouping == "By class" ? classGroups : grouping == "By impact" ? impactGroups : dayGroups) { group in
                 section(group, showCourse: grouping != "By class")
             }
         }
@@ -1277,40 +1332,221 @@ struct FocusView: View {
         .accessibilityAddTraits(.isHeader)
     }
 
-    /// The name, and one quiet line: class, time and how long it takes.
+    /// The name, and one quiet line: class, time and how long it takes. Then
+    /// what it's worth, the next step, and buttons for steps and Start, so
+    /// nothing is only in a swipe (press and hold has the same choices).
     private func row(_ item: AssignmentItem, showCourse: Bool) -> some View {
         let done = item.showsDone(in: store)
-        return HStack(alignment: .top, spacing: 12) {
-            NativeCompletionButton(assignment: item, store: store, tint: classTint(item.courseID)).padding(.top, 1)
-            NavigationLink {
-                if let course = store.bundle.courses.first(where: { $0.id == item.courseID }) {
-                    CourseDetailView(course: course, store: store, features: features, highlightAssignment: item)
-                } else {
-                    AssignmentDetailView(assignment: item, store: store, features: features)
+        let steps = features.assignmentSteps[item.id] ?? []
+        let offerSteps = !done && (!steps.isEmpty || NativeSteps.isBigWork(points: item.pointsPossible, estimate: estimate(item)))
+        let stepsOpen = offerSteps && openSteps.contains(item.id)
+        let canStudy = !done && item.courseID != CustomAssignment.noClassID
+        let itemShare = share(item)
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .top, spacing: 12) {
+                NativeCompletionButton(assignment: item, store: store, tint: classTint(item.courseID)).padding(.top, 1)
+                NavigationLink {
+                    if let course = store.bundle.courses.first(where: { $0.id == item.courseID }) {
+                        CourseDetailView(course: course, store: store, features: features, highlightAssignment: item)
+                    } else {
+                        AssignmentDetailView(assignment: item, store: store, features: features)
+                    }
+                } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(item.name).cpFont(15, .medium)
+                            .foregroundStyle(done ? CPTheme.muted(scheme) : CPTheme.foreground(scheme))
+                            .strikethrough(done)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text(rowMeta(item, showCourse: showCourse, done: done))
+                            .cpFont(12).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                        if !done, let impact = NativeTodoInsights.impactLabel(itemShare) {
+                            NativeImpactBadge(text: impact, high: NativeTodoInsights.isHighImpact(itemShare))
+                        }
+                        if !done, let next = NativeSteps.next(steps) {
+                            Text("Next: \(next.title) · \(NativeSteps.percent(steps))% done")
+                                .cpFont(12).foregroundStyle(CPTheme.foreground(scheme).opacity(0.8))
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        if !done { NativeOpensLabel(assignment: item) }
+                        if !done, let percent = features.progress[item.id], percent > 0 { NativeProgressBar(percent: percent) }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
                 }
-            } label: {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(item.name).cpFont(15, .medium)
-                        .foregroundStyle(done ? CPTheme.muted(scheme) : CPTheme.foreground(scheme))
-                        .strikethrough(done)
-                        .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Text(rowMeta(item, showCourse: showCourse, done: done))
-                        .cpFont(12).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
-                        .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                    if !done { NativeOpensLabel(assignment: item) }
-                    if !done, let percent = features.progress[item.id], percent > 0 { NativeProgressBar(percent: percent) }
+                .buttonStyle(CPPressStyle())
+                if offerSteps {
+                    Button { toggleSteps(item) } label: {
+                        Image(systemName: "checklist").cpIconFont(14)
+                            .foregroundStyle(stepsOpen ? CPTheme.foreground(scheme) : CPTheme.muted(scheme))
+                            .frame(width: 36, height: 44).contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(stepsOpen ? "Hide steps for \(item.name)" : "Show steps for \(item.name)")
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
+                if canStudy {
+                    Button { NotificationCenter.default.post(name: .nativeStudyAssignment, object: item) } label: {
+                        Image(systemName: "play.fill").cpIconFont(12)
+                            .foregroundStyle(CPTheme.muted(scheme))
+                            .frame(width: 36, height: 44).contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Start studying \(item.name)")
+                }
             }
-            .buttonStyle(CPPressStyle())
+            .padding(.vertical, 13)
+            .contentShape(Rectangle())
+            // Press and hold: the same choices as the swipes, plus steps.
+            .contextMenu {
+                Button { toggleDone(item, wasDone: done) } label: {
+                    Label(done ? "Mark not done" : "Mark done", systemImage: done ? "arrow.uturn.backward" : "checkmark")
+                }
+                if canStudy {
+                    Button { NotificationCenter.default.post(name: .nativeStudyAssignment, object: item) } label: {
+                        Label("Start studying", systemImage: "timer")
+                    }
+                }
+                if offerSteps {
+                    Button { toggleSteps(item) } label: {
+                        Label(stepsOpen ? "Hide steps" : "Steps", systemImage: "checklist")
+                    }
+                }
+            }
+            .nativeAssignmentSwipe(item, store: store, allowStudy: item.courseID != CustomAssignment.noClassID)
+            if stepsOpen {
+                NativeStepList(assignment: item, estimate: estimate(item), steps: steps, tint: classTint(item.courseID)) { next in
+                    saveSteps(next, for: item)
+                }
+                .padding(.leading, 34)
+                .padding(.bottom, 12)
+                .transition(.opacity)
+            }
         }
-        .padding(.vertical, 13)
         .opacity(done ? 0.6 : 1)
-        .nativeAssignmentSwipe(item, store: store, allowStudy: item.courseID != CustomAssignment.noClassID)
         .transition(.cpCompletionExit)
+    }
+
+    private func toggleSteps(_ item: AssignmentItem) {
+        CPHaptics.tap()
+        if openSteps.contains(item.id) { openSteps.remove(item.id) } else { openSteps.insert(item.id) }
+    }
+
+    private func toggleDone(_ item: AssignmentItem, wasDone: Bool) {
+        if !wasDone { CPHaptics.success() }
+        Task { await store.toggle(item) }
+    }
+
+    private func saveSteps(_ steps: [NativeAssignmentStep], for item: AssignmentItem) {
+        Task {
+            do { try await features.saveSteps(steps, for: item) }
+            catch { features.errorMessage = "Couldn't save those steps. \(error.localizedDescription)" }
+        }
+    }
+
+    // MARK: Quick add, tip and rhythm
+
+    private var quickCourses: [NativeQuickAdd.Course] {
+        visibleCourses.map { course in
+            NativeQuickAdd.Course(id: course.id, names: NativeQuickAdd.aliases(
+                name: course.name, code: course.courseCode, nickname: store.nicknames[course.id]?.customName))
+        }
+    }
+
+    /// Type a task the way you'd jot it down; what will be added shows as you type.
+    private var quickAddField: some View {
+        let parsed = NativeQuickAdd.parse(quickText, courses: quickCourses)
+        let typed = !quickText.trimmingCharacters(in: .whitespaces).isEmpty
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                Image(systemName: "bolt").cpIconFont(13).foregroundStyle(CPTheme.muted(scheme)).accessibilityHidden(true)
+                TextField("Quick add: Read ch4 bio fri 30m", text: $quickText)
+                    .cpFont(14)
+                    .focused($quickFocused)
+                    .submitLabel(.done)
+                    .onSubmit { addQuick() }
+                    .accessibilityLabel("Quick add a task")
+                    .accessibilityHint("Type a task with its class, day, time and length, such as Lab report chem tomorrow 5pm 1h.")
+                if typed {
+                    Button { addQuick() } label: {
+                        Text(quickSaving ? "Adding…" : "Add").cpFont(13, .semibold)
+                            .foregroundStyle(CPTheme.primary(scheme: scheme))
+                            .padding(.horizontal, 12).frame(minHeight: 44).contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(parsed.name.isEmpty || quickSaving)
+                }
+            }
+            if typed && !parsed.name.isEmpty {
+                quickPreview(parsed).transition(.opacity)
+            } else if let quickAdded {
+                Text(quickAdded).cpFont(12).foregroundStyle(CPTheme.muted(scheme)).transition(.opacity)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, typed || quickAdded != nil ? 8 : 0)
+        .frame(minHeight: 44)
+        .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(CPTheme.insetBorder(scheme), lineWidth: 0.5))
+        .animation(.easeOut(duration: 0.2), value: typed)
+        .onChange(of: quickText) { _, text in if !text.isEmpty { quickAdded = nil } }
+    }
+
+    /// "Lab report  · General Chemistry", then "Fri, Oct 23, 5:00 PM · 1 hr".
+    private func quickPreview(_ parsed: NativeQuickAdd.Result) -> some View {
+        let course = parsed.courseID.map { store.displayName(courseID: $0, fallback: "") } ?? CustomAssignment.noClassLabel
+        return VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Text(parsed.name).cpFont(13, .semibold).foregroundStyle(CPTheme.foreground(scheme))
+                Label(course, systemImage: parsed.courseID == nil ? "person" : "book.closed")
+                    .cpFont(12).foregroundStyle(parsed.courseID.map { classTint($0) } ?? CPTheme.muted(scheme))
+            }
+            HStack(spacing: 12) {
+                Label(parsed.dueDate.map { $0.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().hour().minute()) } ?? "No due date", systemImage: "calendar")
+                if let minutes = parsed.minutes { Label(Self.duration(minutes), systemImage: "clock") }
+            }
+            .cpFont(12).foregroundStyle(CPTheme.muted(scheme))
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func addQuick() {
+        let parsed = NativeQuickAdd.parse(quickText, courses: quickCourses)
+        guard !parsed.name.isEmpty, !quickSaving else { return }
+        quickSaving = true
+        let formatter = ISO8601DateFormatter()
+        let item = CustomAssignment(id: -Int(Date().timeIntervalSince1970 * 1000), courseID: parsed.courseID ?? CustomAssignment.noClassID,
+            name: parsed.name, dueAt: parsed.dueDate.map { formatter.string(from: $0) }, pointsPossible: nil, notes: "",
+            createdAt: formatter.string(from: Date()), estimatedMinutes: parsed.minutes)
+        Task {
+            defer { quickSaving = false }
+            do {
+                try await features.savePreference("custom-assignments", features.customAssignments + [item])
+                CPHaptics.success()
+                quickText = ""
+                let when = parsed.dueDate.map { " for \($0.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))" } ?? ""
+                quickAdded = "Added \"\(item.name)\"\(when)."
+                UIAccessibility.post(notification: .announcement, argument: quickAdded)
+            } catch {
+                features.errorMessage = "Couldn't add that. Check your connection and try again."
+            }
+        }
+    }
+
+    /// The optional weekly rhythm, quiet at the bottom.
+    private var rhythmToggle: some View {
+        Button {
+            CPHaptics.tap()
+            Task { await features.setWeeklyRhythm(!features.showsWeeklyRhythm) }
+        } label: {
+            Text(features.showsWeeklyRhythm ? "Hide weekly rhythm" : "Show weekly rhythm")
+                .cpFont(13).foregroundStyle(CPTheme.muted(scheme))
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     /// By day the section already names the day, so a row shows just the time
@@ -1325,6 +1561,156 @@ struct FocusView: View {
         }
         parts.append(done ? (item.isCanvasFinished ? "Done in Canvas" : "Done") : Self.duration(estimate(item)))
         return parts.joined(separator: " · ")
+    }
+}
+
+/// "17% of class points": what an assignment is worth in its class. A star
+/// marks 10% or more. Never worded as a grade, since classes can weight groups.
+private struct NativeImpactBadge: View {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
+    let text: String
+    let high: Bool
+    var body: some View {
+        HStack(spacing: 4) {
+            if high { Image(systemName: "star.fill").cpIconFont(11) }
+            Text(text).cpFont(11, .medium).monospacedDigit()
+        }
+        .foregroundStyle(high ? CPTheme.primary(scheme: scheme) : CPTheme.muted(scheme))
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3)
+        .background((high ? CPTheme.primary(scheme: scheme) : CPTheme.foreground(scheme)).opacity(high ? 0.14 : 0.06), in: Capsule())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Worth \(text)")
+    }
+}
+
+/// Steps for big work: tick them off (progress follows), suggest a plan, add
+/// or remove steps. Saved to the account, so the website shows the same steps.
+private struct NativeStepList: View {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
+    let assignment: AssignmentItem
+    let estimate: Int
+    let steps: [NativeAssignmentStep]
+    let tint: Color
+    let onSave: ([NativeAssignmentStep]) -> Void
+    @State private var draft = ""
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            if steps.isEmpty {
+                HStack(spacing: 8) {
+                    Text("Break it into small steps.").cpFont(12).foregroundStyle(CPTheme.muted(scheme))
+                    Spacer(minLength: 4)
+                    Button {
+                        CPHaptics.tap()
+                        onSave(NativeSteps.suggested(name: assignment.name, estimate: estimate))
+                    } label: {
+                        Label("Suggest steps", systemImage: "sparkles").cpFont(12, .semibold)
+                            .foregroundStyle(CPTheme.primary(scheme: scheme))
+                            .frame(minHeight: 44).contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            ForEach(steps) { step in
+                HStack(spacing: 10) {
+                    Button {
+                        if !step.done { CPHaptics.tap() }
+                        onSave(steps.map { $0.id == step.id ? NativeAssignmentStep(id: $0.id, title: $0.title, minutes: $0.minutes, done: !$0.done) : $0 })
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: step.done ? "checkmark.circle.fill" : "circle").cpIconFont(17)
+                                .foregroundStyle(step.done ? tint : CPTheme.muted(scheme))
+                                .contentTransition(.symbolEffect(.replace))
+                            Text(step.title).cpFont(13)
+                                .foregroundStyle(step.done ? CPTheme.muted(scheme) : CPTheme.foreground(scheme))
+                                .strikethrough(step.done)
+                                .multilineTextAlignment(.leading)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Spacer(minLength: 4)
+                            if let minutes = step.minutes {
+                                Text(FocusView.duration(minutes)).cpFont(11).monospacedDigit().foregroundStyle(CPTheme.faint(scheme))
+                            }
+                        }
+                        .frame(minHeight: 40)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(step.title)
+                    .accessibilityValue(step.done ? "Done" : "Not done")
+                    Button { onSave(steps.filter { $0.id != step.id }) } label: {
+                        Image(systemName: "xmark").cpIconFont(11).foregroundStyle(CPTheme.faint(scheme))
+                            .frame(width: 32, height: 40).contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Remove step \(step.title)")
+                }
+            }
+            HStack(spacing: 10) {
+                Image(systemName: "plus").cpIconFont(13).foregroundStyle(CPTheme.muted(scheme)).frame(width: 17).accessibilityHidden(true)
+                TextField("Add a step", text: $draft)
+                    .cpFont(13)
+                    .focused($focused)
+                    .submitLabel(.done)
+                    .onSubmit(add)
+                if !draft.trimmingCharacters(in: .whitespaces).isEmpty {
+                    Button("Add", action: add).cpFont(12, .semibold).foregroundStyle(CPTheme.primary(scheme: scheme)).frame(minHeight: 40)
+                }
+            }
+            .frame(minHeight: 40)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 4)
+        .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .sensoryFeedback(trigger: steps.filter(\.done).count) { old, new in new > old && new == steps.count ? .success : nil }
+    }
+
+    private func add() {
+        let title = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty else { return }
+        onSave(steps + [NativeAssignmentStep(id: NativeSteps.newID(), title: title, minutes: nil, done: false)])
+        draft = ""
+        focused = true
+    }
+}
+
+/// A forgiving weekly rhythm: a dot for each day this Sunday–Saturday week you
+/// finished something. Rest days are fine, and a new week starts fresh.
+private struct NativeWeeklyRhythm: View {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
+    let completedAt: [Date]
+    var body: some View {
+        let now = Date()
+        let days = NativeTodoInsights.rhythmWeek(completedAt, now: now)
+        let todayIndex = Calendar.current.component(.weekday, from: now) - 1
+        let line = NativeTodoInsights.rhythmLine(days, now: now)
+        return VStack(alignment: .leading, spacing: 10) {
+            Text("Weekly rhythm").cpFont(13, .semibold).foregroundStyle(CPTheme.foreground(scheme))
+            HStack(spacing: 0) {
+                ForEach(0..<7, id: \.self) { index in
+                    VStack(spacing: 6) {
+                        Circle()
+                            .fill(days[index] ? CPTheme.primary(scheme: scheme) : CPTheme.foreground(scheme).opacity(0.08))
+                            .frame(width: 14, height: 14)
+                            .overlay {
+                                if index == todayIndex { Circle().strokeBorder(CPTheme.primary(scheme: scheme).opacity(0.6), lineWidth: 1).padding(-4) }
+                            }
+                        Text(["S", "M", "T", "W", "T", "F", "S"][index]).cpFont(11)
+                            .foregroundStyle(index == todayIndex ? CPTheme.primary(scheme: scheme) : CPTheme.muted(scheme))
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            }
+            Text(line).cpFont(12).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(14)
+        .cpSurface(radius: 18)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Weekly rhythm, \(days.filter { $0 }.count) active days this week. \(line)")
     }
 }
 

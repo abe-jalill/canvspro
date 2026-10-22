@@ -918,10 +918,44 @@ final class NativeFeatureStore: ObservableObject {
         try await savePreference("calendar-events", events)
     }
 
-    /// To-Do by day or by class (`todo-grouping`: "day" or "class").
+    /// To-Do by day, by class or by impact (`todo-grouping`: "day", "class" or "impact").
     var todoGrouping: String {
-        if case .some(.string(let value)) = preferences["todo-grouping"], value == "class" { return "class" }
+        if case .some(.string(let value)) = preferences["todo-grouping"], value == "class" || value == "impact" { return value }
         return "day"
+    }
+
+    /// Steps for big work (`assignment-steps`: assignment id → steps), the website's too.
+    var assignmentSteps: [Int: [NativeAssignmentStep]] {
+        guard let saved = decoded("assignment-steps", as: [String: [NativeLossy<NativeAssignmentStep>]].self) else { return [:] }
+        var out: [Int: [NativeAssignmentStep]] = [:]
+        for (key, list) in saved {
+            let steps = list.compactMap(\.value)
+            if let id = Int(key), !steps.isEmpty { out[id] = steps }
+        }
+        return out
+    }
+    /// Saves an assignment's steps; its progress follows them (cleared when the last step goes).
+    func saveSteps(_ steps: [NativeAssignmentStep], for assignment: AssignmentItem) async throws {
+        var all: [String: JSONValue] = [:]
+        if case .some(.object(let saved)) = preferences["assignment-steps"] { all = saved }
+        let key = String(assignment.id)
+        if steps.isEmpty {
+            all.removeValue(forKey: key)
+        } else {
+            all[key] = try JSONDecoder().decode(JSONValue.self, from: JSONEncoder().encode(steps))
+        }
+        try await savePreference("assignment-steps", all)
+        try await saveProgress(steps.isEmpty ? nil : NativeSteps.percent(steps), for: assignment)
+    }
+
+    /// The optional weekly rhythm on To-Do (`weekly-rhythm`), off until turned on.
+    var showsWeeklyRhythm: Bool {
+        if case .some(.bool(true)) = preferences["weekly-rhythm"] { return true }
+        return false
+    }
+    func setWeeklyRhythm(_ on: Bool) async {
+        guard on != showsWeeklyRhythm else { return }
+        try? await savePreference("weekly-rhythm", on)
     }
     func setTodoGrouping(_ value: String) async {
         guard value != todoGrouping || preferences["todo-grouping"] == nil else { return }
@@ -1673,4 +1707,322 @@ struct NativeStudySetup: Codable, Equatable {
     var mode: String
     var preset: String
     var custom: Custom
+}
+
+// MARK: To-Do helpers
+//
+// The website's rules (src/lib/assignment-steps.ts, todo-insights.ts and
+// quick-add.ts), so the phone and every browser give the same answers.
+
+/// One step of big work, saved under `assignment-steps` (assignment id → steps).
+struct NativeAssignmentStep: Codable, Identifiable, Hashable {
+    var id: String
+    var title: String
+    /// Rough minutes for this step, or nil.
+    var minutes: Int?
+    var done: Bool
+}
+
+enum NativeSteps {
+    static func newID() -> String {
+        "st-\(String(Int(Date().timeIntervalSince1970 * 1000), radix: 36))-\(String(Int.random(in: 0..<1_679_616), radix: 36))"
+    }
+
+    /// The first step not done yet.
+    static func next(_ steps: [NativeAssignmentStep]) -> NativeAssignmentStep? { steps.first { !$0.done } }
+
+    /// Percent done, weighted by each step's minutes when every step has them.
+    static func percent(_ steps: [NativeAssignmentStep]) -> Int {
+        guard !steps.isEmpty else { return 0 }
+        let timed = steps.allSatisfy { $0.minutes != nil }
+        func weight(_ step: NativeAssignmentStep) -> Double { timed ? Double(step.minutes ?? 0) : 1 }
+        let total = steps.reduce(0) { $0 + weight($1) }
+        let done = steps.filter(\.done).reduce(0) { $0 + weight($1) }
+        return total > 0 ? Int((done / total * 100).rounded()) : 0
+    }
+
+    /// Worth breaking down: a lot of points or a long estimate.
+    static func isBigWork(points: Double?, estimate: Int) -> Bool { (points ?? 0) >= 50 || estimate >= 90 }
+
+    /// Suggested steps from the kind of work its name suggests, with the estimate shared out.
+    static func suggested(name: String, estimate: Int) -> [NativeAssignmentStep] {
+        let n = name.lowercased()
+        func has(_ pattern: String) -> Bool { n.range(of: pattern, options: .regularExpression) != nil }
+        let plan: [(String, Double)]
+        if has("exam|midterm|final|quiz|test") {
+            plan = [("Gather notes and topics", 0.15), ("Review the main ideas", 0.35), ("Practice problems", 0.35), ("Quick self-test", 0.15)]
+        } else if has("lab") {
+            plan = [("Read the lab and pre-lab", 0.2), ("Do the work and collect data", 0.4), ("Write it up", 0.3), ("Check and submit", 0.1)]
+        } else if has("project|presentation|portfolio") {
+            plan = [("Plan what's needed", 0.15), ("Build the main part", 0.5), ("Polish", 0.25), ("Check and submit", 0.1)]
+        } else if has("essay|paper|report|writing|draft|response|reflection|review") {
+            plan = [("Research and notes", 0.25), ("Outline", 0.15), ("Write the draft", 0.4), ("Revise and submit", 0.2)]
+        } else {
+            plan = [("Read what's asked", 0.1), ("Do the main part", 0.6), ("Check your work", 0.2), ("Submit", 0.1)]
+        }
+        return plan.enumerated().map { index, part in
+            NativeAssignmentStep(id: "\(newID())-\(index)", title: part.0,
+                minutes: max(5, Int((Double(estimate) * part.1 / 5).rounded()) * 5), done: false)
+        }
+    }
+}
+
+enum NativeTodoInsights {
+    /// Share of a class's points this assignment is worth (0–1), or nil when the
+    /// class has no points to compare with. Worded "of class points", never as a grade.
+    static func pointsShare(_ item: AssignmentItem, among all: [AssignmentItem]) -> Double? {
+        let points = item.pointsPossible ?? 0
+        guard points > 0, item.courseID > 0 else { return nil }
+        let total = all.filter { $0.courseID == item.courseID && ($0.pointsPossible ?? 0) > 0 }
+            .reduce(0) { $0 + ($1.pointsPossible ?? 0) }
+        return total > 0 ? points / total : nil
+    }
+
+    /// "12% of class points", for anything worth 3% or more.
+    static func impactLabel(_ share: Double?) -> String? {
+        guard let share, share >= 0.03 else { return nil }
+        return "\(Int((share * 100).rounded()))% of class points"
+    }
+
+    /// Worth a closer look: 10% or more of the class's points.
+    static func isHighImpact(_ share: Double?) -> Bool { (share ?? 0) >= 0.1 }
+
+    struct TodayProgress { let left: Int; let total: Int; let fraction: Double; let minutesLeft: Int }
+
+    /// Finished items count whole, unfinished ones by their saved progress (a head start counts).
+    static func todayProgress(_ items: [(done: Bool, progress: Int?, minutes: Int)]) -> TodayProgress {
+        let left = items.filter { !$0.done }.count
+        let credit = items.reduce(0.0) { sum, item in
+            sum + (item.done ? 1 : Double(min(max(item.progress ?? 0, 0), 100)) / 100)
+        }
+        let minutesLeft = items.filter { !$0.done }.reduce(0) { sum, item in
+            sum + Int((Double(item.minutes) * (1 - Double(min(item.progress ?? 0, 100)) / 100)).rounded())
+        }
+        return TodayProgress(left: left, total: items.count, fraction: items.isEmpty ? 0 : credit / Double(items.count), minutesLeft: minutesLeft)
+    }
+
+    /// "2 left today", "All done today".
+    static func leftTodayLabel(left: Int, total: Int) -> String {
+        if total == 0 { return "Nothing due today" }
+        if left == 0 { return "All done today" }
+        return "\(left) left today"
+    }
+
+    /// The weekly rhythm (`weekly-rhythm`): which days this Sunday–Saturday week
+    /// you finished something. Rest days are fine; 4 active days is the gentle
+    /// aim, and a new week always starts fresh.
+    static let rhythmAim = 4
+
+    static func rhythmWeek(_ completedAt: [Date], now: Date, calendar: Calendar = .current) -> [Bool] {
+        let today = calendar.startOfDay(for: now)
+        guard let start = calendar.date(byAdding: .day, value: -(calendar.component(.weekday, from: today) - 1), to: today) else { return Array(repeating: false, count: 7) }
+        var days = Array(repeating: false, count: 7)
+        for date in completedAt {
+            guard let index = calendar.dateComponents([.day], from: start, to: calendar.startOfDay(for: date)).day else { continue }
+            if (0..<7).contains(index) { days[index] = true }
+        }
+        return days
+    }
+
+    /// One kind line about the week so far.
+    static func rhythmLine(_ days: [Bool], now: Date, calendar: Calendar = .current) -> String {
+        let active = days.filter { $0 }.count
+        let dayIndex = calendar.component(.weekday, from: now) - 1
+        if active == 0 { return dayIndex <= 1 ? "New week, fresh start." : "Any day is a good day to start." }
+        if active >= rhythmAim { return "\(active) active days this week. Rest is part of the plan." }
+        return "\(active) of \(rhythmAim) active days. Rest days count too."
+    }
+}
+
+/// Quick add: one line typed the way you'd jot it down ("Read ch4 bio fri 30m")
+/// becomes a task with its class, due date and estimate.
+enum NativeQuickAdd {
+    struct Course { let id: Int; let names: [String] }
+    struct Result: Equatable {
+        var name: String
+        var courseID: Int?
+        var dueDate: Date?
+        var minutes: Int?
+    }
+
+    private static let weekdays: [String: Int] = [
+        "sun": 0, "sunday": 0, "mon": 1, "monday": 1, "tue": 2, "tues": 2, "tuesday": 2,
+        "wed": 3, "weds": 3, "wednesday": 3, "thu": 4, "thur": 4, "thurs": 4, "thursday": 4,
+        "fri": 5, "friday": 5, "sat": 6, "saturday": 6,
+    ]
+    private static let months: [String: Int] = [
+        "jan": 1, "january": 1, "feb": 2, "february": 2, "mar": 3, "march": 3, "apr": 4, "april": 4, "may": 5,
+        "jun": 6, "june": 6, "jul": 7, "july": 7, "aug": 8, "august": 8, "sep": 9, "sept": 9, "september": 9,
+        "oct": 10, "october": 10, "nov": 11, "november": 11, "dec": 12, "december": 12,
+    ]
+    /// Words too common to pick a class by.
+    private static let genericWords: Set<String> = [
+        "intro", "introduction", "the", "and", "for", "of", "to", "section", "lecture", "lab", "course", "general",
+        "principles", "advanced", "foundations", "topics", "special", "seminar", "honors", "survey",
+    ]
+    private static let units = "m|min|mins|minutes|h|hr|hrs|hour|hours"
+
+    private static func norm(_ text: String) -> String {
+        text.lowercased().filter { $0.isASCII && ($0.isLetter || $0.isNumber) }
+    }
+
+    /// The pattern's groups (nil for one that didn't take part), or nil for no match.
+    private static func match(_ pattern: String, _ text: String) -> [String?]? {
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+              let found = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) else { return nil }
+        return (0..<found.numberOfRanges).map { index in Range(found.range(at: index), in: text).map { String(text[$0]) } }
+    }
+
+    /// The ways a class can be named: "BIO 201" → bio201, bio; "Cell Biology" → cellbiology, cell, biology.
+    static func aliases(name: String, code: String, nickname: String?) -> [String] {
+        var out: [String] = []
+        func add(_ alias: String) { if !out.contains(alias) { out.append(alias) } }
+        for text in [code, name, nickname ?? ""] {
+            let whole = norm(text)
+            if whole.count >= 3 { add(whole) }
+            if let letters = match("^([A-Za-z]{2,5})\\s*\\d", text.trimmingCharacters(in: .whitespaces))?[1] { add(letters.lowercased()) }
+            for word in text.split(whereSeparator: \.isWhitespace) {
+                let w = norm(String(word))
+                if w.count >= 4 && !genericWords.contains(w) { add(w) }
+            }
+        }
+        return out
+    }
+
+    /// Reads one quick-add line. `now` sets "today".
+    static func parse(_ text: String, courses: [Course], now: Date = Date(), calendar: Calendar = .current) -> Result {
+        let tokens = text.split(whereSeparator: \.isWhitespace).map(String.init)
+        let today = calendar.startOfDay(for: now)
+        var used = Set<Int>()
+        var day: Date?
+        var time: (h: Int, m: Int)?
+        var minutes: Int?
+        var courseID: Int?
+        func trimmed(_ token: String) -> String {
+            var t = token.lowercased()
+            if t.hasSuffix(",") || t.hasSuffix(".") { t.removeLast() }
+            return t
+        }
+        func plus(_ days: Int) -> Date { calendar.date(byAdding: .day, value: days, to: today) ?? today }
+        /// A month and day, next year once it has passed.
+        func dated(month: Int, day: Int) -> Date? {
+            guard (1...12).contains(month), (1...31).contains(day) else { return nil }
+            var parts = calendar.dateComponents([.year], from: today)
+            parts.month = month; parts.day = day
+            guard let date = calendar.date(from: parts) else { return nil }
+            if date < today { return calendar.date(byAdding: .year, value: 1, to: date) }
+            return date
+        }
+
+        for i in tokens.indices where !used.contains(i) {
+            let t = trimmed(tokens[i])
+            let nextToken = i + 1 < tokens.count ? tokens[i + 1].lowercased() : nil
+
+            // Estimate: 30m, 45min, 1h, 1.5hr, 2 hours
+            if minutes == nil {
+                var amount: (value: Double, unit: String, tokens: Int)?
+                if let m = match("^(\\d+(?:\\.\\d+)?)(\(units))$", t), let value = m[1].flatMap({ Double($0) }), let unit = m[2] {
+                    amount = (value, unit, 1)
+                } else if match("^\\d+(?:\\.\\d+)?$", t) != nil, let nextToken, match("^(\(units))$", nextToken) != nil, let value = Double(t) {
+                    amount = (value, nextToken, 2)
+                }
+                if let amount {
+                    let mins = amount.unit.hasPrefix("h") ? amount.value * 60 : amount.value
+                    if mins > 0 && mins <= 600 {
+                        minutes = Int(mins.rounded())
+                        used.insert(i)
+                        if amount.tokens == 2 { used.insert(i + 1) }
+                        continue
+                    }
+                }
+            }
+
+            // Day: today, tonight, tomorrow, a weekday, "next fri", 10/24, oct 24
+            if day == nil {
+                if t == "today" || t == "tonight" {
+                    day = today
+                    if t == "tonight" && time == nil { time = (21, 0) }
+                    used.insert(i)
+                    continue
+                }
+                if ["tomorrow", "tmr", "tmrw", "tom"].contains(t) { day = plus(1); used.insert(i); continue }
+                let following = nextToken.map(trimmed)
+                let isNext = t == "next" && following.flatMap { weekdays[$0] } != nil
+                if let weekday = weekdays[isNext ? following ?? "" : t] {
+                    var ahead = (weekday - (calendar.component(.weekday, from: today) - 1) + 7) % 7
+                    if isNext && ahead == 0 { ahead = 7 }
+                    day = plus(ahead)
+                    used.insert(i)
+                    if isNext { used.insert(i + 1) }
+                    continue
+                }
+                if let m = match("^(\\d{1,2})/(\\d{1,2})$", t), let month = m[1].flatMap({ Int($0) }), let date = m[2].flatMap({ Int($0) }), let found = dated(month: month, day: date) {
+                    day = found
+                    used.insert(i)
+                    continue
+                }
+                if let month = months[t], let nextToken, let m = match("^(\\d{1,2})(st|nd|rd|th)?$", nextToken),
+                   let date = m[1].flatMap({ Int($0) }), let found = dated(month: month, day: date) {
+                    day = found
+                    used.insert(i); used.insert(i + 1)
+                    continue
+                }
+            }
+
+            // Time: 5pm, 5:30pm, 17:00, "at 5", noon, midnight
+            if time == nil {
+                var m = match("^(\\d{1,2})(?::(\\d{2}))?(am|pm|a|p)$", t)
+                var skipAt = false
+                if m == nil, t == "at", let nextToken {
+                    m = match("^(\\d{1,2})(?::(\\d{2}))?(am|pm|a|p)?$", nextToken)
+                    skipAt = m != nil
+                }
+                if let m, var hour = m[1].flatMap({ Int($0) }) {
+                    let minute = m[2].flatMap { Int($0) } ?? 0
+                    let meridiem = m[3]
+                    if meridiem?.hasPrefix("p") == true && hour < 12 { hour += 12 }
+                    if meridiem?.hasPrefix("a") == true && hour == 12 { hour = 0 }
+                    // "at 5" with no am/pm: school hours, so afternoon.
+                    if meridiem == nil && (1...6).contains(hour) { hour += 12 }
+                    if hour <= 23 && minute <= 59 {
+                        time = (hour, minute)
+                        used.insert(i)
+                        if skipAt { used.insert(i + 1) }
+                        continue
+                    }
+                }
+                if let m = match("^([01]?\\d|2[0-3]):([0-5]\\d)$", t), let hour = m[1].flatMap({ Int($0) }), let minute = m[2].flatMap({ Int($0) }) {
+                    time = (hour, minute); used.insert(i); continue
+                }
+                if t == "noon" { time = (12, 0); used.insert(i); continue }
+                if t == "midnight" { time = (23, 59); used.insert(i); continue }
+            }
+
+            // Class: a word that names exactly one class.
+            if courseID == nil {
+                let n = norm(t)
+                if n.count >= 3 {
+                    // A whole name ("bio"), or the start of one ("psych", "calc") when it's 4+ letters.
+                    var hits = courses.filter { $0.names.contains(n) }
+                    if hits.isEmpty && n.count >= 4 { hits = courses.filter { $0.names.contains { $0.hasPrefix(n) } } }
+                    if hits.count == 1 { courseID = hits[0].id; used.insert(i); continue }
+                }
+            }
+        }
+
+        var words = tokens.indices.filter { !used.contains($0) }.map { tokens[$0] }
+        // "Due" left over from "due fri" isn't part of the name.
+        while words.count > 1, let last = words.last, ["due", "by", "on", "for"].contains(last.lowercased()) { words.removeLast() }
+        let name = words.joined(separator: " ").trimmingCharacters(in: .whitespaces)
+
+        var due: Date?
+        if day != nil || time != nil {
+            let base = day ?? today
+            var when = calendar.date(bySettingHour: time?.h ?? 23, minute: time?.m ?? 59, second: 0, of: base) ?? base
+            // A time already past today, with no day given, means tomorrow.
+            if day == nil && when < now { when = calendar.date(byAdding: .day, value: 1, to: when) ?? when }
+            due = when
+        }
+        return Result(name: name.prefix(1).uppercased() + name.dropFirst(), courseID: courseID, dueDate: due, minutes: minutes)
+    }
 }

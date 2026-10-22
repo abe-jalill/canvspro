@@ -5487,6 +5487,22 @@ struct NativeStudyView: View {
                         CPStatTile(value: "\(completedIDs.count) of \(items.count)", label: "Tasks finished", tone: .accent)
                         if activePlan != nil { CPStatTile(value: "\(round)", label: "Focus blocks") }
                     }
+                    // How far you got, saved as each assignment's progress (shown on To-Do).
+                    let unfinished = items.filter { item in !completedIDs.contains(item.id) && !manualTasks.contains { $0.id == item.id } }
+                    if !unfinished.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("How far did you get?").cpFont(14, .semibold).foregroundStyle(CPTheme.foreground(scheme))
+                            ForEach(unfinished) { item in
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(item.name).cpFont(12).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
+                                    NativeProgressEditor(assignment: item, features: features)
+                                }
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(14)
+                        .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: CPLayout.innerRadius, style: .continuous))
+                    }
                     VStack(spacing: 8) {
                         Button("Plan another") { resetSession(keepSelection: true) }.buttonStyle(CPButtonStyle(kind: .primary, fullWidth: true))
                         Button("Done") { resetSession(keepSelection: false) }.buttonStyle(CPButtonStyle(kind: .quiet, fullWidth: true))
