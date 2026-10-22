@@ -21,6 +21,7 @@ import { isAssignmentComplete, isAssignmentVisible } from "@/lib/assignment-wind
 import {
   customToAssignmentItem,
   isCustomAssignmentId,
+  NO_CLASS_ID,
   useCustomAssignments,
 } from "@/lib/custom-assignments";
 import { useCompletionExit } from "@/lib/completion-motion";
@@ -36,6 +37,7 @@ import { SkeletonBlock } from "@/components/skeletons/dashboard-skeletons";
 import { useUserPreferenceKey } from "@/hooks/use-user-preferences";
 import { OpensLabel } from "@/components/assignment-description-link";
 import { notYetOpen } from "@/lib/assignment-availability";
+import { AddTaskButton } from "@/components/add-task-dialog";
 
 export const Route = createFileRoute("/_authenticated/focus")({
   head: () => ({
@@ -138,6 +140,10 @@ function FocusPage() {
 
   const courseById = new Map((courses.data ?? []).map((course) => [course.id, course]));
   const courseIds = (courses.data ?? []).map((course) => course.id);
+  const courseOptions = (courses.data ?? []).map((course) => ({
+    id: course.id,
+    label: displayCourseName(course.name, course.course_code),
+  }));
   const allAssignments = [
     ...(assignments.data ?? []),
     ...custom.list.map((item) => customToAssignmentItem(item, courseById.get(item.course_id))),
@@ -212,6 +218,7 @@ function FocusPage() {
               {searching ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
             </button>
             <CompletedLink />
+            <AddTaskButton courseOptions={courseOptions} onAdd={custom.add} />
           </div>
         </div>
         <div className="relative mt-2 flex items-center justify-between gap-3">
@@ -442,7 +449,12 @@ function groupByClass(items: AssignmentItem[], courseName: (a: AssignmentItem) =
     g.items.push(a);
     groups.set(a.course_id, g);
   }
-  return [...groups.values()].sort((x, y) => x.title.localeCompare(y.title));
+  // Your own tasks that aren't for a class come after the classes.
+  return [...groups.values()].sort(
+    (x, y) =>
+      Number(x.courseId === NO_CLASS_ID) - Number(y.courseId === NO_CLASS_ID) ||
+      x.title.localeCompare(y.title),
+  );
 }
 
 /** The name, and one quiet line: class, time and how long it takes. */

@@ -1,15 +1,21 @@
 import type { AssignmentItem } from "./canvas.functions.ts";
 import type { CustomAssignment } from "./custom-assignments.ts";
 
+/** The class id of your own task that isn't for a class (the iPhone app uses 0 too). */
+export const NO_CLASS_ID = 0;
+/** What a task that isn't for a class shows where a class name would be. */
+export const NO_CLASS_LABEL = "Personal";
+
 export function customToAssignmentItem(
   custom: CustomAssignment,
   course: { name: string; course_code: string } | undefined,
 ): AssignmentItem {
+  const fallback = custom.course_id === NO_CLASS_ID ? NO_CLASS_LABEL : "";
   return {
     id: custom.id, name: custom.name, due_at: custom.due_at, html_url: "",
     description: custom.notes, points_possible: custom.points_possible,
     estimated_minutes: custom.estimated_minutes,
-    course_id: custom.course_id, course_name: course?.name ?? "", course_code: course?.course_code ?? "",
+    course_id: custom.course_id, course_name: course?.name ?? fallback, course_code: course?.course_code ?? "",
   };
 }
 

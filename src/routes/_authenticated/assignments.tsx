@@ -17,6 +17,7 @@ import {
   useCustomAssignments,
   customToAssignmentItem,
   isCustomAssignmentId,
+  NO_CLASS_ID,
 } from "@/lib/custom-assignments";
 import { CompletionRow } from "@/components/completion-row";
 import { CompletedLink } from "@/components/completed-link";
@@ -53,7 +54,7 @@ import {
 import { htmlToText } from "@/lib/html-text";
 import { formatAssignmentDue } from "@/lib/assignment-due";
 import { AssignmentEstimateEditor } from "@/components/assignment-estimate";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AddAssignmentForm } from "@/components/add-assignment-form";
 
 import {
   coursesQueryOptions as coursesQO,
@@ -323,9 +324,14 @@ function AssignmentsPage() {
       }
     }
 
+    // Your own tasks that aren't for a class come after the classes.
     return Array.from(map.values())
       .filter((group) => group.items.length > 0)
-      .sort((a, b) => a.label.localeCompare(b.label));
+      .sort(
+        (a, b) =>
+          Number(a.id === NO_CLASS_ID) - Number(b.id === NO_CLASS_ID) ||
+          a.label.localeCompare(b.label),
+      );
   }, [courses.data, allAssignments, completed, showCompleted]);
 
   const metaMap = useAssignmentMetaMap();
@@ -467,7 +473,7 @@ function AssignmentsPage() {
           className="glass-panel-strong premium-reveal scroll-mt-6 rounded-[1.75rem] border border-primary/25 p-5 sm:p-6"
         >
           <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-primary">
-            Assignment description
+            {isCustomAssignmentId(selectedAssignment.id) ? "Added by you" : "Assignment description"}
           </p>
           <h2 className="mt-2 text-xl font-semibold tracking-tight sm:text-2xl">
             {selectedAssignment.name}
@@ -477,7 +483,9 @@ function AssignmentsPage() {
           </p>
           <p className="mt-5 whitespace-pre-line text-sm leading-6 text-foreground/80">
             {htmlToText(selectedAssignment.description ?? "") ||
-              "Canvas does not provide a description for this assignment."}
+              (isCustomAssignmentId(selectedAssignment.id)
+                ? "No notes."
+                : "Canvas does not provide a description for this assignment.")}
           </p>
           <AssignmentEstimateEditor assignment={selectedAssignment} className="mt-3" />
           {selectedAssignment.html_url && (
@@ -707,14 +715,16 @@ function AssignmentsPage() {
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-3">
-                      <div className="text-right">
-                        <p className="text-lg font-semibold tabular-nums tracking-tight">
-                          {formatGrade(g.score, g.grade)}
-                        </p>
-                        <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-                          Grade
-                        </p>
-                      </div>
+                      {g.id !== NO_CLASS_ID && (
+                        <div className="text-right">
+                          <p className="text-lg font-semibold tabular-nums tracking-tight">
+                            {formatGrade(g.score, g.grade)}
+                          </p>
+                          <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                            Grade
+                          </p>
+                        </div>
+                      )}
                       <ChevronDown
                         className={cn(
                           "h-4 w-4 text-muted-foreground transition-transform",
@@ -822,158 +832,6 @@ function AssignmentsPage() {
         </div>
       )}
     </div>
-  );
-}
-
-function AddAssignmentForm({
-  courseId,
-  courseLabel,
-  courseOptions,
-  onAdd,
-  startOpen = false,
-}: {
-  courseId?: number;
-  courseLabel?: string;
-  courseOptions?: { id: number; label: string }[];
-  /** Already inside its own expander: the form, not another button to open it. */
-  startOpen?: boolean;
-  onAdd: (input: {
-    course_id: number;
-    name: string;
-    due_at: string | null;
-    points_possible: number | null;
-    notes: string;
-    estimated_minutes?: number | null;
-  }) => void;
-}) {
-  const [open, setOpen] = useState(startOpen);
-  const [name, setName] = useState("");
-  const [due, setDue] = useState("");
-  const [points, setPoints] = useState("");
-  const [notes, setNotes] = useState("");
-  const [minutes, setMinutes] = useState("");
-  const [selected, setSelected] = useState<string>(courseId != null ? String(courseId) : "");
-
-  const targetId = courseId ?? (selected ? Number(selected) : NaN);
-  const validMinutes = minutes === "" || (Number.isInteger(Number(minutes)) && Number(minutes) > 0 && Number(minutes) <= 480);
-  const canSave = name.trim().length > 0 && Number.isFinite(targetId) && validMinutes;
-
-  function reset() {
-    setName("");
-    setDue("");
-    setPoints("");
-    setNotes("");
-    setMinutes("");
-    if (courseId == null) setSelected("");
-  }
-
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!canSave) return;
-    const pts = parseFloat(points);
-    onAdd({
-      course_id: targetId,
-      name: name.trim(),
-      due_at: due ? new Date(due).toISOString() : null,
-      points_possible: Number.isNaN(pts) ? null : pts,
-      notes: notes.trim(),
-      estimated_minutes: minutes === "" ? null : Number(minutes),
-    });
-    reset();
-    if (!startOpen) setOpen(false);
-  }
-
-  const inputClass =
-    "w-full rounded-lg border border-glass-border bg-background/50 px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:ring-1 focus:ring-primary";
-
-  if (!open) {
-    return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="glass-hover mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-glass-border px-3 py-2 text-sm font-medium"
-      >
-        <Plus className="h-4 w-4" />
-        Add assignment{courseLabel ? "" : " to a class"}
-      </button>
-    );
-  }
-
-  return (
-    <form onSubmit={submit} className="glass-inset mt-3 space-y-3 p-3">
-      {courseId == null && (
-        <Select value={selected} onValueChange={setSelected}>
-          <SelectTrigger aria-label="Class"><SelectValue placeholder="Choose a class…" /></SelectTrigger>
-          <SelectContent>
-            {(courseOptions ?? []).map((c) => (
-              <SelectItem key={c.id} value={String(c.id)} className="whitespace-normal break-words pr-9">{c.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      )}
-      <input
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="Assignment name"
-        aria-label="Assignment name"
-        className={inputClass}
-      />
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="space-y-1">
-          <span className="text-xs text-muted-foreground">Due</span>
-          <input
-            type="datetime-local"
-            value={due}
-            onChange={(e) => setDue(e.target.value)}
-            className={inputClass}
-          />
-        </label>
-        <label className="space-y-1">
-          <span className="text-xs text-muted-foreground">Points</span>
-          <input
-            type="number"
-            min={0}
-            step="any"
-            value={points}
-            onChange={(e) => setPoints(e.target.value)}
-            placeholder="e.g. 100"
-            className={inputClass}
-          />
-        </label>
-      </div>
-      <label className="block space-y-1">
-        <span className="text-xs text-muted-foreground">Estimated time (minutes)</span>
-        <input type="number" min={1} max={480} step={1} value={minutes}
-          onChange={(e) => setMinutes(e.target.value)} placeholder="e.g. 45" className={inputClass} />
-      </label>
-      <textarea
-        value={notes}
-        onChange={(e) => setNotes(e.target.value)}
-        placeholder="Notes (optional)"
-        aria-label="Notes"
-        rows={2}
-        className={inputClass}
-      />
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="submit"
-          disabled={!canSave}
-          className="glass-hover min-h-11 rounded-xl border border-glass-border px-4 py-2 text-sm font-medium disabled:opacity-50"
-        >
-          Save assignment
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            reset();
-            if (!startOpen) setOpen(false);
-          }}
-          className="min-h-11 rounded-xl px-4 py-2 text-sm text-muted-foreground hover:text-foreground"
-        >
-          {startOpen ? "Clear" : "Cancel"}
-        </button>
-      </div>
-    </form>
   );
 }
 

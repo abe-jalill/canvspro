@@ -9,5 +9,7 @@ export function classHue(courseId: number, courseIds: readonly number[]) {
 
 /** The class's color for small accents; lighter in dark mode (see --class-lightness). */
 export function classColor(courseId: number, courseIds: readonly number[]) {
+  // Your own tasks that aren't for a class (id 0) are a quiet gray, never a class's hue.
+  if (courseId === 0) return "hsl(220 8% var(--class-lightness, 68%))";
   return `hsl(${classHue(courseId, courseIds)} 50% var(--class-lightness, 68%))`;
 }

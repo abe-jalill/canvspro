@@ -27,7 +27,7 @@ function readList(value: unknown): CustomAssignment[] {
   );
 }
 
-export { customToAssignmentItem } from "./assignment-sources.ts";
+export { customToAssignmentItem, NO_CLASS_ID, NO_CLASS_LABEL } from "./assignment-sources.ts";
 
 export function isCustomAssignmentId(id: number) {
   return id < 0;
