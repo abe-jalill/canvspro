@@ -2,6 +2,10 @@ import { getUserScope } from "@/lib/user-scope";
 import { supabase } from "@/integrations/supabase/client";
 import { notificationEdits } from "@/lib/notification-prefs";
 import { setBackgroundPushDevice } from "@/lib/background-push-device";
+import {
+  deviceNotificationsEnabled,
+  setDeviceNotificationsEnabled,
+} from "@/lib/device-notifications";
 
 /**
  * The application-server public key comes from the server itself, so the key a
@@ -72,6 +76,7 @@ async function getRegistration(): Promise<ServiceWorkerRegistration> {
  * sure installed iOS/desktop PWAs are running the latest worker.
  */
 export async function maintainBackgroundPush(): Promise<void> {
+  if (!deviceNotificationsEnabled()) return;
   if (inEditorPreview() || !pushSupported() || Notification.permission !== "granted") return;
   const registration = await getRegistration();
   await registration.update().catch(() => undefined);
@@ -95,6 +100,11 @@ export async function maintainBackgroundPush(): Promise<void> {
     { onConflict: "endpoint" },
   );
   if (!error) {
+    // A device can be switched off while registration is waiting on the network.
+    if (!deviceNotificationsEnabled()) {
+      await disableBackgroundPush();
+      return;
+    }
     setBackgroundPushDevice(true);
     await syncPrefsToServer();
   }
@@ -142,6 +152,7 @@ export async function syncPrefsToServer(): Promise<boolean> {
  * subscription so toggling back on re-registers cleanly.
  */
 export async function isPushEnabled(): Promise<boolean> {
+  if (!deviceNotificationsEnabled()) return false;
   if (!pushSupported()) return false;
   const reg = await navigator.serviceWorker.getRegistration("/");
   const sub = await reg?.pushManager.getSubscription();
@@ -236,17 +247,29 @@ export async function enableBackgroundPush(): Promise<
   if (error) return { ok: false, reason: error.message };
 
   setBackgroundPushDevice(true);
+  setDeviceNotificationsEnabled(true);
   await syncPrefsToServer();
   return { ok: true };
 }
 
 export async function disableBackgroundPush(): Promise<void> {
+  setDeviceNotificationsEnabled(false);
   setBackgroundPushDevice(false);
   if (!pushSupported()) return;
   const reg = await navigator.serviceWorker.getRegistration("/");
   const sub = await reg?.pushManager.getSubscription();
   if (sub) {
-    await supabase.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
-    await sub.unsubscribe();
+    // Either a server deletion or browser unsubscribe stops this endpoint.
+    // Try both even if one fails, and never delete another device's row.
+    const [removed, unsubscribed] = await Promise.allSettled([
+      supabase.from("push_subscriptions").delete().eq("endpoint", sub.endpoint),
+      sub.unsubscribe(),
+    ]);
+    const deleted = removed.status === "fulfilled" && !removed.value.error;
+    const stopped = unsubscribed.status === "fulfilled" && unsubscribed.value;
+    if (!deleted && !stopped)
+      throw new Error(
+        "Couldn't stop background notifications. Check your connection and try again.",
+      );
   }
 }

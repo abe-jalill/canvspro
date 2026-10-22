@@ -450,6 +450,7 @@ final class NativeFeatureStore: ObservableObject {
     @Published var progress: [Int: Int] = [:]
     @Published var alerts: [ScheduledAlert] = []
     @Published var notificationPreferences = NotificationPreferences()
+    private var savedNotificationPreferences = NotificationPreferences()
     /// False until the account's saved notification settings have loaded, so an
     /// offline launch never plans reminders (or saves) from the defaults.
     @Published var notificationPreferencesLoaded = false
@@ -564,6 +565,7 @@ final class NativeFeatureStore: ObservableObject {
             do {
                 let row = try await notificationRow
                 notificationPreferences = NotificationPreferences(row)
+                savedNotificationPreferences = notificationPreferences
                 notificationPreferencesLoaded = true
             } catch {}
         } catch is CancellationError {
@@ -612,10 +614,33 @@ final class NativeFeatureStore: ObservableObject {
         }
     }
 
+    /// Pick up an all-devices pause without replacing this phone's unsaved edits.
+    func refreshNotificationPreferences() async {
+        guard !isPreview, !isLoading, savesInFlight == 0,
+              notificationPreferencesLoaded, notificationPreferences == savedNotificationPreferences,
+              let api = sessionStore.api, let user = sessionStore.session?.user else { return }
+        let previous = notificationPreferences
+        do {
+            let row = try await api.notificationPreferences(token: try await sessionStore.accessToken(), userID: user.id)
+            guard savesInFlight == 0, notificationPreferences == previous else { return }
+            notificationPreferences = NotificationPreferences(row)
+            savedNotificationPreferences = notificationPreferences
+        } catch { /* Keep the last known settings offline. */ }
+    }
+
     func saveNotifications() async throws {
         if isPreview { return }
         guard let api = sessionStore.api, let user = sessionStore.session?.user else { throw NativeAppError.signedOut }
-        try await api.syncNotificationPreferences(notificationPreferences.dictionary, token: try await sessionStore.accessToken(), userID: user.id)
+        let current = notificationPreferences
+        let previous = savedNotificationPreferences.dictionary
+        let changes = current.dictionary.filter { entry in
+            !((previous[entry.key] as? NSObject)?.isEqual(entry.value) ?? false)
+        }
+        guard !changes.isEmpty else { return }
+        savesInFlight += 1
+        defer { savesInFlight -= 1 }
+        try await api.syncNotificationPreferences(changes, token: try await sessionStore.accessToken(), userID: user.id)
+        savedNotificationPreferences = current
     }
 
     func saveUsername(_ username: String) async throws {
@@ -1589,6 +1614,7 @@ enum NativeLocalReminders {
         let status = await center.notificationSettings().authorizationStatus
         guard status == .authorized || status == .provisional || status == .ephemeral else { return }
         for reminder in reminders {
+            guard deviceEnabled else { return }
             let content = UNMutableNotificationContent()
             content.title = reminder.title
             content.body = reminder.body
@@ -1597,7 +1623,9 @@ enum NativeLocalReminders {
             content.userInfo = ["to_path": reminder.path]
             let when = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: reminder.fireAt)
             let trigger = UNCalendarNotificationTrigger(dateMatching: when, repeats: false)
-            try? await center.add(UNNotificationRequest(identifier: prefix + reminder.id, content: content, trigger: trigger))
+            let identifier = prefix + reminder.id
+            try? await center.add(UNNotificationRequest(identifier: identifier, content: content, trigger: trigger))
+            if !deviceEnabled { center.removePendingNotificationRequests(withIdentifiers: [identifier]); return }
         }
     }
 

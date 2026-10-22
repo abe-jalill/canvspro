@@ -2394,15 +2394,17 @@ private struct NotificationsView: View {
     @State private var status: String?
     @State private var saved: NotificationPreferences?
     @State private var deviceOn = NativeLocalReminders.deviceEnabled
+    @State private var deviceBusy = false
     @State private var permission: UNAuthorizationStatus = .notDetermined
     private let leads = [5, 15, 30, 60]
 
     private var prefs: NotificationPreferences { features.notificationPreferences }
-    private var off: Bool { !prefs.enabled }
+    private var off: Bool { !prefs.enabled || !deviceOn }
     private var dueOn: Bool { prefs.due1d || prefs.due2d || prefs.due3d || prefs.due1w }
     private var allowed: Bool { permission == .authorized || permission == .provisional || permission == .ephemeral }
     private var deviceText: String {
         if permission == .denied { return "Turned off in iOS Settings" }
+        if deviceOn && allowed && (!prefs.enabled || !prefs.browserPush) { return "Paused by the all-devices setting" }
         return deviceOn && allowed ? "Arrives even when the app is closed" : "Off on this iPhone"
     }
 
@@ -2412,9 +2414,11 @@ private struct NotificationsView: View {
                 Section { HStack(spacing: 10) { ProgressView(); Text("Loading your settings…").foregroundStyle(.secondary) } }
             } else {
                 Section {
-                    row("Notifications", off ? "Off everywhere" : "On for your account", isOn: Binding(get: { prefs.enabled }, set: setNotifications))
-                    row("This iPhone", deviceText, isOn: Binding(get: { deviceOn && allowed }, set: { on in Task { await setDevice(on) } }))
-                        .disabled(off)
+                    row("Notifications on this iPhone", deviceText, isOn: Binding(get: { deviceOn && allowed }, set: { on in Task { await setDevice(on) } }))
+                        .disabled(deviceBusy)
+                    row("Allow notifications on all devices", (prefs.enabled && prefs.browserPush) ? "Each device keeps its own on/off setting" : "Paused everywhere; device settings are remembered", isOn: Binding(get: { prefs.enabled && prefs.browserPush }, set: setAllDevices))
+                } footer: {
+                    Text("The first switch changes only this iPhone. Once saved, an all-devices pause stops server alerts. Reminders already scheduled on another offline iPhone stop when it next syncs.")
                 }
                 Section {
                     row("Due dates", "3 days, 2 days and 1 day before", isOn: Binding(get: { dueOn }, set: setDueDates))
@@ -2477,9 +2481,9 @@ private struct NotificationsView: View {
         Binding(get: { features.notificationPreferences[keyPath: path] }, set: { features.notificationPreferences[keyPath: path] = $0 })
     }
 
-    private func setNotifications(_ on: Bool) {
+    private func setAllDevices(_ on: Bool) {
         features.notificationPreferences.enabled = on
-        // Older accounts may have pop-ups muted; turning notifications on means all of them.
+        // Only this explicit all-devices control changes the account master.
         if on { features.notificationPreferences.browserPush = true }
     }
 
@@ -2502,11 +2506,15 @@ private struct NotificationsView: View {
 
     private func refreshPermission() async {
         permission = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
+        deviceOn = NativeLocalReminders.deviceEnabled
     }
 
     /// "This iPhone": asks iOS for permission when needed, then turns this
     /// phone's reminders (and Apple push, once available) on or off.
     private func setDevice(_ on: Bool) async {
+        guard !deviceBusy else { return }
+        deviceBusy = true
+        defer { deviceBusy = false }
         let center = UNUserNotificationCenter.current()
         if on {
             if permission == .denied {
@@ -2524,6 +2532,8 @@ private struct NotificationsView: View {
         }
         deviceOn = on
         NativeLocalReminders.deviceEnabled = on
+        // Cancel local reminders before a network request can suspend this task.
+        if !on { center.removeAllPendingNotificationRequests() }
         status = nil
         if on {
             UIApplication.shared.registerForRemoteNotifications()
@@ -2531,8 +2541,14 @@ private struct NotificationsView: View {
             UIApplication.shared.unregisterForRemoteNotifications()
             if let deviceToken = UserDefaults.standard.string(forKey: "CanvasProNativePushToken"), let api = sessionStore.api,
                let access = try? await sessionStore.accessToken() {
-                try? await api.deletePushToken(deviceToken, token: access)
-                UserDefaults.standard.removeObject(forKey: "CanvasProNativePushToken")
+                do {
+                    try await api.deletePushToken(deviceToken, token: access)
+                    UserDefaults.standard.removeObject(forKey: "CanvasProNativePushToken")
+                } catch {
+                    // Retain the token so refreshAccountData retries the deletion.
+                    status = "Reminders are off on this iPhone. Reconnect to finish stopping server alerts."
+                    features.errorMessage = status
+                }
             }
         }
         NotificationCenter.default.post(name: .nativeLocalRemindersChanged, object: nil)

@@ -1681,7 +1681,13 @@ struct NativeMainTabView: View {
         guard featureStore.notificationPreferences.enabled && featureStore.notificationPreferences.browserPush && NativeLocalReminders.deviceEnabled else { return }
         guard let api = sessionStore.api, let user = sessionStore.session?.user else { return }
         do {
-            try await api.upsertPushToken(deviceToken, token: try await sessionStore.accessToken(), userID: user.id)
+            let access = try await sessionStore.accessToken()
+            try await api.upsertPushToken(deviceToken, token: access, userID: user.id)
+            // A pending registration must not undo a device-only opt-out.
+            guard NativeLocalReminders.deviceEnabled && featureStore.notificationPreferences.enabled && featureStore.notificationPreferences.browserPush else {
+                try await api.deletePushToken(deviceToken, token: access)
+                return
+            }
             UserDefaults.standard.set(deviceToken, forKey: "CanvasProNativePushToken")
         } catch { featureStore.errorMessage = error.localizedDescription }
     }
@@ -1819,7 +1825,12 @@ struct NativeMainTabView: View {
         nativeTabs
             .onChange(of: contentStore.completed) { _, _ in rescheduleLocalReminders() }
             .onChange(of: contentStore.lastSyncedAt) { _, _ in rescheduleLocalReminders() }
-            .onChange(of: featureStore.notificationPreferences) { _, _ in rescheduleLocalReminders() }
+            .onChange(of: featureStore.notificationPreferences) { _, _ in
+                rescheduleLocalReminders()
+                if !featureStore.notificationPreferences.enabled {
+                    UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["canvaspro.study.block"])
+                }
+            }
             .onChange(of: featureStore.schedule) { _, _ in rescheduleLocalReminders() }
             .onChange(of: featureStore.customAssignments) { _, _ in rescheduleLocalReminders() }
             // Hiding or showing a class changes what's due, on widgets and in reminders.
@@ -1850,6 +1861,7 @@ struct NativeMainTabView: View {
                     try? await Task.sleep(for: .seconds(30))
                     guard !Task.isCancelled else { return }
                     await featureStore.refreshPreferences()
+                    await featureStore.refreshNotificationPreferences()
                     // Also starts "Due tonight" at 9 PM when the app is already open.
                     publishWidgetSnapshot()
                 }
@@ -4914,7 +4926,8 @@ struct NativeStudyView: View {
         let center = UNUserNotificationCenter.current()
         let id = "canvaspro.study.block"
         center.removePendingNotificationRequests(withIdentifiers: [id])
-        guard running, let end = blockEndsAt, end > Date() else { return }
+        guard NativeLocalReminders.deviceEnabled, features.notificationPreferences.enabled, features.notificationPreferences.browserPush,
+              running, let end = blockEndsAt, end > Date() else { return }
         let content = UNMutableNotificationContent()
         if phase != "focus" {
             content.title = "Break's over"; content.body = "Back to it."

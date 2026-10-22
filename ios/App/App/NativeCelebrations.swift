@@ -306,10 +306,14 @@ enum NativeStreakReminders {
         return out
     }
 
-    static func schedule(_ streak: NativeStreak?, prefs: NotificationPreferences) {
+    @MainActor private static var queue: Task<Void, Never>?
+
+    @MainActor static func schedule(_ streak: NativeStreak?, prefs: NotificationPreferences) {
         let planned = streak.map { plan($0, prefs: prefs) } ?? []
         let allowed = NativeLocalReminders.deviceEnabled
-        Task {
+        let previous = queue
+        queue = Task {
+            await previous?.value
             let center = UNUserNotificationCenter.current()
             let old = await center.pendingNotificationRequests().map(\.identifier).filter { $0.hasPrefix(prefix) }
             if !old.isEmpty { center.removePendingNotificationRequests(withIdentifiers: old) }
@@ -317,6 +321,7 @@ enum NativeStreakReminders {
             let status = await center.notificationSettings().authorizationStatus
             guard status == .authorized || status == .provisional || status == .ephemeral else { return }
             for reminder in planned {
+                guard NativeLocalReminders.deviceEnabled else { return }
                 let content = UNMutableNotificationContent()
                 content.title = title
                 content.body = reminder.body
@@ -325,7 +330,9 @@ enum NativeStreakReminders {
                 content.userInfo = ["to_path": "/dashboard"]
                 let when = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: reminder.fireAt)
                 let trigger = UNCalendarNotificationTrigger(dateMatching: when, repeats: false)
-                try? await center.add(UNNotificationRequest(identifier: prefix + reminder.id, content: content, trigger: trigger))
+                let identifier = prefix + reminder.id
+                try? await center.add(UNNotificationRequest(identifier: identifier, content: content, trigger: trigger))
+                if !NativeLocalReminders.deviceEnabled { center.removePendingNotificationRequests(withIdentifiers: [identifier]); return }
             }
         }
     }
