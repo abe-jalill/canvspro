@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { scopedKey } from "@/lib/user-scope";
+import { allowBrowserPush } from "@/lib/notification-prefs";
 
 const STORAGE_KEY = "reminders.enabled";
 const LAST_HOUR_KEY = "reminders.lastHour";
@@ -18,7 +19,6 @@ function writeEnabled(v: boolean) {
   window.localStorage.setItem(scopedKey(STORAGE_KEY), v ? "1" : "0");
 }
 
-
 function currentHourKey(now = new Date()): string {
   return `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}-${now.getHours()}`;
 }
@@ -30,6 +30,7 @@ function withinWindow(now = new Date()): boolean {
 
 function fireNotification() {
   if (typeof window === "undefined") return;
+  if (!allowBrowserPush()) return;
   if (!("Notification" in window)) return;
   if (Notification.permission !== "granted") return;
   const key = currentHourKey();
@@ -50,9 +51,7 @@ function fireNotification() {
 export function useReminders() {
   const [enabled, setEnabled] = useState<boolean>(false);
   const [permission, setPermission] = useState<NotificationPermission>(
-    typeof window !== "undefined" && "Notification" in window
-      ? Notification.permission
-      : "default",
+    typeof window !== "undefined" && "Notification" in window ? Notification.permission : "default",
   );
 
   // hydrate from storage after mount
@@ -71,17 +70,21 @@ export function useReminders() {
     // Align to the top of the next hour, then tick hourly.
     const now = new Date();
     const msToNextHour =
-      (60 - now.getMinutes()) * 60_000 -
-      now.getSeconds() * 1000 -
-      now.getMilliseconds();
+      (60 - now.getMinutes()) * 60_000 - now.getSeconds() * 1000 - now.getMilliseconds();
 
     let hourlyId: ReturnType<typeof setInterval> | undefined;
-    const alignId = window.setTimeout(() => {
-      if (withinWindow()) fireNotification();
-      hourlyId = setInterval(() => {
+    const alignId = window.setTimeout(
+      () => {
         if (withinWindow()) fireNotification();
-      }, 60 * 60 * 1000);
-    }, Math.max(msToNextHour, 1000));
+        hourlyId = setInterval(
+          () => {
+            if (withinWindow()) fireNotification();
+          },
+          60 * 60 * 1000,
+        );
+      },
+      Math.max(msToNextHour, 1000),
+    );
 
     // Also poll every minute as a safety net (covers wake-from-sleep and
     // long-lived tabs where setTimeout drifts).

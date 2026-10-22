@@ -849,19 +849,26 @@ async function runScheduled(): Promise<Response> {
   return Response.json({ users: byUser.size, sent, failures });
 }
 
-/** Sends a "test notification" push to every device the signed-in user registered. */
-async function runTest(accessToken: string): Promise<Response> {
+/** Sends a test only to the requested endpoint owned by the signed-in user. */
+async function runTest(accessToken: string, endpoint: string): Promise<Response> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data: userData } = await supabaseAdmin.auth.getUser(accessToken);
   const user = userData?.user;
   if (!user) {
     return Response.json({ ok: false, message: "You need to be signed in." }, { status: 401 });
   }
+  if (!endpoint || !isPushServiceEndpoint(endpoint)) {
+    return Response.json(
+      { ok: false, message: "Choose this device's push registration first." },
+      { status: 400 },
+    );
+  }
 
   const { data, error } = await supabaseAdmin
     .from("push_subscriptions")
     .select("id,endpoint,p256dh,auth")
-    .eq("user_id", user.id);
+    .eq("user_id", user.id)
+    .eq("endpoint", endpoint);
   if (error) {
     console.error("[push-test] subscription lookup failed", error.message);
     return Response.json({ ok: false, message: "Couldn't read your devices." });
@@ -928,10 +935,16 @@ export const Route = createFileRoute("/api/public/push/dispatch")({
       POST: async ({ request }) => {
         let action = "";
         let userId = "";
+        let endpoint = "";
         try {
-          const body = (await request.json()) as { action?: string; user_id?: string } | null;
+          const body = (await request.json()) as {
+            action?: string;
+            user_id?: string;
+            endpoint?: string;
+          } | null;
           action = String(body?.action ?? "");
           userId = String(body?.user_id ?? "");
+          endpoint = String(body?.endpoint ?? "");
         } catch {
           action = "";
         }
@@ -945,7 +958,7 @@ export const Route = createFileRoute("/api/public/push/dispatch")({
             );
           }
           try {
-            return await runTest(token);
+            return await runTest(token, endpoint);
           } catch (err) {
             console.error("[push-test] failed", err);
             return Response.json(

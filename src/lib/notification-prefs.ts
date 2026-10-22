@@ -2,6 +2,12 @@ import { createPreferenceEdits } from "@/lib/preference-edits";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { scopedKey, subscribeToUserScope, getUserScope } from "@/lib/user-scope";
+import {
+  DEVICE_NOTIFICATIONS_EVENT,
+  deviceNotificationsEnabled,
+  notificationsAllowed,
+  setDeviceNotificationsEnabled,
+} from "@/lib/device-notifications";
 
 export interface NotificationPrefs {
   enabled: boolean;
@@ -88,7 +94,7 @@ export function notificationEdits(userId: string) {
   return edits;
 }
 
-export function readPrefs(): NotificationPrefs {
+function readAccountPrefs(): NotificationPrefs {
   if (typeof window === "undefined") return DEFAULT_PREFS;
   try {
     const raw = window.localStorage.getItem(scopedKey(BASE_KEY));
@@ -97,6 +103,14 @@ export function readPrefs(): NotificationPrefs {
   } catch {
     return DEFAULT_PREFS;
   }
+}
+
+export function readPrefs(): NotificationPrefs {
+  const account = readAccountPrefs();
+  return {
+    ...account,
+    enabled: notificationsAllowed(account.enabled, deviceNotificationsEnabled()),
+  };
 }
 
 function writePrefs(p: NotificationPrefs) {
@@ -143,6 +157,8 @@ export function allowBrowserPush(prefs = readPrefs()): boolean {
 export function useNotificationPrefs() {
   const [prefs, setPrefs] = useState<NotificationPrefs>(DEFAULT_PREFS);
   const [ready, setReady] = useState(false);
+  const [deviceEnabled, setDeviceEnabled] = useState(true);
+  const [allDevicesEnabled, setAllEnabled] = useState(true);
   const editRevision = useRef(0);
 
   useEffect(() => {
@@ -152,7 +168,6 @@ export function useNotificationPrefs() {
       const request = ++requestRevision;
       const edits = editRevision.current;
       const scope = getUserScope();
-      setReady(false);
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -173,13 +188,16 @@ export function useNotificationPrefs() {
       }
       setReady(true);
     }
-    setPrefs(readPrefs());
-    void hydrate();
     const sync = () => {
       editRevision.current += 1;
       setPrefs(readPrefs());
+      setDeviceEnabled(deviceNotificationsEnabled());
+      setAllEnabled(readAccountPrefs().enabled && readAccountPrefs().browserPush);
     };
+    sync();
+    void hydrate();
     const switchAccount = () => {
+      setReady(false);
       sync();
       void hydrate();
     };
@@ -187,14 +205,18 @@ export function useNotificationPrefs() {
       void hydrate();
     };
     window.addEventListener(EVENT, sync);
+    window.addEventListener(DEVICE_NOTIFICATIONS_EVENT, sync);
     window.addEventListener("storage", sync);
     window.addEventListener("focus", onFocus);
     window.addEventListener("online", onFocus);
     window.addEventListener("canvaspro:refresh-account", onFocus);
     const unsub = subscribeToUserScope(switchAccount);
+    const refresh = window.setInterval(onFocus, 30_000);
     return () => {
       active = false;
+      window.clearInterval(refresh);
       window.removeEventListener(EVENT, sync);
+      window.removeEventListener(DEVICE_NOTIFICATIONS_EVENT, sync);
       window.removeEventListener("storage", sync);
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("online", onFocus);
@@ -207,9 +229,13 @@ export function useNotificationPrefs() {
     <K extends keyof NotificationPrefs>(key: K, value: NotificationPrefs[K]) => {
       const scope = getUserScope();
       if (!ready || !scope) return;
+      if (key === "enabled") {
+        setDeviceNotificationsEnabled(value as boolean);
+        return;
+      }
       editRevision.current += 1;
       notificationEdits(scope).set(key, value);
-      writePrefs({ ...readPrefs(), [key]: value });
+      writePrefs({ ...readAccountPrefs(), [key]: value });
     },
     [ready],
   );
@@ -225,10 +251,33 @@ export function useNotificationPrefs() {
     const scope = getUserScope();
     if (!ready || !scope) return;
     editRevision.current += 1;
-    for (const [key, value] of Object.entries(DEFAULT_PREFS))
-      notificationEdits(scope).set(key, value);
-    writePrefs(DEFAULT_PREFS);
+    for (const [key, value] of Object.entries(DEFAULT_PREFS)) {
+      if (key !== "enabled") notificationEdits(scope).set(key, value);
+    }
+    writePrefs({ ...DEFAULT_PREFS, enabled: readAccountPrefs().enabled });
   }, [ready]);
 
-  return { prefs, set, toggle, reset, ready };
+  // This is the only control allowed to change the account-wide master switch.
+  const setAllDevicesEnabled = useCallback(
+    (enabled: boolean) => {
+      const scope = getUserScope();
+      if (!ready || !scope) return;
+      editRevision.current += 1;
+      notificationEdits(scope).set("enabled", enabled);
+      if (enabled) notificationEdits(scope).set("browserPush", true);
+      writePrefs({ ...readAccountPrefs(), enabled, ...(enabled ? { browserPush: true } : {}) });
+    },
+    [ready],
+  );
+
+  return {
+    prefs,
+    set,
+    toggle,
+    reset,
+    ready,
+    deviceEnabled,
+    allDevicesEnabled,
+    setAllDevicesEnabled,
+  };
 }
