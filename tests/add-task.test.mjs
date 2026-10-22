@@ -41,7 +41,11 @@ test("a task with no class reads Personal, in gray, after the classes", () => {
   assert.equal(customToAssignmentItem({ ...item, course_id: 5, notes: "" }, undefined).course_name, "");
   assert.match(classColor(0, [1, 2]), /^hsl\(220 8% /);
   assert.doesNotMatch(classColor(1, [1, 2]), /^hsl\(220 8% /);
-  for (const file of ["src/routes/_authenticated/focus.tsx", "src/routes/_authenticated/assignments.tsx"]) {
+  for (const file of [
+    "src/routes/_authenticated/focus.tsx",
+    "src/routes/_authenticated/assignments.tsx",
+    "src/components/widgets/dashboard-widgets.tsx",
+  ]) {
     assert.match(read(file), /Number\([a-z]+\.(courseId|id) === NO_CLASS_ID\) - Number\([a-z]+\.(courseId|id) === NO_CLASS_ID\)/, file);
   }
   // Its group on Assignments has no grade.

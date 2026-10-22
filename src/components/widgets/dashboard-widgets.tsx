@@ -48,7 +48,11 @@ import { courseLetter, getGradeColor } from "@/lib/grade-color";
 import { isInFocusWindow } from "@/lib/focus-window";
 import { isAssignmentVisible } from "@/lib/assignment-window";
 import { useAnnouncementWindow, withinAnnouncementWindow } from "@/lib/announcement-window";
-import { customToAssignmentItem, useCustomAssignments } from "@/lib/custom-assignments";
+import {
+  customToAssignmentItem,
+  NO_CLASS_ID,
+  useCustomAssignments,
+} from "@/lib/custom-assignments";
 import { notYetOpen } from "@/lib/assignment-availability";
 import { dueTodayClass } from "@/lib/assignment-due";
 import { mergeAssignments } from "@/lib/assignment-sources";
@@ -230,8 +234,11 @@ function UpcomingWidget() {
     g.items.push(a);
     groupMap.set(a.course_id, g);
   });
-  const groups = Array.from(groupMap.values()).sort((a, b) =>
-    displayCourseName(a.name, a.code).localeCompare(displayCourseName(b.name, b.code)),
+  // Your own tasks that aren't for a class come after the classes.
+  const groups = Array.from(groupMap.values()).sort(
+    (a, b) =>
+      Number(a.id === NO_CLASS_ID) - Number(b.id === NO_CLASS_ID) ||
+      displayCourseName(a.name, a.code).localeCompare(displayCourseName(b.name, b.code)),
   );
   // Sort each group's items: incomplete first, then by due date.
   groups.forEach((g) => {
