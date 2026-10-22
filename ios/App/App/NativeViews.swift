@@ -87,6 +87,8 @@ struct NativeRootView: View {
             Self.markActive()
             Task { await sessionStore.checkAppleCredential() }
         }
+        // Signed out from another device: back to sign-in within a minute.
+        .task { await sessionStore.watchSignIn() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .background {
                 Self.markActive()
@@ -96,6 +98,7 @@ struct NativeRootView: View {
                 wasInBackground = false
                 NativeAppOpens.record()
                 Task { await sessionStore.checkAppleCredential() }
+                Task { await sessionStore.checkSignInStillActive() }
             }
         }
         // Stopped using Sign in with Apple for CoursePro in Settings: sign out.

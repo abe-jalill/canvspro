@@ -693,8 +693,9 @@ final class NativeAPI {
         _ = try await data(request)
     }
 
+    /// Ends this sign-in only. Without a scope the server ends every device's.
     func signOut(token: String) async throws {
-        var request = try request(path: "/auth/v1/logout", token: token)
+        var request = try request(path: "/auth/v1/logout", token: token, query: [.init(name: "scope", value: "local")])
         request.httpMethod = "POST"
         _ = try await data(request)
     }
@@ -1071,6 +1072,25 @@ final class NativeSessionStore: ObservableObject {
 
     /// Signs out when the person stopped using Sign in with Apple for CoursePro
     /// (Settings > Apple Account > Sign in with Apple), as Apple asks.
+    /// Back to sign-in when another device ended this sign-in (Settings >
+    /// Signed-in devices, here or on the website). Only a clear "no" from the
+    /// server counts: offline, a failed check or an older server change nothing.
+    func checkSignInStillActive() async {
+        guard let api, session != nil, UIApplication.shared.applicationState == .active,
+              let token = try? await accessToken() else { return }
+        guard await api.sessionIsActive(token: token) == false, session != nil else { return }
+        await signOut()
+        errorMessage = "You were signed out from another device."
+    }
+
+    /// Checks every minute while the app is open.
+    func watchSignIn() async {
+        while !Task.isCancelled {
+            await checkSignInStillActive()
+            try? await Task.sleep(for: .seconds(60))
+        }
+    }
+
     func checkAppleCredential() async {
         guard session?.user.usesApple == true, let appleUser = UserDefaults.standard.string(forKey: Self.appleUserKey) else { return }
         let state = try? await ASAuthorizationAppleIDProvider().credentialState(forUserID: appleUser)

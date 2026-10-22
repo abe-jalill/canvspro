@@ -604,6 +604,8 @@ struct NativeSettingsView: View {
                     CPRowDivider(leading: 40)
                     settingsLink("AI assistant", "sparkles") { NativeAIConnectionView() }
                     CPRowDivider(leading: 40)
+                    settingsLink("Signed-in devices", "laptopcomputer.and.iphone") { NativeDevicesView(sessionStore: sessionStore) }
+                    CPRowDivider(leading: 40)
                     settingsLink("Account", "person.crop.circle.badge.xmark") { NativeDeleteAccountView(sessionStore: sessionStore) }
                 }
                 NativeMenuGroup("Help & legal") {
@@ -705,6 +707,209 @@ private struct NativeAIConnectionView: View {
         }
         .cpNavigationTitle("AI assistant")
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+// MARK: Signed-in devices
+
+/// One sign-in on the account (list_my_sessions, the website's too).
+struct NativeSignedInDevice: Decodable, Identifiable, Equatable {
+    let id: String
+    let createdAt: String
+    let lastActiveAt: String
+    let userAgent: String?
+    let isCurrent: Bool
+    enum CodingKeys: String, CodingKey {
+        case id
+        case createdAt = "created_at"; case lastActiveAt = "last_active_at"
+        case userAgent = "user_agent"; case isCurrent = "is_current"
+    }
+}
+
+extension NativeAPI {
+    func signedInDevices(token: String) async throws -> [NativeSignedInDevice] {
+        try decoder.decode([NativeSignedInDevice].self, from: try await rpc("list_my_sessions", token: token))
+    }
+
+    /// False once another device ended this sign-in; nil when the server can't say.
+    func sessionIsActive(token: String) async -> Bool? {
+        guard let data = try? await rpc("my_session_active", token: token) else { return nil }
+        switch String(decoding: data, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines) {
+        case "true": return true
+        case "false": return false
+        default: return nil
+        }
+    }
+
+    /// Ends one of the account's sign-ins and stops its notifications.
+    func endSignIn(_ id: String, token: String) async throws {
+        _ = try await rpc("revoke_my_session", token: token, body: ["target": id])
+    }
+
+    /// Ends every sign-in but this one, and their notifications.
+    func endOtherSignIns(token: String) async throws {
+        _ = try await rpc("revoke_my_other_sessions", token: token)
+    }
+
+    private func rpc(_ name: String, token: String, body: [String: Any] = [:]) async throws -> Data {
+        var request = try request(path: "/rest/v1/rpc/\(name)", token: token)
+        request.httpMethod = "POST"
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        return try await data(request)
+    }
+}
+
+/// A readable name for a sign-in, read from its user agent the way the
+/// website does (src/lib/devices.ts).
+enum NativeDeviceName {
+    struct Description: Equatable { let name: String; let symbol: String }
+
+    static func describe(_ userAgent: String?) -> Description {
+        let ua = (userAgent ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        func has(_ pattern: String) -> Bool { ua.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil }
+        if ua.isEmpty { return Description(name: "Unknown device", symbol: "app") }
+        // The iPhone app signs in without a browser: its requests say CFNetwork/Darwin.
+        if has("CoursePro-iOS|CFNetwork|Darwin/") && !has("Mozilla") { return Description(name: "CoursePro for iPhone", symbol: "iphone") }
+        if !has("Mozilla|Opera") { return Description(name: "Another app", symbol: "app") }
+        let os: String? = has("iPhone") ? "iPhone" : has("iPad") ? "iPad" : has("Android") ? "Android" : has("CrOS") ? "Chromebook" : has("Windows") ? "Windows" : has("Macintosh|Mac OS X") ? "Mac" : has("Linux") ? "Linux" : nil
+        let browser = has("Edg(e|A|iOS)?/") ? "Edge" : has("OPR/|Opera") ? "Opera" : has("Firefox|FxiOS") ? "Firefox" : has("SamsungBrowser") ? "Samsung Internet" : has("Chrome|CriOS|Chromium") ? "Chrome" : has("Safari") ? "Safari" : "A browser"
+        let symbol = os == "iPhone" || (os == "Android" && has("Mobile")) ? "iphone" : os == "iPad" || os == "Android" ? "ipad" : "laptopcomputer"
+        return Description(name: os.map { "\(browser) on \($0)" } ?? browser, symbol: symbol)
+    }
+
+    /// "Signed in Oct 3 · Active now" / "… · Active 2 hours ago".
+    static func line(_ device: NativeSignedInDevice, now: Date = Date()) -> String {
+        let signedIn = (date(device.createdAt) ?? now).formatted(.dateTime.month(.abbreviated).day())
+        let last = min(date(device.lastActiveAt) ?? now, now)
+        let active = now.timeIntervalSince(last) < 5 * 60 ? "Active now" : "Active \(last.formatted(.relative(presentation: .named)))"
+        return "Signed in \(signedIn) · \(active)"
+    }
+
+    /// The database sends microseconds; the formatter wants none.
+    private static func date(_ value: String) -> Date? {
+        ISO8601DateFormatter.canvasWithoutFractionalSeconds.date(from: value.replacingOccurrences(of: #"\.\d+"#, with: "", options: .regularExpression))
+    }
+}
+
+/// Every sign-in on the account, this iPhone first. Sign out of any of them,
+/// of the others, or everywhere: the same as the website's Settings page.
+struct NativeDevicesView: View {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
+    @ObservedObject var sessionStore: NativeSessionStore
+    @State private var devices: [NativeSignedInDevice] = []
+    @State private var loading = true
+    @State private var status: String?
+    @State private var ending: Set<String> = []
+    @State private var working = false
+    @State private var confirmEverywhere = false
+
+    var body: some View {
+        Form {
+            Section {
+                if loading && devices.isEmpty {
+                    HStack(spacing: 10) { ProgressView(); Text("Loading your devices…").foregroundStyle(CPTheme.muted(scheme)) }
+                }
+                ForEach(devices) { device in row(device) }
+            } footer: {
+                Text("A device you sign out of goes back to the sign-in screen and stops getting notifications.")
+            }
+            if let status { Section { Text(status).foregroundStyle(CPTheme.muted(scheme)) } }
+            Section {
+                Button("Sign out of other devices") { Task { _ = await endOthers() } }
+                    .disabled(working || !devices.contains { !$0.isCurrent })
+                Button("Sign out everywhere", role: .destructive) { confirmEverywhere = true }
+                    .disabled(working || devices.isEmpty)
+            }
+        }
+        .cpListScreen()
+        .cpNavigationTitle("Signed-in devices")
+        .navigationBarTitleDisplayMode(.inline)
+        .task { await load() }
+        .refreshable { await load() }
+        .confirmationDialog("Sign out everywhere?", isPresented: $confirmEverywhere, titleVisibility: .visible) {
+            Button("Sign out everywhere", role: .destructive) { Task { await signOutEverywhere() } }
+        } message: {
+            Text("Every device, this iPhone included, goes back to the sign-in screen and stops getting notifications until you sign in again.")
+        }
+    }
+
+    private func row(_ device: NativeSignedInDevice) -> some View {
+        let described = NativeDeviceName.describe(device.userAgent)
+        let isEnding = ending.contains(device.id)
+        return HStack(spacing: 12) {
+            Image(systemName: described.symbol).cpIconFont(16).foregroundStyle(CPTheme.foreground(scheme).opacity(0.8))
+                .frame(width: 34, height: 34)
+                .background(CPTheme.foreground(scheme).opacity(0.08), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 6) {
+                    Text(described.name).cpFont(15, .medium).foregroundStyle(CPTheme.foreground(scheme)).fixedSize(horizontal: false, vertical: true)
+                    if device.isCurrent {
+                        Text("This device").cpFont(11, .semibold).foregroundStyle(CPTheme.primary(scheme: scheme))
+                            .padding(.horizontal, 7).padding(.vertical, 2)
+                            .background(CPTheme.primary(scheme: scheme).opacity(0.15), in: Capsule())
+                    }
+                }
+                Text(NativeDeviceName.line(device)).cpFont(12).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 8)
+            Button(isEnding ? "Signing out…" : "Sign out") { Task { await end(device) } }
+                .buttonStyle(.borderless)
+                .cpFont(13, .medium)
+                .disabled(isEnding || working)
+                .accessibilityLabel(device.isCurrent ? "Sign out of this iPhone" : "Sign out of \(described.name)")
+        }
+        .padding(.vertical, 4)
+    }
+
+    private func load() async {
+        guard let api = sessionStore.api, sessionStore.session != nil else {
+            loading = false
+            status = "Sign in to see your devices."
+            return
+        }
+        loading = true
+        defer { loading = false }
+        do {
+            devices = try await api.signedInDevices(token: try await sessionStore.accessToken())
+            status = nil
+        } catch {
+            status = "Couldn't load your devices. Pull down to try again."
+        }
+    }
+
+    private func end(_ device: NativeSignedInDevice) async {
+        if device.isCurrent { await sessionStore.signOut(); return }
+        guard let api = sessionStore.api else { return }
+        ending.insert(device.id)
+        defer { ending.remove(device.id) }
+        do {
+            try await api.endSignIn(device.id, token: try await sessionStore.accessToken())
+            CPHaptics.success()
+            devices.removeAll { $0.id == device.id }
+        } catch {
+            status = "Couldn't sign out of that device. Try again."
+        }
+    }
+
+    private func endOthers() async -> Bool {
+        guard let api = sessionStore.api else { return false }
+        working = true
+        defer { working = false }
+        do {
+            try await api.endOtherSignIns(token: try await sessionStore.accessToken())
+            CPHaptics.success()
+            devices.removeAll { !$0.isCurrent }
+            return true
+        } catch {
+            status = "Couldn't sign out of your other devices. Try again."
+            return false
+        }
+    }
+
+    private func signOutEverywhere() async {
+        if await endOthers() { await sessionStore.signOut() }
     }
 }
 
