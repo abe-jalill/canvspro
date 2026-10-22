@@ -88,7 +88,7 @@ test("a picked day shows everything due that day, whatever the range says", asyn
   const page = readFileSync(new URL("../src/routes/_authenticated/focus.tsx", import.meta.url), "utf8");
   // To-Do is one list now (like the iPhone): no ranges or days to pick, and old
   // ?window= links still open it.
-  assert.doesNotMatch(page, /RangeTile|pickedDay|selectedDay|"Next 4 weeks"/);
-  assert.match(page, /isDueInFocusWindow\(a, "all", now\)/);
+  assert.doesNotMatch(page, /RangeTile|"Next 4 weeks"/);
+  assert.match(page, /tasksForDay\(allAssignments, selectedDay, isDone\)/);
   assert.match(page, /search\.window === undefined \? \{\} : \{ window: normalizeFocusWindow\(search\.window\) \}/);
 });

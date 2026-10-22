@@ -1,3 +1,4 @@
+import { useClassAssignments } from "@/hooks/use-class-assignments";
 import { AssignmentEstimateEditor } from "@/components/assignment-estimate";
 import { useMemo } from "react";
 import { ArrowRight, Sparkles } from "lucide-react";
@@ -30,7 +31,7 @@ const coursesQO = queryOptions({
 });
 
 export function PriorityAssignmentsWidget() {
-  const assignments = useQuery(assignmentsQO);
+  const assignments = useClassAssignments();
   const courses = useQuery(coursesQO);
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
   const completing = useCompletingIds();

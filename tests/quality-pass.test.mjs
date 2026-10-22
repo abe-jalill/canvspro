@@ -36,7 +36,7 @@ test("hiding a class takes effect straight away, your own tasks for it included"
   const custom = read("src/lib/custom-assignments.ts");
   assert.match(custom, /all\.filter\(\(item\) => !hiddenIds\.has\(item\.course_id\)\)/);
   // Saving writes the whole list, so hidden tasks are never lost.
-  for (const write of ["set([...all, item])", "set(all.map(", "set(all.filter("]) {
+  for (const write of ["await setAsync([...all, item])", "set(all.map(", "set(all.filter("]) {
     assert.ok(custom.includes(write), write);
   }
 });
@@ -70,7 +70,7 @@ test("this week is the circles' seven days on Today's line, Next up and To-Do", 
   assert.match(hero, /isAssignmentVisible\(assignment, completed, false, now\) && isDueThisWeek\(assignment, now\)/);
   assert.match(hero, /"Nothing else due in the next seven days\."/);
   const todo = read("src/routes/_authenticated/focus.tsx");
-  assert.match(todo, /const week = allAssignments\.filter\(\(a\) => isDueThisWeek\(a, now\) && !notYetOpen\(a, now\)\);/);
+  assert.match(todo, /const weekDates = todoWeekDays\(now, weekOffset\);/);
   // Work Canvas hasn't opened yet says when it opens.
   assert.match(todo, /<OpensLabel unlockAt=\{a\.unlock_at\} className="mt-1" \/>/);
 });
@@ -79,7 +79,7 @@ test("your own tasks: class name in Next up, opened on Assignments, picked by St
   const hero = read("src/components/dashboard-hero.tsx");
   assert.match(hero, /customToAssignmentItem\(item, courseById\.get\(item\.course_id\)\)/);
   for (const file of ["src/components/dashboard-hero.tsx", "src/routes/_authenticated/focus.tsx"]) {
-    assert.match(read(file), /isCustomAssignmentId\([a-z]+(\.id)?\)\s+\? \{ to: "\/assignments", search: \{ assignment: String\(/, file);
+    assert.match(read(file), /<TaskDestination assignment=\{[a-z]+\}/, file);
   }
   const study = read("src/routes/_authenticated/study-session.tsx");
   assert.match(study, /const validId = \(id: number\) => Number\.isInteger\(id\) && id !== 0;/);

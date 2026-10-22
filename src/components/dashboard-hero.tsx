@@ -1,3 +1,4 @@
+import { TaskDestination } from "@/components/task-destination";
 import { dueTodayClass } from "@/lib/assignment-due";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -11,7 +12,6 @@ import { cn } from "@/lib/utils";
 import { isDueThisWeek, isInFocusWindow } from "@/lib/focus-window";
 import {
   customToAssignmentItem,
-  isCustomAssignmentId,
   useCustomAssignments,
 } from "@/lib/custom-assignments";
 import { notYetOpen } from "@/lib/assignment-availability";
@@ -63,7 +63,7 @@ export function DashboardHero() {
   const assignments = useQuery(dueDatesQO);
   const courses = useQuery(coursesQO);
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
-  const custom = useCustomAssignments();
+  const custom = useCustomAssignments(true);
   const meta = useAssignmentMeta();
   const profile = useUserProfile();
 
@@ -320,16 +320,8 @@ function NextUpCard({
         dueTodayClass(assignment.due_at, false, now),
       )}
     >
-      {/* Your own tasks aren't on a class page; Assignments has them. */}
-      <Link
-        {...(isCustomAssignmentId(assignment.id)
-          ? { to: "/assignments", search: { assignment: String(assignment.id) } }
-          : {
-              to: "/courses/$courseId",
-              params: { courseId: String(assignment.course_id) },
-              search: { assignment: String(assignment.id) },
-            })}
-        preload="intent"
+      {/* Personal tasks open their details here; class assignments open their page. */}
+      <TaskDestination assignment={assignment}
         className="relative block"
       >
         <div className="flex items-center justify-between gap-3">
@@ -377,7 +369,12 @@ function NextUpCard({
             <span className="text-xs font-medium tabular-nums text-foreground">{progress}%</span>
           </div>
         )}
-      </Link>
+      </TaskDestination>
+      {assignment.course_id === 0 ? (
+        <TaskDestination assignment={assignment} className="relative mt-4 flex min-h-11 w-full items-center justify-center rounded-xl border border-foreground/10 text-sm font-medium">
+          View task
+        </TaskDestination>
+      ) : (
       <Link
         to="/study-session"
         search={{ assignment: assignment.id }}
@@ -387,6 +384,7 @@ function NextUpCard({
         <Play className="h-4 w-4 fill-primary text-primary" aria-hidden="true" />
         Start
       </Link>
+      )}
     </div>
   );
 }

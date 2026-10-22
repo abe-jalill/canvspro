@@ -118,9 +118,10 @@ test("Calendar adds events; To-Do's task can also go on the calendar", () => {
   assert.match(page, /entriesForDay\(day, sources, \{ classes: false \}\)/);
   const form = read("src/components/add-assignment-form.tsx");
   assert.match(form, /Also put it on my calendar/);
-  assert.match(form, /onCalendar \? new Date\(planValue\)\.toISOString\(\) : undefined,/);
+  assert.match(form, /!personal && onCalendar \? new Date\(planValue\)\.toISOString\(\) : undefined/);
+  assert.match(form, /calendarOption && !personal && \(/);
   const dialog = read("src/components/add-task-dialog.tsx");
-  assert.match(dialog, /if \(calendarAt\)\s+picks\.add\(/);
+  assert.match(dialog, /if \(calendarAt && input\.course_id !== NO_CLASS_ID\)\s+picks\.add\(/);
   // Events never go on To-Do.
   assert.doesNotMatch(read("src/routes/_authenticated/focus.tsx"), /calendar-events/);
   // "Add to calendar" picks a sensible time instead of always noon.

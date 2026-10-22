@@ -1,3 +1,5 @@
+import { useCalendarPicks } from "@/lib/calendar-picks";
+import type { NewCustomAssignment } from "@/components/add-assignment-form";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, queryOptions } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -240,6 +242,15 @@ function AssignmentsPage() {
   const completing = useCompletingIds();
   const highlight = useCourseHighlight();
   const custom = useCustomAssignments();
+  const calendarPicks = useCalendarPicks();
+  const addAssignment = async (input: NewCustomAssignment, calendarAt?: string) => {
+    const item = await custom.add(input);
+    if (calendarAt) {
+      const course = courses.data?.find((course) => course.id === item.course_id);
+      calendarPicks.add(customToAssignmentItem(item, course), calendarAt);
+    }
+    return item;
+  };
   const routeSearch = Route.useSearch();
 
   const courseOptions = useMemo(
@@ -526,7 +537,7 @@ function AssignmentsPage() {
             </span>
             <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
           </summary>
-          <AddAssignmentForm courseOptions={courseOptions} onAdd={custom.add} startOpen />
+          <AddAssignmentForm courseOptions={courseOptions} onAdd={addAssignment} calendarOption startOpen />
         </details>
       )}
 
@@ -828,7 +839,7 @@ function AssignmentsPage() {
                         })}
                       </ul>
 
-                      <AddAssignmentForm courseId={g.id} courseLabel={g.label} onAdd={custom.add} />
+                      <AddAssignmentForm courseId={g.id} courseLabel={g.label} onAdd={addAssignment} calendarOption />
                     </div>
                   )}
                 </GlassCard>

@@ -11,6 +11,7 @@ import {
   syncPrefsToServer,
 } from "@/lib/push-client";
 import { supabase } from "@/integrations/supabase/client";
+import { setDeviceNotificationsEnabled } from "@/lib/device-notifications";
 
 function Toggle({
   label,
@@ -70,17 +71,37 @@ const CLASS_LEADS = [
 ];
 
 /** Turns closed-app alerts on for this device, or sends a test once they're on. */
-function ThisDevice({ disabled }: { disabled: boolean }) {
+function ThisDevice({
+  disabled,
+  deviceEnabled,
+  paused,
+}: {
+  disabled: boolean;
+  deviceEnabled: boolean;
+  paused: boolean;
+}) {
   const [on, setOn] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    void isPushEnabled().then(setOn);
-  }, []);
+    let active = true;
+    void isPushEnabled()
+      .then((enabled) => {
+        if (active) setOn(enabled);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [deviceEnabled, disabled]);
 
   async function turnOn() {
     setBusy(true);
     try {
+      if (!pushSupported()) {
+        setDeviceNotificationsEnabled(true);
+        return;
+      }
       const res = await enableBackgroundPush();
       if (res.ok) {
         setOn(true);
@@ -88,6 +109,8 @@ function ThisDevice({ disabled }: { disabled: boolean }) {
       } else {
         toast.error(res.reason);
       }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn’t enable notifications.");
     } finally {
       setBusy(false);
     }
@@ -99,6 +122,8 @@ function ThisDevice({ disabled }: { disabled: boolean }) {
       await disableBackgroundPush();
       setOn(false);
       toast.success("Notifications are off for this device");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn’t disable notifications.");
     } finally {
       setBusy(false);
     }
@@ -113,10 +138,17 @@ function ThisDevice({ disabled }: { disabled: boolean }) {
         toast.error("Please sign in again and retry.");
         return;
       }
+      const registration = await navigator.serviceWorker.getRegistration("/");
+      const subscription = await registration?.pushManager.getSubscription();
+      if (!subscription) {
+        setOn(false);
+        toast.error("Enable background alerts on this device first.");
+        return;
+      }
       const response = await fetch("/api/public/push/dispatch", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ action: "test" }),
+        body: JSON.stringify({ action: "test", endpoint: subscription.endpoint }),
       });
       const res = (await response.json()) as { ok?: boolean; message?: string };
       if (res.ok) toast.success(res.message ?? "Test notification sent.");
@@ -131,69 +163,74 @@ function ThisDevice({ disabled }: { disabled: boolean }) {
   const buttonClass =
     "glass-hover min-h-10 shrink-0 rounded-xl px-4 text-sm font-semibold disabled:opacity-50";
 
-  if (!pushSupported()) {
-    return (
-      <p className="glass-inset rounded-xl p-3 text-xs text-muted-foreground">
-        {needsHomeScreenInstall()
-          ? "On iPhone or iPad, add CoursePro to your Home Screen and open it from there to get notifications."
-          : "This browser can't show notifications when CoursePro is closed."}
-      </p>
-    );
-  }
-
   return (
-    <div
-      className={cn(
-        "glass-inset flex flex-wrap items-center justify-between gap-2 rounded-xl p-3",
-        disabled && "opacity-50",
-      )}
-    >
-      <div className="min-w-0">
-        <p className="text-sm font-medium">This device</p>
-        <p className="text-xs text-muted-foreground">
-          {on ? "Gets notifications, even with CoursePro closed" : "Not getting notifications"}
-        </p>
-      </div>
-      {on ? (
-        <div className="flex gap-2">
+    <div className="space-y-2">
+      <Toggle
+        label="Notifications on this device"
+        description={
+          deviceEnabled
+            ? paused
+              ? "Paused by the all-devices setting"
+              : "Your other devices keep their own setting"
+            : "Off only on this device"
+        }
+        checked={deviceEnabled}
+        disabled={busy || disabled}
+        onChange={() => void (deviceEnabled ? turnOff() : turnOn())}
+      />
+      {pushSupported() ? (
+        <div className="glass-inset flex flex-wrap items-center justify-between gap-2 rounded-xl p-3">
+          <p className="text-xs text-muted-foreground">
+            {on ? "Background notifications are set up" : "Get notifications with CoursePro closed"}
+          </p>
           <button
             type="button"
-            onClick={() => void sendTest()}
-            disabled={busy || disabled}
+            onClick={() => void (on ? sendTest() : turnOn())}
+            disabled={busy || disabled || paused || !deviceEnabled}
             className={cn(buttonClass, "bg-foreground text-background")}
           >
-            Send test
-          </button>
-          <button
-            type="button"
-            onClick={() => void turnOff()}
-            disabled={busy}
-            className={cn(buttonClass, "text-muted-foreground")}
-          >
-            Turn off
+            {busy ? "Working…" : on ? "Send test" : "Enable background alerts"}
           </button>
         </div>
       ) : (
-        <button
-          type="button"
-          onClick={() => void turnOn()}
-          disabled={busy || disabled}
-          className={cn(buttonClass, "bg-foreground text-background")}
-        >
-          {busy ? "Turning on…" : "Turn on"}
-        </button>
+        <p className="px-1 text-xs text-muted-foreground">
+          {needsHomeScreenInstall()
+            ? "Add CoursePro to your Home Screen for notifications when the app is closed."
+            : "This browser can show notifications only while CoursePro is open."}
+        </p>
       )}
     </div>
   );
 }
 
 /**
- * The whole notification screen: one switch, this device, what to hear about,
- * and quiet hours. Each simple choice sets the same saved fields the
- * background check reads, so the server side is unchanged.
+ * The primary switch controls only this device. The separate all-devices
+ * control is the account-wide pause used by the background sender.
  */
 export function NotificationSettings() {
-  const { prefs, set, toggle, ready } = useNotificationPrefs();
+  const { prefs, set, toggle, ready, deviceEnabled, allDevicesEnabled, setAllDevicesEnabled } =
+    useNotificationPrefs();
+  const [savingAll, setSavingAll] = useState(false);
+
+  async function toggleAllDevices() {
+    setSavingAll(true);
+    setAllDevicesEnabled(!allDevicesEnabled);
+    try {
+      if (!(await syncPrefsToServer()))
+        throw new Error(
+          "The all-devices setting could not sync. Check your connection and try again.",
+        );
+      toast.success(
+        allDevicesEnabled
+          ? "Notifications paused on all devices"
+          : "All-devices pause lifted; device choices are unchanged",
+      );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "The all-devices setting could not sync.");
+    } finally {
+      setSavingAll(false);
+    }
+  }
 
   // The account copy is shared with the background check and native iOS.
   useEffect(() => {
@@ -206,18 +243,12 @@ export function NotificationSettings() {
         .catch(() => toast.error("Notification settings could not sync. Try again."));
     }, 600);
     return () => clearTimeout(id);
-  }, [prefs, ready]);
+  }, [prefs, ready, allDevicesEnabled]);
 
-  const off = !prefs.enabled;
+  const off = !ready || !prefs.enabled;
   const dueOn = prefs.due1d || prefs.due2d || prefs.due3d || prefs.due1w;
   const lead = prefs.countdownLeads[0] ?? 15;
   const tonightHour = prefs.countdownTonightHours[0] ?? 18;
-
-  function setNotifications(on: boolean) {
-    set("enabled", on);
-    // Older accounts may have pop-ups muted; turning notifications on means all of them.
-    if (on && !prefs.browserPush) set("browserPush", true);
-  }
 
   function setDueDates(on: boolean) {
     set("due1d", on);
@@ -239,14 +270,18 @@ export function NotificationSettings() {
   return (
     <div className="flex flex-col gap-6">
       <div className="space-y-2">
+        <ThisDevice disabled={false} deviceEnabled={deviceEnabled} paused={!allDevicesEnabled} />
         <Toggle
-          label="Notifications"
-          description={off ? "Off everywhere" : "On for your account"}
-          checked={prefs.enabled}
-          disabled={!ready}
-          onChange={() => setNotifications(off)}
+          label="Allow notifications on all devices"
+          description={
+            allDevicesEnabled
+              ? "Each device uses its own on/off setting"
+              : "Paused everywhere; device settings are remembered"
+          }
+          checked={allDevicesEnabled}
+          disabled={!ready || savingAll}
+          onChange={() => void toggleAllDevices()}
         />
-        <ThisDevice disabled={off} />
       </div>
 
       <div className="space-y-2">

@@ -6,6 +6,13 @@ export const NO_CLASS_ID = 0;
 /** What a task that isn't for a class shows where a class name would be. */
 export const NO_CLASS_LABEL = "Personal";
 
+/** Personal tasks belong only to the hero, To-Do widget and To-Do page. */
+export function customAssignmentsForSurface<T extends { course_id: number }>(
+  items: T[], includePersonalTasks = false,
+): T[] {
+  return includePersonalTasks ? items : items.filter((item) => item.course_id !== NO_CLASS_ID);
+}
+
 export function customToAssignmentItem(
   custom: CustomAssignment,
   course: { name: string; course_code: string } | undefined,

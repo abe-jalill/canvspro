@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from "react";
 import { useUserPreferenceKey } from "@/hooks/use-user-preferences";
+import { customAssignmentsForSurface } from "./assignment-sources";
 
 export const CUSTOM_ASSIGNMENTS_KEY = "custom-assignments";
 
@@ -33,8 +34,8 @@ export function isCustomAssignmentId(id: number) {
   return id < 0;
 }
 
-export function useCustomAssignments() {
-  const { value, isLoading, set } = useUserPreferenceKey<CustomAssignment[]>(
+export function useCustomAssignments(includePersonalTasks = false) {
+  const { value, isLoading, set, setAsync } = useUserPreferenceKey<CustomAssignment[]>(
     CUSTOM_ASSIGNMENTS_KEY,
     [],
   );
@@ -45,8 +46,9 @@ export function useCustomAssignments() {
   const { value: hidden } = useUserPreferenceKey<number[]>("hidden_course_ids", []);
   const list = useMemo(() => {
     const hiddenIds = new Set(Array.isArray(hidden) ? hidden : []);
-    return hiddenIds.size ? all.filter((item) => !hiddenIds.has(item.course_id)) : all;
-  }, [all, hidden]);
+    const visible = hiddenIds.size ? all.filter((item) => !hiddenIds.has(item.course_id)) : all;
+    return customAssignmentsForSurface(visible, includePersonalTasks);
+  }, [all, hidden, includePersonalTasks]);
 
   const byCourse = useMemo(() => {
     const map = new Map<number, CustomAssignment[]>();
@@ -59,7 +61,7 @@ export function useCustomAssignments() {
   }, [list]);
 
   const add = useCallback(
-    (input: {
+    async (input: {
       course_id: number;
       name: string;
       due_at: string | null;
@@ -72,10 +74,10 @@ export function useCustomAssignments() {
         id: -Date.now(),
         created_at: new Date().toISOString(),
       };
-      set([...all, item]);
+      await setAsync([...all, item]);
       return item;
     },
-    [all, set],
+    [all, setAsync],
   );
 
   const update = useCallback(

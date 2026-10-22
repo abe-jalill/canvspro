@@ -10,6 +10,8 @@ import {
 import { NO_CLASS_ID } from "@/lib/custom-assignments";
 import { suggestedPlanTime } from "@/lib/calendar-events";
 import { cn } from "@/lib/utils";
+import { defaultTaskDue } from "@/lib/todo-week";
+import { DueDatePicker } from "@/components/ui/due-date-picker";
 
 export interface NewCustomAssignment {
   course_id: number;
@@ -20,7 +22,6 @@ export interface NewCustomAssignment {
   estimated_minutes?: number | null;
 }
 
-/** An ISO time as a datetime-local value, in local time. */
 function toLocalInput(iso: string): string {
   const d = new Date(iso);
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -49,42 +50,35 @@ export function AddAssignmentForm({
   startOpen?: boolean;
   /** Shown as Back: the form sits in a step it can go back from. */
   onCancel?: () => void;
-  /** Offers "Also put it on my calendar", with a time (To-Do's Add). */
   calendarOption?: boolean;
-  /** `calendarAt` is set when it should also go on the calendar then. */
-  onAdd: (input: NewCustomAssignment, calendarAt?: string) => void;
+  onAdd: (input: NewCustomAssignment, calendarAt?: string) => void | Promise<unknown>;
   className?: string;
 }) {
   const personal = courseId === NO_CLASS_ID;
   const [open, setOpen] = useState(startOpen);
   const [name, setName] = useState("");
-  const [due, setDue] = useState("");
+  const [due, setDue] = useState(defaultTaskDue);
   const [points, setPoints] = useState("");
   const [notes, setNotes] = useState("");
   const [minutes, setMinutes] = useState("");
   const [selected, setSelected] = useState<string>(courseId != null ? String(courseId) : "");
   const [onCalendar, setOnCalendar] = useState(false);
-  /** Empty until the student picks a time; until then it follows the due date. */
   const [planAt, setPlanAt] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const targetId = courseId ?? (selected ? Number(selected) : NaN);
   const validMinutes =
     minutes === "" ||
     (Number.isInteger(Number(minutes)) && Number(minutes) > 0 && Number(minutes) <= 480);
-  const dueIso = due ? new Date(due).toISOString() : null;
-  const suggested = toLocalInput(
-    suggestedPlanTime(dueIso, validMinutes && minutes !== "" ? Number(minutes) : 60),
-  );
-  const planValue = planAt || suggested;
-  const canSave =
-    name.trim().length > 0 &&
-    Number.isFinite(targetId) &&
-    validMinutes &&
-    (!onCalendar || Number.isFinite(Date.parse(planValue)));
+  const dueIso = due && Number.isFinite(Date.parse(due)) ? new Date(due).toISOString() : null;
+  const planValue = planAt || toLocalInput(suggestedPlanTime(dueIso, validMinutes && minutes !== "" ? Number(minutes) : 60));
+  const canSave = name.trim().length > 0 && Number.isFinite(targetId) && validMinutes &&
+    Number.isFinite(Date.parse(due)) && (!onCalendar || Number.isFinite(Date.parse(planValue)));
 
   function reset() {
     setName("");
-    setDue("");
+    setDue(defaultTaskDue());
     setPoints("");
     setNotes("");
     setMinutes("");
@@ -93,23 +87,28 @@ export function AddAssignmentForm({
     if (courseId == null) setSelected("");
   }
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!canSave) return;
+    if (!canSave || saving) return;
+    setSaving(true);
+    setError(null);
     const pts = parseFloat(points);
-    onAdd(
-      {
-        course_id: targetId,
-        name: name.trim(),
-        due_at: dueIso,
-        points_possible: personal || Number.isNaN(pts) ? null : pts,
-        notes: personal ? "" : notes.trim(),
-        estimated_minutes: minutes === "" ? null : Number(minutes),
-      },
-      onCalendar ? new Date(planValue).toISOString() : undefined,
-    );
+    try {
+    await onAdd({
+      course_id: targetId,
+      name: name.trim(),
+      due_at: due ? new Date(due).toISOString() : null,
+      points_possible: personal || Number.isNaN(pts) ? null : pts,
+      notes: personal ? "" : notes.trim(),
+      estimated_minutes: minutes === "" ? null : Number(minutes),
+    }, !personal && onCalendar ? new Date(planValue).toISOString() : undefined);
     reset();
     if (!startOpen) setOpen(false);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Could not save. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   const inputClass =
@@ -129,7 +128,8 @@ export function AddAssignmentForm({
   }
 
   return (
-    <form onSubmit={submit} className={cn("glass-inset mt-3 space-y-3 p-3", className)}>
+    <form onSubmit={submit} className={cn("glass-inset mt-3 space-y-3 p-3", className)} aria-busy={saving}>
+      <fieldset disabled={saving} className="space-y-3">
       {courseId == null && (
         <Select value={selected} onValueChange={setSelected}>
           <SelectTrigger aria-label="Class">
@@ -156,17 +156,12 @@ export function AddAssignmentForm({
         className={inputClass}
       />
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="space-y-1">
+        <div className="space-y-1">
           <span className="text-xs text-muted-foreground">
-            {personal ? "Due (optional)" : "Due"}
+            Due
           </span>
-          <input
-            type="datetime-local"
-            value={due}
-            onChange={(e) => setDue(e.target.value)}
-            className={inputClass}
-          />
-        </label>
+          <DueDatePicker value={due} onChange={setDue} />
+        </div>
         {personal ? (
           <label className="space-y-1">
             <span className="text-xs text-muted-foreground">Time it takes (minutes)</span>
@@ -221,7 +216,7 @@ export function AddAssignmentForm({
           />
         </>
       )}
-      {calendarOption && (
+      {calendarOption && !personal && (
         <div className="space-y-2 rounded-lg border border-glass-border p-3">
           <label className="flex cursor-pointer items-center gap-2 text-sm">
             <input
@@ -235,24 +230,19 @@ export function AddAssignmentForm({
           {onCalendar && (
             <label className="block space-y-1">
               <span className="text-xs text-muted-foreground">When you'll work on it</span>
-              <input
-                type="datetime-local"
-                value={planValue}
-                onChange={(e) => setPlanAt(e.target.value)}
-                aria-label="When you'll work on it"
-                className={inputClass}
-              />
+              <DueDatePicker value={planValue} onChange={setPlanAt} />
             </label>
           )}
         </div>
       )}
+      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       <div className="flex flex-wrap gap-2">
         <button
           type="submit"
-          disabled={!canSave}
+          disabled={!canSave || saving}
           className="glass-hover min-h-11 rounded-xl border border-glass-border px-4 py-2 text-sm font-medium disabled:opacity-50"
         >
-          {personal ? "Save task" : "Save assignment"}
+          {saving ? "Saving…" : personal ? "Save task" : "Save assignment"}
         </button>
         <button
           type="button"
@@ -266,6 +256,7 @@ export function AddAssignmentForm({
           {onCancel ? "Back" : startOpen ? "Clear" : "Cancel"}
         </button>
       </div>
+      </fieldset>
     </form>
   );
 }
