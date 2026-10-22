@@ -212,10 +212,14 @@ export interface PriorityQueueItem extends RankedAssignment {
   urgency: PriorityUrgency;
 }
 
+/** Priority Assignments looks this many days ahead (through the end of the last one). */
+export const PRIORITY_WINDOW_DAYS = 5;
+
 /**
- * Every class's open work in one list, ordered by the same scorer Get It Done
- * uses. The Assignments page and the dashboard widget both read this, so the
- * same assignment is never ranked differently on different pages.
+ * Every class's open work due in the next five days, ordered by the same
+ * scorer Get It Done uses. The Assignments page and the dashboard widget both
+ * read this, so the same assignment is never ranked differently on different
+ * pages.
  */
 export function buildPriorityQueue(input: {
   assignments: AssignmentItem[];
@@ -224,12 +228,17 @@ export function buildPriorityQueue(input: {
   now?: number;
 }): PriorityQueueItem[] {
   const now = input.now ?? Date.now();
-  // Priority is about deadlines, so work with no due date is left out.
-  const visible = input.assignments.filter(
-    (assignment) =>
-      assignment.due_at != null &&
-      isAssignmentVisible(assignment, input.completed(assignment.id), false, now),
-  );
+  const end = endOfUpcomingDay(now, PRIORITY_WINDOW_DAYS);
+  // Priority is about deadlines, so work with no due date is left out, and so
+  // is anything due further out than the window: it can wait.
+  const visible = input.assignments.filter((assignment) => {
+    const due = dueTime(assignment);
+    return (
+      due != null &&
+      due <= end &&
+      isAssignmentVisible(assignment, input.completed(assignment.id), false, now)
+    );
+  });
   return rankGetItDoneAssignments({
     assignments: visible,
     completed: input.completed,
@@ -238,12 +247,29 @@ export function buildPriorityQueue(input: {
   }).map((item) => ({ ...item, urgency: urgencyForAssignment(item.assignment, now) }));
 }
 
+/** What Priority Assignments says when nothing is due in the window. */
+export const NOTHING_DUE_SOON = "Nothing due soon, relax.";
+
+/** Shown one at a time under NOTHING_DUE_SOON, each for a few seconds. */
+export const RESTFUL_PHRASES = [
+  "Take a slow breath in, and let it all the way out.",
+  "Drop your shoulders and unclench your jaw.",
+  "Look at something far away for a moment.",
+  "A glass of water would be nice right now.",
+  "Step outside and notice the air.",
+  "Rest is part of the work.",
+  "Stretch your arms up, then let them fall.",
+  "Let your mind wander for a while.",
+  "You've done enough for now.",
+  "Close your eyes and count five slow breaths.",
+] as const;
+
 /** One-line summary of what to do next, e.g. "Right now, finish A (Bio), then B (Chem)." */
 export function describePriorityQueue(
   queue: PriorityQueueItem[],
   courseLabel: (assignment: AssignmentItem) => string = (a) => a.course_name,
 ): string {
-  if (queue.length === 0) return "No unfinished assignments right now.";
+  if (queue.length === 0) return NOTHING_DUE_SOON;
   const [first, ...rest] = queue.slice(0, 3).map(
     ({ assignment }) => `${assignment.name} (${courseLabel(assignment)})`,
   );

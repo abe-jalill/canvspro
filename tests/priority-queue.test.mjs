@@ -1,8 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   buildPriorityQueue,
   describePriorityQueue,
+  NOTHING_DUE_SOON,
+  RESTFUL_PHRASES,
   rankGetItDoneAssignments,
   urgencyForAssignment,
 } from "../src/lib/get-it-done.ts";
@@ -38,14 +41,39 @@ test("the priority queue uses the same order as Get It Done", () => {
   const ranked = rankGetItDoneAssignments({ assignments, completed, now });
   assert.deepEqual(
     queue.map((entry) => entry.assignment.id),
-    ranked.map((entry) => entry.assignment.id),
+    ranked.map((entry) => entry.assignment.id).filter((id) => id !== 6),
   );
+});
+
+test("only work due in the next five days is a priority", () => {
+  const at = (days, hour) => {
+    const d = new Date(now);
+    d.setDate(d.getDate() + days);
+    d.setHours(hour, 59, 0, 0);
+    return d.toISOString();
+  };
+  const queue = buildPriorityQueue({
+    assignments: [
+      item(1, 1, hours(-2), 10, "Late"),
+      item(2, 1, at(5, 23), 10, "Fifth day, late evening"),
+      item(3, 1, at(6, 0), 10, "Sixth day"),
+      item(4, 1, hours(24 * 30), 100, "Final project"),
+    ],
+    completed: () => false,
+    now,
+  });
+  assert.deepEqual(queue.map((entry) => entry.assignment.name), ["Late", "Fifth day, late evening"]);
+  // The heavy project due in six days waits until it's close.
+  const names = buildPriorityQueue({ assignments, completed: () => false, now }).map(
+    (entry) => entry.assignment.name,
+  );
+  assert.equal(names.includes("Project"), false);
 });
 
 test("tonight's work outranks heavy work that is days away", () => {
   const queue = buildPriorityQueue({ assignments, completed: () => false, now });
   const names = queue.map((entry) => entry.assignment.name);
-  assert.ok(names.indexOf("Quiz") < names.indexOf("Project"));
+  assert.ok(names.indexOf("Quiz") < names.indexOf("Paper"));
   assert.ok(names.indexOf("Reading") < names.indexOf("Exam prep"));
   assert.equal(names[names.length - 1], "Lab");
 });
@@ -78,5 +106,19 @@ test("summary names the top assignments and handles an empty queue", () => {
   const queue = buildPriorityQueue({ assignments, completed: () => false, now });
   const summary = describePriorityQueue(queue);
   assert.match(summary, /^Right now, finish Reading \(Course 3\), then Quiz \(Course 1\), then /);
-  assert.equal(describePriorityQueue([]), "No unfinished assignments right now.");
+  assert.equal(describePriorityQueue([]), "Nothing due soon, relax.");
+});
+
+test("with nothing due soon, the card says relax and rests on a changing phrase", () => {
+  assert.equal(NOTHING_DUE_SOON, "Nothing due soon, relax.");
+  assert.ok(RESTFUL_PHRASES.length >= 6);
+  assert.equal(new Set(RESTFUL_PHRASES).size, RESTFUL_PHRASES.length);
+  const calm = readFileSync(new URL("../src/components/nothing-due-soon.tsx", import.meta.url), "utf8");
+  assert.match(calm, /setIndex\(\(i\) => \(i \+ 1\) % RESTFUL_PHRASES\.length\)/);
+  assert.match(calm, /window\.clearInterval\(id\)/);
+  for (const file of ["src/routes/_authenticated/assignments.tsx", "src/components/priority-assignments.tsx"]) {
+    const card = readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
+    assert.match(card, /\{queue\.length === 0 \? \(\s+<NothingDueSoon \/>/, file);
+    assert.match(card, /subtitle="Due in the next 5 days, by deadline and weight"/, file);
+  }
 });

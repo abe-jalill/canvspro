@@ -9,6 +9,7 @@ import { useLocalSet, COMPLETED_ASSIGNMENTS_KEY } from "@/lib/local-state";
 import { displayCourseName } from "@/lib/course-display";
 import { buildPriorityQueue, describePriorityQueue } from "@/lib/get-it-done";
 import { PriorityBadge } from "@/components/priority-badge";
+import { NothingDueSoon } from "@/components/nothing-due-soon";
 import { cn } from "@/lib/utils";
 import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
 import { useAssignmentMetaMap } from "@/hooks/use-assignment-meta";
@@ -82,15 +83,19 @@ export function PriorityAssignmentsWidget() {
   return (
     <GlassCard
       title="Priority Assignments"
-      subtitle="Smart ordering by deadline and weight"
+      subtitle="Due in the next 5 days, by deadline and weight"
       className="overflow-hidden"
     >
-      <div className="flex items-start gap-3">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-foreground/10">
-          <Sparkles className="h-4 w-4 text-foreground/80" />
+      {queue.length === 0 ? (
+        <NothingDueSoon />
+      ) : (
+        <div className="flex items-start gap-3">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-foreground/10">
+            <Sparkles className="h-4 w-4 text-foreground/80" />
+          </div>
+          <p className="text-sm leading-relaxed text-foreground/90">{summary}</p>
         </div>
-        <p className="text-sm leading-relaxed text-foreground/90">{summary}</p>
-      </div>
+      )}
 
       {topItems.length > 0 && (
         <ul className="mt-4 space-y-2">
