@@ -3,7 +3,7 @@ import { formatAssignmentDue } from "@/lib/assignment-due";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { Check, Search, X } from "lucide-react";
+import { Check, Keyboard, ListChecks, Play, Search, Star, X } from "lucide-react";
 import type { AssignmentItem } from "@/lib/canvas.functions";
 import { ErrorState } from "@/components/glass-card";
 import { cn } from "@/lib/utils";
@@ -38,6 +38,31 @@ import { OpensLabel } from "@/components/assignment-description-link";
 import { AddTaskButton } from "@/components/add-task-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TodoWeekPicker } from "@/components/todo-week-picker";
+import { StepList } from "@/components/todo/step-list";
+import { QuickAdd } from "@/components/todo/quick-add";
+import { WeeklyRhythm } from "@/components/todo/weekly-rhythm";
+import { useAssignmentSteps } from "@/hooks/use-assignment-steps";
+import { isBigWork, nextStep, stepsPercent } from "@/lib/assignment-steps";
+import { courseAliases } from "@/lib/quick-add";
+import {
+  impactLabel,
+  isHighImpact,
+  leftTodayLabel,
+  pointsShare,
+  rhythmWeek,
+  RHYTHM_KEY,
+  todayProgress,
+} from "@/lib/todo-insights";
+import { completionRecords } from "@/lib/completion-records";
+import { useUserPreferences } from "@/hooks/use-user-preferences";
+import { nicknameForCourseId } from "@/lib/course-display";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { startOfLocalDay, tasksForDay, todoWeekDays } from "@/lib/todo-week";
 import { weekProgress } from "@/lib/week-progress";
 
@@ -70,7 +95,7 @@ export const Route = createFileRoute("/_authenticated/focus")({
   component: FocusPage,
 });
 
-type ViewMode = "day" | "class";
+type ViewMode = "day" | "class" | "impact";
 /** Where this browser kept the choice before it synced. */
 const VIEW_KEY = "canvas:focus-view";
 const TODO_GROUPING_KEY = "todo-grouping";
@@ -87,7 +112,7 @@ function useViewMode(): [ViewMode, (mode: ViewMode) => void] {
   const saved = useUserPreferenceKey<unknown>(TODO_GROUPING_KEY, null);
   // Before syncing, the choice lived in this browser: carry it over once.
   useEffect(() => {
-    if (!saved.ready || saved.value === "day" || saved.value === "class") return;
+    if (!saved.ready || saved.value === "day" || saved.value === "class" || saved.value === "impact") return;
     try {
       const old = window.localStorage.getItem(VIEW_KEY);
       if (old === "day" || old === "class") saved.set(old);
@@ -96,7 +121,7 @@ function useViewMode(): [ViewMode, (mode: ViewMode) => void] {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saved.ready, saved.value]);
-  const mode: ViewMode = saved.value === "class" ? "class" : "day";
+  const mode: ViewMode = saved.value === "class" || saved.value === "impact" ? saved.value : "day";
   // Saved at once (shown straight away), and on every other device within moments.
   const update = (next: ViewMode) => saved.set(next);
   return [mode, update];
@@ -133,6 +158,20 @@ function FocusPage() {
   const [searching, setSearching] = useState(false);
   const [query, setQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
+  const quickAddRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const steps = useAssignmentSteps();
+  const [openSteps, setOpenSteps] = useState<Set<number>>(new Set());
+  const [showKeys, setShowKeys] = useState(false);
+  const rhythm = useUserPreferenceKey<unknown>(RHYTHM_KEY, false);
+  const preferences = useUserPreferences();
+  const toggleSteps = (id: number) =>
+    setOpenSteps((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 30_000);
@@ -180,9 +219,32 @@ function FocusPage() {
   const weekTotal = weekDone + weekLeft.length;
   const dayLabel = selectedDay === startOfLocalDay(now) ? "today" :
     new Date(selectedDay).toLocaleDateString(undefined, { month: "short", day: "numeric" });
-  const headerLine = items.length > 0
-    ? `${items.length} due ${dayLabel} · ${formatMinutes(items.reduce((s, a) => s + estimateFor(a), 0))}`
-    : `Nothing due ${dayLabel}`;
+  const isTodaySelected = selectedDay === startOfLocalDay(now);
+  // Today: what's left, with a head start for work already in progress.
+  const dueToday = allAssignments.filter((a) => a.due_at && startOfLocalDay(Date.parse(a.due_at)) === startOfLocalDay(now));
+  const todayDone = todayProgress(
+    dueToday.map((a) => ({ done: isDone(a), progress: metaMap.get(a.id)?.progressPercent ?? null, minutes: estimateFor(a) })),
+  );
+  const headerLine = isTodaySelected
+    ? todayDone.total > 0
+      ? `${leftTodayLabel(todayDone.left, todayDone.total)}${todayDone.left > 0 ? ` · ${formatMinutes(todayDone.minutesLeft)}` : ""}`
+      : "Nothing due today"
+    : items.length > 0
+      ? `${items.length} due ${dayLabel} · ${formatMinutes(items.reduce((s, a) => s + estimateFor(a), 0))}`
+      : `Nothing due ${dayLabel}`;
+  const shareOf = (a: AssignmentItem) => pointsShare(a, allAssignments);
+  const quickCourses = (courses.data ?? []).map((c) => ({
+    id: c.id,
+    label: displayCourseName(c.name, c.course_code),
+    names: courseAliases(c.name, c.course_code, nicknameForCourseId(c.id)),
+  }));
+  const rhythmOn = rhythm.value === true;
+  const rhythmDays = rhythmWeek(
+    Object.values(completionRecords((preferences.data ?? {}) as Record<string, unknown>))
+      .filter((r) => r.completed)
+      .map((r) => r.completedAt),
+    now,
+  );
 
   // Counts only once everything has loaded, never "All clear" before it.
   const loading =
@@ -194,7 +256,42 @@ function FocusPage() {
   // A failed refresh keeps showing what loaded before; only nothing at all is an error.
   const failed = assignments.isError && !assignments.data;
   const today = startOfDay(now);
-  const groups = view === "class" ? groupByClass(items, courseName) : groupByDay(items, today, now);
+  const groups =
+    view === "class"
+      ? groupByClass(items, courseName)
+      : view === "impact"
+        ? groupByImpact(items, shareOf)
+        : groupByDay(items, today, now);
+
+  // Keyboard: j/k move between tasks, x marks done, s starts studying, e opens
+  // steps, n quick-adds, / searches, ? lists them all.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      if (target?.closest("input, textarea, select, [contenteditable], [role=dialog]")) return;
+      const rows = [...(listRef.current?.querySelectorAll<HTMLElement>("[data-todo-row]") ?? [])];
+      const current = rows.findIndex((r) => r.contains(document.activeElement));
+      const focusRow = (i: number) => rows[Math.max(0, Math.min(rows.length - 1, i))]?.focus();
+      const row = rows[current];
+      switch (e.key) {
+        case "j": case "ArrowDown":
+          if (rows.length) { e.preventDefault(); focusRow(current + 1); }
+          break;
+        case "k": case "ArrowUp":
+          if (rows.length && current >= 0) { e.preventDefault(); focusRow(current - 1); }
+          break;
+        case "x": row?.querySelector<HTMLElement>("[data-todo-toggle]")?.click(); break;
+        case "s": row?.querySelector<HTMLElement>("[data-todo-start]")?.click(); break;
+        case "e": row?.querySelector<HTMLElement>("[data-todo-steps]")?.click(); break;
+        case "n": e.preventDefault(); quickAddRef.current?.focus(); break;
+        case "/": e.preventDefault(); setSearching(true); break;
+        case "?": setShowKeys(true); break;
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6 pb-10">
@@ -234,9 +331,26 @@ function FocusPage() {
             <SelectContent align="end">
               <SelectItem value="day">By day</SelectItem>
               <SelectItem value="class">By class</SelectItem>
+              <SelectItem value="impact">By impact</SelectItem>
             </SelectContent>
           </Select>
         </div>
+        {!loading && !failed && isTodaySelected && todayDone.total > 0 && (
+          // Today: a close goal, filling as you go (work in progress counts partly).
+          <div
+            className="relative mt-3 h-1.5 overflow-hidden rounded-full bg-foreground/10"
+            role="progressbar"
+            aria-label="Today's progress"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(todayDone.fraction * 100)}
+          >
+            <span
+              className="absolute inset-y-0 left-0 rounded-full bg-primary transition-[width] duration-500 motion-reduce:transition-none"
+              style={{ width: `${Math.round(todayDone.fraction * 100)}%` }}
+            />
+          </div>
+        )}
         {!loading && !failed && weekTotal > 0 && <WeekSegments done={weekDone} total={weekTotal} />}
       </header>
 
@@ -265,6 +379,9 @@ function FocusPage() {
         </label>
       )}
 
+      {!loading && !failed && <QuickAdd ref={quickAddRef} courses={quickCourses} onAdd={custom.add} />}
+      {!loading && !failed && rhythmOn && <WeeklyRhythm days={rhythmDays} now={now} />}
+
       {loading ? (
         <div className="space-y-6 px-1" role="status" aria-label="Loading your work">
           {Array.from({ length: 3 }).map((_, i) => (
@@ -278,11 +395,25 @@ function FocusPage() {
         <ErrorState message={(assignments.error as Error).message} />
       ) : items.length === 0 ? (
         <div className="px-1 py-16 text-center">
-          <Check className="mx-auto h-5 w-5 text-muted-foreground" aria-hidden="true" />
-          <p className="mt-3 text-base">{text ? "No matches for this day" : `Nothing due ${dayLabel}.`}</p>
+          <span className="mx-auto grid h-11 w-11 place-items-center rounded-full bg-primary/15 text-primary motion-safe:animate-in motion-safe:zoom-in-75 motion-safe:duration-500">
+            <Check className="h-5 w-5" aria-hidden="true" />
+          </span>
+          {/* Everything due today finished: say so warmly. */}
+          <p className="mt-3 text-base">
+            {text
+              ? "No matches for this day"
+              : isTodaySelected && todayDone.total > 0
+                ? "Done for today. Nice work."
+                : `Nothing due ${dayLabel}.`}
+          </p>
+          {!text && isTodaySelected && todayDone.total > 0 && (
+            <p className="mt-1 text-sm text-muted-foreground">
+              You finished {todayDone.total} {todayDone.total === 1 ? "thing" : "things"} due today. Rest, or get ahead.
+            </p>
+          )}
         </div>
       ) : (
-        <div className="space-y-7">
+        <div className="space-y-7" ref={listRef}>
           {groups.map((group) => (
             <section key={group.key}>
               <SectionLabel
@@ -310,7 +441,11 @@ function FocusPage() {
                     ready={completed.ready}
                     onToggle={() => completed.toggle(a.id)}
                     color={classColor(a.course_id, courseIds)}
-                    showCourse={view === "day"}
+                    showCourse={view !== "class"}
+                    share={shareOf(a)}
+                    steps={steps}
+                    stepsOpen={openSteps.has(a.id)}
+                    onToggleSteps={() => toggleSteps(a.id)}
                   />
                 ))}
               </ul>
@@ -318,8 +453,62 @@ function FocusPage() {
           ))}
         </div>
       )}
+
+      {/* Quiet extras: the optional weekly rhythm and keyboard shortcuts. */}
+      {!loading && !failed && (
+        <div className="flex flex-wrap items-center justify-center gap-2 pt-2 text-xs text-muted-foreground">
+          <button
+            type="button"
+            onClick={() => rhythm.set(!rhythmOn)}
+            aria-pressed={rhythmOn}
+            disabled={!rhythm.ready}
+            className="press inline-flex min-h-9 items-center rounded-lg px-3 hover:text-foreground"
+          >
+            {rhythmOn ? "Hide weekly rhythm" : "Show weekly rhythm"}
+          </button>
+          <span aria-hidden="true" className="hidden md:inline">·</span>
+          <button
+            type="button"
+            onClick={() => setShowKeys(true)}
+            className="press hidden min-h-9 items-center gap-1.5 rounded-lg px-3 hover:text-foreground md:inline-flex"
+          >
+            <Keyboard className="h-3.5 w-3.5" aria-hidden="true" /> Keyboard shortcuts
+          </button>
+        </div>
+      )}
+      <Dialog open={showKeys} onOpenChange={setShowKeys}>
+        <DialogContent className="glass-panel-strong rounded-2xl sm:rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Keyboard shortcuts</DialogTitle>
+            <DialogDescription>On To-Do, when you're not typing.</DialogDescription>
+          </DialogHeader>
+          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+            {[
+              ["j / k", "Next / previous task"],
+              ["x", "Mark done (or not done)"],
+              ["s", "Start studying it"],
+              ["e", "Show its steps"],
+              ["n", "Quick add"],
+              ["/", "Search"],
+              ["?", "This list"],
+            ].map(([key, what]) => (
+              <div key={key} className="contents">
+                <dt><kbd className="rounded-md border border-foreground/20 px-1.5 py-0.5 font-mono text-xs">{key}</kbd></dt>
+                <dd className="text-muted-foreground">{what}</dd>
+              </div>
+            ))}
+          </dl>
+        </DialogContent>
+      </Dialog>
     </div>
   );
+}
+
+/** Most of the class's points first. */
+function groupByImpact(items: AssignmentItem[], share: (a: AssignmentItem) => number | null): Group[] {
+  if (items.length === 0) return [];
+  const sorted = [...items].sort((a, b) => (share(b) ?? 0) - (share(a) ?? 0) || byDue(a, b));
+  return [{ key: "impact", title: "Most impact first", date: null, isToday: false, isCatchUp: false, courseId: null, items: sorted }];
 }
 
 /** One segment per assignment due this week; done ones fill from the left. Past 12 it's one bar. */
@@ -467,6 +656,10 @@ function FocusRow({
   onToggle,
   color,
   showCourse,
+  share,
+  steps,
+  stepsOpen,
+  onToggleSteps,
 }: {
   assignment: AssignmentItem;
   course: string;
@@ -477,6 +670,11 @@ function FocusRow({
   onToggle: () => void;
   color: string;
   showCourse: boolean;
+  /** Share of the class's points (0–1), for the impact badge. */
+  share: number | null;
+  steps: ReturnType<typeof useAssignmentSteps>;
+  stepsOpen: boolean;
+  onToggleSteps: () => void;
 }) {
   const due = a.due_at ? Date.parse(a.due_at) : null;
   const exit = useCompletionExit<HTMLLIElement>(a.id);
@@ -499,12 +697,19 @@ function FocusRow({
   ]
     .filter(Boolean)
     .join(" · ");
+  const itsSteps = steps.stepsFor(a.id);
+  const next = nextStep(itsSteps);
+  const impact = impactLabel(share);
+  // Steps are offered on big work, and kept wherever someone added them.
+  const offerSteps = !done && (itsSteps.length > 0 || isBigWork(a.points_possible, estimate));
 
   return (
     <li
       ref={exit.ref}
+      data-todo-row
+      tabIndex={-1}
       className={cn(
-        "group grid grid-cols-[auto_minmax(0,1fr)] items-start gap-3.5 py-3.5",
+        "group grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3.5 py-3.5 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background rounded-lg",
         done && "opacity-55",
       )}
     >
@@ -515,6 +720,7 @@ function FocusRow({
         disabled={!ready}
         aria-label={`Mark ${a.name} ${done ? "incomplete" : "complete"}`}
         aria-pressed={done}
+        data-todo-toggle
         data-completing={exit.completing || undefined}
         // An invisible ring makes a 44px target around the small box.
         className="relative mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-[6px] border transition-colors after:absolute after:-inset-3 after:content-[''] disabled:cursor-default"
@@ -545,10 +751,65 @@ function FocusRow({
         >
           {a.name}
         </p>
-        <p className="mt-1 text-xs tabular-nums text-muted-foreground">{line}</p>
+        <p className="mt-1 text-xs tabular-nums text-muted-foreground">
+          {line}
+          {impact && !done && (
+            // How much it counts, not only how soon: "12% of class points".
+            <span
+              className={cn(
+                "ml-1.5 inline-flex items-center gap-1 rounded-full px-1.5 py-px align-[1px] text-[11px]",
+                isHighImpact(share) ? "bg-primary/15 text-primary" : "bg-foreground/[0.06]",
+              )}
+            >
+              {isHighImpact(share) && <Star className="h-2.5 w-2.5 fill-current" aria-hidden="true" />}
+              {impact}
+            </span>
+          )}
+        </p>
+        {next && !done && (
+          <p className="mt-1 text-xs text-foreground/80">
+            Next: {next.title}
+            <span className="text-muted-foreground"> · {stepsPercent(itsSteps)}% done</span>
+          </p>
+        )}
         <OpensLabel unlockAt={a.unlock_at} className="mt-1" />
         <AssignmentProgressBar assignmentId={a.id} className="mt-2" />
       </TaskDestination>
+      {/* Visible actions (nothing only in a gesture): steps, and start studying. */}
+      {!done && (
+        <div className="flex items-center gap-0.5 self-center">
+          {offerSteps && (
+            <button
+              type="button"
+              onClick={onToggleSteps}
+              aria-expanded={stepsOpen}
+              aria-label={`${stepsOpen ? "Hide" : "Show"} steps for ${a.name}`}
+              data-todo-steps
+              className={cn(
+                "grid h-10 w-10 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground",
+                stepsOpen && "bg-foreground/[0.06] text-foreground",
+              )}
+            >
+              <ListChecks className="h-4 w-4" />
+            </button>
+          )}
+          <Link
+            to="/study-session"
+            search={{ assignment: a.id }}
+            aria-label={`Start studying ${a.name}`}
+            data-todo-start
+            className="press inline-flex h-10 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
+          >
+            <Play className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
+            <span className="hidden sm:inline">Start</span>
+          </Link>
+        </div>
+      )}
+      {stepsOpen && !done && (
+        <div className="col-span-3 col-start-1 sm:col-span-2 sm:col-start-2">
+          <StepList assignment={a} estimate={estimate} steps={steps} color={color} />
+        </div>
+      )}
     </li>
   );
 }

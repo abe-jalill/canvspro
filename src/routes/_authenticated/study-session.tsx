@@ -64,6 +64,7 @@ import {
 
 import { assignmentsQueryOptions as assignmentsQO } from "@/lib/canvas.queries";
 import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
+import { AssignmentProgressEditor } from "@/components/assignment-progress";
 import { FocusNoiseControls } from "@/components/focus-noise";
 import { classColor } from "@/lib/class-color";
 import {
@@ -1033,6 +1034,25 @@ function StudySessionPage() {
               Dismiss
             </button>
           </div>
+          {/* How far you got: saved as each assignment's progress, shown on To-Do. */}
+          {(() => {
+            const unfinished = summary.items
+              .filter((item) => !summary.completedItemIds.includes(item.id))
+              .map((item) => allAssignments.find((a) => String(a.id) === item.id))
+              .filter((a): a is NonNullable<typeof a> => a != null);
+            if (unfinished.length === 0) return null;
+            return (
+              <div className="w-full space-y-3 border-t border-foreground/10 pt-3">
+                <p className="text-sm font-medium">How far did you get?</p>
+                {unfinished.map((a) => (
+                  <div key={a.id} className="space-y-1">
+                    <p className="text-xs text-muted-foreground">{a.name}</p>
+                    <AssignmentProgressEditor assignmentId={a.id} courseId={a.course_id} />
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </div>
       )}
 
