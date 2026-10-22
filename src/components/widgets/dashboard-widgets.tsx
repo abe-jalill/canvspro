@@ -13,6 +13,7 @@ import {
 } from "@/lib/canvas.functions";
 import { GlassCard, Skeleton, ErrorState, EmptyState } from "@/components/glass-card";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
 import { AssignmentProgressBar } from "@/components/assignment-progress";
 import { htmlToText } from "@/lib/html-text";
@@ -117,6 +118,7 @@ function CoursesWidget() {
         action={
           <Link
             to="/grades"
+            aria-label="View all grades"
             preload="intent"
             className="glass-hover rounded-lg px-2.5 py-1 text-xs font-normal text-muted-foreground"
           >
@@ -261,6 +263,7 @@ function UpcomingWidget() {
       action={
         <Link
           to="/assignments"
+          aria-label="View all assignments"
           preload="intent"
           className="glass-hover rounded-lg px-2.5 py-1 text-xs font-medium text-muted-foreground"
         >
@@ -388,6 +391,7 @@ function AnnouncementsWidget() {
       action={
         <Link
           to="/announcements"
+          aria-label="View all announcements"
           preload="intent"
           className="glass-hover rounded-lg px-2.5 py-1 text-xs font-medium text-muted-foreground"
         >
@@ -458,7 +462,12 @@ function AnnouncementsWidget() {
                         </Link>
                         <DismissButton
                           stopPropagation
-                          onClick={() => dismissed.add(a.id)}
+                          onClick={() => {
+                            dismissed.add(a.id);
+                            toast("Announcement hidden", {
+                              action: { label: "Undo", onClick: () => dismissed.remove(a.id) },
+                            });
+                          }}
                           label={a.title}
                         />
                       </li>
@@ -640,11 +649,12 @@ function FocusWidget() {
       action={
         <Link
           to="/focus"
+          aria-label="View all of To-Do"
           search={{ window: "2" }}
           preload="intent"
           className="glass-hover rounded-lg px-2.5 py-1 text-xs font-medium text-muted-foreground"
         >
-          Open
+          View all
         </Link>
       }
     >
@@ -697,6 +707,7 @@ function CalendarWidget() {
       action={
         <Link
           to="/schedule"
+          aria-label="View all on the calendar"
           preload="intent"
           className="glass-hover rounded-lg px-2.5 py-1 text-xs font-medium text-muted-foreground"
         >

@@ -425,7 +425,7 @@ function CourseDetailPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link
           to="/grades"
-          className="story-link inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          className="story-link inline-flex min-h-10 items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
           All Grades
@@ -656,10 +656,11 @@ function CourseDetailPage() {
                             href={a.html_url}
                             target="_blank"
                             rel="noreferrer"
-                            className="glass-inset inline-flex shrink-0 items-center gap-1 rounded-xl px-3 py-1.5 text-xs text-foreground transition-transform active:scale-95"
+                            aria-label={`Open ${a.name} in Canvas (new tab)`}
+                            className="glass-inset inline-flex min-h-9 shrink-0 items-center gap-1 rounded-xl px-3 text-xs text-foreground transition-transform active:scale-95"
                           >
-                            Open
-                            <ExternalLink className="h-3 w-3" />
+                            Canvas
+                            <ExternalLink className="h-3 w-3" aria-hidden="true" />
                           </a>
                         )}
                       </div>

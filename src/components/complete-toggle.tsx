@@ -27,7 +27,8 @@ export function CompleteToggle({
       aria-pressed={done || completing}
       data-completing={completing || undefined}
       className={cn(
-        "flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-colors",
+        // The box stays small; an invisible ring around it makes a 44px target.
+        "relative flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-colors after:absolute after:-inset-2.5 after:content-['']",
         disabled && "cursor-wait opacity-50",
         done || completing
           ? "border-foreground/60 bg-foreground/80 text-background"

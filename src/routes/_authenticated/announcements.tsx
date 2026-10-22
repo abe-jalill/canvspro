@@ -12,6 +12,7 @@ import { htmlToText } from "@/lib/html-text";
 import { useLocalSet, DISMISSED_ANNOUNCEMENTS_KEY } from "@/lib/local-state";
 import { useAnnouncementWindow, withinAnnouncementWindow } from "@/lib/announcement-window";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/announcements")({
   head: () => ({
@@ -152,7 +153,7 @@ function AnnouncementsPage() {
               <p className="text-3xl font-medium tabular-nums tracking-[-0.05em]">
                 {courses.length}
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">Active courses</p>
+              <p className="mt-1 text-xs text-muted-foreground">Active classes</p>
             </div>
           </div>
         </div>
@@ -186,16 +187,19 @@ function AnnouncementsPage() {
             {course.label} <span className="ml-1 opacity-60">{course.count}</span>
           </button>
         ))}
-        {restorable.length > 0 && (
+      </div>
+      {/* Out of the scrolling chips, so it's always in sight. */}
+      {restorable.length > 0 && (
+        <div className="-mt-3 flex justify-end">
           <button
             type="button"
             onClick={() => dismissed.removeMany(restorable)}
-            className="press ml-auto inline-flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-xs text-muted-foreground hover:text-foreground"
+            className="press inline-flex min-h-10 items-center gap-2 rounded-full px-3 text-xs text-muted-foreground hover:text-foreground"
           >
-            <RotateCcw className="h-3.5 w-3.5" /> Restore {restorable.length}
+            <RotateCcw className="h-3.5 w-3.5" /> Restore {restorable.length} hidden
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {isLoading && (
         <div className="glass-panel overflow-hidden rounded-[1.75rem]">
@@ -290,9 +294,14 @@ function AnnouncementsPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => dismissed.add(item.id)}
+                  onClick={() => {
+                    dismissed.add(item.id);
+                    toast("Announcement hidden", {
+                      action: { label: "Undo", onClick: () => dismissed.remove(item.id) },
+                    });
+                  }}
                   aria-label={`Dismiss ${item.title}`}
-                  className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground opacity-70 transition hover:bg-foreground/10 hover:text-foreground sm:static sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+                  className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground opacity-70 transition hover:bg-foreground/10 hover:text-foreground sm:static sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
                 >
                   <X className="h-4 w-4" />
                 </button>

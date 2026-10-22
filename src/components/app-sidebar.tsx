@@ -12,12 +12,22 @@ import {
   ListTodo,
   LogOut,
   Megaphone,
+  Menu,
   Moon,
   Settings,
   Sun,
   TimerReset,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useTheme } from "@/lib/theme";
 import { useReminders } from "@/hooks/use-hourly-reminder";
 import { supabase } from "@/integrations/supabase/client";
@@ -82,6 +92,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/completed": "Completed",
   "/study-session": "Study Session",
   "/notifications": "Notifications",
+  "/class-schedule": "My classes",
 };
 
 function isItemActive(pathname: string, to: string) {
@@ -99,12 +110,12 @@ function ReminderToggle({ compact = false }: { compact?: boolean }) {
         "glass-hover glass-inset flex items-center justify-center rounded-xl transition-colors",
         compact ? "h-11 w-11" : "h-11 w-full",
       )}
-      title={enabled ? "Reminders on (9 AM – 9 PM)" : "Reminders off"}
+      title={enabled ? "Hourly reminders on (9 AM – 9 PM)" : "Hourly reminders off"}
     >
       {enabled ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
       {!compact && (
         <span className="ml-2 text-xs font-medium">
-          {enabled ? "Reminders on" : "Reminders off"}
+          {enabled ? "Hourly reminders on" : "Hourly reminders off"}
         </span>
       )}
     </button>
@@ -135,19 +146,53 @@ function ThemeToggle({ compact = false }: { compact?: boolean }) {
 
 function SignOutButton({ compact = false }: { compact?: boolean }) {
   const signOut = useSignOut();
+  const [confirming, setConfirming] = useState(false);
   return (
-    <button
-      onClick={() => void signOut()}
-      aria-label="Sign out"
-      className={cn(
-        "glass-hover glass-inset flex items-center justify-center rounded-xl transition-colors",
-        compact ? "h-11 w-11" : "h-11 w-full",
-      )}
-      title="Sign out"
-    >
-      <LogOut className="h-4 w-4" />
-      {!compact && <span className="ml-2 text-xs font-medium">Sign out</span>}
-    </button>
+    <>
+      <button
+        onClick={() => setConfirming(true)}
+        aria-label="Sign out"
+        className={cn(
+          "glass-hover glass-inset flex items-center justify-center rounded-xl transition-colors",
+          compact ? "h-11 w-11" : "h-11 w-full",
+        )}
+        title="Sign out"
+      >
+        <LogOut className="h-4 w-4" />
+        {!compact && <span className="ml-2 text-xs font-medium">Sign out</span>}
+      </button>
+      {/* One mis-click shouldn't sign anyone out. */}
+      <AlertDialog open={confirming} onOpenChange={setConfirming}>
+        <AlertDialogContent className="w-[calc(100%-2rem)] rounded-2xl sm:rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sign out of CoursePro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your work stays in your account. This browser stops getting notifications until you
+              sign in again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirming(false)}
+              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-border px-4 text-sm font-medium transition hover:bg-foreground/5"
+            >
+              Stay signed in
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setConfirming(false);
+                void signOut();
+              }}
+              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-destructive px-4 text-sm font-medium text-destructive-foreground transition hover:opacity-90"
+            >
+              Sign out
+            </button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
@@ -165,6 +210,8 @@ export function AppSidebar() {
     <>
       {/* Floating reopen pill when the sidebar is fully closed */}
       <div
+        // Only reachable (by mouse or keyboard) while the sidebar is closed.
+        inert={!hidden}
         className={cn(
           "fixed left-4 top-4 z-40 hidden transition-all duration-300 md:block",
           hidden ? "translate-x-0 opacity-100" : "pointer-events-none -translate-x-6 opacity-0",
@@ -186,6 +233,7 @@ export function AppSidebar() {
           hidden && "pointer-events-none -translate-x-[110%] opacity-0",
         )}
         aria-hidden={hidden}
+        inert={hidden}
       >
         <div
           className={cn(
@@ -431,21 +479,27 @@ export function MobileNav() {
   // from another one. "CoursePro" only when there's nothing better.
   const courseId = /^\/courses\/(\d+)/.exec(pathname)?.[1];
   const course = courseId ? courses.data?.find((c) => String(c.id) === courseId) : undefined;
+  // A page's own name wins over the section it sits under (My classes, not Calendar).
   const current =
+    PAGE_TITLES[pathname] ??
     navItems.find((i) => isItemActive(pathname, i.to))?.title ??
     (course ? displayCourseNameForCourse(course.id, course.name, course.course_code) : null) ??
-    PAGE_TITLES[pathname] ??
     "CoursePro";
 
   return (
     <div className="mobile-navigation sticky top-0 z-40 md:hidden">
       <div className="glass-panel-strong relative z-40 mx-2 mt-2 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 p-2">
-        <TrafficLights
-          className="shrink-0"
-          onRed={() => setOpen(false)}
-          onYellow={() => setOpen((v) => !v)}
-          onGreen={() => setOpen(true)}
-        />
+        {/* A plain Menu button: the one way to every page on a phone, so it must be obvious. */}
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          aria-label={open ? "Close menu" : "Open menu"}
+          className="press inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl px-2.5 text-sm font-medium text-foreground hover:bg-foreground/5"
+        >
+          {open ? <X className="h-5 w-5" aria-hidden="true" /> : <Menu className="h-5 w-5" aria-hidden="true" />}
+          <span>Menu</span>
+        </button>
         <p className="truncate text-center text-sm font-normal tracking-tight text-foreground">
           {current}
         </p>

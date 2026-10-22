@@ -43,17 +43,18 @@ export default function ClassScheduleView({
       <header className="glass-panel-strong p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              Class Schedule
-            </h1>
+            <h1 className="text-2xl font-semibold tracking-tight">My classes</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              When each class meets. They show on your calendar; change them here.
+            </p>
           </div>
           {onEdit ? (
             <button
               type="button"
               onClick={onEdit}
-              className="glass-inset press rounded-full px-4 py-2 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground"
+              className="glass-inset press inline-flex min-h-10 items-center rounded-full px-4 text-sm font-medium text-foreground"
             >
-              Edit schedule
+              Edit classes
             </button>
           ) : null}
         </div>
@@ -197,6 +198,9 @@ function WeeklyGrid({ byDay }: { byDay: Record<ClassDay, ClassSession[]> }) {
   for (let h = start; h <= end; h += 60) hourMarks.push(h);
 
   return (
+    <>
+    {/* On a phone the week is wider than the screen: say it scrolls. */}
+    <p className="mb-2 text-xs text-muted-foreground sm:hidden">Swipe sideways to see every day →</p>
     <div className="no-scrollbar overflow-x-auto overflow-y-hidden">
       <div className="min-w-[640px]">
         {/* Header row: spacer keeps the time gutter aligned with the grid body */}
@@ -262,6 +266,7 @@ function WeeklyGrid({ byDay }: { byDay: Record<ClassDay, ClassSession[]> }) {
         </div>
       </div>
     </div>
+    </>
   );
 }
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { scopedKey } from "@/lib/user-scope";
 
 const STORAGE_KEY = "reminders.enabled";
@@ -98,12 +99,13 @@ export function useReminders() {
   const toggle = async () => {
     if (typeof window === "undefined") return;
     if (!("Notification" in window)) {
-      alert("This browser does not support notifications.");
+      toast.error("This browser can't show reminders.");
       return;
     }
     if (enabled) {
       setEnabled(false);
       writeEnabled(false);
+      toast("Hourly reminders off");
       return;
     }
     let perm = Notification.permission;
@@ -112,11 +114,14 @@ export function useReminders() {
       setPermission(perm);
     }
     if (perm !== "granted") {
-      alert("Enable notifications in your browser to receive reminders.");
+      toast.error("Notifications are blocked for this site", {
+        description: "Allow them in your browser's site settings to get hourly reminders.",
+      });
       return;
     }
     setEnabled(true);
     writeEnabled(true);
+    toast.success("Hourly reminders on", { description: "A nudge each hour from 9 AM to 9 PM." });
   };
 
   return { enabled, permission, toggle };

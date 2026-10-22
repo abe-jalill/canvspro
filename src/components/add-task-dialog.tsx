@@ -71,9 +71,10 @@ export function AddTaskButton({
           setOpen(true);
         }}
         aria-label="Add a task"
-        className="press grid h-9 w-9 place-items-center rounded-lg border border-foreground/15 text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+        className="press inline-flex h-9 items-center gap-1.5 rounded-lg border border-foreground/15 px-2.5 text-sm text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
       >
-        <Plus className="h-4 w-4" />
+        <Plus className="h-4 w-4" aria-hidden="true" />
+        Add
       </button>
       <DialogContent className="glass-panel-strong max-h-[90dvh] overflow-y-auto rounded-2xl sm:rounded-2xl">
         <DialogHeader>

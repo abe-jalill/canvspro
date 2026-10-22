@@ -105,7 +105,7 @@ function statusLabel(a: AssignmentItem) {
   if (s?.missing) return "Missing";
   if (s?.workflow_state === "graded") return "Graded";
   if (s?.submitted_at) return s.late ? "Submitted (late)" : "Submitted";
-  if (a.due_at && new Date(a.due_at).getTime() < Date.now()) return "Overdue";
+  if (a.due_at && new Date(a.due_at).getTime() < Date.now()) return "Past due";
   return "Not submitted";
 }
 
@@ -431,7 +431,7 @@ function AssignmentsPage() {
               >
                 {overdueCount}
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">Overdue</p>
+              <p className="mt-1 text-xs text-muted-foreground">To catch up</p>
             </div>
           </div>
         </div>
@@ -453,14 +453,20 @@ function AssignmentsPage() {
             aria-label="Search assignments"
           />
         </div>
-        <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
-          <input
-            type="checkbox"
-            checked={showCompleted}
-            onChange={(event) => setShowCompleted(event.target.checked)}
-          />
-          Show completed
-        </label>
+        {/* Done work in this list too; Completed (beside it) is the page of everything finished. */}
+        <button
+          type="button"
+          onClick={() => setShowCompleted((value) => !value)}
+          aria-pressed={showCompleted}
+          className={cn(
+            "press inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-3 text-sm transition-colors",
+            showCompleted
+              ? "border-foreground/30 bg-foreground/10 text-foreground"
+              : "border-foreground/15 text-muted-foreground hover:text-foreground",
+          )}
+        >
+          {showCompleted ? "Hide done" : "Show done"}
+        </button>
         <CompletedLink />
         <span className="hidden text-xs tabular-nums text-muted-foreground sm:block">
           {shownItems.length} shown
@@ -516,7 +522,7 @@ function AssignmentsPage() {
         <details className="glass-panel group rounded-2xl border border-foreground/10 p-4">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-medium">
             <span className="inline-flex items-center gap-2">
-              <Plus className="h-4 w-4 text-primary" /> Add something Canvas doesn't have
+              <Plus className="h-4 w-4 text-primary" /> Add a task
             </span>
             <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
           </summary>
@@ -706,7 +712,7 @@ function AssignmentsPage() {
                       </h2>
                       <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                         <span className={cn(g.overdue > 0 && "font-semibold text-foreground")}>
-                          {g.overdue} overdue
+                          {g.overdue} to catch up
                         </span>
                         <span className="opacity-40">·</span>
                         <span className={cn(g.dueSoon > 0 && "text-foreground/85")}>

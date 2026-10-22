@@ -3,7 +3,7 @@ import { useCustomAssignments } from "@/lib/custom-assignments";
 import { coursesQueryOptions } from "@/lib/canvas.queries";
 import { CachedAssignmentEstimate } from "@/components/assignment-estimate";
 import { formatAssignmentDue } from "@/lib/assignment-due";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -1155,7 +1155,7 @@ function StudySessionPage() {
                   onChange={(event) => setManualName(event.target.value)}
                   maxLength={160}
                   placeholder="Your own task"
-                  aria-label="Add your own task"
+                  aria-label="Add a task"
                 />
                 <button
                   type="submit"
@@ -1180,9 +1180,9 @@ function StudySessionPage() {
               <button
                 type="button"
                 onClick={() => setAddingTask(true)}
-                className="inline-flex items-center gap-1.5 self-start text-sm text-muted-foreground transition-colors hover:text-foreground"
+                className="inline-flex min-h-10 items-center gap-1.5 self-start rounded-lg pr-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
               >
-                <Plus className="h-4 w-4" /> Add your own task
+                <Plus className="h-4 w-4" /> Add a task
               </button>
             )}
           </section>
@@ -1410,9 +1410,26 @@ function StudySessionPage() {
             className={cn(pillButton, "mt-6 w-full lg:order-1 lg:mt-5")}
             disabled={!canStart}
             onClick={start}
+            aria-describedby={!canStart ? "study-start-hint" : undefined}
           >
             Start
           </button>
+          {/* Say why Start is greyed out, and where a plain timer is. */}
+          {!canStart && (
+            <p id="study-start-hint" className="mt-2 text-center text-xs text-muted-foreground lg:order-2">
+              {selected.length === 0 ? (
+                <>
+                  Pick what to work on to start. Just want a timer? Use the quick timer on{" "}
+                  <Link to="/dashboard" className="underline underline-offset-2 hover:text-foreground">
+                    Today
+                  </Link>
+                  .
+                </>
+              ) : (
+                "Set how long to study to start."
+              )}
+            </p>
+          )}
           </div>
         </GlassCard>
       </div>

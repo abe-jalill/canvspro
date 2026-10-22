@@ -55,7 +55,7 @@ export function buildAgendaView<T extends { assignment: Pick<AssignmentItem, "du
 
   const showWeeks34 = horizon === 28 || searching;
   const candidates: AgendaSection<T>[] = [
-    { key: "overdue", title: "Overdue", detail: "Worth a look first", items: overdue },
+    { key: "overdue", title: "Catch up", detail: "Worth a look first", items: overdue },
     { key: "week1", title: "Next 7 days", detail: "Your immediate runway", items: week1 },
     { key: "week2", title: "Following week", detail: "Coming up", items: week2 },
     { key: "weeks34", title: "Weeks 3 and 4", detail: "Further ahead", items: showWeeks34 ? weeks34 : [] },

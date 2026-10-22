@@ -517,7 +517,8 @@ function FocusRow({
         aria-label={`Mark ${a.name} ${done ? "incomplete" : "complete"}`}
         aria-pressed={done}
         data-completing={exit.completing || undefined}
-        className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-[6px] border transition-colors disabled:cursor-default"
+        // An invisible ring makes a 44px target around the small box.
+        className="relative mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-[6px] border transition-colors after:absolute after:-inset-3 after:content-[''] disabled:cursor-default"
         style={{
           borderColor: done ? color : `color-mix(in srgb, ${color} 80%, transparent)`,
           backgroundColor: done ? color : `color-mix(in srgb, ${color} 12%, transparent)`,

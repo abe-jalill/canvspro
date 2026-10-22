@@ -24,12 +24,12 @@ function ScheduleSkeleton() {
 export const Route = createFileRoute("/_authenticated/class-schedule")({
   head: () => ({
     meta: [
-      { title: "Class Schedule — CoursePro" },
+      { title: "My classes — CoursePro" },
       {
         name: "description",
         content: "Add your recurring class meeting times and see them as a clean weekly timetable.",
       },
-      { property: "og:title", content: "Class Schedule — CoursePro" },
+      { property: "og:title", content: "My classes — CoursePro" },
       {
         property: "og:description",
         content: "Add your recurring class meeting times and see them as a clean weekly timetable.",
@@ -79,7 +79,7 @@ function ClassScheduleContent() {
   if (error) {
     return (
       <div className="glass-panel-strong p-6">
-        <h1 className="text-xl font-semibold tracking-tight">Class Schedule</h1>
+        <h1 className="text-xl font-semibold tracking-tight">My classes</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Couldn't load your schedule. Please try again.
         </p>

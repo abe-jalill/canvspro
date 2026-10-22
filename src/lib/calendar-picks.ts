@@ -58,5 +58,10 @@ export function useCalendarPicks() {
       set(list.map((p) => (p.assignmentId === id ? { ...p, at } : p))),
     [list, set],
   );
-  return { list, ids, add, remove, setTime, isLoading };
+  /** Puts a removed entry back (Undo). */
+  const restore = useCallback(
+    (pick: CalendarPick) => set([...list.filter((p) => p.assignmentId !== pick.assignmentId), pick]),
+    [list, set],
+  );
+  return { list, ids, add, remove, restore, setTime, isLoading };
 }

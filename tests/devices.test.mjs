@@ -72,5 +72,7 @@ test("signing out stops this browser's notifications for the account", () => {
   assert.doesNotMatch(push.split("export async function forgetBrowserPushForAccount")[1].split("export async function disableBackgroundPush")[0], /unsubscribe\(\)/);
   const sidebar = read("src/components/app-sidebar.tsx");
   assert.match(sidebar, /import \{ useSignOut \} from "@\/hooks\/use-sign-out";/);
-  assert.match(sidebar, /onClick=\{\(\) => void signOut\(\)\}/);
+  // Asks first, then signs out.
+  assert.match(sidebar, /<AlertDialogTitle>Sign out of CoursePro\?<\/AlertDialogTitle>/);
+  assert.match(sidebar, /setConfirming\(false\);\s+void signOut\(\);/);
 });

@@ -32,6 +32,7 @@ import { classColor } from "@/lib/class-color";
 import { useCustomAssignments } from "@/lib/custom-assignments";
 import { CalendarEventDialog } from "@/components/calendar-event-dialog";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/schedule")({
   head: () => ({
@@ -59,6 +60,8 @@ export const Route = createFileRoute("/_authenticated/schedule")({
 });
 
 const DAY_MS = 86_400_000;
+/** Earlier weeks show your classes and events (finished due dates are on Completed). */
+const WEEKS_BACK = 12;
 /** "Upcoming" looks this many days ahead. */
 const UPCOMING_DAYS = 30;
 
@@ -206,7 +209,7 @@ function SchedulePage() {
   const monthLabel = week[3].toLocaleDateString(undefined, { month: "long", year: "numeric" });
 
   function changeWeek(by: number) {
-    const next = Math.max(0, weekOffset + by);
+    const next = Math.max(-WEEKS_BACK, weekOffset + by);
     setWeekOffset(next);
     if (selected) setSelected(next === 0 && by < 0 ? today : weekStart(today, next));
   }
@@ -252,7 +255,7 @@ function SchedulePage() {
             <button
               type="button"
               onClick={() => changeWeek(-1)}
-              disabled={weekOffset === 0}
+              disabled={weekOffset <= -WEEKS_BACK}
               aria-label="Previous week"
               className="press grid h-9 w-9 place-items-center rounded-lg border border-foreground/15 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-35"
             >
@@ -339,7 +342,7 @@ function SchedulePage() {
               onClick={chip.go}
               aria-pressed={chip.on}
               className={cn(
-                "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                "min-h-9 rounded-full px-3.5 text-xs font-medium transition-colors",
                 chip.on
                   ? "bg-foreground text-background"
                   : "bg-foreground/[0.06] text-muted-foreground hover:text-foreground",
@@ -520,7 +523,7 @@ function DaySection({
                     type="button"
                     onClick={() => onEditEvent(entry.eventId!)}
                     aria-label={`Edit ${entry.title}`}
-                    className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+                    className="grid h-10 w-10 place-items-center rounded-lg text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
                   >
                     <Pencil className="h-3.5 w-3.5" />
                   </button>
@@ -529,7 +532,7 @@ function DaySection({
                   <Link
                     to="/class-schedule"
                     aria-label={`Edit ${entry.title} in My classes`}
-                    className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+                    className="grid h-10 w-10 place-items-center rounded-lg text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
                   >
                     <Pencil className="h-3.5 w-3.5" />
                   </Link>
@@ -551,9 +554,20 @@ function DaySection({
                     />
                     <button
                       type="button"
-                      onClick={() => picks.remove(entry.assignmentId!)}
+                      onClick={() => {
+                        const removed = picks.list.find(
+                          (p) => p.assignmentId === entry.assignmentId,
+                        );
+                        picks.remove(entry.assignmentId!);
+                        toast("Removed from your calendar", {
+                          description: "It's still on To-Do.",
+                          action: removed
+                            ? { label: "Undo", onClick: () => picks.restore(removed) }
+                            : undefined,
+                        });
+                      }}
                       aria-label={`Remove ${entry.title} from calendar`}
-                      className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+                      className="grid h-10 w-10 place-items-center rounded-lg text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
