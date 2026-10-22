@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { startOfLocalDay } from "@/lib/todo-week";
@@ -16,25 +16,28 @@ export function TodoWeekPicker({
   onToday: () => void;
 }) {
   const touch = useRef<{ x: number; y: number } | null>(null);
-  const move = (direction: number) => {
-    const offset = weekOffset + direction;
-    if (offset >= 0 && offset < 4) onChangeWeek(offset);
+  /** Which way the weeks last moved, so the new week slides in from that side. */
+  const [direction, setDirection] = useState<1 | -1>(1);
+  const move = (step: number) => {
+    const offset = weekOffset + step;
+    if (offset < 0 || offset >= 4) return;
+    setDirection(step > 0 ? 1 : -1);
+    onChangeWeek(offset);
   };
   const format = (date: number) =>
     new Date(date).toLocaleDateString(undefined, { month: "short", day: "numeric" });
   return (
     <section className="touch-pan-y select-none space-y-3" aria-label="Choose a day, Sunday through Saturday"
-      onTouchStart={(event) => {
-        const point = event.touches[0];
-        touch.current = { x: point.clientX, y: point.clientY };
+      // Swipe with a finger, or drag with a mouse or trackpad.
+      onPointerDown={(event) => {
+        touch.current = { x: event.clientX, y: event.clientY };
       }}
-      onTouchCancel={() => { touch.current = null; }}
-      onTouchEnd={(event) => {
+      onPointerCancel={() => { touch.current = null; }}
+      onPointerUp={(event) => {
         const start = touch.current;
         touch.current = null;
         if (!start) return;
-        const point = event.changedTouches[0];
-        const dx = point.clientX - start.x, dy = point.clientY - start.y;
+        const dx = event.clientX - start.x, dy = event.clientY - start.y;
         if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.5) move(dx < 0 ? 1 : -1);
       }}
     >
@@ -56,7 +59,10 @@ export function TodoWeekPicker({
           </button>
         </div>
       </div>
-      <div className="grid grid-cols-7 gap-1.5" role="group" aria-label="Days of the week">
+      {/* A new week slides in from the side you moved toward. */}
+      <div key={weekOffset} role="group" aria-label="Days of the week"
+        className={cn("grid grid-cols-7 gap-1.5 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300",
+          direction > 0 ? "motion-safe:slide-in-from-right-8" : "motion-safe:slide-in-from-left-8")}>
         {days.map((day) => {
           const selected = selectedDay === day.date;
           const isToday = startOfLocalDay(now) === day.date;

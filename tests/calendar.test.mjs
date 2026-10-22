@@ -134,3 +134,11 @@ test("swipe the week to change it; the new week slides in from that side", () =>
   assert.match(page, /weekDirection > 0\s+\? "motion-safe:slide-in-from-right-8"\s+: "motion-safe:slide-in-from-left-8"/);
   assert.match(page, /touch-pan-y/);
 });
+
+test("To-Do's weeks swipe (finger, mouse or trackpad) and slide in from that side", () => {
+  const picker = read("src/components/todo-week-picker.tsx");
+  assert.match(picker, /onPointerUp=\{\(event\) => \{/);
+  assert.match(picker, /if \(Math\.abs\(dx\) > 48 && Math\.abs\(dx\) > Math\.abs\(dy\) \* 1\.5\) move\(dx < 0 \? 1 : -1\);/);
+  assert.match(picker, /direction > 0 \? "motion-safe:slide-in-from-right-8" : "motion-safe:slide-in-from-left-8"/);
+  assert.match(picker, /<div key=\{weekOffset\}/);
+});
