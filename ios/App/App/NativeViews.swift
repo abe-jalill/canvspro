@@ -3377,9 +3377,10 @@ struct NativeDashboardPicker: View {
     @State private var saving = false
     @State private var status: String?
 
-    init(features: NativeFeatureStore, onDone: @escaping () -> Void) {
+    init(features: NativeFeatureStore, onDone: @escaping () -> Void, onSkip: (() -> Void)? = nil) {
         _features = ObservedObject(wrappedValue: features)
         self.onDone = onDone
+        self.onSkip = onSkip
         _picks = State(initialValue: Set(features.dashboardOrder.filter { !features.dashboardHidden.contains($0) }))
         _syncs = State(initialValue: features.dashboardSyncsWithWebsite)
     }
@@ -3534,7 +3535,7 @@ struct NativeDashboardSettingsView: View {
             Text("The other one is replaced.")
         }
         .sheet(isPresented: $showPicker) {
-            NativeDashboardPicker(features: features) { showPicker = false }
+            NativeDashboardPicker(features: features, onDone: { showPicker = false })
         }
     }
 
