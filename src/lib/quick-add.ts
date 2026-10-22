@@ -115,6 +115,8 @@ export function parseQuickAdd(
   let courseLabel: string | null = null;
 
   for (let i = 0; i < tokens.length; i++) {
+    // Already read as part of the token before ("next fri", "2 hours").
+    if (used.has(i)) continue;
     const raw = tokens[i];
     const t = raw.toLowerCase().replace(/[,.]$/, "");
     const nextTok = tokens[i + 1]?.toLowerCase();
