@@ -240,6 +240,18 @@ export async function enableBackgroundPush(): Promise<
   return { ok: true };
 }
 
+/**
+ * On sign-out: this browser stops getting the account's notifications. The
+ * browser keeps its subscription, so signing in again re-registers it
+ * (maintainBackgroundPush) without asking for permission again.
+ */
+export async function forgetBrowserPushForAccount(): Promise<void> {
+  if (!pushSupported()) return;
+  const reg = await navigator.serviceWorker.getRegistration("/");
+  const sub = await reg?.pushManager.getSubscription();
+  if (sub) await supabase.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
+}
+
 export async function disableBackgroundPush(): Promise<void> {
   setBackgroundPushDevice(false);
   if (!pushSupported()) return;

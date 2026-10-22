@@ -15,6 +15,7 @@ import { useDueTodayBadge } from "@/hooks/use-due-today-badge";
 import { useAppPrefetch } from "@/hooks/use-app-prefetch";
 import { useWelcomeEmail } from "@/hooks/use-welcome-email";
 import { useActivityHeartbeat } from "@/hooks/use-activity-heartbeat";
+import { useSessionWatch } from "@/hooks/use-session-watch";
 import { purgeScopedStorage } from "@/lib/user-scope";
 import { syncAuthIdentity } from "@/lib/auth-user";
 import { PullToRefresh } from "@/components/pull-to-refresh";
@@ -79,6 +80,8 @@ function AuthenticatedLayout() {
   useDueTodayBadge(startupReady);
   useWelcomeEmail(true);
   useActivityHeartbeat(true);
+  // Signed out from another device: leave promptly.
+  useSessionWatch(true);
 
   useEffect(() => {
     registerOfflineSupport();

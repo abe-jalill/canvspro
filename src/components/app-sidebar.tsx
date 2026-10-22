@@ -1,7 +1,6 @@
-import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 import {
   BarChart3,
   Bell,
@@ -22,9 +21,8 @@ import { cn } from "@/lib/utils";
 import { useTheme } from "@/lib/theme";
 import { useReminders } from "@/hooks/use-hourly-reminder";
 import { supabase } from "@/integrations/supabase/client";
-import { purgeScopedStorage, useUserScope } from "@/lib/user-scope";
-import { syncAuthIdentity } from "@/lib/auth-user";
 import { NotificationCenter } from "@/components/notification-center";
+import { useSignOut } from "@/hooks/use-sign-out";
 import { ProfileButton } from "@/components/profile-button";
 import { MobileAccountMenu } from "@/components/mobile-account-menu";
 import { TrafficLights } from "@/components/traffic-lights";
@@ -135,32 +133,11 @@ function ThemeToggle({ compact = false }: { compact?: boolean }) {
   );
 }
 
-function useSignOut() {
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const scope = useUserScope();
-  return async function signOut() {
-    await queryClient.cancelQueries();
-    const { error } = await supabase.auth.signOut({ scope: "local" });
-    if (error) {
-      toast.error("Could not sign out", { description: error.message });
-      return;
-    }
-    queryClient.clear();
-    purgeScopedStorage(scope);
-    syncAuthIdentity(queryClient, null);
-    // The cache persister flushes once more after clear(); drop that too so
-    // nothing of this account is left behind on the device.
-    purgeScopedStorage(scope);
-    navigate({ to: "/auth", replace: true });
-  };
-}
-
 function SignOutButton({ compact = false }: { compact?: boolean }) {
   const signOut = useSignOut();
   return (
     <button
-      onClick={signOut}
+      onClick={() => void signOut()}
       aria-label="Sign out"
       className={cn(
         "glass-hover glass-inset flex items-center justify-center rounded-xl transition-colors",

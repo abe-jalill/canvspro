@@ -50,6 +50,7 @@ import { Route as AuthenticatedSettingsAppearanceRouteImport } from './routes/_a
 import { Route as AuthenticatedSettingsBillingRouteImport } from './routes/_authenticated/settings.billing'
 import { Route as AuthenticatedSettingsCanvasRouteImport } from './routes/_authenticated/settings.canvas'
 import { Route as AuthenticatedSettingsClassesRouteImport } from './routes/_authenticated/settings.classes'
+import { Route as AuthenticatedSettingsDevicesRouteImport } from './routes/_authenticated/settings.devices'
 import { Route as AuthenticatedSettingsNotificationsRouteImport } from './routes/_authenticated/settings.notifications'
 import { Route as AuthenticatedSettingsProfileRouteImport } from './routes/_authenticated/settings.profile'
 import { Route as ApiMobileDeleteAccountRouteImport } from './routes/api/mobile/delete-account'
@@ -282,6 +283,12 @@ const AuthenticatedSettingsClassesRoute =
     path: '/classes',
     getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
+const AuthenticatedSettingsDevicesRoute =
+  AuthenticatedSettingsDevicesRouteImport.update({
+    id: '/devices',
+    path: '/devices',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
 const AuthenticatedSettingsNotificationsRoute =
   AuthenticatedSettingsNotificationsRouteImport.update({
     id: '/notifications',
@@ -387,6 +394,7 @@ export interface FileRoutesByFullPath {
   '/settings/billing': typeof AuthenticatedSettingsBillingRoute
   '/settings/canvas': typeof AuthenticatedSettingsCanvasRoute
   '/settings/classes': typeof AuthenticatedSettingsClassesRoute
+  '/settings/devices': typeof AuthenticatedSettingsDevicesRoute
   '/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
   '/settings/profile': typeof AuthenticatedSettingsProfileRoute
   '/api/mobile/delete-account': typeof ApiMobileDeleteAccountRoute
@@ -440,6 +448,7 @@ export interface FileRoutesByTo {
   '/settings/billing': typeof AuthenticatedSettingsBillingRoute
   '/settings/canvas': typeof AuthenticatedSettingsCanvasRoute
   '/settings/classes': typeof AuthenticatedSettingsClassesRoute
+  '/settings/devices': typeof AuthenticatedSettingsDevicesRoute
   '/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
   '/settings/profile': typeof AuthenticatedSettingsProfileRoute
   '/api/mobile/delete-account': typeof ApiMobileDeleteAccountRoute
@@ -496,6 +505,7 @@ export interface FileRoutesById {
   '/_authenticated/settings/billing': typeof AuthenticatedSettingsBillingRoute
   '/_authenticated/settings/canvas': typeof AuthenticatedSettingsCanvasRoute
   '/_authenticated/settings/classes': typeof AuthenticatedSettingsClassesRoute
+  '/_authenticated/settings/devices': typeof AuthenticatedSettingsDevicesRoute
   '/_authenticated/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
   '/_authenticated/settings/profile': typeof AuthenticatedSettingsProfileRoute
   '/api/mobile/delete-account': typeof ApiMobileDeleteAccountRoute
@@ -552,6 +562,7 @@ export interface FileRouteTypes {
     | '/settings/billing'
     | '/settings/canvas'
     | '/settings/classes'
+    | '/settings/devices'
     | '/settings/notifications'
     | '/settings/profile'
     | '/api/mobile/delete-account'
@@ -605,6 +616,7 @@ export interface FileRouteTypes {
     | '/settings/billing'
     | '/settings/canvas'
     | '/settings/classes'
+    | '/settings/devices'
     | '/settings/notifications'
     | '/settings/profile'
     | '/api/mobile/delete-account'
@@ -660,6 +672,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings/billing'
     | '/_authenticated/settings/canvas'
     | '/_authenticated/settings/classes'
+    | '/_authenticated/settings/devices'
     | '/_authenticated/settings/notifications'
     | '/_authenticated/settings/profile'
     | '/api/mobile/delete-account'
@@ -995,6 +1008,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsClassesRouteImport
       parentRoute: typeof AuthenticatedSettingsRoute
     }
+    '/_authenticated/settings/devices': {
+      id: '/_authenticated/settings/devices'
+      path: '/devices'
+      fullPath: '/settings/devices'
+      preLoaderRoute: typeof AuthenticatedSettingsDevicesRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
     '/_authenticated/settings/notifications': {
       id: '/_authenticated/settings/notifications'
       path: '/notifications'
@@ -1090,6 +1110,7 @@ interface AuthenticatedSettingsRouteChildren {
   AuthenticatedSettingsBillingRoute: typeof AuthenticatedSettingsBillingRoute
   AuthenticatedSettingsCanvasRoute: typeof AuthenticatedSettingsCanvasRoute
   AuthenticatedSettingsClassesRoute: typeof AuthenticatedSettingsClassesRoute
+  AuthenticatedSettingsDevicesRoute: typeof AuthenticatedSettingsDevicesRoute
   AuthenticatedSettingsNotificationsRoute: typeof AuthenticatedSettingsNotificationsRoute
   AuthenticatedSettingsProfileRoute: typeof AuthenticatedSettingsProfileRoute
   AuthenticatedSettingsIndexRoute: typeof AuthenticatedSettingsIndexRoute
@@ -1104,6 +1125,7 @@ const AuthenticatedSettingsRouteChildren: AuthenticatedSettingsRouteChildren = {
   AuthenticatedSettingsBillingRoute: AuthenticatedSettingsBillingRoute,
   AuthenticatedSettingsCanvasRoute: AuthenticatedSettingsCanvasRoute,
   AuthenticatedSettingsClassesRoute: AuthenticatedSettingsClassesRoute,
+  AuthenticatedSettingsDevicesRoute: AuthenticatedSettingsDevicesRoute,
   AuthenticatedSettingsNotificationsRoute:
     AuthenticatedSettingsNotificationsRoute,
   AuthenticatedSettingsProfileRoute: AuthenticatedSettingsProfileRoute,

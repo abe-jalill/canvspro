@@ -7,6 +7,7 @@ import {
   GraduationCap,
   Link2,
   Megaphone,
+  MonitorSmartphone,
   Palette,
   Trash2,
   UserRound,
@@ -81,6 +82,12 @@ const sections = [
     description: "Your plan, payments, receipts and cancellation.",
     to: "/settings/billing" as const,
     icon: CreditCard,
+  },
+  {
+    title: "Signed-in devices",
+    description: "See where you're signed in, and sign out of any device.",
+    to: "/settings/devices" as const,
+    icon: MonitorSmartphone,
   },
   {
     title: "Account",

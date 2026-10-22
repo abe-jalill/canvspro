@@ -442,6 +442,9 @@ function answer(
     const name = path.slice("/rest/v1/rpc/".length);
     if (name === "my_billing_status") return json(demoBilling());
     if (name === "record_streak_activity") return json(demoStreak());
+    if (name === "list_my_sessions") return json(demoSessions());
+    if (name === "revoke_my_session") return json(true);
+    if (name === "revoke_my_other_sessions") return json(0);
     return json(name === "has_canvas_key" ? true : null);
   }
   if (path.startsWith("/rest/v1/")) {
@@ -461,6 +464,27 @@ function answer(
   }
   if (path.startsWith("/storage/v1/")) return json({ message: "Not found" }, 404);
   return null;
+}
+
+/** Signed-in devices: this browser and the iPhone app. */
+function demoSessions() {
+  const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
+  return [
+    {
+      id: "demo-this-browser",
+      created_at: ago(3 * 1440),
+      last_active_at: ago(0),
+      user_agent: navigator.userAgent,
+      is_current: true,
+    },
+    {
+      id: "demo-iphone",
+      created_at: ago(9 * 1440),
+      last_active_at: ago(140),
+      user_agent: "CoursePro/1 CFNetwork/1494.0.7 Darwin/23.4.0",
+      is_current: false,
+    },
+  ];
 }
 
 function installDemoMode() {
