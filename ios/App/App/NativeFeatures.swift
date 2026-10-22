@@ -872,9 +872,19 @@ final class NativeFeatureStore: ObservableObject {
     }
 }
 
+extension CustomAssignment {
+    /// The class id of your own task that isn't for a class (the website uses 0 too).
+    static let noClassID = 0
+    /// What such a task shows where a class name would be.
+    static let noClassLabel = "Personal"
+    /// Stands in for a class where a list goes class by class.
+    static let noClassCourse = CourseSummary(id: noClassID, name: noClassLabel, courseCode: "", currentScore: nil, currentGrade: nil, finalScore: nil)
+}
+
 extension AssignmentItem {
     static func custom(_ item: CustomAssignment, course: CourseSummary?) -> AssignmentItem {
-        AssignmentItem(id: item.id, name: item.name, description: item.notes, dueAt: item.dueAt, htmlURL: "", pointsPossible: item.pointsPossible, courseID: item.courseID, courseName: course?.name ?? "", courseCode: course?.courseCode ?? "", submission: nil, estimatedMinutes: item.estimatedMinutes)
+        let fallback = item.courseID == CustomAssignment.noClassID ? CustomAssignment.noClassLabel : ""
+        return AssignmentItem(id: item.id, name: item.name, description: item.notes, dueAt: item.dueAt, htmlURL: "", pointsPossible: item.pointsPossible, courseID: item.courseID, courseName: course?.name ?? fallback, courseCode: course?.courseCode ?? "", submission: nil, estimatedMinutes: item.estimatedMinutes)
     }
 }
 

@@ -2259,16 +2259,19 @@ private struct NativeDashboardView: View {
     // MARK: Upcoming Assignments
 
     private var upcomingWidget: some View {
-        let groups = visibleCourses.compactMap { course -> NativeCourseGroup? in
+        let classGroups = visibleCourses.compactMap { course -> NativeCourseGroup? in
             let items = weekItems.filter { $0.courseID == course.id }.sorted(by: AssignmentItem.dueSort)
             return items.isEmpty ? nil : NativeCourseGroup(course: course, items: items)
         }
-        let quiet = visibleCourses.count - groups.count
+        // Your own tasks that aren't for a class come after the classes.
+        let personal = weekItems.filter { $0.courseID == CustomAssignment.noClassID }.sorted(by: AssignmentItem.dueSort)
+        let groups = classGroups + (personal.isEmpty ? [] : [NativeCourseGroup(course: CustomAssignment.noClassCourse, items: personal)])
+        let quiet = visibleCourses.count - classGroups.count
         return CPGlassCard {
             CPCardHeader(title: "This week", collapse: collapse("upcoming")) {
                 Button { openToDo() } label: { CPLinkLabel(text: "View all") }.buttonStyle(.plain)
             }
-            if visibleCourses.isEmpty {
+            if visibleCourses.isEmpty && groups.isEmpty {
                 NativeEmptyState(title: "No active courses.", symbol: "books.vertical")
             } else if groups.isEmpty {
                 NativeEmptyState(title: "You're all clear", symbol: "checkmark.circle")
@@ -3463,13 +3466,15 @@ struct AssignmentDetailView: View {
             }
             if let score = assignment.submission?.score { Section("Grade") { LabeledContent("Score", value: "\(score.formatted())\(assignment.pointsPossible.map { " / \($0.formatted())" } ?? "")") } }
             if let url = URL(string: assignment.htmlURL), !assignment.htmlURL.isEmpty { Section { Link("Open in Canvas", destination: url) } }
-            if assignment.id < 0, features.customAssignments.contains(where: { $0.id == assignment.id }) { Section { Button("Delete custom assignment", role: .destructive) { Task { do { try await features.savePreference("custom-assignments", features.customAssignments.filter { $0.id != assignment.id }); dismiss() } catch { status = error.localizedDescription } } } } }
+            if assignment.id < 0, features.customAssignments.contains(where: { $0.id == assignment.id }) { Section { Button(isPersonalTask ? "Delete task" : "Delete custom assignment", role: .destructive) { Task { do { try await features.savePreference("custom-assignments", features.customAssignments.filter { $0.id != assignment.id }); dismiss() } catch { status = error.localizedDescription } } } } }
             if let status { Section { Text(status).foregroundStyle(.secondary) } }
         }
         .cpListScreen()
-        .cpNavigationTitle("Assignment")
+        .cpNavigationTitle(isPersonalTask ? "Task" : "Assignment")
         .navigationBarTitleDisplayMode(.inline)
     }
+    /// Your own task that isn't for a class.
+    private var isPersonalTask: Bool { assignment.id < 0 && assignment.courseID == CustomAssignment.noClassID }
     private func addToCalendar() {
         guard !features.calendarPicks.contains(where: { $0.assignmentID == assignment.id }) else { status = "Already on your calendar."; return }
         let pick = CalendarPick(assignmentID: assignment.id, title: assignment.name, context: store.displayName(courseID: assignment.courseID, fallback: assignment.courseName), at: NativeParity.plannedTime(for: assignment.dueAt), dueAt: assignment.dueAt)
@@ -3477,50 +3482,108 @@ struct AssignmentDetailView: View {
     }
 }
 
+/// To-Do's Add: first whether it's for a class. For a class it's the
+/// assignment form with the class to pick (as on the website); otherwise only
+/// a name, when it's due and how long it takes.
 struct AddAssignmentView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
     let courses: [CourseSummary]
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
-    @State private var name = ""; @State private var courseID: Int?; @State private var dueDate = NativeParity.endOfUpcomingDay(0); @State private var hasDueDate = true; @State private var points = 0.0; @State private var notes = ""; @State private var error: String?
-    @State private var estimatedMinutes = 30
+    /// The step after the choice: true for a class, false for not.
+    @State private var path: [Bool] = []
     @State private var saving = false
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             Form {
                 Section {
-                    TextField("Name", text: $name)
-                    Picker("Class", selection: $courseID) { Text("Choose a class").tag(Int?.none); ForEach(courses) { course in Text(store.displayName(courseID: course.id, fallback: course.name)).tag(Optional(course.id)) } }
-                        .pickerStyle(.menu).tint(CPTheme.foreground(scheme))
-                    Toggle("Due date", isOn: $hasDueDate); if hasDueDate { DatePicker("Due", selection: $dueDate) }
-                    TextField("Points", value: $points, format: .number).keyboardType(.decimalPad)
-                    Stepper("Estimated time: \(estimatedMinutes) min", value: $estimatedMinutes, in: 5...480, step: 5)
-                    TextField("Notes", text: $notes, axis: .vertical)
+                    Button { path = [true] } label: {
+                        choice("For a class", detail: courses.isEmpty ? "Connect Canvas to add work for a class." : "An assignment, quiz or project for one of your classes.", symbol: "book.closed")
+                    }
+                    .disabled(courses.isEmpty)
+                    .opacity(courses.isEmpty ? 0.5 : 1)
+                    Button { path = [false] } label: {
+                        choice("Not for a class", detail: "Anything else you need to get done.", symbol: "checklist")
+                    }
                 } header: {
-                    Text("Assignment")
-                } footer: {
-                    Text("Only you see this.")
+                    Text("Is this for a class?")
                 }
-                if let error { Section { Text(error).foregroundStyle(CPTheme.danger) } }
             }
             .cpListScreen()
-            .cpNavigationTitle("New Assignment")
+            .cpNavigationTitle("Add a Task")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) { Button("Save") { save() }.disabled(saving || name.trimmingCharacters(in: .whitespaces).isEmpty || courseID == nil) }
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
+            .navigationDestination(for: Bool.self) { forClass in
+                NativeNewTaskForm(forClass: forClass, courses: courses, store: store, features: features, saving: $saving) { dismiss() }
             }
         }
         .interactiveDismissDisabled(saving)
     }
+
+    private func choice(_ title: String, detail: String, symbol: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: symbol).cpIconFont(15).foregroundStyle(CPTheme.foreground(scheme).opacity(0.8))
+                .frame(width: 34, height: 34)
+                .background(CPTheme.foreground(scheme).opacity(0.08), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).cpFont(15, .medium).foregroundStyle(CPTheme.foreground(scheme))
+                Text(detail).cpFont(12).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 8)
+            Image(systemName: "chevron.right").cpIconFont(12).foregroundStyle(CPTheme.faint(scheme))
+        }
+        .padding(.vertical, 4)
+        .contentShape(Rectangle())
+    }
+}
+
+/// The form after To-Do's choice. Not for a class, it's only the essentials
+/// and the task is saved with class id 0.
+private struct NativeNewTaskForm: View {
+    @Environment(\.colorScheme) private var scheme
+    let forClass: Bool
+    let courses: [CourseSummary]
+    @ObservedObject var store: NativeContentStore
+    @ObservedObject var features: NativeFeatureStore
+    @Binding var saving: Bool
+    let onDone: () -> Void
+    @State private var name = ""; @State private var courseID: Int?; @State private var dueDate = NativeParity.endOfUpcomingDay(0); @State private var hasDueDate = true; @State private var points = 0.0; @State private var notes = ""; @State private var error: String?
+    @State private var estimatedMinutes = 30
+    private var canSave: Bool { !saving && !name.trimmingCharacters(in: .whitespaces).isEmpty && (!forClass || courseID != nil) }
+    var body: some View {
+        Form {
+            Section {
+                TextField(forClass ? "Name" : "What do you need to do?", text: $name)
+                if forClass {
+                    Picker("Class", selection: $courseID) { Text("Choose a class").tag(Int?.none); ForEach(courses) { course in Text(store.displayName(courseID: course.id, fallback: course.name)).tag(Optional(course.id)) } }
+                        .pickerStyle(.menu).tint(CPTheme.foreground(scheme))
+                }
+                Toggle("Due date", isOn: $hasDueDate); if hasDueDate { DatePicker("Due", selection: $dueDate) }
+                if forClass { TextField("Points", value: $points, format: .number).keyboardType(.decimalPad) }
+                Stepper("\(forClass ? "Estimated time" : "Time it takes"): \(estimatedMinutes) min", value: $estimatedMinutes, in: 5...480, step: 5)
+                if forClass { TextField("Notes", text: $notes, axis: .vertical) }
+            } header: {
+                Text(forClass ? "Assignment" : "Task")
+            } footer: {
+                Text(forClass ? "Only you see this." : "Only you see this. It isn't filed under a class.")
+            }
+            if let error { Section { Text(error).foregroundStyle(CPTheme.danger) } }
+        }
+        .cpListScreen()
+        .cpNavigationTitle(forClass ? "New Assignment" : "New Task")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Save") { save() }.disabled(!canSave) } }
+    }
     private func save() {
-        guard let courseID, !saving else { return }
+        guard canSave else { return }
+        let classID: Int
+        if forClass { guard let courseID else { return }; classID = courseID } else { classID = CustomAssignment.noClassID }
         saving = true
-        let item = CustomAssignment(id: -Int(Date().timeIntervalSince1970 * 1000), courseID: courseID, name: name.trimmingCharacters(in: .whitespaces), dueAt: hasDueDate ? ISO8601DateFormatter().string(from: dueDate) : nil, pointsPossible: points > 0 ? points : nil, notes: notes, createdAt: ISO8601DateFormatter().string(from: Date()), estimatedMinutes: estimatedMinutes)
+        let item = CustomAssignment(id: -Int(Date().timeIntervalSince1970 * 1000), courseID: classID, name: name.trimmingCharacters(in: .whitespaces), dueAt: hasDueDate ? ISO8601DateFormatter().string(from: dueDate) : nil, pointsPossible: forClass && points > 0 ? points : nil, notes: forClass ? notes : "", createdAt: ISO8601DateFormatter().string(from: Date()), estimatedMinutes: estimatedMinutes)
         Task {
             defer { saving = false }
-            do { try await features.savePreference("custom-assignments", features.customAssignments + [item]); CPHaptics.success(); dismiss() } catch { self.error = error.localizedDescription }
+            do { try await features.savePreference("custom-assignments", features.customAssignments + [item]); CPHaptics.success(); onDone() } catch { self.error = error.localizedDescription }
         }
     }
 }

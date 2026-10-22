@@ -102,6 +102,8 @@ enum CPTheme {
     private static let classHues: [Double] = [205, 150, 268, 182, 232, 290, 125]
     /// A steady color per class (by its place in Canvas's list), for small accents only.
     static func classColor(_ courseID: Int, in courses: [CourseSummary]) -> Color {
+        // Your own tasks that aren't for a class are a quiet gray, never a class's hue.
+        if courseID == CustomAssignment.noClassID { return adaptive(dark: .hsl(220, 0.08, 0.68), light: .hsl(220, 0.08, 0.40)) }
         let index = courses.firstIndex { $0.id == courseID } ?? abs(courseID)
         let hue = classHues[index % classHues.count]
         return adaptive(dark: .hsl(hue, 0.50, 0.68), light: .hsl(hue, 0.50, 0.40))

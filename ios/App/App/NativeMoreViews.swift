@@ -819,11 +819,14 @@ struct FocusView: View {
     }
     private var classGroups: [NativeTitledGroup] {
         let grouped = Dictionary(grouping: items, by: \.courseID)
-        return visibleCourses.compactMap { course -> NativeTitledGroup? in
+        let classes = visibleCourses.compactMap { course -> NativeTitledGroup? in
             guard let rows = grouped[course.id], !rows.isEmpty else { return nil }
             return NativeTitledGroup(title: store.displayName(courseID: course.id, fallback: course.name), items: rows, courseID: course.id)
         }
         .sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+        // Your own tasks that aren't for a class come after the classes.
+        guard let personal = grouped[CustomAssignment.noClassID], !personal.isEmpty else { return classes }
+        return classes + [NativeTitledGroup(title: CustomAssignment.noClassLabel, items: personal, courseID: CustomAssignment.noClassID)]
     }
     private func estimate(_ item: AssignmentItem) -> Int { NativeParity.estimate(item, estimates: features.estimates) }
     private func classTint(_ courseID: Int) -> Color { CPTheme.classColor(courseID, in: store.bundle.courses) }
@@ -906,8 +909,7 @@ struct FocusView: View {
                 .accessibilityLabel("Completed")
                 Button { showAdd = true } label: { CPIconButtonLabel(symbol: "plus") }
                     .buttonStyle(.plain)
-                    .disabled(visibleCourses.isEmpty)
-                    .accessibilityLabel("Add an assignment")
+                    .accessibilityLabel("Add a task")
             }
             HStack(alignment: .center, spacing: 8) {
                 // Counts only once everything has loaded, never "All clear" before it.
