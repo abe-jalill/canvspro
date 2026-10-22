@@ -566,6 +566,7 @@ struct NativeSettingsView: View {
     @ObservedObject var features: NativeFeatureStore
     @ObservedObject var sessionStore: NativeSessionStore
     @State private var legalPage: NativeLegalPage?
+    @State private var showTutorial = false
     @AppStorage("CanvasProHideGrades") private var hideGrades = false
 
     var body: some View {
@@ -609,6 +610,12 @@ struct NativeSettingsView: View {
                     settingsLink("Account", "person.crop.circle.badge.xmark") { NativeDeleteAccountView(sessionStore: sessionStore) }
                 }
                 NativeMenuGroup("Help & legal") {
+                    Button { showTutorial = true } label: {
+                        NativeMenuRow(title: "Tutorial", symbol: "play.circle")
+                    }
+                    .buttonStyle(CPPressStyle())
+                    .accessibilityHint("A one-minute animated tour of CoursePro")
+                    CPRowDivider(leading: 40)
                     settingsLink("Help & Support", "questionmark.circle") { NativeSupportView() }
                     CPRowDivider(leading: 40)
                     legalRow(.privacy, "hand.raised")
@@ -625,6 +632,14 @@ struct NativeSettingsView: View {
         .cpNavigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(item: $legalPage) { page in NativeSafariView(url: page.url).ignoresSafeArea() }
+        // The same tour as on first launch (and the website's Settings > Tutorial).
+        .fullScreenCover(isPresented: $showTutorial) {
+            NativeTutorialView(fromSettings: true) {
+                showTutorial = false
+                // The website stops offering the tour too.
+                Task { try? await features.savePreference("tutorial-seen", true) }
+            }
+        }
     }
 
     private func legalRow(_ page: NativeLegalPage, _ symbol: String) -> some View {

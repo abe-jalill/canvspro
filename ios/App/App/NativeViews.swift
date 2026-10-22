@@ -447,12 +447,15 @@ private struct NativeWidgetGallery: View {
 }
 #endif
 
-/// Five short pages shown once after the app is downloaded, before sign-in (or
-/// before the signed-in app, when the phone still holds a session). Next is the
-/// only control; swiping between pages works too.
+/// The tour: seven short pages, each with a small animated sketch of that part
+/// of the app. Shown once after the app is downloaded, and any time from
+/// Settings > Tutorial (then with a close button). The same steps as the
+/// website's Settings > Tutorial. Next, the dots and swiping move between pages.
 struct NativeTutorialView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let finish: () -> Void
+    /// Opened from Settings: it can be closed at any time.
+    let fromSettings: Bool
     @State private var page: Int
 
     private struct Page {
@@ -461,16 +464,19 @@ struct NativeTutorialView: View {
     }
 
     private static let pages = [
-        Page(title: "Welcome to CoursePro", detail: "Your classes, deadlines and grades from Canvas, in one calm place."),
+        Page(title: "Welcome to CoursePro", detail: "Your classes, deadlines and grades from Canvas, in one calm place. Here's a one-minute tour."),
         Page(title: "See what's due", detail: "To-Do lists your work day by day. Swipe an assignment right when it's done, or left to study it."),
-        Page(title: "Study one thing at a time", detail: "Start a focus timer on any assignment. CoursePro lets you know when it's time for a break."),
+        Page(title: "Add your own tasks", detail: "Tap + on To-Do. Choose whether it's for a class, add the details, and put it on your calendar too if you like."),
+        Page(title: "Your week on the calendar", detail: "Class times from your syllabus, your own events, planned work and due dates, in time order. Tap + to add an event."),
+        Page(title: "Study one thing at a time", detail: "Pick an assignment and start a focus timer. CoursePro lets you know when it's time for a break."),
         Page(title: "Every class at a glance", detail: "Grades and announcements from all your classes, side by side."),
-        Page(title: "Stay ahead, everywhere", detail: "Reminders arrive before things are due, even with the app closed. Your account stays in sync with canvaspro.app."),
+        Page(title: "Stay ahead, everywhere", detail: "Reminders arrive before things are due, even with the app closed. Everything syncs with canvaspro.app, and Settings shows every device you're signed in on."),
     ]
     private var lastPage: Int { Self.pages.count - 1 }
 
-    init(startPage: Int = 0, finish: @escaping () -> Void) {
+    init(startPage: Int = 0, fromSettings: Bool = false, finish: @escaping () -> Void) {
         self.finish = finish
+        self.fromSettings = fromSettings
         _page = State(initialValue: min(max(startPage, 0), Self.pages.count - 1))
     }
 
@@ -489,8 +495,21 @@ struct NativeTutorialView: View {
             LinearGradient(colors: [NativeBrandColors.base, NativeBrandColors.deep], startPoint: .top, endPoint: .bottom)
                 .ignoresSafeArea()
         }
+        .overlay(alignment: .topTrailing) {
+            if fromSettings {
+                Button(action: finish) {
+                    Image(systemName: "xmark").cpIconFont(14, .semibold)
+                        .frame(width: 44, height: 44)
+                        .background(Color.white.opacity(0.12), in: Circle())
+                }
+                .buttonStyle(.plain)
+                .padding(.trailing, 16)
+                .padding(.top, 8)
+                .accessibilityLabel("Close tutorial")
+            }
+        }
         .foregroundStyle(.white)
-        .statusBarHidden()
+        .statusBarHidden(!fromSettings)
         .sensoryFeedback(.selection, trigger: page)
     }
 
@@ -507,7 +526,7 @@ struct NativeTutorialView: View {
                         }
                     } else {
                         VStack(spacing: 36) {
-                            illustration(index)
+                            illustration(index).frame(minHeight: 250)
                             pageText(index, alignment: .center)
                         }
                     }
@@ -523,6 +542,9 @@ struct NativeTutorialView: View {
 
     private func pageText(_ index: Int, alignment: TextAlignment) -> some View {
         VStack(alignment: alignment == .center ? .center : .leading, spacing: 10) {
+            Text("Step \(index + 1) of \(Self.pages.count)".uppercased())
+                .cpFont(11, .semibold).tracking(1.4)
+                .foregroundStyle(.white.opacity(0.5))
             Text(Self.pages[index].title)
                 .cpFont(28, .semibold).tracking(-0.8)
                 .accessibilityAddTraits(.isHeader)
@@ -535,29 +557,51 @@ struct NativeTutorialView: View {
     }
 
     private var controls: some View {
-        VStack(spacing: 20) {
-            HStack(spacing: 8) {
+        VStack(spacing: 16) {
+            HStack(spacing: 0) {
                 ForEach(0...lastPage, id: \.self) { index in
-                    Capsule()
-                        .fill(index == page ? NativeBrandColors.mint : Color.white.opacity(0.25))
-                        .frame(width: index == page ? 22 : 7, height: 7)
+                    Button {
+                        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.3)) { page = index }
+                    } label: {
+                        Capsule()
+                            .fill(index == page ? NativeBrandColors.mint : Color.white.opacity(0.25))
+                            .frame(width: index == page ? 22 : 7, height: 7)
+                            .frame(width: index == page ? 30 : 15, height: 32)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Step \(index + 1): \(Self.pages[index].title)")
+                    .accessibilityAddTraits(index == page ? [.isSelected] : [])
                 }
             }
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: page)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Page \(page + 1) of \(lastPage + 1)")
 
-            Button(action: next) {
-                HStack(spacing: 8) {
-                    Text(page == lastPage ? "Get started" : "Next").cpFont(15, .semibold)
-                    Image(systemName: "arrow.right").cpIconFont(13, .bold).accessibilityHidden(true)
+            HStack(spacing: 10) {
+                if page > 0 {
+                    Button {
+                        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.3)) { page -= 1 }
+                    } label: {
+                        Image(systemName: "arrow.left").cpIconFont(14, .bold)
+                            .frame(width: 52, height: 52)
+                            .background(Color.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    }
+                    .buttonStyle(CPPressStyle())
+                    .accessibilityLabel("Back")
+                    .transition(.opacity)
                 }
-                .frame(maxWidth: .infinity, minHeight: 52)
-                .foregroundStyle(NativeBrandColors.deep)
-                .background(NativeBrandColors.mint, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                Button(action: next) {
+                    HStack(spacing: 8) {
+                        Text(page == lastPage ? (fromSettings ? "Done" : "Get started") : "Next").cpFont(15, .semibold)
+                        Image(systemName: page == lastPage && fromSettings ? "checkmark" : "arrow.right").cpIconFont(13, .bold).accessibilityHidden(true)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 52)
+                    .foregroundStyle(NativeBrandColors.deep)
+                    .background(NativeBrandColors.mint, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                }
+                .buttonStyle(CPPressStyle())
             }
-            .buttonStyle(CPPressStyle())
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: page)
             .frame(maxWidth: 420)
         }
         .padding(.horizontal, 24)
@@ -577,19 +621,37 @@ struct NativeTutorialView: View {
     // MARK: Illustrations
     //
     // Small sketches of each part of the app, drawn as glass cards on the brand
-    // green. They are decoration, so VoiceOver reads only the words.
+    // green, each with a gentle looping animation. With Reduce Motion they stand
+    // still in their finished state. They are decoration, so VoiceOver reads
+    // only the words.
 
     @ViewBuilder private func illustration(_ index: Int) -> some View {
         Group {
             switch index {
-            case 0: NativeBrandMark(size: 132).padding(.vertical, 20)
+            case 0: welcomeSketch
             case 1: todaySketch
-            case 2: studySketch
-            case 3: gradesSketch
+            case 2: addSketch
+            case 3: calendarSketch
+            case 4: studySketch
+            case 5: gradesSketch
             default: remindersSketch
             }
         }
         .accessibilityHidden(true)
+    }
+
+    /// Loops through `phases`; with Reduce Motion, shows `final` only.
+    @ViewBuilder private func looping<Phase: Equatable, Content: View>(
+        _ phases: [Phase],
+        final: Phase,
+        @ViewBuilder content: @escaping (Phase) -> Content,
+        animation: @escaping (Phase) -> Animation?
+    ) -> some View {
+        if reduceMotion {
+            content(final)
+        } else {
+            PhaseAnimator(phases, content: content, animation: animation)
+        }
     }
 
     private func glassCard<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
@@ -600,15 +662,37 @@ struct NativeTutorialView: View {
             .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(Color.white.opacity(0.12), lineWidth: 0.5))
     }
 
-    private var todaySketch: some View {
-        glassCard {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("TODAY").cpFont(11, .semibold).tracking(1.5).foregroundStyle(.white.opacity(0.55))
-                sketchTask("Essay draft", "ENG 102", "11:59 PM", done: true)
-                sketchTask("Lab report", "BIO 110", "Tomorrow", done: false)
-                sketchTask("Problem set 4", "MATH 210", "Friday", done: false)
+    private var welcomeSketch: some View {
+        looping([false, true], final: false) { up in
+            ZStack {
+                ForEach(Array(["Bio 110", "Calculus", "Writing", "Chemistry"].enumerated()), id: \.offset) { offset, name in
+                    let angle = Double(offset) * .pi / 2 + (up ? 0.35 : 0)
+                    Text(name).cpFont(11, .medium)
+                        .padding(.horizontal, 10).padding(.vertical, 5)
+                        .background(Color.white.opacity(0.10), in: Capsule())
+                        .overlay(Capsule().strokeBorder(Color.white.opacity(0.14), lineWidth: 0.5))
+                        .offset(x: cos(angle) * 104, y: sin(angle) * 78)
+                }
+                NativeBrandMark(size: 118)
+                    .scaleEffect(up ? 1.04 : 1)
+                    .offset(y: up ? -6 : 0)
             }
-        }
+            .frame(width: 300, height: 230)
+        } animation: { _ in Animation.easeInOut(duration: 2.4) }
+    }
+
+    private var todaySketch: some View {
+        looping([false, true], final: true) { done in
+            glassCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("TODAY").cpFont(11, .semibold).tracking(1.5).foregroundStyle(.white.opacity(0.55))
+                    sketchTask("Essay draft", "ENG 102", "11:59 PM", done: done)
+                    sketchTask("Lab report", "BIO 110", "5:00 PM", done: false)
+                    Text("TOMORROW").cpFont(11, .semibold).tracking(1.5).foregroundStyle(.white.opacity(0.55)).padding(.top, 2)
+                    sketchTask("Problem set 4", "MATH 210", "9:00 AM", done: false)
+                }
+            }
+        } animation: { done in done ? Animation.spring(duration: 0.45).delay(1.2) : Animation.easeOut(duration: 0.3).delay(2.4) }
     }
 
     private func sketchTask(_ name: String, _ course: String, _ due: String, done: Bool) -> some View {
@@ -631,41 +715,143 @@ struct NativeTutorialView: View {
         .lineLimit(1)
     }
 
-    private var studySketch: some View {
-        VStack(spacing: 16) {
-            ZStack {
-                Circle().stroke(Color.white.opacity(0.10), lineWidth: 8)
-                Circle()
-                    .trim(from: 0, to: 0.64)
-                    .stroke(NativeBrandColors.mint, style: StrokeStyle(lineWidth: 8, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-                VStack(spacing: 2) {
-                    Text("16:05").cpFont(34, .light).monospacedDigit()
-                    Text("Focus").cpFont(12).foregroundStyle(.white.opacity(0.6))
+    /// 0: To-Do; 1: the Add sheet slides up; 2: "Not for a class" is picked.
+    private var addSketch: some View {
+        looping([0, 1, 2], final: 2) { step in
+            glassCard {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        Text("To-Do").cpFont(18, .semibold)
+                        Spacer()
+                        Image(systemName: "plus").cpIconFont(13, .semibold)
+                            .frame(width: 30, height: 30)
+                            .background(Color.white.opacity(step == 0 ? 0.22 : 0.08), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                    }
+                    RoundedRectangle(cornerRadius: 3).fill(Color.white.opacity(0.12)).frame(width: 150, height: 8)
+                    RoundedRectangle(cornerRadius: 3).fill(Color.white.opacity(0.12)).frame(width: 100, height: 8)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Add a task").cpFont(14, .semibold)
+                        Text("Is this for a class?").cpFont(11).foregroundStyle(.white.opacity(0.6))
+                        choice("For a class", symbol: "book.closed", picked: false)
+                        choice("Not for a class", symbol: "checklist", picked: step == 2)
+                    }
+                    .padding(12)
+                    .background(NativeBrandColors.deep.opacity(0.85), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .offset(y: step == 0 ? 160 : 0)
+                    .opacity(step == 0 ? 0 : 1)
                 }
+                .frame(height: 220, alignment: .top)
+                .clipped()
             }
-            .frame(width: 168, height: 168)
-            Text("Lab report · BIO 110")
-                .cpFont(12, .medium)
-                .padding(.horizontal, 14).padding(.vertical, 8)
-                .background(Color.white.opacity(0.08), in: Capsule())
-                .overlay(Capsule().strokeBorder(Color.white.opacity(0.12), lineWidth: 0.5))
+        } animation: { step in
+            switch step {
+            case 1: return Animation.spring(duration: 0.5).delay(0.8)
+            case 2: return Animation.easeInOut(duration: 0.3).delay(0.9)
+            default: return Animation.easeIn(duration: 0.35).delay(1.8)
+            }
         }
     }
 
-    private var gradesSketch: some View {
-        glassCard {
-            VStack(alignment: .leading, spacing: 14) {
-                sketchGrade("BIO 110", 0.94)
-                sketchGrade("ENG 102", 0.89)
-                sketchGrade("MATH 210", 0.91)
-                HStack(spacing: 10) {
-                    Image(systemName: "megaphone").cpIconFont(12).foregroundStyle(NativeBrandColors.mint)
-                    Text("Quiz moved to Thursday").cpFont(12).foregroundStyle(.white.opacity(0.8)).lineLimit(1)
-                }
-                .padding(.top, 2)
-            }
+    private func choice(_ title: String, symbol: String, picked: Bool) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: symbol).cpIconFont(11)
+            Text(title).cpFont(12)
+            Spacer()
         }
+        .padding(.horizontal, 10).padding(.vertical, 8)
+        .background(Color.white.opacity(picked ? 0.14 : 0.05), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(picked ? NativeBrandColors.mint : Color.white.opacity(0.12), lineWidth: picked ? 1.5 : 0.5))
+    }
+
+    /// The day fills in, one entry at a time.
+    private var calendarSketch: some View {
+        let rows: [(String, String, String, String, Color)] = [
+            ("9:00 AM", "9:50", "Cell Biology", "Class · Science Hall 101", Color(red: 0.45, green: 0.70, blue: 0.95)),
+            ("3:00 PM", "4:00", "Study group", "Event · Library", NativeBrandColors.mint),
+            ("4:00 PM", "", "Lab report", "Planned · Cell Biology", NativeBrandColors.mint),
+            ("11:59 PM", "", "Essay draft", "Due · College Writing", Color(red: 0.55, green: 0.85, blue: 0.65)),
+        ]
+        return looping([0, 1, 2, 3, 4], final: 4) { shown in
+            glassCard {
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack(spacing: 0) {
+                        ForEach(Array(["M", "T", "W", "T", "F", "S", "S"].enumerated()), id: \.offset) { offset, letter in
+                            VStack(spacing: 4) {
+                                Text(letter).cpFont(11, .semibold).foregroundStyle(.white.opacity(0.55))
+                                Text("\(19 + offset)").cpFont(11, .semibold).monospacedDigit()
+                                    .foregroundStyle(offset == 2 ? NativeBrandColors.deep : .white)
+                                    .frame(width: 24, height: 24)
+                                    .background(Circle().fill(offset == 2 ? Color.white : Color.clear))
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
+                    }
+                    .padding(.bottom, 8)
+                    ForEach(rows.indices, id: \.self) { index in
+                        let row = rows[index]
+                        HStack(alignment: .top, spacing: 10) {
+                            VStack(alignment: .trailing, spacing: 1) {
+                                Text(row.0).cpFont(11, .semibold).monospacedDigit()
+                                if !row.1.isEmpty { Text(row.1).cpFont(11).foregroundStyle(.white.opacity(0.55)) }
+                            }
+                            .frame(width: 58, alignment: .trailing)
+                            RoundedRectangle(cornerRadius: 1.5).fill(row.4).frame(width: 3, height: 28)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(row.2).cpFont(12, .medium)
+                                Text(row.3).cpFont(11).foregroundStyle(.white.opacity(0.6))
+                            }
+                            Spacer(minLength: 0)
+                        }
+                        .lineLimit(1)
+                        .padding(.vertical, 6)
+                        .opacity(index < shown ? 1 : 0)
+                        .offset(y: index < shown ? 0 : 8)
+                    }
+                }
+            }
+        } animation: { shown in shown == 0 ? Animation.easeOut(duration: 0.3).delay(1.6) : Animation.spring(duration: 0.45).delay(0.35) }
+    }
+
+    private var studySketch: some View {
+        looping([1.0, 0.3], final: 0.64) { left in
+            VStack(spacing: 16) {
+                ZStack {
+                    Circle().stroke(Color.white.opacity(0.10), lineWidth: 8)
+                    Circle()
+                        .trim(from: 0, to: left)
+                        .stroke(NativeBrandColors.mint, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                    VStack(spacing: 2) {
+                        Text("25:00").cpFont(34, .light).monospacedDigit()
+                        Text("Focus").cpFont(12).foregroundStyle(.white.opacity(0.6))
+                    }
+                }
+                .frame(width: 168, height: 168)
+                Text("Lab report · BIO 110")
+                    .cpFont(12, .medium)
+                    .padding(.horizontal, 14).padding(.vertical, 8)
+                    .background(Color.white.opacity(0.08), in: Capsule())
+                    .overlay(Capsule().strokeBorder(Color.white.opacity(0.12), lineWidth: 0.5))
+            }
+        } animation: { left in left < 1 ? Animation.linear(duration: 6) : Animation.easeOut(duration: 0.6).delay(0.8) }
+    }
+
+    private var gradesSketch: some View {
+        looping([false, true], final: true) { grown in
+            glassCard {
+                VStack(alignment: .leading, spacing: 14) {
+                    sketchGrade("BIO 110", grown ? 0.94 : 0.02)
+                    sketchGrade("ENG 102", grown ? 0.89 : 0.02)
+                    sketchGrade("MATH 210", grown ? 0.91 : 0.02)
+                    HStack(spacing: 10) {
+                        Image(systemName: "megaphone").cpIconFont(12).foregroundStyle(NativeBrandColors.mint)
+                        Text("Quiz moved to Thursday").cpFont(12).foregroundStyle(.white.opacity(0.8)).lineLimit(1)
+                    }
+                    .padding(.top, 2)
+                    .opacity(grown ? 1 : 0)
+                }
+            }
+        } animation: { grown in grown ? Animation.spring(duration: 0.9).delay(0.6) : Animation.easeOut(duration: 0.4).delay(2.6) }
     }
 
     private func sketchGrade(_ course: String, _ score: Double) -> some View {
@@ -673,7 +859,7 @@ struct NativeTutorialView: View {
             HStack {
                 Text(course).cpFont(13, .medium)
                 Spacer()
-                Text("\(Int((score * 100).rounded()))%").cpFont(13, .semibold).monospacedDigit()
+                Text("\(Int((max(score, 0.5) * 100).rounded()))%").cpFont(13, .semibold).monospacedDigit().opacity(score > 0.5 ? 1 : 0.3)
             }
             GeometryReader { bar in
                 ZStack(alignment: .leading) {
@@ -686,31 +872,36 @@ struct NativeTutorialView: View {
     }
 
     private var remindersSketch: some View {
-        VStack(spacing: 20) {
-            HStack(alignment: .top, spacing: 12) {
-                NativeBrandMark(size: 26)
-                    .padding(5)
-                    .background(NativeBrandColors.base, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
-                VStack(alignment: .leading, spacing: 3) {
-                    HStack {
-                        Text("CoursePro").cpFont(12, .semibold)
-                        Spacer()
-                        Text("now").cpFont(11).foregroundStyle(.white.opacity(0.55))
+        looping([false, true], final: true) { shown in
+            VStack(spacing: 20) {
+                HStack(alignment: .top, spacing: 12) {
+                    NativeBrandMark(size: 26)
+                        .padding(5)
+                        .background(NativeBrandColors.base, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                    VStack(alignment: .leading, spacing: 3) {
+                        HStack {
+                            Text("CoursePro").cpFont(12, .semibold)
+                            Spacer()
+                            Text("now").cpFont(11).foregroundStyle(.white.opacity(0.55))
+                        }
+                        Text("Lab report is due in 2 hours").cpFont(13).foregroundStyle(.white.opacity(0.85)).fixedSize(horizontal: false, vertical: true)
                     }
-                    Text("Lab report is due in 2 hours").cpFont(13).foregroundStyle(.white.opacity(0.85)).fixedSize(horizontal: false, vertical: true)
                 }
+                .padding(14)
+                .frame(maxWidth: 320)
+                .background(Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(Color.white.opacity(0.14), lineWidth: 0.5))
+                .offset(y: shown ? 0 : -60)
+                .opacity(shown ? 1 : 0)
+                HStack(spacing: 18) {
+                    Image(systemName: "iphone").cpIconFont(26, .light)
+                    Image(systemName: "arrow.left.arrow.right").cpIconFont(14, .semibold).foregroundStyle(NativeBrandColors.mint)
+                        .scaleEffect(shown ? 1.15 : 0.9)
+                    Image(systemName: "laptopcomputer").cpIconFont(30, .light)
+                }
+                .foregroundStyle(.white.opacity(0.85))
             }
-            .padding(14)
-            .frame(maxWidth: 320)
-            .background(Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(Color.white.opacity(0.14), lineWidth: 0.5))
-            HStack(spacing: 18) {
-                Image(systemName: "iphone").cpIconFont(26, .light)
-                Image(systemName: "arrow.left.arrow.right").cpIconFont(14, .semibold).foregroundStyle(NativeBrandColors.mint)
-                Image(systemName: "laptopcomputer").cpIconFont(30, .light)
-            }
-            .foregroundStyle(.white.opacity(0.85))
-        }
+        } animation: { shown in shown ? Animation.spring(duration: 0.6).delay(0.7) : Animation.easeIn(duration: 0.35).delay(2.6) }
     }
 }
 
