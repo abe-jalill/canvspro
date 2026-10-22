@@ -19,21 +19,20 @@ test("To-Do is its own tab, first of the picks, and a page in More when it isn't
   assert.doesNotMatch(views + more, /NativeTodayTabs|todaySection|CanvasProLastTodayPage/);
 });
 
-test("one list: catch up first, then each day; no ranges or days to pick", () => {
-  assert.doesNotMatch(focus, /choiceRow|rangeTile|dayTile|selectedDay|pickedDay|"Next 4 weeks"|CPSegmented/);
-  assert.match(focus, /\(!query\.isEmpty \|\| NativeParity\.isInFocusWindow\(item, window: "all"\)\) && item\.isVisible\(in: store\)/);
-  // Your own tasks with no due date are listed too (last), not lost.
-  assert.match(focus, /if item\.dueDate == nil \{\s+listed = item\.id < 0 && !item\.showsDone\(in: store\)/);
-  assert.match(focus, /due < Date\(\) \? \.distantPast : calendar\.startOfDay\(for: due\)/);
-  assert.match(focus, /date == \.distantPast \? "Catch up"/);
-  // Grouping is a small menu beside the week's line.
+test("To-Do selects today, browses four Sunday–Saturday weeks and searches the picked day", () => {
+  assert.match(focus, /selectedDate \?\? Calendar\.current\.startOfDay\(for: Date\(\)\)/);
+  assert.match(focus, /NativeTodoWeek\.isDue\(item, on: selectedDay\) && !item\.showsDone\(in: store\)/);
+  assert.match(focus, /NativeTodoWeekPicker\(days: weekDays/);
   assert.match(focus, /Picker\("Group by", selection: groupingChoice\)/);
-  assert.match(focus, /CPLinkLabel\(text: grouping, symbol: "chevron\.down"\)/);
+  assert.match(more, /guard \(0\.\.<4\)\.contains\(next\)/);
+  assert.match(more, /DragGesture\(minimumDistance: 30\)/);
+  assert.match(more, /\.accessibilityLabel\("Next week"\)/);
+  assert.doesNotMatch(focus, /window: "all"/);
 });
 
 test("To-Do rows sit in one card per day, the name and one short line", () => {
   assert.match(focus, /Text\("To-Do"\)\.cpFont\(28, \.semibold\)/);
-  assert.match(focus, /return "\\\(week\.count\) this week · \\\(Self\.duration\(/);
+  assert.match(focus, /return "\\\(items\.count\) due \\\(day\) · \\\(Self\.duration\(/);
   for (const symbol of ["magnifyingglass", "checkmark.circle", "plus"]) {
     assert.ok(focus.includes(`CPIconButtonLabel(symbol: "${symbol}")`), symbol);
   }
@@ -42,5 +41,5 @@ test("To-Do rows sit in one card per day, the name and one short line", () => {
   assert.match(rows, /if item\.id != group\.items\.last\?\.id \{ CPRowDivider\(leading: 32\) \}/);
   assert.match(rows, /\.cpSurface\(radius: 20\)/);
   assert.doesNotMatch(rows, /NativeEstimateEditor|countdown\.label|CPInsetRow|lineLimit\(1\)/);
-  assert.match(rows, /\.nativeAssignmentSwipe\(item, store: store\)/);
+  assert.match(rows, /\.nativeAssignmentSwipe\(item, store: store, allowStudy: item\.courseID != CustomAssignment\.noClassID\)/);
 });

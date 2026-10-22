@@ -22,9 +22,9 @@ test("To-Do keeps the website's grouping and opens Completed and Study", () => {
   assert.ok(!more.includes(".sheet(item: $studyAssignment)"));
 });
 
-test("To-Do lists four weeks of local days and search looks through all of it", () => {
+test("To-Do browses four weeks and search stays within the selected day", () => {
   const page = more.slice(more.indexOf("struct FocusView"), more.indexOf("struct NativeTitledGroup"));
-  for (const value of ['window: "all"', '"Search assignments or classes"']) assert.ok(page.includes(value), value);
+  for (const value of ['NativeTodoWeek.days(offset: weekOffset)', '"Search assignments or classes"']) assert.ok(page.includes(value), value);
   // Search matches the name or the class.
   assert.match(page, /item\.name\.localizedCaseInsensitiveContains\(query\) \|\| store\.displayName/);
   assert.ok(views.includes('if dueAt == nil && (pointsPossible ?? 0) <= 0 { return showCompleted }'));
@@ -35,7 +35,7 @@ test("To-Do lists four weeks of local days and search looks through all of it", 
 test("priority surfaces share the same scorer and quiet labels", () => {
   // The Assignments page has no Priority card; the dashboard suggests one next step.
   assert.ok(!more.includes("priorityCard"));
-  assert.ok(views.includes("NativeParity.nextUp(activeAssignments, progress: features.progress)"));
+  assert.ok(views.includes("NativeParity.nextUp(heroActive, progress: features.progress)"));
   assert.ok(!views.includes("NativeParity.priority("));
   for (const label of ["Do first", "Soon", "This week", "Later"]) assert.ok(parity.includes(`"${label}"`));
 });

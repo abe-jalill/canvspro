@@ -1681,7 +1681,13 @@ struct NativeMainTabView: View {
         guard featureStore.notificationPreferences.enabled && featureStore.notificationPreferences.browserPush && NativeLocalReminders.deviceEnabled else { return }
         guard let api = sessionStore.api, let user = sessionStore.session?.user else { return }
         do {
-            try await api.upsertPushToken(deviceToken, token: try await sessionStore.accessToken(), userID: user.id)
+            let access = try await sessionStore.accessToken()
+            try await api.upsertPushToken(deviceToken, token: access, userID: user.id)
+            // A pending registration must not undo a device-only opt-out.
+            guard NativeLocalReminders.deviceEnabled && featureStore.notificationPreferences.enabled && featureStore.notificationPreferences.browserPush else {
+                try await api.deletePushToken(deviceToken, token: access)
+                return
+            }
             UserDefaults.standard.set(deviceToken, forKey: "CanvasProNativePushToken")
         } catch { featureStore.errorMessage = error.localizedDescription }
     }
@@ -1819,7 +1825,12 @@ struct NativeMainTabView: View {
         nativeTabs
             .onChange(of: contentStore.completed) { _, _ in rescheduleLocalReminders() }
             .onChange(of: contentStore.lastSyncedAt) { _, _ in rescheduleLocalReminders() }
-            .onChange(of: featureStore.notificationPreferences) { _, _ in rescheduleLocalReminders() }
+            .onChange(of: featureStore.notificationPreferences) { _, _ in
+                rescheduleLocalReminders()
+                if !featureStore.notificationPreferences.enabled {
+                    UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["canvaspro.study.block"])
+                }
+            }
             .onChange(of: featureStore.schedule) { _, _ in rescheduleLocalReminders() }
             .onChange(of: featureStore.customAssignments) { _, _ in rescheduleLocalReminders() }
             // Hiding or showing a class changes what's due, on widgets and in reminders.
@@ -1850,6 +1861,7 @@ struct NativeMainTabView: View {
                     try? await Task.sleep(for: .seconds(30))
                     guard !Task.isCancelled else { return }
                     await featureStore.refreshPreferences()
+                    await featureStore.refreshNotificationPreferences()
                     // Also starts "Due tonight" at 9 PM when the app is already open.
                     publishWidgetSnapshot()
                 }
@@ -1961,12 +1973,14 @@ private struct NativeDashboardView: View {
     private var dismissedAnnouncements: Set<Int> { features.dismissedAnnouncementIDs }
     private var visibleCourses: [CourseSummary] { store.bundle.courses.filter { !features.hiddenCourseIDs.contains($0.id) } }
     private var allAssignments: [AssignmentItem] { features.shownAssignments(in: store) }
+    private var heroAssignments: [AssignmentItem] { features.shownAssignments(in: store, includePersonalTasks: true) }
+    private var heroActive: [AssignmentItem] { heroAssignments.filter { $0.isVisible(in: store) && !$0.notYetOpen() } }
     // Work Canvas hasn't opened yet stays off the dashboard (hero counts included).
     private var activeAssignments: [AssignmentItem] { allAssignments.filter { $0.isVisible(in: store) && !$0.notYetOpen() } }
     /// The same seven days as the circles below the line.
-    private var weekItems: [AssignmentItem] { activeAssignments.filter { NativeParity.isDueThisWeek($0) } }
-    private var todayCount: Int { activeAssignments.filter { NativeParity.isInFocusWindow($0, window: "1") }.count }
-    private var overdueCount: Int { activeAssignments.filter { NativeParity.isInFocusWindow($0, window: "overdue") }.count }
+    private var weekItems: [AssignmentItem] { heroActive.filter { NativeParity.isDueThisWeek($0) } }
+    private var todayCount: Int { heroActive.filter { NativeParity.isInFocusWindow($0, window: "1") }.count }
+    private var overdueCount: Int { heroActive.filter { NativeParity.isInFocusWindow($0, window: "overdue") }.count }
     private var greeting: String { let hour = Calendar.current.component(.hour, from: Date()); return hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening" }
     private var studentName: String? {
         for value in [features.accountDetails.nickname, features.accountDetails.firstName, features.profile.username ?? ""] {
@@ -2001,7 +2015,7 @@ private struct NativeDashboardView: View {
         return Array(fresh.sorted { rank($0) < rank($1) }.prefix(4))
     }
     /// The website's weighted Next up among unfinished work due this week.
-    private var nextUp: AssignmentItem? { NativeParity.nextUp(activeAssignments, progress: features.progress) }
+    private var nextUp: AssignmentItem? { NativeParity.nextUp(heroActive, progress: features.progress) }
     /// The student's widgets in order. Since your last visit only shows when
     /// a new announcement or grade has been posted since then.
     private var widgetIDs: [String] {
@@ -2133,7 +2147,7 @@ private struct NativeDashboardView: View {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
         guard let end = calendar.date(byAdding: .day, value: 7, to: today) else { return [] }
-        let counted = allAssignments.filter { item in
+        let counted = heroAssignments.filter { item in
             guard let due = item.dueDate, due >= today, due < end, !item.notYetOpen() else { return false }
             return item.showsDone(in: store) || item.isVisible(in: store)
         }
@@ -2207,15 +2221,22 @@ private struct NativeDashboardView: View {
                 .buttonStyle(CPPressStyle())
                 .accessibilityElement(children: .combine)
                 .accessibilityHint("Opens the assignment")
-                Button { NotificationCenter.default.post(name: .nativeStudyAssignment, object: item) } label: {
-                    Label {
-                        Text("Start")
-                    } icon: {
-                        Image(systemName: "play.fill").foregroundStyle(CPTheme.primary(scheme: scheme))
+                if item.courseID == CustomAssignment.noClassID {
+                    Button { Task { await store.toggle(item) } } label: {
+                        Label("Mark complete", systemImage: "checkmark")
                     }
+                    .buttonStyle(CPButtonStyle(kind: .secondary, fullWidth: true))
+                } else {
+                    Button { NotificationCenter.default.post(name: .nativeStudyAssignment, object: item) } label: {
+                        Label {
+                            Text("Start")
+                        } icon: {
+                            Image(systemName: "play.fill").foregroundStyle(CPTheme.primary(scheme: scheme))
+                        }
+                    }
+                    .buttonStyle(CPButtonStyle(kind: .secondary, fullWidth: true))
+                    .accessibilityHint("Opens Study with this assignment")
                 }
-                .buttonStyle(CPButtonStyle(kind: .secondary, fullWidth: true))
-                .accessibilityHint("Opens Study with this assignment")
             } else {
                 VStack(alignment: .leading, spacing: 8) {
                     nextUpLabel
@@ -2462,9 +2483,7 @@ private struct NativeDashboardView: View {
             let items = weekItems.filter { $0.courseID == course.id }.sorted(by: AssignmentItem.dueSort)
             return items.isEmpty ? nil : NativeCourseGroup(course: course, items: items)
         }
-        // Your own tasks that aren't for a class come after the classes.
-        let personal = weekItems.filter { $0.courseID == CustomAssignment.noClassID }.sorted(by: AssignmentItem.dueSort)
-        let groups = classGroups + (personal.isEmpty ? [] : [NativeCourseGroup(course: CustomAssignment.noClassCourse, items: personal)])
+        let groups = classGroups
         let quiet = visibleCourses.count - classGroups.count
         return CPGlassCard {
             CPCardHeader(title: "This week", collapse: collapse("upcoming")) {
@@ -2525,13 +2544,13 @@ private struct NativeDashboardView: View {
     // MARK: Focus
 
     private var focusWidget: some View {
-        let soon = activeAssignments.filter { NativeParity.isInFocusWindow($0, window: "2") }.sorted(by: AssignmentItem.dueSort)
+        let soon = heroActive.filter { NativeTodoWeek.isDue($0, on: Date()) }.sorted(by: AssignmentItem.dueSort)
         return CPGlassCard {
-            CPCardHeader(title: "Next 48 hours", collapse: collapse("focus")) {
+            CPCardHeader(title: "To-Do", subtitle: "Due today", collapse: collapse("focus")) {
                 Button { openToDo() } label: { CPLinkLabel(text: "Open") }.buttonStyle(.plain)
             }
             if soon.isEmpty {
-                NativeEmptyState(title: "Nothing due in the next 48 hours.", symbol: "sun.max")
+                NativeEmptyState(title: "Nothing due today.", symbol: "sun.max")
             } else {
                 VStack(spacing: 8) {
                     ForEach(soon.prefix(5)) { item in NativeDueRow(assignment: item, store: store, features: features, showToggle: false) }
@@ -2791,8 +2810,9 @@ struct NativeDueRow: View {
 
 /// Swipe right to finish (or undo), left to study, on any assignment row.
 extension View {
-    func nativeAssignmentSwipe(_ item: AssignmentItem, store: NativeContentStore, onCompleted: ((AssignmentItem) -> Void)? = nil) -> some View {
-        modifier(NativeAssignmentSwipe(item: item, store: store, onCompleted: onCompleted))
+    func nativeAssignmentSwipe(_ item: AssignmentItem, store: NativeContentStore, onCompleted: ((AssignmentItem) -> Void)? = nil, allowStudy: Bool = true) -> some View {
+        modifier(NativeAssignmentSwipe(item: item, store: store, onCompleted: onCompleted,
+            allowStudy: allowStudy && item.courseID != CustomAssignment.noClassID))
     }
 }
 
@@ -2800,12 +2820,13 @@ private struct NativeAssignmentSwipe: ViewModifier {
     let item: AssignmentItem
     @ObservedObject var store: NativeContentStore
     var onCompleted: ((AssignmentItem) -> Void)?
+    var allowStudy = true
 
     func body(content: Content) -> some View {
         let done = item.showsDone(in: store)
         return content.cpSwipe(
             leading: CPSwipeAction(title: done ? "Undo" : "Done", symbol: done ? "arrow.uturn.backward" : "checkmark") { toggle(wasDone: done) },
-            trailing: done ? nil : CPSwipeAction(title: "Study", symbol: "timer") {
+            trailing: done || !allowStudy ? nil : CPSwipeAction(title: "Study", symbol: "timer") {
                 NotificationCenter.default.post(name: .nativeStudyAssignment, object: item)
             }
         )
@@ -3356,9 +3377,10 @@ struct NativeDashboardPicker: View {
     @State private var saving = false
     @State private var status: String?
 
-    init(features: NativeFeatureStore, onDone: @escaping () -> Void) {
+    init(features: NativeFeatureStore, onDone: @escaping () -> Void, onSkip: (() -> Void)? = nil) {
         _features = ObservedObject(wrappedValue: features)
         self.onDone = onDone
+        self.onSkip = onSkip
         _picks = State(initialValue: Set(features.dashboardOrder.filter { !features.dashboardHidden.contains($0) }))
         _syncs = State(initialValue: features.dashboardSyncsWithWebsite)
     }
@@ -3513,7 +3535,7 @@ struct NativeDashboardSettingsView: View {
             Text("The other one is replaced.")
         }
         .sheet(isPresented: $showPicker) {
-            NativeDashboardPicker(features: features) { showPicker = false }
+            NativeDashboardPicker(features: features, onDone: { showPicker = false })
         }
     }
 
@@ -3675,10 +3697,12 @@ struct AssignmentDetailView: View {
             if let description = assignment.description, !description.isEmpty { Section("Description") { Text(description.strippingHTML).cpFont(12).lineSpacing(3).textSelection(.enabled) } }
             Section("Planning") {
                 if !assignment.isFinished(in: store) { NativeProgressEditor(assignment: assignment, features: features) }
+                if !isPersonalTask {
                 if features.calendarPicks.contains(where: { $0.assignmentID == assignment.id }) {
                     Button("Remove from calendar", role: .destructive) { removeFromCalendar() }
                 } else {
                     Button("Add to calendar") { addToCalendar() }
+                }
                 }
             }
             if let score = assignment.submission?.score { Section("Grade") { LabeledContent("Score", value: "\(score.formatted())\(assignment.pointsPossible.map { " / \($0.formatted())" } ?? "")") } }
@@ -3820,7 +3844,7 @@ private struct NativeNewTaskForm: View {
                     Picker("Class", selection: $courseID) { Text("Choose a class").tag(Int?.none); ForEach(courses) { course in Text(store.displayName(courseID: course.id, fallback: course.name)).tag(Optional(course.id)) } }
                         .pickerStyle(.menu).tint(CPTheme.foreground(scheme))
                 }
-                Toggle("Due date", isOn: $hasDueDate); if hasDueDate { DatePicker("Due", selection: $dueDate) }
+                DatePicker("Due", selection: $dueDate)
                 if forClass { TextField("Points", value: $points, format: .number).keyboardType(.decimalPad) }
                 Stepper("\(forClass ? "Estimated time" : "Time it takes"): \(estimatedMinutes) min", value: $estimatedMinutes, in: 5...480, step: 5)
                 if forClass { TextField("Notes", text: $notes, axis: .vertical) }
@@ -3829,11 +3853,13 @@ private struct NativeNewTaskForm: View {
             } footer: {
                 Text(forClass ? "Only you see this." : "Only you see this. It isn't filed under a class.")
             }
+            if forClass {
             Section {
                 Toggle("Also put it on my calendar", isOn: $onCalendar)
                 if onCalendar { DatePicker("When you'll work on it", selection: planBinding) }
             } footer: {
                 if onCalendar { Text("It shows on your calendar at this time, as well as on To-Do.") }
+            }
             }
             if let error { Section { Text(error).foregroundStyle(CPTheme.danger) } }
         }
@@ -3848,7 +3874,7 @@ private struct NativeNewTaskForm: View {
         if forClass { guard let courseID else { return }; classID = courseID } else { classID = CustomAssignment.noClassID }
         saving = true
         let item = CustomAssignment(id: newID, courseID: classID, name: name.trimmingCharacters(in: .whitespaces), dueAt: hasDueDate ? ISO8601DateFormatter().string(from: dueDate) : nil, pointsPossible: forClass && points > 0 ? points : nil, notes: forClass ? notes : "", createdAt: ISO8601DateFormatter().string(from: Date()), estimatedMinutes: estimatedMinutes)
-        let pick: CalendarPick? = onCalendar ? CalendarPick(
+        let pick: CalendarPick? = forClass && onCalendar ? CalendarPick(
             assignmentID: item.id,
             title: item.name,
             context: forClass ? store.displayName(courseID: classID, fallback: "") : CustomAssignment.noClassLabel,
@@ -4914,7 +4940,8 @@ struct NativeStudyView: View {
         let center = UNUserNotificationCenter.current()
         let id = "canvaspro.study.block"
         center.removePendingNotificationRequests(withIdentifiers: [id])
-        guard running, let end = blockEndsAt, end > Date() else { return }
+        guard NativeLocalReminders.deviceEnabled, features.notificationPreferences.enabled, features.notificationPreferences.browserPush,
+              running, let end = blockEndsAt, end > Date() else { return }
         let content = UNMutableNotificationContent()
         if phase != "focus" {
             content.title = "Break's over"; content.body = "Back to it."

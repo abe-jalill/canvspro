@@ -35,8 +35,8 @@ test("signing out stops the last student's notifications and streak", () => {
 test("this week is the circles' seven days on Today, Next up, To-Do and More", () => {
   assert.match(features, /static func isDueThisWeek\(_ item: AssignmentItem, now: Date = Date\(\)\) -> Bool \{\s+guard let due = item\.dueDate else \{ return false \}\s+return due >= now && due <= endOfUpcomingDay\(6, from: now\)/);
   assert.match(features, /guard isDueThisWeek\(item, now: now\) else \{ return false \}/);
-  assert.match(views, /activeAssignments\.filter \{ NativeParity\.isDueThisWeek\(\$0\) \}/);
-  assert.match(more, /allItems\.filter \{ NativeParity\.isDueThisWeek\(\$0\) && !\$0\.notYetOpen\(\) \}/);
+  assert.match(views, /heroActive\.filter \{ NativeParity\.isDueThisWeek\(\$0\) \}/);
+  assert.match(more, /weekDays\.contains \{ NativeTodoWeek\.isDue\(item, on: \$0\) \}/);
   assert.match(more, /NativeParity\.isDueThisWeek\(\$0\) && \$0\.isVisible\(in: store\) && !\$0\.notYetOpen\(\)/);
   assert.doesNotMatch(views + more, /isInFocusWindow\(\$0, window: "7"\)/);
   assert.match(views, /"Nothing else due in the next seven days\."/);
@@ -64,9 +64,9 @@ test("announcements: read the rest of any long post; dismissed posts aren't new"
   assert.match(more, /!dismissed\.contains\(\$0\.id\) && \$0\.isWithin\(weeks: 1\)/);
 });
 
-test("To-Do: your own undated tasks are listed, and two classes with one name stay apart", () => {
+test("To-Do: tasks stay on their due day, and two classes with one name stay apart", () => {
   assert.match(more, /var id: String \{ courseID\.map \{ "course-\\\(\$0\)" \} \?\? day\.map/);
-  assert.match(more, /if item\.dueDate == nil \{\s+listed = item\.id < 0/);
+  assert.match(more, /NativeTodoWeek\.isDue\(item, on: selectedDay\)/);
 });
 
 test("names and button labels wrap instead of being cut off", () => {

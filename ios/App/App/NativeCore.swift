@@ -845,15 +845,15 @@ final class NativeAPI {
         return rows.first?["prefs"] as? [String: Any]
     }
 
-    /// Merges only the supplied fields, preserving every preference created on the website.
+    /// Atomic patch: changing another setting must not upload a stale all-devices switch.
     func syncNotificationPreferences(_ changes: [String: Any], token: String, userID: String) async throws {
-        var prefs = try await notificationPreferences(token: token, userID: userID) ?? [:]
-        changes.forEach { prefs[$0.key] = $0.value }
-        try await upsert(table: "notification_prefs", token: token, conflict: "user_id", rows: [[
-            "user_id": userID, "prefs": prefs,
-            "timezone_offset_minutes": TimeZone.current.secondsFromGMT() / -60,
-            "updated_at": ISO8601DateFormatter().string(from: Date()),
-        ]])
+        var request = try request(path: "/rest/v1/rpc/patch_notification_preferences", token: token)
+        request.httpMethod = "POST"
+        request.httpBody = try JSONSerialization.data(withJSONObject: [
+            "changes": changes,
+            "device_timezone_offset": TimeZone.current.secondsFromGMT() / -60,
+        ])
+        _ = try await data(request)
     }
 
     func upsert(table: String, token: String, conflict: String, rows: [[String: Any]]) async throws {

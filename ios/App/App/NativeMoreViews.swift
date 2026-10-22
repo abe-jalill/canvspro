@@ -1018,7 +1018,11 @@ struct FocusView: View {
     @State private var showSearch = false
     @FocusState private var searchFocused: Bool
 
-    private var allItems: [AssignmentItem] { features.shownAssignments(in: store) }
+    @State private var selectedDate: Date?
+    @State private var weekOffset = 0
+    private var selectedDay: Date { selectedDate ?? Calendar.current.startOfDay(for: Date()) }
+    private var weekDays: [Date] { NativeTodoWeek.days(offset: weekOffset) }
+    private var allItems: [AssignmentItem] { features.shownAssignments(in: store, includePersonalTasks: true) }
     private var visibleCourses: [CourseSummary] { store.bundle.courses.filter { !features.hiddenCourseIDs.contains($0.id) } }
     private var isSearching: Bool { !search.trimmingCharacters(in: .whitespaces).isEmpty }
     /// Unfinished work due within four weeks, anything recent to catch up on,
@@ -1026,12 +1030,8 @@ struct FocusView: View {
     private var items: [AssignmentItem] {
         let query = search.trimmingCharacters(in: .whitespaces)
         return allItems.filter { item in
-            let listed: Bool
-            if item.dueDate == nil {
-                listed = item.id < 0 && !item.showsDone(in: store)
-            } else {
-                listed = (!query.isEmpty || NativeParity.isInFocusWindow(item, window: "all")) && item.isVisible(in: store)
-            }
+            // Calendar-day filtering includes deadlines earlier today and on any picked day.
+            let listed = NativeTodoWeek.isDue(item, on: selectedDay) && !item.showsDone(in: store)
             return listed && (query.isEmpty || item.name.localizedCaseInsensitiveContains(query) || store.displayName(courseID: item.courseID, fallback: item.courseName).localizedCaseInsensitiveContains(query))
         }.sorted(by: AssignmentItem.dueSort)
     }
@@ -1039,7 +1039,7 @@ struct FocusView: View {
         let calendar = Calendar.current
         return Dictionary(grouping: items) { item -> Date in
             guard let due = item.dueDate else { return .distantFuture }
-            return due < Date() ? .distantPast : calendar.startOfDay(for: due)
+            return calendar.startOfDay(for: due)
         }.sorted { $0.key < $1.key }.map { date, rows in
             let title = date == .distantPast ? "Catch up" : date == .distantFuture ? "No due date" : calendar.isDateInToday(date) ? "Today" : calendar.isDateInTomorrow(date) ? "Tomorrow" : date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
             return NativeTitledGroup(title: title, items: rows, day: date == .distantPast || date == .distantFuture ? nil : date)
@@ -1062,8 +1062,8 @@ struct FocusView: View {
     /// This week, over Today's seven days. Work Canvas hasn't opened yet is
     /// listed (with when it opens) but not counted, as on Today. A search
     /// narrows the list, not these counts.
-    private var weekItems: [AssignmentItem] { allItems.filter { NativeParity.isDueThisWeek($0) && !$0.notYetOpen() } }
-    private var weekLeft: [AssignmentItem] { weekItems.filter { !$0.showsDone(in: store) && $0.isVisible(in: store) } }
+    private var weekItems: [AssignmentItem] { allItems.filter { item in weekDays.contains { NativeTodoWeek.isDue(item, on: $0) } } }
+    private var weekLeft: [AssignmentItem] { weekItems.filter { !$0.showsDone(in: store) } }
     /// This week's work (the same seven days as the header line): done, and in all.
     private var weekTally: (done: Int, total: Int) {
         let done = weekItems.filter { $0.showsDone(in: store) }.count
@@ -1071,9 +1071,9 @@ struct FocusView: View {
     }
     /// "4 this week · 2 hr 30 min".
     private var headerLine: String {
-        let week = weekLeft
-        if week.isEmpty { return items.isEmpty && !isSearching ? "All clear" : "Nothing due this week" }
-        return "\(week.count) this week · \(Self.duration(week.reduce(0) { $0 + estimate($1) }))"
+        let day = Calendar.current.isDateInToday(selectedDay) ? "today" : selectedDay.formatted(.dateTime.month(.abbreviated).day())
+        if items.isEmpty { return "Nothing due \(day)" }
+        return "\(items.count) due \(day) · \(Self.duration(items.reduce(0) { $0 + estimate($1) }))"
     }
     /// 45 → "45 min", 90 → "1 hr 30 min", 240 → "4 hr".
     static func duration(_ minutes: Int) -> String {
@@ -1087,6 +1087,15 @@ struct FocusView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 20) {
                     header
+                    NativeTodoWeekPicker(days: weekDays, selectedDay: selectedDay, weekOffset: weekOffset,
+                        count: { day in allItems.filter { NativeTodoWeek.isDue($0, on: day) && !$0.showsDone(in: store) }.count },
+                        onSelect: { selectedDate = $0 },
+                        onChangeWeek: { offset in
+                            weekOffset = offset
+                            let days = NativeTodoWeek.days(offset: offset)
+                            selectedDate = offset == 0 ? nil : days.first
+                        },
+                        onToday: { weekOffset = 0; selectedDate = nil })
                     if showSearch || isSearching { searchField.transition(.opacity) }
                     if store.needsCanvasConnection {
                         NativeConnectCanvasCard(store: store)
@@ -1100,7 +1109,7 @@ struct FocusView: View {
                     }
                 }
                 .cpPagePadding()
-                .cpStateChange(grouping)
+                .cpStateChange(grouping).cpStateChange(selectedDay).cpStateChange(weekOffset)
                 .cpStateChange(items.map(\.id))
             }
             .scrollDismissesKeyboard(.immediately)
@@ -1201,11 +1210,12 @@ struct FocusView: View {
         if items.isEmpty {
             CPGlassCard {
                 NativeEmptyState(
-                    title: isSearching ? "No matches" : "You're all clear.",
+                    title: isSearching ? "No matches for this day" : "Nothing due this day.",
                     symbol: isSearching ? "magnifyingglass" : "checkmark.circle",
                     actionTitle: isSearching ? "Clear search" : "Add a task",
                     action: { if isSearching { search = "" } else { showAdd = true } }
                 )
+
             }
         } else {
             ForEach(grouping == "By class" ? classGroups : dayGroups) { group in
@@ -1299,7 +1309,7 @@ struct FocusView: View {
         }
         .padding(.vertical, 13)
         .opacity(done ? 0.6 : 1)
-        .nativeAssignmentSwipe(item, store: store)
+        .nativeAssignmentSwipe(item, store: store, allowStudy: item.courseID != CustomAssignment.noClassID)
         .transition(.cpCompletionExit)
     }
 
@@ -1315,6 +1325,84 @@ struct FocusView: View {
         }
         parts.append(done ? (item.isCanvasFinished ? "Done in Canvas" : "Done") : Self.duration(estimate(item)))
         return parts.joined(separator: " · ")
+    }
+}
+
+/// Four Sunday–Saturday pages; horizontal swipes leave vertical scrolling available.
+private struct NativeTodoWeekPicker: View {
+    @Environment(\.colorScheme) private var scheme
+    let days: [Date]
+    let selectedDay: Date
+    let weekOffset: Int
+    let count: (Date) -> Int
+    let onSelect: (Date) -> Void
+    let onChangeWeek: (Int) -> Void
+    let onToday: () -> Void
+
+    private func move(_ direction: Int) {
+        let next = weekOffset + direction
+        guard (0..<4).contains(next) else { return }
+        onChangeWeek(next)
+        CPHaptics.select()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(weekOffset == 0 ? "This week" : "Week \(weekOffset + 1)").cpFont(13, .medium)
+                    if let first = days.first, let last = days.last {
+                        Text("\(first.formatted(.dateTime.month(.abbreviated).day())) – \(last.formatted(.dateTime.month(.abbreviated).day()))")
+                            .cpFont(11).foregroundStyle(CPTheme.muted(scheme))
+                    }
+                }
+                .accessibilityElement(children: .combine)
+                Spacer(minLength: 0)
+                Button("Today", action: onToday).cpFont(12, .medium).frame(minHeight: 44)
+                    .padding(.horizontal, 6).buttonStyle(.plain)
+                Button { move(-1) } label: { CPIconButtonLabel(symbol: "chevron.left") }
+                    .buttonStyle(.plain).disabled(weekOffset == 0).accessibilityLabel("Previous week")
+                Button { move(1) } label: { CPIconButtonLabel(symbol: "chevron.right") }
+                    .buttonStyle(.plain).disabled(weekOffset == 3).accessibilityLabel("Next week")
+            }
+            HStack(spacing: 4) {
+                ForEach(days, id: \.self) { day in
+                    dayButton(day)
+                }
+            }
+            .contentShape(Rectangle())
+            .simultaneousGesture(DragGesture(minimumDistance: 30).onEnded { value in
+                let x = value.translation.width, y = value.translation.height
+                if abs(x) > 48 && abs(x) > abs(y) * 1.5 { move(x < 0 ? 1 : -1) }
+            })
+        }
+        .foregroundStyle(CPTheme.foreground(scheme))
+        .padding(.horizontal, 4)
+    }
+
+    private func dayButton(_ day: Date) -> some View {
+        let selected = Calendar.current.isDate(day, inSameDayAs: selectedDay)
+        let isToday = Calendar.current.isDateInToday(day)
+        let remaining = count(day)
+        return Button { onSelect(day) } label: {
+            VStack(spacing: 5) {
+                Text(day.formatted(.dateTime.weekday(.narrow)))
+                    .cpFont(11, isToday ? .semibold : .regular)
+                    .foregroundStyle(isToday || selected ? CPTheme.primary(scheme: scheme) : CPTheme.muted(scheme))
+                Text(day.formatted(.dateTime.day())).cpFont(15, .medium).monospacedDigit()
+                Circle().fill(selected ? CPTheme.primary(scheme: scheme) : CPTheme.muted(scheme))
+                    .frame(width: 4, height: 4).opacity(remaining > 0 ? 1 : 0)
+            }
+            .frame(maxWidth: .infinity, minHeight: 72)
+            .background(selected ? CPTheme.primary(scheme: scheme).opacity(0.12) : CPTheme.inset(scheme),
+                in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(selected ? CPTheme.primary(scheme: scheme).opacity(0.6) : CPTheme.insetBorder(scheme), lineWidth: 0.5))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(CPPressStyle())
+        .accessibilityLabel("\(day.formatted(date: .complete, time: .omitted)), \(remaining) tasks left\(isToday ? ", today" : "")")
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
 
@@ -1445,7 +1533,7 @@ struct CalendarView: View {
             return item.isVisible(in: store, showCompleted: false)
         }
         let due = all.filter { item in
-            guard item.id > 0, !picked.contains(item.id), let date = item.dueDate, date >= now else { return false }
+            guard !picked.contains(item.id), let date = item.dueDate, date >= now else { return false }
             return item.isVisible(in: store, showCompleted: false)
         }
         let classes = features.schedule.filter { entry in
@@ -2443,15 +2531,17 @@ private struct NotificationsView: View {
     @State private var status: String?
     @State private var saved: NotificationPreferences?
     @State private var deviceOn = NativeLocalReminders.deviceEnabled
+    @State private var deviceBusy = false
     @State private var permission: UNAuthorizationStatus = .notDetermined
     private let leads = [5, 15, 30, 60]
 
     private var prefs: NotificationPreferences { features.notificationPreferences }
-    private var off: Bool { !prefs.enabled }
+    private var off: Bool { !prefs.enabled || !deviceOn }
     private var dueOn: Bool { prefs.due1d || prefs.due2d || prefs.due3d || prefs.due1w }
     private var allowed: Bool { permission == .authorized || permission == .provisional || permission == .ephemeral }
     private var deviceText: String {
         if permission == .denied { return "Turned off in iOS Settings" }
+        if deviceOn && allowed && (!prefs.enabled || !prefs.browserPush) { return "Paused by the all-devices setting" }
         return deviceOn && allowed ? "Arrives even when the app is closed" : "Off on this iPhone"
     }
 
@@ -2461,9 +2551,11 @@ private struct NotificationsView: View {
                 Section { HStack(spacing: 10) { ProgressView(); Text("Loading your settings…").foregroundStyle(.secondary) } }
             } else {
                 Section {
-                    row("Notifications", off ? "Off everywhere" : "On for your account", isOn: Binding(get: { prefs.enabled }, set: setNotifications))
-                    row("This iPhone", deviceText, isOn: Binding(get: { deviceOn && allowed }, set: { on in Task { await setDevice(on) } }))
-                        .disabled(off)
+                    row("Notifications on this iPhone", deviceText, isOn: Binding(get: { deviceOn && allowed }, set: { on in Task { await setDevice(on) } }))
+                        .disabled(deviceBusy)
+                    row("Allow notifications on all devices", (prefs.enabled && prefs.browserPush) ? "Each device keeps its own on/off setting" : "Paused everywhere; device settings are remembered", isOn: Binding(get: { prefs.enabled && prefs.browserPush }, set: setAllDevices))
+                } footer: {
+                    Text("The first switch changes only this iPhone. Once saved, an all-devices pause stops server alerts. Reminders already scheduled on another offline iPhone stop when it next syncs.")
                 }
                 Section {
                     row("Due dates", "3 days, 2 days and 1 day before", isOn: Binding(get: { dueOn }, set: setDueDates))
@@ -2526,9 +2618,9 @@ private struct NotificationsView: View {
         Binding(get: { features.notificationPreferences[keyPath: path] }, set: { features.notificationPreferences[keyPath: path] = $0 })
     }
 
-    private func setNotifications(_ on: Bool) {
+    private func setAllDevices(_ on: Bool) {
         features.notificationPreferences.enabled = on
-        // Older accounts may have pop-ups muted; turning notifications on means all of them.
+        // Only this explicit all-devices control changes the account master.
         if on { features.notificationPreferences.browserPush = true }
     }
 
@@ -2551,11 +2643,15 @@ private struct NotificationsView: View {
 
     private func refreshPermission() async {
         permission = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
+        deviceOn = NativeLocalReminders.deviceEnabled
     }
 
     /// "This iPhone": asks iOS for permission when needed, then turns this
     /// phone's reminders (and Apple push, once available) on or off.
     private func setDevice(_ on: Bool) async {
+        guard !deviceBusy else { return }
+        deviceBusy = true
+        defer { deviceBusy = false }
         let center = UNUserNotificationCenter.current()
         if on {
             if permission == .denied {
@@ -2573,6 +2669,8 @@ private struct NotificationsView: View {
         }
         deviceOn = on
         NativeLocalReminders.deviceEnabled = on
+        // Cancel local reminders before a network request can suspend this task.
+        if !on { center.removeAllPendingNotificationRequests() }
         status = nil
         if on {
             UIApplication.shared.registerForRemoteNotifications()
@@ -2580,8 +2678,14 @@ private struct NotificationsView: View {
             UIApplication.shared.unregisterForRemoteNotifications()
             if let deviceToken = UserDefaults.standard.string(forKey: "CanvasProNativePushToken"), let api = sessionStore.api,
                let access = try? await sessionStore.accessToken() {
-                try? await api.deletePushToken(deviceToken, token: access)
-                UserDefaults.standard.removeObject(forKey: "CanvasProNativePushToken")
+                do {
+                    try await api.deletePushToken(deviceToken, token: access)
+                    UserDefaults.standard.removeObject(forKey: "CanvasProNativePushToken")
+                } catch {
+                    // Retain the token so refreshAccountData retries the deletion.
+                    status = "Reminders are off on this iPhone. Reconnect to finish stopping server alerts."
+                    features.errorMessage = status
+                }
             }
         }
         NotificationCenter.default.post(name: .nativeLocalRemindersChanged, object: nil)
