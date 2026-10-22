@@ -33,6 +33,7 @@ import {
   assignmentsQueryOptions as assignmentsQO,
 } from "@/lib/canvas.queries";
 import { SkeletonBlock } from "@/components/skeletons/dashboard-skeletons";
+import { useUserPreferenceKey } from "@/hooks/use-user-preferences";
 import { OpensLabel } from "@/components/assignment-description-link";
 import { notYetOpen } from "@/lib/assignment-availability";
 
@@ -66,7 +67,9 @@ export const Route = createFileRoute("/_authenticated/focus")({
 });
 
 type ViewMode = "day" | "class";
+/** Where this browser kept the choice before it synced. */
 const VIEW_KEY = "canvas:focus-view";
+const TODO_GROUPING_KEY = "todo-grouping";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 function startOfDay(t: number) {
@@ -75,24 +78,23 @@ function startOfDay(t: number) {
   return d.getTime();
 }
 
+/** By day or by class, saved to the account (the iPhone's To-Do uses it too). */
 function useViewMode(): [ViewMode, (mode: ViewMode) => void] {
-  const [mode, setMode] = useState<ViewMode>("day");
+  const saved = useUserPreferenceKey<unknown>(TODO_GROUPING_KEY, null);
+  // Before syncing, the choice lived in this browser: carry it over once.
   useEffect(() => {
+    if (!saved.ready || saved.value === "day" || saved.value === "class") return;
     try {
-      const saved = window.localStorage.getItem(VIEW_KEY);
-      if (saved === "day" || saved === "class") setMode(saved);
+      const old = window.localStorage.getItem(VIEW_KEY);
+      if (old === "day" || old === "class") saved.set(old);
     } catch {
-      /* default view is fine */
+      /* the default is fine */
     }
-  }, []);
-  const update = (next: ViewMode) => {
-    setMode(next);
-    try {
-      window.localStorage.setItem(VIEW_KEY, next);
-    } catch {
-      /* ignore */
-    }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saved.ready, saved.value]);
+  const mode: ViewMode = saved.value === "class" ? "class" : "day";
+  // Saved at once (shown straight away), and on every other device within moments.
+  const update = (next: ViewMode) => saved.set(next);
   return [mode, update];
 }
 

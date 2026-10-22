@@ -30,6 +30,7 @@ import {
   studySuccessFeedback,
 } from "@/lib/study-session-feedback";
 import { useStudySession } from "@/hooks/use-study-session";
+import { useUserPreferenceKey } from "@/hooks/use-user-preferences";
 import { useAssignmentMetaMap } from "@/hooks/use-assignment-meta";
 import {
   compareByDueDate,
@@ -43,6 +44,7 @@ import {
   POMODORO_LIMITS,
   POMODORO_PRESETS,
   advanceSession,
+  buildPomodoroCustom,
   buildPomodoroPlan,
   createStudySession,
   focusItem,
@@ -51,6 +53,7 @@ import {
   itemMinutes,
   nextItemSession,
   phaseOf,
+  readStudySetup,
   remainingForSession,
   skipBreak,
   totalItemMinutes,
@@ -77,6 +80,8 @@ const TIME_MODE_KEY = "canvas:study-time-mode";
 const POMODORO_PREF_KEY = "canvas:study-pomodoro";
 const POMODORO_PRESET_KEY = "canvas:study-pomodoro-preset";
 const POMODORO_CUSTOM_KEY = "canvas:study-pomodoro-custom";
+/** The time choice, saved to the account; the iPhone's Study uses it too. */
+const STUDY_SETUP_KEY = "study-setup";
 
 type TimeMode = "total" | "per" | "pomodoro";
 type PomodoroChoice = PomodoroPresetId | "custom";
@@ -376,56 +381,84 @@ function StudySessionPage() {
     selectedFromLink.current = key;
   }, [assignments.data, allAssignments, manualAssignments.isLoading, requestedAssignment, requestedPicks]);
 
-  // The last time choice is remembered. Before this page had modes, Pomodoro
-  // was a switch; someone who left it on keeps Pomodoro.
+  // The last time choice is saved to the account, so the iPhone and every
+  // browser open with it. Before that it was kept in this browser (and before
+  // this page had modes, Pomodoro was a switch): carried over once.
+  const studySetup = useUserPreferenceKey<unknown>(STUDY_SETUP_KEY, null);
+  const setupApplied = useRef(false);
   useEffect(() => {
+    if (!studySetup.ready || setupApplied.current) return;
+    setupApplied.current = true;
+    const synced = readStudySetup(studySetup.value);
+    if (synced) {
+      setTimeMode(synced.mode);
+      setPresetId(synced.preset);
+      setCustom(
+        Object.fromEntries(
+          CUSTOM_FIELDS.map(({ key }) => [key, String(synced.custom[key])]),
+        ) as Record<CustomField, string>,
+      );
+      return;
+    }
     try {
       const savedMode = window.localStorage.getItem(TIME_MODE_KEY);
-      if (savedMode === "total" || savedMode === "per" || savedMode === "pomodoro") {
-        setTimeMode(savedMode);
-      } else if (window.localStorage.getItem(POMODORO_PREF_KEY) === "on") {
-        setTimeMode("pomodoro");
-      }
-      const saved = window.localStorage.getItem(POMODORO_PRESET_KEY);
-      if (saved === "custom" || POMODORO_PRESETS.some((preset) => preset.id === saved)) {
-        setPresetId(saved as PomodoroChoice);
-      }
+      const mode: TimeMode =
+        savedMode === "total" || savedMode === "per" || savedMode === "pomodoro"
+          ? savedMode
+          : window.localStorage.getItem(POMODORO_PREF_KEY) === "on"
+            ? "pomodoro"
+            : "total";
+      const savedPreset = window.localStorage.getItem(POMODORO_PRESET_KEY);
+      const preset: PomodoroChoice =
+        savedPreset === "custom" || POMODORO_PRESETS.some((p) => p.id === savedPreset)
+          ? (savedPreset as PomodoroChoice)
+          : "classic";
       const savedCustom = JSON.parse(window.localStorage.getItem(POMODORO_CUSTOM_KEY) ?? "null");
-      if (savedCustom && typeof savedCustom === "object") {
-        setCustom(
-          Object.fromEntries(
-            CUSTOM_FIELDS.map(({ key }) => [key, String(savedCustom[key] ?? CUSTOM_DEFAULTS[key])]),
-          ) as Record<CustomField, string>,
-        );
+      const customText = Object.fromEntries(
+        CUSTOM_FIELDS.map(({ key }) => [
+          key,
+          String((savedCustom && typeof savedCustom === "object" && savedCustom[key]) ?? CUSTOM_DEFAULTS[key]),
+        ]),
+      ) as Record<CustomField, string>;
+      setTimeMode(mode);
+      setPresetId(preset);
+      setCustom(customText);
+      if (savedMode || savedPreset || savedCustom) {
+        studySetup.set({ mode, preset, custom: buildPomodoroCustom(customText) });
       }
     } catch {
       /* the defaults are fine */
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studySetup.ready]);
 
-  function remember(key: string, value: string) {
-    try {
-      window.localStorage.setItem(key, value);
-    } catch {
-      /* ignore */
-    }
+  // Saved a moment after the last change, so typing a custom length is one save.
+  const saveTimer = useRef<number | undefined>(undefined);
+  function remember(next: { mode?: TimeMode; preset?: PomodoroChoice; custom?: typeof custom }) {
+    const setup = {
+      mode: next.mode ?? timeMode,
+      preset: next.preset ?? presetId,
+      custom: buildPomodoroCustom(next.custom ?? custom),
+    };
+    window.clearTimeout(saveTimer.current);
+    saveTimer.current = window.setTimeout(() => studySetup.set(setup), 800);
   }
 
   function changeTimeMode(mode: TimeMode) {
     setTimeMode(mode);
-    remember(TIME_MODE_KEY, mode);
+    remember({ mode });
     void studySelectionFeedback();
   }
 
   function changePreset(id: PomodoroChoice) {
     setPresetId(id);
-    remember(POMODORO_PRESET_KEY, id);
+    remember({ preset: id });
   }
 
   function changeCustom(key: CustomField, value: string) {
     const next = { ...custom, [key]: value };
     setCustom(next);
-    remember(POMODORO_CUSTOM_KEY, JSON.stringify(next));
+    remember({ custom: next });
   }
 
   /** The plan for the choice on screen; custom fields are clamped to safe values. */

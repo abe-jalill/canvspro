@@ -7,6 +7,7 @@ import { useUserProfile } from "@/lib/user-profile";
 import { useScopedKey } from "@/lib/user-scope";
 import { cn } from "@/lib/utils";
 import { buzz } from "@/lib/study-session-feedback";
+import { useUserPreferenceKey } from "@/hooks/use-user-preferences";
 import {
   nextMilestone,
   nextMonthStart,
@@ -19,6 +20,7 @@ import {
 import "./streak.css";
 
 const CELEBRATED_KEY = "coursepro:streak-celebrated";
+const STREAK_CELEBRATED_KEY = "streak-celebrated";
 
 /** "Tue, Oct 13" for a `YYYY-MM-DD` date. */
 function shortDate(key: string, withWeekday = true): string {
@@ -351,18 +353,24 @@ export function StreakCelebrationLayer({ ready }: { ready: boolean }) {
   const { data } = useStreak();
   const name = useFirstName();
   const storageKey = useScopedKey(CELEBRATED_KEY);
+  // The day last celebrated, saved to the account: once a day in all, not
+  // once on every device (the iPhone app checks the same record).
+  const celebrated = useUserPreferenceKey<unknown>(STREAK_CELEBRATED_KEY, null);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    if (!ready || !data?.extended) return;
+    if (!ready || !data?.extended || !celebrated.ready) return;
+    if (celebrated.value === data.today) return;
     try {
       if (localStorage.getItem(storageKey) === data.today) return;
       localStorage.setItem(storageKey, data.today);
     } catch {
-      /* storage unavailable: still celebrate once for this load */
+      /* storage unavailable: the account still records it */
     }
+    celebrated.set(data.today);
     setOpen(true);
-  }, [ready, data, storageKey]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, data, storageKey, celebrated.ready, celebrated.value]);
 
   if (!open || !data || typeof document === "undefined") return null;
   return createPortal(

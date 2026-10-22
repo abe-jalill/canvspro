@@ -47,14 +47,26 @@ export async function getUserPreference<T>(
   return data.value as T;
 }
 
+/** How often an open tab picks up what changed on another device. */
+const SYNC_INTERVAL_MS = 30_000;
+
 export function useUserPreferences() {
+  const qc = useQueryClient();
   const { userId, isPending: authPending } = useAuthUserId();
+  // Never while a save is on its way: a read that started first would put
+  // the old value back over it.
+  const idle = () => qc.isMutating({ mutationKey: ["save-preference", userId] }) === 0;
   const query = useQuery({
     queryKey: userKey(userPreferencesQueryKey, userId),
     enabled: !!userId,
     queryFn: ({ signal }) => fetchUserPreferences(signal),
     staleTime: 60_000,
     refetchOnMount: false,
+    // Changes made on the phone (done, read, seen, settings) show up here
+    // when the tab is opened again, and within half a minute while it's open.
+    refetchOnWindowFocus: () => idle(),
+    refetchInterval: () => (idle() ? SYNC_INTERVAL_MS : false),
+    refetchIntervalInBackground: false,
     retry: 1,
   });
   return {

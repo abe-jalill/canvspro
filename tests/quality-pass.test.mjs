@@ -10,13 +10,24 @@ import { formatStudyClock } from "../src/lib/study-session.ts";
 // Small things that were wrong, each kept right here.
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("saved values are read on the first render, so Since your last visit has a real last visit", () => {
-  const local = read("src/lib/local-value.ts");
-  assert.match(local, /useState<number>\(\(\) => Number\(readStored\(key, fallback\)\) \|\| fallback\)/);
-  assert.match(local, /useState<Record<string, number>>\(\(\) => readStored\(key, \{\}\)\)/);
-  assert.match(local, /useState<Record<string, string>>\(\(\) => readStored\(key, \{\}\)\)/);
-  // The card sets a first baseline only when nothing was saved.
-  assert.match(read("src/components/digest-card.tsx"), /if \(lastVisit\.value === 0 &&/);
+test("Since your last visit lives in the account, so every device agrees", async () => {
+  const { readDigestSeen, digestSnapshot, sameDigest } = await import("../src/lib/digest-seen.ts");
+  const card = read("src/components/digest-card.tsx");
+  assert.match(card, /useUserPreferenceKey<unknown>\(DIGEST_SEEN_KEY, null\)/);
+  // On screen a few seconds counts as seen, and is saved for every device.
+  assert.match(card, /const SEEN_AFTER_MS = 5_000;/);
+  assert.match(card, /if \(document\.visibilityState === "visible"\) seen\.set\(digestSnapshot\(assignments, Date\.now\(\)\)\);/);
+  // This visit still shows what was new when it began.
+  assert.match(card, /const lastVisit = baseline \? Date\.parse\(baseline\.lastVisit\) : Number\.POSITIVE_INFINITY;/);
+  assert.doesNotMatch(card, /useLocalNumber/);
+  // The same record as the iPhone app's.
+  const snap = digestSnapshot(
+    [{ id: 7, due_at: null, submission: { score: 9 } }],
+    Date.parse("2026-10-22T12:00:00Z"),
+  );
+  assert.deepEqual(readDigestSeen(JSON.parse(JSON.stringify(snap))), snap);
+  assert.equal(readDigestSeen({ lastVisit: "nope" }), null);
+  assert.equal(sameDigest(snap, { ...snap, lastVisit: "2026-10-23T00:00:00.000Z" }), true);
 });
 
 test("hiding a class takes effect straight away, your own tasks for it included", () => {

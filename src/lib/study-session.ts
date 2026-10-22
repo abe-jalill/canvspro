@@ -87,6 +87,38 @@ export function buildPomodoroPlan(input: PomodoroCustomInput): PomodoroPlan {
   };
 }
 
+/** The custom lengths as whole numbers inside the limits, ready to save. */
+export function buildPomodoroCustom(input: PomodoroCustomInput) {
+  return {
+    focus: clampWhole(input.focus, POMODORO_LIMITS.focus),
+    shortBreak: clampWhole(input.shortBreak, POMODORO_LIMITS.shortBreak),
+    longBreak: clampWhole(input.longBreak, POMODORO_LIMITS.longBreak),
+    rounds: clampWhole(input.rounds, POMODORO_LIMITS.rounds),
+  };
+}
+
+/**
+ * The study time choice saved to the account (`study-setup`): how it's timed,
+ * which Pomodoro, and the custom lengths. The iPhone app saves the same.
+ */
+export interface StudySetup {
+  mode: "total" | "per" | "pomodoro";
+  preset: PomodoroPresetId | "custom";
+  custom: ReturnType<typeof buildPomodoroCustom>;
+}
+
+export function readStudySetup(value: unknown): StudySetup | null {
+  if (!value || typeof value !== "object") return null;
+  const v = value as Partial<Record<keyof StudySetup, unknown>>;
+  if (v.mode !== "total" && v.mode !== "per" && v.mode !== "pomodoro") return null;
+  const preset =
+    v.preset === "custom" || POMODORO_PRESETS.some((p) => p.id === v.preset)
+      ? (v.preset as StudySetup["preset"])
+      : "classic";
+  const custom = (v.custom && typeof v.custom === "object" ? v.custom : {}) as PomodoroCustomInput;
+  return { mode: v.mode, preset, custom: buildPomodoroCustom(custom) };
+}
+
 /**
  * `endsAt`, `durationMs` and `remainingMs` always describe the current block
  * (the whole session for a plain timer, one focus or break block for a

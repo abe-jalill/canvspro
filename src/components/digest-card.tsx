@@ -1,5 +1,5 @@
 import { AssignmentEstimateEditor } from "@/components/assignment-estimate";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Bell, Clock, Sparkles, TrendingUp } from "lucide-react";
 import type { AnnouncementItem, AssignmentItem, CourseSummary } from "@/lib/canvas.functions";
@@ -8,14 +8,42 @@ import { AssignmentDescriptionLink } from "@/components/assignment-description-l
 import { displayCourseName } from "@/lib/course-display";
 import { getCountdown } from "@/lib/countdown";
 import { dueTodayClass, relativeDueDay } from "@/lib/assignment-due";
+import { useUserPreferenceKey } from "@/hooks/use-user-preferences";
+import { COMPLETED_ASSIGNMENTS_KEY, useLocalSet } from "@/lib/local-state";
+import { isAssignmentComplete } from "@/lib/assignment-window";
+import { useUserScope } from "@/lib/user-scope";
 import {
-  useLocalNumber,
-  useLocalNumberMap,
-  useLocalStringMap,
-  LAST_VISIT_KEY,
-  LAST_SEEN_GRADES_KEY,
+  DIGEST_SEEN_KEY,
+  digestSnapshot,
+  readDigestSeen,
+  sameDigest,
+  type DigestSeen,
+} from "@/lib/digest-seen";
+import {
   LAST_COUNTDOWN_KEY,
+  LAST_SEEN_GRADES_KEY,
+  LAST_VISIT_KEY,
 } from "@/lib/local-value";
+
+/** On screen this long counts as seen. */
+const SEEN_AFTER_MS = 5_000;
+
+/** What this browser saved before Since your last visit synced, if anything. */
+function readLegacyDigest(scope: string | null): DigestSeen | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const key = (base: string) => `cp:${scope ?? "anon"}:${base}`;
+    const visit = Number(window.localStorage.getItem(key(LAST_VISIT_KEY)));
+    if (!Number.isFinite(visit) || visit <= 0) return null;
+    return {
+      lastVisit: new Date(visit).toISOString(),
+      grades: JSON.parse(window.localStorage.getItem(key(LAST_SEEN_GRADES_KEY)) ?? "{}"),
+      urgency: JSON.parse(window.localStorage.getItem(key(LAST_COUNTDOWN_KEY)) ?? "{}"),
+    };
+  } catch {
+    return null;
+  }
+}
 
 interface Props {
   announcements: AnnouncementItem[];
@@ -24,57 +52,58 @@ interface Props {
 }
 
 export function DigestCard({ announcements, assignments, courses }: Props) {
-  const lastVisit = useLocalNumber(LAST_VISIT_KEY, 0);
-  const seenGrades = useLocalNumberMap(LAST_SEEN_GRADES_KEY);
-  const seenCountdowns = useLocalStringMap(LAST_COUNTDOWN_KEY);
+  const seen = useUserPreferenceKey<unknown>(DIGEST_SEEN_KEY, null);
+  const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
+  const stored = useMemo(() => readDigestSeen(seen.value), [seen.value]);
+  const scope = useUserScope();
+  // What counts as new on this visit: the record as it was when the card first
+  // showed. Saving this visit (below) doesn't change it, so the student still
+  // sees what's new until they leave; the next visit, on any device, starts there.
+  const [baseline, setBaseline] = useState<DigestSeen | null>(null);
 
-  // Snapshot current signals for next visit comparison. We take the snapshot
-  // once on first render after data arrives.
-  const currentGradeMap = useMemo(() => {
-    const m: Record<string, number> = {};
-    assignments.forEach((a) => {
-      const s = a.submission?.score;
-      if (typeof s === "number") m[String(a.id)] = s;
-    });
-    return m;
-  }, [assignments]);
+  const current = useMemo(() => digestSnapshot(assignments, Date.now()), [assignments]);
 
-  const currentCountdownMap = useMemo(() => {
-    const m: Record<string, string> = {};
-    assignments.forEach((a) => {
-      const cd = getCountdown(a.due_at);
-      if (cd) m[String(a.id)] = cd.urgency;
-    });
-    return m;
-  }, [assignments]);
+  useEffect(() => {
+    if (!seen.ready || baseline) return;
+    // First time on the account: start from what this device saw before
+    // syncing existed, or from now, so the card doesn't list everything.
+    const start = stored ?? readLegacyDigest(scope) ?? current;
+    setBaseline(start);
+    if (!stored) seen.set(start);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seen.ready, baseline, stored]);
+
+  const lastVisit = baseline ? Date.parse(baseline.lastVisit) : Number.POSITIVE_INFINITY;
 
   const newAnnouncements = useMemo(
-    () =>
-      announcements.filter((a) => new Date(a.posted_at).getTime() > lastVisit.value).slice(0, 8),
-    [announcements, lastVisit.value],
+    () => announcements.filter((a) => new Date(a.posted_at).getTime() > lastVisit).slice(0, 8),
+    [announcements, lastVisit],
   );
 
   const gradeChanges = useMemo(() => {
     const out: Array<{ a: AssignmentItem; prev: number | undefined; next: number }> = [];
+    if (!baseline) return out;
     assignments.forEach((a) => {
       const s = a.submission?.score;
       if (typeof s !== "number") return;
-      const prev = seenGrades.get(a.id);
+      const prev = baseline.grades[String(a.id)];
       if (prev === undefined || prev !== s) {
         out.push({ a, prev, next: s });
       }
     });
     return out.slice(0, 8);
-  }, [assignments, seenGrades]);
+  }, [assignments, baseline]);
 
   const newlyUrgent = useMemo(() => {
     const out: Array<{ a: AssignmentItem; urgency: string }> = [];
+    if (!baseline) return out;
     assignments.forEach((a) => {
+      // Finished work isn't urgent, whatever its date says.
+      if (isAssignmentComplete(a, completed.has(a.id))) return;
       const cd = getCountdown(a.due_at);
       if (!cd) return;
       if (cd.urgency !== "today" && cd.urgency !== "soon") return;
-      const prev = seenCountdowns.get(a.id);
-      if (prev !== cd.urgency) {
+      if (baseline.urgency[String(a.id)] !== cd.urgency) {
         out.push({ a, urgency: cd.urgency });
       }
     });
@@ -85,28 +114,29 @@ export function DigestCard({ announcements, assignments, courses }: Props) {
         return rank(x.urgency) - rank(y.urgency);
       })
       .slice(0, 8);
-  }, [assignments, seenCountdowns]);
+  }, [assignments, baseline, completed]);
 
   const total = newAnnouncements.length + gradeChanges.length + newlyUrgent.length;
 
-  // On mount (or when the data landed) treat this as first render of this
-  // snapshot — but do NOT immediately mark seen; user should see the digest.
-  // Marking seen happens on user action.
+  // Seen once it has been on screen a few seconds: saved to the account, so
+  // another device doesn't show the same posts and grades again.
   useEffect(() => {
-    // Initial-run guard: if this is the very first time, set baselines so
-    // the digest doesn't scream about every existing item.
-    if (lastVisit.value === 0 && (assignments.length > 0 || announcements.length > 0)) {
-      lastVisit.set(Date.now());
-      seenGrades.setAll(currentGradeMap);
-      seenCountdowns.setAll(currentCountdownMap);
-    }
+    if (!seen.ready || !baseline) return;
+    const newerPost = announcements.some(
+      (a) => stored && new Date(a.posted_at).getTime() > Date.parse(stored.lastVisit),
+    );
+    if (stored && sameDigest(stored, current) && !newerPost) return;
+    const timer = window.setTimeout(() => {
+      if (document.visibilityState === "visible") seen.set(digestSnapshot(assignments, Date.now()));
+    }, SEEN_AFTER_MS);
+    return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assignments.length, announcements.length]);
+  }, [seen.ready, baseline, stored, current, announcements]);
 
   const markAllSeen = () => {
-    lastVisit.set(Date.now());
-    seenGrades.setAll(currentGradeMap);
-    seenCountdowns.setAll(currentCountdownMap);
+    const now = digestSnapshot(assignments, Date.now());
+    setBaseline(now);
+    seen.set(now);
   };
 
   const courseName = (id: number, fallbackName?: string, fallbackCode?: string) => {
