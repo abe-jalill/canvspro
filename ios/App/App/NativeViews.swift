@@ -466,8 +466,7 @@ struct NativeTutorialView: View {
     private static let pages = [
         Page(title: "Welcome to CoursePro", detail: "Your classes, deadlines and grades from Canvas, in one calm place. Here's a one-minute tour."),
         Page(title: "See what's due", detail: "To-Do lists your work day by day. Swipe an assignment right when it's done, or left to study it."),
-        Page(title: "Add your own tasks", detail: "Tap + on To-Do. Choose whether it's for a class, add the details, and put it on your calendar too if you like."),
-        Page(title: "Your week on the calendar", detail: "Class times from your syllabus, your own events, planned work and due dates, in time order. Tap + to add an event."),
+        Page(title: "Add your own tasks", detail: "Tap + on To-Do. Choose whether it's for a class, and add the details. It shows on To-Do with the rest."),
         Page(title: "Study one thing at a time", detail: "Pick an assignment and start a focus timer. CoursePro lets you know when it's time for a break."),
         Page(title: "Every class at a glance", detail: "Grades and announcements from all your classes, side by side."),
         Page(title: "Stay ahead, everywhere", detail: "Reminders arrive before things are due, even with the app closed. Everything syncs with canvaspro.app, and Settings shows every device you're signed in on."),
@@ -631,9 +630,8 @@ struct NativeTutorialView: View {
             case 0: welcomeSketch
             case 1: todaySketch
             case 2: addSketch
-            case 3: calendarSketch
-            case 4: studySketch
-            case 5: gradesSketch
+            case 3: studySketch
+            case 4: gradesSketch
             default: remindersSketch
             }
         }
@@ -761,55 +759,6 @@ struct NativeTutorialView: View {
         .padding(.horizontal, 10).padding(.vertical, 8)
         .background(Color.white.opacity(picked ? 0.14 : 0.05), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(picked ? NativeBrandColors.mint : Color.white.opacity(0.12), lineWidth: picked ? 1.5 : 0.5))
-    }
-
-    /// The day fills in, one entry at a time.
-    private var calendarSketch: some View {
-        let rows: [(String, String, String, String, Color)] = [
-            ("9:00 AM", "9:50", "Cell Biology", "Class · Science Hall 101", Color(red: 0.45, green: 0.70, blue: 0.95)),
-            ("3:00 PM", "4:00", "Study group", "Event · Library", NativeBrandColors.mint),
-            ("4:00 PM", "", "Lab report", "Planned · Cell Biology", NativeBrandColors.mint),
-            ("11:59 PM", "", "Essay draft", "Due · College Writing", Color(red: 0.55, green: 0.85, blue: 0.65)),
-        ]
-        return looping([0, 1, 2, 3, 4], final: 4) { shown in
-            glassCard {
-                VStack(alignment: .leading, spacing: 0) {
-                    HStack(spacing: 0) {
-                        ForEach(Array(["M", "T", "W", "T", "F", "S", "S"].enumerated()), id: \.offset) { offset, letter in
-                            VStack(spacing: 4) {
-                                Text(letter).cpFont(11, .semibold).foregroundStyle(.white.opacity(0.55))
-                                Text("\(19 + offset)").cpFont(11, .semibold).monospacedDigit()
-                                    .foregroundStyle(offset == 2 ? NativeBrandColors.deep : .white)
-                                    .frame(width: 24, height: 24)
-                                    .background(Circle().fill(offset == 2 ? Color.white : Color.clear))
-                            }
-                            .frame(maxWidth: .infinity)
-                        }
-                    }
-                    .padding(.bottom, 8)
-                    ForEach(rows.indices, id: \.self) { index in
-                        let row = rows[index]
-                        HStack(alignment: .top, spacing: 10) {
-                            VStack(alignment: .trailing, spacing: 1) {
-                                Text(row.0).cpFont(11, .semibold).monospacedDigit()
-                                if !row.1.isEmpty { Text(row.1).cpFont(11).foregroundStyle(.white.opacity(0.55)) }
-                            }
-                            .frame(width: 58, alignment: .trailing)
-                            RoundedRectangle(cornerRadius: 1.5).fill(row.4).frame(width: 3, height: 28)
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(row.2).cpFont(12, .medium)
-                                Text(row.3).cpFont(11).foregroundStyle(.white.opacity(0.6))
-                            }
-                            Spacer(minLength: 0)
-                        }
-                        .lineLimit(1)
-                        .padding(.vertical, 6)
-                        .opacity(index < shown ? 1 : 0)
-                        .offset(y: index < shown ? 0 : 8)
-                    }
-                }
-            }
-        } animation: { shown in shown == 0 ? Animation.easeOut(duration: 0.3).delay(1.6) : Animation.spring(duration: 0.45).delay(0.35) }
     }
 
     private var studySketch: some View {

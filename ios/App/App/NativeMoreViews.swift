@@ -3013,7 +3013,7 @@ struct ClassScheduleView: View {
         ) { item in
             Button("Delete class", role: .destructive) { delete(item) }
         } message: { _ in
-            Text("It comes off your schedule and calendar on every day it meets.")
+            Text("It comes off your schedule on every day it meets.")
         }
     }
 
