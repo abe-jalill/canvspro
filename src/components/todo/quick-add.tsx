@@ -39,7 +39,7 @@ export const QuickAdd = forwardRef<
         estimated_minutes: parsed.minutes,
       });
       toast.success(`Added "${parsed.name}"`, {
-        description: due ? `Due ${due}. Choose that day in To-Do to see it.` : undefined,
+        description: `Due ${due}. Choose that day in To-Do to see it.`,
       });
       setText("");
       onAdded?.(item);
@@ -50,15 +50,13 @@ export const QuickAdd = forwardRef<
     }
   }
 
-  const due = parsed.dueAt
-    ? new Date(parsed.dueAt).toLocaleString(undefined, {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-      })
-    : null;
+  const due = new Date(parsed.dueAt).toLocaleString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 
   return (
     <form
@@ -97,7 +95,7 @@ export const QuickAdd = forwardRef<
           <Chip icon={<GraduationCap className="h-3 w-3" />}>
             {course ? course.label : "Personal"}
           </Chip>
-          <Chip icon={<CalendarClock className="h-3 w-3" />}>{due ?? "No due date"}</Chip>
+          <Chip icon={<CalendarClock className="h-3 w-3" />}>{due}</Chip>
           {parsed.minutes != null && (
             <Chip icon={<Clock className="h-3 w-3" />}>{formatMinutes(parsed.minutes)}</Chip>
           )}

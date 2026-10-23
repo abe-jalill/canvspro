@@ -55,7 +55,8 @@ test("quick add without a class is personal, and a past time today means tomorro
   assert.equal(r.courseId, null);
   assert.equal(r.name, "Call dentist");
   assert.deepEqual(local(r.dueAt), [10, 23, 9, 0]);
-  assert.equal(parseQuickAdd("buy groceries", courses, now).dueAt, null);
+  // No day or time: today at 11:59 PM, so it shows on today's To-Do.
+  assert.deepEqual(local(parseQuickAdd("buy groceries", courses, now).dueAt), [10, 22, 23, 59]);
   assert.deepEqual(local(parseQuickAdd("essay tonight", courses, now).dueAt), [10, 22, 21, 0]);
   assert.deepEqual(local(parseQuickAdd("quiz oct 31", courses, now).dueAt), [10, 31, 23, 59]);
   assert.deepEqual(local(parseQuickAdd("quiz 10/30 due", courses, now).dueAt), [10, 30, 23, 59]);

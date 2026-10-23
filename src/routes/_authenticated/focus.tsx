@@ -798,16 +798,19 @@ function FocusRow({
               <ListChecks className="h-4 w-4" />
             </button>
           )}
-          <Link
-            to="/study-session"
-            search={{ assignment: a.id }}
-            aria-label={`Start studying ${a.name}`}
-            data-todo-start
-            className="press inline-flex h-10 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
-          >
-            <Play className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
-            <span className="hidden sm:inline">Start</span>
-          </Link>
+          {/* Study lists class work only, as on the iPhone. */}
+          {a.course_id !== NO_CLASS_ID && (
+            <Link
+              to="/study-session"
+              search={{ assignment: a.id }}
+              aria-label={`Start studying ${a.name}`}
+              data-todo-start
+              className="press inline-flex h-10 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
+            >
+              <Play className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
+              <span className="hidden sm:inline">Start</span>
+            </Link>
+          )}
         </div>
       )}
       {stepsOpen && !done && (

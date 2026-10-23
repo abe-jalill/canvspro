@@ -127,25 +127,26 @@ function CompletedPage() {
         <ErrorState message={(assignments.error as Error).message} />
       ) : (
         <div className="space-y-8 px-1">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-muted-foreground">
-              Finished in {range.long}
-            </p>
-            <Segmented
-              label="How far back to show"
-              value={String(rangeDays)}
-              onChange={(value) => savedRange.set(Number(value))}
-              options={COMPLETED_RANGES.map((r) => ({ id: String(r.days), label: r.label }))}
-            />
-          </div>
+          {/* The range only matters once something has been finished. */}
+          {entries.length > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-muted-foreground">Finished in {range.long}</p>
+              <Segmented
+                label="How far back to show"
+                value={String(rangeDays)}
+                onChange={(value) => savedRange.set(Number(value))}
+                options={COMPLETED_RANGES.map((r) => ({ id: String(r.days), label: r.label }))}
+              />
+            </div>
+          )}
           {entries.length === 0 ? (
-        <div className="py-24 text-center">
-          <Check className="mx-auto h-5 w-5 text-muted-foreground" aria-hidden="true" />
-          <p className="mt-3 text-base">Nothing finished yet.</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Tick off an assignment and it shows up here.
-          </p>
-        </div>
+            <div className="py-24 text-center">
+              <Check className="mx-auto h-5 w-5 text-muted-foreground" aria-hidden="true" />
+              <p className="mt-3 text-base">Nothing finished yet.</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Tick off an assignment and it shows up here.
+              </p>
+            </div>
           ) : inRange.length === 0 ? (
             <div className="py-20 text-center">
               <Check className="mx-auto h-5 w-5 text-muted-foreground" aria-hidden="true" />
@@ -162,68 +163,68 @@ function CompletedPage() {
             </div>
           ) : (
             <>
-          <label className="flex items-center gap-3 rounded-xl border border-foreground/15 px-3 py-2.5">
-            <Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-            <input
-              type="search"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Find a finished assignment or class"
-              aria-label="Search completed assignments"
-              className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-            />
-          </label>
-          {groups.length === 0 && (
-            <p className="py-10 text-center text-sm text-muted-foreground">
-              Nothing finished matches “{search.trim()}”.
-            </p>
-          )}
-          {groups.map((group) => (
-            <section key={group.label}>
-              <h2 className="text-sm text-muted-foreground">
-                {group.label}
-                <span className="ml-2 tabular-nums opacity-70">{group.items.length}</span>
-              </h2>
-              <ul className="mt-2 space-y-2">
-                {group.items.map(({ assignment: a, doneAt, inCanvas }) => (
-                  <li
-                    key={a.id}
-                    className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3.5 rounded-lg border border-foreground/15 px-4 py-3.5"
-                  >
-                    <CompleteToggle
-                      done
-                      onToggle={() => {
-                        // It leaves this list for To-Do; say so, with a way back.
-                        completed.toggle(a.id);
-                        toast("Back on your To-Do", {
-                          description: a.name,
-                          action: { label: "Undo", onClick: () => completed.toggle(a.id) },
-                        });
-                      }}
-                      label={a.name}
-                      disabled={!completed.ready}
-                      className="mt-0.5 h-5 w-5"
-                    />
-                    <div className="min-w-0">
-                      <p className="text-[15px] leading-snug">{a.name}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {courseName(a.course_id, a.course_name, a.course_code)} ·{" "}
-                        {inCanvas ? "Done in Canvas" : "Marked done"}
-                      </p>
-                    </div>
-                    <p className="whitespace-nowrap pt-0.5 text-right text-xs tabular-nums text-muted-foreground">
-                      {doneAt != null
-                        ? new Intl.DateTimeFormat(undefined, {
-                            month: "short",
-                            day: "numeric",
-                          }).format(doneAt)
-                        : ""}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))}
+              <label className="flex items-center gap-3 rounded-xl border border-foreground/15 px-3 py-2.5">
+                <Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Find a finished assignment or class"
+                  aria-label="Search completed assignments"
+                  className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                />
+              </label>
+              {groups.length === 0 && (
+                <p className="py-10 text-center text-sm text-muted-foreground">
+                  Nothing finished matches “{search.trim()}”.
+                </p>
+              )}
+              {groups.map((group) => (
+                <section key={group.label}>
+                  <h2 className="text-sm text-muted-foreground">
+                    {group.label}
+                    <span className="ml-2 tabular-nums opacity-70">{group.items.length}</span>
+                  </h2>
+                  <ul className="mt-2 space-y-2">
+                    {group.items.map(({ assignment: a, doneAt, inCanvas }) => (
+                      <li
+                        key={a.id}
+                        className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3.5 rounded-lg border border-foreground/15 px-4 py-3.5"
+                      >
+                        <CompleteToggle
+                          done
+                          onToggle={() => {
+                            // It leaves this list for To-Do; say so, with a way back.
+                            completed.toggle(a.id);
+                            toast("Back on your To-Do", {
+                              description: a.name,
+                              action: { label: "Undo", onClick: () => completed.toggle(a.id) },
+                            });
+                          }}
+                          label={a.name}
+                          disabled={!completed.ready}
+                          className="mt-0.5 h-5 w-5"
+                        />
+                        <div className="min-w-0">
+                          <p className="text-[15px] leading-snug">{a.name}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {courseName(a.course_id, a.course_name, a.course_code)} ·{" "}
+                            {inCanvas ? "Done in Canvas" : "Marked done"}
+                          </p>
+                        </div>
+                        <p className="whitespace-nowrap pt-0.5 text-right text-xs tabular-nums text-muted-foreground">
+                          {doneAt != null
+                            ? new Intl.DateTimeFormat(undefined, {
+                                month: "short",
+                                day: "numeric",
+                              }).format(doneAt)
+                            : ""}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ))}
             </>
           )}
         </div>

@@ -14,8 +14,8 @@ export interface QuickAddResult {
   name: string;
   courseId: number | null;
   courseLabel: string | null;
-  /** ISO time, or null for no due date. */
-  dueAt: string | null;
+  /** ISO time; today at 11:59 PM when no day or time is given. */
+  dueAt: string;
   minutes: number | null;
 }
 
@@ -253,17 +253,15 @@ export function parseQuickAdd(
   );
   const name = cleaned.join(" ").trim();
 
-  let dueAt: string | null = null;
-  if (day || time) {
-    const base = day ?? today;
-    let when = time ? at(base, time.h, time.m) : at(base, 23, 59);
-    // A time already past today, with no day given, means tomorrow.
-    if (!day && when.getTime() < now) {
-      when = new Date(when);
-      when.setDate(when.getDate() + 1);
-    }
-    dueAt = when.toISOString();
+  // No day or time: today at 11:59 PM, like Add's form, so it's on today's To-Do.
+  const base = day ?? today;
+  let when = time ? at(base, time.h, time.m) : at(base, 23, 59);
+  // A time already past today, with no day given, means tomorrow.
+  if (!day && when.getTime() < now) {
+    when = new Date(when);
+    when.setDate(when.getDate() + 1);
   }
+  const dueAt = when.toISOString();
 
   return {
     name: name ? name.charAt(0).toUpperCase() + name.slice(1) : "",

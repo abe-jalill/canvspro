@@ -43,11 +43,13 @@ export function AddTaskButton({
   const picks = useCalendarPicks();
   const [openState, setOpenState] = useState(false);
   const open = openProp ?? openState;
+  const [step, setStep] = useState<Step>("choose");
   const setOpen = (next: boolean) => {
     setOpenState(next);
     onOpenChange?.(next);
+    // Closed, it starts again at the beginning, however it's opened next (the n shortcut too).
+    if (!next) setStep("choose");
   };
-  const [step, setStep] = useState<Step>("choose");
 
   const add = async (input: NewCustomAssignment, calendarAt?: string) => {
     const item = await onAdd(input);
@@ -87,7 +89,9 @@ export function AddTaskButton({
           </DialogTitle>
           <DialogDescription>
             {step === "choose"
-              ? "Is this for a class?"
+              ? quickCourses
+                ? "Type it in one line, or fill in the details."
+                : "Is this for a class?"
               : step === "class"
                 ? "Only you see this. It's listed with your Canvas work."
                 : "Only you see this. It isn't filed under a class."}
@@ -99,7 +103,7 @@ export function AddTaskButton({
             {quickCourses && (
               <>
                 <QuickAdd courses={quickCourses} onAdd={onAdd} onAdded={() => setOpen(false)} autoFocus />
-                <p className="pt-2 text-xs text-muted-foreground">Or fill in the details:</p>
+                <p className="pt-2 text-xs text-muted-foreground">Or fill in the details. Is this for a class?</p>
               </>
             )}
             <ChoiceButton
