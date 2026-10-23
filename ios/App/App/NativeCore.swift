@@ -299,62 +299,13 @@ struct AnnouncementItem: Codable, Identifiable, Hashable {
     }
 }
 
-struct CalendarEventItem: Codable, Identifiable, Hashable {
-    let id: String
-    let title: String
-    let startAt: String?
-    let endAt: String?
-    let htmlURL: String?
-    let contextCode: String?
-    let contextName: String?
-    let locationName: String?
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        if let string = try? container.decode(String.self, forKey: .id) { id = string }
-        else { id = String(try container.decode(Int.self, forKey: .id)) }
-        title = try container.decode(String.self, forKey: .title)
-        startAt = try container.decodeIfPresent(String.self, forKey: .startAt)
-        endAt = try container.decodeIfPresent(String.self, forKey: .endAt)
-        htmlURL = try container.decodeIfPresent(String.self, forKey: .htmlURL)
-        contextCode = try container.decodeIfPresent(String.self, forKey: .contextCode)
-        contextName = try container.decodeIfPresent(String.self, forKey: .contextName)
-        locationName = try container.decodeIfPresent(String.self, forKey: .locationName)
-    }
-
-    private enum CodingKeys: String, CodingKey {
-        case id, title
-        case startAt = "start_at"
-        case endAt = "end_at"
-        case htmlURL = "html_url"
-        case contextCode = "context_code"
-        case contextName = "context_name"
-        case locationName = "location_name"
-    }
-}
-
-extension CalendarEventItem {
-    /// Builds an event in code (the sample student's calendar).
-    init(id: String, title: String, startAt: String?, endAt: String?, htmlURL: String? = nil, contextCode: String?, contextName: String?, locationName: String?) {
-        self.id = id
-        self.title = title
-        self.startAt = startAt
-        self.endAt = endAt
-        self.htmlURL = htmlURL
-        self.contextCode = contextCode
-        self.contextName = contextName
-        self.locationName = locationName
-    }
-}
-
 struct CanvasBundle: Codable {
     let courses: [CourseSummary]
     let assignments: [AssignmentItem]
     let announcements: [AnnouncementItem]
-    let calendar: [CalendarEventItem]
     let errors: [String: String]?
 
-    enum CodingKeys: String, CodingKey { case courses, assignments, announcements, calendar, errors }
+    enum CodingKeys: String, CodingKey { case courses, assignments, announcements, errors }
 }
 
 /// Decodes a list one element at a time, skipping any element that can't be read,
@@ -392,7 +343,6 @@ extension CanvasBundle {
             courses: uniqueByID(list(.courses, CourseSummary.self)),
             assignments: uniqueByID(list(.assignments, AssignmentItem.self)),
             announcements: uniqueByID(list(.announcements, AnnouncementItem.self)),
-            calendar: uniqueByID(list(.calendar, CalendarEventItem.self)),
             errors: (try? container.decodeIfPresent([String: String].self, forKey: .errors))
         )
     }
@@ -421,7 +371,6 @@ extension CanvasBundle {
             courses: failed["courses"] != nil ? previous.courses : courses,
             assignments: keptAssignments,
             announcements: failed["announcements"] != nil ? previous.announcements : announcements,
-            calendar: failed["calendar"] != nil ? previous.calendar : calendar,
             errors: errors
         )
     }
@@ -602,12 +551,7 @@ enum NativePreviewData {
             announcement(7002, 9104, "Peer review partners posted", "Check the Discussions page for your partner.", at(-2, 14)),
             announcement(7003, 9105, "Office hours this week", "Extra office hours Wednesday 3-5 PM before Problem Set 4.", at(0, 8, 30)),
         ]
-        let calendar = [
-            CalendarEventItem(id: "e1", title: "BIO 201 Study Group", startAt: at(1, 18), endAt: at(1, 19, 30), contextCode: "course_9101", contextName: "Cell Biology", locationName: "Library 204"),
-            CalendarEventItem(id: "e2", title: "Calculus Office Hours", startAt: at(2, 15), endAt: at(2, 17), contextCode: "course_9105", contextName: "Calculus I", locationName: "Math 112"),
-            CalendarEventItem(id: "e3", title: "Midterm Exam", startAt: at(12, 9, 30), endAt: at(12, 11), contextCode: "course_9101", contextName: "Cell Biology", locationName: "Science Hall 101"),
-        ]
-        return CanvasBundle(courses: courses, assignments: assignments, announcements: announcements, calendar: calendar, errors: nil)
+        return CanvasBundle(courses: courses, assignments: assignments, announcements: announcements, errors: nil)
     }
 
     private static func announcement(_ id: Int, _ courseID: Int, _ title: String, _ message: String, _ posted: String) -> AnnouncementItem {
@@ -736,7 +680,8 @@ final class NativeAPI {
     func canvasBundle(token: String) async throws -> CanvasBundle {
         var request = try request(path: "/functions/v1/canvas", token: token)
         request.httpMethod = "POST"
-        request.httpBody = try JSONSerialization.data(withJSONObject: ["resource": "all"])
+        // Everything but Canvas calendar events: the Calendar is website-only.
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["resource": "all", "parts": ["courses", "assignments", "announcements"]] as [String: Any])
         let data = try await data(request)
         return try decoder.decode(CanvasBundle.self, from: data)
     }
@@ -1231,7 +1176,7 @@ final class NativeSessionStore: ObservableObject {
 
 @MainActor
 final class NativeContentStore: ObservableObject {
-    @Published var bundle = CanvasBundle(courses: [], assignments: [], announcements: [], calendar: [], errors: nil)
+    @Published var bundle = CanvasBundle(courses: [], assignments: [], announcements: [], errors: nil)
     @Published var completed = Set<Int>()
     @Published var reopenedAt: [Int: Date] = [:]
     /// When each task was marked done here, for the Completed page.

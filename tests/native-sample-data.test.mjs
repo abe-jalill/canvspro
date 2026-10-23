@@ -38,7 +38,7 @@ test("the app and the website show the review account the same assignments and g
   assert.deepEqual(appRows, webRows);
 });
 
-test("the app and the website show the review account the same announcements and events", () => {
+test("the app and the website show the review account the same announcements", () => {
   const webNews = all(
     section(web, "function announcements", "function calendar"),
     /\[\s*(\d+),\s*(\d+),\s*"([^"]+)",\s*"([^"]+)",/g,
@@ -46,14 +46,8 @@ test("the app and the website show the review account the same announcements and
   const appNews = all(app, /announcement\((\d+), (\d+), "([^"]+)", "([^"]+)"/g);
   assert.equal(webNews.length, 3);
   assert.deepEqual(appNews, webNews);
-
-  const webEvents = all(
-    section(web, "function calendar", "const USER"),
-    /title: "([^"]+)",[\s\S]*?location_name: "([^"]+)"/g,
-  );
-  const appEvents = all(app, /title: "([^"]+)",[^\n]*locationName: "([^"]+)"/g);
-  assert.equal(webEvents.length, 3);
-  assert.deepEqual(appEvents, webEvents);
+  // Calendar events are website-only, so the app has none of its own.
+  assert.doesNotMatch(app, /locationName: "/);
 });
 
 test("the review account uses the sample student, real sign-in still required", () => {
