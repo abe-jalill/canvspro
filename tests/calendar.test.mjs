@@ -116,7 +116,7 @@ test("Calendar adds events; To-Do's task can also go on the calendar", () => {
   const calendar = read("src/components/calendar/google-calendar.tsx");
   // Create (or a click on an empty time slot) adds an event there.
   assert.match(calendar, /Create/);
-  assert.match(calendar, /onCreate\(day, Math\.min\(23 \* 60 \+ 30, Math\.max\(0, minutes\)\)\)/);
+  assert.match(calendar, /onCreate\(day, Math\.min\(23 \* 60 \+ 30, Math\.max\(DAY_START_MINUTES, minutes\)\)\)/);
   assert.match(page, /<CalendarEventDialog/);
   assert.match(page, /startMinutes=\{editing\.minutes\}/);
   assert.match(page, /entriesForDay\(day, sources\)\.filter\(\(entry\) => !hidden\.has\(calendarId\(entry\)\)\)/);

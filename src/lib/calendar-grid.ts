@@ -47,6 +47,10 @@ export function classCalendarColor(courseId: number, courseIds: readonly number[
 }
 
 export const HOUR_HEIGHT = 48;
+/** Day and Week show 5 AM to midnight (the last hour is 11 PM). */
+export const DAY_START_HOUR = 5;
+export const DAY_START_MINUTES = DAY_START_HOUR * 60;
+export const DAY_HOURS = 24 - DAY_START_HOUR;
 /** A due date or planned work has no length; it's drawn as half an hour. */
 export const POINT_MINUTES = 30;
 
@@ -152,7 +156,8 @@ export function layoutDay(entries: CalendarEntry[], day: Date): PlacedEntry[] {
   const items = entries
     .filter((e) => !e.allDay)
     .map((entry) => {
-      let start = Math.max(0, Math.round((entry.start - midnight) / 60_000));
+      // Anything before 5 AM is drawn at the top of the day.
+      let start = Math.max(DAY_START_MINUTES, Math.round((entry.start - midnight) / 60_000));
       const point = entry.end == null;
       // Something due at 11:59 PM sits at the end of the day, not past it.
       if (point) start = Math.min(start, 24 * 60 - POINT_MINUTES);

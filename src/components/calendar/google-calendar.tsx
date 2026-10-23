@@ -21,6 +21,9 @@ import {
 import type { CalendarEntry } from "@/lib/calendar-agenda";
 import {
   CALENDAR_VIEWS,
+  DAY_HOURS,
+  DAY_START_HOUR,
+  DAY_START_MINUTES,
   HOUR_HEIGHT,
   hourLabel,
   layoutDay,
@@ -567,7 +570,9 @@ function TimeGrid({
   useLayoutEffect(() => {
     const el = scroller.current;
     if (!el) return;
-    const hour = showsToday ? Math.max(0, nowMinutes / 60 - 1.5) : 7.5;
+    const hour = showsToday
+      ? Math.max(0, nowMinutes / 60 - 1.5 - DAY_START_HOUR)
+      : 7.5 - DAY_START_HOUR;
     el.scrollTop = hour * HOUR_HEIGHT;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [firstKey, days.length]);
@@ -640,15 +645,22 @@ function TimeGrid({
       </div>
 
       {/* The hours */}
-      <div className="grid" style={{ gridTemplateColumns: columns, height: 24 * HOUR_HEIGHT }}>
+      <div
+        className="grid"
+        style={{ gridTemplateColumns: columns, height: DAY_HOURS * HOUR_HEIGHT }}
+      >
         <div className="relative" aria-hidden="true">
-          {Array.from({ length: 24 }, (_, h) => (
+          {Array.from({ length: DAY_HOURS }, (_, i) => (
             <span
-              key={h}
-              className="absolute right-2 -translate-y-1/2 text-[10px] text-[var(--gc-muted)]"
-              style={{ top: h * HOUR_HEIGHT }}
+              key={i}
+              // The first label (5 AM) sits just inside the top, so it isn't cut off.
+              className={cn(
+                "absolute right-2 text-[10px] text-[var(--gc-muted)]",
+                i === 0 ? "translate-y-0.5" : "-translate-y-1/2",
+              )}
+              style={{ top: i * HOUR_HEIGHT }}
             >
-              {hourLabel(h)}
+              {hourLabel(DAY_START_HOUR + i)}
             </span>
           ))}
         </div>
@@ -662,13 +674,14 @@ function TimeGrid({
               onClick={(e) => {
                 // An empty slot: a new event at that half hour.
                 const rect = e.currentTarget.getBoundingClientRect();
-                const minutes = Math.floor(((e.clientY - rect.top) / HOUR_HEIGHT) * 2) * 30;
-                onCreate(day, Math.min(23 * 60 + 30, Math.max(0, minutes)));
+                const minutes =
+                  DAY_START_MINUTES + Math.floor(((e.clientY - rect.top) / HOUR_HEIGHT) * 2) * 30;
+                onCreate(day, Math.min(23 * 60 + 30, Math.max(DAY_START_MINUTES, minutes)));
               }}
             >
               {placed.map((p) => {
                 const entry = p.entry;
-                const top = (p.start / 60) * HOUR_HEIGHT;
+                const top = ((p.start - DAY_START_MINUTES) / 60) * HOUR_HEIGHT;
                 const height = Math.max(18, ((p.end - p.start) / 60) * HOUR_HEIGHT - 2);
                 const short = height < 34;
                 const past = (entry.end ?? entry.start) < now;
@@ -710,10 +723,10 @@ function TimeGrid({
                   </button>,
                 );
               })}
-              {isToday && nowMinutes >= 0 && nowMinutes < 24 * 60 && (
+              {isToday && nowMinutes >= DAY_START_MINUTES && nowMinutes < 24 * 60 && (
                 <div
                   className="pointer-events-none absolute inset-x-0 z-[3]"
-                  style={{ top: (nowMinutes / 60) * HOUR_HEIGHT }}
+                  style={{ top: ((nowMinutes - DAY_START_MINUTES) / 60) * HOUR_HEIGHT }}
                   aria-hidden="true"
                 >
                   <div className="relative h-[2px] bg-[var(--gc-now)]">

@@ -57,6 +57,14 @@ test("overlapping events sit side by side; separate ones keep the full width", (
   assert.equal(layoutDay([entry("d", at(0), null, { allDay: true })], day).length, 0);
 });
 
+test("Day and Week run from 5 AM to 11 PM; earlier things sit at the top", () => {
+  const [early] = layoutDay([entry("early", at(3), at(4))], day);
+  assert.equal(early.start, 5 * 60);
+  const calendar = read("src/components/calendar/google-calendar.tsx");
+  assert.match(calendar, /height: DAY_HOURS \* HOUR_HEIGHT/);
+  assert.match(calendar, /hourLabel\(DAY_START_HOUR \+ i\)/);
+});
+
 test("something due at 11:59 PM stays inside the day", () => {
   const [late] = layoutDay([entry("due", at(23, 59), null, { kind: "due" })], day);
   assert.equal(late.end, 24 * 60);

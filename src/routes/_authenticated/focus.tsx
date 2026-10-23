@@ -341,22 +341,7 @@ function FocusPage() {
             </SelectContent>
           </Select>
         </div>
-        {!loading && !failed && isTodaySelected && todayDone.total > 0 && (
-          // Today: a close goal, filling as you go (work in progress counts partly).
-          <div
-            className="relative mt-3 h-1.5 overflow-hidden rounded-full bg-foreground/10"
-            role="progressbar"
-            aria-label="Today's progress"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={Math.round(todayDone.fraction * 100)}
-          >
-            <span
-              className="absolute inset-y-0 left-0 rounded-full bg-primary transition-[width] duration-500 motion-reduce:transition-none"
-              style={{ width: `${Math.round(todayDone.fraction * 100)}%` }}
-            />
-          </div>
-        )}
+        {/* One line only: a segment per assignment this week, done ones filled. */}
         {!loading && !failed && weekTotal > 0 && <WeekSegments done={weekDone} total={weekTotal} />}
       </header>
 
