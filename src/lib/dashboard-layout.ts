@@ -115,14 +115,32 @@ export function useDashboardLayout() {
     [update],
   );
 
+  /** The answers' plan: these cards first, in this order, the rest hidden. */
+  const savePlan = useCallback(
+    (ordered: WidgetId[]) =>
+      update((prev) => {
+        const chosen = new Set(ordered);
+        return {
+          ...prev,
+          order: [...ordered, ...prev.order.filter((id) => !chosen.has(id))],
+          hidden: prev.order.filter((id) => !chosen.has(id)),
+          picked_at: new Date().toISOString(),
+        };
+      }),
+    [update],
+  );
+
   return {
     order: layout.order,
     hidden: layout.hidden,
     sizes: layout.sizes,
     isHidden: (id: WidgetId) => layout.hidden.includes(id),
+    /** Saved settings have loaded. */
+    ready,
     /** Saved settings have loaded and no widgets have been picked yet. */
     needsPicks: ready && !layout.picked_at,
     savePicks,
+    savePlan,
     toggle,
     move,
     reorder,

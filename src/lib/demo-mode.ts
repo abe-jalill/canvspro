@@ -346,7 +346,7 @@ function tableRows(table: string): unknown[] {
           },
           { user_id: DEMO_USER_ID, key: "color_theme", value: "forest" },
           // The sample student already chose their widgets (every one), so the
-          // "What do you want on your dashboard?" picker doesn't cover screenshots.
+          // "Why did you download CoursePro?" questions don't cover screenshots.
           {
             user_id: DEMO_USER_ID,
             key: "dashboard-layout",

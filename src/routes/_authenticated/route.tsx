@@ -35,6 +35,7 @@ import { OfflineNotice } from "@/components/offline-notice";
 import { FocusNoisePlayer } from "@/components/focus-noise";
 import { StreakButton, StreakCelebrationLayer } from "@/components/streak";
 import { CompletionUndoBar } from "@/components/completion-undo-bar";
+import { useDashboardLayout } from "@/lib/dashboard-layout";
 
 /** Pages shown on their own, with their own back arrow instead of the sidebar. */
 const BARE_PAGES = new Set(["/completed", "/new-grades"]);
@@ -72,7 +73,11 @@ function AuthenticatedLayout() {
   const [sidebarMode] = useSidebarMode();
   // From the URL path, like the root footer: route matches differ between
   // server and client for this client-only area.
-  const bare = BARE_PAGES.has(useRouterState({ select: (s) => s.location.pathname }));
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const bare = BARE_PAGES.has(pathname);
+  // The dashboard's first-time questions come first; the streak waits for them.
+  const layout = useDashboardLayout();
+  const asking = pathname.startsWith("/dashboard") && (!layout.ready || layout.needsPicks);
 
   useQueryCachePersistence();
   const startup = useAppPrefetch(true);
@@ -110,7 +115,7 @@ function AuthenticatedLayout() {
       <ProfileCompletionDialog user={user} />
       <RouteProgress />
       <FocusNoisePlayer />
-      <StreakCelebrationLayer ready={startupReady} />
+      <StreakCelebrationLayer ready={startupReady && !asking} />
       {!bare && <AppSidebar />}
       {!bare && <MobileNav />}
       <CompletionUndoBar />

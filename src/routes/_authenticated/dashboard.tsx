@@ -7,7 +7,9 @@ import { WIDGETS } from "@/components/widgets/dashboard-widgets";
 import { MasonryCell, MasonryGrid } from "@/components/widgets/masonry-grid";
 import { DashboardHero } from "@/components/dashboard-hero";
 import { TourInvite } from "@/components/tutorial/tour-invite";
-import { DashboardWidgetPicker } from "@/components/dashboard-widget-picker";
+import { DownloadReasonsDialog } from "@/components/download-reasons-dialog";
+import { useUserPreferenceKey } from "@/hooks/use-user-preferences";
+import { DOWNLOAD_REASONS_KEY } from "@/lib/download-reasons";
 
 import {
   coursesQueryOptions,
@@ -64,6 +66,7 @@ function colSpanClass(size: WidgetSize): string {
 
 function Dashboard() {
   const layout = useDashboardLayout();
+  const reasons = useUserPreferenceKey<string[]>(DOWNLOAD_REASONS_KEY, []);
   const [customizing, setCustomizing] = useState(false);
 
   const sizeOf = (id: WidgetId): WidgetSize => layout.sizes[id] ?? WIDGETS[id].defaultSize;
@@ -72,9 +75,17 @@ function Dashboard() {
 
   return (
     <div className="w-full min-w-0 space-y-4 pb-12 sm:space-y-5">
-      {/* Every account picks its widgets once (shared with the iPhone app). */}
+      {/* Asked once, after Canvas is connected: why CoursePro? The answers pick the cards (shared with the iPhone app). */}
       {layout.needsPicks && (
-        <DashboardWidgetPicker open order={layout.order} initial={visible} onSave={layout.savePicks} />
+        <DownloadReasonsDialog
+          open
+          order={layout.order}
+          onDone={(answers, widgets) => {
+            reasons.set(answers);
+            // Skipping keeps the cards shown now, and isn't asked again.
+            layout.savePlan(widgets ?? visible);
+          }}
+        />
       )}
       <DashboardHero />
       {!layout.needsPicks && <TourInvite />}

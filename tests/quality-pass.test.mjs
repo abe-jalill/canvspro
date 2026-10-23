@@ -136,9 +136,8 @@ test("counts read right in the singular", () => {
 
 test("one name for the To-Do widget, and the badge recounts as deadlines pass", () => {
   assert.match(read("src/components/widgets/dashboard-widgets.tsx"), /focus: \{ label: "To-Do",/);
-  const picker = read("src/components/dashboard-widget-picker.tsx");
-  assert.match(picker, /focus: \{ title: "To-Do",/);
-  assert.match(picker, /change it with Customize dashboard\./);
+  // The first-time questions name cards by the same labels.
+  assert.match(read("src/components/download-reasons-dialog.tsx"), /plan\.map\(\(id\) => WIDGETS\[id\]\.label\)/);
   assert.doesNotMatch(read("src/routes/_authenticated/assignments.tsx"), /Add it under "Add something/);
   const badge = read("src/hooks/use-due-today-badge.ts");
   assert.match(badge, /window\.setInterval\(\(\) => setNow\(Date\.now\(\)\), 60_000\)/);
