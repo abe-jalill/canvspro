@@ -812,6 +812,21 @@ final class NativeFeatureStore: ObservableObject {
         try await updateDashboard(order: order, hidden: hidden, picked: true)
     }
 
+    /// The answers' plan (Why did you download CoursePro?): these widgets first,
+    /// in this order, every other one hidden. A website-only widget keeps its setting.
+    func saveDashboardPlan(_ ordered: [String]) async throws {
+        let plan = ordered.filter { dashboardWidgets.contains($0) }
+        let order = plan + dashboardOrder.filter { !plan.contains($0) }
+        let websiteOnly = dashboardHidden.subtracting(dashboardWidgets)
+        let hidden = Set(dashboardWidgets.filter { !plan.contains($0) }).union(websiteOnly)
+        try await updateDashboard(order: order, hidden: hidden, picked: true)
+    }
+
+    /// The answers to "Why did you download CoursePro?" (`download-reasons`), the website's too.
+    func saveDownloadReasons(_ ids: [String]) async throws {
+        try await savePreference("download-reasons", ids)
+    }
+
     /// Turns sharing the dashboard with the website on or off. Turning it off
     /// starts the iPhone's own layout as a copy of the shared one. Turning it
     /// back on keeps the website's layout, or puts the iPhone's in its place.
@@ -2057,5 +2072,54 @@ enum NativeCompletedRange {
     static func contains(_ date: Date?, days: Int, now: Date = Date()) -> Bool {
         guard let date else { return false }
         return date >= start(days, now: now)
+    }
+}
+
+/// "Why did you download CoursePro?" The same ten answers as the website
+/// (src/lib/download-reasons.ts), each pointing at the dashboard widgets that
+/// help with it.
+enum NativeDownloadReasons {
+    struct Reason: Identifiable {
+        let id: String
+        let label: String
+        let symbol: String
+        let widgets: [String: Int]
+    }
+
+    static let all: [Reason] = [
+        Reason(id: "deadlines", label: "Never miss a deadline", symbol: "alarm", widgets: ["focus": 3, "upcoming": 2, "calendar": 1]),
+        Reason(id: "grades", label: "Keep my grades up", symbol: "chart.line.uptrend.xyaxis", widgets: ["classes": 3, "focus": 1]),
+        Reason(id: "plan", label: "Plan my week", symbol: "calendar", widgets: ["calendar": 3, "upcoming": 2, "heatmap": 2]),
+        Reason(id: "procrastination", label: "Stop putting things off", symbol: "bolt", widgets: ["focus": 3, "digest": 1]),
+        Reason(id: "study", label: "Focus when I study", symbol: "timer", widgets: ["focus": 2, "heatmap": 1]),
+        Reason(id: "overview", label: "See all my classes in one place", symbol: "square.grid.2x2", widgets: ["classes": 2, "upcoming": 2, "digest": 2]),
+        Reason(id: "announcements", label: "Keep up with announcements", symbol: "megaphone", widgets: ["announcements": 3, "digest": 2]),
+        Reason(id: "balance", label: "Balance school with work or sports", symbol: "scalemass", widgets: ["calendar": 3, "heatmap": 2]),
+        Reason(id: "gpa", label: "Track my GPA", symbol: "function", widgets: ["gpa": 3, "classes": 2]),
+        Reason(id: "stress", label: "Feel less stressed about school", symbol: "leaf", widgets: ["focus": 2, "digest": 1, "heatmap": 1]),
+    ]
+
+    /// Widgets that make a good start when the answers point to only one or two.
+    private static let fallback = ["digest", "focus", "upcoming", "classes"]
+    static let maxRecommended = 5
+
+    /// The widgets for these answers, most helpful first (ties in `order`), at
+    /// most five and at least three. `available` leaves out widgets this app doesn't draw.
+    static func recommend(_ ids: Set<String>, order: [String], available: (String) -> Bool) -> [String] {
+        var score: [String: Int] = [:]
+        for reason in all where ids.contains(reason.id) {
+            for (widget, points) in reason.widgets where available(widget) { score[widget, default: 0] += points }
+        }
+        var picks = order.filter { (score[$0] ?? 0) > 0 }
+            .sorted { a, b in
+                let left = score[a] ?? 0, right = score[b] ?? 0
+                if left != right { return left > right }
+                return (order.firstIndex(of: a) ?? 0) < (order.firstIndex(of: b) ?? 0)
+            }
+        picks = Array(picks.prefix(maxRecommended))
+        for widget in fallback where picks.count < 3 && available(widget) && !picks.contains(widget) {
+            picks.append(widget)
+        }
+        return picks
     }
 }

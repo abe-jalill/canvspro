@@ -2120,14 +2120,14 @@ private struct NativeDashboardView: View {
                     .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showCustomize = false } } }
             }
         }
-        // Everyone picks their widgets once, new accounts and existing ones alike.
+        // Asked once, after Canvas is connected: why CoursePro? The answers pick the widgets.
         .task(id: shouldAskForWidgets) {
             guard shouldAskForWidgets else { return }
             try? await Task.sleep(for: .milliseconds(700))
             if !Task.isCancelled && shouldAskForWidgets { showWidgetPicker = true }
         }
         .sheet(isPresented: $showWidgetPicker) {
-            NativeDashboardPicker(features: features, onDone: { showWidgetPicker = false }, onSkip: {
+            NativeDownloadReasonsView(features: features, onDone: { showWidgetPicker = false }, onSkip: {
                 widgetPickerSkipped = true
                 showWidgetPicker = false
             })
@@ -3411,6 +3411,130 @@ enum NativeDashboardWidgetInfo {
 /// "What do you want on your dashboard?" Shown once for every account (and once
 /// for this iPhone's own layout when it doesn't sync with the website), and from
 /// Settings > Dashboard any time after.
+/// "Why did you download CoursePro?" Asked once, after Canvas is connected
+/// (the website asks the same). The answers choose the dashboard's widgets and
+/// their order; Settings > Dashboard changes them later.
+struct NativeDownloadReasonsView: View {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
+    @ObservedObject var features: NativeFeatureStore
+    let onDone: () -> Void
+    /// Offered when saving fails (offline, say), so the questions never trap anyone.
+    var onSkip: (() -> Void)? = nil
+    @State private var picked: Set<String> = []
+    @State private var saving = false
+    @State private var status: String?
+
+    private var plan: [String] {
+        NativeDownloadReasons.recommend(picked, order: NativeFeatureStore.defaultDashboardOrder) { features.pickableDashboardWidgets.contains($0) }
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Why did you download CoursePro?")
+                        .cpFont(26, .semibold).tracking(-0.7)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityAddTraits(.isHeader)
+                    Text("Pick any that fit. This is used to customize your dashboard, and you can change it any time.")
+                        .cpFont(14).lineSpacing(2).foregroundStyle(CPTheme.muted(scheme))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                VStack(spacing: 8) {
+                    ForEach(NativeDownloadReasons.all) { reason in option(reason) }
+                }
+                if let status {
+                    Text(status).cpFont(12).foregroundStyle(CPTheme.danger)
+                    if let onSkip {
+                        Button("Not now, ask me later", action: onSkip)
+                            .cpFont(13, .medium)
+                            .buttonStyle(.plain)
+                            .foregroundStyle(CPTheme.muted(scheme))
+                            .frame(minHeight: 44)
+                    }
+                }
+            }
+            .padding(20)
+            .frame(maxWidth: 560)
+            .frame(maxWidth: .infinity)
+        }
+        .safeAreaInset(edge: .bottom) { footer }
+        .background(CPTheme.background(scheme).ignoresSafeArea())
+        .foregroundStyle(CPTheme.foreground(scheme))
+        .sensoryFeedback(.selection, trigger: picked)
+    }
+
+    private func option(_ reason: NativeDownloadReasons.Reason) -> some View {
+        let on = picked.contains(reason.id)
+        return Button {
+            if on { picked.remove(reason.id) } else { picked.insert(reason.id) }
+        } label: {
+            HStack(spacing: 14) {
+                Image(systemName: on ? "checkmark" : reason.symbol).cpIconFont(15, on ? .bold : .regular)
+                    .foregroundStyle(on ? CPTheme.background(scheme) : CPTheme.foreground(scheme).opacity(0.8))
+                    .frame(width: 36, height: 36)
+                    .background(on ? CPTheme.primary(scheme: scheme) : CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .contentTransition(.symbolEffect(.replace))
+                Text(reason.label).cpFont(15, .medium)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.horizontal, 12).padding(.vertical, 10)
+            .cpSurface(radius: CPLayout.innerRadius)
+            .overlay(RoundedRectangle(cornerRadius: CPLayout.innerRadius, style: .continuous)
+                .strokeBorder(on ? CPTheme.primary(scheme: scheme).opacity(0.7) : .clear, lineWidth: 1))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(CPPressStyle())
+        .accessibilityLabel(reason.label)
+        .accessibilityAddTraits(on ? .isSelected : [])
+    }
+
+    private var footer: some View {
+        VStack(spacing: 8) {
+            // What the answers will put on the dashboard, as they're picked.
+            if !picked.isEmpty {
+                Text("Your dashboard: \(plan.map(NativeDashboardWidgetInfo.title).joined(separator: ", "))")
+                    .cpFont(12).foregroundStyle(CPTheme.muted(scheme))
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Button { save(skip: false) } label: {
+                Text(saving ? "Setting up…" : "Set up my dashboard").frame(maxWidth: .infinity)
+            }
+            .buttonStyle(CPButtonStyle(kind: .primary, fullWidth: true))
+            .disabled(picked.isEmpty || saving)
+            Button("Skip for now") { save(skip: true) }
+                .cpFont(13, .medium)
+                .buttonStyle(.plain)
+                .foregroundStyle(CPTheme.muted(scheme))
+                .frame(minHeight: 44)
+                .disabled(saving)
+        }
+        .padding(.horizontal, 20).padding(.top, 10).padding(.bottom, 8)
+        .background(CPTheme.background(scheme).opacity(0.96).ignoresSafeArea(edges: .bottom))
+    }
+
+    /// Saves the answers and the plan. Skipping keeps the widgets shown now, and isn't asked again.
+    private func save(skip: Bool) {
+        saving = true
+        status = nil
+        let answers = skip ? [] : NativeDownloadReasons.all.map(\.id).filter { picked.contains($0) }
+        let widgets = skip ? features.dashboardOrder.filter { !features.dashboardHidden.contains($0) } : plan
+        Task {
+            defer { saving = false }
+            do {
+                try await features.saveDownloadReasons(answers)
+                try await features.saveDashboardPlan(widgets)
+                CPHaptics.success()
+                onDone()
+            } catch { status = error.localizedDescription }
+        }
+    }
+}
+
 struct NativeDashboardPicker: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.cpPalette) private var paletteDependency
