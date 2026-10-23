@@ -973,6 +973,19 @@ final class NativeFeatureStore: ObservableObject {
         try? await savePreference("completed-range", days)
     }
 
+    /// Calendars turned off on the Calendar (`calendar-hidden`: "class:12", "events",
+    /// "planned", "canvas"), the website's too.
+    var hiddenCalendars: Set<String> {
+        guard case .some(.array(let values)) = preferences["calendar-hidden"] else { return [] }
+        return Set(values.compactMap { if case .string(let id) = $0 { return id }; return nil })
+    }
+    func setCalendar(_ id: String, hidden: Bool) async {
+        var next = hiddenCalendars
+        if hidden { next.insert(id) } else { next.remove(id) }
+        guard next != hiddenCalendars else { return }
+        try? await savePreference("calendar-hidden", next.sorted())
+    }
+
     /// The optional weekly rhythm on To-Do (`weekly-rhythm`), off until turned on.
     var showsWeeklyRhythm: Bool {
         if case .some(.bool(true)) = preferences["weekly-rhythm"] { return true }

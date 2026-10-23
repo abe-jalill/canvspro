@@ -1899,12 +1899,6 @@ struct NativeCalendarEntry: Identifiable {
     }
 }
 
-private struct CalendarDayGroup: Identifiable {
-    var id: Date { day }
-    let day: Date
-    let items: [NativeCalendarEntry]
-}
-
 /// What the calendar is built from, read once per redraw.
 struct NativeCalendarSources {
     let classes: [ClassScheduleEntry]
@@ -1998,388 +1992,890 @@ struct NativeCalendarAgenda {
 
 }
 
-/// The Calendar, as on the website: a week to pick a day from, then that day
-/// in time order — classes, your events, work you planned, and what's due.
-/// Upcoming lists the next month without the everyday classes.
+/// Google Calendar's event colors, and its light and dark sheet.
+enum NativeGoogleColor {
+    static func hex(_ value: UInt32) -> Color {
+        Color(red: Double((value >> 16) & 0xFF) / 255, green: Double((value >> 8) & 0xFF) / 255, blue: Double(value & 0xFF) / 255)
+    }
+    static let tomato = hex(0xD50000)
+    static let flamingo = hex(0xE67C73)
+    static let tangerine = hex(0xF4511E)
+    static let sage = hex(0x33B679)
+    static let basil = hex(0x0B8043)
+    static let peacock = hex(0x039BE5)
+    static let blueberry = hex(0x3F51B5)
+    static let lavender = hex(0x7986CB)
+    static let grape = hex(0x8E24AA)
+    static let graphite = hex(0x616161)
+    /// One per class, in the order Canvas lists them (Peacock is kept for your events), as on the website.
+    static let classPalette = [sage, tangerine, grape, flamingo, basil, lavender, tomato, blueberry]
+}
+
+/// Day and Week, laid out as Google draws them: overlapping things side by side.
+enum NativeCalendarLayout {
+    struct Placed: Identifiable {
+        let entry: NativeCalendarEntry
+        /// Minutes from midnight.
+        let start: Int
+        let end: Int
+        var column: Int
+        var columns: Int
+        var id: String { entry.id }
+    }
+
+    /// A due date or planned work has no length; it's drawn as half an hour.
+    static let pointMinutes = 30
+
+    static func layout(_ entries: [NativeCalendarEntry], day: Date, calendar: Calendar = .current) -> [Placed] {
+        let midnight = calendar.startOfDay(for: day)
+        var items: [Placed] = entries.filter { !$0.allDay }.map { entry in
+            var start = max(0, Int(entry.start.timeIntervalSince(midnight) / 60))
+            // Something due at 11:59 PM sits at the end of the day, not past it.
+            if entry.end == nil { start = min(start, 24 * 60 - pointMinutes) }
+            let rawEnd = entry.end.map { Int($0.timeIntervalSince(midnight) / 60) } ?? start + pointMinutes
+            let end = min(24 * 60, max(rawEnd, start + 15))
+            return Placed(entry: entry, start: start, end: end, column: 0, columns: 1)
+        }
+        items.sort { $0.start != $1.start ? $0.start < $1.start : $0.end > $1.end }
+        var placed: [Placed] = []
+        var cluster: [Placed] = []
+        var clusterEnd = -1
+        func close() {
+            let columns = max(1, cluster.map { $0.column + 1 }.max() ?? 1)
+            placed += cluster.map { item in
+                var copy = item
+                copy.columns = columns
+                return copy
+            }
+            cluster = []
+        }
+        for var item in items {
+            if !cluster.isEmpty && item.start >= clusterEnd { close() }
+            let taken = Set(cluster.filter { $0.end > item.start }.map(\.column))
+            var column = 0
+            while taken.contains(column) { column += 1 }
+            item.column = column
+            cluster.append(item)
+            clusterEnd = max(clusterEnd, item.end)
+        }
+        if !cluster.isEmpty { close() }
+        return placed
+    }
+}
+
+/// The Calendar in Google Calendar's phone layout: Schedule (the default), Day,
+/// 3 days, Week and Month; a menu for the view and your calendars; the month to
+/// pick a date; today's date to jump back; + for a new event. Tapping anything
+/// opens its card. Classes, your events, planned work, due dates and Canvas
+/// events, as on the website.
 struct CalendarView: View {
+    enum Mode: String, CaseIterable, Identifiable {
+        case schedule, day, threeDays, week, month
+        var id: String { rawValue }
+        var title: String {
+            switch self {
+            case .schedule: return "Schedule"
+            case .day: return "Day"
+            case .threeDays: return "3 days"
+            case .week: return "Week"
+            case .month: return "Month"
+            }
+        }
+        var symbol: String {
+            switch self {
+            case .schedule: return "list.bullet"
+            case .day: return "calendar.day.timeline.left"
+            case .threeDays: return "rectangle.split.3x1"
+            case .week: return "calendar"
+            case .month: return "square.grid.3x3"
+            }
+        }
+    }
+
     @Environment(\.colorScheme) private var scheme
     @Environment(\.cpPalette) private var paletteDependency
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject var store: NativeContentStore
     @ObservedObject var features: NativeFeatureStore
-    /// The time column grows with Text Size, so times never squeeze.
-    @ScaledMetric(relativeTo: .footnote) private var timeWidth: CGFloat = 66
+    @AppStorage("CanvasProCalendarMode") private var modeRaw = Mode.schedule.rawValue
+    @State private var anchor = Calendar.current.startOfDay(for: Date())
+    @State private var showsMonthPicker = false
+    @State private var pickerMonth = Date()
+    @State private var openEntry: NativeCalendarEntry?
     @State private var editingPick: CalendarPick?
     @State private var pickedTime = Date()
     @State private var editingEvent: NativeEventEditing?
-    @State private var selectedDate: Date? = Calendar.current.startOfDay(for: Date())
-    @State private var currentWeekOffset = 0
-    /// Which way the weeks last moved (1 forward, -1 back), for the slide.
-    @State private var weekDirection = 1
-    /// How far the week strip is being dragged, so it follows the finger a little.
-    @GestureState private var weekDrag: CGFloat = 0
+    @State private var showsClassTimes = false
 
-    private static let upcomingDays = 30
-    /// Earlier weeks show your classes and events (finished due dates are on Completed).
-    private static let weeksBack = 12
+    private static let hourHeight: CGFloat = 52
+    private static let gutter: CGFloat = 46
+    private static let scheduleDays = 60
+
+    private var mode: Mode { Mode(rawValue: modeRaw) ?? .schedule }
     private var calendar: Calendar { Calendar.current }
     private var today: Date { calendar.startOfDay(for: Date()) }
 
-    private var weekDates: [Date] {
-        let weekday = calendar.component(.weekday, from: today)
-        let monday = calendar.date(byAdding: .day, value: -((weekday + 5) % 7) + (currentWeekOffset * 7), to: today) ?? today
-        return (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: monday) }
-    }
+    // Google's colors
+    private var dark: Bool { scheme == .dark }
+    private var sheet: Color { dark ? NativeGoogleColor.hex(0x131314) : .white }
+    private var line: Color { dark ? NativeGoogleColor.hex(0x3C4043) : NativeGoogleColor.hex(0xDDE3EA) }
+    private var ink: Color { dark ? NativeGoogleColor.hex(0xE3E3E3) : NativeGoogleColor.hex(0x1F1F1F) }
+    private var muted: Color { dark ? NativeGoogleColor.hex(0xC4C7C5) : NativeGoogleColor.hex(0x444746) }
+    private var blue: Color { dark ? NativeGoogleColor.hex(0xA8C7FA) : NativeGoogleColor.hex(0x0B57D0) }
+    private var onBlue: Color { dark ? NativeGoogleColor.hex(0x062E6F) : .white }
+    private var selectedFill: Color { dark ? NativeGoogleColor.hex(0x004A77) : NativeGoogleColor.hex(0xC2E7FF) }
+    private let nowRed = NativeGoogleColor.hex(0xEA4335)
 
     private var agenda: NativeCalendarAgenda { NativeCalendarAgenda(store: store, features: features) }
-    private var sources: NativeCalendarSources { agenda.sources }
-    /// Everything on one day: all-day first, then by time.
-    private func entries(on day: Date, _ src: NativeCalendarSources, classes includeClasses: Bool = true) -> [NativeCalendarEntry] {
-        agenda.entries(on: day, src, classes: includeClasses)
+
+    /// Which calendar an entry belongs to, for the menu's switches (the website's ids).
+    private func calendarID(_ entry: NativeCalendarEntry) -> String {
+        switch entry.kind {
+        case .classMeeting, .due: return "class:\(entry.courseID.map { String($0) } ?? "other")"
+        case .event: return "events"
+        case .planned: return "planned"
+        case .canvas: return "canvas"
+        }
     }
 
-    private func upcomingGroups(_ src: NativeCalendarSources) -> [CalendarDayGroup] {
-        (0..<Self.upcomingDays).compactMap { offset in
-            guard let day = calendar.date(byAdding: .day, value: offset, to: today) else { return nil }
-            let items = entries(on: day, src, classes: false)
-            return items.isEmpty ? nil : CalendarDayGroup(day: day, items: items)
+    /// Everything on one day from the calendars that are on: all-day first, then by time.
+    private func entries(on day: Date, _ src: NativeCalendarSources, hidden: Set<String>) -> [NativeCalendarEntry] {
+        agenda.entries(on: day, src).filter { !hidden.contains(calendarID($0)) }
+    }
+
+    private func classColor(_ courseID: Int) -> Color {
+        let ids = store.bundle.courses.map(\.id)
+        let index = ids.firstIndex(of: courseID) ?? abs(courseID)
+        return NativeGoogleColor.classPalette[index % NativeGoogleColor.classPalette.count]
+    }
+
+    private func color(_ entry: NativeCalendarEntry) -> Color {
+        switch entry.kind {
+        case .event: return NativeGoogleColor.peacock
+        case .planned: return NativeGoogleColor.blueberry
+        case .canvas: return NativeGoogleColor.graphite
+        case .classMeeting, .due: return entry.courseID.map { classColor($0) } ?? NativeGoogleColor.basil
         }
+    }
+
+    private struct CalendarOption: Identifiable {
+        let id: String
+        let label: String
+    }
+
+    /// Each class is its own calendar (its meetings and due dates), then yours.
+    private var calendarOptions: [CalendarOption] {
+        var options = store.bundle.courses
+            .filter { !features.hiddenCourseIDs.contains($0.id) }
+            .map { CalendarOption(id: "class:\($0.id)", label: store.displayName(courseID: $0.id, fallback: $0.name)) }
+        if features.schedule.contains(where: { $0.canvasCourseID == nil }) {
+            options.append(CalendarOption(id: "class:other", label: "Other classes"))
+        }
+        options += [
+            CalendarOption(id: "events", label: "My events"),
+            CalendarOption(id: "planned", label: "Planned work"),
+            CalendarOption(id: "canvas", label: "Canvas events"),
+        ]
+        return options
+    }
+
+    private func isPast(_ entry: NativeCalendarEntry) -> Bool { !entry.allDay && (entry.end ?? entry.start) < Date() }
+
+    /// "All day", "9:00 – 10:15 AM", or "11:59 PM".
+    private func timeText(_ entry: NativeCalendarEntry) -> String {
+        if entry.allDay { return "All day" }
+        let start = entry.start.formatted(date: .omitted, time: .shortened)
+        guard let end = entry.end else { return start }
+        return "\(start) – \(end.formatted(date: .omitted, time: .shortened))"
+    }
+
+    private func hourLabel(_ hour: Int) -> String {
+        let shown = hour % 12 == 0 ? 12 : hour % 12
+        return "\(shown) \(hour < 12 ? "AM" : "PM")"
+    }
+
+    private var weekStart: Date {
+        calendar.date(byAdding: .day, value: -(calendar.component(.weekday, from: anchor) - 1), to: anchor) ?? anchor
+    }
+
+    private func days(from start: Date, count: Int) -> [Date] {
+        (0..<count).compactMap { calendar.date(byAdding: .day, value: $0, to: start) }
+    }
+
+    /// Five or six weeks from the Sunday on or before the 1st.
+    private func monthWeeks(_ month: Date) -> [[Date]] {
+        let first = calendar.date(from: calendar.dateComponents([.year, .month], from: month)) ?? month
+        let start = calendar.date(byAdding: .day, value: -(calendar.component(.weekday, from: first) - 1), to: first) ?? first
+        var weeks: [[Date]] = []
+        for index in 0..<6 {
+            let week = days(from: calendar.date(byAdding: .day, value: index * 7, to: start) ?? start, count: 7)
+            // A last week that's all next month is left off.
+            if index >= 4, let firstDay = week.first, !calendar.isDate(firstDay, equalTo: first, toGranularity: .month) { break }
+            weeks.append(week)
+        }
+        return weeks
+    }
+
+    /// "October", with the year when it isn't this one.
+    private var titleText: String {
+        let middle = mode == .week ? (calendar.date(byAdding: .day, value: 3, to: weekStart) ?? anchor) : anchor
+        let sameYear = calendar.component(.year, from: middle) == calendar.component(.year, from: Date())
+        return sameYear ? middle.formatted(.dateTime.month(.wide)) : middle.formatted(.dateTime.month(.wide).year())
     }
 
     var body: some View {
-        let src = sources
-        return ScrollView {
-            LazyVStack(alignment: .leading, spacing: CPLayout.stack) {
-                calendarStrip(src)
-                // Due dates come from Canvas: say so, rather than show an empty week.
-                if store.needsCanvasConnection {
-                    NativeConnectCanvasCard(store: store)
-                } else if store.loadFailure != nil && store.bundle.assignments.isEmpty {
-                    NativeLoadFailedCard(store: store)
-                } else if store.showsSkeleton {
-                    CPSkeletonCard()
-                } else if let selected = selectedDate {
-                    dayCard(title: dayTitle(selected), items: entries(on: selected, src), day: selected)
-                } else {
-                    let groups = upcomingGroups(src)
-                    if groups.isEmpty {
-                        CPGlassCard { NativeEmptyState(title: "Nothing coming up besides class", symbol: "calendar", actionTitle: "Add event", action: { editingEvent = .new(today) }) }
-                    } else {
-                        ForEach(groups) { group in dayCard(title: dayTitle(group.day), items: group.items, day: nil) }
-                    }
-                }
+        TimelineView(.periodic(from: .now, by: 60)) { _ in
+            let src = agenda.sources
+            let hidden = features.hiddenCalendars
+            VStack(spacing: 0) {
+                if showsMonthPicker { monthPicker.transition(.move(edge: .top).combined(with: .opacity)) }
+                content(src, hidden: hidden)
             }
-            .cpPagePadding()
-            .cpStateChange(selectedDate)
-            .sensoryFeedback(.selection, trigger: selectedDate)
         }
-        .background(CPBackdrop())
+        .background(sheet.ignoresSafeArea())
+        .overlay(alignment: .bottomTrailing) { createButton.padding(20) }
         .cpNavigationTitle("Calendar")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button { editingEvent = .new(selectedDate ?? today) } label: { Image(systemName: "plus") }
-                    .accessibilityLabel("Add event")
+            ToolbarItem(placement: .topBarLeading) {
+                HStack(spacing: 0) {
+                    viewMenu
+                    monthButton
+                }
             }
+            // The month stands in for the title, at the leading edge, as in Google Calendar.
+            ToolbarItem(placement: .principal) { Color.clear.frame(width: 1, height: 1).accessibilityHidden(true) }
+            ToolbarItem(placement: .topBarTrailing) { todayButton }
         }
+        .sheet(item: $openEntry) { entry in entryCard(entry) }
         .sheet(item: $editingEvent) { editing in
             NativeEventEditor(editing: editing, features: features)
         }
-        .sheet(item: $editingPick) { pick in
-            NavigationStack {
-                Form {
-                    DatePicker("Planned time", selection: $pickedTime)
-                }
-                .cpListScreen()
-                .cpNavigationTitle("Change time")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") { editingPick = nil }
-                    }
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Save") {
-                            let updated = features.calendarPicks.map { existing in
-                                var value = existing
-                                if existing.id == pick.id {
-                                    value.at = ISO8601DateFormatter().string(from: pickedTime)
-                                }
-                                return value
-                            }
-                            Task {
-                                do { try await features.savePreference("calendar-picks", updated) }
-                                catch { features.errorMessage = error.localizedDescription }
-                            }
-                            editingPick = nil
-                        }
-                    }
-                }
-            }
-            .presentationDetents([.medium])
-        }
+        .sheet(item: $editingPick) { pick in pickTimeSheet(pick) }
+        .navigationDestination(isPresented: $showsClassTimes) { ClassScheduleView(features: features, store: store) }
+        .sensoryFeedback(.selection, trigger: anchor)
     }
 
-    private func dayTitle(_ day: Date) -> String {
-        let date = day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
-        return calendar.isDateInToday(day) ? "Today · \(date)" : calendar.isDateInTomorrow(day) ? "Tomorrow · \(date)" : date
-    }
-
-    private func dayCard(title: String, items: [NativeCalendarEntry], day: Date?) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            CPSectionLabel(title, count: items.count)
-            VStack(spacing: 0) {
-                if items.isEmpty {
-                    HStack(spacing: 10) {
-                        Image(systemName: "sun.max").cpIconFont(12, .semibold).foregroundStyle(CPTheme.muted(scheme))
-                        Text("Nothing on this day.").cpFont(13).foregroundStyle(CPTheme.muted(scheme))
-                        Spacer()
-                        if let day {
-                            Button("Add event") { editingEvent = .new(day) }
-                                .cpFont(13, .medium)
-                                .buttonStyle(.plain)
-                                .foregroundStyle(CPTheme.primary(scheme: scheme))
-                        }
-                    }
-                    .padding(.vertical, 14)
+    @ViewBuilder private func content(_ src: NativeCalendarSources, hidden: Set<String>) -> some View {
+        // Due dates come from Canvas: say so, rather than show an empty calendar.
+        if store.needsCanvasConnection {
+            ScrollView { NativeConnectCanvasCard(store: store).cpPagePadding() }
+        } else if store.loadFailure != nil && store.bundle.assignments.isEmpty {
+            ScrollView { NativeLoadFailedCard(store: store).cpPagePadding() }
+        } else if store.showsSkeleton {
+            ScrollView {
+                VStack(spacing: CPLayout.stack) {
+                    CPSkeletonCard()
+                    CPSkeletonCard()
                 }
-                ForEach(items) { item in
-                    agendaItemRow(item)
-                    if item.id != items.last?.id { CPRowDivider(leading: timeWidth + 27) }
-                }
+                .cpPagePadding()
             }
-            .padding(.horizontal, 14)
-            .cpSurface()
-        }
-        .padding(.top, 4)
-    }
-
-    private var isOnToday: Bool {
-        currentWeekOffset == 0 && selectedDate.map { calendar.isDate($0, inSameDayAs: today) } == true
-    }
-
-    /// The week and its arrows, the seven days, then Today or Upcoming. A small
-    /// gray dot marks a class day; the colored one, anything else.
-    private func calendarStrip(_ src: NativeCalendarSources) -> some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 6) {
-                if let firstDate = weekDates.first {
-                    Text(firstDate.formatted(.dateTime.month(.wide).year()))
-                        .cpFont(17, .semibold).tracking(-0.3)
-                        .foregroundStyle(CPTheme.foreground(scheme))
-                        .lineLimit(1)
-                }
-                Spacer(minLength: 8)
-                Button { changeWeek(by: -1) } label: { CPIconButtonLabel(symbol: "chevron.left") }
-                    .buttonStyle(.plain)
-                    .disabled(currentWeekOffset <= -Self.weeksBack)
-                    .opacity(currentWeekOffset <= -Self.weeksBack ? 0.35 : 1)
-                    .accessibilityLabel("Previous week")
-                Button { changeWeek(by: 1) } label: { CPIconButtonLabel(symbol: "chevron.right") }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Next week")
-            }
-            // Swipe the week sideways for the next or previous one; it slides in
-            // from the side you swiped toward, as the arrows do.
-            ZStack {
-                HStack(spacing: 4) {
-                    ForEach(weekDates, id: \.self) { date in
-                        let busy = !entries(on: date, src, classes: false).isEmpty
-                        let hasClass = entries(on: date, src).contains { $0.kind == .classMeeting }
-                        dateButton(date, busy: busy, hasClass: hasClass)
-                    }
-                }
-                .id(currentWeekOffset)
-                .transition(weekTransition)
-                .offset(x: reduceMotion ? 0 : weekDrag * 0.35)
-            }
-            .clipped()
-            .contentShape(Rectangle())
-            .simultaneousGesture(weekSwipe)
-            .accessibilityAction(named: "Next week") { changeWeek(by: 1) }
-            .accessibilityAction(named: "Previous week") { changeWeek(by: -1) }
-            HStack(spacing: 8) {
-                Button {
-                    withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
-                        currentWeekOffset = 0
-                        selectedDate = today
-                    }
-                } label: { CPChip(text: "Today", selected: isOnToday) }
-                    .buttonStyle(.plain)
-                Button {
-                    withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) { selectedDate = nil }
-                } label: { CPChip(text: "Upcoming", selected: selectedDate == nil) }
-                    .buttonStyle(.plain)
-                Spacer(minLength: 0)
-            }
-        }
-        .padding(CPLayout.cardPadding)
-        .cpSurface(strong: true)
-        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-    }
-
-    /// Left for next week, right for last week; mostly-sideways swipes only, so
-    /// scrolling the page up and down is never taken for one.
-    private var weekSwipe: some Gesture {
-        DragGesture(minimumDistance: 20)
-            .updating($weekDrag) { value, drag, _ in
-                if abs(value.translation.width) > abs(value.translation.height) { drag = value.translation.width }
-            }
-            .onEnded { value in
-                let dx = value.translation.width, dy = value.translation.height
-                guard abs(dx) > 50, abs(dx) > abs(dy) * 1.5 else { return }
-                changeWeek(by: dx < 0 ? 1 : -1)
-            }
-    }
-
-    /// The new week comes in from the side you moved toward.
-    private var weekTransition: AnyTransition {
-        if reduceMotion { return .opacity }
-        let forward = weekDirection > 0
-        return .asymmetric(
-            insertion: .move(edge: forward ? .trailing : .leading).combined(with: .opacity),
-            removal: .move(edge: forward ? .leading : .trailing).combined(with: .opacity)
-        )
-    }
-
-    private func changeWeek(by offset: Int) {
-        let next = max(-Self.weeksBack, currentWeekOffset + offset)
-        guard next != currentWeekOffset else { return }
-        // The outgoing week leaves with the transition it last drew with, so the
-        // direction is set one update before the week changes.
-        weekDirection = offset
-        // Worked out now, not read back from state mid-update.
-        let firstDay = calendar.date(byAdding: .day, value: (next - currentWeekOffset) * 7, to: weekDates.first ?? today)
-        DispatchQueue.main.async {
-            withAnimation(reduceMotion ? nil : .spring(duration: 0.32, bounce: 0.08)) {
-                currentWeekOffset = next
-                if selectedDate != nil {
-                    selectedDate = next == 0 ? today : firstDay
-                }
+        } else {
+            switch mode {
+            case .schedule: scheduleList(src, hidden: hidden)
+            case .day: timeGrid(days(from: anchor, count: 1), src, hidden: hidden)
+            case .threeDays: timeGrid(days(from: anchor, count: 3), src, hidden: hidden)
+            case .week: timeGrid(days(from: weekStart, count: 7), src, hidden: hidden)
+            case .month: monthGrid(src, hidden: hidden)
             }
         }
     }
 
-    @ViewBuilder
-    private func dateButton(_ date: Date, busy: Bool, hasClass: Bool) -> some View {
-        let isSelected = selectedDate.map { calendar.isDate($0, inSameDayAs: date) } ?? false
-        let isToday = calendar.isDate(date, inSameDayAs: today)
-        Button {
-            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.18)) { selectedDate = date }
+    // MARK: Top bar
+
+    private var viewMenu: some View {
+        Menu {
+            Picker("View", selection: Binding(get: { mode }, set: { new in
+                withAnimation(reduceMotion ? nil : .snappy(duration: 0.25)) { modeRaw = new.rawValue }
+            })) {
+                ForEach(Mode.allCases) { option in Label(option.title, systemImage: option.symbol).tag(option) }
+            }
+            Section("My calendars") {
+                ForEach(calendarOptions) { option in
+                    Toggle(option.label, isOn: Binding(
+                        get: { !features.hiddenCalendars.contains(option.id) },
+                        set: { on in Task { await features.setCalendar(option.id, hidden: !on) } }
+                    ))
+                }
+            }
+            Button { showsClassTimes = true } label: { Label("Edit class times", systemImage: "pencil") }
         } label: {
-            VStack(spacing: 5) {
-                Text(date.formatted(.dateTime.weekday(.narrow)))
-                    .cpFont(11, .semibold)
-                    .foregroundStyle(isToday ? CPTheme.primary(scheme: scheme) : CPTheme.muted(scheme))
-                ZStack {
-                    if isSelected {
-                        Circle().fill(CPTheme.foreground(scheme))
-                    } else if isToday {
-                        Circle().strokeBorder(CPTheme.primary(scheme: scheme).opacity(0.7), lineWidth: 1)
-                    }
-                    Text("\(calendar.component(.day, from: date))")
-                        .cpFont(14, .semibold)
-                        .monospacedDigit()
-                        .foregroundStyle(isSelected ? CPTheme.background(scheme) : CPTheme.foreground(scheme))
-                }
-                .frame(width: 32, height: 32)
-                HStack(spacing: 2) {
-                    Circle().fill(CPTheme.muted(scheme)).frame(width: 3, height: 3).opacity(hasClass ? 0.7 : 0)
-                    Circle().fill(CPTheme.primary(scheme: scheme)).frame(width: 5, height: 5).opacity(busy ? 1 : 0)
-                }
+            Image(systemName: "line.3.horizontal").cpIconFont(17, .medium)
+                .foregroundStyle(muted)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .accessibilityLabel("Views and calendars")
+    }
+
+    private var monthButton: some View {
+        Button {
+            pickerMonth = anchor
+            withAnimation(reduceMotion ? nil : .snappy(duration: 0.25)) { showsMonthPicker.toggle() }
+        } label: {
+            HStack(spacing: 5) {
+                Text(titleText).cpFont(20, .regular).foregroundStyle(ink).lineLimit(1)
+                Image(systemName: "chevron.down").cpIconFont(11, .semibold)
+                    .foregroundStyle(muted)
+                    .rotationEffect(.degrees(showsMonthPicker ? 180 : 0))
             }
-            .opacity(date < today ? 0.45 : 1)
-            .frame(maxWidth: .infinity, minHeight: 64)
+            .frame(minHeight: 44)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(date.formatted(.dateTime.weekday(.wide).month().day()))\(hasClass ? ", class" : "")\(busy ? ", has plans" : "")")
-        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+        .accessibilityLabel("\(titleText). Choose a date")
     }
 
-    private func barColor(_ item: NativeCalendarEntry) -> Color {
-        switch item.kind {
-        case .event, .planned: return CPTheme.primary(scheme: scheme)
-        case .canvas: return CPTheme.warning
-        case .classMeeting, .due:
-            return item.courseID.map { CPTheme.classColor($0, in: store.bundle.courses) } ?? CPTheme.muted(scheme)
-        }
-    }
-
-    /// A time column ("9:30 AM" over "10:45 AM", or "All day"), the class or
-    /// kind's color, then the title and one line: what it is, the class or place.
-    private func agendaItemRow(_ item: NativeCalendarEntry) -> some View {
-        let event = item.eventID.flatMap { id in features.calendarEvents.first { $0.id == id } }
-        let line = [item.label, item.context, event.flatMap { $0.repeatDays.isEmpty ? nil : NativeParity.repeatLabel($0.repeatDays) }]
-            .compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
-        let over = !item.allDay && (item.end ?? item.start) < Date()
-        return HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(item.allDay ? "All day" : item.start.formatted(date: .omitted, time: .shortened))
-                    .cpFont(13, .semibold).monospacedDigit()
-                    .foregroundStyle(CPTheme.foreground(scheme))
-                if let end = item.end {
-                    Text(end.formatted(date: .omitted, time: .shortened))
-                        .cpFont(11).monospacedDigit()
-                        .foregroundStyle(CPTheme.muted(scheme))
-                }
+    /// Today's date in a small calendar, as Google's: back to today.
+    private var todayButton: some View {
+        Button {
+            withAnimation(reduceMotion ? nil : .snappy(duration: 0.25)) {
+                anchor = today
+                showsMonthPicker = false
             }
-            .lineLimit(1)
-            .minimumScaleFactor(0.8)
-            .frame(width: timeWidth, alignment: .trailing)
-            RoundedRectangle(cornerRadius: 1.5, style: .continuous)
-                .fill(barColor(item))
-                .frame(width: 3)
-                .padding(.vertical, 2)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(item.title)
-                    .cpFont(15, .medium)
-                    .foregroundStyle(CPTheme.foreground(scheme))
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(line)
-                    .cpFont(12)
-                    .foregroundStyle(CPTheme.muted(scheme))
-                    .fixedSize(horizontal: false, vertical: true)
-                if let notes = event?.notes, !notes.isEmpty {
-                    Text(notes).cpFont(12).foregroundStyle(CPTheme.foreground(scheme).opacity(0.7)).fixedSize(horizontal: false, vertical: true)
-                }
+        } label: {
+            ZStack {
+                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    .strokeBorder(muted, lineWidth: 1.25)
+                    .frame(width: 24, height: 24)
+                Text("\(calendar.component(.day, from: Date()))").cpFont(11, .semibold).monospacedDigit().foregroundStyle(muted)
             }
-            Spacer(minLength: 8)
-            rowAction(item, event: event)
-        }
-        .padding(.vertical, 12)
-        .opacity(over ? 0.55 : 1)
-        .fixedSize(horizontal: false, vertical: true)
-        .accessibilityElement(children: .contain)
-    }
-
-    @ViewBuilder
-    private func rowAction(_ item: NativeCalendarEntry, event: NativeCalendarEvent?) -> some View {
-        if let event {
-            Button { editingEvent = .edit(event) } label: { actionIcon("pencil") }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Edit \(item.title)")
-        } else if item.kind == .classMeeting {
-            NavigationLink { ClassScheduleView(features: features, store: store) } label: { actionIcon("pencil") }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Edit \(item.title) in My classes")
-        } else if let pickID = item.pickID {
-            Menu {
-                Button { changePick(pickID, date: item.start) } label: { Label("Change time", systemImage: "clock") }
-                Button(role: .destructive) { removePick(pickID) } label: { Label("Remove from calendar", systemImage: "trash") }
-            } label: { actionIcon("ellipsis") }
-                .accessibilityLabel("Options for \(item.title)")
-        } else if let url = item.url, url.scheme == "https" {
-            Link(destination: url) { actionIcon("arrow.up.right") }
-                .accessibilityLabel("Open \(item.title) in Canvas")
-        }
-    }
-
-    private func actionIcon(_ symbol: String) -> some View {
-        Image(systemName: symbol).cpIconFont(12, .medium)
-            .foregroundStyle(CPTheme.muted(scheme))
             .frame(width: 44, height: 44)
             .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Today")
+    }
+
+    /// The month under the title: tap a day to go to it.
+    private var monthPicker: some View {
+        let weeks = monthWeeks(pickerMonth)
+        return VStack(spacing: 2) {
+            HStack {
+                Text(pickerMonth.formatted(.dateTime.month(.wide).year())).cpFont(14, .medium).foregroundStyle(ink)
+                Spacer()
+                Button { pickerMonth = calendar.date(byAdding: .month, value: -1, to: pickerMonth) ?? pickerMonth } label: {
+                    Image(systemName: "chevron.left").cpIconFont(13, .semibold).foregroundStyle(muted).frame(width: 40, height: 40)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Previous month")
+                Button { pickerMonth = calendar.date(byAdding: .month, value: 1, to: pickerMonth) ?? pickerMonth } label: {
+                    Image(systemName: "chevron.right").cpIconFont(13, .semibold).foregroundStyle(muted).frame(width: 40, height: 40)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Next month")
+            }
+            HStack(spacing: 0) {
+                ForEach(0..<7, id: \.self) { index in
+                    Text(["S", "M", "T", "W", "T", "F", "S"][index]).cpFont(11, .medium).foregroundStyle(muted).frame(maxWidth: .infinity)
+                }
+            }
+            ForEach(weeks, id: \.self) { week in
+                HStack(spacing: 0) {
+                    ForEach(week, id: \.self) { day in
+                        let isToday = calendar.isDateInToday(day)
+                        let isPicked = calendar.isDate(day, inSameDayAs: anchor)
+                        let inMonth = calendar.isDate(day, equalTo: pickerMonth, toGranularity: .month)
+                        Button {
+                            withAnimation(reduceMotion ? nil : .snappy(duration: 0.25)) {
+                                anchor = calendar.startOfDay(for: day)
+                                showsMonthPicker = false
+                            }
+                        } label: {
+                            Text("\(calendar.component(.day, from: day))").cpFont(12, .medium).monospacedDigit()
+                                .foregroundStyle(isToday ? onBlue : isPicked ? ink : inMonth ? ink : muted.opacity(0.55))
+                                .frame(width: 32, height: 32)
+                                .background(Circle().fill(isToday ? blue : isPicked ? selectedFill : .clear))
+                                .frame(maxWidth: .infinity, minHeight: 36)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(day.formatted(.dateTime.weekday(.wide).month(.wide).day()))
+                    }
+                }
+            }
+        }
+        .dynamicTypeSize(...DynamicTypeSize.xLarge)
+        .padding(.horizontal, 14)
+        .padding(.bottom, 8)
+        .background(sheet)
+        .overlay(alignment: .bottom) { Rectangle().fill(line).frame(height: 0.5) }
+    }
+
+    private var createButton: some View {
+        Button { editingEvent = .new(mode == .schedule ? today : anchor) } label: {
+            Image(systemName: "plus").cpIconFont(24, .medium)
+                .foregroundStyle(blue)
+                .frame(width: 56, height: 56)
+                .background(dark ? NativeGoogleColor.hex(0x37393B) : Color.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .shadow(color: .black.opacity(dark ? 0.4 : 0.18), radius: 6, y: 3)
+        }
+        .buttonStyle(CPPressStyle())
+        .accessibilityLabel("Create event")
+    }
+
+    // MARK: Paging
+
+    private func step(_ direction: Int) {
+        let next: Date?
+        switch mode {
+        case .schedule: next = calendar.date(byAdding: .day, value: 7 * direction, to: anchor)
+        case .day: next = calendar.date(byAdding: .day, value: direction, to: anchor)
+        case .threeDays: next = calendar.date(byAdding: .day, value: 3 * direction, to: anchor)
+        case .week: next = calendar.date(byAdding: .day, value: 7 * direction, to: anchor)
+        case .month:
+            let first = calendar.date(from: calendar.dateComponents([.year, .month], from: anchor)) ?? anchor
+            next = calendar.date(byAdding: .month, value: direction, to: first)
+        }
+        guard let next else { return }
+        withAnimation(reduceMotion ? nil : .snappy(duration: 0.25)) { anchor = next }
+    }
+
+    /// Sideways swipes turn the page; scrolling up and down is never taken for one.
+    private var pageSwipe: some Gesture {
+        DragGesture(minimumDistance: 30)
+            .onEnded { value in
+                let dx = value.translation.width, dy = value.translation.height
+                guard abs(dx) > 60, abs(dx) > abs(dy) * 1.6 else { return }
+                step(dx < 0 ? 1 : -1)
+            }
+    }
+
+    private func openDay(_ day: Date) {
+        withAnimation(reduceMotion ? nil : .snappy(duration: 0.25)) {
+            anchor = calendar.startOfDay(for: day)
+            modeRaw = Mode.day.rawValue
+        }
+    }
+
+    // MARK: Schedule
+
+    private func scheduleList(_ src: NativeCalendarSources, hidden: Set<String>) -> some View {
+        let groups = days(from: anchor, count: Self.scheduleDays).compactMap { day -> (day: Date, items: [NativeCalendarEntry])? in
+            let list = entries(on: day, src, hidden: hidden)
+            // Empty days are skipped, except today.
+            if list.isEmpty && !calendar.isDateInToday(day) { return nil }
+            return (day: day, items: list)
+        }
+        return ScrollView {
+            LazyVStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(groups.enumerated()), id: \.offset) { index, group in
+                    if index == 0 || !calendar.isDate(group.day, equalTo: groups[index - 1].day, toGranularity: .month) {
+                        Text(group.day.formatted(.dateTime.month(.wide).year()))
+                            .cpFont(20, .regular)
+                            .foregroundStyle(ink)
+                            .padding(.horizontal, 16)
+                            .padding(.top, index == 0 ? 8 : 24)
+                            .padding(.bottom, 6)
+                            .accessibilityAddTraits(.isHeader)
+                    }
+                    scheduleDay(group.day, group.items)
+                }
+                if groups.isEmpty {
+                    NativeEmptyState(title: "Nothing on your calendar for the next \(Self.scheduleDays) days", symbol: "calendar", actionTitle: "Add event", action: { editingEvent = .new(today) })
+                        .padding(24)
+                }
+            }
+            .padding(.bottom, 96)
+        }
+        .refreshable { await store.refresh() }
+    }
+
+    private func scheduleDay(_ day: Date, _ list: [NativeCalendarEntry]) -> some View {
+        let isToday = calendar.isDateInToday(day)
+        return HStack(alignment: .top, spacing: 10) {
+            Button { openDay(day) } label: {
+                VStack(spacing: 1) {
+                    Text(day.formatted(.dateTime.weekday(.abbreviated)))
+                        .cpFont(11, .medium)
+                        .foregroundStyle(isToday ? blue : muted)
+                    Text("\(calendar.component(.day, from: day))")
+                        .cpFont(20, .regular).monospacedDigit()
+                        .foregroundStyle(isToday ? onBlue : ink)
+                        .frame(width: 36, height: 36)
+                        .background(Circle().fill(isToday ? blue : .clear))
+                }
+                .frame(width: 46)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Open \(day.formatted(.dateTime.weekday(.wide).month(.wide).day()))")
+            VStack(spacing: 6) {
+                if list.isEmpty {
+                    Text("Nothing planned today")
+                        .cpFont(13).foregroundStyle(muted)
+                        .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
+                }
+                ForEach(list) { entry in schedulePill(entry) }
+            }
+        }
+        .padding(.leading, 6)
+        .padding(.trailing, 12)
+        .padding(.vertical, 6)
+    }
+
+    private func schedulePill(_ entry: NativeCalendarEntry) -> some View {
+        Button { openEntry = entry } label: {
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(spacing: 5) {
+                    if entry.kind == .due { Image(systemName: "circle").cpIconFont(10, .bold) }
+                    Text(entry.title).cpFont(14, .medium).lineLimit(1)
+                }
+                Text(timeText(entry)).cpFont(12).monospacedDigit().lineLimit(1).opacity(0.9)
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(color(entry), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .opacity(isPast(entry) ? 0.55 : 1)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(CPPressStyle())
+        .accessibilityLabel("\(entry.title), \(timeText(entry)), \(entry.label)")
+    }
+
+    // MARK: Day, 3 days and Week
+
+    private func timeGrid(_ days: [Date], _ src: NativeCalendarSources, hidden: Set<String>) -> some View {
+        let perDay = days.map { entries(on: $0, src, hidden: hidden) }
+        let allDay = perDay.map { list in list.filter(\.allDay) }
+        return VStack(spacing: 0) {
+            gridHeader(days)
+            if allDay.contains(where: { !$0.isEmpty }) { allDayRow(allDay) }
+            Rectangle().fill(line).frame(height: 0.5)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    ZStack(alignment: .topLeading) {
+                        hourLines
+                        HStack(spacing: 0) {
+                            Color.clear.frame(width: Self.gutter)
+                            ForEach(Array(days.enumerated()), id: \.element) { index, day in
+                                dayColumn(day, perDay[index])
+                            }
+                        }
+                    }
+                    .frame(height: 24 * Self.hourHeight)
+                    .padding(.bottom, 88)
+                }
+                .onAppear { scrollToStart(proxy, days: days) }
+                .onChange(of: days.first) { _, _ in scrollToStart(proxy, days: days) }
+            }
+        }
+        .contentShape(Rectangle())
+        .simultaneousGesture(pageSwipe)
+        .dynamicTypeSize(...DynamicTypeSize.xLarge)
+    }
+
+    /// Near now on today's page, else at the start of a school day.
+    private func scrollToStart(_ proxy: ScrollViewProxy, days: [Date]) {
+        let showsToday = days.contains { calendar.isDateInToday($0) }
+        let hour = showsToday ? max(0, calendar.component(.hour, from: Date()) - 1) : 7
+        proxy.scrollTo(hour, anchor: .top)
+    }
+
+    private func gridHeader(_ days: [Date]) -> some View {
+        HStack(spacing: 0) {
+            Color.clear.frame(width: Self.gutter)
+            ForEach(days, id: \.self) { day in
+                let isToday = calendar.isDateInToday(day)
+                Button { openDay(day) } label: {
+                    VStack(spacing: 2) {
+                        Text(day.formatted(.dateTime.weekday(days.count > 3 ? .narrow : .abbreviated)).uppercased())
+                            .cpFont(11, .medium)
+                            .foregroundStyle(isToday ? blue : muted)
+                        Text("\(calendar.component(.day, from: day))")
+                            .cpFont(days.count > 3 ? 15 : 20, .regular).monospacedDigit()
+                            .foregroundStyle(isToday ? onBlue : ink)
+                            .frame(width: 34, height: 34)
+                            .background(Circle().fill(isToday ? blue : .clear))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Open \(day.formatted(.dateTime.weekday(.wide).month(.wide).day()))")
+            }
+        }
+    }
+
+    private func allDayRow(_ allDay: [[NativeCalendarEntry]]) -> some View {
+        HStack(alignment: .top, spacing: 0) {
+            Color.clear.frame(width: Self.gutter, height: 1)
+            ForEach(Array(allDay.enumerated()), id: \.offset) { _, list in
+                VStack(spacing: 2) {
+                    ForEach(list) { entry in
+                        Button { openEntry = entry } label: {
+                            Text(entry.title).cpFont(11, .medium).foregroundStyle(.white).lineLimit(1)
+                                .padding(.horizontal, 4)
+                                .frame(maxWidth: .infinity, minHeight: 18, alignment: .leading)
+                                .background(color(entry), in: RoundedRectangle(cornerRadius: 4, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("\(entry.title), all day")
+                    }
+                }
+                .padding(.horizontal, 1)
+                .frame(maxWidth: .infinity, alignment: .top)
+            }
+        }
+        .padding(.bottom, 4)
+    }
+
+    /// One line per hour with its label in the gutter.
+    private var hourLines: some View {
+        VStack(spacing: 0) {
+            ForEach(0..<24, id: \.self) { hour in
+                ZStack(alignment: .topLeading) {
+                    Rectangle().fill(line).frame(height: 0.5).padding(.leading, Self.gutter)
+                    if hour > 0 {
+                        Text(hourLabel(hour)).cpFont(11).monospacedDigit().foregroundStyle(muted)
+                            .frame(width: Self.gutter - 8, alignment: .trailing)
+                            .offset(y: -7)
+                    }
+                }
+                .frame(height: Self.hourHeight, alignment: .top)
+                .id(hour)
+            }
+        }
+        .accessibilityHidden(true)
+    }
+
+    private func dayColumn(_ day: Date, _ list: [NativeCalendarEntry]) -> some View {
+        let placed = NativeCalendarLayout.layout(list, day: day)
+        let isToday = calendar.isDateInToday(day)
+        let nowMinutes = Date().timeIntervalSince(calendar.startOfDay(for: Date())) / 60
+        return GeometryReader { geometry in
+            let width = geometry.size.width
+            ZStack(alignment: .topLeading) {
+                // An empty slot: a new event at that half hour.
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture(coordinateSpace: .local) { location in
+                        let minutes = min(23 * 60 + 30, max(0, Int(location.y / Self.hourHeight * 2) * 30))
+                        editingEvent = .newAt(calendar.date(byAdding: .minute, value: minutes, to: calendar.startOfDay(for: day)) ?? day)
+                    }
+                ForEach(placed) { item in
+                    let columnWidth = width / CGFloat(item.columns)
+                    eventBlock(item)
+                        .frame(width: max(0, columnWidth - 3), height: max(18, CGFloat(item.end - item.start) / 60 * Self.hourHeight - 2))
+                        .offset(x: CGFloat(item.column) * columnWidth + 1, y: CGFloat(item.start) / 60 * Self.hourHeight + 1)
+                }
+                if isToday {
+                    HStack(spacing: 0) {
+                        Circle().fill(nowRed).frame(width: 10, height: 10)
+                        Rectangle().fill(nowRed).frame(height: 2)
+                    }
+                    .offset(x: -5, y: CGFloat(nowMinutes) / 60 * Self.hourHeight - 5)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+                }
+            }
+        }
+        .overlay(alignment: .leading) { Rectangle().fill(line).frame(width: 0.5) }
+    }
+
+    private func eventBlock(_ item: NativeCalendarLayout.Placed) -> some View {
+        let entry = item.entry
+        let tall = CGFloat(item.end - item.start) / 60 * Self.hourHeight >= 40
+        return Button { openEntry = entry } label: {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 3) {
+                    if entry.kind == .due { Image(systemName: "circle").cpIconFont(9, .bold) }
+                    Text(entry.title).cpFont(12, .semibold).lineLimit(tall ? 2 : 1)
+                }
+                if tall { Text(timeText(entry)).cpFont(11).monospacedDigit().lineLimit(1) }
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 4)
+            .padding(.vertical, 3)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(color(entry), in: RoundedRectangle(cornerRadius: 4, style: .continuous))
+            .opacity(isPast(entry) ? 0.6 : 1)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(entry.title), \(timeText(entry)), \(entry.label)")
+    }
+
+    // MARK: Month
+
+    private func monthGrid(_ src: NativeCalendarSources, hidden: Set<String>) -> some View {
+        let weeks = monthWeeks(anchor)
+        return VStack(spacing: 0) {
+            HStack(spacing: 0) {
+                ForEach(0..<7, id: \.self) { index in
+                    Text(["S", "M", "T", "W", "T", "F", "S"][index]).cpFont(11, .medium).foregroundStyle(muted).frame(maxWidth: .infinity)
+                }
+            }
+            .padding(.vertical, 6)
+            GeometryReader { geometry in
+                let rowHeight = geometry.size.height / CGFloat(max(1, weeks.count))
+                VStack(spacing: 0) {
+                    ForEach(weeks, id: \.self) { week in
+                        HStack(spacing: 0) {
+                            ForEach(week, id: \.self) { day in
+                                monthCell(day, entries(on: day, src, hidden: hidden), height: rowHeight)
+                            }
+                        }
+                        .frame(height: rowHeight)
+                        .overlay(alignment: .top) { Rectangle().fill(line).frame(height: 0.5) }
+                    }
+                }
+            }
+            .padding(.bottom, 8)
+        }
+        .contentShape(Rectangle())
+        .simultaneousGesture(pageSwipe)
+        .dynamicTypeSize(...DynamicTypeSize.large)
+    }
+
+    private func monthCell(_ day: Date, _ list: [NativeCalendarEntry], height: CGFloat) -> some View {
+        let isToday = calendar.isDateInToday(day)
+        let inMonth = calendar.isDate(day, equalTo: anchor, toGranularity: .month)
+        let fits = max(0, Int((height - 30) / 17))
+        let shown = list.count > fits ? Array(list.prefix(max(0, fits - 1))) : list
+        return Button { openDay(day) } label: {
+            VStack(spacing: 2) {
+                Text("\(calendar.component(.day, from: day))")
+                    .cpFont(11, .medium).monospacedDigit()
+                    .foregroundStyle(isToday ? onBlue : inMonth ? ink : muted.opacity(0.55))
+                    .frame(width: 22, height: 22)
+                    .background(Circle().fill(isToday ? blue : .clear))
+                ForEach(shown) { entry in
+                    Text(entry.title).cpFont(11, .medium).foregroundStyle(.white).lineLimit(1)
+                        .padding(.horizontal, 2)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .frame(height: 15)
+                        .background(color(entry), in: RoundedRectangle(cornerRadius: 3, style: .continuous))
+                        .opacity(isPast(entry) ? 0.6 : 1)
+                }
+                if list.count > shown.count {
+                    Text("+\(list.count - shown.count)").cpFont(11).foregroundStyle(muted)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.top, 3)
+            .padding(.horizontal, 1)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .overlay(alignment: .leading) { Rectangle().fill(line).frame(width: 0.5) }
+        .accessibilityLabel("\(day.formatted(.dateTime.weekday(.wide).month(.wide).day())), \(list.count) \(list.count == 1 ? "item" : "items")")
+    }
+
+    // MARK: The card
+
+    /// What opens on an entry, as Google's event card: the color and title,
+    /// when it is, where, which calendar, and its actions at the top.
+    private func entryCard(_ entry: NativeCalendarEntry) -> some View {
+        let event = entry.eventID.flatMap { id in features.calendarEvents.first { $0.id == id } }
+        return NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    HStack(alignment: .top, spacing: 16) {
+                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                            .fill(color(entry))
+                            .frame(width: 18, height: 18)
+                            .padding(.top, 7)
+                            .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(entry.title).cpFont(24, .regular).foregroundStyle(ink)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Text("\(entry.start.formatted(.dateTime.weekday(.wide).month(.wide).day())) · \(timeText(entry))")
+                                .cpFont(14).foregroundStyle(muted)
+                                .fixedSize(horizontal: false, vertical: true)
+                            if let event, !event.repeatDays.isEmpty {
+                                Text(NativeParity.repeatLabel(event.repeatDays)).cpFont(14).foregroundStyle(muted)
+                            }
+                        }
+                    }
+                    if !entry.context.isEmpty {
+                        detailRow(entry.kind == .classMeeting || entry.kind == .event ? "mappin.and.ellipse" : "book.closed", entry.context)
+                    }
+                    detailRow("calendar", entry.label)
+                    if let notes = event?.notes, !notes.isEmpty { detailRow("text.alignleft", notes) }
+                }
+                .padding(20)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .background(sheet.ignoresSafeArea())
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button { openEntry = nil } label: { Image(systemName: "xmark") }
+                        .accessibilityLabel("Close")
+                }
+                ToolbarItemGroup(placement: .primaryAction) {
+                    if let event {
+                        Button { afterCard { editingEvent = .edit(event) } } label: { Image(systemName: "pencil") }
+                            .accessibilityLabel("Edit event")
+                    } else if entry.kind == .classMeeting {
+                        Button { afterCard { showsClassTimes = true } } label: { Image(systemName: "pencil") }
+                            .accessibilityLabel("Edit in My classes")
+                    } else if let pickID = entry.pickID {
+                        Menu {
+                            Button { afterCard { changePick(pickID, date: entry.start) } } label: { Label("Change time", systemImage: "clock") }
+                            Button(role: .destructive) { openEntry = nil; removePick(pickID) } label: { Label("Remove from calendar", systemImage: "trash") }
+                        } label: { Image(systemName: "ellipsis.circle") }
+                            .accessibilityLabel("Options for \(entry.title)")
+                    }
+                    if let url = entry.url, url.scheme == "https" {
+                        Link(destination: url) { Image(systemName: "arrow.up.right.square") }
+                            .accessibilityLabel("Open \(entry.title) in Canvas")
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+    }
+
+    private func detailRow(_ symbol: String, _ text: String) -> some View {
+        HStack(alignment: .top, spacing: 16) {
+            Image(systemName: symbol).cpIconFont(16).foregroundStyle(muted).frame(width: 18).accessibilityHidden(true)
+            Text(text).cpFont(14).foregroundStyle(ink).fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// Closes the card, then does the next thing once it's gone (one sheet at a time).
+    private func afterCard(_ action: @escaping () -> Void) {
+        openEntry = nil
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4, execute: action)
+    }
+
+    private func pickTimeSheet(_ pick: CalendarPick) -> some View {
+        NavigationStack {
+            Form {
+                DatePicker("Planned time", selection: $pickedTime)
+            }
+            .cpListScreen()
+            .cpNavigationTitle("Change time")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { editingPick = nil }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        let updated = features.calendarPicks.map { existing in
+                            var value = existing
+                            if existing.id == pick.id {
+                                value.at = ISO8601DateFormatter().string(from: pickedTime)
+                            }
+                            return value
+                        }
+                        Task {
+                            do { try await features.savePreference("calendar-picks", updated) }
+                            catch { features.errorMessage = error.localizedDescription }
+                        }
+                        editingPick = nil
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium])
     }
 
     private func changePick(_ id: Int, date: Date) {
@@ -2399,10 +2895,13 @@ struct CalendarView: View {
 /// Adding an event (on a day) or changing one.
 enum NativeEventEditing: Identifiable {
     case new(Date)
+    /// A new event starting at this moment (a time slot tapped on the calendar).
+    case newAt(Date)
     case edit(NativeCalendarEvent)
     var id: String {
         switch self {
         case .new(let day): return "new-\(day.timeIntervalSince1970)"
+        case .newAt(let moment): return "new-at-\(moment.timeIntervalSince1970)"
         case .edit(let event): return event.id
         }
     }
@@ -2545,6 +3044,14 @@ struct NativeEventEditor: View {
             if startMinutes > 21 * 60, let next = calendar.date(byAdding: .day, value: 1, to: startDay) { startDay = next; startMinutes = 9 * 60 }
             day = startDay
             start = clock(startMinutes, on: startDay)
+            end = clock(min(startMinutes + 60, 23 * 60 + 59), on: startDay)
+            until = startDay
+        } else if case .newAt(let moment) = editing {
+            // Starts where it was tapped, for an hour (ending by midnight).
+            let startDay = calendar.startOfDay(for: moment)
+            let startMinutes = minutes(moment)
+            day = startDay
+            start = moment
             end = clock(min(startMinutes + 60, 23 * 60 + 59), on: startDay)
             until = startDay
         }

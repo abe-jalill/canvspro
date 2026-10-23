@@ -35,7 +35,7 @@ test("empty screens offer a next step; Calendar and Announcements show loading a
   assert.match(more, /actionTitle: isSearching \? "Clear search" : "Add a task",/);
   assert.match(more, /actionTitle: "Add event", action: \{ editingEvent = \.new\(today\) \}/);
   const calendar = more.slice(more.indexOf("struct CalendarView: View"), more.indexOf("struct WorkloadView: View"));
-  assert.match(calendar, /if store\.needsCanvasConnection \{\s+NativeConnectCanvasCard\(store: store\)/);
+  assert.match(calendar, /if store\.needsCanvasConnection \{\s+ScrollView \{ NativeConnectCanvasCard\(store: store\)\.cpPagePadding\(\) \}/);
   assert.match(more, /\} else if store\.loadFailure != nil && store\.bundle\.announcements\.isEmpty \{/);
 });
 
