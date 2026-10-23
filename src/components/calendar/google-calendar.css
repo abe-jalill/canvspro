@@ -1,0 +1,66 @@
+/*
+ * The Calendar in Google Calendar's look (its 2024 Material 3 web design):
+ * a light blue-gray shell, a white rounded sheet for the grid, Google's blue
+ * for today, a red line for now. Dark mode follows Google's dark theme.
+ */
+.gcal {
+  --gc-shell: #f8fafd;
+  --gc-sheet: #ffffff;
+  --gc-line: #dde3ea;
+  --gc-text: #1f1f1f;
+  --gc-muted: #444746;
+  --gc-faint: #747775;
+  --gc-primary: #0b57d0;
+  --gc-on-primary: #ffffff;
+  --gc-selected: #c2e7ff;
+  --gc-on-selected: #001d35;
+  --gc-hover: rgba(68, 71, 70, 0.08);
+  --gc-now: #ea4335;
+  --gc-create: #ffffff;
+  --gc-create-shadow: 0 1px 2px 0 rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
+  --gc-card: #f0f4f9;
+  --gc-card-shadow: 0 4px 8px 3px rgba(60, 64, 67, 0.15), 0 1px 3px rgba(60, 64, 67, 0.3);
+  font-family: "Google Sans", "Google Sans Text", Roboto, var(--font-sans);
+  color: var(--gc-text);
+  background: var(--gc-shell);
+}
+
+.dark .gcal {
+  --gc-shell: #1b1b1b;
+  --gc-sheet: #131314;
+  --gc-line: #3c4043;
+  --gc-text: #e3e3e3;
+  --gc-muted: #c4c7c5;
+  --gc-faint: #8e918f;
+  --gc-primary: #a8c7fa;
+  --gc-on-primary: #062e6f;
+  --gc-selected: #004a77;
+  --gc-on-selected: #c2e7ff;
+  --gc-hover: rgba(227, 227, 227, 0.08);
+  --gc-now: #ea4335;
+  --gc-create: #37393b;
+  --gc-create-shadow: 0 1px 3px 1px rgba(0, 0, 0, 0.15), 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --gc-card: #282a2c;
+  --gc-card-shadow: 0 4px 8px 3px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Hour lines: one per hour, drawn as a repeating background so a day column stays one element. */
+.gcal-hours {
+  background-image: linear-gradient(to bottom, var(--gc-line) 1px, transparent 1px);
+  background-size: 100% 48px;
+}
+
+/* Past events are shown lighter, as in Google Calendar. */
+.gcal-past {
+  filter: saturate(0.55) brightness(1.12);
+  opacity: 0.72;
+}
+.dark .gcal-past {
+  filter: saturate(0.7) brightness(0.9);
+  opacity: 0.8;
+}
+
+.gcal-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--gc-line) transparent;
+}

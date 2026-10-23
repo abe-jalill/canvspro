@@ -2,13 +2,9 @@ import { TimePicker } from "@/components/ui/time-picker";
 import { useClassAssignments } from "@/hooks/use-class-assignments";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { CalendarPlus, ChevronLeft, ChevronRight, Pencil, Sun, X } from "lucide-react";
-import { GlassCard, ErrorState } from "@/components/glass-card";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { AlignLeft, BookOpen, Clock, MapPin, Pencil, Repeat, Trash2, X } from "lucide-react";
 import { displayCourseName, displayCourseNameForCourse } from "@/lib/course-display";
-import { PageTabs } from "@/components/page-tabs";
-import { CALENDAR_TABS } from "@/lib/page-tab-sets";
-import { WorkloadHeatmap } from "@/components/workload-heatmap";
 import { isAssignmentVisible } from "@/lib/assignment-window";
 import { COMPLETED_ASSIGNMENTS_KEY, useLocalSet } from "@/lib/local-state";
 import {
@@ -16,21 +12,21 @@ import {
   assignmentsQueryOptions as assignmentsQO,
   coursesQueryOptions as coursesQO,
 } from "@/lib/canvas.queries";
-import { SkeletonBlock, WorkloadHeatmapSkeleton } from "@/components/skeletons/dashboard-skeletons";
 import { AssignmentDescriptionLink } from "@/components/assignment-description-link";
 import { useCalendarPicks } from "@/lib/calendar-picks";
 import { repeatLabel, type CalendarEvent } from "@/lib/calendar-events";
 import { useCalendarEvents } from "@/hooks/use-calendar-events";
 import {
   entriesForDay,
-  entryTimeLabel,
   type CalendarEntry,
   type CalendarSources,
   type ClassMeeting,
 } from "@/lib/calendar-agenda";
+import { GOOGLE_COLORS, classCalendarColor, timeRange } from "@/lib/calendar-grid";
+import { GoogleCalendar, type CalendarSourceInfo } from "@/components/calendar/google-calendar";
+import { useUserPreferenceKey } from "@/hooks/use-user-preferences";
 import { useClassSchedule } from "@/lib/user-class-schedule";
 import { matchScheduleCourse } from "@/lib/class-schedule";
-import { classColor } from "@/lib/class-color";
 import { useCustomAssignments } from "@/lib/custom-assignments";
 import { CalendarEventDialog } from "@/components/calendar-event-dialog";
 import { cn } from "@/lib/utils";
@@ -61,37 +57,10 @@ export const Route = createFileRoute("/_authenticated/schedule")({
   component: SchedulePage,
 });
 
-const DAY_MS = 86_400_000;
-/** Earlier weeks show your classes and events (finished due dates are on Completed). */
-const WEEKS_BACK = 12;
-/** "Upcoming" looks this many days ahead. */
-const UPCOMING_DAYS = 30;
-
 function startOfDay(t: number | Date) {
   const d = new Date(t);
   d.setHours(0, 0, 0, 0);
   return d;
-}
-
-function addDays(d: Date, n: number) {
-  const next = new Date(d);
-  next.setDate(next.getDate() + n);
-  return next;
-}
-
-/** Monday of the week `offset` weeks from this one. */
-function weekStart(today: Date, offset: number) {
-  return addDays(today, -((today.getDay() + 6) % 7) + offset * 7);
-}
-
-function dayTitle(day: Date, today: Date) {
-  const diff = Math.round((day.getTime() - today.getTime()) / DAY_MS);
-  const date = day.toLocaleDateString(undefined, {
-    weekday: "long",
-    month: "short",
-    day: "numeric",
-  });
-  return diff === 0 ? `Today · ${date}` : diff === 1 ? `Tomorrow · ${date}` : date;
 }
 
 const KIND_LABEL: Record<CalendarEntry["kind"], string> = {
@@ -102,10 +71,19 @@ const KIND_LABEL: Record<CalendarEntry["kind"], string> = {
   canvas: "Canvas event",
 };
 
+/** Which calendar an entry belongs to, for the side panel's checkboxes. */
+function calendarId(entry: CalendarEntry): string {
+  if (entry.kind === "class" || entry.kind === "due") return `class:${entry.courseId ?? "other"}`;
+  return entry.kind === "event" ? "events" : entry.kind;
+}
+
+/** Calendars turned off in the side panel, saved to the account. */
+const HIDDEN_CALENDARS_KEY = "calendar-hidden";
+
 /**
- * The Calendar: a week to pick a day from, then that day in time order —
- * classes, your events, work you planned, and what's due. "Upcoming" lists
- * the next month without the everyday classes.
+ * The Calendar, in Google Calendar's layout: Day, Week, Month and Schedule,
+ * with classes, your events, work you planned, due dates and Canvas events,
+ * each a calendar you can turn off on the side.
  */
 function SchedulePage() {
   const events = useQuery(eventsQO);
@@ -122,16 +100,17 @@ function SchedulePage() {
     const id = window.setInterval(() => setNow(Date.now()), 60_000);
     return () => window.clearInterval(id);
   }, []);
-  const today = startOfDay(now);
-  const [weekOffset, setWeekOffset] = useState(0);
-  /** Which way the weeks last moved, so the new week slides in from that side. */
-  const [weekDirection, setWeekDirection] = useState<1 | -1>(1);
-  const swipeStart = useRef<{ x: number; y: number } | null>(null);
-  const [selected, setSelected] = useState<Date | null>(today);
-  const [editing, setEditing] = useState<{ open: boolean; event: CalendarEvent | null }>({
-    open: false,
-    event: null,
-  });
+  const [editing, setEditing] = useState<{
+    open: boolean;
+    event: CalendarEvent | null;
+    day: Date | null;
+    minutes: number | null;
+  }>({ open: false, event: null, day: null, minutes: null });
+  const hiddenPref = useUserPreferenceKey<string[]>(HIDDEN_CALENDARS_KEY, []);
+  const hidden = useMemo(
+    () => new Set(Array.isArray(hiddenPref.value) ? hiddenPref.value : []),
+    [hiddenPref.value],
+  );
 
   const courseList = courses.data ?? [];
   const courseIds = courseList.map((c) => c.id);
@@ -200,413 +179,265 @@ function SchedulePage() {
     now,
   ]);
 
-  const week = Array.from({ length: 7 }, (_, i) => addDays(weekStart(today, weekOffset), i));
-  const dayEntries = selected ? entriesForDay(selected, sources) : [];
-  const upcoming = selected
-    ? []
-    : Array.from({ length: UPCOMING_DAYS }, (_, i) => addDays(today, i))
-        .map((day) => ({ day, entries: entriesForDay(day, sources, { classes: false }) }))
-        .filter((group) => group.entries.length > 0);
-
   const loading = events.isLoading || assignments.isLoading || schedule.isLoading;
   const error =
     (events.data ? null : events.error) || (assignments.data ? null : assignments.error);
-  const monthLabel = week[3].toLocaleDateString(undefined, { month: "long", year: "numeric" });
 
-  function changeWeek(by: number) {
-    const next = Math.max(-WEEKS_BACK, weekOffset + by);
-    if (next === weekOffset) return;
-    setWeekDirection(by > 0 ? 1 : -1);
-    setWeekOffset(next);
-    if (selected) setSelected(next === 0 && by < 0 ? today : weekStart(today, next));
-  }
+  const colorOf = useCallback(
+    (entry: CalendarEntry) => {
+      if (entry.kind === "event") return GOOGLE_COLORS.peacock;
+      if (entry.kind === "planned") return GOOGLE_COLORS.blueberry;
+      if (entry.kind === "canvas") return GOOGLE_COLORS.graphite;
+      return entry.courseId != null
+        ? classCalendarColor(entry.courseId, courseIds)
+        : GOOGLE_COLORS.basil;
+    },
+    [courseIds],
+  );
 
-  const colorFor = (entry: CalendarEntry) =>
-    entry.kind === "event" || entry.kind === "planned"
-      ? "hsl(var(--primary))"
-      : entry.kind === "canvas"
-        ? "hsl(35 80% 60%)"
-        : entry.courseId != null
-          ? classColor(entry.courseId, courseIds)
-          : "hsl(var(--muted-foreground))";
+  // Each class is its own calendar (its meetings and due dates), then yours.
+  const calendars: CalendarSourceInfo[] = [
+    ...courseList.map((c) => ({
+      id: `class:${c.id}`,
+      label: displayCourseNameForCourse(c.id, c.name, c.course_code),
+      color: classCalendarColor(c.id, courseIds),
+    })),
+    ...(sources.classes.some((c) => c.courseId == null)
+      ? [{ id: "class:other", label: "Other classes", color: GOOGLE_COLORS.basil }]
+      : []),
+    { id: "events", label: "My events", color: GOOGLE_COLORS.peacock },
+    { id: "planned", label: "Planned work", color: GOOGLE_COLORS.blueberry },
+    { id: "canvas", label: "Canvas events", color: GOOGLE_COLORS.graphite },
+  ];
+
+  const entriesFor = useCallback(
+    (day: Date) => entriesForDay(day, sources).filter((entry) => !hidden.has(calendarId(entry))),
+    [sources, hidden],
+  );
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-6 pb-10">
-      <PageTabs tabs={CALENDAR_TABS} label="Calendar sections" />
-      <header className="flex flex-wrap items-end justify-between gap-4 px-1">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            {monthLabel}
-          </p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">Calendar</h1>
-        </div>
-        <button
-          type="button"
-          onClick={() => setEditing({ open: true, event: null })}
-          disabled={!myEvents.ready}
-          className="press inline-flex min-h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
-        >
-          <CalendarPlus className="h-4 w-4" aria-hidden="true" />
-          Add event
-        </button>
-      </header>
-
-      {/* The week: pick a day. A dot marks days with something besides class. */}
-      <section className="glass-panel-strong rounded-2xl p-4 sm:p-5">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-base font-semibold tracking-tight">
-            {week[0].toLocaleDateString(undefined, { month: "short", day: "numeric" })} –{" "}
-            {week[6].toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-          </p>
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => changeWeek(-1)}
-              disabled={weekOffset <= -WEEKS_BACK}
-              aria-label="Previous week"
-              className="press grid h-9 w-9 place-items-center rounded-lg border border-foreground/15 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-35"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => changeWeek(1)}
-              aria-label="Next week"
-              className="press grid h-9 w-9 place-items-center rounded-lg border border-foreground/15 text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-        {/* Swipe (or drag) the week sideways for the next or previous one. */}
-        <div
-          key={weekOffset}
-          className={cn(
-            "mt-3 grid touch-pan-y select-none grid-cols-7 gap-1 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300",
-            weekDirection > 0
-              ? "motion-safe:slide-in-from-right-8"
-              : "motion-safe:slide-in-from-left-8",
-          )}
-          onPointerDown={(e) => {
-            swipeStart.current = { x: e.clientX, y: e.clientY };
-          }}
-          onPointerUp={(e) => {
-            const start = swipeStart.current;
-            swipeStart.current = null;
-            if (!start) return;
-            const dx = e.clientX - start.x;
-            const dy = e.clientY - start.y;
-            if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) changeWeek(dx < 0 ? 1 : -1);
-          }}
-          onPointerCancel={() => {
-            swipeStart.current = null;
-          }}
-        >
-          {week.map((day) => {
-            const isToday = day.getTime() === today.getTime();
-            const isSelected = selected?.getTime() === day.getTime();
-            const busy = entriesForDay(day, sources, { classes: false }).length > 0;
-            const hasClass = sources.classes.some((c) =>
-              c.days.some((d) => ({ M: 1, T: 2, W: 3, R: 4, F: 5 })[d] === day.getDay()),
-            );
-            const past = day < today;
-            return (
-              <button
-                key={day.getTime()}
-                type="button"
-                onClick={() => setSelected(day)}
-                aria-pressed={isSelected}
-                aria-label={day.toLocaleDateString(undefined, {
-                  weekday: "long",
-                  month: "long",
-                  day: "numeric",
-                })}
-                className={cn(
-                  "flex flex-col items-center gap-1 rounded-xl py-2 transition-colors hover:bg-foreground/5",
-                  past && "opacity-45",
-                )}
-              >
-                <span
-                  className={cn(
-                    "text-[11px] font-semibold uppercase",
-                    isToday ? "text-primary" : "text-muted-foreground",
-                  )}
-                >
-                  {day.toLocaleDateString(undefined, { weekday: "narrow" })}
-                </span>
-                <span
-                  className={cn(
-                    "grid h-9 w-9 place-items-center rounded-full text-sm font-semibold tabular-nums",
-                    isSelected
-                      ? "bg-foreground text-background"
-                      : isToday
-                        ? "border border-primary/60 text-primary"
-                        : "text-foreground",
-                  )}
-                >
-                  {day.getDate()}
-                </span>
-                <span className="flex h-1.5 items-center gap-0.5" aria-hidden="true">
-                  {hasClass && <span className="h-1 w-1 rounded-full bg-muted-foreground/60" />}
-                  {busy && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-        <div className="mt-3 flex gap-2">
-          {[
-            {
-              label: "Today",
-              on: weekOffset === 0 && selected?.getTime() === today.getTime(),
-              go: () => {
-                setWeekOffset(0);
-                setSelected(today);
-              },
-            },
-            { label: "Upcoming", on: selected == null, go: () => setSelected(null) },
-          ].map((chip) => (
-            <button
-              key={chip.label}
-              type="button"
-              onClick={chip.go}
-              aria-pressed={chip.on}
-              className={cn(
-                "min-h-9 rounded-full px-3.5 text-xs font-medium transition-colors",
-                chip.on
-                  ? "bg-foreground text-background"
-                  : "bg-foreground/[0.06] text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {chip.label}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      {loading ? (
-        <div className="space-y-2" role="status" aria-label="Loading your calendar">
-          <SkeletonBlock className="h-4 w-48" />
-          <SkeletonBlock className="h-16 w-full" />
-          <SkeletonBlock className="h-16 w-full" />
-        </div>
-      ) : error ? (
-        <ErrorState message={(error as Error).message} />
-      ) : selected ? (
-        <DaySection
-          title={dayTitle(selected, today)}
-          entries={dayEntries}
-          colorFor={colorFor}
-          now={now}
-          onEditEvent={(id) =>
-            setEditing({ open: true, event: myEvents.list.find((e) => e.id === id) ?? null })
-          }
-          onAdd={() => setEditing({ open: true, event: null })}
-          picks={picks}
-          events={myEvents.list}
-        />
-      ) : upcoming.length === 0 ? (
-        <p className="px-1 py-10 text-center text-sm text-muted-foreground">
-          Nothing coming up in the next {UPCOMING_DAYS} days besides class.
-        </p>
-      ) : (
-        <div className="space-y-6">
-          {upcoming.map((group) => (
-            <DaySection
-              key={group.day.getTime()}
-              title={dayTitle(group.day, today)}
-              entries={group.entries}
-              colorFor={colorFor}
-              now={now}
-              onEditEvent={(id) =>
-                setEditing({ open: true, event: myEvents.list.find((e) => e.id === id) ?? null })
-              }
-              picks={picks}
-              events={myEvents.list}
-            />
-          ))}
-        </div>
-      )}
-
-      <GlassCard title="Workload" subtitle="Remaining effort by week">
-        {assignments.isLoading ? (
-          <WorkloadHeatmapSkeleton />
-        ) : (
-          <WorkloadHeatmap
-            assignments={(assignments.data ?? []).filter((assignment) =>
-              isAssignmentVisible(assignment, completed.has(assignment.id), false, now),
-            )}
+    <>
+      <GoogleCalendar
+        now={now}
+        loading={loading}
+        error={(error as Error | null) ?? null}
+        entriesFor={entriesFor}
+        colorOf={colorOf}
+        calendars={calendars}
+        hidden={hidden}
+        onToggleCalendar={(id) => {
+          const next = new Set(hidden);
+          if (next.has(id)) next.delete(id);
+          else next.add(id);
+          hiddenPref.set([...next]);
+        }}
+        onCreate={(day, minutes) =>
+          setEditing({ open: true, event: null, day: startOfDay(day), minutes: minutes ?? null })
+        }
+        renderCard={(entry, close) => (
+          <EntryCard
+            entry={entry}
+            color={colorOf(entry)}
+            close={close}
+            event={entry.eventId ? myEvents.list.find((e) => e.id === entry.eventId) : undefined}
+            picks={picks}
+            onEditEvent={(event) => {
+              close();
+              setEditing({ open: true, event, day: null, minutes: null });
+            }}
+            onDeleteEvent={(event) => {
+              close();
+              myEvents.remove(event.id);
+              toast("Event deleted", {
+                description: event.title,
+                action: { label: "Undo", onClick: () => myEvents.add(event) },
+              });
+            }}
           />
         )}
-      </GlassCard>
+      />
 
       <CalendarEventDialog
         open={editing.open}
         onOpenChange={(open) => setEditing((state) => ({ ...state, open }))}
         event={editing.event}
-        day={selected}
+        day={editing.day}
+        startMinutes={editing.minutes}
         onSave={({ id, ...event }) => {
           if (id) myEvents.update({ ...event, id });
           else myEvents.add(event);
         }}
         onDelete={myEvents.remove}
       />
-    </div>
+    </>
   );
 }
 
-/** One day: a time column, a colored bar, what it is, and its actions. */
-function DaySection({
-  title,
-  entries,
-  colorFor,
-  now,
-  onEditEvent,
-  onAdd,
+/**
+ * What opens on an entry, as Google's event card: actions along the top,
+ * the color and title, when it is, and the details below.
+ */
+function EntryCard({
+  entry,
+  color,
+  close,
+  event,
   picks,
-  events,
+  onEditEvent,
+  onDeleteEvent,
 }: {
-  title: string;
-  entries: CalendarEntry[];
-  colorFor: (entry: CalendarEntry) => string;
-  now: number;
-  onEditEvent: (id: string) => void;
-  onAdd?: () => void;
+  entry: CalendarEntry;
+  color: string;
+  close: () => void;
+  event: CalendarEvent | undefined;
   picks: ReturnType<typeof useCalendarPicks>;
-  events: CalendarEvent[];
+  onEditEvent: (event: CalendarEvent) => void;
+  onDeleteEvent: (event: CalendarEvent) => void;
 }) {
+  const when = new Date(entry.start).toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+  const time = entry.allDay ? "All day" : timeRange(entry.start, entry.end);
+  const action =
+    "grid h-10 w-10 place-items-center rounded-full text-[var(--gc-muted)] transition-colors hover:bg-[var(--gc-hover)]";
   return (
-    <section>
-      <h2 className="flex items-baseline justify-between px-1 text-[15px] font-semibold tracking-[-0.01em]">
-        {title}
-        <span className="text-xs font-normal tabular-nums text-muted-foreground">
-          {entries.length === 0
-            ? ""
-            : entries.length === 1
-              ? "1 thing"
-              : `${entries.length} things`}
-        </span>
-      </h2>
-      <ul className="glass-panel mt-2 divide-y divide-foreground/[0.07] rounded-2xl border border-foreground/10 px-4">
-        {entries.length === 0 && (
-          <li className="flex items-center gap-3 py-5 text-sm text-muted-foreground">
-            <Sun className="h-4 w-4" aria-hidden="true" />
-            Nothing on this day.
-            {onAdd && (
-              <button
-                type="button"
-                onClick={onAdd}
-                className="ml-auto text-xs font-medium text-primary hover:opacity-80"
-              >
-                Add event
-              </button>
-            )}
-          </li>
-        )}
-        {entries.map((entry) => {
-          const over = !entry.allDay && (entry.end ?? entry.start) < now;
-          const event = entry.eventId ? events.find((e) => e.id === entry.eventId) : undefined;
-          const [startLabel, endLabel] = entryTimeLabel(entry).split(" – ");
-          const line = [
-            KIND_LABEL[entry.kind],
-            entry.context,
-            event && event.repeat.length > 0 ? repeatLabel(event.repeat) : null,
-          ]
-            .filter(Boolean)
-            .join(" · ");
-          return (
-            <li
-              key={entry.key}
-              className={cn(
-                "grid grid-cols-[4.75rem_3px_minmax(0,1fr)_auto] items-start gap-3 py-3.5",
-                over && "opacity-55",
-              )}
+    <div className="pb-5">
+      <div className="flex justify-end gap-0.5 px-2 pt-2">
+        {entry.kind === "event" && event && (
+          <>
+            <button
+              type="button"
+              onClick={() => onEditEvent(event)}
+              aria-label="Edit event"
+              title="Edit event"
+              className={action}
             >
-              <div className="pt-0.5 text-right tabular-nums">
-                <p className="text-sm font-medium">{startLabel}</p>
-                {endLabel && <p className="text-xs text-muted-foreground">{endLabel}</p>}
-              </div>
-              <span
-                className="mt-1 h-[calc(100%-0.5rem)] min-h-8 w-[3px] rounded-full"
-                style={{ backgroundColor: colorFor(entry) }}
+              <Pencil className="h-[18px] w-[18px]" />
+            </button>
+            <button
+              type="button"
+              onClick={() => onDeleteEvent(event)}
+              aria-label="Delete event"
+              title="Delete event"
+              className={action}
+            >
+              <Trash2 className="h-[18px] w-[18px]" />
+            </button>
+          </>
+        )}
+        {entry.kind === "class" && (
+          <Link
+            to="/class-schedule"
+            aria-label="Edit in My classes"
+            title="Edit in My classes"
+            className={action}
+          >
+            <Pencil className="h-[18px] w-[18px]" />
+          </Link>
+        )}
+        {entry.kind === "planned" && entry.assignmentId != null && (
+          <button
+            type="button"
+            onClick={() => {
+              const removed = picks.list.find((p) => p.assignmentId === entry.assignmentId);
+              picks.remove(entry.assignmentId!);
+              close();
+              toast("Removed from your calendar", {
+                description: "It's still on To-Do.",
+                action: removed
+                  ? { label: "Undo", onClick: () => picks.restore(removed) }
+                  : undefined,
+              });
+            }}
+            aria-label="Remove from calendar"
+            title="Remove from calendar"
+            className={action}
+          >
+            <Trash2 className="h-[18px] w-[18px]" />
+          </button>
+        )}
+        <button type="button" onClick={close} aria-label="Close" title="Close" className={action}>
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+      <div className="grid grid-cols-[3.25rem_minmax(0,1fr)] gap-y-3 pr-6">
+        <span
+          className="mt-2 h-3.5 w-3.5 justify-self-center rounded-[4px]"
+          style={{ backgroundColor: color }}
+          aria-hidden="true"
+        />
+        <div>
+          <p className="break-words text-[22px] leading-7 text-[var(--gc-text)]">{entry.title}</p>
+          <p className="mt-1 text-sm text-[var(--gc-text)]">
+            {when} · {time}
+          </p>
+          {event && event.repeat.length > 0 && (
+            <p className="mt-0.5 flex items-center gap-1.5 text-sm text-[var(--gc-muted)]">
+              <Repeat className="h-3.5 w-3.5" aria-hidden="true" />
+              {repeatLabel(event.repeat)}
+            </p>
+          )}
+        </div>
+        {entry.context && (
+          <>
+            {entry.kind === "class" || entry.kind === "event" ? (
+              <MapPin
+                className="h-5 w-5 justify-self-center text-[var(--gc-muted)]"
                 aria-hidden="true"
               />
-              <div className="min-w-0">
-                <p className="break-words text-[15px] font-medium leading-snug">{entry.title}</p>
-                <p className="mt-0.5 break-words text-xs text-muted-foreground">{line}</p>
-                {event?.notes && (
-                  <p className="mt-1 whitespace-pre-wrap text-xs text-foreground/70">
-                    {event.notes}
-                  </p>
-                )}
-                {entry.assignmentId != null && (
-                  <AssignmentDescriptionLink
-                    assignmentId={entry.assignmentId}
-                    className="mt-1"
-                    showProgress={false}
-                  />
-                )}
-              </div>
-              <div className="flex shrink-0 items-center gap-1">
-                {entry.kind === "event" && entry.eventId && (
-                  <button
-                    type="button"
-                    onClick={() => onEditEvent(entry.eventId!)}
-                    aria-label={`Edit ${entry.title}`}
-                    className="grid h-10 w-10 place-items-center rounded-lg text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </button>
-                )}
-                {entry.kind === "class" && (
-                  <Link
-                    to="/class-schedule"
-                    aria-label={`Edit ${entry.title} in My classes`}
-                    className="grid h-10 w-10 place-items-center rounded-lg text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Link>
-                )}
-                {entry.kind === "planned" && entry.assignmentId != null && (
-                  <>
-                    <TimePicker
-                      label={`Time for ${entry.title}`}
-                      value={`${String(new Date(entry.start).getHours()).padStart(2, "0")}:${String(new Date(entry.start).getMinutes()).padStart(2, "0")}`}
-                      onChange={(value) => {
-                        const [h, m] = value.split(":").map(Number);
-                        if (!Number.isFinite(h) || !Number.isFinite(m)) return;
-                        const d = new Date(entry.start);
-                        d.setHours(h, m, 0, 0);
-                        picks.setTime(entry.assignmentId!, d.toISOString());
-                      }}
-                      className="w-48"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const removed = picks.list.find(
-                          (p) => p.assignmentId === entry.assignmentId,
-                        );
-                        picks.remove(entry.assignmentId!);
-                        toast("Removed from your calendar", {
-                          description: "It's still on To-Do.",
-                          action: removed
-                            ? { label: "Undo", onClick: () => picks.restore(removed) }
-                            : undefined,
-                        });
-                      }}
-                      aria-label={`Remove ${entry.title} from calendar`}
-                      className="grid h-10 w-10 place-items-center rounded-lg text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </>
-                )}
-              </div>
-            </li>
-          );
-        })}
-      </ul>
-    </section>
+            ) : (
+              <BookOpen
+                className="h-5 w-5 justify-self-center text-[var(--gc-muted)]"
+                aria-hidden="true"
+              />
+            )}
+            <p className="break-words text-sm text-[var(--gc-text)]">{entry.context}</p>
+          </>
+        )}
+        <span aria-hidden="true" className="grid justify-self-center">
+          <span className="h-3.5 w-3.5 rounded-full border-2" style={{ borderColor: color }} />
+        </span>
+        <p className="text-sm text-[var(--gc-muted)]">{KIND_LABEL[entry.kind]}</p>
+        {event?.notes && (
+          <>
+            <AlignLeft
+              className="h-5 w-5 justify-self-center text-[var(--gc-muted)]"
+              aria-hidden="true"
+            />
+            <p className="whitespace-pre-wrap break-words text-sm text-[var(--gc-text)]">
+              {event.notes}
+            </p>
+          </>
+        )}
+        {entry.kind === "planned" && entry.assignmentId != null && (
+          <>
+            <Clock
+              className="mt-2.5 h-5 w-5 justify-self-center text-[var(--gc-muted)]"
+              aria-hidden="true"
+            />
+            <TimePicker
+              label={`Time for ${entry.title}`}
+              value={`${String(new Date(entry.start).getHours()).padStart(2, "0")}:${String(new Date(entry.start).getMinutes()).padStart(2, "0")}`}
+              onChange={(value) => {
+                const [h, m] = value.split(":").map(Number);
+                if (!Number.isFinite(h) || !Number.isFinite(m)) return;
+                const d = new Date(entry.start);
+                d.setHours(h, m, 0, 0);
+                picks.setTime(entry.assignmentId!, d.toISOString());
+              }}
+              className="w-48"
+            />
+          </>
+        )}
+        {entry.assignmentId != null && (
+          <>
+            <span aria-hidden="true" />
+            <AssignmentDescriptionLink assignmentId={entry.assignmentId} showProgress={false} />
+          </>
+        )}
+      </div>
+    </div>
   );
 }

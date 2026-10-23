@@ -36,6 +36,7 @@ export function CalendarEventDialog({
   onOpenChange,
   event,
   day,
+  startMinutes: slotMinutes,
   onSave,
   onDelete,
 }: {
@@ -45,6 +46,8 @@ export function CalendarEventDialog({
   event: CalendarEvent | null;
   /** The day a new event starts on (the one picked on the calendar). */
   day: Date | null;
+  /** A new event's start, when a time slot on the calendar was clicked. */
+  startMinutes?: number | null;
   onSave: (event: Omit<CalendarEvent, "id"> & { id?: string }) => void;
   onDelete: (id: string) => void;
 }) {
@@ -75,10 +78,11 @@ export function CalendarEventDialog({
       const times = defaultEventTimes();
       const today = dayKey(new Date());
       const picked = day ? dayKey(day) : null;
-      // A day other than today starts at a daytime hour, not "the next hour".
-      const startMinutes = picked && picked !== today ? 10 * 60 : times.start;
+      // A clicked slot starts there; another day starts at a daytime hour, not "the next hour".
+      const startMinutes =
+        slotMinutes != null ? slotMinutes : picked && picked !== today ? 10 * 60 : times.start;
       setTitle("");
-      setDate(picked && picked >= today ? picked : times.date);
+      setDate(picked && (slotMinutes != null || picked >= today) ? picked : times.date);
       setAllDay(false);
       setStart(toTimeInput(startMinutes));
       setEnd(toTimeInput(Math.min(startMinutes + 60, 23 * 60 + 59)));
@@ -87,7 +91,7 @@ export function CalendarEventDialog({
       setLocation("");
       setNotes("");
     }
-  }, [open, event, day]);
+  }, [open, event, day, slotMinutes]);
 
   const startMinutes = parseTimeInput(start);
   const endMinutes = parseTimeInput(end);

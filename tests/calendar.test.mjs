@@ -113,9 +113,13 @@ test("the syllabus is read once per class, and what it finds is editable", () =>
 
 test("Calendar adds events; To-Do's task can also go on the calendar", () => {
   const page = read("src/routes/_authenticated/schedule.tsx");
-  assert.match(page, /Add event/);
+  const calendar = read("src/components/calendar/google-calendar.tsx");
+  // Create (or a click on an empty time slot) adds an event there.
+  assert.match(calendar, /Create/);
+  assert.match(calendar, /onCreate\(day, Math\.min\(23 \* 60 \+ 30, Math\.max\(0, minutes\)\)\)/);
   assert.match(page, /<CalendarEventDialog/);
-  assert.match(page, /entriesForDay\(day, sources, \{ classes: false \}\)/);
+  assert.match(page, /startMinutes=\{editing\.minutes\}/);
+  assert.match(page, /entriesForDay\(day, sources\)\.filter\(\(entry\) => !hidden\.has\(calendarId\(entry\)\)\)/);
   const form = read("src/components/add-assignment-form.tsx");
   assert.match(form, /Also put it on my calendar/);
   assert.match(form, /!personal && onCalendar \? new Date\(planValue\)\.toISOString\(\) : undefined/);
@@ -128,11 +132,10 @@ test("Calendar adds events; To-Do's task can also go on the calendar", () => {
   assert.match(read("src/lib/calendar-picks.ts"), /const when = at \?\? suggestedPlanTime\(a\.due_at, defaultEstimateMinutes\(a\)\);/);
 });
 
-test("swipe the week to change it; the new week slides in from that side", () => {
-  const page = read("src/routes/_authenticated/schedule.tsx");
-  assert.match(page, /if \(Math\.abs\(dx\) > 50 && Math\.abs\(dx\) > Math\.abs\(dy\) \* 1\.5\) changeWeek\(dx < 0 \? 1 : -1\);/);
-  assert.match(page, /weekDirection > 0\s+\? "motion-safe:slide-in-from-right-8"\s+: "motion-safe:slide-in-from-left-8"/);
-  assert.match(page, /touch-pan-y/);
+test("swipe the calendar sideways to turn the page, like the arrows", () => {
+  const calendar = read("src/components/calendar/google-calendar.tsx");
+  assert.match(calendar, /if \(Math\.abs\(dx\) > 60 && Math\.abs\(dx\) > Math\.abs\(dy\) \* 1\.6\) go\(dx < 0 \? 1 : -1\);/);
+  assert.match(calendar, /touch-pan-y/);
 });
 
 test("To-Do's weeks swipe (finger, mouse or trackpad) and slide in from that side", () => {
