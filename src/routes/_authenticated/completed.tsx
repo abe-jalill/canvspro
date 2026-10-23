@@ -10,7 +10,15 @@ import { completionRecords } from "@/lib/completion-records";
 import { completedEntries, completedGroupLabel } from "@/lib/completed-list";
 import { customToAssignmentItem, useCustomAssignments } from "@/lib/custom-assignments";
 import { displayCourseName } from "@/lib/course-display";
-import { useUserPreferences } from "@/hooks/use-user-preferences";
+import { useUserPreferenceKey, useUserPreferences } from "@/hooks/use-user-preferences";
+import { Segmented } from "@/components/segmented";
+import {
+  COMPLETED_RANGES,
+  COMPLETED_RANGE_KEY,
+  DEFAULT_COMPLETED_RANGE,
+  inCompletedRange,
+  readCompletedRange,
+} from "@/lib/completed-range";
 import { CompleteToggle } from "@/components/complete-toggle";
 import { ErrorState } from "@/components/glass-card";
 import { SkeletonBlock } from "@/components/skeletons/dashboard-skeletons";
@@ -43,6 +51,10 @@ function CompletedPage() {
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
   const custom = useCustomAssignments();
   const [search, setSearch] = useState("");
+  // How far back to look, saved to the account (the iPhone uses the same).
+  const savedRange = useUserPreferenceKey<number>(COMPLETED_RANGE_KEY, DEFAULT_COMPLETED_RANGE);
+  const rangeDays = readCompletedRange(savedRange.value);
+  const range = COMPLETED_RANGES.find((r) => r.days === rangeDays) ?? COMPLETED_RANGES[3];
 
   const courseById = useMemo(
     () => new Map((courses.data ?? []).map((course) => [course.id, course])),
@@ -65,15 +77,16 @@ function CompletedPage() {
     const course = courseById.get(courseId);
     return displayCourseName(course?.name ?? fallback ?? "Class", course?.course_code ?? code);
   };
+  const now = Date.now();
+  const inRange = entries.filter((entry) => inCompletedRange(entry.doneAt, rangeDays, now));
   const query = search.trim().toLowerCase();
   const shown = query
-    ? entries.filter(
+    ? inRange.filter(
         ({ assignment: a }) =>
           a.name.toLowerCase().includes(query) ||
           courseName(a.course_id, a.course_name, a.course_code).toLowerCase().includes(query),
       )
-    : entries;
-  const now = Date.now();
+    : inRange;
   const groups = GROUPS.map((label) => ({
     label,
     items: shown.filter((entry) => completedGroupLabel(entry.doneAt, now) === label),
@@ -99,7 +112,7 @@ function CompletedPage() {
         <h1 className="min-w-0 flex-1 truncate text-xl font-medium tracking-tight">Completed</h1>
         {!loading && (
           <span className="shrink-0 text-sm tabular-nums text-muted-foreground">
-            {entries.length} finished
+            {inRange.length} finished
           </span>
         )}
       </header>
@@ -112,16 +125,43 @@ function CompletedPage() {
         </div>
       ) : assignments.isError && !assignments.data ? (
         <ErrorState message={(assignments.error as Error).message} />
-      ) : entries.length === 0 ? (
-        <div className="px-1 py-24 text-center">
+      ) : (
+        <div className="space-y-8 px-1">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-muted-foreground">
+              Finished in {range.long}
+            </p>
+            <Segmented
+              label="How far back to show"
+              value={String(rangeDays)}
+              onChange={(value) => savedRange.set(Number(value))}
+              options={COMPLETED_RANGES.map((r) => ({ id: String(r.days), label: r.label }))}
+            />
+          </div>
+          {entries.length === 0 ? (
+        <div className="py-24 text-center">
           <Check className="mx-auto h-5 w-5 text-muted-foreground" aria-hidden="true" />
           <p className="mt-3 text-base">Nothing finished yet.</p>
           <p className="mt-1 text-sm text-muted-foreground">
             Tick off an assignment and it shows up here.
           </p>
         </div>
-      ) : (
-        <div className="space-y-8 px-1">
+          ) : inRange.length === 0 ? (
+            <div className="py-20 text-center">
+              <Check className="mx-auto h-5 w-5 text-muted-foreground" aria-hidden="true" />
+              <p className="mt-3 text-base">Nothing finished in {range.long}.</p>
+              {rangeDays < 60 && (
+                <button
+                  type="button"
+                  onClick={() => savedRange.set(60)}
+                  className="press mt-3 min-h-10 rounded-lg border border-foreground/15 px-4 text-sm text-muted-foreground hover:text-foreground"
+                >
+                  Show the past 2 months
+                </button>
+              )}
+            </div>
+          ) : (
+            <>
           <label className="flex items-center gap-3 rounded-xl border border-foreground/15 px-3 py-2.5">
             <Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
             <input
@@ -184,6 +224,8 @@ function CompletedPage() {
               </ul>
             </section>
           ))}
+            </>
+          )}
         </div>
       )}
     </div>

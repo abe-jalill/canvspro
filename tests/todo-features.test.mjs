@@ -147,7 +147,7 @@ test("To-Do wires in steps, impact, quick add, start, shortcuts and the rhythm",
     "utf8",
   );
   for (const piece of [
-    "<QuickAdd",
+    "quickCourses={quickCourses}",
     "<StepList",
     "<WeeklyRhythm",
     "groupByImpact",
@@ -163,5 +163,9 @@ test("To-Do wires in steps, impact, quick add, start, shortcuts and the rhythm",
     new URL("../src/routes/_authenticated/study-session.tsx", import.meta.url),
     "utf8",
   );
+  // Quick add lives under +, at the top of Add.
+  const add = readFileSync(new URL("../src/components/add-task-dialog.tsx", import.meta.url), "utf8");
+  assert.match(add, /<QuickAdd courses=\{quickCourses\}/);
+  assert.doesNotMatch(focus, /<QuickAdd/);
   assert.match(study, /How far did you get\?[\s\S]{0,400}AssignmentProgressEditor/);
 });

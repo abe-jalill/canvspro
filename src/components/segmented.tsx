@@ -10,6 +10,8 @@ interface SegmentedProps<T extends string> {
   onChange: (v: T) => void;
   options: Option<T>[];
   className?: string;
+  /** What the choice is for, read by screen readers. */
+  label?: string;
 }
 
 export function Segmented<T extends string>({
@@ -17,10 +19,12 @@ export function Segmented<T extends string>({
   onChange,
   options,
   className,
+  label,
 }: SegmentedProps<T>) {
   return (
     <div
       role="tablist"
+      aria-label={label}
       className={cn(
         "segmented-control glass-panel-strong inline-flex max-w-full gap-1 overflow-x-auto p-1.5",
         className,

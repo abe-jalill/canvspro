@@ -39,7 +39,6 @@ import { AddTaskButton } from "@/components/add-task-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TodoWeekPicker } from "@/components/todo-week-picker";
 import { StepList } from "@/components/todo/step-list";
-import { QuickAdd } from "@/components/todo/quick-add";
 import { WeeklyRhythm } from "@/components/todo/weekly-rhythm";
 import { useAssignmentSteps } from "@/hooks/use-assignment-steps";
 import { isBigWork, nextStep, stepsPercent } from "@/lib/assignment-steps";
@@ -158,7 +157,8 @@ function FocusPage() {
   const [searching, setSearching] = useState(false);
   const [query, setQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
-  const quickAddRef = useRef<HTMLInputElement>(null);
+  // Add (with quick add at its top); the "n" shortcut opens it too.
+  const [addOpen, setAddOpen] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const steps = useAssignmentSteps();
   const [openSteps, setOpenSteps] = useState<Set<number>>(new Set());
@@ -284,7 +284,7 @@ function FocusPage() {
         case "x": row?.querySelector<HTMLElement>("[data-todo-toggle]")?.click(); break;
         case "s": row?.querySelector<HTMLElement>("[data-todo-start]")?.click(); break;
         case "e": row?.querySelector<HTMLElement>("[data-todo-steps]")?.click(); break;
-        case "n": e.preventDefault(); quickAddRef.current?.focus(); break;
+        case "n": e.preventDefault(); setAddOpen(true); break;
         case "/": e.preventDefault(); setSearching(true); break;
         case "?": setShowKeys(true); break;
       }
@@ -312,7 +312,13 @@ function FocusPage() {
               {searching ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
             </button>
             <CompletedLink />
-            <AddTaskButton courseOptions={courseOptions} onAdd={custom.add} />
+            <AddTaskButton
+              courseOptions={courseOptions}
+              quickCourses={quickCourses}
+              onAdd={custom.add}
+              open={addOpen}
+              onOpenChange={setAddOpen}
+            />
           </div>
         </div>
         <div className="relative mt-2 flex items-center justify-between gap-3">
@@ -379,7 +385,6 @@ function FocusPage() {
         </label>
       )}
 
-      {!loading && !failed && <QuickAdd ref={quickAddRef} courses={quickCourses} onAdd={custom.add} />}
       {!loading && !failed && rhythmOn && <WeeklyRhythm days={rhythmDays} now={now} />}
 
       {loading ? (

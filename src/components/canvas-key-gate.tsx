@@ -82,6 +82,10 @@ export function CanvasKeyGate({ children }: { children: ReactNode }) {
             In order to start, you need to enter your Canvas API key in Settings. It takes about a
             minute.
           </p>
+          <p className="text-sm text-muted-foreground">
+            It's easiest on a computer, and your other devices, including the iPhone app, sync
+            automatically.
+          </p>
         </div>
         <Link
           to="/settings/canvas"

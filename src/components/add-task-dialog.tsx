@@ -15,23 +15,38 @@ import {
   type CustomAssignment,
 } from "@/lib/custom-assignments";
 import { useCalendarPicks } from "@/lib/calendar-picks";
+import { QuickAdd } from "@/components/todo/quick-add";
+import type { QuickCourse } from "@/lib/quick-add";
 
 type Step = "choose" | "class" | "personal";
 
 /**
- * To-Do's Add: first whether it's for a class. For a class it's the same
- * form as Assignments (with the class to pick); otherwise only a name, when
- * it's due and how long it takes.
+ * To-Do's Add: type it in one line (quick add), or choose whether it's for a
+ * class. For a class it's the same form as Assignments (with the class to
+ * pick); otherwise only a name, when it's due and how long it takes.
  */
 export function AddTaskButton({
   courseOptions,
+  quickCourses,
   onAdd,
+  open: openProp,
+  onOpenChange,
 }: {
   courseOptions: { id: number; label: string }[];
+  /** Classes quick add can recognise; without them it isn't offered. */
+  quickCourses?: (QuickCourse & { label: string })[];
   onAdd: (input: NewCustomAssignment) => CustomAssignment | Promise<CustomAssignment>;
+  /** Optional control, so a keyboard shortcut can open it. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
   const picks = useCalendarPicks();
-  const [open, setOpen] = useState(false);
+  const [openState, setOpenState] = useState(false);
+  const open = openProp ?? openState;
+  const setOpen = (next: boolean) => {
+    setOpenState(next);
+    onOpenChange?.(next);
+  };
   const [step, setStep] = useState<Step>("choose");
 
   const add = async (input: NewCustomAssignment, calendarAt?: string) => {
@@ -81,6 +96,12 @@ export function AddTaskButton({
 
         {step === "choose" ? (
           <div className="grid gap-2">
+            {quickCourses && (
+              <>
+                <QuickAdd courses={quickCourses} onAdd={onAdd} onAdded={() => setOpen(false)} autoFocus />
+                <p className="pt-2 text-xs text-muted-foreground">Or fill in the details:</p>
+              </>
+            )}
             <ChoiceButton
               icon={<BookOpen className="h-4 w-4" />}
               title="For a class"

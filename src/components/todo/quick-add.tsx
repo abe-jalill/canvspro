@@ -15,8 +15,11 @@ export const QuickAdd = forwardRef<
   {
     courses: (QuickCourse & { label: string })[];
     onAdd: (input: NewCustomAssignment) => CustomAssignment | Promise<CustomAssignment>;
+    /** After it's saved (Add closes its dialog). */
+    onAdded?: (item: CustomAssignment) => void;
+    autoFocus?: boolean;
   }
->(function QuickAdd({ courses, onAdd }, ref) {
+>(function QuickAdd({ courses, onAdd, onAdded, autoFocus }, ref) {
   const [text, setText] = useState("");
   const parsed = useMemo(() => parseQuickAdd(text, courses), [text, courses]);
   const course = courses.find((c) => c.id === parsed.courseId);
@@ -27,7 +30,7 @@ export const QuickAdd = forwardRef<
     if (!ready || saving) return;
     setSaving(true);
     try {
-      await onAdd({
+      const item = await onAdd({
         course_id: parsed.courseId ?? NO_CLASS_ID,
         name: parsed.name,
         due_at: parsed.dueAt,
@@ -35,8 +38,11 @@ export const QuickAdd = forwardRef<
         notes: "",
         estimated_minutes: parsed.minutes,
       });
-      toast.success(`Added "${parsed.name}"`);
+      toast.success(`Added "${parsed.name}"`, {
+        description: due ? `Due ${due}. Choose that day in To-Do to see it.` : undefined,
+      });
       setText("");
+      onAdded?.(item);
     } catch {
       toast.error("Couldn't add that. Check your connection and try again.");
     } finally {
@@ -67,6 +73,7 @@ export const QuickAdd = forwardRef<
         <span className="sr-only">Quick add a task</span>
         <input
           ref={ref}
+          autoFocus={autoFocus}
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="Quick add: Read ch4 bio fri 30m"

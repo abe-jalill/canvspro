@@ -8,7 +8,7 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf
 
 test("To-Do's Add asks first whether it's for a class", () => {
   const todo = read("src/routes/_authenticated/focus.tsx");
-  assert.match(todo, /<AddTaskButton courseOptions=\{courseOptions\} onAdd=\{custom\.add\} \/>/);
+  assert.match(todo, /<AddTaskButton\s+courseOptions=\{courseOptions\}\s+quickCourses=\{quickCourses\}\s+onAdd=\{custom\.add\}/);
   const dialog = read("src/components/add-task-dialog.tsx");
   assert.match(dialog, /"Is this for a class\?"/);
   assert.match(dialog, /title="For a class"/);

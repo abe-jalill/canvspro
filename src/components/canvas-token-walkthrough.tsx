@@ -9,6 +9,7 @@ import {
   ArrowLeft,
   School,
   LoaderCircle,
+  Laptop,
 } from "lucide-react";
 import { useSaveCanvasKey, useCanvasDomain, normalizeCanvasDomain } from "@/lib/user-settings";
 import { cn } from "@/lib/utils";
@@ -119,6 +120,15 @@ export function CanvasTokenWalkthrough({
           {step === 1
             ? "The address you use to open Canvas."
             : "In Canvas: Account, Settings, Approved Integrations, New Access Token. Copy it and paste it below."}
+        </p>
+        {/* Copying a token is fiddly on a phone; one connection covers every device. */}
+        <p className="mt-2 flex items-start gap-2.5 rounded-xl border border-foreground/10 bg-foreground/[0.03] px-3.5 py-3 text-sm text-muted-foreground">
+          <Laptop className="mt-0.5 h-4 w-4 shrink-0 text-foreground/70" aria-hidden="true" />
+          <span>
+            <span className="font-medium text-foreground">Easiest on a computer.</span> Connect once
+            at canvaspro.app and the CoursePro iPhone app syncs automatically, with nothing to enter
+            there.
+          </span>
         </p>
       </div>
 
