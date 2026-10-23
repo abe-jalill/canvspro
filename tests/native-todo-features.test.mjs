@@ -87,3 +87,7 @@ test("connecting Canvas says it's easiest on a computer and syncs by itself", ()
   assert.match(more, /Connect once at canvaspro\.app and this app syncs automatically/);
   assert.match(more, /if connectedDomain == nil \{ NativeComputerTip\(\) \}/);
 });
+
+test("Completed lists your own tasks too, class or not", () => {
+  assert.match(more, /private var entries: \[Entry\] \{[\s\S]{0,120}features\.shownAssignments\(in: store, includePersonalTasks: true\)/);
+});

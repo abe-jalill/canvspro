@@ -3995,7 +3995,8 @@ struct NativeCompletedView: View {
     }
 
     private var entries: [Entry] {
-        features.shownAssignments(in: store)
+        // Your own tasks too, class or not (To-Do lists both).
+        features.shownAssignments(in: store, includePersonalTasks: true)
             .filter { $0.isFinished(in: store) }
             .map { item in
                 let marked = store.completed.contains(item.id)
