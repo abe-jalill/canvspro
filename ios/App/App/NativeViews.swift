@@ -3769,6 +3769,14 @@ struct AddAssignmentView: View {
     var body: some View {
         NavigationStack(path: $path) {
             Form {
+                // Quick add first: one line, the way you'd jot it down.
+                Section {
+                    NativeQuickAddField(courses: courses, store: store, features: features) { dismiss() }
+                } header: {
+                    Text("Type it")
+                } footer: {
+                    Text("Add the class, day, time and how long, in any order. Without a class it's a personal task.")
+                }
                 Section {
                     Button { path = [true] } label: {
                         choice("For a class", detail: courses.isEmpty ? "Connect Canvas to add work for a class." : "An assignment, quiz or project for one of your classes.", symbol: "book.closed")
@@ -3779,7 +3787,7 @@ struct AddAssignmentView: View {
                         choice("Not for a class", detail: "Anything else you need to get done.", symbol: "checklist")
                     }
                 } header: {
-                    Text("Is this for a class?")
+                    Text("Or fill in the details. Is this for a class?")
                 }
             }
             .cpListScreen()

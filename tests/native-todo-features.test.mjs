@@ -45,7 +45,10 @@ test("quick add reads the class, day, time and estimate, and previews them", () 
     assert.ok(features.includes(piece), piece);
   }
   assert.match(features, /A time already past today, with no day given, means tomorrow/);
-  assert.match(more, /TextField\("Quick add: Read ch4 bio fri 30m", text: \$quickText\)/);
+  // It's at the top of Add (the + button), not on the To-Do page itself.
+  assert.match(more, /TextField\("Read ch4 bio fri 30m", text: \$quickText\)/);
+  assert.match(views, /NativeQuickAddField\(courses: courses, store: store, features: features\) \{ dismiss\(\) \}/);
+  assert.doesNotMatch(more.slice(more.indexOf("struct FocusView"), more.indexOf("struct NativeQuickAddField")), /NativeQuickAddField\(/);
   assert.match(more, /courseID: parsed\.courseID \?\? CustomAssignment\.noClassID/);
   assert.match(more, /savePreference\("custom-assignments", features\.customAssignments \+ \[item\]\)/);
 });
@@ -65,4 +68,22 @@ test("the weekly rhythm is optional, synced and forgiving", () => {
   assert.match(features, /Rest days count too\./);
   assert.match(more, /NativeWeeklyRhythm\(completedAt: Array\(store\.completedAt\.values\)\)/);
   assert.match(more, /"Hide weekly rhythm" : "Show weekly rhythm"/);
+});
+
+test("Completed (from To-Do or More) shows the past 2 days to 2 months, synced", () => {
+  assert.match(features, /static let days = \[2, 7, 14, 30, 60\]/);
+  assert.match(features, /static let defaultDays = 30/);
+  assert.match(features, /preferences\["completed-range"\]/);
+  assert.match(features, /savePreference\("completed-range", days\)/);
+  assert.match(more, /Picker\("How far back to show", selection: rangeChoice\)[\s\S]{0,200}\.pickerStyle\(\.segmented\)/);
+  assert.match(more, /NativeCompletedRange\.contains\(\$0\.date, days: rangeDays, now: now\)/);
+  // To-Do's Completed and More's Completed are the same screen.
+  assert.match(more, /case \.completed: NativeCompletedView\(store: store, features: features\)/);
+  assert.match(more, /NavigationLink \{ NativeCompletedView\(store: store, features: features\) \}/);
+});
+
+test("connecting Canvas says it's easiest on a computer and syncs by itself", () => {
+  assert.match(more, /struct NativeComputerTip: View/);
+  assert.match(more, /Connect once at canvaspro\.app and this app syncs automatically/);
+  assert.match(more, /if connectedDomain == nil \{ NativeComputerTip\(\) \}/);
 });

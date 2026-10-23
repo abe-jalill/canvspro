@@ -948,6 +948,16 @@ final class NativeFeatureStore: ObservableObject {
         try await saveProgress(steps.isEmpty ? nil : NativeSteps.percent(steps), for: assignment)
     }
 
+    /// How far back Completed looks (`completed-range`, in days), the website's too.
+    var completedRangeDays: Int {
+        if case .some(.number(let days)) = preferences["completed-range"], NativeCompletedRange.days.contains(Int(days)) { return Int(days) }
+        return NativeCompletedRange.defaultDays
+    }
+    func setCompletedRange(_ days: Int) async {
+        guard days != completedRangeDays || preferences["completed-range"] == nil else { return }
+        try? await savePreference("completed-range", days)
+    }
+
     /// The optional weekly rhythm on To-Do (`weekly-rhythm`), off until turned on.
     var showsWeeklyRhythm: Bool {
         if case .some(.bool(true)) = preferences["weekly-rhythm"] { return true }
@@ -2024,5 +2034,28 @@ enum NativeQuickAdd {
             due = when
         }
         return Result(name: name.prefix(1).uppercased() + name.dropFirst(), courseID: courseID, dueDate: due, minutes: minutes)
+    }
+}
+
+/// How far back Completed looks: the past 2 days to the past 2 months, the
+/// same choices as the website (src/lib/completed-range.ts).
+enum NativeCompletedRange {
+    static let days = [2, 7, 14, 30, 60]
+    static let defaultDays = 30
+
+    static func label(_ days: Int) -> String {
+        switch days { case 2: return "2 days"; case 7: return "Week"; case 14: return "2 weeks"; case 30: return "Month"; default: return "2 months" }
+    }
+    static func long(_ days: Int) -> String {
+        switch days { case 2: return "the past 2 days"; case 7: return "the past week"; case 14: return "the past 2 weeks"; case 30: return "the past month"; default: return "the past 2 months" }
+    }
+    /// Local midnight, `days - 1` days before today (today counts).
+    static func start(_ days: Int, now: Date = Date(), calendar: Calendar = .current) -> Date {
+        calendar.date(byAdding: .day, value: -(days - 1), to: calendar.startOfDay(for: now)) ?? now
+    }
+    /// Finished within the range. Work with no known finish time isn't shown.
+    static func contains(_ date: Date?, days: Int, now: Date = Date()) -> Bool {
+        guard let date else { return false }
+        return date >= start(days, now: now)
     }
 }

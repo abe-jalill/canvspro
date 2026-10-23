@@ -1024,10 +1024,6 @@ struct FocusView: View {
     @State private var weekOffset = 0
     /// Rows with their steps showing.
     @State private var openSteps: Set<Int> = []
-    @State private var quickText = ""
-    @State private var quickSaving = false
-    @State private var quickAdded: String?
-    @FocusState private var quickFocused: Bool
     private var selectedDay: Date { selectedDate ?? Calendar.current.startOfDay(for: Date()) }
     private var isTodaySelected: Bool { Calendar.current.isDateInToday(selectedDay) }
     private var weekDays: [Date] { NativeTodoWeek.days(offset: weekOffset) }
@@ -1134,7 +1130,6 @@ struct FocusView: View {
                         CPSkeletonCard()
                         CPSkeletonCard()
                     } else {
-                        quickAddField
                         if features.showsWeeklyRhythm { NativeWeeklyRhythm(completedAt: Array(store.completedAt.values)).transition(.opacity) }
                         list
                         rhythmToggle
@@ -1445,95 +1440,7 @@ struct FocusView: View {
         }
     }
 
-    // MARK: Quick add, tip and rhythm
-
-    private var quickCourses: [NativeQuickAdd.Course] {
-        visibleCourses.map { course in
-            NativeQuickAdd.Course(id: course.id, names: NativeQuickAdd.aliases(
-                name: course.name, code: course.courseCode, nickname: store.nicknames[course.id]?.customName))
-        }
-    }
-
-    /// Type a task the way you'd jot it down; what will be added shows as you type.
-    private var quickAddField: some View {
-        let parsed = NativeQuickAdd.parse(quickText, courses: quickCourses)
-        let typed = !quickText.trimmingCharacters(in: .whitespaces).isEmpty
-        return VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 10) {
-                Image(systemName: "bolt").cpIconFont(13).foregroundStyle(CPTheme.muted(scheme)).accessibilityHidden(true)
-                TextField("Quick add: Read ch4 bio fri 30m", text: $quickText)
-                    .cpFont(14)
-                    .focused($quickFocused)
-                    .submitLabel(.done)
-                    .onSubmit { addQuick() }
-                    .accessibilityLabel("Quick add a task")
-                    .accessibilityHint("Type a task with its class, day, time and length, such as Lab report chem tomorrow 5pm 1h.")
-                if typed {
-                    Button { addQuick() } label: {
-                        Text(quickSaving ? "Adding…" : "Add").cpFont(13, .semibold)
-                            .foregroundStyle(CPTheme.primary(scheme: scheme))
-                            .padding(.horizontal, 12).frame(minHeight: 44).contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(parsed.name.isEmpty || quickSaving)
-                }
-            }
-            if typed && !parsed.name.isEmpty {
-                quickPreview(parsed).transition(.opacity)
-            } else if let quickAdded {
-                Text(quickAdded).cpFont(12).foregroundStyle(CPTheme.muted(scheme)).transition(.opacity)
-            }
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, typed || quickAdded != nil ? 8 : 0)
-        .frame(minHeight: 44)
-        .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(CPTheme.insetBorder(scheme), lineWidth: 0.5))
-        .animation(.easeOut(duration: 0.2), value: typed)
-        .onChange(of: quickText) { _, text in if !text.isEmpty { quickAdded = nil } }
-    }
-
-    /// "Lab report  · General Chemistry", then "Fri, Oct 23, 5:00 PM · 1 hr".
-    private func quickPreview(_ parsed: NativeQuickAdd.Result) -> some View {
-        let course = parsed.courseID.map { store.displayName(courseID: $0, fallback: "") } ?? CustomAssignment.noClassLabel
-        return VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                Text(parsed.name).cpFont(13, .semibold).foregroundStyle(CPTheme.foreground(scheme))
-                Label(course, systemImage: parsed.courseID == nil ? "person" : "book.closed")
-                    .cpFont(12).foregroundStyle(parsed.courseID.map { classTint($0) } ?? CPTheme.muted(scheme))
-            }
-            HStack(spacing: 12) {
-                Label(parsed.dueDate.map { $0.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().hour().minute()) } ?? "No due date", systemImage: "calendar")
-                if let minutes = parsed.minutes { Label(Self.duration(minutes), systemImage: "clock") }
-            }
-            .cpFont(12).foregroundStyle(CPTheme.muted(scheme))
-        }
-        .fixedSize(horizontal: false, vertical: true)
-        .accessibilityElement(children: .combine)
-    }
-
-    private func addQuick() {
-        let parsed = NativeQuickAdd.parse(quickText, courses: quickCourses)
-        guard !parsed.name.isEmpty, !quickSaving else { return }
-        quickSaving = true
-        let formatter = ISO8601DateFormatter()
-        let item = CustomAssignment(id: -Int(Date().timeIntervalSince1970 * 1000), courseID: parsed.courseID ?? CustomAssignment.noClassID,
-            name: parsed.name, dueAt: parsed.dueDate.map { formatter.string(from: $0) }, pointsPossible: nil, notes: "",
-            createdAt: formatter.string(from: Date()), estimatedMinutes: parsed.minutes)
-        Task {
-            defer { quickSaving = false }
-            do {
-                try await features.savePreference("custom-assignments", features.customAssignments + [item])
-                CPHaptics.success()
-                quickText = ""
-                let when = parsed.dueDate.map { " for \($0.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))" } ?? ""
-                quickAdded = "Added \"\(item.name)\"\(when)."
-                UIAccessibility.post(notification: .announcement, argument: quickAdded)
-            } catch {
-                features.errorMessage = "Couldn't add that. Check your connection and try again."
-            }
-        }
-    }
+    // MARK: Rhythm
 
     /// The optional weekly rhythm, quiet at the bottom.
     private var rhythmToggle: some View {
@@ -1561,6 +1468,104 @@ struct FocusView: View {
         }
         parts.append(done ? (item.isCanvasFinished ? "Done in Canvas" : "Done") : Self.duration(estimate(item)))
         return parts.joined(separator: " · ")
+    }
+}
+
+/// Quick add, at the top of Add: type a task the way you'd jot it down
+/// ("Lab report chem tomorrow 5pm 1h"); what will be added shows as you type.
+struct NativeQuickAddField: View {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
+    let courses: [CourseSummary]
+    @ObservedObject var store: NativeContentStore
+    @ObservedObject var features: NativeFeatureStore
+    var onAdded: () -> Void = {}
+    @State private var quickText = ""
+    @State private var quickSaving = false
+    @State private var error: String?
+    @FocusState private var quickFocused: Bool
+
+    private func classTint(_ courseID: Int) -> Color { CPTheme.classColor(courseID, in: store.bundle.courses) }
+
+    var body: some View {
+        let parsed = NativeQuickAdd.parse(quickText, courses: quickCourses)
+        let typed = !quickText.trimmingCharacters(in: .whitespaces).isEmpty
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                Image(systemName: "bolt").cpIconFont(13).foregroundStyle(CPTheme.muted(scheme)).accessibilityHidden(true)
+                TextField("Read ch4 bio fri 30m", text: $quickText)
+                    .cpFont(15)
+                    .focused($quickFocused)
+                    .submitLabel(.done)
+                    .onSubmit { addQuick() }
+                    .accessibilityLabel("Quick add a task")
+                    .accessibilityHint("Type a task with its class, day, time and length, such as Lab report chem tomorrow 5pm 1h.")
+                if typed {
+                    Button { addQuick() } label: {
+                        Text(quickSaving ? "Adding…" : "Add").cpFont(14, .semibold)
+                            .foregroundStyle(CPTheme.primary(scheme: scheme))
+                            .padding(.leading, 8).frame(minHeight: 44).contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(parsed.name.isEmpty || quickSaving)
+                }
+            }
+            if typed && !parsed.name.isEmpty {
+                quickPreview(parsed).transition(.opacity)
+            }
+            if let error { Text(error).cpFont(12).foregroundStyle(CPTheme.danger) }
+        }
+        .animation(.easeOut(duration: 0.2), value: typed)
+        .onChange(of: quickText) { _, _ in error = nil }
+    }
+
+    private var quickCourses: [NativeQuickAdd.Course] {
+        courses.map { course in
+            NativeQuickAdd.Course(id: course.id, names: NativeQuickAdd.aliases(
+                name: course.name, code: course.courseCode, nickname: store.nicknames[course.id]?.customName))
+        }
+    }
+
+    /// "Lab report  · General Chemistry", then "Fri, Oct 23, 5:00 PM · 1 hr".
+    private func quickPreview(_ parsed: NativeQuickAdd.Result) -> some View {
+        let course = parsed.courseID.map { store.displayName(courseID: $0, fallback: "") } ?? CustomAssignment.noClassLabel
+        return VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Text(parsed.name).cpFont(13, .semibold).foregroundStyle(CPTheme.foreground(scheme))
+                Label(course, systemImage: parsed.courseID == nil ? "person" : "book.closed")
+                    .cpFont(12).foregroundStyle(parsed.courseID.map { classTint($0) } ?? CPTheme.muted(scheme))
+            }
+            HStack(spacing: 12) {
+                Label(parsed.dueDate.map { $0.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().hour().minute()) } ?? "No due date", systemImage: "calendar")
+                if let minutes = parsed.minutes { Label(FocusView.duration(minutes), systemImage: "clock") }
+            }
+            .cpFont(12).foregroundStyle(CPTheme.muted(scheme))
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func addQuick() {
+        let parsed = NativeQuickAdd.parse(quickText, courses: quickCourses)
+        guard !parsed.name.isEmpty, !quickSaving else { return }
+        quickSaving = true
+        let formatter = ISO8601DateFormatter()
+        let item = CustomAssignment(id: -Int(Date().timeIntervalSince1970 * 1000), courseID: parsed.courseID ?? CustomAssignment.noClassID,
+            name: parsed.name, dueAt: parsed.dueDate.map { formatter.string(from: $0) }, pointsPossible: nil, notes: "",
+            createdAt: formatter.string(from: Date()), estimatedMinutes: parsed.minutes)
+        Task {
+            defer { quickSaving = false }
+            do {
+                try await features.savePreference("custom-assignments", features.customAssignments + [item])
+                CPHaptics.success()
+                quickText = ""
+                let when = parsed.dueDate.map { " for \($0.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))" } ?? ""
+                UIAccessibility.post(notification: .announcement, argument: "Added \(item.name)\(when).")
+                onAdded()
+            } catch {
+                self.error = "Couldn't add that. Check your connection and try again."
+            }
+        }
     }
 }
 
@@ -3498,6 +3503,7 @@ struct CanvasSettingsView: View {
             LazyVStack(alignment: .leading, spacing: 16) {
                 if let connectedDomain { connectedCard(connectedDomain) }
                 NativeSyncStatusCard(store: store) { Task { await store.load() } }
+                if connectedDomain == nil { NativeComputerTip() }
                 step(1, title: "Your Canvas address") {
                     CPFieldBox(title: "Address", focused: focus == .domain) {
                         TextField("yourschool.instructure.com", text: $domain)
@@ -3898,6 +3904,7 @@ struct NativeConnectCanvasCard: View {
                 Text("Add your school's Canvas to see your classes.")
                     .cpFont(13).lineSpacing(2).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
             }
+            NativeComputerTip()
             NavigationLink { CanvasSettingsView(store: store) } label: {
                 Label("Get started", systemImage: "arrow.right")
             }
@@ -3908,6 +3915,28 @@ struct NativeConnectCanvasCard: View {
             }
             .foregroundStyle(CPTheme.faint(scheme))
         }
+    }
+}
+
+/// Copying a Canvas token is fiddly on a phone; connecting once on a computer
+/// is easier, and this app then syncs by itself (the key is kept with the account).
+struct NativeComputerTip: View {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "laptopcomputer").cpIconFont(14).foregroundStyle(CPTheme.foreground(scheme).opacity(0.75))
+                .padding(.top, 1).accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Easiest on a computer").cpFont(13, .semibold).foregroundStyle(CPTheme.foreground(scheme))
+                Text("Connect once at canvaspro.app and this app syncs automatically, with nothing to enter here.")
+                    .cpFont(12).lineSpacing(2).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .background(CPTheme.inset(scheme), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -3958,10 +3987,23 @@ struct NativeCompletedView: View {
             .sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
     }
 
+    /// How far back to look, saved to the account (the website uses the same).
+    private var rangeDays: Int { features.completedRangeDays }
+    private var rangeChoice: Binding<Int> {
+        Binding(get: { rangeDays }, set: { days in
+            CPHaptics.select()
+            Task { await features.setCompletedRange(days) }
+        })
+    }
+    private var inRange: [Entry] {
+        let now = Date()
+        return entries.filter { NativeCompletedRange.contains($0.date, days: rangeDays, now: now) }
+    }
+
     private var shown: [Entry] {
         let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return entries }
-        return entries.filter { entry in
+        guard !query.isEmpty else { return inRange }
+        return inRange.filter { entry in
             entry.item.name.localizedCaseInsensitiveContains(query) ||
                 store.displayName(courseID: entry.item.courseID, fallback: entry.item.courseName).localizedCaseInsensitiveContains(query)
         }
@@ -3969,6 +4011,7 @@ struct NativeCompletedView: View {
 
     var body: some View {
         let all = entries
+        let ranged = inRange
         let groups = NativeCompletedGroups.groups(shown, date: \.date)
         ScrollView {
             LazyVStack(alignment: .leading, spacing: CPLayout.stack) {
@@ -3977,8 +4020,20 @@ struct NativeCompletedView: View {
                         NativeEmptyState(title: "Nothing finished yet.", symbol: "checkmark.circle")
                     }
                 } else {
-                    searchField
-                    if groups.isEmpty {
+                    rangePicker
+                    if ranged.isEmpty {
+                        CPGlassCard {
+                            NativeEmptyState(
+                                title: "Nothing finished in \(NativeCompletedRange.long(rangeDays)).",
+                                symbol: "checkmark.circle",
+                                actionTitle: rangeDays < 60 ? "Show the past 2 months" : nil,
+                                action: { rangeChoice.wrappedValue = 60 }
+                            )
+                        }
+                    } else {
+                        searchField
+                    }
+                    if !ranged.isEmpty && groups.isEmpty {
                         CPGlassCard { NativeEmptyState(title: "No matches", symbol: "magnifyingglass") }
                     }
                     ForEach(groups, id: \.title) { group in
@@ -4006,8 +4061,23 @@ struct NativeCompletedView: View {
         .toolbar(.hidden, for: .tabBar)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Text("\(all.count) finished").cpFont(12).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
+                Text("\(ranged.count) finished").cpFont(12).monospacedDigit().foregroundStyle(CPTheme.muted(scheme))
             }
+        }
+    }
+
+    /// "Finished in the past month", and 2 days · Week · 2 weeks · Month · 2 months.
+    private var rangePicker: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Finished in \(NativeCompletedRange.long(rangeDays))")
+                .cpFont(13).foregroundStyle(CPTheme.muted(scheme))
+                .padding(.horizontal, 4)
+            Picker("How far back to show", selection: rangeChoice) {
+                ForEach(NativeCompletedRange.days, id: \.self) { days in
+                    Text(NativeCompletedRange.label(days)).tag(days)
+                }
+            }
+            .pickerStyle(.segmented)
         }
     }
 
