@@ -59,7 +59,10 @@ test("a Live Activity left behind says so instead of showing 0:00 or last night'
   assert.match(widgets, /title: context\.isStale \? "Tonight's over"/);
 });
 
-test("the Next Class widget opens My classes", () => {
-  const nextClass = widgets.slice(widgets.indexOf("struct CanvasProNextClassEntryView"));
-  assert.match(nextClass, /\.widgetURL\(URL\(string: "canvaspro:\/\/class-schedule"\)\)/);
+test("the To-Do and Calendar widgets open To-Do and Calendar; Next Class is gone", () => {
+  const todo = widgets.slice(widgets.indexOf("struct CanvasProTodoEntryView"));
+  assert.match(todo, /\.widgetURL\(URL\(string: "canvaspro:\/\/todo"\)\)/);
+  const calendar = widgets.slice(widgets.indexOf("struct CanvasProCalendarEntryView"));
+  assert.match(calendar, /\.widgetURL\(URL\(string: "canvaspro:\/\/calendar"\)\)/);
+  assert.doesNotMatch(widgets + shared, /CanvasProNextClass/);
 });

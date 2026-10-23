@@ -9,7 +9,7 @@ const read = (name) => readFileSync(new URL(`../ios/App/App/${name}.swift`, impo
 const more = read("NativeMoreViews");
 const features = read("NativeFeatures");
 const views = read("NativeViews");
-const calendar = more.slice(more.indexOf("struct CalendarView: View"), more.indexOf("struct WorkloadView: View"));
+const calendar = more.slice(more.indexOf("struct NativeCalendarAgenda"), more.indexOf("struct WorkloadView: View"));
 
 test("events are the website's list, in its format", () => {
   assert.match(features, /case repeatDays = "repeat"/);

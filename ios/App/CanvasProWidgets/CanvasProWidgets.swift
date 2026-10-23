@@ -6,9 +6,10 @@ import WidgetKit
 struct CanvasProWidgets: WidgetBundle {
     var body: some Widget {
         CanvasProTodayWidget()
+        CanvasProTodoWidget()
+        CanvasProCalendarWidget()
         CanvasProDueSoonWidget()
         CanvasProGradesWidget()
-        CanvasProNextClassWidget()
         CanvasProStudyLiveActivity()
         CanvasProTonightLiveActivity()
         if #available(iOS 18.0, *) {
@@ -173,18 +174,13 @@ struct CanvasProProvider: TimelineProvider {
         for item in snapshot.assignments where item.due > now && item.due < horizon {
             moments.insert(item.due.addingTimeInterval(1))
         }
-        for offset in 0...1 {
-            guard let day = calendar.date(byAdding: .day, value: offset, to: now) else { continue }
-            for session in snapshot.sessions(on: day, calendar: calendar) {
-                moments.insert(session.start)
-                moments.insert(session.end)
-                // The in-class progress bar moves every five minutes.
-                var step = session.start.addingTimeInterval(300)
-                while step < session.end {
-                    moments.insert(step)
-                    step = step.addingTimeInterval(300)
-                }
-            }
+        for item in snapshot.todo ?? [] where item.due > now && item.due < horizon {
+            moments.insert(item.due.addingTimeInterval(1))
+        }
+        // The Calendar moves on as each thing starts and ends.
+        for item in snapshot.agenda ?? [] where !item.allDay {
+            moments.insert(item.start)
+            if let end = item.end { moments.insert(end) } else { moments.insert(item.start.addingTimeInterval(item.kind == .due ? 1 : 1_800)) }
         }
         let entries = moments.filter { $0 >= now && $0 <= horizon }.sorted().map { CanvasProEntry(date: $0, snapshot: snapshot, range: range) }
         completion(Timeline(entries: entries, policy: .atEnd))
@@ -203,7 +199,11 @@ private struct CanvasProWidgetBackground: ViewModifier {
             if family.isAccessory {
                 Color.clear
             } else {
-                CanvasProWidgetPalette(palette).background(scheme)
+                ZStack {
+                    CanvasProWidgetPalette(palette).background(scheme)
+                    // A soft light from the top, for depth.
+                    LinearGradient(colors: [Color.white.opacity(scheme == .dark ? 0.06 : 0.45), .clear], startPoint: .top, endPoint: .center)
+                }
             }
         }
     }
@@ -281,27 +281,50 @@ private struct CanvasProGradesEntryView: View {
     }
 }
 
-// MARK: - Next Class
+// MARK: - To-Do
 
-struct CanvasProNextClassWidget: Widget {
+struct CanvasProTodoWidget: Widget {
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: CanvasProWidgetStore.nextClassKind, provider: CanvasProProvider()) { entry in
-            CanvasProNextClassEntryView(entry: entry)
+        StaticConfiguration(kind: CanvasProWidgetStore.todoKind, provider: CanvasProProvider()) { entry in
+            CanvasProTodoEntryView(entry: entry)
         }
-        .configurationDisplayName("Next Class")
-        .description("The class you're in, or the next one, and the rest of the day.")
-        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryInline])
+        .configurationDisplayName("To-Do")
+        .description("What's left on To-Do today, with tomorrow on the large size. Tap a circle to tick it off.")
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryCircular, .accessoryRectangular, .accessoryInline])
     }
 }
 
-private struct CanvasProNextClassEntryView: View {
+private struct CanvasProTodoEntryView: View {
     @Environment(\.widgetFamily) private var family
     let entry: CanvasProEntry
 
     var body: some View {
-        CanvasProNextClassView(snapshot: entry.snapshot, date: entry.date, family: family)
-            // Opens My classes, not Today.
-            .widgetURL(URL(string: "canvaspro://class-schedule"))
+        CanvasProTodoView(snapshot: entry.snapshot, date: entry.date, family: family)
+            .widgetURL(URL(string: "canvaspro://todo"))
+            .modifier(CanvasProWidgetBackground(palette: entry.snapshot.palette))
+    }
+}
+
+// MARK: - Calendar
+
+struct CanvasProCalendarWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: CanvasProWidgetStore.calendarKind, provider: CanvasProProvider()) { entry in
+            CanvasProCalendarEntryView(entry: entry)
+        }
+        .configurationDisplayName("Calendar")
+        .description("Today's date and what's next: classes, your events, planned work and due dates.")
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryRectangular, .accessoryInline])
+    }
+}
+
+private struct CanvasProCalendarEntryView: View {
+    @Environment(\.widgetFamily) private var family
+    let entry: CanvasProEntry
+
+    var body: some View {
+        CanvasProCalendarView(snapshot: entry.snapshot, date: entry.date, family: family)
+            .widgetURL(URL(string: "canvaspro://calendar"))
             .modifier(CanvasProWidgetBackground(palette: entry.snapshot.palette))
     }
 }

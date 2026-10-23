@@ -1906,7 +1906,7 @@ private struct CalendarDayGroup: Identifiable {
 }
 
 /// What the calendar is built from, read once per redraw.
-private struct NativeCalendarSources {
+struct NativeCalendarSources {
     let classes: [ClassScheduleEntry]
     let events: [NativeCalendarEvent]
     let picks: [CalendarPick]
@@ -1914,40 +1914,15 @@ private struct NativeCalendarSources {
     let canvas: [CalendarEventItem]
 }
 
-/// The Calendar, as on the website: a week to pick a day from, then that day
-/// in time order — classes, your events, work you planned, and what's due.
-/// Upcoming lists the next month without the everyday classes.
-struct CalendarView: View {
-    @Environment(\.colorScheme) private var scheme
-    @Environment(\.cpPalette) private var paletteDependency
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @ObservedObject var store: NativeContentStore
-    @ObservedObject var features: NativeFeatureStore
-    /// The time column grows with Text Size, so times never squeeze.
-    @ScaledMetric(relativeTo: .footnote) private var timeWidth: CGFloat = 66
-    @State private var editingPick: CalendarPick?
-    @State private var pickedTime = Date()
-    @State private var editingEvent: NativeEventEditing?
-    @State private var selectedDate: Date? = Calendar.current.startOfDay(for: Date())
-    @State private var currentWeekOffset = 0
-    /// Which way the weeks last moved (1 forward, -1 back), for the slide.
-    @State private var weekDirection = 1
-    /// How far the week strip is being dragged, so it follows the finger a little.
-    @GestureState private var weekDrag: CGFloat = 0
-
-    private static let upcomingDays = 30
-    /// Earlier weeks show your classes and events (finished due dates are on Completed).
-    private static let weeksBack = 12
+/// What the Calendar shows on a day, worked out once for the Calendar screen
+/// and the Calendar widget: classes, your events, work you planned, what's
+/// due and Canvas events.
+struct NativeCalendarAgenda {
+    let store: NativeContentStore
+    let features: NativeFeatureStore
     private var calendar: Calendar { Calendar.current }
-    private var today: Date { calendar.startOfDay(for: Date()) }
 
-    private var weekDates: [Date] {
-        let weekday = calendar.component(.weekday, from: today)
-        let monday = calendar.date(byAdding: .day, value: -((weekday + 5) % 7) + (currentWeekOffset * 7), to: today) ?? today
-        return (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: monday) }
-    }
-
-    private var sources: NativeCalendarSources {
+    var sources: NativeCalendarSources {
         let all = features.shownAssignments(in: store)
         let picked = Set(features.calendarPicks.map(\.assignmentID))
         let customIDs = Set(features.customAssignments.map(\.id))
@@ -1979,7 +1954,7 @@ struct CalendarView: View {
     }
 
     /// Everything on one day: all-day first, then by time.
-    private func entries(on day: Date, _ src: NativeCalendarSources, classes includeClasses: Bool = true) -> [NativeCalendarEntry] {
+    func entries(on day: Date, _ src: NativeCalendarSources, classes includeClasses: Bool = true) -> [NativeCalendarEntry] {
         var result: [NativeCalendarEntry] = []
         let weekday = calendar.component(.weekday, from: day)
         if includeClasses {
@@ -2018,6 +1993,48 @@ struct CalendarView: View {
             if a.kind != b.kind { return a.kind.rawValue < b.kind.rawValue }
             return a.title.localizedStandardCompare(b.title) == .orderedAscending
         }
+    }
+
+}
+
+/// The Calendar, as on the website: a week to pick a day from, then that day
+/// in time order — classes, your events, work you planned, and what's due.
+/// Upcoming lists the next month without the everyday classes.
+struct CalendarView: View {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.cpPalette) private var paletteDependency
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ObservedObject var store: NativeContentStore
+    @ObservedObject var features: NativeFeatureStore
+    /// The time column grows with Text Size, so times never squeeze.
+    @ScaledMetric(relativeTo: .footnote) private var timeWidth: CGFloat = 66
+    @State private var editingPick: CalendarPick?
+    @State private var pickedTime = Date()
+    @State private var editingEvent: NativeEventEditing?
+    @State private var selectedDate: Date? = Calendar.current.startOfDay(for: Date())
+    @State private var currentWeekOffset = 0
+    /// Which way the weeks last moved (1 forward, -1 back), for the slide.
+    @State private var weekDirection = 1
+    /// How far the week strip is being dragged, so it follows the finger a little.
+    @GestureState private var weekDrag: CGFloat = 0
+
+    private static let upcomingDays = 30
+    /// Earlier weeks show your classes and events (finished due dates are on Completed).
+    private static let weeksBack = 12
+    private var calendar: Calendar { Calendar.current }
+    private var today: Date { calendar.startOfDay(for: Date()) }
+
+    private var weekDates: [Date] {
+        let weekday = calendar.component(.weekday, from: today)
+        let monday = calendar.date(byAdding: .day, value: -((weekday + 5) % 7) + (currentWeekOffset * 7), to: today) ?? today
+        return (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: monday) }
+    }
+
+    private var agenda: NativeCalendarAgenda { NativeCalendarAgenda(store: store, features: features) }
+    private var sources: NativeCalendarSources { agenda.sources }
+    /// Everything on one day: all-day first, then by time.
+    private func entries(on day: Date, _ src: NativeCalendarSources, classes includeClasses: Bool = true) -> [NativeCalendarEntry] {
+        agenda.entries(on: day, src, classes: includeClasses)
     }
 
     private func upcomingGroups(_ src: NativeCalendarSources) -> [CalendarDayGroup] {

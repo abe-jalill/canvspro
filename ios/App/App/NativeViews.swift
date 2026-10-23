@@ -338,13 +338,20 @@ private struct NativeWidgetGallery: View {
                     lockScreen
                 } else if page == "live" {
                     liveActivities
-                } else if page == "classes" {
+                } else if page == "todo" {
                     HStack(spacing: 22) {
-                        home(width: 170, height: 170) { CanvasProNextClassView(snapshot: snapshot, date: now, family: .systemSmall) }
+                        home(width: 170, height: 170) { CanvasProTodoView(snapshot: snapshot, date: now, family: .systemSmall, interactive: false) }
+                        home(width: 170, height: 170) { CanvasProCalendarView(snapshot: snapshot, date: now, family: .systemSmall) }
+                    }
+                    home(width: 364, height: 170) { CanvasProTodoView(snapshot: snapshot, date: now, family: .systemMedium, interactive: false) }
+                    home(width: 364, height: 382) { CanvasProTodoView(snapshot: snapshot, date: now, family: .systemLarge, interactive: false) }
+                } else if page == "calendar" || page == "classes" {
+                    HStack(spacing: 22) {
+                        home(width: 170, height: 170) { CanvasProCalendarView(snapshot: snapshot, date: now, family: .systemSmall) }
                         home(width: 170, height: 170) { CanvasProGradesView(snapshot: hiddenGrades, family: .systemSmall) }
                     }
-                    home(width: 364, height: 170) { CanvasProNextClassView(snapshot: snapshot, date: now, family: .systemMedium) }
-                    home(width: 364, height: 170) { CanvasProDueSoonView(snapshot: snapshot, date: now, family: .systemMedium, range: .twoDays) }
+                    home(width: 364, height: 170) { CanvasProCalendarView(snapshot: snapshot, date: now, family: .systemMedium) }
+                    home(width: 364, height: 382) { CanvasProCalendarView(snapshot: snapshot, date: now, family: .systemLarge) }
                 } else {
                     HStack(spacing: 22) {
                         home(width: 170, height: 170) { CanvasProDueSoonView(snapshot: snapshot, date: now, family: .systemSmall) }
@@ -435,8 +442,12 @@ private struct NativeWidgetGallery: View {
                 CanvasProDueSoonView(snapshot: snapshot, date: now, family: .accessoryRectangular)
                     .frame(width: 160, height: 72)
             }
-            CanvasProNextClassView(snapshot: snapshot, date: now, family: .accessoryRectangular)
-                .frame(width: 244, height: 72)
+            HStack(spacing: 12) {
+                CanvasProTodoView(snapshot: snapshot, date: now, family: .accessoryRectangular)
+                    .frame(width: 160, height: 72)
+                CanvasProCalendarView(snapshot: snapshot, date: now, family: .accessoryRectangular)
+                    .frame(width: 160, height: 72)
+            }
         }
         .padding(20)
         .foregroundStyle(.white)
@@ -1800,6 +1811,39 @@ struct NativeMainTabView: View {
                 endMinutes: entry.endMinutes
             )
         }
+        // To-Do for today and tomorrow, as the To-Do tab lists it (your own tasks too).
+        let dayAfter = calendar.date(byAdding: .day, value: 2, to: today) ?? now
+        let todo = featureStore.shownAssignments(in: contentStore, includePersonalTasks: true)
+            .compactMap { item -> CanvasProWidgetSnapshot.TodoItem? in
+                guard let due = item.dueDate, due >= today, due < dayAfter else { return nil }
+                return CanvasProWidgetSnapshot.TodoItem(
+                    id: item.id,
+                    name: item.name,
+                    course: item.courseID == CustomAssignment.noClassID ? CustomAssignment.noClassLabel : contentStore.displayName(courseID: item.courseID, fallback: item.courseName),
+                    due: due,
+                    done: item.showsDone(in: contentStore) || pending[item.id] != nil,
+                    minutes: NativeParity.estimate(item, estimates: featureStore.estimates)
+                )
+            }
+            .sorted { $0.due < $1.due }
+        // The Calendar for today and the next two days, as the Calendar tab shows it.
+        let agendaSource = NativeCalendarAgenda(store: contentStore, features: featureStore)
+        let sources = agendaSource.sources
+        var agenda: [CanvasProWidgetSnapshot.AgendaItem] = []
+        for offset in 0..<3 {
+            guard let day = calendar.date(byAdding: .day, value: offset, to: today) else { continue }
+            for entry in agendaSource.entries(on: day, sources) {
+                let kind: CanvasProWidgetSnapshot.AgendaItem.Kind
+                switch entry.kind {
+                case .classMeeting: kind = .classMeeting
+                case .event: kind = .event
+                case .canvas: kind = .canvas
+                case .planned: kind = .planned
+                case .due: kind = .due
+                }
+                agenda.append(CanvasProWidgetSnapshot.AgendaItem(id: entry.id, kind: kind, title: entry.title, detail: entry.context, start: entry.start, end: entry.end, allDay: entry.allDay))
+            }
+        }
         let snapshot = CanvasProWidgetSnapshot(
             signedIn: true,
             palette: UserDefaults.standard.string(forKey: "CanvasProPalette") ?? "forest",
@@ -1812,7 +1856,9 @@ struct NativeMainTabView: View {
             // The same name the dashboard greets with, for the Today widget.
             name: [featureStore.accountDetails.nickname, featureStore.accountDetails.firstName, featureStore.profile.username ?? ""]
                 .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                .first { !$0.isEmpty }
+                .first { !$0.isEmpty },
+            todo: Array(todo.prefix(40)),
+            agenda: Array(agenda.prefix(60))
         )
         CanvasProWidgetStore.save(snapshot)
         // "Due tonight" on the lock screen, from 9 PM.

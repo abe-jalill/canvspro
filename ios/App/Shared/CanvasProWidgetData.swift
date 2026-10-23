@@ -51,6 +51,36 @@ struct CanvasProWidgetSnapshot: Codable, Equatable {
     /// Optional, so a snapshot saved before it existed still loads.
     var name: String? = nil
 
+    /// One item on To-Do: Canvas work or your own task, due today or tomorrow.
+    struct TodoItem: Codable, Equatable, Identifiable {
+        let id: Int
+        let name: String
+        /// The class, or "Personal".
+        let course: String
+        let due: Date
+        let done: Bool
+        /// Roughly how long it takes, in minutes.
+        let minutes: Int
+    }
+
+    /// One thing on the Calendar: a class, your event, planned work, a due date or a Canvas event.
+    struct AgendaItem: Codable, Equatable, Identifiable {
+        enum Kind: String, Codable { case classMeeting = "class", event, canvas, planned, due }
+        let id: String
+        let kind: Kind
+        let title: String
+        /// Where, or which class.
+        let detail: String
+        let start: Date
+        let end: Date?
+        let allDay: Bool
+    }
+
+    /// To-Do for today and tomorrow, done items included (they count toward progress).
+    var todo: [TodoItem]? = nil
+    /// The Calendar for today and the next two days.
+    var agenda: [AgendaItem]? = nil
+
     static let signedOut = CanvasProWidgetSnapshot(signedIn: false, palette: "forest", syncedAt: nil, assignments: [], overdueCount: 0, classes: [], courses: [], hideGrades: false)
 
     // Workload
@@ -84,6 +114,41 @@ struct CanvasProWidgetSnapshot: Codable, Equatable {
             guard let day = calendar.date(byAdding: .day, value: offset, to: today) else { return nil }
             let count = assignments.filter { !$0.done && $0.due > date && calendar.isDate($0.due, inSameDayAs: day) }.count
             return DayLoad(day: day, count: count)
+        }
+    }
+
+    // To-Do
+
+    struct TodoDay {
+        /// Unfinished first (soonest due), then what's done.
+        let items: [TodoItem]
+        var left: Int { items.filter { !$0.done }.count }
+        var done: Int { items.filter(\.done).count }
+        var total: Int { items.count }
+        var minutesLeft: Int { items.filter { !$0.done }.reduce(0) { $0 + $1.minutes } }
+        var progress: Double { total == 0 ? 0 : Double(done) / Double(total) }
+    }
+
+    func todoDay(_ day: Date, calendar: Calendar = .current) -> TodoDay {
+        let items = (todo ?? []).filter { calendar.isDate($0.due, inSameDayAs: day) }
+        return TodoDay(items: items.filter { !$0.done }.sorted { $0.due == $1.due ? $0.name < $1.name : $0.due < $1.due }
+            + items.filter(\.done).sorted { $0.due < $1.due })
+    }
+
+    // Calendar
+
+    /// A day's agenda: all-day first, then by time.
+    func agenda(on day: Date, calendar: Calendar = .current) -> [AgendaItem] {
+        (agenda ?? []).filter { calendar.isDate($0.start, inSameDayAs: day) }.sorted { a, b in
+            if a.allDay != b.allDay { return a.allDay }
+            return a.start == b.start ? a.title < b.title : a.start < b.start
+        }
+    }
+
+    /// What's still ahead today, or happening now. All-day items stay all day.
+    func remainingAgenda(at date: Date, calendar: Calendar = .current) -> [AgendaItem] {
+        agenda(on: date, calendar: calendar).filter { item in
+            item.allDay || (item.end ?? item.start.addingTimeInterval(item.kind == .due ? 0 : 1_800)) > date
         }
     }
 
@@ -137,6 +202,10 @@ enum CanvasProWorkloadRange: String, CaseIterable, Codable {
     var heading: String {
         switch self { case .tonight: "TONIGHT"; case .twoDays: "NEXT 2 DAYS"; case .week: "THIS WEEK" }
     }
+    /// The widget's title for the range.
+    var label: String {
+        switch self { case .tonight: "Due Tonight"; case .twoDays: "Next 2 Days"; case .week: "This Week" }
+    }
     var phrase: String {
         switch self { case .tonight: "tonight"; case .twoDays: "in 2 days"; case .week: "this week" }
     }
@@ -173,7 +242,8 @@ enum CanvasProWidgetStore {
     static let appGroup = "group.app.canvaspro.mobile"
     static let dueSoonKind = "CanvasProDueSoon"
     static let gradesKind = "CanvasProGrades"
-    static let nextClassKind = "CanvasProNextClass"
+    static let todoKind = "CanvasProTodo"
+    static let calendarKind = "CanvasProCalendar"
     static let todayKind = "CanvasProToday"
     private static let key = "CanvasProWidgetSnapshot.v2"
     private static let rangeKey = "CanvasProWorkloadRange"
@@ -238,9 +308,17 @@ enum CanvasProWidgetStore {
         var raw = defaults?.dictionary(forKey: pendingKey) as? [String: Double] ?? [:]
         raw[String(id)] = due.timeIntervalSince1970
         defaults?.set(raw, forKey: pendingKey)
-        guard var snapshot = load(), let index = snapshot.assignments.firstIndex(where: { $0.id == id }) else { return }
-        let item = snapshot.assignments[index]
-        snapshot.assignments[index] = CanvasProWidgetSnapshot.Assignment(id: item.id, name: item.name, course: item.course, due: item.due, done: true)
+        guard var snapshot = load() else { return }
+        if let index = snapshot.assignments.firstIndex(where: { $0.id == id }) {
+            let item = snapshot.assignments[index]
+            snapshot.assignments[index] = CanvasProWidgetSnapshot.Assignment(id: item.id, name: item.name, course: item.course, due: item.due, done: true)
+        }
+        // The To-Do widget ticks it off too.
+        if var todo = snapshot.todo, let index = todo.firstIndex(where: { $0.id == id }) {
+            let item = todo[index]
+            todo[index] = CanvasProWidgetSnapshot.TodoItem(id: item.id, name: item.name, course: item.course, due: item.due, done: true, minutes: item.minutes)
+            snapshot.todo = todo
+        }
         save(snapshot)
     }
 
@@ -306,7 +384,7 @@ private struct CanvasProCaption: View {
     let text: String
     let color: Color
     var body: some View {
-        Text(text).font(.system(size: 9.5, weight: .bold)).tracking(1.1).foregroundStyle(color).lineLimit(1).minimumScaleFactor(0.9)
+        Text(text).font(.system(size: 10, weight: .bold)).tracking(1.0).foregroundStyle(color).lineLimit(1).minimumScaleFactor(0.9)
     }
 }
 
@@ -420,8 +498,8 @@ struct CanvasProDueSoonView: View {
     private func ring(size: CGFloat, countSize: CGFloat) -> some View {
         CanvasProRing(progress: work.progress, color: accent, track: faint, lineWidth: size > 60 ? 4.5 : 4) {
             VStack(spacing: -1) {
-                Text("\(work.remaining.count)").font(.system(size: countSize, weight: .bold)).monospacedDigit().foregroundStyle(fg)
-                Text("left").font(.system(size: 8.5, weight: .semibold)).foregroundStyle(muted)
+                Text("\(work.remaining.count)").font(.system(size: countSize, weight: .bold, design: .rounded)).monospacedDigit().foregroundStyle(fg)
+                Text("left").font(.system(size: 9.5, weight: .semibold)).foregroundStyle(muted)
             }
         }
         .frame(width: size, height: size)
@@ -447,7 +525,7 @@ struct CanvasProDueSoonView: View {
 
     private func rangeLabel(_ option: CanvasProWorkloadRange) -> some View {
         Text(option.title)
-            .font(.system(size: 9.5, weight: .bold))
+            .font(.system(size: 10.5, weight: .bold))
             .foregroundStyle(option == range ? fg : muted)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 4)
@@ -457,15 +535,7 @@ struct CanvasProDueSoonView: View {
             .contentShape(Capsule())
     }
 
-    private var checkCircle: some View {
-        Circle()
-            .strokeBorder(muted, lineWidth: 1)
-            .frame(width: 14, height: 14)
-            .padding(5)
-            .contentShape(Rectangle())
-            .padding(-5)
-            .widgetAccentable()
-    }
+    private var checkCircle: some View { CanvasProCheckMark(done: false, size: 17) }
 
     /// Tap to mark the assignment done, right from the widget.
     @ViewBuilder private func checkButton(_ item: CanvasProWidgetSnapshot.Assignment) -> some View {
@@ -479,16 +549,16 @@ struct CanvasProDueSoonView: View {
     }
 
     private func row(_ item: CanvasProWidgetSnapshot.Assignment) -> some View {
-        HStack(alignment: .center, spacing: 9) {
+        HStack(alignment: .center, spacing: 10) {
             checkButton(item)
             VStack(alignment: .leading, spacing: 1) {
-                Text(item.name).font(.system(size: 12, weight: .semibold)).foregroundStyle(fg).lineLimit(1).minimumScaleFactor(0.9)
-                Text(item.course).font(.system(size: 10, weight: .medium)).foregroundStyle(muted).lineLimit(1).minimumScaleFactor(0.9)
+                Text(item.name).font(.system(size: 13, weight: .semibold)).foregroundStyle(fg).lineLimit(1).minimumScaleFactor(0.9)
+                Text(item.course).font(.system(size: 11, weight: .medium)).foregroundStyle(muted).lineLimit(1).minimumScaleFactor(0.9)
             }
             Spacer(minLength: 6)
             // The time keeps its room; a long name truncates first.
             Text(CanvasProWidgetFormat.due(item.due, now: date))
-                .font(.system(size: 10, weight: .semibold)).monospacedDigit()
+                .font(.system(size: 11, weight: .semibold)).monospacedDigit()
                 .foregroundStyle(muted).lineLimit(1).minimumScaleFactor(0.9)
                 .layoutPriority(1)
         }
@@ -506,12 +576,12 @@ struct CanvasProDueSoonView: View {
                 ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                     row(item)
                     if index < items.count - 1 {
-                        Rectangle().fill(faint).frame(height: 0.5).padding(.vertical, gap).padding(.leading, 23)
+                        Rectangle().fill(faint).frame(height: 0.5).padding(.vertical, gap).padding(.leading, 27)
                     }
                 }
                 if work.remaining.count > limit {
-                    Text("+\(work.remaining.count - limit) more").font(.system(size: 10, weight: .semibold)).foregroundStyle(muted)
-                        .padding(.top, gap).padding(.leading, 23)
+                    Text("+\(work.remaining.count - limit) more").font(.system(size: 11, weight: .semibold)).foregroundStyle(muted)
+                        .padding(.top, gap).padding(.leading, 27)
                 }
                 Spacer(minLength: 0)
             }
@@ -526,8 +596,7 @@ struct CanvasProDueSoonView: View {
             // Tapping the heading moves to the next range.
             Button(intent: CanvasProSetWorkloadRange(range.next)) {
                 HStack(spacing: 4) {
-                    CanvasProCaption(text: range.heading, color: muted)
-                    Spacer(minLength: 4)
+                    CanvasProWidgetHeader(title: range.label)
                     HStack(spacing: 3) {
                         ForEach(CanvasProWorkloadRange.allCases, id: \.self) { option in
                             Capsule().fill(option == range ? accent : faint).frame(width: option == range ? 10 : 4, height: 4)
@@ -541,22 +610,22 @@ struct CanvasProDueSoonView: View {
             HStack(spacing: 12) {
                 ring(size: 54, countSize: 19)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(work.remaining.count == 1 ? "assignment" : "assignments").font(.system(size: 11, weight: .semibold)).foregroundStyle(fg)
-                    Text(doneLine).font(.system(size: 10, weight: .medium)).foregroundStyle(muted)
+                    Text(work.remaining.count == 1 ? "assignment" : "assignments").font(.system(size: 12, weight: .semibold)).foregroundStyle(fg)
+                    Text(doneLine).font(.system(size: 11, weight: .medium)).foregroundStyle(muted)
                 }
             }
             Spacer(minLength: 0)
             if let next = work.remaining.first {
                 HStack(alignment: .center, spacing: 8) {
                     VStack(alignment: .leading, spacing: 0) {
-                        Text(next.name).font(.system(size: 11.5, weight: .semibold)).foregroundStyle(fg).lineLimit(1).minimumScaleFactor(0.9)
-                        Text("\(CanvasProWidgetFormat.due(next.due, now: date)) · \(next.course)").font(.system(size: 9.5, weight: .medium)).monospacedDigit().foregroundStyle(muted).lineLimit(1).minimumScaleFactor(0.9)
+                        Text(next.name).font(.system(size: 12, weight: .semibold)).foregroundStyle(fg).lineLimit(1).minimumScaleFactor(0.9)
+                        Text("\(CanvasProWidgetFormat.due(next.due, now: date)) · \(next.course)").font(.system(size: 10.5, weight: .medium)).monospacedDigit().foregroundStyle(muted).lineLimit(1).minimumScaleFactor(0.9)
                     }
                     Spacer(minLength: 4)
                     checkButton(next)
                 }
             } else {
-                Text(range.emptyLine).font(.system(size: 10.5, weight: .semibold)).foregroundStyle(muted).lineLimit(2)
+                Text(range.emptyLine).font(.system(size: 11.5, weight: .semibold)).foregroundStyle(muted).lineLimit(2)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
@@ -565,14 +634,13 @@ struct CanvasProDueSoonView: View {
     private var medium: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 10) {
-                CanvasProCaption(text: "WHAT'S DUE", color: muted)
-                Spacer(minLength: 8)
+                CanvasProWidgetHeader(title: "What's Due")
                 rangePicker.frame(width: 172)
             }
             HStack(alignment: .top, spacing: 16) {
                 VStack(spacing: 7) {
                     ring(size: 62, countSize: 21)
-                    Text(doneLine).font(.system(size: 9.5, weight: .medium)).foregroundStyle(muted).lineLimit(1).minimumScaleFactor(0.9)
+                    Text(doneLine).font(.system(size: 10.5, weight: .medium)).foregroundStyle(muted).lineLimit(1).minimumScaleFactor(0.9)
                 }
                 .frame(width: 74)
                 // Two rows with room to breathe; the rest is "+N more".
@@ -585,8 +653,7 @@ struct CanvasProDueSoonView: View {
     private var large: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 10) {
-                CanvasProCaption(text: "WHAT'S DUE", color: muted)
-                Spacer(minLength: 8)
+                CanvasProWidgetHeader(title: "What's Due")
                 rangePicker.frame(width: 180)
             }
             HStack(alignment: .center, spacing: 16) {
@@ -628,7 +695,7 @@ struct CanvasProDueSoonView: View {
         return VStack(spacing: 5) {
             Capsule().fill(fill).frame(width: 5, height: height).widgetAccentable(inside)
             Text(entry.day.formatted(.dateTime.weekday(.narrow)))
-                .font(.system(size: 9, weight: isToday ? .bold : .medium))
+                .font(.system(size: 10, weight: isToday ? .bold : .medium))
                 .foregroundStyle(inside ? fg.opacity(0.8) : muted.opacity(0.6))
         }
         .frame(maxWidth: .infinity)
@@ -710,13 +777,13 @@ struct CanvasProGradesView: View {
                     Image(systemName: "eye.slash").font(.system(size: valueSize * 0.7, weight: .bold)).foregroundStyle(muted)
                 } else {
                     HStack(alignment: .firstTextBaseline, spacing: 1) {
-                        Text(average.map(CanvasProWidgetFormat.score) ?? "—").font(.system(size: valueSize, weight: .bold)).monospacedDigit().foregroundStyle(fg)
+                        Text(average.map(CanvasProWidgetFormat.score) ?? "—").font(.system(size: valueSize, weight: .bold, design: .rounded)).monospacedDigit().foregroundStyle(fg)
                         if average != nil { Text("%").font(.system(size: valueSize * 0.45, weight: .semibold)).foregroundStyle(muted) }
                     }
                     .privacySensitive()
                 }
                 Text(hidden ? "HIDDEN" : CanvasProWidgetFormat.letter(average))
-                    .font(.system(size: 9, weight: .bold)).tracking(0.8)
+                    .font(.system(size: 10, weight: .bold)).tracking(0.8)
                     .foregroundStyle(hidden ? muted : gradeColor)
                     .privacySensitive()
             }
@@ -727,11 +794,11 @@ struct CanvasProGradesView: View {
 
     private var small: some View {
         VStack(alignment: .leading, spacing: 0) {
-            CanvasProCaption(text: "AVERAGE", color: muted)
+            CanvasProWidgetHeader(title: "Grades")
             Spacer(minLength: 0)
-            gauge(size: 92, valueSize: 21).frame(maxWidth: .infinity)
+            gauge(size: 88, valueSize: 21).frame(maxWidth: .infinity)
             Spacer(minLength: 0)
-            Text(classCount).font(.system(size: 10, weight: .medium)).foregroundStyle(muted)
+            Text(classCount).font(.system(size: 11, weight: .medium)).foregroundStyle(muted)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
@@ -739,13 +806,13 @@ struct CanvasProGradesView: View {
     private var medium: some View {
         HStack(alignment: .top, spacing: 18) {
             VStack(alignment: .leading, spacing: 0) {
-                CanvasProCaption(text: "AVERAGE", color: muted)
+                CanvasProWidgetHeader(title: "Grades")
                 Spacer(minLength: 0)
-                gauge(size: 92, valueSize: 21)
+                gauge(size: 86, valueSize: 20)
                 Spacer(minLength: 0)
-                Text(classCount).font(.system(size: 10, weight: .medium)).foregroundStyle(muted)
+                Text(classCount).font(.system(size: 11, weight: .medium)).foregroundStyle(muted)
             }
-            .frame(width: 96, alignment: .leading)
+            .frame(width: 100, alignment: .leading)
             VStack(alignment: .leading, spacing: 9) {
                 CanvasProCaption(text: "CLASSES", color: muted)
                 if snapshot.courses.isEmpty {
@@ -759,13 +826,14 @@ struct CanvasProGradesView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    /// Every class, under the average. Seven fit; beyond that the last line
+    /// Every class, under the average. Six fit; beyond that the last line
     /// says how many more there are.
     private var large: some View {
         let courses = snapshot.courses
-        let fits = 7
+        let fits = 6
         let shown = courses.count > fits ? Array(courses.prefix(fits - 1)) : courses
         return VStack(alignment: .leading, spacing: 14) {
+            CanvasProWidgetHeader(title: "Grades")
             // One tight row, flush left with the class names below.
             HStack(alignment: .center, spacing: 12) {
                 gauge(size: 62, valueSize: 15)
@@ -801,10 +869,10 @@ struct CanvasProGradesView: View {
         let fraction = hidden ? 0 : min(1, max(0, (course.score ?? 0) / 100))
         return VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline) {
-                Text(course.name).font(.system(size: 11, weight: .semibold)).foregroundStyle(fg).lineLimit(1).minimumScaleFactor(0.9)
+                Text(course.name).font(.system(size: 12, weight: .semibold)).foregroundStyle(fg).lineLimit(1).minimumScaleFactor(0.9)
                 Spacer(minLength: 6)
                 Text(hidden ? "••" : course.score.map(CanvasProWidgetFormat.score) ?? "—")
-                    .font(.system(size: 10.5, weight: .semibold)).monospacedDigit().foregroundStyle(muted)
+                    .font(.system(size: 11.5, weight: .semibold)).monospacedDigit().foregroundStyle(muted)
                     .privacySensitive()
             }
             GeometryReader { bar in
@@ -896,22 +964,22 @@ struct CanvasProTodayView: View {
     }
 
     private func dateLine(_ style: Date.FormatStyle) -> some View {
-        HStack(spacing: 5) {
-            Image(systemName: "calendar").font(.system(size: 9, weight: .bold))
+        HStack(spacing: 6) {
+            CanvasProLogoMark(size: 16)
             Text(date.formatted(style).uppercased())
-                .font(.system(size: 9.5, weight: .bold)).tracking(1.4)
+                .font(.system(size: 10.5, weight: .bold)).tracking(1.2)
+                .foregroundStyle(muted)
                 .lineLimit(1).minimumScaleFactor(0.9)
         }
-        .foregroundStyle(muted)
     }
 
     private func tile(_ value: Int, _ label: String, alert: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text("\(value)")
-                .font(.system(size: 20, weight: .bold)).monospacedDigit()
+                .font(.system(size: 20, weight: .bold, design: .rounded)).monospacedDigit()
                 .foregroundStyle(alert && value > 0 ? CanvasProWidgetPalette.overdue(scheme) : fg)
             Text(label)
-                .font(.system(size: 9.5, weight: .semibold)).foregroundStyle(muted)
+                .font(.system(size: 10.5, weight: .semibold)).foregroundStyle(muted)
                 .lineLimit(1).minimumScaleFactor(0.9)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -950,9 +1018,9 @@ struct CanvasProTodayView: View {
     private func smallStat(_ value: Int, _ label: String, alert: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 1) {
             Text("\(value)")
-                .font(.system(size: 18, weight: .bold)).monospacedDigit()
+                .font(.system(size: 18, weight: .bold, design: .rounded)).monospacedDigit()
                 .foregroundStyle(alert && value > 0 ? CanvasProWidgetPalette.overdue(scheme) : fg)
-            Text(label).font(.system(size: 9, weight: .semibold)).foregroundStyle(muted)
+            Text(label).font(.system(size: 10, weight: .semibold)).foregroundStyle(muted)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -963,7 +1031,7 @@ struct CanvasProTodayView: View {
                 .font(.system(size: 24, weight: .bold)).foregroundStyle(fg)
                 .lineLimit(1).minimumScaleFactor(0.6)
             Text(message)
-                .font(.system(size: 11, weight: .medium)).foregroundStyle(muted)
+                .font(.system(size: 12, weight: .medium)).foregroundStyle(muted)
                 .lineLimit(1).minimumScaleFactor(0.85)
         }
     }
@@ -1004,143 +1072,525 @@ struct CanvasProTodayView: View {
     }
 }
 
-// MARK: - Next Class
+// MARK: - To-Do
 
-struct CanvasProNextClassView: View {
+/// To-Do on the home screen: what's left today, with a tick for each, and
+/// tomorrow below on the large size. Ticks save to the account like the app's.
+struct CanvasProTodoView: View {
     @Environment(\.colorScheme) private var scheme
     let snapshot: CanvasProWidgetSnapshot
     let date: Date
     let family: WidgetFamily
+    /// False in the app's preview, where buttons can't be tapped.
+    var interactive = true
 
     private var palette: CanvasProWidgetPalette { CanvasProWidgetPalette(snapshot.palette) }
     private var fg: Color { palette.foreground(scheme) }
     private var muted: Color { palette.muted(scheme) }
     private var faint: Color { palette.faint(scheme) }
-    private var accent: Color { palette.accent(scheme) }
-    private var session: CanvasProWidgetSnapshot.Session? { snapshot.currentOrNextClass(at: date) }
+    private var today: CanvasProWidgetSnapshot.TodoDay { snapshot.todoDay(date) }
+    private var tomorrow: CanvasProWidgetSnapshot.TodoDay {
+        snapshot.todoDay(Calendar.current.date(byAdding: .day, value: 1, to: date) ?? date)
+    }
 
     var body: some View {
         if !snapshot.signedIn && !family.isAccessory {
-            CanvasProSignedOutView(palette: palette, symbol: "calendar", line: "Open CoursePro to see your classes")
+            CanvasProSignedOutView(palette: palette, symbol: "checklist", line: "Open CoursePro to see your To-Do")
         } else {
             switch family {
+            case .accessoryCircular: circular
             case .accessoryRectangular: rectangular
             case .accessoryInline: inline
-            default: home
+            case .systemSmall: small
+            case .systemLarge: large
+            default: medium
             }
         }
     }
 
-    private func isNow(_ session: CanvasProWidgetSnapshot.Session) -> Bool { session.start <= date }
+    // Pieces
 
-    private func elapsed(_ session: CanvasProWidgetSnapshot.Session) -> CGFloat {
-        let length = session.end.timeIntervalSince(session.start)
-        guard length > 0 else { return 0 }
-        return CGFloat(min(1, max(0, date.timeIntervalSince(session.start) / length)))
+    /// 45 → "45 min", 90 → "1 hr 30 min".
+    static func duration(_ minutes: Int) -> String {
+        let hours = minutes / 60, rest = minutes % 60
+        if hours == 0 { return "\(rest) min" }
+        return rest == 0 ? "\(hours) hr" : "\(hours) hr \(rest) min"
     }
 
-    @ViewBuilder private var home: some View {
-        if let session {
-            HStack(alignment: .top, spacing: 18) {
-                summary(session)
-                if family != .systemSmall { dayTimeline(for: session) }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        } else {
-            VStack(alignment: .leading, spacing: 0) {
-                CanvasProCaption(text: "CLASSES", color: muted)
-                Spacer(minLength: 0)
-                Label(snapshot.classes.isEmpty ? "Add your schedule in CoursePro" : "No classes this week", systemImage: "calendar")
-                    .font(.system(size: 11, weight: .semibold)).foregroundStyle(muted)
-                Spacer(minLength: 0)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        }
+    private var summary: String {
+        let day = today
+        if day.total == 0 { return "Nothing due today" }
+        if day.left == 0 { return "All done today" }
+        return "\(day.left) left · \(Self.duration(day.minutesLeft))"
     }
 
-    private func summary(_ session: CanvasProWidgetSnapshot.Session) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 5) {
-                if isNow(session) { Circle().fill(accent).frame(width: 5, height: 5).widgetAccentable() }
-                CanvasProCaption(text: isNow(session) ? "IN CLASS" : CanvasProWidgetFormat.day(session.start, now: date).uppercased(), color: isNow(session) ? accent : muted)
-            }
-            Spacer(minLength: 0)
-            Text(session.meeting.name).font(.system(size: 14, weight: .bold)).foregroundStyle(fg).lineLimit(2)
-            if !session.meeting.location.isEmpty {
-                Text(session.meeting.location).font(.system(size: 10.5, weight: .medium)).foregroundStyle(muted).lineLimit(1).minimumScaleFactor(0.9).padding(.top, 2)
-            }
-            Spacer(minLength: 0)
-            if isNow(session) {
-                // Steps forward with the timeline, every five minutes of class.
-                GeometryReader { bar in
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(faint)
-                        Capsule().fill(accent).frame(width: bar.size.width * elapsed(session)).widgetAccentable()
-                    }
+    private func bar(_ progress: Double, height: CGFloat = 4) -> some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                Capsule().fill(faint)
+                if progress > 0 {
+                    Capsule().fill(fg)
+                        .frame(width: max(height, proxy.size.width * min(1, progress)))
+                        .widgetAccentable()
                 }
-                .frame(height: 3)
-                Text("Until \(CanvasProWidgetFormat.time(session.end))")
-                    .font(.system(size: 9.5, weight: .semibold)).monospacedDigit().foregroundStyle(muted).lineLimit(1).minimumScaleFactor(0.9).padding(.top, 5)
+            }
+        }
+        .frame(height: height)
+        .accessibilityHidden(true)
+    }
+
+    /// Tap to tick it off, right from the widget.
+    @ViewBuilder private func check(_ item: CanvasProWidgetSnapshot.TodoItem) -> some View {
+        if interactive && !item.done {
+            Button(intent: CanvasProCompleteAssignment(item)) { CanvasProCheckMark(done: false) }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Mark \(item.name) done")
+        } else {
+            CanvasProCheckMark(done: item.done)
+        }
+    }
+
+    private func row(_ item: CanvasProWidgetSnapshot.TodoItem, compact: Bool = false) -> some View {
+        HStack(alignment: .center, spacing: 10) {
+            check(item)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(item.name)
+                    .font(.system(size: compact ? 12.5 : 13, weight: .semibold))
+                    .foregroundStyle(item.done ? muted : fg)
+                    .strikethrough(item.done, color: muted)
+                    .lineLimit(1)
+                Text("\(item.course) · \(CanvasProWidgetFormat.time(item.due))")
+                    .font(.system(size: 11, weight: .medium)).monospacedDigit()
+                    .foregroundStyle(muted)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 4)
+            if !item.done && !compact {
+                Text(Self.duration(item.minutes))
+                    .font(.system(size: 11, weight: .semibold)).monospacedDigit()
+                    .foregroundStyle(muted)
+                    .layoutPriority(1)
+            }
+        }
+    }
+
+    private func list(_ items: [CanvasProWidgetSnapshot.TodoItem], limit: Int, compact: Bool = false) -> some View {
+        let shown = Array(items.prefix(limit))
+        return VStack(alignment: .leading, spacing: compact ? 7 : 9) {
+            ForEach(shown) { item in row(item, compact: compact) }
+            if items.count > shown.count {
+                Text("+\(items.count - shown.count) more")
+                    .font(.system(size: 11, weight: .semibold)).foregroundStyle(muted)
+                    .padding(.leading, 28)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Nothing left today: say so warmly, and what's next.
+    private var clear: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Image(systemName: today.total == 0 ? "sun.max.fill" : "checkmark.circle.fill")
+                .font(.system(size: 20, weight: .semibold)).foregroundStyle(fg).widgetAccentable()
+            Text(today.total == 0 ? "Nothing due today" : "All done today")
+                .font(.system(size: 14, weight: .semibold)).foregroundStyle(fg)
+                .padding(.top, 4)
+            Text(tomorrow.left > 0 ? "\(tomorrow.left) due tomorrow" : "Enjoy the time off")
+                .font(.system(size: 11, weight: .medium)).foregroundStyle(muted)
+        }
+    }
+
+    // Home screen
+
+    private var small: some View {
+        let day = today
+        return VStack(alignment: .leading, spacing: 0) {
+            CanvasProWidgetHeader(title: "To-Do")
+            Spacer(minLength: 0)
+            if day.left == 0 {
+                clear
             } else {
-                Text("\(CanvasProWidgetFormat.time(session.start)) – \(CanvasProWidgetFormat.time(session.end))")
-                    .font(.system(size: 10.5, weight: .semibold)).monospacedDigit().foregroundStyle(fg.opacity(0.85)).lineLimit(1).minimumScaleFactor(0.9)
+                HStack(alignment: .firstTextBaseline, spacing: 5) {
+                    Text("\(day.left)")
+                        .font(.system(size: 34, weight: .bold, design: .rounded)).monospacedDigit()
+                        .foregroundStyle(fg)
+                    Text("left today").font(.system(size: 12, weight: .semibold)).foregroundStyle(muted)
+                }
+                Text(Self.duration(day.minutesLeft))
+                    .font(.system(size: 11, weight: .medium)).monospacedDigit().foregroundStyle(muted)
+                bar(day.progress).padding(.top, 8)
+            }
+            Spacer(minLength: 0)
+            if let next = day.items.first(where: { !$0.done }) {
+                HStack(spacing: 8) {
+                    check(next)
+                    Text(next.name)
+                        .font(.system(size: 12, weight: .semibold)).foregroundStyle(fg)
+                        .lineLimit(1)
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
 
-    /// That day's classes on a thin timeline.
-    private func dayTimeline(for session: CanvasProWidgetSnapshot.Session) -> some View {
-        let day = Array(snapshot.sessions(on: session.start).prefix(4))
-        return VStack(alignment: .leading, spacing: 0) {
-            CanvasProCaption(text: CanvasProWidgetFormat.day(session.start, now: date).uppercased(), color: muted)
-                .padding(.bottom, 8)
-            ForEach(Array(day.enumerated()), id: \.offset) { index, item in
-                timelineRow(item, current: item.start == session.start, last: index == day.count - 1)
+    private var medium: some View {
+        let day = today
+        return VStack(alignment: .leading, spacing: 10) {
+            CanvasProWidgetHeader(title: "To-Do", detail: summary)
+            if day.left == 0 {
+                Spacer(minLength: 0)
+                clear
+                Spacer(minLength: 0)
+            } else {
+                // Three fit; with more, two and "+N more".
+                list(day.items, limit: day.items.count > 3 ? 2 : 3, compact: true)
+                Spacer(minLength: 0)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private var large: some View {
+        let day = today
+        let next = tomorrow
+        return VStack(alignment: .leading, spacing: 12) {
+            CanvasProWidgetHeader(title: "To-Do", detail: date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
+            VStack(alignment: .leading, spacing: 7) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(day.total == 0 ? "Nothing due today" : day.left == 0 ? "All done today" : "\(day.left) left today")
+                        .font(.system(size: 20, weight: .bold, design: .rounded)).foregroundStyle(fg)
+                        .lineLimit(1)
+                    Spacer(minLength: 4)
+                    if day.left > 0 {
+                        Text(Self.duration(day.minutesLeft))
+                            .font(.system(size: 11.5, weight: .semibold)).monospacedDigit().foregroundStyle(muted)
+                    }
+                }
+                if day.total > 0 { bar(day.progress) }
+            }
+            if day.total > 0 {
+                Rectangle().fill(faint).frame(height: 0.5)
+                list(day.items, limit: next.total > 0 ? 3 : 6)
+            }
+            if next.total > 0 {
+                VStack(alignment: .leading, spacing: 8) {
+                    CanvasProCaption(text: "TOMORROW", color: muted)
+                    list(next.items, limit: day.total > 0 ? 2 : 5, compact: true)
+                }
             }
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    private func timelineRow(_ item: CanvasProWidgetSnapshot.Session, current: Bool, last: Bool) -> some View {
-        let past = item.end <= date
-        let dot: Color = current ? accent : (past ? faint : muted.opacity(0.5))
-        return HStack(alignment: .top, spacing: 9) {
-            VStack(spacing: 0) {
-                Circle().fill(dot).frame(width: 6, height: 6).padding(.top, 3).widgetAccentable(current)
-                if !last { Rectangle().fill(faint).frame(width: 1).frame(maxHeight: .infinity) }
-            }
-            .frame(width: 6)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(item.meeting.name).font(.system(size: 11, weight: current ? .bold : .semibold)).foregroundStyle(past ? muted : fg).lineLimit(1).minimumScaleFactor(0.9)
-                Text(CanvasProWidgetFormat.time(item.start)).font(.system(size: 9.5, weight: .medium)).monospacedDigit().foregroundStyle(muted).lineLimit(1)
-            }
-            .padding(.bottom, 7)
+    // Lock screen
+
+    private var circular: some View {
+        let day = today
+        return Gauge(value: Double(day.done), in: 0...Double(max(1, day.total))) {
+            Text("to-do")
+        } currentValueLabel: {
+            Text(snapshot.signedIn ? "\(day.left)" : "–").monospacedDigit()
         }
+        .gaugeStyle(.accessoryCircularCapacity)
+        .accessibilityLabel(snapshot.signedIn ? "\(day.left) left on To-Do today" : "Open CoursePro")
     }
 
-    @ViewBuilder private var rectangular: some View {
-        if snapshot.signedIn, let session {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(isNow(session) ? "In class" : "\(CanvasProWidgetFormat.day(session.start, now: date)) · \(CanvasProWidgetFormat.time(session.start))")
-                    .font(.system(size: 11, weight: .bold)).widgetAccentable()
-                Text(session.meeting.name).font(.system(size: 13, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.9)
-                if !session.meeting.location.isEmpty { Text(session.meeting.location).font(.system(size: 11, weight: .medium)).lineLimit(1).minimumScaleFactor(0.9) }
+    private var rectangular: some View {
+        let day = today
+        return VStack(alignment: .leading, spacing: 1) {
+            Text(snapshot.signedIn ? "To-Do · \(day.left) left" : "CoursePro")
+                .font(.system(size: 11, weight: .bold)).widgetAccentable()
+            if let next = day.items.first(where: { !$0.done }) {
+                Text(next.name).font(.system(size: 13, weight: .semibold)).lineLimit(1)
+                Text("\(next.course) · \(CanvasProWidgetFormat.time(next.due))")
+                    .font(.system(size: 11, weight: .medium)).monospacedDigit().lineLimit(1)
+            } else {
+                Text(snapshot.signedIn ? (day.total == 0 ? "Nothing due today" : "All done today") : "Open CoursePro to see your To-Do")
+                    .font(.system(size: 12, weight: .semibold)).lineLimit(2)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        } else {
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Classes").font(.system(size: 11, weight: .bold)).widgetAccentable()
-                Text(snapshot.signedIn ? "No classes ahead" : "Open CoursePro").font(.system(size: 13, weight: .semibold))
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var inline: some View {
-        guard snapshot.signedIn, let session else { return Text("CoursePro") }
-        return Text("\(session.meeting.name) · \(isNow(session) ? "now" : CanvasProWidgetFormat.time(session.start))")
+        let day = today
+        if !snapshot.signedIn { return Text("CoursePro") }
+        if let next = day.items.first(where: { !$0.done }) { return Text("\(day.left) left · \(next.name)") }
+        return Text(day.total == 0 ? "Nothing due today" : "All done today")
+    }
+}
+
+// MARK: - Calendar
+
+/// The Calendar on the home screen: today's date, then what's next — classes,
+/// your events, planned work and due dates — with tomorrow when today is light.
+struct CanvasProCalendarView: View {
+    @Environment(\.colorScheme) private var scheme
+    let snapshot: CanvasProWidgetSnapshot
+    let date: Date
+    let family: WidgetFamily
+
+    private typealias Item = CanvasProWidgetSnapshot.AgendaItem
+    private var palette: CanvasProWidgetPalette { CanvasProWidgetPalette(snapshot.palette) }
+    private var fg: Color { palette.foreground(scheme) }
+    private var muted: Color { palette.muted(scheme) }
+    private var faint: Color { palette.faint(scheme) }
+    private var remaining: [Item] { snapshot.remainingAgenda(at: date) }
+    private var tomorrowItems: [Item] {
+        snapshot.agenda(on: Calendar.current.date(byAdding: .day, value: 1, to: date) ?? date)
+    }
+
+    var body: some View {
+        if !snapshot.signedIn && !family.isAccessory {
+            CanvasProSignedOutView(palette: palette, symbol: "calendar", line: "Open CoursePro to see your calendar")
+        } else {
+            switch family {
+            case .accessoryRectangular: rectangular
+            case .accessoryInline: inline
+            case .systemSmall: small
+            case .systemLarge: large
+            default: medium
+            }
+        }
+    }
+
+    // Pieces
+
+    private func isNow(_ item: Item) -> Bool {
+        guard !item.allDay, item.kind != .due else { return false }
+        return item.start <= date && (item.end ?? item.start.addingTimeInterval(1_800)) > date
+    }
+
+    private func timeLabel(_ item: Item) -> String {
+        if item.allDay { return "All day" }
+        if isNow(item) { return "Now" }
+        return CanvasProWidgetFormat.time(item.start)
+    }
+
+    /// Classes are solid, your own things softer, due dates solid with "Due".
+    private func tint(_ kind: Item.Kind) -> Color {
+        switch kind {
+        case .classMeeting, .due: return fg
+        case .event: return fg.opacity(0.6)
+        case .planned: return muted
+        case .canvas: return muted.opacity(0.7)
+        }
+    }
+
+    private func detailLine(_ item: Item) -> String? {
+        let detail = item.detail.trimmingCharacters(in: .whitespacesAndNewlines)
+        switch item.kind {
+        case .due: return detail.isEmpty ? "Due" : "Due · \(detail)"
+        case .planned: return detail.isEmpty ? "Planned" : "Planned · \(detail)"
+        default: return detail.isEmpty ? nil : detail
+        }
+    }
+
+    private var dateBlock: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(date.formatted(.dateTime.weekday(.wide)).uppercased())
+                .font(.system(size: 10.5, weight: .bold)).tracking(0.9)
+                .foregroundStyle(muted)
+                .lineLimit(1).minimumScaleFactor(0.8)
+            Text(date.formatted(.dateTime.day()))
+                .font(.system(size: 36, weight: .bold, design: .rounded)).monospacedDigit()
+                .foregroundStyle(fg)
+            Text(date.formatted(.dateTime.month(.wide)))
+                .font(.system(size: 12, weight: .semibold)).foregroundStyle(fg.opacity(0.7))
+                .lineLimit(1).minimumScaleFactor(0.8)
+        }
+    }
+
+    private func row(_ item: Item, compact: Bool = false) -> some View {
+        let now = isNow(item)
+        let detail = detailLine(item)
+        return HStack(alignment: .top, spacing: 9) {
+            Text(timeLabel(item))
+                .font(.system(size: 11, weight: now ? .bold : .semibold)).monospacedDigit()
+                .foregroundStyle(now ? fg : muted)
+                .lineLimit(1).minimumScaleFactor(0.8)
+                .frame(width: 50, alignment: .leading)
+                .padding(.top, 1)
+            Capsule().fill(tint(item.kind))
+                .frame(width: 3, height: detail == nil ? 15 : (compact ? 27 : 29))
+                .widgetAccentable()
+            VStack(alignment: .leading, spacing: 1) {
+                Text(item.title)
+                    .font(.system(size: compact ? 12.5 : 13, weight: .semibold)).foregroundStyle(fg)
+                    .lineLimit(1)
+                if let detail {
+                    Text(detail).font(.system(size: 11, weight: .medium)).foregroundStyle(muted).lineLimit(1)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private var nothingLeft: some View {
+        Text(snapshot.agenda(on: date).isEmpty ? "Nothing on today" : "Nothing else today")
+            .font(.system(size: 12.5, weight: .semibold)).foregroundStyle(muted)
+    }
+
+    // Home screen
+
+    private var small: some View {
+        let upcoming = remaining
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .top, spacing: 4) {
+                dateBlock
+                Spacer(minLength: 4)
+                CanvasProLogoMark(size: 16)
+            }
+            Spacer(minLength: 0)
+            if let next = upcoming.first {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(timeLabel(next))
+                        .font(.system(size: 11, weight: .semibold)).monospacedDigit().foregroundStyle(isNow(next) ? fg : muted)
+                    Text(next.title)
+                        .font(.system(size: 12.5, weight: .semibold)).foregroundStyle(fg)
+                        .lineLimit(upcoming.count > 1 ? 1 : 2)
+                    if upcoming.count > 1 {
+                        Text("+\(upcoming.count - 1) more today")
+                            .font(.system(size: 10.5, weight: .medium)).foregroundStyle(muted)
+                    }
+                }
+                .padding(.leading, 9)
+                .overlay(alignment: .leading) { Capsule().fill(tint(next.kind)).frame(width: 3).widgetAccentable() }
+            } else {
+                nothingLeft
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    }
+
+    private var medium: some View {
+        let today = Array(remaining.prefix(3))
+        // Room left after today's rows goes to tomorrow (its label takes one row).
+        let tomorrowSlots = today.isEmpty ? 2 : max(0, 2 - today.count)
+        let tomorrow = Array(tomorrowItems.prefix(tomorrowSlots))
+        return HStack(alignment: .top, spacing: 14) {
+            VStack(alignment: .leading, spacing: 0) {
+                dateBlock
+                Spacer(minLength: 0)
+                CanvasProLogoMark(size: 16)
+            }
+            .frame(width: 80, alignment: .leading)
+            Rectangle().fill(faint).frame(width: 0.5)
+            VStack(alignment: .leading, spacing: 8) {
+                if today.isEmpty { nothingLeft }
+                ForEach(today) { item in row(item, compact: true) }
+                if !tomorrow.isEmpty {
+                    CanvasProCaption(text: "TOMORROW", color: muted)
+                    ForEach(tomorrow) { item in row(item, compact: true) }
+                }
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private var large: some View {
+        let upcoming = remaining
+        let tomorrow = tomorrowItems
+        let limit = tomorrow.isEmpty ? 7 : 4
+        let today = Array(upcoming.prefix(limit))
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 4) {
+                dateBlock
+                Spacer(minLength: 4)
+                CanvasProLogoMark(size: 18)
+            }
+            Rectangle().fill(faint).frame(height: 0.5)
+            VStack(alignment: .leading, spacing: 9) {
+                if today.isEmpty { nothingLeft }
+                ForEach(today) { item in row(item) }
+                if upcoming.count > today.count {
+                    Text("+\(upcoming.count - today.count) more today")
+                        .font(.system(size: 11, weight: .semibold)).foregroundStyle(muted).padding(.leading, 59)
+                }
+            }
+            if !tomorrow.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    CanvasProCaption(text: "TOMORROW", color: muted)
+                    ForEach(Array(tomorrow.prefix(today.isEmpty ? 5 : 2))) { item in row(item, compact: true) }
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    // Lock screen
+
+    private var rectangular: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            if snapshot.signedIn, let next = remaining.first {
+                Text(timeLabel(next)).font(.system(size: 11, weight: .bold)).monospacedDigit().widgetAccentable()
+                Text(next.title).font(.system(size: 13, weight: .semibold)).lineLimit(1)
+                if let detail = detailLine(next) { Text(detail).font(.system(size: 11, weight: .medium)).lineLimit(1) }
+            } else {
+                Text("Calendar").font(.system(size: 11, weight: .bold)).widgetAccentable()
+                Text(snapshot.signedIn ? "Nothing else today" : "Open CoursePro").font(.system(size: 13, weight: .semibold))
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var inline: some View {
+        guard snapshot.signedIn, let next = remaining.first else { return Text(snapshot.signedIn ? "Nothing else today" : "CoursePro") }
+        return Text("\(timeLabel(next)) · \(next.title)")
+    }
+}
+
+/// The top of a home-screen widget: the CoursePro mark, what it shows, and a detail.
+private struct CanvasProWidgetHeader: View {
+    @Environment(\.colorScheme) private var scheme
+    let title: String
+    var detail: String? = nil
+
+    var body: some View {
+        let palette = CanvasProWidgetPalette()
+        HStack(spacing: 6) {
+            CanvasProLogoMark(size: 16)
+            Text(title)
+                .font(.system(size: 13, weight: .semibold)).foregroundStyle(palette.foreground(scheme))
+                .lineLimit(1)
+            Spacer(minLength: 6)
+            if let detail {
+                Text(detail)
+                    .font(.system(size: 11.5, weight: .medium)).monospacedDigit()
+                    .foregroundStyle(palette.muted(scheme))
+                    .lineLimit(1).minimumScaleFactor(0.85)
+            }
+        }
+    }
+}
+
+/// A round tick: an outline to tap, filled with a check when done.
+private struct CanvasProCheckMark: View {
+    @Environment(\.colorScheme) private var scheme
+    let done: Bool
+    var size: CGFloat = 18
+
+    var body: some View {
+        let palette = CanvasProWidgetPalette()
+        ZStack {
+            if done {
+                Circle().fill(palette.foreground(scheme))
+                Image(systemName: "checkmark")
+                    .font(.system(size: size * 0.5, weight: .heavy))
+                    .foregroundStyle(scheme == .dark ? Color.black : Color.white)
+            } else {
+                Circle().strokeBorder(palette.muted(scheme), lineWidth: 1.3)
+            }
+        }
+        .frame(width: size, height: size)
+        .padding(4)
+        .contentShape(Rectangle())
+        .padding(-4)
+        .widgetAccentable()
     }
 }
 
@@ -1154,7 +1604,7 @@ private struct CanvasProSignedOutView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            CanvasProCaption(text: "CANVASPRO", color: palette.muted(scheme))
+            CanvasProWidgetHeader(title: "CoursePro")
             Spacer(minLength: 0)
             Image(systemName: symbol).font(.system(size: 18, weight: .bold)).foregroundStyle(palette.accent(scheme)).widgetAccentable()
             Text(line).font(.system(size: 11, weight: .semibold)).foregroundStyle(palette.foreground(scheme)).lineLimit(2).padding(.top, 8)
@@ -1218,7 +1668,23 @@ extension CanvasProWidgetSnapshot {
                 Course(id: 7, name: "Modern Texts", score: 90.9, letter: "A−"),
             ],
             hideGrades: false,
-            name: "Maya"
+            name: "Maya",
+            todo: [
+                TodoItem(id: 2, name: "Reading quiz", course: "PSY 101", due: tonight.addingTimeInterval(-60), done: false, minutes: 20),
+                TodoItem(id: 1, name: "Lab report: enzyme kinetics and reaction rates", course: "BIO 110", due: tonight, done: false, minutes: 90),
+                TodoItem(id: -1, name: "Email advisor about spring classes", course: "Personal", due: tonight, done: false, minutes: 10),
+                TodoItem(id: 3, name: "Discussion post", course: "ENG 102", due: tonight, done: true, minutes: 30),
+                TodoItem(id: 4, name: "Research outline", course: "ENG 102", due: at(1, 9, 0), done: false, minutes: 45),
+                TodoItem(id: 5, name: "Problem set 4", course: "MATH 210", due: at(1, 17, 0), done: false, minutes: 60),
+            ],
+            agenda: [
+                AgendaItem(id: "class-1", kind: .classMeeting, title: "Data Structures", detail: "Science 204", start: at(0, 0, current), end: at(0, 0, current + 75), allDay: false),
+                AgendaItem(id: "event-1", kind: .event, title: "Study group", detail: "Library, 2nd floor", start: at(0, 0, min(current + 100, 22 * 60)), end: at(0, 0, min(current + 160, 23 * 60)), allDay: false),
+                AgendaItem(id: "pick-1", kind: .planned, title: "Lab report", detail: "BIO 110", start: at(0, 0, min(current + 180, 23 * 60)), end: nil, allDay: false),
+                AgendaItem(id: "due-2", kind: .due, title: "Reading quiz", detail: "PSY 101", start: tonight.addingTimeInterval(-60), end: nil, allDay: false),
+                AgendaItem(id: "class-4", kind: .classMeeting, title: "Calculus II", detail: "Math 310", start: at(1, 9, 0), end: at(1, 10, 15), allDay: false),
+                AgendaItem(id: "event-2", kind: .event, title: "Soccer practice", detail: "North field", start: at(1, 16, 0), end: at(1, 17, 30), allDay: false),
+            ]
         )
     }
 }
@@ -1754,6 +2220,10 @@ struct CanvasProCompleteAssignment: LiveActivityIntent {
 
     init() {}
     init(_ item: CanvasProWidgetSnapshot.Assignment) {
+        assignmentID = item.id
+        due = item.due
+    }
+    init(_ item: CanvasProWidgetSnapshot.TodoItem) {
         assignmentID = item.id
         due = item.due
     }
