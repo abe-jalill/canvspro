@@ -578,6 +578,9 @@ Deno.serve(async (req) => {
     let includeHidden = false;
     let overrideDomain: string | undefined;
     let overrideToken: string | undefined;
+    // "all" only: which parts to send. Left out, all four (the website needs
+    // them); the iPhone app has no Calendar, so it skips "calendar".
+    let parts: string[] | undefined;
 
     if (req.method === "POST") {
       const body = await req.json().catch(() => ({}));
@@ -588,6 +591,9 @@ Deno.serve(async (req) => {
       // own freshly typed key/URL, verified in-memory and never persisted here.
       overrideDomain = typeof body?.domain === "string" ? body.domain : undefined;
       overrideToken = typeof body?.token === "string" ? body.token : undefined;
+      parts = Array.isArray(body?.parts)
+        ? body.parts.filter((p: unknown): p is string => typeof p === "string")
+        : undefined;
     } else {
       const url = new URL(req.url);
       resource = url.searchParams.get("resource");
@@ -648,13 +654,16 @@ Deno.serve(async (req) => {
         // deduped by the in-memory canvasFetch cache. One failing section
         // must NOT blank the others, so each settles independently and its
         // error is reported per-section.
-        const settled = await Promise.allSettled([
-          handleCourses(storedCreds),
-          handleAssignments(storedCreds),
-          handleAnnouncements(storedCreds, 30),
-          handleCalendar(storedCreds, 14),
-        ]);
-        const names = ["courses", "assignments", "announcements", "calendar"] as const;
+        const sections = {
+          courses: () => handleCourses(storedCreds),
+          assignments: () => handleAssignments(storedCreds),
+          announcements: () => handleAnnouncements(storedCreds, 30),
+          calendar: () => handleCalendar(storedCreds, 14),
+        };
+        const known = Object.keys(sections) as (keyof typeof sections)[];
+        const asked = known.filter((name) => parts?.includes(name));
+        const names = asked.length > 0 ? asked : known;
+        const settled = await Promise.allSettled(names.map((name) => sections[name]()));
         const bundle: Record<string, unknown> = {};
         const errors: Record<string, string> = {};
         settled.forEach((r, i) => {
