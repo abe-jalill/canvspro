@@ -1866,7 +1866,8 @@ enum NativeQuickAdd {
     struct Result: Equatable {
         var name: String
         var courseID: Int?
-        var dueDate: Date?
+        /// Today at 11:59 PM when no day or time is given, like Add's form.
+        var dueDate: Date
         var minutes: Int?
     }
 
@@ -1947,9 +1948,9 @@ enum NativeQuickAdd {
             if minutes == nil {
                 var amount: (value: Double, unit: String, tokens: Int)?
                 if let m = match("^(\\d+(?:\\.\\d+)?)(\(units))$", t), let value = m[1].flatMap({ Double($0) }), let unit = m[2] {
-                    amount = (value, unit, 1)
+                    amount = (value: value, unit: unit, tokens: 1)
                 } else if match("^\\d+(?:\\.\\d+)?$", t) != nil, let nextToken, match("^(\(units))$", nextToken) != nil, let value = Double(t) {
-                    amount = (value, nextToken, 2)
+                    amount = (value: value, unit: nextToken, tokens: 2)
                 }
                 if let amount {
                     let mins = amount.unit.hasPrefix("h") ? amount.value * 60 : amount.value
@@ -1966,7 +1967,7 @@ enum NativeQuickAdd {
             if day == nil {
                 if t == "today" || t == "tonight" {
                     day = today
-                    if t == "tonight" && time == nil { time = (21, 0) }
+                    if t == "tonight" && time == nil { time = (h: 21, m: 0) }
                     used.insert(i)
                     continue
                 }
@@ -2010,17 +2011,17 @@ enum NativeQuickAdd {
                     // "at 5" with no am/pm: school hours, so afternoon.
                     if meridiem == nil && (1...6).contains(hour) { hour += 12 }
                     if hour <= 23 && minute <= 59 {
-                        time = (hour, minute)
+                        time = (h: hour, m: minute)
                         used.insert(i)
                         if skipAt { used.insert(i + 1) }
                         continue
                     }
                 }
                 if let m = match("^([01]?\\d|2[0-3]):([0-5]\\d)$", t), let hour = m[1].flatMap({ Int($0) }), let minute = m[2].flatMap({ Int($0) }) {
-                    time = (hour, minute); used.insert(i); continue
+                    time = (h: hour, m: minute); used.insert(i); continue
                 }
-                if t == "noon" { time = (12, 0); used.insert(i); continue }
-                if t == "midnight" { time = (23, 59); used.insert(i); continue }
+                if t == "noon" { time = (h: 12, m: 0); used.insert(i); continue }
+                if t == "midnight" { time = (h: 23, m: 59); used.insert(i); continue }
             }
 
             // Class: a word that names exactly one class.
@@ -2040,14 +2041,11 @@ enum NativeQuickAdd {
         while words.count > 1, let last = words.last, ["due", "by", "on", "for"].contains(last.lowercased()) { words.removeLast() }
         let name = words.joined(separator: " ").trimmingCharacters(in: .whitespaces)
 
-        var due: Date?
-        if day != nil || time != nil {
-            let base = day ?? today
-            var when = calendar.date(bySettingHour: time?.h ?? 23, minute: time?.m ?? 59, second: 0, of: base) ?? base
-            // A time already past today, with no day given, means tomorrow.
-            if day == nil && when < now { when = calendar.date(byAdding: .day, value: 1, to: when) ?? when }
-            due = when
-        }
+        // No day or time: today at 11:59 PM, so it's on today's To-Do.
+        let base = day ?? today
+        var due = calendar.date(bySettingHour: time?.h ?? 23, minute: time?.m ?? 59, second: 0, of: base) ?? base
+        // A time already past today, with no day given, means tomorrow.
+        if day == nil && due < now { due = calendar.date(byAdding: .day, value: 1, to: due) ?? due }
         return Result(name: name.prefix(1).uppercased() + name.dropFirst(), courseID: courseID, dueDate: due, minutes: minutes)
     }
 }

@@ -1536,7 +1536,7 @@ struct NativeQuickAddField: View {
                     .cpFont(12).foregroundStyle(parsed.courseID.map { classTint($0) } ?? CPTheme.muted(scheme))
             }
             HStack(spacing: 12) {
-                Label(parsed.dueDate.map { $0.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().hour().minute()) } ?? "No due date", systemImage: "calendar")
+                Label(parsed.dueDate.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().hour().minute()), systemImage: "calendar")
                 if let minutes = parsed.minutes { Label(FocusView.duration(minutes), systemImage: "clock") }
             }
             .cpFont(12).foregroundStyle(CPTheme.muted(scheme))
@@ -1551,7 +1551,7 @@ struct NativeQuickAddField: View {
         quickSaving = true
         let formatter = ISO8601DateFormatter()
         let item = CustomAssignment(id: -Int(Date().timeIntervalSince1970 * 1000), courseID: parsed.courseID ?? CustomAssignment.noClassID,
-            name: parsed.name, dueAt: parsed.dueDate.map { formatter.string(from: $0) }, pointsPossible: nil, notes: "",
+            name: parsed.name, dueAt: formatter.string(from: parsed.dueDate), pointsPossible: nil, notes: "",
             createdAt: formatter.string(from: Date()), estimatedMinutes: parsed.minutes)
         Task {
             defer { quickSaving = false }
@@ -1559,8 +1559,8 @@ struct NativeQuickAddField: View {
                 try await features.savePreference("custom-assignments", features.customAssignments + [item])
                 CPHaptics.success()
                 quickText = ""
-                let when = parsed.dueDate.map { " for \($0.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))" } ?? ""
-                UIAccessibility.post(notification: .announcement, argument: "Added \(item.name)\(when).")
+                let when = parsed.dueDate.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
+                UIAccessibility.post(notification: .announcement, argument: "Added \(item.name) for \(when).")
                 onAdded()
             } catch {
                 self.error = "Couldn't add that. Check your connection and try again."
@@ -1916,7 +1916,8 @@ struct NativeCalendarSources {
 
 /// What the Calendar shows on a day, worked out once for the Calendar screen
 /// and the Calendar widget: classes, your events, work you planned, what's
-/// due and Canvas events.
+/// due and Canvas events. It reads the app's stores, so it runs on the main actor.
+@MainActor
 struct NativeCalendarAgenda {
     let store: NativeContentStore
     let features: NativeFeatureStore

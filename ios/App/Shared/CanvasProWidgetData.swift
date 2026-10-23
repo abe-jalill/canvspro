@@ -131,14 +131,15 @@ struct CanvasProWidgetSnapshot: Codable, Equatable {
 
     func todoDay(_ day: Date, calendar: Calendar = .current) -> TodoDay {
         let items = (todo ?? []).filter { calendar.isDate($0.due, inSameDayAs: day) }
-        return TodoDay(items: items.filter { !$0.done }.sorted { $0.due == $1.due ? $0.name < $1.name : $0.due < $1.due }
-            + items.filter(\.done).sorted { $0.due < $1.due })
+        let open: [TodoItem] = items.filter { !$0.done }.sorted { a, b in a.due == b.due ? a.name < b.name : a.due < b.due }
+        let finished: [TodoItem] = items.filter(\.done).sorted { a, b in a.due < b.due }
+        return TodoDay(items: open + finished)
     }
 
     // Calendar
 
     /// A day's agenda: all-day first, then by time.
-    func agenda(on day: Date, calendar: Calendar = .current) -> [AgendaItem] {
+    func agendaItems(on day: Date, calendar: Calendar = .current) -> [AgendaItem] {
         (agenda ?? []).filter { calendar.isDate($0.start, inSameDayAs: day) }.sorted { a, b in
             if a.allDay != b.allDay { return a.allDay }
             return a.start == b.start ? a.title < b.title : a.start < b.start
@@ -147,7 +148,7 @@ struct CanvasProWidgetSnapshot: Codable, Equatable {
 
     /// What's still ahead today, or happening now. All-day items stay all day.
     func remainingAgenda(at date: Date, calendar: Calendar = .current) -> [AgendaItem] {
-        agenda(on: date, calendar: calendar).filter { item in
+        agendaItems(on: date, calendar: calendar).filter { item in
             item.allDay || (item.end ?? item.start.addingTimeInterval(item.kind == .due ? 0 : 1_800)) > date
         }
     }
@@ -1338,7 +1339,7 @@ struct CanvasProCalendarView: View {
     private var faint: Color { palette.faint(scheme) }
     private var remaining: [Item] { snapshot.remainingAgenda(at: date) }
     private var tomorrowItems: [Item] {
-        snapshot.agenda(on: Calendar.current.date(byAdding: .day, value: 1, to: date) ?? date)
+        snapshot.agendaItems(on: Calendar.current.date(byAdding: .day, value: 1, to: date) ?? date)
     }
 
     var body: some View {
@@ -1428,7 +1429,7 @@ struct CanvasProCalendarView: View {
     }
 
     private var nothingLeft: some View {
-        Text(snapshot.agenda(on: date).isEmpty ? "Nothing on today" : "Nothing else today")
+        Text(snapshot.agendaItems(on: date).isEmpty ? "Nothing on today" : "Nothing else today")
             .font(.system(size: 12.5, weight: .semibold)).foregroundStyle(muted)
     }
 

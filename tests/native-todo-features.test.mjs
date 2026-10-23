@@ -41,7 +41,7 @@ test("today's line says what's left, with a bar that counts head starts", () => 
 });
 
 test("quick add reads the class, day, time and estimate, and previews them", () => {
-  for (const piece of ['"tomorrow", "tmr", "tmrw", "tom"', 't == "tonight" && time == nil { time = (21, 0) }', 'meridiem == nil && (1...6).contains(hour)', '"noon"', '"midnight"']) {
+  for (const piece of ['"tomorrow", "tmr", "tmrw", "tom"', 't == "tonight" && time == nil { time = (h: 21, m: 0) }', 'meridiem == nil && (1...6).contains(hour)', '"noon"', '"midnight"']) {
     assert.ok(features.includes(piece), piece);
   }
   assert.match(features, /A time already past today, with no day given, means tomorrow/);
