@@ -74,9 +74,13 @@ export function WelcomeScene() {
   const chips = ["Bio 110", "Calculus", "Writing", "Chemistry"];
   return (
     <div className="relative grid h-56 w-56 place-items-center">
-      <div className="tut-anim tut-float grid h-24 w-24 place-items-center rounded-[1.75rem] bg-primary text-2xl font-semibold text-primary-foreground shadow-[0_20px_60px_-20px_var(--tut-accent)]">
-        CP
-      </div>
+      <img
+        src="/canvaspro-icon-v2-192.png"
+        alt=""
+        width={96}
+        height={96}
+        className="tut-anim tut-float h-24 w-24 rounded-[1.75rem] shadow-[0_20px_60px_-20px_var(--tut-accent)]"
+      />
       {chips.map((chip, i) => (
         <span
           key={chip}
@@ -290,9 +294,13 @@ export function SyncScene() {
     <div className="relative flex w-full max-w-[19rem] flex-col items-center gap-5">
       <div className="tut-anim tut-drop w-full rounded-2xl border border-foreground/10 bg-background/85 p-3 shadow-lg backdrop-blur">
         <div className="flex items-start gap-3">
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary text-[11px] font-semibold text-primary-foreground">
-            CP
-          </span>
+          <img
+            src="/canvaspro-icon-v2-192.png"
+            alt=""
+            width={32}
+            height={32}
+            className="h-8 w-8 shrink-0 rounded-lg"
+          />
           <div className="min-w-0">
             <p className="flex justify-between text-xs font-semibold">
               CoursePro <span className="font-normal text-muted-foreground">now</span>
