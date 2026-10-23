@@ -14,11 +14,10 @@ test("a class switch that's on means the class is shown", () => {
   assert.match(more, /Text\("Shown in CoursePro"\)/);
 });
 
-test("deleting asks first: classes, tasks, events, and signing out", () => {
+test("deleting asks first: classes, tasks, and signing out", () => {
   assert.match(more, /"Delete \\\(confirmingDelete\.map\(displayName\) \?\? "this class"\) from every day\?"/);
   assert.match(more, /features\.schedule\.removeAll \{ \$0\.id == item\.id \}\s+do \{/);
   assert.match(views, /\.confirmationDialog\("Delete \\\(assignment\.name\)\?", isPresented: \$confirmingDelete/);
-  assert.match(more, /isPresented: \$confirmingDelete, titleVisibility: \.visible\) \{\s+Button\("Delete", role: \.destructive\) \{ Task \{ await delete\(existing\) \} \}/);
   assert.match(more, /\.confirmationDialog\("Sign out of CoursePro on this iPhone\?", isPresented: \$confirmingSignOut/);
   assert.match(more, /settingsLink\("Delete account", "person\.crop\.circle\.badge\.xmark"\)/);
 });
@@ -30,12 +29,9 @@ test("failures are said out loud", () => {
   assert.match(views, /Button\(saving \? "Saving…" : "Save"\)/);
 });
 
-test("empty screens offer a next step; Calendar and Announcements show loading and errors", () => {
+test("empty screens offer a next step; Announcements shows loading and errors", () => {
   assert.match(views, /var actionTitle: String\? = nil/);
   assert.match(more, /actionTitle: isSearching \? "Clear search" : "Add a task",/);
-  assert.match(more, /actionTitle: "Add event", action: \{ editingEvent = \.new\(today\) \}/);
-  const calendar = more.slice(more.indexOf("struct CalendarView: View"), more.indexOf("struct WorkloadView: View"));
-  assert.match(calendar, /if store\.needsCanvasConnection \{\s+ScrollView \{ NativeConnectCanvasCard\(store: store\)\.cpPagePadding\(\) \}/);
   assert.match(more, /\} else if store\.loadFailure != nil && store\.bundle\.announcements\.isEmpty \{/);
 });
 
@@ -45,5 +41,4 @@ test("Undo waits for VoiceOver, targets are 44 pt, pills grow with text", () => 
   assert.doesNotMatch(views, /frame\(width: 30, height: 40\)/);
   assert.match(design, /\.frame\(minHeight: 28\)/);
   assert.match(design, /\.frame\(minHeight: 30\)/);
-  assert.match(views, /Button\("Remove from calendar", role: \.destructive\) \{ removeFromCalendar\(\) \}/);
 });

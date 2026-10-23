@@ -341,17 +341,10 @@ private struct NativeWidgetGallery: View {
                 } else if page == "todo" {
                     HStack(spacing: 22) {
                         home(width: 170, height: 170) { CanvasProTodoView(snapshot: snapshot, date: now, family: .systemSmall, interactive: false) }
-                        home(width: 170, height: 170) { CanvasProCalendarView(snapshot: snapshot, date: now, family: .systemSmall) }
+                        home(width: 170, height: 170) { CanvasProGradesView(snapshot: hiddenGrades, family: .systemSmall) }
                     }
                     home(width: 364, height: 170) { CanvasProTodoView(snapshot: snapshot, date: now, family: .systemMedium, interactive: false) }
                     home(width: 364, height: 382) { CanvasProTodoView(snapshot: snapshot, date: now, family: .systemLarge, interactive: false) }
-                } else if page == "calendar" || page == "classes" {
-                    HStack(spacing: 22) {
-                        home(width: 170, height: 170) { CanvasProCalendarView(snapshot: snapshot, date: now, family: .systemSmall) }
-                        home(width: 170, height: 170) { CanvasProGradesView(snapshot: hiddenGrades, family: .systemSmall) }
-                    }
-                    home(width: 364, height: 170) { CanvasProCalendarView(snapshot: snapshot, date: now, family: .systemMedium) }
-                    home(width: 364, height: 382) { CanvasProCalendarView(snapshot: snapshot, date: now, family: .systemLarge) }
                 } else {
                     HStack(spacing: 22) {
                         home(width: 170, height: 170) { CanvasProDueSoonView(snapshot: snapshot, date: now, family: .systemSmall) }
@@ -442,12 +435,8 @@ private struct NativeWidgetGallery: View {
                 CanvasProDueSoonView(snapshot: snapshot, date: now, family: .accessoryRectangular)
                     .frame(width: 160, height: 72)
             }
-            HStack(spacing: 12) {
-                CanvasProTodoView(snapshot: snapshot, date: now, family: .accessoryRectangular)
-                    .frame(width: 160, height: 72)
-                CanvasProCalendarView(snapshot: snapshot, date: now, family: .accessoryRectangular)
-                    .frame(width: 160, height: 72)
-            }
+            CanvasProTodoView(snapshot: snapshot, date: now, family: .accessoryRectangular)
+                .frame(width: 244, height: 72)
         }
         .padding(20)
         .foregroundStyle(.white)
@@ -1450,7 +1439,7 @@ private struct PasswordResetSheet: View {
 /// Every page that can be a tab or open from More. `completed` only opens
 /// from More (and To-Do).
 enum NativeTab: String, Hashable {
-    case today, todo, study, grades, files, announcements, calendar, classes, completed, more
+    case today, todo, study, grades, files, announcements, classes, completed, more
 
     var title: String {
         switch self {
@@ -1460,7 +1449,6 @@ enum NativeTab: String, Hashable {
         case .grades: return "Grades"
         case .files: return "Files"
         case .announcements: return "Announcements"
-        case .calendar: return "Calendar"
         case .classes: return "My Classes"
         case .completed: return "Completed"
         case .more: return "More"
@@ -1475,7 +1463,6 @@ enum NativeTab: String, Hashable {
         case .grades: return "graduationcap"
         case .files: return "folder"
         case .announcements: return "megaphone"
-        case .calendar: return "calendar"
         case .classes: return "clock"
         case .completed: return "checkmark.circle"
         case .more: return "ellipsis.circle"
@@ -1501,7 +1488,7 @@ enum NativeTab: String, Hashable {
 enum NativeTabBar {
     /// ".v2" since To-Do became a tab of its own, so everyone starts with it.
     static let key = "CanvasProTabBar.v2"
-    static let choices: [NativeTab] = [.todo, .study, .grades, .files, .announcements, .calendar, .classes]
+    static let choices: [NativeTab] = [.todo, .study, .grades, .files, .announcements, .classes]
     static let defaultMiddle: [NativeTab] = [.todo, .study, .grades]
     /// Five tabs at most: the most an iPhone tab bar shows without its own More.
     static let maxMiddle = 3
@@ -1681,9 +1668,8 @@ struct NativeMainTabView: View {
         else if path.contains("files") { open(.files) }
         else if path.contains("grade") { open(.grades) }
         else if path.contains("study") { open(.study) }
-        // The website's /class-schedule is My classes; /schedule is its Calendar.
+        // The website's /class-schedule is My classes. Its Calendar (/schedule) is website-only.
         else if path.contains("class-schedule") { open(.classes) }
-        else if path.contains("schedule") || path.contains("calendar") { open(.calendar) }
         else if path.contains("notification") || path.contains("settings") || path.contains("support") || path.contains("help") { selection = .more }
         else { selection = .today }
     }
@@ -1826,24 +1812,6 @@ struct NativeMainTabView: View {
                 )
             }
             .sorted { $0.due < $1.due }
-        // The Calendar for today and the next two days, as the Calendar tab shows it.
-        let agendaSource = NativeCalendarAgenda(store: contentStore, features: featureStore)
-        let sources = agendaSource.sources
-        var agenda: [CanvasProWidgetSnapshot.AgendaItem] = []
-        for offset in 0..<3 {
-            guard let day = calendar.date(byAdding: .day, value: offset, to: today) else { continue }
-            for entry in agendaSource.entries(on: day, sources) {
-                let kind: CanvasProWidgetSnapshot.AgendaItem.Kind
-                switch entry.kind {
-                case .classMeeting: kind = .classMeeting
-                case .event: kind = .event
-                case .canvas: kind = .canvas
-                case .planned: kind = .planned
-                case .due: kind = .due
-                }
-                agenda.append(CanvasProWidgetSnapshot.AgendaItem(id: entry.id, kind: kind, title: entry.title, detail: entry.context, start: entry.start, end: entry.end, allDay: entry.allDay))
-            }
-        }
         let snapshot = CanvasProWidgetSnapshot(
             signedIn: true,
             palette: UserDefaults.standard.string(forKey: "CanvasProPalette") ?? "forest",
@@ -1857,8 +1825,7 @@ struct NativeMainTabView: View {
             name: [featureStore.accountDetails.nickname, featureStore.accountDetails.firstName, featureStore.profile.username ?? ""]
                 .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
                 .first { !$0.isEmpty },
-            todo: Array(todo.prefix(40)),
-            agenda: Array(agenda.prefix(60))
+            todo: Array(todo.prefix(40))
         )
         CanvasProWidgetStore.save(snapshot)
         // "Due tonight" on the lock screen, from 9 PM.
@@ -1947,8 +1914,6 @@ struct NativeMainTabView: View {
             NavigationStack { NativeFilesView(store: contentStore, features: featureStore) }
         case .announcements:
             NavigationStack { AnnouncementsView(store: contentStore, features: featureStore) }
-        case .calendar:
-            NavigationStack { CalendarView(store: contentStore, features: featureStore) }
         case .classes:
             NavigationStack { ClassScheduleView(features: featureStore, store: contentStore) }
         default:
@@ -2366,7 +2331,6 @@ private struct NativeDashboardView: View {
         case "classes": classesWidget
         case "upcoming": upcomingWidget
         case "focus": focusWidget
-        case "calendar": calendarWidget
         case "announcements": announcementsWidget
         case "heatmap":
             CPGlassCard {
@@ -2605,42 +2569,6 @@ private struct NativeDashboardView: View {
         }
     }
 
-    // MARK: Calendar
-
-    private var calendarWidget: some View {
-        let now = Date()
-        let end = now.addingTimeInterval(7 * 86400)
-        let events = Array(features.shownEvents(in: store).compactMap { event -> NativeDatedEvent? in
-            guard let raw = event.startAt, let date = ISO8601DateFormatter.canvasDate(from: raw), date >= now, date <= end else { return nil }
-            return NativeDatedEvent(event: event, date: date)
-        }.sorted { $0.date < $1.date }.prefix(4))
-        return CPGlassCard {
-            CPCardHeader(title: "Calendar", collapse: collapse("calendar")) {
-                NavigationLink { CalendarView(store: store, features: features) } label: { CPLinkLabel(text: "View all") }.buttonStyle(.plain)
-            }
-            if events.isEmpty {
-                NativeEmptyState(title: "No calendar events this week.", symbol: "calendar")
-            } else {
-                VStack(spacing: 8) {
-                    ForEach(events) { entry in
-                        CPInsetRow {
-                            HStack(spacing: 12) {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(entry.event.title).cpFont(13, .medium).foregroundStyle(CPTheme.foreground(scheme)).fixedSize(horizontal: false, vertical: true)
-                                    if let context = entry.event.contextName { Text(context).cpFont(11).foregroundStyle(CPTheme.muted(scheme)).fixedSize(horizontal: false, vertical: true) }
-                                }
-                                Spacer(minLength: 8)
-                                Text(entry.date.formatted(.dateTime.weekday(.abbreviated).hour().minute()))
-                                    .cpFont(11).monospacedDigit().foregroundStyle(CPTheme.muted(scheme)).fixedSize()
-                            }
-                        }
-                        .accessibilityElement(children: .combine)
-                    }
-                }
-            }
-        }
-    }
-
     // MARK: Announcements
 
     private var announcementsWidget: some View {
@@ -2785,12 +2713,6 @@ struct NativeAnnouncementGroup: Identifiable {
     let id: Int
     let name: String
     let items: [AnnouncementItem]
-}
-
-struct NativeDatedEvent: Identifiable {
-    let event: CalendarEventItem
-    let date: Date
-    var id: String { event.id }
 }
 
 /// One assignment in a compact list: done circle, name, class or date, and its
@@ -3390,7 +3312,7 @@ enum NativeCollapsedWidgets {
 /// What each widget is, for the picker and settings.
 enum NativeDashboardWidgetInfo {
     static func title(_ id: String) -> String {
-        ["digest": "Since your last visit", "classes": "Classes & Grades", "upcoming": "Upcoming", "focus": "Next 48 hours", "calendar": "Calendar", "announcements": "Announcements", "heatmap": "Workload"][id] ?? id
+        ["digest": "Since your last visit", "classes": "Classes & Grades", "upcoming": "Upcoming", "focus": "Next 48 hours", "announcements": "Announcements", "heatmap": "Workload"][id] ?? id
     }
     static func detail(_ id: String) -> String {
         [
@@ -3398,13 +3320,12 @@ enum NativeDashboardWidgetInfo {
             "classes": "Each class and its current grade.",
             "upcoming": "Everything due this week, by class.",
             "focus": "What's due in the next two days.",
-            "calendar": "Canvas events in the week ahead.",
             "announcements": "Recent posts from your classes.",
             "heatmap": "How busy each day of the week is.",
         ][id] ?? ""
     }
     static func symbol(_ id: String) -> String {
-        ["digest": "sparkles", "classes": "graduationcap", "upcoming": "list.bullet.rectangle", "focus": "clock", "calendar": "calendar", "announcements": "megaphone", "heatmap": "square.grid.3x3.fill"][id] ?? "square"
+        ["digest": "sparkles", "classes": "graduationcap", "upcoming": "list.bullet.rectangle", "focus": "clock", "announcements": "megaphone", "heatmap": "square.grid.3x3.fill"][id] ?? "square"
     }
 }
 
@@ -3865,16 +3786,7 @@ struct AssignmentDetailView: View {
         Form {
             Section { NativeAssignmentRow(assignment: assignment, store: store, features: features) }
             if let description = assignment.description, !description.isEmpty { Section("Description") { Text(description.strippingHTML).cpFont(12).lineSpacing(3).textSelection(.enabled) } }
-            Section("Planning") {
-                if !assignment.isFinished(in: store) { NativeProgressEditor(assignment: assignment, features: features) }
-                if !isPersonalTask {
-                if features.calendarPicks.contains(where: { $0.assignmentID == assignment.id }) {
-                    Button("Remove from calendar", role: .destructive) { removeFromCalendar() }
-                } else {
-                    Button("Add to calendar") { addToCalendar() }
-                }
-                }
-            }
+            if !assignment.isFinished(in: store) { Section("Planning") { NativeProgressEditor(assignment: assignment, features: features) } }
             if let score = assignment.submission?.score { Section("Grade") { LabeledContent("Score", value: "\(score.formatted())\(assignment.pointsPossible.map { " / \($0.formatted())" } ?? "")") } }
             if let url = URL(string: assignment.htmlURL), !assignment.htmlURL.isEmpty { Section { Link("Open in Canvas", destination: url) } }
             if assignment.id < 0, features.customAssignments.contains(where: { $0.id == assignment.id }) {
@@ -3882,7 +3794,7 @@ struct AssignmentDetailView: View {
                     Button(isPersonalTask ? "Delete task" : "Delete assignment", role: .destructive) { confirmingDelete = true }
                         .confirmationDialog("Delete \(assignment.name)?", isPresented: $confirmingDelete, titleVisibility: .visible) {
                             Button("Delete", role: .destructive) { deleteCustom() }
-                        } message: { Text("It comes off To-Do and your calendar. This can't be undone.") }
+                        } message: { Text("It comes off To-Do. This can't be undone.") }
                 }
             }
             if let status { Section { Text(status).foregroundStyle(.secondary) } }
@@ -3895,7 +3807,7 @@ struct AssignmentDetailView: View {
         Task {
             do {
                 try await features.savePreference("custom-assignments", features.customAssignments.filter { $0.id != assignment.id })
-                // Its spot on the calendar goes with it.
+                // Its spot on the website's calendar goes with it.
                 if features.calendarPicks.contains(where: { $0.assignmentID == assignment.id }) {
                     try await features.savePreference("calendar-picks", features.calendarPicks.filter { $0.assignmentID != assignment.id })
                 }
@@ -3905,23 +3817,6 @@ struct AssignmentDetailView: View {
     }
     /// Your own task that isn't for a class.
     private var isPersonalTask: Bool { assignment.id < 0 && assignment.courseID == CustomAssignment.noClassID }
-    private func removeFromCalendar() {
-        Task {
-            do { try await features.savePreference("calendar-picks", features.calendarPicks.filter { $0.assignmentID != assignment.id }); status = "Removed from your calendar." }
-            catch { status = error.localizedDescription }
-        }
-    }
-    private func addToCalendar() {
-        guard !features.calendarPicks.contains(where: { $0.assignmentID == assignment.id }) else { status = "Already on your calendar."; return }
-        let pick = CalendarPick(assignmentID: assignment.id, title: assignment.name, context: store.displayName(courseID: assignment.courseID, fallback: assignment.courseName), at: NativeParity.plannedTime(for: assignment.dueAt, estimate: NativeParity.estimate(assignment, estimates: features.estimates)), dueAt: assignment.dueAt)
-        Task {
-            do {
-                try await features.savePreference("calendar-picks", features.calendarPicks + [pick])
-                let when = ISO8601DateFormatter.canvasDate(from: pick.at).map { $0.formatted(.dateTime.weekday(.abbreviated).hour().minute()) } ?? ""
-                status = when.isEmpty ? "Added to your calendar." : "Added to your calendar for \(when). Change the time on the Calendar."
-            } catch { status = error.localizedDescription }
-        }
-    }
 }
 
 /// To-Do's Add: first whether it's for a class. For a class it's the
@@ -4002,18 +3897,7 @@ private struct NativeNewTaskForm: View {
     @State private var estimatedMinutes = 30
     /// Made once, so saving again after an error updates the same task.
     @State private var newID = -Int(Date().timeIntervalSince1970 * 1000)
-    @State private var onCalendar = false
-    @State private var planAt = Date()
-    /// Until the student picks a time, it follows the due date and estimate.
-    @State private var planEdited = false
     private var canSave: Bool { !saving && !name.trimmingCharacters(in: .whitespaces).isEmpty && (!forClass || courseID != nil) }
-    private var suggestedPlan: Date {
-        let due = hasDueDate ? ISO8601DateFormatter().string(from: dueDate) : nil
-        return ISO8601DateFormatter.canvasDate(from: NativeParity.plannedTime(for: due, estimate: estimatedMinutes)) ?? Date()
-    }
-    private var planBinding: Binding<Date> {
-        Binding(get: { planEdited ? planAt : suggestedPlan }, set: { planAt = $0; planEdited = true })
-    }
     var body: some View {
         Form {
             Section {
@@ -4031,14 +3915,6 @@ private struct NativeNewTaskForm: View {
             } footer: {
                 Text(forClass ? "Only you see this." : "Only you see this. It isn't filed under a class.")
             }
-            if forClass {
-            Section {
-                Toggle("Also put it on my calendar", isOn: $onCalendar)
-                if onCalendar { DatePicker("When you'll work on it", selection: planBinding) }
-            } footer: {
-                if onCalendar { Text("It shows on your calendar at this time, as well as on To-Do.") }
-            }
-            }
             if let error { Section { Text(error).foregroundStyle(CPTheme.danger) } }
         }
         .cpListScreen()
@@ -4052,23 +3928,12 @@ private struct NativeNewTaskForm: View {
         if forClass { guard let courseID else { return }; classID = courseID } else { classID = CustomAssignment.noClassID }
         saving = true
         let item = CustomAssignment(id: newID, courseID: classID, name: name.trimmingCharacters(in: .whitespaces), dueAt: hasDueDate ? ISO8601DateFormatter().string(from: dueDate) : nil, pointsPossible: forClass && points > 0 ? points : nil, notes: forClass ? notes : "", createdAt: ISO8601DateFormatter().string(from: Date()), estimatedMinutes: estimatedMinutes)
-        let pick: CalendarPick? = forClass && onCalendar ? CalendarPick(
-            assignmentID: item.id,
-            title: item.name,
-            context: forClass ? store.displayName(courseID: classID, fallback: "") : CustomAssignment.noClassLabel,
-            at: ISO8601DateFormatter().string(from: planEdited ? planAt : suggestedPlan),
-            dueAt: item.dueAt
-        ) : nil
         Task {
             defer { saving = false }
             do {
                 // A retry after a partial failure never adds the task twice.
                 if !features.customAssignments.contains(where: { $0.id == item.id }) {
                     try await features.savePreference("custom-assignments", features.customAssignments + [item])
-                }
-                // Optionally on the calendar too, at the time chosen.
-                if let pick, !features.calendarPicks.contains(where: { $0.assignmentID == pick.assignmentID }) {
-                    try await features.savePreference("calendar-picks", features.calendarPicks + [pick])
                 }
                 CPHaptics.success()
                 onDone()

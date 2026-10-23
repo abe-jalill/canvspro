@@ -13,7 +13,7 @@ test("native tabs remain a compact projection of website navigation", () => {
   assert.match(tabs, /static let maxMiddle = 3/);
   assert.match(tabs, /return \(2\.\.\.maxMiddle\)\.contains\(picked\.count\) \? picked : defaultMiddle/);
   assert.match(tabs, /static let defaultMiddle: \[NativeTab\] = \[\.todo, \.study, \.grades\]/);
-  assert.match(tabs, /static let choices: \[NativeTab\] = \[\.todo, \.study, \.grades, \.files, \.announcements, \.calendar, \.classes\]/);
+  assert.match(tabs, /static let choices: \[NativeTab\] = \[\.todo, \.study, \.grades, \.files, \.announcements, \.classes\]/);
   // A new key, so everyone gets To-Do as a tab once.
   assert.match(tabs, /static let key = "CanvasProTabBar\.v2"/);
   assert.equal((tabs.match(/\.tabItem\s*\{/g) ?? []).length, 1, "one ForEach builds every tab");
@@ -27,11 +27,10 @@ test("native tabs remain a compact projection of website navigation", () => {
   assert.ok(more.includes('settingsLink("Tab bar", "dock.rectangle")'), "Settings has the tab bar choice");
   assert.ok(!more.includes('NativeMenuRow(title: "Assignments"'), "Assignments lives in Today");
   assert.ok(!more.includes('NativeMenuRow(title: "Get It Done"'), "Get It Done belongs inside Today");
-  // Calendar and Class Schedule are separate pages, each opened on its own.
+  // Class Schedule is My Classes; the Calendar is website-only.
   assert.ok(tabs.includes('case .classes: return "My Classes"'));
-  assert.ok(tabs.includes("NavigationStack { CalendarView(store: contentStore, features: featureStore) }"));
   assert.ok(tabs.includes("NavigationStack { ClassScheduleView(features: featureStore, store: contentStore) }"));
-  assert.ok(more.includes("case .calendar: CalendarView(store: store, features: features)"));
+  assert.ok(!(tabs + more).includes("CalendarView("));
   assert.ok(more.includes("case .classes: ClassScheduleView(features: features, store: store)"));
   // Today is the dashboard; Get It Done became its Next up. To-Do is a tab.
   assert.ok(!tabs.includes('"Get It Done"'));
@@ -66,13 +65,8 @@ test("More's profile card shows the school and Freshman to Senior from the class
   assert.match(more, /Text\("Add your school and year"\)/);
 });
 
-test("Calendar: the hour grid keeps its times readable, with the title in the bar", () => {
+test("Class Schedule: each class once per day, edited from there", () => {
   const more = source("ios/App/App/NativeMoreViews.swift");
-  const calendar = more.slice(more.indexOf("struct CalendarView: View"), more.indexOf("struct WorkloadView: View"));
-  assert.match(calendar, /\.dynamicTypeSize\(\.\.\.DynamicTypeSize\.xLarge\)/);
-  assert.doesNotMatch(calendar, /"Show completed"|WorkloadView\(|NativeCachedEstimateEditor/);
-  assert.match(calendar, /\.accessibilityLabel\("Today"\)/);
-  assert.match(calendar, /\.cpNavigationTitle\("Calendar"\)/);
   // Class Schedule: each class once per day it meets; edit or delete it from there.
   const schedule = more.slice(more.indexOf("struct ClassScheduleView: View"), more.indexOf("enum NativeScheduleActions"));
   assert.doesNotMatch(schedule, /Section\("Edit or remove"\)/);

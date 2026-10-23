@@ -53,8 +53,7 @@ test("study: real focus time, every task gets its time, and Today's chip never s
   assert.match(celebrations, /let span = minutes == 1 \? "1 minute" : "\\\(minutes\) minutes"/);
 });
 
-test("hidden classes hide their calendar events too", () => {
-  assert.match(features, /func shownEvents\(in store: NativeContentStore\) -> \[CalendarEventItem\]/);
+test("Canvas calendar events are never listed unfiltered", () => {
   assert.doesNotMatch(views + more, /store\.bundle\.calendar\.compactMap/);
   assert.doesNotMatch(more, /let next = store\.bundle\.calendar/);
 });

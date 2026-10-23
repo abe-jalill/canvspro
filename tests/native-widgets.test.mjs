@@ -2,31 +2,26 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-// Home Screen widgets: To-Do and Calendar join Today, What's Due and Grades;
-// Next Class is gone (classes are on the Calendar widget). All share one look.
+// Home Screen widgets: To-Do joins Today, What's Due and Grades; Next Class
+// and Calendar are gone (the Calendar is website-only). All share one look.
 const shared = readFileSync(new URL("../ios/App/Shared/CanvasProWidgetData.swift", import.meta.url), "utf8");
 const widgets = readFileSync(new URL("../ios/App/CanvasProWidgets/CanvasProWidgets.swift", import.meta.url), "utf8");
 const views = readFileSync(new URL("../ios/App/App/NativeViews.swift", import.meta.url), "utf8");
-const more = readFileSync(new URL("../ios/App/App/NativeMoreViews.swift", import.meta.url), "utf8");
 
-test("the bundle has To-Do and Calendar, and no Next Class", () => {
-  assert.match(widgets, /CanvasProTodayWidget\(\)\s+CanvasProTodoWidget\(\)\s+CanvasProCalendarWidget\(\)\s+CanvasProDueSoonWidget\(\)\s+CanvasProGradesWidget\(\)/);
+test("the bundle has To-Do, and no Next Class or Calendar", () => {
+  assert.match(widgets, /CanvasProTodayWidget\(\)\s+CanvasProTodoWidget\(\)\s+CanvasProDueSoonWidget\(\)\s+CanvasProGradesWidget\(\)/);
   assert.match(widgets, /\.configurationDisplayName\("To-Do"\)/);
-  assert.match(widgets, /\.configurationDisplayName\("Calendar"\)/);
-  assert.doesNotMatch(widgets + shared + views, /CanvasProNextClass/);
+  assert.doesNotMatch(widgets, /\.configurationDisplayName\("Calendar"\)/);
+  assert.doesNotMatch(widgets + shared + views, /CanvasProNextClass|CanvasProCalendar/);
   assert.match(shared, /static let todoKind = "CanvasProTodo"/);
-  assert.match(shared, /static let calendarKind = "CanvasProCalendar"/);
 });
 
-test("the app hands the widgets To-Do and the Calendar, worked out as on their tabs", () => {
+test("the app hands the widgets To-Do, worked out as on its tab", () => {
   assert.match(shared, /var todo: \[TodoItem\]\? = nil/);
-  assert.match(shared, /var agenda: \[AgendaItem\]\? = nil/);
+  assert.doesNotMatch(shared, /AgendaItem|var agenda/);
   assert.match(views, /featureStore\.shownAssignments\(in: contentStore, includePersonalTasks: true\)/);
   assert.match(views, /done: item\.showsDone\(in: contentStore\) \|\| pending\[item\.id\] != nil/);
-  assert.match(views, /let agendaSource = NativeCalendarAgenda\(store: contentStore, features: featureStore\)/);
-  // The Calendar screen uses the same helper.
-  assert.match(more, /private var agenda: NativeCalendarAgenda \{ NativeCalendarAgenda\(store: store, features: features\) \}/);
-  assert.match(views, /todo: Array\(todo\.prefix\(40\)\),\s+agenda: Array\(agenda\.prefix\(60\)\)/);
+  assert.match(views, /todo: Array\(todo\.prefix\(40\)\)\s+\)/);
 });
 
 test("ticking off on the To-Do widget saves like the other widgets", () => {
@@ -36,10 +31,9 @@ test("ticking off on the To-Do widget saves like the other widgets", () => {
   assert.match(shared, /if var todo = snapshot\.todo, let index = todo\.firstIndex\(where: \{ \$0\.id == id \}\)/);
 });
 
-test("the widgets move on as things start, end and fall due", () => {
+test("the widgets move on as things fall due", () => {
   assert.match(widgets, /for item in snapshot\.todo \?\? \[\] where item\.due > now && item\.due < horizon/);
-  assert.match(widgets, /for item in snapshot\.agenda \?\? \[\] where !item\.allDay/);
-  assert.match(shared, /func remainingAgenda\(at date: Date/);
+  assert.doesNotMatch(widgets + shared, /snapshot\.agenda|remainingAgenda/);
 });
 
 test("every widget shares the header, the check mark and rounded numbers", () => {
@@ -60,5 +54,5 @@ test("every widget shares the header, the check mark and rounded numbers", () =>
 test("the app's widget gallery shows the new widgets", () => {
   assert.match(views, /page == "todo"/);
   assert.match(views, /CanvasProTodoView\(snapshot: snapshot, date: now, family: \.systemLarge, interactive: false\)/);
-  assert.match(views, /CanvasProCalendarView\(snapshot: snapshot, date: now, family: \.systemMedium\)/);
+  assert.match(views, /CanvasProGradesView\(snapshot: hiddenGrades, family: \.systemSmall\)/);
 });

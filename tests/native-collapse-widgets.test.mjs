@@ -11,7 +11,7 @@ test("each widget header carries the collapse chevron", () => {
   assert.match(design, /if let collapse \{ CPCollapseButton\(collapse: collapse\) \}/);
   assert.match(design, /collapse\.isCollapsed \? "chevron\.down" : "chevron\.up"/);
   assert.match(design, /collapse\.isCollapsed \? "Expand \\\(collapse\.title\)" : "Collapse \\\(collapse\.title\)"/);
-  for (const id of ["digest", "classes", "upcoming", "focus", "calendar", "announcements", "heatmap"]) {
+  for (const id of ["digest", "classes", "upcoming", "focus", "announcements", "heatmap"]) {
     assert.match(views, new RegExp(`collapse: collapse\\("${id}"\\)`), id);
   }
 });

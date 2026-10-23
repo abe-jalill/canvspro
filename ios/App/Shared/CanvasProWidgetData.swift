@@ -63,23 +63,8 @@ struct CanvasProWidgetSnapshot: Codable, Equatable {
         let minutes: Int
     }
 
-    /// One thing on the Calendar: a class, your event, planned work, a due date or a Canvas event.
-    struct AgendaItem: Codable, Equatable, Identifiable {
-        enum Kind: String, Codable { case classMeeting = "class", event, canvas, planned, due }
-        let id: String
-        let kind: Kind
-        let title: String
-        /// Where, or which class.
-        let detail: String
-        let start: Date
-        let end: Date?
-        let allDay: Bool
-    }
-
     /// To-Do for today and tomorrow, done items included (they count toward progress).
     var todo: [TodoItem]? = nil
-    /// The Calendar for today and the next two days.
-    var agenda: [AgendaItem]? = nil
 
     static let signedOut = CanvasProWidgetSnapshot(signedIn: false, palette: "forest", syncedAt: nil, assignments: [], overdueCount: 0, classes: [], courses: [], hideGrades: false)
 
@@ -134,23 +119,6 @@ struct CanvasProWidgetSnapshot: Codable, Equatable {
         let open: [TodoItem] = items.filter { !$0.done }.sorted { a, b in a.due == b.due ? a.name < b.name : a.due < b.due }
         let finished: [TodoItem] = items.filter(\.done).sorted { a, b in a.due < b.due }
         return TodoDay(items: open + finished)
-    }
-
-    // Calendar
-
-    /// A day's agenda: all-day first, then by time.
-    func agendaItems(on day: Date, calendar: Calendar = .current) -> [AgendaItem] {
-        (agenda ?? []).filter { calendar.isDate($0.start, inSameDayAs: day) }.sorted { a, b in
-            if a.allDay != b.allDay { return a.allDay }
-            return a.start == b.start ? a.title < b.title : a.start < b.start
-        }
-    }
-
-    /// What's still ahead today, or happening now. All-day items stay all day.
-    func remainingAgenda(at date: Date, calendar: Calendar = .current) -> [AgendaItem] {
-        agendaItems(on: date, calendar: calendar).filter { item in
-            item.allDay || (item.end ?? item.start.addingTimeInterval(item.kind == .due ? 0 : 1_800)) > date
-        }
     }
 
     // Grades
@@ -244,7 +212,6 @@ enum CanvasProWidgetStore {
     static let dueSoonKind = "CanvasProDueSoon"
     static let gradesKind = "CanvasProGrades"
     static let todoKind = "CanvasProTodo"
-    static let calendarKind = "CanvasProCalendar"
     static let todayKind = "CanvasProToday"
     private static let key = "CanvasProWidgetSnapshot.v2"
     private static let rangeKey = "CanvasProWorkloadRange"
@@ -1322,229 +1289,6 @@ struct CanvasProTodoView: View {
     }
 }
 
-// MARK: - Calendar
-
-/// The Calendar on the home screen: today's date, then what's next — classes,
-/// your events, planned work and due dates — with tomorrow when today is light.
-struct CanvasProCalendarView: View {
-    @Environment(\.colorScheme) private var scheme
-    let snapshot: CanvasProWidgetSnapshot
-    let date: Date
-    let family: WidgetFamily
-
-    private typealias Item = CanvasProWidgetSnapshot.AgendaItem
-    private var palette: CanvasProWidgetPalette { CanvasProWidgetPalette(snapshot.palette) }
-    private var fg: Color { palette.foreground(scheme) }
-    private var muted: Color { palette.muted(scheme) }
-    private var faint: Color { palette.faint(scheme) }
-    private var remaining: [Item] { snapshot.remainingAgenda(at: date) }
-    private var tomorrowItems: [Item] {
-        snapshot.agendaItems(on: Calendar.current.date(byAdding: .day, value: 1, to: date) ?? date)
-    }
-
-    var body: some View {
-        if !snapshot.signedIn && !family.isAccessory {
-            CanvasProSignedOutView(palette: palette, symbol: "calendar", line: "Open CoursePro to see your calendar")
-        } else {
-            switch family {
-            case .accessoryRectangular: rectangular
-            case .accessoryInline: inline
-            case .systemSmall: small
-            case .systemLarge: large
-            default: medium
-            }
-        }
-    }
-
-    // Pieces
-
-    private func isNow(_ item: Item) -> Bool {
-        guard !item.allDay, item.kind != .due else { return false }
-        return item.start <= date && (item.end ?? item.start.addingTimeInterval(1_800)) > date
-    }
-
-    private func timeLabel(_ item: Item) -> String {
-        if item.allDay { return "All day" }
-        if isNow(item) { return "Now" }
-        return CanvasProWidgetFormat.time(item.start)
-    }
-
-    /// Classes are solid, your own things softer, due dates solid with "Due".
-    private func tint(_ kind: Item.Kind) -> Color {
-        switch kind {
-        case .classMeeting, .due: return fg
-        case .event: return fg.opacity(0.6)
-        case .planned: return muted
-        case .canvas: return muted.opacity(0.7)
-        }
-    }
-
-    private func detailLine(_ item: Item) -> String? {
-        let detail = item.detail.trimmingCharacters(in: .whitespacesAndNewlines)
-        switch item.kind {
-        case .due: return detail.isEmpty ? "Due" : "Due · \(detail)"
-        case .planned: return detail.isEmpty ? "Planned" : "Planned · \(detail)"
-        default: return detail.isEmpty ? nil : detail
-        }
-    }
-
-    private var dateBlock: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(date.formatted(.dateTime.weekday(.wide)).uppercased())
-                .font(.system(size: 10.5, weight: .bold)).tracking(0.9)
-                .foregroundStyle(muted)
-                .lineLimit(1).minimumScaleFactor(0.8)
-            Text(date.formatted(.dateTime.day()))
-                .font(.system(size: 36, weight: .bold, design: .rounded)).monospacedDigit()
-                .foregroundStyle(fg)
-            Text(date.formatted(.dateTime.month(.wide)))
-                .font(.system(size: 12, weight: .semibold)).foregroundStyle(fg.opacity(0.7))
-                .lineLimit(1).minimumScaleFactor(0.8)
-        }
-    }
-
-    private func row(_ item: Item, compact: Bool = false) -> some View {
-        let now = isNow(item)
-        let detail = detailLine(item)
-        return HStack(alignment: .top, spacing: 9) {
-            Text(timeLabel(item))
-                .font(.system(size: 11, weight: now ? .bold : .semibold)).monospacedDigit()
-                .foregroundStyle(now ? fg : muted)
-                .lineLimit(1).minimumScaleFactor(0.8)
-                .frame(width: 50, alignment: .leading)
-                .padding(.top, 1)
-            Capsule().fill(tint(item.kind))
-                .frame(width: 3, height: detail == nil ? 15 : (compact ? 27 : 29))
-                .widgetAccentable()
-            VStack(alignment: .leading, spacing: 1) {
-                Text(item.title)
-                    .font(.system(size: compact ? 12.5 : 13, weight: .semibold)).foregroundStyle(fg)
-                    .lineLimit(1)
-                if let detail {
-                    Text(detail).font(.system(size: 11, weight: .medium)).foregroundStyle(muted).lineLimit(1)
-                }
-            }
-            Spacer(minLength: 0)
-        }
-    }
-
-    private var nothingLeft: some View {
-        Text(snapshot.agendaItems(on: date).isEmpty ? "Nothing on today" : "Nothing else today")
-            .font(.system(size: 12.5, weight: .semibold)).foregroundStyle(muted)
-    }
-
-    // Home screen
-
-    private var small: some View {
-        let upcoming = remaining
-        return VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .top, spacing: 4) {
-                dateBlock
-                Spacer(minLength: 4)
-                CanvasProLogoMark(size: 16)
-            }
-            Spacer(minLength: 0)
-            if let next = upcoming.first {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(timeLabel(next))
-                        .font(.system(size: 11, weight: .semibold)).monospacedDigit().foregroundStyle(isNow(next) ? fg : muted)
-                    Text(next.title)
-                        .font(.system(size: 12.5, weight: .semibold)).foregroundStyle(fg)
-                        .lineLimit(upcoming.count > 1 ? 1 : 2)
-                    if upcoming.count > 1 {
-                        Text("+\(upcoming.count - 1) more today")
-                            .font(.system(size: 10.5, weight: .medium)).foregroundStyle(muted)
-                    }
-                }
-                .padding(.leading, 9)
-                .overlay(alignment: .leading) { Capsule().fill(tint(next.kind)).frame(width: 3).widgetAccentable() }
-            } else {
-                nothingLeft
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-    }
-
-    private var medium: some View {
-        let today = Array(remaining.prefix(3))
-        // Room left after today's rows goes to tomorrow (its label takes one row).
-        let tomorrowSlots = today.isEmpty ? 2 : max(0, 2 - today.count)
-        let tomorrow = Array(tomorrowItems.prefix(tomorrowSlots))
-        return HStack(alignment: .top, spacing: 14) {
-            VStack(alignment: .leading, spacing: 0) {
-                dateBlock
-                Spacer(minLength: 0)
-                CanvasProLogoMark(size: 16)
-            }
-            .frame(width: 80, alignment: .leading)
-            Rectangle().fill(faint).frame(width: 0.5)
-            VStack(alignment: .leading, spacing: 8) {
-                if today.isEmpty { nothingLeft }
-                ForEach(today) { item in row(item, compact: true) }
-                if !tomorrow.isEmpty {
-                    CanvasProCaption(text: "TOMORROW", color: muted)
-                    ForEach(tomorrow) { item in row(item, compact: true) }
-                }
-                Spacer(minLength: 0)
-            }
-            .frame(maxWidth: .infinity, alignment: .topLeading)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-
-    private var large: some View {
-        let upcoming = remaining
-        let tomorrow = tomorrowItems
-        let limit = tomorrow.isEmpty ? 7 : 4
-        let today = Array(upcoming.prefix(limit))
-        return VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 4) {
-                dateBlock
-                Spacer(minLength: 4)
-                CanvasProLogoMark(size: 18)
-            }
-            Rectangle().fill(faint).frame(height: 0.5)
-            VStack(alignment: .leading, spacing: 9) {
-                if today.isEmpty { nothingLeft }
-                ForEach(today) { item in row(item) }
-                if upcoming.count > today.count {
-                    Text("+\(upcoming.count - today.count) more today")
-                        .font(.system(size: 11, weight: .semibold)).foregroundStyle(muted).padding(.leading, 59)
-                }
-            }
-            if !tomorrow.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    CanvasProCaption(text: "TOMORROW", color: muted)
-                    ForEach(Array(tomorrow.prefix(today.isEmpty ? 5 : 2))) { item in row(item, compact: true) }
-                }
-            }
-            Spacer(minLength: 0)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-
-    // Lock screen
-
-    private var rectangular: some View {
-        VStack(alignment: .leading, spacing: 1) {
-            if snapshot.signedIn, let next = remaining.first {
-                Text(timeLabel(next)).font(.system(size: 11, weight: .bold)).monospacedDigit().widgetAccentable()
-                Text(next.title).font(.system(size: 13, weight: .semibold)).lineLimit(1)
-                if let detail = detailLine(next) { Text(detail).font(.system(size: 11, weight: .medium)).lineLimit(1) }
-            } else {
-                Text("Calendar").font(.system(size: 11, weight: .bold)).widgetAccentable()
-                Text(snapshot.signedIn ? "Nothing else today" : "Open CoursePro").font(.system(size: 13, weight: .semibold))
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var inline: some View {
-        guard snapshot.signedIn, let next = remaining.first else { return Text(snapshot.signedIn ? "Nothing else today" : "CoursePro") }
-        return Text("\(timeLabel(next)) · \(next.title)")
-    }
-}
-
 /// The top of a home-screen widget: the CoursePro mark, what it shows, and a detail.
 private struct CanvasProWidgetHeader: View {
     @Environment(\.colorScheme) private var scheme
@@ -1677,14 +1421,6 @@ extension CanvasProWidgetSnapshot {
                 TodoItem(id: 3, name: "Discussion post", course: "ENG 102", due: tonight, done: true, minutes: 30),
                 TodoItem(id: 4, name: "Research outline", course: "ENG 102", due: at(1, 9, 0), done: false, minutes: 45),
                 TodoItem(id: 5, name: "Problem set 4", course: "MATH 210", due: at(1, 17, 0), done: false, minutes: 60),
-            ],
-            agenda: [
-                AgendaItem(id: "class-1", kind: .classMeeting, title: "Data Structures", detail: "Science 204", start: at(0, 0, current), end: at(0, 0, current + 75), allDay: false),
-                AgendaItem(id: "event-1", kind: .event, title: "Study group", detail: "Library, 2nd floor", start: at(0, 0, min(current + 100, 22 * 60)), end: at(0, 0, min(current + 160, 23 * 60)), allDay: false),
-                AgendaItem(id: "pick-1", kind: .planned, title: "Lab report", detail: "BIO 110", start: at(0, 0, min(current + 180, 23 * 60)), end: nil, allDay: false),
-                AgendaItem(id: "due-2", kind: .due, title: "Reading quiz", detail: "PSY 101", start: tonight.addingTimeInterval(-60), end: nil, allDay: false),
-                AgendaItem(id: "class-4", kind: .classMeeting, title: "Calculus II", detail: "Math 310", start: at(1, 9, 0), end: at(1, 10, 15), allDay: false),
-                AgendaItem(id: "event-2", kind: .event, title: "Soccer practice", detail: "North field", start: at(1, 16, 0), end: at(1, 17, 30), allDay: false),
             ]
         )
     }

@@ -7,7 +7,6 @@ struct CanvasProWidgets: WidgetBundle {
     var body: some Widget {
         CanvasProTodayWidget()
         CanvasProTodoWidget()
-        CanvasProCalendarWidget()
         CanvasProDueSoonWidget()
         CanvasProGradesWidget()
         CanvasProStudyLiveActivity()
@@ -177,11 +176,6 @@ struct CanvasProProvider: TimelineProvider {
         for item in snapshot.todo ?? [] where item.due > now && item.due < horizon {
             moments.insert(item.due.addingTimeInterval(1))
         }
-        // The Calendar moves on as each thing starts and ends.
-        for item in snapshot.agenda ?? [] where !item.allDay {
-            moments.insert(item.start)
-            if let end = item.end { moments.insert(end) } else { moments.insert(item.start.addingTimeInterval(item.kind == .due ? 1 : 1_800)) }
-        }
         let entries = moments.filter { $0 >= now && $0 <= horizon }.sorted().map { CanvasProEntry(date: $0, snapshot: snapshot, range: range) }
         completion(Timeline(entries: entries, policy: .atEnd))
     }
@@ -301,30 +295,6 @@ private struct CanvasProTodoEntryView: View {
     var body: some View {
         CanvasProTodoView(snapshot: entry.snapshot, date: entry.date, family: family)
             .widgetURL(URL(string: "canvaspro://todo"))
-            .modifier(CanvasProWidgetBackground(palette: entry.snapshot.palette))
-    }
-}
-
-// MARK: - Calendar
-
-struct CanvasProCalendarWidget: Widget {
-    var body: some WidgetConfiguration {
-        StaticConfiguration(kind: CanvasProWidgetStore.calendarKind, provider: CanvasProProvider()) { entry in
-            CanvasProCalendarEntryView(entry: entry)
-        }
-        .configurationDisplayName("Calendar")
-        .description("Today's date and what's next: classes, your events, planned work and due dates.")
-        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryRectangular, .accessoryInline])
-    }
-}
-
-private struct CanvasProCalendarEntryView: View {
-    @Environment(\.widgetFamily) private var family
-    let entry: CanvasProEntry
-
-    var body: some View {
-        CanvasProCalendarView(snapshot: entry.snapshot, date: entry.date, family: family)
-            .widgetURL(URL(string: "canvaspro://calendar"))
             .modifier(CanvasProWidgetBackground(palette: entry.snapshot.palette))
     }
 }

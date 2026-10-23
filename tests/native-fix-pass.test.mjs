@@ -101,8 +101,6 @@ test("hidden classes are hidden on every screen", () => {
 test("estimates, plans and the dashboard layout match the website", () => {
   assert.match(swift.NativeFeatures, /if let saved = estimates\[item\.id\], saved > 0 \{ return saved \}/);
   assert.doesNotMatch(swift.NativeMoreViews, /features\.estimates\[item\.id\] \?\? NativeParity\.defaultEstimate/);
-  // Planned work lands late afternoon on the due day, as on the website (suggestedPlanTime).
-  assert.match(swift.NativeFeatures, /var at = calendar\.date\(bySettingHour: 16, minute: 0, second: 0, of: due \?\? now\) \?\? now/);
   assert.match(swift.NativeFeatures, /"announcements", "gpa", "heatmap"\]/);
   assert.match(swift.NativeFeatures, /queue\.popFirst\(\)/);
   assert.doesNotMatch(swift.NativeCore, /"CanvasProColorScheme", "CanvasProPalette"/);
@@ -205,7 +203,7 @@ test("pages stay a readable width and the dashboard starts with the essentials",
   assert.match(swift.NativeDesign, /static let maxContentWidth: CGFloat = 680/);
   assert.match(swift.NativeDesign, /\.frame\(maxWidth: CPLayout\.maxContentWidth\)/);
   // A new account sees five widgets; Customize brings the rest back.
-  assert.match(swift.NativeFeatures, /\["focus", "calendar", "heatmap"\]/);
+  assert.match(swift.NativeFeatures, /\["focus", "heatmap"\]/);
   // One path into the week view, not a duplicate button above the tiles.
   assert.doesNotMatch(swift.NativeViews, /Open focus view/);
 });
@@ -295,7 +293,7 @@ test("study session matches the website: pick, choose time, your session with a 
 });
 
 test("the iPhone dashboard has no GPA, and the website's saved layout keeps its slot", () => {
-  assert.match(swift.NativeFeatures, /dashboardWidgets: \[String\] \{ Self\.defaultDashboardOrder\.filter \{ \$0 != "gpa" \} \}/);
+  assert.match(swift.NativeFeatures, /dashboardWidgets: \[String\] \{ Self\.defaultDashboardOrder\.filter \{ \$0 != "gpa" && \$0 != "calendar" \} \}/);
   assert.doesNotMatch(swift.NativeViews, /gpaWidget|NativeGPA|case "gpa"/);
 });
 
