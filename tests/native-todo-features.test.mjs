@@ -36,7 +36,9 @@ test("rows show what they're worth, and To-Do can go by impact", () => {
 test("today's line says what's left, with a bar that counts head starts", () => {
   assert.match(features, /return "\\\(left\) left today"/);
   assert.match(more, /NativeTodoInsights\.leftTodayLabel\(left: today\.left, total: today\.total\)/);
-  assert.match(more, /CPProgressBar\(value: today\.fraction/);
+  // One line only on top: the week's segments, never a second bar.
+  assert.doesNotMatch(more, /CPProgressBar\(value: today\.fraction/);
+  assert.match(more, /NativeWeekSegments\(done: tally\.done, total: tally\.total\)/);
   assert.match(more, /title: "Done for today\. Nice work\."/);
 });
 

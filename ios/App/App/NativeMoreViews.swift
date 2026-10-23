@@ -1198,17 +1198,7 @@ struct FocusView: View {
                 } label: { CPLinkLabel(text: grouping, symbol: "chevron.down") }
                     .accessibilityLabel("Group, \(grouping)")
             }
-            // Today's bar: finished work fills it, and so does a head start.
-            let today = todayDone
-            if showsCounts && isTodaySelected && today.total > 0 {
-                CPProgressBar(value: today.fraction, color: CPTheme.primary(scheme: scheme), height: 6)
-                    .frame(height: 6)
-                    .padding(.top, 6)
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("Today")
-                    .accessibilityValue("\(Int((today.fraction * 100).rounded())) percent done")
-                    .transition(.opacity)
-            }
+            // One line only: a segment per assignment this week, done ones filled.
             let tally = weekTally
             if tally.total > 0 && showsCounts {
                 NativeWeekSegments(done: tally.done, total: tally.total)
@@ -2025,11 +2015,13 @@ enum NativeCalendarLayout {
 
     /// A due date or planned work has no length; it's drawn as half an hour.
     static let pointMinutes = 30
+    /// The hour grid starts at 5 AM; anything earlier is drawn at the top.
+    static let dayStartHour = 5
 
     static func layout(_ entries: [NativeCalendarEntry], day: Date, calendar: Calendar = .current) -> [Placed] {
         let midnight = calendar.startOfDay(for: day)
         var items: [Placed] = entries.filter { !$0.allDay }.map { entry in
-            var start = max(0, Int(entry.start.timeIntervalSince(midnight) / 60))
+            var start = max(dayStartHour * 60, Int(entry.start.timeIntervalSince(midnight) / 60))
             // Something due at 11:59 PM sits at the end of the day, not past it.
             if entry.end == nil { start = min(start, 24 * 60 - pointMinutes) }
             let rawEnd = entry.end.map { Int($0.timeIntervalSince(midnight) / 60) } ?? start + pointMinutes
@@ -2108,6 +2100,8 @@ struct CalendarView: View {
     @State private var showsClassTimes = false
 
     private static let hourHeight: CGFloat = 52
+    /// Day and Week show 5 AM to midnight (the last hour is 11 PM), as on the website.
+    private static let dayStartHour = NativeCalendarLayout.dayStartHour
     private static let gutter: CGFloat = 46
     private static let scheduleDays = 60
 
@@ -2555,7 +2549,7 @@ struct CalendarView: View {
                             }
                         }
                     }
-                    .frame(height: 24 * Self.hourHeight)
+                    .frame(height: CGFloat(24 - Self.dayStartHour) * Self.hourHeight)
                     .padding(.bottom, 88)
                 }
                 .onAppear { scrollToStart(proxy, days: days) }
@@ -2570,7 +2564,7 @@ struct CalendarView: View {
     /// Near now on today's page, else at the start of a school day.
     private func scrollToStart(_ proxy: ScrollViewProxy, days: [Date]) {
         let showsToday = days.contains { calendar.isDateInToday($0) }
-        let hour = showsToday ? max(0, calendar.component(.hour, from: Date()) - 1) : 7
+        let hour = showsToday ? max(Self.dayStartHour, calendar.component(.hour, from: Date()) - 1) : 7
         proxy.scrollTo(hour, anchor: .top)
     }
 
@@ -2626,14 +2620,13 @@ struct CalendarView: View {
     /// One line per hour with its label in the gutter.
     private var hourLines: some View {
         VStack(spacing: 0) {
-            ForEach(0..<24, id: \.self) { hour in
+            ForEach(Self.dayStartHour..<24, id: \.self) { hour in
                 ZStack(alignment: .topLeading) {
                     Rectangle().fill(line).frame(height: 0.5).padding(.leading, Self.gutter)
-                    if hour > 0 {
-                        Text(hourLabel(hour)).cpFont(11).monospacedDigit().foregroundStyle(muted)
-                            .frame(width: Self.gutter - 8, alignment: .trailing)
-                            .offset(y: -7)
-                    }
+                    // The first label (5 AM) sits just inside the top, so it isn't cut off.
+                    Text(hourLabel(hour)).cpFont(11).monospacedDigit().foregroundStyle(muted)
+                        .frame(width: Self.gutter - 8, alignment: .trailing)
+                        .offset(y: hour == Self.dayStartHour ? 2 : -7)
                 }
                 .frame(height: Self.hourHeight, alignment: .top)
                 .id(hour)
@@ -2653,21 +2646,21 @@ struct CalendarView: View {
                 Color.clear
                     .contentShape(Rectangle())
                     .onTapGesture(coordinateSpace: .local) { location in
-                        let minutes = min(23 * 60 + 30, max(0, Int(location.y / Self.hourHeight * 2) * 30))
+                        let minutes = min(23 * 60 + 30, Self.dayStartHour * 60 + max(0, Int(location.y / Self.hourHeight * 2) * 30))
                         editingEvent = .newAt(calendar.date(byAdding: .minute, value: minutes, to: calendar.startOfDay(for: day)) ?? day)
                     }
                 ForEach(placed) { item in
                     let columnWidth = width / CGFloat(item.columns)
                     eventBlock(item)
                         .frame(width: max(0, columnWidth - 3), height: max(18, CGFloat(item.end - item.start) / 60 * Self.hourHeight - 2))
-                        .offset(x: CGFloat(item.column) * columnWidth + 1, y: CGFloat(item.start) / 60 * Self.hourHeight + 1)
+                        .offset(x: CGFloat(item.column) * columnWidth + 1, y: CGFloat(item.start - Self.dayStartHour * 60) / 60 * Self.hourHeight + 1)
                 }
-                if isToday {
+                if isToday && nowMinutes >= Double(Self.dayStartHour * 60) {
                     HStack(spacing: 0) {
                         Circle().fill(nowRed).frame(width: 10, height: 10)
                         Rectangle().fill(nowRed).frame(height: 2)
                     }
-                    .offset(x: -5, y: CGFloat(nowMinutes) / 60 * Self.hourHeight - 5)
+                    .offset(x: -5, y: CGFloat(nowMinutes - Double(Self.dayStartHour * 60)) / 60 * Self.hourHeight - 5)
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
                 }

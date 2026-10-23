@@ -44,6 +44,9 @@ test("Google Calendar's phone layout: Schedule, Day, 3 days, Week and Month", ()
   // Overlapping things sit side by side; due at 11:59 PM stays inside the day.
   assert.match(calendar, /if entry\.end == nil \{ start = min\(start, 24 \* 60 - pointMinutes\) \}/);
   assert.match(calendar, /while taken\.contains\(column\) \{ column \+= 1 \}/);
+  // Day and Week run from 5 AM to 11 PM, as on the website.
+  assert.match(calendar, /static let dayStartHour = 5/);
+  assert.match(calendar, /ForEach\(Self\.dayStartHour\.\.<24, id: \\\.self\) \{ hour in/);
   // The same calendars as the website, switched off from the menu.
   assert.match(calendar, /CalendarOption\(id: "events", label: "My events"\)/);
   assert.match(features, /preferences\["calendar-hidden"\]/);
