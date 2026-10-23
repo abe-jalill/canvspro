@@ -49,7 +49,8 @@ function CompletedPage() {
   const courses = useQuery(coursesQueryOptions);
   const preferences = useUserPreferences();
   const completed = useLocalSet(COMPLETED_ASSIGNMENTS_KEY);
-  const custom = useCustomAssignments();
+  // Your own tasks too, class or not (To-Do lists both).
+  const custom = useCustomAssignments(true);
   const [search, setSearch] = useState("");
   // How far back to look, saved to the account (the iPhone uses the same).
   const savedRange = useUserPreferenceKey<number>(COMPLETED_RANGE_KEY, DEFAULT_COMPLETED_RANGE);

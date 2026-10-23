@@ -41,3 +41,8 @@ test("connecting Canvas says it's easiest on a computer and syncs automatically"
   const gate = readFileSync(new URL("../src/components/canvas-key-gate.tsx", import.meta.url), "utf8");
   assert.match(gate, /easiest on a computer/);
 });
+
+test("Completed lists your own tasks too, class or not", () => {
+  const page = readFileSync(new URL("../src/routes/_authenticated/completed.tsx", import.meta.url), "utf8");
+  assert.match(page, /const custom = useCustomAssignments\(true\);/);
+});
