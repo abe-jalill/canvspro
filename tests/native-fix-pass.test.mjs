@@ -195,7 +195,7 @@ test("rows swipe, haptics are gentle, and accessibility has every action", () =>
   assert.match(swift.NativeDesign, /struct CPAdaptiveStack/);
   assert.match(swift.NativeDesign, /traits\.accessibilityContrast == \.high/);
   // The faintest text stays readable in light mode.
-  assert.match(swift.NativeDesign, /: \.hsl\(palette\.hue, 0\.10, 0\.42\)/);
+  assert.match(swift.NativeDesign, /: \.hsl\(palette\.hue, 0\.10 \* palette\.tint, 0\.42\)/);
 });
 
 test("pages stay a readable width and the dashboard starts with the essentials", () => {

@@ -4,23 +4,27 @@ import UIKit
 // MARK: - Palette
 
 enum CPPalette: String, CaseIterable, Identifiable {
-    case forest, blue, violet, rose
+    case forest, blue, violet, rose, black
 
     var id: String { rawValue }
     var name: String { rawValue.capitalized }
     var hue: Double {
-        switch self { case .forest: 148; case .blue: 214; case .violet: 266; case .rose: 340 }
+        switch self { case .forest: 148; case .blue: 214; case .violet: 266; case .rose: 340; case .black: 0 }
     }
     /// The website's palette saturations (targeted-design.css).
     var saturation: Double {
-        switch self { case .forest: 0.34; case .blue: 0.58; case .violet: 0.48; case .rose: 0.45 }
+        switch self { case .forest: 0.34; case .blue: 0.58; case .violet: 0.48; case .rose: 0.45; case .black: 0 }
     }
+    /// How much of the palette's hue goes into backgrounds, cards and text:
+    /// none for Black, whose grays are neutral, as on the website.
+    var tint: Double { self == .black ? 0 : 1 }
     var swatch: Color {
         switch self {
         case .forest: Color(red: 48.0 / 255, green: 209.0 / 255, blue: 88.0 / 255)
         case .blue: Color(red: 118.0 / 255, green: 169.0 / 255, blue: 232.0 / 255)
         case .violet: Color(red: 179.0 / 255, green: 154.0 / 255, blue: 231.0 / 255)
         case .rose: Color(red: 220.0 / 255, green: 147.0 / 255, blue: 173.0 / 255)
+        case .black: Color(white: 0.9)
         }
     }
     var detail: String {
@@ -29,6 +33,7 @@ enum CPPalette: String, CaseIterable, Identifiable {
         case .blue: "Clear skies, clear mind."
         case .violet: "Space for a new idea."
         case .rose: "A warmer kind of focus."
+        case .black: "Pure black. Just your work."
         }
     }
 }
@@ -52,33 +57,37 @@ enum CPTheme {
     static let danger = adaptive(dark: .hsl(351, 0.95, 0.71), light: .hsl(347, 0.77, 0.50))
 
     static func background(_ scheme: ColorScheme, palette: CPPalette = currentPalette) -> Color {
-        scheme == .dark ? .hsl(palette.hue, 0.28, 0.04) : .hsl(palette.hue, 0.24, 0.97)
+        // Black is true black, as on the website (and off on OLED screens).
+        if palette == .black { return scheme == .dark ? .black : .hsl(0, 0, 0.98) }
+        return scheme == .dark ? .hsl(palette.hue, 0.28, 0.04) : .hsl(palette.hue, 0.24, 0.97)
     }
     /// Card surface: the website's --glass over the background.
     static func surface(_ scheme: ColorScheme, palette: CPPalette = currentPalette) -> Color {
         glass(scheme, palette: palette)
     }
     static func foreground(_ scheme: ColorScheme, palette: CPPalette = currentPalette) -> Color {
-        scheme == .dark ? .hsl(palette.hue, 0.10, 0.97) : .hsl(palette.hue, 0.26, 0.12)
+        scheme == .dark ? .hsl(palette.hue, 0.10 * palette.tint, 0.97) : .hsl(palette.hue, 0.26 * palette.tint, 0.12)
     }
     static func primary(_ palette: CPPalette = currentPalette, scheme: ColorScheme) -> Color {
-        .hsl(palette.hue, palette.saturation, scheme == .dark ? 0.72 : 0.30)
+        // Black's accent is white in Dark and black in Light.
+        if palette == .black { return .hsl(0, 0, scheme == .dark ? 0.93 : 0.09) }
+        return .hsl(palette.hue, palette.saturation, scheme == .dark ? 0.72 : 0.30)
     }
     /// Text and icons drawn on top of `primary`.
     static func onPrimary(_ scheme: ColorScheme, palette: CPPalette = currentPalette) -> Color {
-        scheme == .dark ? .hsl(palette.hue, 0.28, 0.08) : .white
+        scheme == .dark ? .hsl(palette.hue, 0.28 * palette.tint, 0.08) : .white
     }
     static func muted(_ scheme: ColorScheme, palette: CPPalette = currentPalette) -> Color {
-        scheme == .dark ? .hsl(palette.hue, 0.09, 0.67) : .hsl(palette.hue, 0.14, 0.40)
+        scheme == .dark ? .hsl(palette.hue, 0.09 * palette.tint, 0.67) : .hsl(palette.hue, 0.14 * palette.tint, 0.40)
     }
     /// Third-level text: timestamps, counts, hints.
     static func faint(_ scheme: ColorScheme, palette: CPPalette = currentPalette) -> Color {
-        scheme == .dark ? .hsl(palette.hue, 0.07, 0.52) : .hsl(palette.hue, 0.10, 0.42)
+        scheme == .dark ? .hsl(palette.hue, 0.07 * palette.tint, 0.52) : .hsl(palette.hue, 0.10 * palette.tint, 0.42)
     }
     static func glass(_ scheme: ColorScheme, strong: Bool = false, palette: CPPalette = currentPalette) -> Color {
         scheme == .dark
-            ? .hsl(palette.hue, strong ? 0.21 : 0.20, strong ? 0.116 : 0.112)
-            : .hsl(palette.hue, 0.24, strong ? 0.945 : 0.95)
+            ? .hsl(palette.hue, (strong ? 0.21 : 0.20) * palette.tint, strong ? 0.116 : 0.112)
+            : .hsl(palette.hue, 0.24 * palette.tint, strong ? 0.945 : 0.95)
     }
     /// The palette's soft gradient for the one card on a page that leads it
     /// (Today's Next up, More's profile).
@@ -109,7 +118,7 @@ enum CPTheme {
         return adaptive(dark: .hsl(hue, 0.50, 0.68), light: .hsl(hue, 0.50, 0.40))
     }
     static func border(_ scheme: ColorScheme, palette: CPPalette = currentPalette) -> Color {
-        scheme == .dark ? .hsl(palette.hue, 0.18, 0.88, opacity: 0.11) : .hsl(palette.hue, 0.28, 0.18, opacity: 0.11)
+        scheme == .dark ? .hsl(palette.hue, 0.18 * palette.tint, 0.88, opacity: 0.11) : .hsl(palette.hue, 0.28 * palette.tint, 0.18, opacity: 0.11)
     }
     static func inset(_ scheme: ColorScheme) -> Color {
         scheme == .dark ? Color.white.opacity(0.035) : Color.hsl(216, 0.30, 0.20, opacity: 0.035)
