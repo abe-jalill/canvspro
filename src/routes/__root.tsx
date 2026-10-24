@@ -22,7 +22,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider, useTheme } from "@/lib/theme";
 import { APP_SECTIONS, SURFACE_BOOT, surfaceFor } from "@/lib/app-surface";
 
-const themeBootScript = `try{${SURFACE_BOOT}}catch(e){}try{var t=localStorage.getItem("canvas:theme"),p=localStorage.getItem("canvas:palette");document.documentElement.classList.add(t==="dark"||t!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.palette=["forest","blue","violet","rose"].includes(p)?p:"forest";document.documentElement.dataset.wallpaper=["wave","glow"].includes(localStorage.getItem("canvas:wallpaper"))?localStorage.getItem("canvas:wallpaper"):"plain";document.documentElement.dataset.themeMode=t==="light"||t==="dark"?t:"system"}catch(e){document.documentElement.classList.add("light");document.documentElement.dataset.palette="forest";document.documentElement.dataset.wallpaper="plain"}`;
+const themeBootScript = `try{${SURFACE_BOOT}}catch(e){}try{var t=localStorage.getItem("canvas:theme"),p=localStorage.getItem("canvas:palette");document.documentElement.classList.add(t==="dark"||t!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.dataset.palette=["forest","blue","violet","rose","black"].includes(p)?p:"forest";document.documentElement.dataset.wallpaper=["wave","glow"].includes(localStorage.getItem("canvas:wallpaper"))?localStorage.getItem("canvas:wallpaper"):"plain";document.documentElement.dataset.themeMode=t==="light"||t==="dark"?t:"system"}catch(e){document.documentElement.classList.add("light");document.documentElement.dataset.palette="forest";document.documentElement.dataset.wallpaper="plain"}`;
 
 function NotFoundComponent() {
   return (

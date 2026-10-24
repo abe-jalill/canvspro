@@ -39,6 +39,33 @@
   --palette-saturation: 45%;
 }
 
+:root[data-palette="black"] {
+  --palette-hue: 0;
+  --palette-saturation: 0%;
+}
+
+/* Black: pure black (true black on OLED screens) with neutral grays and white
+   for the accent; in Light, white with black. Every token is set, since the
+   shared ones above tint their grays with the palette's hue. */
+:root.dark[data-palette="black"] {
+  --background: 0 0% 0%;
+  --foreground: 0 0% 97%;
+  --card: 0 0% 11% / 0.6;
+  --popover: 0 0% 5% / 0.97;
+  --primary: 0 0% 93%;
+  --primary-foreground: 0 0% 4%;
+  --secondary: 0 0% 10% / 0.72;
+  --muted: 0 0% 11% / 0.62;
+  --muted-foreground: 0 0% 64%;
+  --accent: 0 0% 14% / 0.74;
+  --border: 0 0% 100% / 0.1;
+  --input: 0 0% 100% / 0.13;
+  --ring: 0 0% 85% / 0.45;
+  --glass: 0 0% 11% / 0.6;
+  --glass-strong: 0 0% 9% / 0.78;
+  --glass-border: 0 0% 100% / 0.1;
+}
+
 :root.light[data-palette] {
   --background: var(--palette-hue) 24% 97%;
   --foreground: var(--palette-hue) 26% 12%;
@@ -60,6 +87,25 @@
   --glass: var(--palette-hue) 24% 94% / 0.7;
   --glass-strong: var(--palette-hue) 24% 94% / 0.84;
   --glass-border: var(--palette-hue) 28% 18% / 0.11;
+}
+
+:root.light[data-palette="black"] {
+  --background: 0 0% 98%;
+  --foreground: 0 0% 7%;
+  --card: 0 0% 95% / 0.72;
+  --popover: 0 0% 100% / 0.97;
+  --primary: 0 0% 9%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 0 0% 93% / 0.78;
+  --muted: 0 0% 92% / 0.65;
+  --muted-foreground: 0 0% 38%;
+  --accent: 0 0% 90% / 0.78;
+  --border: 0 0% 0% / 0.1;
+  --input: 0 0% 0% / 0.12;
+  --ring: 0 0% 20% / 0.4;
+  --glass: 0 0% 95% / 0.72;
+  --glass-strong: 0 0% 96% / 0.86;
+  --glass-border: 0 0% 0% / 0.1;
 }
 
 /* The page background sits on one fixed layer behind everything, so cards and
@@ -118,6 +164,8 @@
 :root.light[data-palette="blue"] { --wallpaper: url("/wallpapers/blue-light.webp"); }
 :root.light[data-palette="violet"] { --wallpaper: url("/wallpapers/violet-light.webp"); }
 :root.light[data-palette="rose"] { --wallpaper: url("/wallpapers/rose-light.webp"); }
+:root.dark[data-palette="black"] { --wallpaper: url("/wallpapers/black-dark.webp"); }
+:root.light[data-palette="black"] { --wallpaper: url("/wallpapers/black-light.webp"); }
 
 /* The wallpaper uses the same fixed layer. */
 :root[data-surface="app"][data-palette][data-wallpaper="wave"] body::before {
@@ -204,6 +252,19 @@
   background: var(--swatch);
   color: #102015;
   opacity: 0;
+}
+/* Black's preview is black, not the other palettes' green-black. */
+.appearance-palette[data-option="black"] .appearance-palette__scene {
+  background: #000;
+}
+.appearance-palette[data-option="black"] .appearance-palette__scene i {
+  background: #262626;
+}
+.appearance-palette[data-option="black"] .appearance-palette__scene i:first-child {
+  background: #141414;
+}
+.appearance-palette[data-option="black"] .appearance-palette__scene i:last-of-type {
+  background: #1c1c1c;
 }
 .appearance-palette[aria-pressed="true"] .appearance-palette__scene > span {
   opacity: 1;

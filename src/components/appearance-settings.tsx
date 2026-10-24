@@ -24,6 +24,7 @@ export function AppearanceSettings() {
               aria-pressed={palette === option.id}
               onClick={() => setPalette(option.id)}
               className="appearance-palette"
+              data-option={option.id}
               style={{ "--swatch": option.color } as CSSProperties}
             >
               <span className="appearance-palette__scene" aria-hidden="true">
