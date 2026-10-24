@@ -44,10 +44,10 @@
   --gc-card-shadow: 0 4px 8px 3px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
-/* Hour lines: one per hour, drawn as a repeating background so a day column stays one element. */
+/* Hour lines: one per hour (HOUR_HEIGHT), drawn as a repeating background so a day column stays one element. */
 .gcal-hours {
   background-image: linear-gradient(to bottom, var(--gc-line) 1px, transparent 1px);
-  background-size: 100% 48px;
+  background-size: 100% 60px;
 }
 
 /* Past events are shown lighter, as in Google Calendar. */

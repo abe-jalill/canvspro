@@ -75,6 +75,8 @@ function AuthenticatedLayout() {
   // server and client for this client-only area.
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const bare = BARE_PAGES.has(pathname);
+  // The Calendar uses the whole width beside the sidebar, as Google Calendar does.
+  const wide = pathname === "/schedule";
   // The dashboard's first-time questions come first; the streak waits for them.
   const layout = useDashboardLayout();
   const asking = pathname.startsWith("/dashboard") && (!layout.ready || layout.needsPicks);
@@ -131,7 +133,12 @@ function AuthenticatedLayout() {
           (bare || sidebarMode === "hidden") && "md:pl-4",
         )}
       >
-        <div className="mx-auto w-full min-w-0 max-w-6xl px-3 py-4 sm:px-4 md:p-6">
+        <div
+          className={cn(
+            "mx-auto w-full min-w-0 px-3 py-4 sm:px-4 md:p-6",
+            wide ? "max-w-none" : "max-w-6xl",
+          )}
+        >
           <div className={cn("mb-2 flex min-w-0 items-center justify-end gap-2", bare && "hidden")}>
             <CanvasLiveStatus />
             {/* Bell and profile already live in the mobile top bar — avoid duplicates on phones */}

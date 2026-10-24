@@ -46,7 +46,8 @@ export function classCalendarColor(courseId: number, courseIds: readonly number[
   return CLASS_PALETTE[(index >= 0 ? index : Math.abs(courseId)) % CLASS_PALETTE.length];
 }
 
-export const HOUR_HEIGHT = 48;
+/** Roomier than Google's 48px, so a class shows its name, time and room. */
+export const HOUR_HEIGHT = 60;
 /** Day and Week show 5 AM to midnight (the last hour is 11 PM). */
 export const DAY_START_HOUR = 5;
 export const DAY_START_MINUTES = DAY_START_HOUR * 60;
